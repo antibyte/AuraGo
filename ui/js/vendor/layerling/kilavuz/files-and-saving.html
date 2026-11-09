@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Files, saving and sharing - layerling kılavuzu</title>
+    <meta name="description" content="Where your designs live, how to back them up, which formats layerling imports and exports, and what is possible on a shared server.">
+    <link rel="canonical" href="https://layerling.com/guide/files-and-saving.html">
+    <meta name="robots" content="noindex">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/files-and-saving.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/files-and-saving.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/files-and-saving.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/dateien-und-speichern.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/files-and-saving.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/files-and-saving.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/files-and-saving.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/files-and-saving.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/bestanden-en-opslaan.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/files-and-saving.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/datoteke-in-shranjevanje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/files-and-saving.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/files-and-saving.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/files-and-saving.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/files-and-saving.html">
+    <meta property="og:title" content="Files, saving and sharing - layerling kılavuzu">
+    <meta property="og:description" content="Where your designs live, how to back them up, which formats layerling imports and exports, and what is possible on a shared server.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/kilavuz/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Kılavuz</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/kilavuz/search-index.json" data-nothing="Sonuç yok." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Kılavuzda ara" aria-label="Kılavuzda ara" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Dil">Türkçe</summary><ul><li><a href="/api/desktop/layerling/ui/guide/files-and-saving.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/files-and-saving.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/files-and-saving.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/files-and-saving.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/files-and-saving.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/files-and-saving.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/files-and-saving.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/files-and-saving.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/files-and-saving.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/files-and-saving.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/datoteke-in-shranjevanje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/files-and-saving.html" hreflang="tr" lang="tr" aria-current="true">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/files-and-saving.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/files-and-saving.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/files-and-saving.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/files-and-saving.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/files-and-saving.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Editörü aç</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Editör zaten başka bir sekmede açık – oraya geçmen yeterli.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Bölümler"><h2>Bölümler</h2><p class="print-link"><a href="/api/desktop/layerling/ui/kilavuz/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Yazdırmak için tüm kılavuz</span></a></p><ol><li><a href="/api/desktop/layerling/ui/kilavuz/getting-started.html">Getting started</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/view-and-workplane.html">View and workplane</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/shapes.html">Placing and adjusting shapes</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/select-and-arrange.html">Selecting and arranging</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/solids-and-holes.html">Solids and holes</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/edges-and-hollowing.html">Breaking edges and hollowing bodies</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/sketches.html">Sketches: from outline to body</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/text.html">Text and curved lettering</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/threads-and-mechanics.html">Threads, gears and other parts</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/measuring-and-notes.html">Measuring and notes</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/printing.html">Preparing for 3D printing</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/files-and-saving.html" aria-current="page">Files, saving and sharing</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/shortcuts.html">Keyboard shortcuts</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/ai-with-mcp.html">Building with an AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/offline-and-install.html">Installing as an app, working offline and self-hosting</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/videos.html">Videos about layerling</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/tablet-and-touch.html">Tablet and touch</a></li></ol></nav>
+      <main>
+<h1>Files, saving and sharing</h1>
+<p class="lead">Where your designs live, how to back them up, which formats layerling imports and exports, and what is possible on a shared server.</p>
+<p class="not-translated" role="note" lang="tr">Bu bölüm henüz Türkçeye çevrilmedi. Aşağıda İngilizce metin var.</p>
+<div class="toc"><b>Bu sayfada</b><ul><li><a href="#where-your-designs-live">Where your designs live</a></li><li><a href="#folders-for-your-designs">Folders for your designs</a></li><li><a href="#backing-up-and-passing-on">Backing up and passing on</a></li><li><a href="#attachments">Attachments</a></li><li><a href="#exporting">Exporting</a></li><li><a href="#importing">Importing</a></li><li><a href="#simplifying-an-imported-mesh">Simplifying an imported mesh</a></li><li><a href="#making-an-imported-mesh-exact">Making an imported mesh exact</a></li><li><a href="#reporting-a-bug">Reporting a bug</a></li><li><a href="#shared-designs-on-a-server">Shared designs on a server</a></li></ul></div>
+<section class="guide-part"><h2 id="where-your-designs-live">Where your designs live</h2>
+<p>layerling saves everything in the browser on your computer. There is no account and nothing is uploaded. (With a copy you host yourself, designs can live in a shared folder on the server instead; see the section on the shared folder further down.) Every change saves itself. The preview picture on the start page shows the view you last had in front of you when you went back with <strong class="ui">“Ana sayfa”</strong>. If you open layerling in the same browser days later, everything is there.</p>
+<p>If you go back to the start page from a design with nothing in it, layerling asks whether to keep it. <strong class="ui">“Evet”</strong> or <kbd>Enter</kbd> keeps it, <strong class="ui">“Hayır”</strong> removes it, so empty designs do not pile up. For a design in a shared folder on a server, <strong class="ui">“Hayır”</strong> deletes the file from the server, for everyone who uses it.</p>
+<p>That has a downside: whoever clears the browser storage or switches to another computer loses the designs. <strong>So back up important work into a file.</strong></p>
+</section><section class="guide-part"><h2 id="folders-for-your-designs">Folders for your designs</h2>
+<p>With dozens of designs a single list is not enough. On the start page, <strong class="ui">“Yeni klasör”</strong> makes a folder for the designs of this browser; a click on the folder opens it. Folders can hold folders.</p>
+<ul><li><strong>Into a folder:</strong> drag a design onto the folder, or choose <strong class="ui">“Şuraya taşı …”</strong> in the design's menu, which lists every folder. A new design, and a file you open or import, made while a folder is open lands in that folder.</li><li><strong>Out again:</strong> the first tile in a folder, <code>..</code>, and the line under the tabs lead back; you can drop a design on them too. A folder dragged onto another folder goes inside it.</li><li><strong>Rename and delete</strong> are in the folder's menu. Deleting a folder deletes no design: what was in it moves one level up.</li><li><strong>Search</strong> looks through every folder; a design that is found shows its folder, and a click on it opens the folder.</li></ul>
+<p><strong class="ui">“Tümünü yedekle”</strong> keeps the folders: the designs sit in the backup file in their folders, and restoring the backup puts them back there. The folders of this browser are separate from the folders on a server. The card pictures go into the file too, so they are back as soon as you restore.</p>
+</section><section class="guide-part"><h2 id="backing-up-and-passing-on">Backing up and passing on</h2>
+<p>On the start page every design has a menu with the options to rename, duplicate and delete. The row beside the tabs has the same buttons on every tab. To delete several designs at once, click <strong class="ui">“Select”</strong>: a click on a card chooses it (a tick shows what is chosen), <strong class="ui">“Select all”</strong> chooses every design in the list, and <strong class="ui">“Sil”</strong> asks once for all of them. <strong class="ui">“Done”</strong> or <kbd>Esc</kbd> leaves the selection. With <strong class="ui">“Tümünü yedekle”</strong> you pack all designs of the open tab into one single ZIP file. <strong class="ui">“Yedeği geri yükle”</strong>, beside it (it is there on a new computer with no designs, too), brings them back, also in another browser or on another computer; <strong class="ui">“Tasarım aç veya geometri içe aktar”</strong> takes the same file. The <strong class="ui">“Özel şekiller”</strong> travel in the same file, in the folder <code>Custom shapes</code>, see <a href="/api/desktop/layerling/ui/kilavuz/shapes.html">Shapes</a>. If you restore a backup into a browser that already has some of these designs, those are not added a second time; the notice says how many were already there. A design that cannot be read is left out, and the notice names it. If the page reloads in the middle of a backup, usually because a very large design took all the memory the browser allows, the start page says afterwards at which design it stopped: save that one on its own as a file (see below) or simplify its largest meshes, then back up again. Above the designs of this browser, a short line reminds you that they are kept nowhere else.</p>
+<p>Only some designs: after <strong class="ui">“Select”</strong>, <strong class="ui">“Yedekle”</strong> packs just the chosen designs, in their folders, into one ZIP file, and <strong class="ui">“Yedekle”</strong> in a folder's menu packs that folder with every design and folder in it. Neither takes the custom shapes along, and <strong class="ui">“Yedeği geri yükle”</strong> brings both back like a full backup. This is for the designs of this browser.</p>
+<p>Where a backup goes: in Chrome and Edge a save dialog asks for the folder and the name, and it remembers the folder for the next backup. That way your backups go straight into a folder of your own, on a cloud drive for example. The same goes for <strong class="ui">“Özel şekilleri yedekle”</strong>. Other browsers put the file into their download folder; which folder that is, you set in the browser's settings.</p>
+<p>If a design opens very slowly or not at all, usually because its history of undo steps has grown very large, choose <strong class="ui">“Open without history”</strong> in its menu on the start page. layerling then reads only the current state, deletes every earlier step for good and opens the design; after a question, because this cannot be undone. To keep the steps, back the design up with <strong class="ui">“Yedekle”</strong> first.</p>
+<p>You back up a single design in the editor: <strong class="ui">“Dışa aktar”</strong>, choose the format <strong>LYL</strong> and click <strong class="ui">“layerling tasarımını kaydet”</strong>. The LYL file is layerling's own design format and contains everything: shapes, groups, sketches, CAD data, imported sources and the history, meaning the undo steps. Under <strong class="ui">“Kaydedilen işlem geçmişi”</strong> you choose how many of the last steps travel along; it starts at what the settings (the cogwheel in the ribbon) keep under <strong class="ui">“Geçmiş”</strong>. The last stop, <strong class="ui">“Hiçbiri”</strong>, saves the design with its current state only - the way to share a file without its undo steps. The export is a copy under the <strong class="ui">“Dosya adı”</strong> you give it; the design in your browser keeps its history. Older <code>.skf</code> files from earlier versions can still be opened; they are then saved as <code>.lyl</code>.</p>
+<p><strong>Saving into your own folder (Chrome and Edge).</strong> There the button opens your system's save dialog, so you pick the folder and the name yourself, and an existing file can be replaced. Afterwards <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>S</kbd></span> saves the design into that same file again, without a dialog. A design opened from a <code>.lyl</code> file with <strong class="ui">“Tasarım aç veya geometri içe aktar”</strong> or the open button of the export window saves back into that file, too. The browser may ask once for permission to change the file. After the page is reloaded the design forgets its file, and the next <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>S</kbd></span> asks for it again; the dialog starts in the folder you used last. Firefox and Safari do not allow a page to write into files like this. There the file is downloaded to the Downloads folder as before, and <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>S</kbd></span> downloads it again; Firefox can be set to ask for the folder each time under Settings, General, Downloads. If you give the file a different name there, the design keeps its own name, since a version or a date in the file name is often meant that way; the message after saving then offers <strong class="ui">“Tasarıma da bu adı ver”</strong>.</p>
+<p><strong>When the save dialog saves nothing.</strong> If the dialog closes without a file, the message at the top says so and offers <strong class="ui">“Download instead”</strong>: the design then goes to the Downloads folder like in Firefox. The browser reports a dialog closed with Cancel the same way as one it could not use, so on a PC where the save dialog fails for every folder this is the way to keep saving.</p>
+</section><section class="guide-part"><h2 id="attachments">Attachments</h2>
+<p>Instructions, a parts list, notes, a photo or a datasheet can stay with the design as files. <strong class="ui">“Attachments”</strong> in the <strong class="ui">“Dosya”</strong> group of the ribbon, the paperclip, opens the list; a small dot on the paperclip shows that the design has some.</p>
+<ul><li><strong><strong class="ui">“Upload attachment”</strong>:</strong> Choose one or more files: <code>.md</code> (Markdown) or <code>.txt</code> as plain text (UTF-8), <code>.png</code>, <code>.jpg</code>, <code>.jpeg</code> or <code>.webp</code> pictures, or <code>.pdf</code> documents. A file is checked by its content, so a file that is not what its name says is refused, and other types, <code>.svg</code> among them, cannot be attached. A text file can be at most 2 MB, a picture 16 MB and a PDF 32 MB; a design holds up to 32 files and 64 MB together.</li><li><strong>The list:</strong> The arrow downloads a file as it was uploaded. The bin removes it; the row asks once more first, and a removed file cannot be brought back with undo, because attachments are not part of the undo history.</li><li><strong>Reading a file:</strong> The eye on the row of a <code>.md</code> or <code>.txt</code> file opens it in a window to read, without downloading it. Markdown is shown formatted, with headings, lists, tick boxes, tables and code; a text file is shown exactly as it is written. Only links to web pages and e-mail addresses work, and they open in a new tab. Pictures named in the file are not loaded: their description stands in their place. Escape, the cross or a click beside the window closes it. Reading works in the History view too.</li><li><strong>Looking at a picture:</strong> The eye on the row of a picture opens it in the same window, shrunk to fit when it is large. A PDF has no eye: download it and open it in the program you read PDF files with.</li><li><strong>A name that is already there:</strong> layerling asks what to do. <strong class="ui">“Replace”</strong> puts the new content into the file of that name, which keeps its place in the list. <strong class="ui">“Yeniden adlandır”</strong> adds the new file under another name and suggests the first free one, such as <code>notes 2.md</code>. The cross leaves the new file out. Upper and lower case count the same, and the same file uploaded again changes nothing.</li></ul>
+<p>Attachments are saved with the design like everything else: in the browser, in a LYL file, in a backup and in a design on a server, which they reach as soon as one is added or removed. They do not come along with <strong class="ui">“Bu tasarıma ekle”</strong> or with a custom shape, and a bug report does not contain them. A design with attachments is saved as a newer kind of LYL file: an older layerling says that it cannot open it instead of dropping the files. A design without attachments is saved exactly as before.</p>
+</section><section class="guide-part"><h2 id="exporting">Exporting</h2>
+<p>Click <strong class="ui">“Dışa aktar”</strong> or press <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>E</kbd></span>.</p>
+<p>If the window covers something, drag it by its title bar to another spot; the Import and Attachments windows move the same way. A double click on the title bar puts it back.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/export-panel.webp" alt="The export window with the formats STL, 3MF, OBJ, STEP, SVG, PNG, LYL and 2D." width="1280" height="800" loading="lazy"><figcaption>The export window with the formats STL, 3MF, OBJ, STEP, SVG, PNG, LYL and 2D.</figcaption></figure>
+<p>At the top is the file name, below it you choose the format. With something selected, only the selection is exported, otherwise the whole design. If the selection leaves out visible parts, a note in the window says so plainly, and <strong class="ui">“Tümünü seç”</strong> selects everything visible in one click. Once the file is written, the window closes by itself; if the export fails, it stays open with the message.</p>
+<div class="table-scroll"><table><thead><tr><th>Format</th><th>For</th><th>What to know</th></tr></thead><tbody><tr><td><strong>STL</strong></td><td>slicer and 3D printing</td><td>A triangle mesh. The simplest and most widespread format. An STL has no parts: bodies that overlap are joined into one mesh. To keep them as separate parts, export 3MF. In Chrome and Edge the first STL export asks where to save, and later STL exports of the design write into that file, until you type another name in the file name field or press <strong class="ui">“Farklı kaydet…”</strong>.</td></tr><tr><td><strong>3MF</strong></td><td>slicer with colours</td><td>Every body stays a part of its own with name and colour. Overlapping bodies are only joined when they share a colour; where a shape sits inside one of another colour, say a logo in a plate, the one built first leaves room for the later one. Suited to PrusaSlicer, Bambu Studio, OrcaSlicer and Cura. Bambu Studio and OrcaSlicer ask on opening how to map the colours onto your filaments, and call the file &quot;not from Bambu&quot; - the message is harmless. OrcaSlicer and the slicers built on it do not read a colour per face, though. A file with a body of several colours, such as a Gridfinity bin with letters in a colour of their own or a group with <strong class="ui">“Çok renkli”</strong> on, therefore also has every face painted with its colour's filament, as painting in the slicer would: OrcaSlicer and PrusaSlicer 2.9 then print each colour with its filament, PrusaSlicer up to 15 colours, and Bambu Studio 2.9 takes the filaments from the painting instead of asking.</td></tr><tr><td><strong>OBJ</strong></td><td>modelling and exchange</td><td>A widely supported mesh format. Colours are stored as vertex colours in the same file, with no extra <code>.mtl</code>. Bambu Studio and OrcaSlicer read them and ask, as with 3MF, how to map them onto your filaments; other programs see only the shape. As with 3MF, overlapping bodies are only joined when they share a colour.</td></tr><tr><td><strong>STEP</strong></td><td>a full CAD program</td><td>Keeps boxes, cylinders, spheres and cones as exact geometry, and so shapes made from an outline (star, heart, ellipse, tube, half sphere, round roof, rounded box, dovetail, the bores and more), the bent tube, the wedge, the pyramid, the paraboloid, the curved cone, threads, springs and gears, plus fillets and chamfers. The first STEP export in a session loads the CAD kernel (about 22 MB) once.</td></tr><tr><td><strong>SVG</strong></td><td>laser cutter and plotter</td><td>A clean top view in millimetres, including holes and curved outlines. Under <strong class="ui">“Görünüm”</strong>, <strong class="ui">“Çalışma düzlemindeki taban izi”</strong> writes only the outlines where the objects stand on the workplane. <strong class="ui">“Yukarıdan görünen kenarlar”</strong> writes the edges you see from above as lines, each body in its colour; see below.</td></tr><tr><td><strong>DXF</strong></td><td>laser cutting shop</td><td>The same top view (<strong class="ui">“Üstten siluet”</strong> or <strong class="ui">“Çalışma düzlemindeki taban izi”</strong>) as one outline of lines, true arcs and circles - no polylines, splines or curves made of short straight pieces - on layer 0 in white, DXF 2000 in millimetres, not mirrored. Bodies that touch become one outline, so no line is cut twice. Shops ask for one part per file: select the part before exporting. Not yet tried on a laser cutter: feedback is welcome.</td></tr><tr><td><strong>PNG</strong></td><td>forum posts, print sites, questions</td><td>A picture of the view as it is, at twice the resolution and without handles, selection frames and dimensions. <strong class="ui">“Baskı tablasını göster”</strong> and <strong class="ui">“Saydam arka plan”</strong> are chosen in the window. Turn and zoom first until the picture is right; the selection does not matter here.</td></tr><tr><td><strong>LYL</strong></td><td>layerling itself</td><td>The editable design with everything that belongs to it.</td></tr><tr><td><strong>2D</strong></td><td>workshop, lathe and mill, documentation</td><td>A drawing at 1:1 as PDF or SVG: front, top and right-side views on an ISO sheet. See below.</td></tr></tbody></table></div>
+<p><strong>Bridges for parts that would fall out (DXF and SVG).</strong> When a plate with text is cut by a laser or a plotter, the middle of letters like o, a and b falls out. Tick <strong class="ui">“Bridges for parts that would fall out”</strong> in the export window of the DXF, or of the SVG with the top view, and small bridges hold such parts to the material round them, as on a stencil: <strong class="ui">“Bridge width”</strong> (0.5 to 3 mm) and <strong class="ui">“Bridges per part”</strong> (1 to 4) are set beside it. A bridge never touches another outline or another bridge and never leaves a gap too narrow to cut; parts that would only hold each other are tied to the plate too. If a part gets no bridge at the chosen width, the message after the export says how many. Nothing changes unless the box is ticked.</p>
+<p><strong>STL into your own folder (Chrome and Edge).</strong> There the first STL export of a design opens your system's save dialog, so you pick the folder and the name yourself and can replace an existing file. After that every STL export of the design writes into that same file without a dialog; the export window shows which file, and <strong>Save as…</strong> next to the export button picks another. The dialog remembers its own folder, apart from the one for designs, so the slicer files can stay with the slicer. After the page is reloaded the design forgets its STL file and the next export asks again. Firefox and Safari download the file as before. If you would rather have every STL as a plain download, so that the browser numbers a name it has already used (<code>name (1).stl</code>, <code>name (2).stl</code>) as Tinkercad does, switch on <strong class="ui">“Save STL as a download”</strong> in the settings under <strong class="ui">“Görünüm”</strong>.</p>
+<p>A hole you have not grouped is taken out of every body it reaches when you export, as the view shows it. So there is no need to group before each export. With a selection, only the selected holes count. A hole cannot be exported on its own; layerling points that out.</p>
+<p>STEP only carries exact CAD bodies. An imported mesh is made exact for the file, as <strong class="ui">“Make exact”</strong> does (see &quot;Making an imported mesh exact&quot; below), which can make the export take up to a minute; a mesh that is mostly free-form, such as a figure, is left out, as is anything else that cannot be written exactly. The message after the export names those bodies and says why. For the printer, use STL or 3MF, which carry everything.</p>
+<section class="guide-part"><h3 id="svg-for-a-laser-or-plotter">SVG for a laser or plotter</h3>
+<p>With <strong class="ui">“Yukarıdan görünen kenarlar”</strong> under <strong class="ui">“Görünüm”</strong>, the SVG shows the design as you see it from above, like the top view of a drawing: every edge you can see is a line, and edges hidden by other parts are left out. Each line has the colour of its body, so a laser or plotter program that sorts by colour puts each colour on a layer of its own. Whether a layer is cut, scored or engraved, you choose there.</p>
+<p>Every area a colour shows has a closed outline, and where two bodies meet, both get the line. The areas are filled even-odd, so filling a colour to engrave it leaves its holes and the places of other bodies free. A part reaching through another gets the line where it comes out. The SVG is at 1:1 in millimetres, with the front of the design at the bottom of the page, in the same place as the silhouette. A design with too many edges for this view, such as a plate with hundreds of holes, gets its filled silhouette instead, and the message after the export says so.</p>
+</section><section class="guide-part"><h3 id="a-drawing-for-the-workshop">A drawing for the workshop</h3>
+<p>Choose the format <strong>2D</strong> (hover over it and it says Drawing) and, below the file name, PDF or SVG. With something selected, only the selection is drawn, otherwise the whole visible design; holes you have not grouped still cut the parts they reach.</p>
+<p>layerling draws the front, top and right-side views in first-angle layout (the right side to the left of the front view, the top view below it) on the smallest ISO sheet that fits, from A4 to A0, or a larger one if the part needs it. It is always at 1:1. Each view carries its overall width and height, and edges you cannot see are dashed. Round bores that run parallel to a view direction get a centre cross and a label (F1, T1, R1), and a table at the bottom lists their diameter and position, measured from the lower-left corner of the view. The title block in the lower-right corner holds the name, scale, units, date and sheet number. The words on the sheet follow the interface language.</p>
+<p>Print at 100 % or &quot;actual size&quot;, or the lengths will not match. What the drawing does not do: threads, depths, tolerances and bores at an angle are not dimensioned, and the sizes come from the model as a mesh, so they are nominal. A very detailed part (over 100,000 triangles) or more than 200 bores is refused with a message; choose fewer objects then.</p>
+<p>The projection is based on the drawing work of Cadverix-3D by WC3D.</p>
+</section><section class="guide-part"><h3 id="how-much-filament-does-it-take">How much filament does it take?</h3>
+<p>For STL, 3MF, OBJ and STEP the <strong class="ui">“Malzeme”</strong> box shows the volume, weight and length of 1.75 mm filament of what is exported. It counts like the file: visible bodies only, holes taken off, overlaps only once. On the right you pick the filament - PLA, PETG, ABS, ASA, TPU or PA (nylon) - and the weight follows its density. The volume is the body's own. Weight and filament are a rough estimate for a print with walls and infill: you set the <strong class="ui">“Doluluk”</strong> (15 % to begin with) and the <strong class="ui">“Duvarlar”</strong> (2) under the heading, and the box says what it counted and what the same part would weigh solid. Your slicer's own settings decide the real number, so take it as a guide: good for comparing designs and for whether the spool will last. At 100 % infill the box counts the part as solid, the upper bound. The box works out its numbers when you press <strong class="ui">“Calculate”</strong>, so the export window opens at once even for a finely traced model.</p>
+</section></section><section class="guide-part"><h2 id="importing">Importing</h2>
+<p>With <strong class="ui">“İçe aktar”</strong> or <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>I</kbd></span> you bring foreign files into the design.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/import-panel.webp" alt="The import window: open or insert designs and drop geometry." width="1280" height="800" loading="lazy"><figcaption>The import window: open or insert designs and drop geometry.</figcaption></figure>
+<ul><li><strong><strong class="ui">“layerling tasarımı aç”</strong>:</strong> A layerling design (<code>.lyl</code>, or an older <code>.skf</code>) comes back as a new design.</li><li><strong><strong class="ui">“Bu tasarıma ekle”</strong>:</strong> The bodies of a layerling design are added to the open one. Handy for basic shapes you need again and again: build them once, save them and bring them in every time. Drop one or more <code>.lyl</code> files on the drop zone below and they are inserted the same way. Its <a href="/api/desktop/layerling/ui/kilavuz/measuring-and-notes.html">notes</a> come along, closed and numbered on after the ones already in the design, and so do its reference points.</li><li><strong><strong class="ui">“Insert from the server”</strong>:</strong> The same for a design kept on the server (shown when there is a server store). Pick the folder and click the design; its bodies are added to the open one.</li><li><strong>DXF:</strong> A DXF, as a laser cutting shop or a supplier sends a part outline, comes in as parts to work on: every closed outline a body 4 mm high and every hole in it a hole of its own beside it (a round one a cylinder), so a hole is moved and sized in the 3D editor like any other; select them all to move the part. In millimetres (a file in inches is converted, one without a unit is read as millimetres), arcs and circles kept as true arcs. Lines, arcs, circles, ellipses, polylines, splines and blocks are read; text, dimensions and hatches are left out, and outlines that do not close too - the message says how many. Set the thickness in the properties.</li><li><strong>Add geometry:</strong> Drop STL, OBJ, 3MF, STEP, SVG, PNG or JPG files in the window or click to choose a file. Imported meshes can be turned, moved, cut with holes and built upon. A STEP file with several solids, an assembly from another CAD program, comes in as one body each under the name the file gives it, in its place to the others and in the colour the file gives it; several bodies under one entry of the file, the screws of a part say, become a part each. Its assemblies become bundles under their names, an assembly inside one a bundle inside the bundle; so a whole assembly hides or moves at once, and a double click opens it to work on a single part. An SVG comes in as a sketch body, one from a tracer such as picsvg.com or Inkscape's &quot;Trace Bitmap&quot; as well: its outlines become the lines and curves of a sketch, 4 mm high and reading from above as in the drawing. In the properties you set its <strong class="ui">“Dolgu”</strong>, an area or a stroke outside, inside or centred, and <strong class="ui">“Silüet (deliksiz)”</strong> leaves the holes out, see <a href="/api/desktop/layerling/ui/kilavuz/sketches.html">Sketches</a>, &quot;Fill and silhouette&quot;. You change the points themselves in sketch mode. If it should come in at a size of your own, type the width in the import window under <strong>SVG and picture: width in mm</strong> first, as in Tinkercad: the drawing is scaled to it, height and depth with it, and the field is empty again after that one import; left empty, an SVG comes in at its own size and a picture 50 mm wide. Only a very intricate SVG with more than 2500 lines and curves comes in as a fixed mesh. A PNG or JPG picture is traced into an outline and comes in the same way, as a sketch body 50 mm wide that you can resize afterwards: the part of the picture that is not its background, the background being the part that takes up more of the picture's edge. An SVG that holds nothing but one picture is traced the same way. A shape that cannot be built into a solid, such as an outline that crosses itself or touches itself at a point, is left out, and after the import layerling says how many there were. Then it helps to join overlapping pieces in the drawing program, close the outlines and save the file again. Drawings made on one page, such as the layers of one document exported as separate files, line up again when you switch on <strong class="ui">“SVG: çizim sayfasındaki yeri koru”</strong> in the import window before you import them: each keeps its place on the page, where otherwise each is centred on itself. An SVG drawn in several colours comes in as one body per colour as well, each in its colour and in its place; with more than 12 colours, as a traced picture has, it stays one body. A coloured OBJ or 3MF comes in as one body per colour, each in its place. In an OBJ the colours sit either in the file itself, as in an OBJ from layerling, or in an <code>.mtl</code> beside it. Select that one too, or import the whole ZIP the way Tinkercad hands out its OBJ. A 3MF carries its colours itself, and in a project from Bambu Studio, OrcaSlicer or PrusaSlicer each part takes the colour of its filament. A 3MF with several objects, such as a project with one object per plate, comes in as one body per object; modifiers, negative volumes and support blockers from the slicer are left out. Colour painted onto faces in the slicer is not read.</li><li><strong>From Tinkercad:</strong> An STL or OBJ export from Tinkercad comes in as geometry like any other mesh, and an OBJ keeps the colours. The real shapes come across with a free tool from the community: <a href="https://taylormadearmy.github.io/tinkercad-layerling-importer/" rel="noopener">Export to layerling</a> by taylormadearmy, a bookmark that converts a Tinkercad design in your browser into a <code>.lyl</code> file, which you open here with <strong class="ui">“layerling tasarımı aç”</strong>. It is not part of layerling and we have not tested it ourselves yet; its author tested it on Windows with Chrome.</li></ul>
+<p>A design saved with a <strong>newer layerling</strong> may hold things your version does not know yet, such as a new shape, a new setting or fonts of one's own. If layerling cannot open it for that reason, the message names both versions. If it opens, the notice says that newer things may look different here. Either way, reloading the page helps: layerling.com always serves the newest version. The installed app picks it up the next time it starts; on your own server you install the update.</p>
+<p>Template pictures are added in sketch mode, see <a href="/api/desktop/layerling/ui/kilavuz/sketches.html">Sketches</a>.</p>
+</section><section class="guide-part"><h2 id="simplifying-an-imported-mesh">Simplifying an imported mesh</h2>
+<p>A scanned or sculpted mesh often has far more triangles than its shape needs, and every one of them is carried along while you move, cut and save. <strong class="ui">“Ağı sadeleştir”</strong> in the Modify group (or in the right-click menu of the body) shows the mesh as it is next to what a chosen share of its triangles would leave of it; both views turn and zoom together with the mouse buttons of the workplane. Set how much to keep as a percentage or a number of triangles, and <strong class="ui">“Sadeleştir”</strong> takes the lighter mesh. The result is a plain mesh: for the result of a cut or merge, <strong class="ui">“Grubu düzenle”</strong> and its original parts are given up. With <strong class="ui">“Keep edges and holes”</strong> switched on, as it is to begin with, sharp edges and the rims of holes stay exactly where they are while flat faces still lose most of their triangles; switched off, the simplifier may round them off to reach a lower count. If the simplifier stops above the number you asked for, the window says so and why: with <strong class="ui">“Keep edges and holes”</strong> on, a body made of flat faces and sharp edges, such as boxes and wedges, often cannot lose more.</p>
+<p>Cutting, merging and intersecting an imported mesh is calculated in your browser, so the workspace settings limit how many triangles such a mesh may have (<strong class="ui">“İçe aktarılmış ağları şu sınıra kadar kes”</strong>). A mesh above the limit is not processed, and the message names its triangle count; simplify the mesh first, or raise the limit if your computer can take it.</p>
+</section><section class="guide-part"><h2 id="making-an-imported-mesh-exact">Making an imported mesh exact</h2>
+<p>An STL, OBJ or 3MF file holds only triangles, even when the part was drawn in CAD with flat faces and round bores. <strong class="ui">“Make exact”</strong> in the <strong class="ui">“Değiştir”</strong> group (or in the right-click menu of the body) looks through those triangles for the planes, cylinders, cones, spheres and tori they were made of and rebuilds the body from them as an exact CAD body: a bore becomes one real cylinder with a round rim instead of a hundred narrow strips. After that, <strong class="ui">“Yuvarlat”</strong> and <strong class="ui">“Pah kır”</strong> follow one clean edge, <strong class="ui">“Yüzey sil”</strong> takes away a whole rounding or the wall of a hole, and a STEP export carries the real faces. The status line says what was found, such as &quot;planes: 9, cylinders: 4&quot;.</p>
+<p>What fits none of these surfaces stays as small flat facets, and the message says how much of the surface that is. A body that is mostly free-form, such as a figure or a sculpted shape, stays a mesh, and so does a mesh with gaps or crossed walls, which cannot close into a solid. Up to 400,000 triangles are taken, and a large mesh can take a few minutes. A larger mesh goes below that with <strong class="ui">“Ağı sadeleştir”</strong> and <strong class="ui">“Keep edges and holes”</strong> switched on; otherwise take the mesh as it came, it comes out cleanest. One undo step brings the mesh back.</p>
+<p>For a small mesh with round faces, up to 4,000 triangles, the edge tools do this by themselves: rounding an edge of such an STL rebuilds it the same way first.</p>
+</section><section class="guide-part"><h2 id="reporting-a-bug">Reporting a bug</h2>
+<p>If layerling does something unexpected, save a <strong class="ui">“Hata raporu”</strong>: the link sits in the footer at the bottom, next to the forum. It is a ZIP file, because GitHub and many forums refuse a bare .lyl: inside are your design as a .lyl and a short text file with the version, browser, screen size, the last messages and any errors. The start page opens the ZIP like a backup, or you unpack it and open the .lyl. Nothing personal is in it. Attach the file to your post in the forum or on GitHub, so the problem can be followed with exactly your design.</p>
+<p>If layerling stops with an error, a window with the error message shows instead of a blank page. From it you can save the state of the design last stored in the browser as a .lyl file, go back to the overview, or start a new design. The error message from the window and the saved file help when you report it.</p>
+</section><section class="guide-part"><h2 id="shared-designs-on-a-server">Shared designs on a server</h2>
+<p>When layerling runs on your own computer or web server, it can offer a shared folder in which all users keep designs. The start page then holds the designs in two tabs, <strong class="ui">“Sunucu”</strong> for the shared folder and one for this browser, each with the number of designs in it; the one with more designs comes first and is open. You create folders there, move designs by dragging and search across the whole folder. A design that lives there saves itself back to it. A design from this browser goes onto the server by dragging its card onto the <strong class="ui">“Sunucu”</strong> tab, or with <strong class="ui">“Sunucuya koy”</strong> in the card's menu. While the <strong class="ui">“Sunucu”</strong> tab is open, <strong class="ui">“Yeni 3D tasarım oluştur”</strong> and <strong class="ui">“Yedeği geri yükle”</strong> put the design into the server folder you have open, and <strong class="ui">“Tümünü yedekle”</strong> packs every design of the server, in its folders, and its custom shapes into one ZIP file. The start page shows a design by its file name, so renaming a design, on its card or at the top of the editor, renames the file on the server too. Deleting a design or a folder removes it for good, together with its working copy in this browser. Custom shapes kept on the server sit in its folder <code>Custom shapes</code>, see <a href="/api/desktop/layerling/ui/kilavuz/shapes.html">Shapes</a>.</p>
+<p>Two things make that quicker: <strong class="ui">“Tümünü sunucuya koy”</strong> on the start page puts every design of this browser on the server in one go, and ticking <strong class="ui">“Yeni tasarımlar sunucuda”</strong> makes every new design start in the server folder, so it is saved there from the first change on. With the tick, everything else that makes a design starts there too: opening or importing a file, <strong class="ui">“Yedeği geri yükle”</strong> (with the backup's folders), duplicating and taking a state from the history, each into the server folder you had open; <strong class="ui">“Yeni klasör”</strong> on the start page then makes a folder on the server. A design made in the first moments waits until the server has answered. When new designs must always start on the server and this browser holds none of its own, the start page shows only the server's designs. The tick is kept in this browser. A design that cannot go - its name is taken on the server, say - stays in the browser, and the message says how many.</p>
+<p>The other export formats (STL, 3MF, OBJ, STEP, SVG, PNG and the drawing) can go into the same folder: in the export window, <strong class="ui">“Sunucuya kaydet”</strong> writes the file next to your design, or into the folder you have open on the start page for a design that is not on the server. A program that shares the folder, such as a slicer in Docker, can open it from there. The file does not appear in the list of designs. If a file of that name is already there, the message says so, and pressing the button again replaces it.</p>
+<p>That is not simultaneous editing: whoever opens a file works on a copy of their own. If somebody else has changed the file in the meantime, layerling refuses to overwrite it.</p>
+<p>On layerling.com this function is not switched on. How to set it up on your own server is described in the <a href="https://github.com/henmedia/layerling/blob/main/README.md" rel="noopener">README on GitHub</a>.</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/kilavuz/printing.html"><small>Önceki bölüm</small>Preparing for 3D printing</a><a class="next" href="/api/desktop/layerling/ui/kilavuz/shortcuts.html"><small>Sonraki bölüm</small>Keyboard shortcuts</a></div>
+      </main>
+    </div>
+    <footer class="note">Bu kılavuz programla birlikte büyür. Bir şey eksik veya yanlışsa bunu şurada söyle: <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">forum</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=tr" rel="noopener">Projeyi destekle</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Forum</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">GitHub'da daha fazlası</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Sürüm notları v1.154.1</a></div><p class="trademark">Tinkercad, Autodesk, Inc. şirketinin ticari markasıdır. layerling bağımsız bir projedir; Autodesk ile bağlantılı değildir, Autodesk tarafından desteklenmez veya sponsor edilmez.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Editöre dön";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Editörü aç";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Вид и рабочая плоскость - Руководство layerling</title>
+    <meta name="description" content="Как перемещаться по сцене, смотреть прямо на деталь и ставить новые фигуры на любую поверхность.">
+    <link rel="canonical" href="https://layerling.com/ru/view-and-workplane.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/view-and-workplane.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/view-and-workplane.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/view-and-workplane.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/ansicht-und-arbeitsebene.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/view-and-workplane.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/view-and-workplane.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/view-and-workplane.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/view-and-workplane.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/weergave-en-werkvlak.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/view-and-workplane.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/pogled-in-delovna-ravnina.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/view-and-workplane.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/view-and-workplane.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/view-and-workplane.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/view-and-workplane.html">
+    <meta property="og:title" content="Вид и рабочая плоскость - Руководство layerling">
+    <meta property="og:description" content="Как перемещаться по сцене, смотреть прямо на деталь и ставить новые фигуры на любую поверхность.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/ru/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Руководство</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/ru/search-index.json" data-nothing="Ничего не найдено." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Поиск по руководству" aria-label="Поиск по руководству" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Язык">Русский</summary><ul><li><a href="/api/desktop/layerling/ui/guide/view-and-workplane.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/view-and-workplane.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/view-and-workplane.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/view-and-workplane.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/view-and-workplane.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/view-and-workplane.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/view-and-workplane.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/view-and-workplane.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/view-and-workplane.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/view-and-workplane.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/pogled-in-delovna-ravnina.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/view-and-workplane.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/view-and-workplane.html" hreflang="ru" lang="ru" aria-current="true">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/view-and-workplane.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/view-and-workplane.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/view-and-workplane.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/view-and-workplane.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Открыть редактор</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Редактор уже открыт в другой вкладке — просто переключитесь туда.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Главы"><h2>Главы</h2><p class="print-link"><a href="/api/desktop/layerling/ui/ru/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Всё руководство для печати</span></a></p><ol><li><a href="/api/desktop/layerling/ui/ru/getting-started.html">С чего начать</a></li><li><a href="/api/desktop/layerling/ui/ru/view-and-workplane.html" aria-current="page">Вид и рабочая плоскость</a></li><li><a href="/api/desktop/layerling/ui/ru/shapes.html">Размещение и настройка фигур</a></li><li><a href="/api/desktop/layerling/ui/ru/select-and-arrange.html">Выделение и упорядочивание</a></li><li><a href="/api/desktop/layerling/ui/ru/solids-and-holes.html">Тела и отверстия</a></li><li><a href="/api/desktop/layerling/ui/ru/edges-and-hollowing.html">Обработка кромок и выдолбливание тел</a></li><li><a href="/api/desktop/layerling/ui/ru/sketches.html">Эскизы: от контура к телу</a></li><li><a href="/api/desktop/layerling/ui/ru/text.html">Текст и надписи по дуге</a></li><li><a href="/api/desktop/layerling/ui/ru/threads-and-mechanics.html">Резьба, шестерни и другие детали</a></li><li><a href="/api/desktop/layerling/ui/ru/measuring-and-notes.html">Измерения и заметки</a></li><li><a href="/api/desktop/layerling/ui/ru/printing.html">Подготовка к 3D-печати</a></li><li><a href="/api/desktop/layerling/ui/ru/files-and-saving.html">Файлы, сохранение и обмен</a></li><li><a href="/api/desktop/layerling/ui/ru/shortcuts.html">Сочетания клавиш</a></li><li><a href="/api/desktop/layerling/ui/ru/ai-with-mcp.html">Создание с помощью ИИ (MCP)</a></li><li><a href="/api/desktop/layerling/ui/ru/offline-and-install.html">Установка как приложения, работа офлайн и свой сервер</a></li><li><a href="/api/desktop/layerling/ui/ru/videos.html">Видео о layerling</a></li><li><a href="/api/desktop/layerling/ui/ru/tablet-and-touch.html">Планшет и сенсорный экран</a></li></ol></nav>
+      <main>
+<h1>Вид и рабочая плоскость</h1>
+<p class="lead">Как перемещаться по сцене, смотреть прямо на деталь и ставить новые фигуры на любую поверхность.</p>
+<div class="toc"><b>На этой странице</b><ul><li><a href="#peremeshchenie-po-stsene">Перемещение по сцене</a></li><li><a href="#zaglyanut-vnutr-vid-v-razreze">Заглянуть внутрь: вид в разрезе</a></li><li><a href="#rabochaya-ploskost">Рабочая плоскость</a></li><li><a href="#stoly-pechati">Столы печати</a></li><li><a href="#setka-i-privyazka">Сетка и привязка</a></li><li><a href="#kogda-layerling-tormozit">Когда layerling тормозит</a></li></ul></div>
+<section class="guide-part"><h2 id="peremeshchenie-po-stsene"><span class="heading-alias" id="moving-around"></span>Перемещение по сцене</h2>
+<p>Мышью:</p>
+<div class="table-scroll"><table><thead><tr><th>Что вы делаете</th><th>Что происходит</th></tr></thead><tbody><tr><td>перетаскивание правой кнопкой</td><td>поворот вида</td></tr><tr><td>щелчок правой кнопкой</td><td>по телу — меню с самыми частыми командами: дублировать, отверстие или тело, сгруппировать, скрыть, заблокировать, удалить и другое; по пустому месту — «Вставить» и «Выделить всё»</td></tr><tr><td>перетаскивание средней кнопкой</td><td>сдвиг вида</td></tr><tr><td>колесо мыши</td><td>приближение и отдаление</td></tr><tr><td>удерживать <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> и перетаскивать левой кнопкой</td><td>тоже сдвигает вид</td></tr><tr><td>двойной щелчок по пустому месту рабочей плоскости или рядом со столом</td><td>сдвигает вид так, что это место оказывается в центре; дальше вид вращается вокруг него</td></tr></tbody></table></div>
+<p>Скорость приближения колесом задаётся в настройках, в разделе <strong class="ui">«Внешний вид»</strong>, параметром <strong class="ui">«Скорость приближения»</strong>: ползунок от 1 до 14, по умолчанию 5; выше 10 ускоряется только колесо.</p>
+<p><strong>Кнопки мыши как в слайсере.</strong> Если вы привыкли к Bambu Studio или OrcaSlicer, установите в настройках, в разделе <strong class="ui">«Внешний вид»</strong>, <strong class="ui">«Кнопки мыши»</strong> на <strong class="ui">«Как в Bambu Studio и OrcaSlicer»</strong>. Тогда перетаскивание левой кнопкой по пустому месту вращает вид, правая кнопка сдвигает его, как средняя, а Shift с левой кнопкой рисует рамку выделения. Перетаскивание тела по-прежнему его двигает, а короткий правый щелчок по-прежнему открывает меню. В эскизе правая кнопка тоже сдвигает вид.</p>
+<p><strong>3D-мышь.</strong> SpaceMouse или другая 3D-мышь вращает, сдвигает и масштабирует 3D-вид: толкните колпачок от себя, чтобы приблизить, сдвиньте его, чтобы сдвинуть вид, наклоните, чтобы наклонить вид, и поверните, чтобы развернуть вид. В настройках, в разделе <strong class="ui">«Внешний вид»</strong>, нажмите <strong class="ui">«Подключить 3D-мышь»</strong> и выберите устройство в окне, которое откроет браузер; он запоминает выбор, так что это нужно сделать лишь однажды. Это работает в Chrome и Edge, которые могут обращаться к таким устройствам; Firefox и Safari — нет. Если какое-то направление работает наоборот, отметьте его под кнопкой: сдвиг в стороны, сдвиг вверх и вниз, масштаб, наклон или поворот.</p>
+<p>На планшете или телефоне два пальца приближают (развести и свести) и сдвигают вид (провести вместе). Один палец работает с проектом, как левая кнопка мыши. Чтобы вращать одним пальцем, включите <strong class="ui">«Вращать вид одним пальцем»</strong> на панели вида. Этот переключатель виден только на устройствах с сенсорным экраном.</p>
+<p>Графический планшет со стилусом ведёт себя как мышь: кончик пера — левая кнопка, а боковая кнопка на пере — правая, для поворота вида и меню. Клавиши планшета можно назначить в его драйвере на сочетания клавиш layerling.</p>
+<p><strong>На планшете работайте стилусом, если можете.</strong> Его кончик куда тоньше пальца и не закрывает то, куда вы целитесь, поэтому маленькие точки, тонкие линии и маркеры в эскизе, точки измерения и кромки берутся точно, а долгая работа меньше утомляет. layerling уже даёт пальцу дотягиваться до точек, линий, маркеров и кромок чуть дальше, чем это делает указатель мыши, но стилус остаётся более точным способом.</p>
+<section class="guide-part"><h3 id="kub-orientatsii"><span class="heading-alias" id="the-view-cube"></span>Куб ориентации</h3>
+<p>Куб в левом верхнем углу показывает, куда вы смотрите. Щелчок по одной из его сторон переключает на прямой вид сверху, снизу, спереди, сзади, слева или справа. Щелчок по углу куба показывает модель по диагонали с этого угла, а щелчок возле ребра — с этого ребра, между двумя сторонами; место подсвечивается, пока на нём находится указатель. Клавиши с <kbd>1</kbd> по <kbd>6</kbd> дают те же прямые виды. Удерживайте с ними <kbd>Shift</kbd>, и вид ещё и приблизится к выделению, как при <span dir="ltr"><kbd>Shift</kbd>+<kbd>F</kbd></span>.</p>
+<p>Перетаскивайте куб, чтобы повернуть вид, — так же, как перетаскиванием правой кнопкой мыши. Если ничего не выделено, вид поворачивают и клавиши со стрелками: 15° за нажатие, 90° с <kbd>Shift</kbd>. Они поворачивают модель в ту сторону, куда указывают: <kbd>→</kbd> поворачивает перед модели вправо, <kbd>↑</kbd> наклоняет его вверх. С зажатой <kbd>Ctrl</kbd> стрелки вместо этого сдвигают вид по экрану: на десятую часть изображения за нажатие, на половину — если зажат ещё и <kbd>Shift</kbd>. Модель движется в ту сторону, куда указывают стрелки. Если что-то выделено, стрелки перемещают выделение; чтобы поворачивать вид, сначала щёлкните по пустому месту. На сенсорном экране это работает одним пальцем, без включения <strong class="ui">«Вращать вид одним пальцем»</strong>.</p>
+</section><section class="guide-part"><h3 id="panel-vida"><span class="heading-alias" id="the-view-bar"></span>Панель вида</h3>
+<p>У левого края расположена узкая панель. Сверху вниз:</p>
+<ul><li><strong class="ui">«Исходный вид»</strong> снова вписывает всю сцену в вид. Клавиша <kbd>Home</kbd>; <kbd>F</kbd> делает то же, если ничего не выделено.</li><li><strong class="ui">«Центрировать вид на выделении»</strong> приближает к выделению (<kbd>F</kbd> или <span dir="ltr"><kbd>Shift</kbd>+<kbd>F</kbd></span>).</li><li><strong class="ui">«Приблизить»</strong> и <strong class="ui">«Отдалить»</strong> приближают и отдаляют шагами, как и клавиши <kbd>+</kbd> и <kbd>−</kbd>.</li><li><strong class="ui">«Ортогональный вид»</strong> переключает на плоский вид, в котором параллельные кромки остаются параллельными. Для измерений и выравнивания кромок он часто удобнее перспективного. <kbd>O</kbd> переключает туда и обратно; повторный щелчок по кнопке тоже возвращает.</li><li><strong class="ui">«Открыть второй вид»</strong> открывает второй вид проекта в отдельном окне, о нём ниже. Повторный щелчок закрывает его.</li><li><strong class="ui">«Показать полосы прокрутки»</strong> показывает полосу прокрутки внизу вида и ещё одну у его правого края. Перетаскивайте полосу, чтобы плавно сдвигать вид, щёлкните стрелку на её конце, чтобы сдвинуть его немного (удерживайте, чтобы продолжать), или щёлкните рядом с ползунком, чтобы сдвинуть почти на весь вид. Ничего не поворачивается, и, в отличие от клавиш со стрелками, полосы работают и при выделенной детали - удобно вблизи, на мелких деталях. Повторный щелчок скрывает их; откроется ли проект с ними, решает <strong class="ui">«Открывать редактор с полосами прокрутки»</strong> в настройках. Этот браузер также запоминает выбор.</li><li><strong class="ui">«Скрыть рабочую плоскость»</strong> (глаз над сеткой) скрывает стол вместе с его сеткой, чтобы посмотреть на нижнюю сторону проекта. Меняется только вид: новые фигуры всё равно встают на рабочую плоскость. Повторный щелчок показывает её снова.</li><li><strong class="ui">«Поставить рабочую плоскость»</strong>, рулетка и угольник — отдельные инструменты; о них ниже и в разделе Измерения и заметки.</li></ul>
+<p>Маленькая стрелка в самом верху панели скрывает её, если она мешает.</p>
+<p>Проект открывается таким, каким вы его оставили: угол, масштаб и положение вида хранятся вместе с ним в этом браузере, поэтому вы продолжаете с того места, где остановились, — и после кнопки «Домой», и после закрытия страницы. Сохранённый файл (.lyl) несёт вид с собой, поэтому в другом месте он откроется с тем же видом. Вид не входит в историю отмен.</p>
+<p>В каждом проекте можно также хранить четыре собственных вида. <span dir="ltr"><kbd>Shift</kbd>+<kbd>7</kbd></span>, <span dir="ltr"><kbd>Shift</kbd>+<kbd>8</kbd></span>, <span dir="ltr"><kbd>Shift</kbd>+<kbd>9</kbd></span> или <span dir="ltr"><kbd>Shift</kbd>+<kbd>0</kbd></span> сохраняет вид точно таким, какой он есть, — угол, положение, масштаб, плоский или перспективный, — под этой клавишей, а сама клавиша (<kbd>7</kbd>, <kbd>8</kbd>, <kbd>9</kbd> или <kbd>0</kbd>) возвращает его. Сообщение внизу подтверждает сохранение; повторное сохранение под той же клавишей заменяет вид. Как и вид выше, сохранённые виды остаются с проектом в этом браузере и переносятся в сохранённом файле (.lyl); в историю отмен они не входят.</p>
+</section><section class="guide-part"><h3 id="vtoroy-vid-v-otdelnom-okne"><span class="heading-alias" id="a-second-view-in-its-own-window"></span>Второй вид в отдельном окне</h3>
+<p><strong class="ui">«Открыть второй вид»</strong> открывает окно, которое показывает тот же проект через собственную камеру, так что его видно с двух сторон сразу - например, спереди, пока вы работаете сверху. Каждое изменение в редакторе сразу появляется там; сам проект меняется только в главном окне, и маркеры тоже остаются там. Во втором окне мышь и куб вида поворачивают его вид так же, как здесь, и клавиши тоже: <kbd>1</kbd>–<kbd>6</kbd>, <kbd>F</kbd>, <kbd>Home</kbd>, <kbd>O</kbd>, <kbd>+</kbd> и <kbd>−</kbd>, стрелки для поворота и <kbd>Ctrl</kbd> со стрелками для сдвига. <kbd>F</kbd> там приближает то, что выделено в редакторе. Там работают и четыре сохранённых вида проекта: <kbd>7</kbd>, <kbd>8</kbd>, <kbd>9</kbd> и <kbd>0</kbd> возвращают их, а <kbd>Shift</kbd> с одной из этих клавиш сохраняет под ней вид этого окна - для обоих окон. На его собственной панели вида есть <strong class="ui">«Исходный вид»</strong>, <strong class="ui">«Центрировать вид на выделении»</strong>, <strong class="ui">«Приблизить»</strong>, <strong class="ui">«Отдалить»</strong>, <strong class="ui">«Ортогональный вид»</strong> и <strong class="ui">«Скрыть рабочую плоскость»</strong>, и они действуют только на это окно. Окно открывается там, где вы его оставили, того же размера, и закрывается вместе с редактором. На телефонах и планшетах кнопка не показывается.</p>
+</section></section><section class="guide-part"><h2 id="zaglyanut-vnutr-vid-v-razreze"><span class="heading-alias" id="looking-inside-the-section-view"></span>Заглянуть внутрь: вид в разрезе</h2>
+<p><strong class="ui">«Вид в разрезе»</strong>, последняя кнопка на панели (инструмент разреза), разрезает вид по плоскости, чтобы проверить стенки, полости и детали, которые входят друг в друга. На самом деле ничего не разрезается: проект, его файлы и любой экспорт остаются целыми. Там, где плоскость проходит через тело, срез заливается чуть более тёмным цветом этого тела, а отверстие внутри остаётся пустым, поэтому видно, где сплошное, а где пустое; залитая поверхность появляется спустя мгновение после остановки плоскости. В разделе <strong class="ui">«Плоскость сечения»</strong> выбирается вид сечения: <strong class="ui">«Штриховка»</strong>, вариант по умолчанию, штрихует его как на чертеже, а тело внутри другого штрихуется в другую сторону, чтобы они различались; <strong class="ui">«Заливка»</strong> заливает его одним цветом; <strong class="ui">«Открыто»</strong> оставляет его открытым, и видна внутренняя сторона оболочки тела. Выбор действует для всех проектов.</p>
+<ul><li>Выберите ось, поперёк которой стоит плоскость: X (ширина), Y (глубина) или Z (высота) — как в полях положения. Плоскость начинается в середине вашего проекта.</li><li><strong class="ui">«Оси от»</strong> задаёт, по чему идут эти оси. <strong class="ui">«Модель»</strong> берёт оси модели. <strong class="ui">«Рабочая плоскость»</strong> берёт оси рабочей плоскости: Z тогда режет параллельно ей, X и Y — поперёк, а положение отсчитывается от её начала. Если рабочая плоскость лежит на наклонной грани, ты режешь параллельно этой грани, и разрез следует за рабочей плоскостью, когда ты её переносишь. <strong class="ui">«Вид»</strong> разворачивает плоскость к экрану: она убирает то, что лежит перед ней, а ползунком ты двигаешь её по направлению взгляда глубже в модель, например чтобы добраться до скрытой детали и щёлкнуть по ней. Повернув вид, нажми ещё раз, и разрез подстроится под новый взгляд.</li><li><strong class="ui">«Грубо»</strong> двигает плоскость по всему проекту, <strong class="ui">«Точно»</strong> — чуть в обе стороны от того места, где она стоит, с точностью до десятых миллиметра. Положение можно и ввести.</li><li>Кнопка рядом с осями показывает другую сторону разреза, <strong class="ui">«По центру»</strong> возвращает плоскость в середину, а <strong class="ui">«Показывать плоскость разреза»</strong> скрывает синюю плоскость.</li><li>Можно щёлкать и выделять то, что открыл разрез, включая внутренние стенки.</li><li><strong class="ui">«Рабочая плоскость здесь»</strong> кладёт рабочую плоскость на разрез. Она лежит в плоскости сечения и смотрит наружу от остающегося тела — как грань, которую оставляет разрез. Если после этого перейти в эскиз, он начнётся именно там, а едва заметный контур покажет линию разреза: по нему можно рисовать и к нему привязываться. Так, например, рисуют крышку по полости, которую вы открыли разрезом. Кнопка рядом с осями выбирает, какая сторона остаётся, а с ней — куда смотрит рабочая плоскость. Обратно на основание рабочую плоскость возвращают как обычно.</li><li><strong class="ui">«Эскиз из сечения»</strong> начинает новый эскиз прямо на разрезе, где контуры разреза уже лежат линиями: отверстие приходит настоящей окружностью, скруглённый угол дугой. Измените их, удалите лишнее, дорисуйте и завершите: тело вырастает из разреза в ту сторону, которая отрезана, так что деталь, которая должна подойти к другой, например крышка, вставка или прокладка, начинается с контура именно этой детали. Кнопка рядом с осями выбирает эту сторону. Как и для SVG, учитываются только видимые тела, а отверстия уже вычтены.</li><li><strong class="ui">«Измерить»</strong> измеряет прямо на разрезе: контур показывается синим, и два щелчка по нему дают расстояние, а также его части по двум осям плоскости. Обе точки привязываются к контуру, в первую очередь к углам. Когда второй щелчок попадает в любое место противоположной стенки, он привязывается перпендикулярно к первой точке — так вы читаете толщину стенки, зазоры и промежутки, не целясь точно. Третий щелчок начинает следующее измерение, <kbd>Esc</kbd> завершает измерение. Перемещение плоскости стирает измерение. На круглом контуре, например на разрезе цилиндра или отверстия, маленький крестик отмечает центр, и центр тоже притягивает точку. Щёлкните точку на окружности, затем подведите указатель к точке напротив: второй щелчок попадает точно напротив, через центр, и число показывается с символом Ø — это диаметр. От центра до точки на окружности вы получаете R, радиус.</li><li><strong class="ui">«Разрез в SVG»</strong> сохраняет контуры на плоскости разреза как SVG в масштабе 1:1 — для лазера, плоттера, шаблона или прокладки. Разрез по X виден справа, разрез по Y — спереди, разрез по Z — сверху. Как и при экспорте, попадают только видимые тела, отверстия уже вычтены, а тела одного цвета объединяются в один контур. Каждый цвет остаётся своим путём без заливки, поэтому лазерные программы держат их отдельными слоями.</li></ul>
+<p>Крестик и <kbd>Esc</kbd> закрывают окно инструмента; если идёт измерение, <kbd>Esc</kbd> сначала завершает его. Разрез остаётся, пока вы не выключите его через <strong class="ui">«Разрез включён»</strong>, не нажмёте его кнопку на панели, пока окно открыто, или не вернётесь к обзору проектов. Пока он включён, его кнопка остаётся подсвеченной. То, что вы ставите на отрезанной стороне, появляется только после выключения разреза. У планшета нет <kbd>Esc</kbd>, поэтому там в окне инструмента две дополнительные кнопки: <strong class="ui">«Назад»</strong> завершает измерение, если оно идёт, а иначе закрывает окно инструмента, и <strong class="ui">«Закрыть»</strong> закрывает окно инструмента за один шаг. Компьютер их не показывает.</p>
+<p>Окно инструмента висит на своей кнопке. Если оно что-то закрывает, перетащите его за заголовок в любое место на рабочей плоскости; в следующий раз оно откроется там же. Дважды щёлкните по заголовку или отпустите окно у кнопки, чтобы вернуть его на место.</p>
+<p><kbd>Esc</kbd> закрывает окно; разрез остаётся, пока вы его не выключите или не вернётесь на главную страницу. Пока он включён, его кнопка подсвечена. Всё, что вы поставите на отрезанной стороне, покажется только после выключения разреза.</p>
+</section><section class="guide-part"><h2 id="rabochaya-ploskost"><span class="heading-alias" id="the-workplane"></span>Рабочая плоскость</h2>
+<p>Новые фигуры выравниваются по рабочей плоскости. Поначалу это основание с сеткой. Но её можно поставить на любую поверхность, чтобы разместить что-то на боковой или наклонной грани.</p>
+<ol><li>Нажмите <kbd>W</kbd> или щёлкните <strong class="ui">«Поставить рабочую плоскость»</strong>.</li><li>Наведите мышь на грань тела. Она подсветится.</li><li>Щелчок ставит туда рабочую плоскость. Всё, что вы теперь добавите, встанет на эту грань.</li></ol>
+<p>А если щёлкнуть по пустому столу, рабочая плоскость ляжет плашмя в месте щелчка, по сетке привязки. Новые фигуры и завершённый эскиз — в том числе тело вращения — появятся там, а не в середине стола. Пока рабочая плоскость лежит на столе плашмя, стол показывает только её контур: две сетки в одной плоскости давали бы мерцающий узор.</p>
+<p>На грани начало координат рабочей плоскости иначе привязывается к сетке. Щёлкните возле угла грани — и оно встанет точно в угол. Возле ребра оно ляжет на ребро, и сетка выровняется по нему; так можно намеренно выбрать угол сетки. Без угла и ребра сетка на лежащей грани идёт параллельно телу: на повёрнутом кубе она повёрнута вместе с ним.</p>
+<p>Щелчок рядом со столом или <kbd>Esc</kbd> возвращает рабочую плоскость на основание. Ещё быстрее — <strong class="ui">«Вернуть рабочую плоскость на основание»</strong>: кнопка со стрелкой вниз стоит на панели вида под глазом, пока рабочая плоскость лежит на грани. <span dir="ltr"><kbd>Shift</kbd>+<kbd>W</kbd></span> ставит её прямо на выделенную в данный момент грань. <span dir="ltr"><kbd>Alt</kbd>+<kbd>W</kbd></span> в любой момент возвращает её на основание, выделено что-то или нет. Если удерживать <kbd>Shift</kbd> при щелчке, плоскость будет смотреть в другую сторону.</p>
+<p>Пока рабочая плоскость стоит на грани, рядом с <strong class="ui">«Поставить рабочую плоскость»</strong> появляется глаз. Он скрывает рабочую плоскость, не сбрасывая её, чтобы получше рассмотреть проект: новые фигуры всё равно встают на эту грань, и вращение по-прежнему идёт вокруг неё. Щелчок по глазу показывает её снова, как и установка новой рабочей плоскости.</p>
+<p>Чтобы посмотреть прямо на рабочую плоскость, нажми <kbd>P</kbd> или кнопку <strong class="ui">«Смотреть прямо на рабочую плоскость»</strong> рядом с <strong class="ui">«Поставить рабочую плоскость»</strong> на панели вида. Вид поворачивается, пока ты не увидишь плоскость прямо, с той стороны, куда растут новые фигуры, с её началом посередине. На базовой плите это вид сверху.</p>
+</section><section class="guide-part"><h2 id="stoly-pechati"><span class="heading-alias" id="build-plates"></span>Столы печати</h2>
+<p>Когда в проекте больше, чем помещается на один стол, например коробка с крышкой и вкладышами, у него может быть несколько столов печати. Нажмите <strong class="ui">«Столы печати»</strong> в группе <strong class="ui">«Расположение»</strong> или выберите <strong class="ui">«На стол…»</strong> в меню правого щелчка по телу. Внизу вида появляется панель с кнопкой для каждого стола; число на ней показывает, сколько тел стоит на столе.</p>
+<ul><li>Каждый стол размером с рабочую плоскость, и столы лежат рядом справа от первого, в 20 мм друг от друга. Тело относится к столу, на котором стоит середина его основания, поэтому, перетащив его на другую сторону, вы ставите его на другой стол. В проекте до 12 столов.</li><li>Щелчок по столу на панели показывает его, и новые фигуры и импортированные файлы затем появляются на нём. <strong class="ui">«Показать все столы»</strong> показывает все. Двойной щелчок по столу или <strong class="ui">«Переименовать стол»</strong> даёт ему название, например «Крышка», которое написано на столе.</li><li><strong class="ui">«Сдвинуть стол влево»</strong> и <strong class="ui">«Сдвинуть стол вправо»</strong> меняют порядок, тела перемещаются вместе со своим столом. <strong class="ui">«Удалить стол (его тела переходят на первый стол)»</strong> убирает активный стол; его тела переходят на первый стол на то же место.</li><li><strong class="ui">«Разложить по столам»</strong> раскладывает выделенные тела, или все, ряд за рядом по столам, сначала самые большие, в 5 мм друг от друга, и добавляет столы, пока они нужны. Тело больше стола остаётся на месте.</li><li>При выбранном принтере каждое тело проверяется по своему столу, а высота печати считается от самого нижнего тела на этом столе. Стол с телом, которое не помещается, показывает своё число красным.</li><li>В свойствах X отсчитывается от середины собственного стола тела.</li></ul>
+<p>Окно экспорта тогда предлагает <strong class="ui">«Столы»</strong>: все столы в одном файле, рядом, как в проекте; один файл на стол, собранные в ZIP (STL, 3MF и OBJ); или один стол, поставленный на место первого. Слайсер открывает каждый файл как один стол, поэтому для печати столов один за другим берите файлы по столам. Перенос тел между столами и раскладку можно отменить; добавление, названия, порядок и удаление столов сохраняются с проектом, но не отменяются.</p>
+</section><section class="guide-part"><h2 id="setka-i-privyazka"><span class="heading-alias" id="grid-and-snapping"></span>Сетка и привязка</h2>
+<p>Сетка показывает размер стола. В правом нижнем углу находится шаг привязки: перемещение и масштабирование привязываются к шагам такого размера, например 1 мм. Сделайте его меньше для тонкой работы и больше для грубой расстановки. <strong class="ui">«Привязка к сетке»</strong> на панели инструментов переносит выделенные фигуры на ближайшее пересечение сетки. При перемещении фигуры также притягиваются к другим фигурам, см. Выделение и упорядочивание. Без мыши: <span dir="ltr"><kbd>Alt</kbd>+<kbd>1</kbd></span> … <span dir="ltr"><kbd>Alt</kbd>+<kbd>0</kbd></span> выбирают пункт меню с этим номером (<span dir="ltr"><kbd>Alt</kbd>+<kbd>1</kbd></span> отключает привязку), а <kbd>,</kbd> и <kbd>.</kbd> делают шаг на ступень мельче или крупнее. В эскизе это тоже работает. Короткий щелчок средней кнопкой мыши, не сдвигая мышь, открывает меню шага привязки прямо у указателя, и в эскизе тоже; перетаскивание с зажатой средней кнопкой по-прежнему сдвигает вид.</p>
+<aside class="tip"><p>Совет: Когда подгоняете детали точно друг к другу, перестаньте вращать вид. Перейдите клавишами с цифрами на прямой вид сверху или спереди и нажмите <kbd>O</kbd> для плоского вида. Тогда сразу видно, действительно ли две кромки стоят заподлицо.</p></aside>
+<section class="guide-part"><h3 id="okno-nastroek"><span class="heading-alias" id="the-settings-window"></span>Окно настроек</h3>
+<p>Шестерёнка в строке заголовка (<strong class="ui">«Настройки рабочей области»</strong>) открывает настройки. Слева пять разделов: <strong class="ui">«Внешний вид»</strong>, <strong class="ui">«Измерения»</strong>, <strong class="ui">«Рабочая плоскость»</strong>, <strong class="ui">«Параметры фигур по умолчанию»</strong> и <strong class="ui">«История»</strong>. Изменение действует сразу. <strong class="ui">«Сделать по умолчанию»</strong> внизу сохраняет текущие настройки как стандартные, чтобы новый проект начинался с них. Открытый файл приносит свои настройки; <strong class="ui">«Использовать мои настройки по умолчанию»</strong> рядом переносит на открытый проект ваши сохранённые цвета, сетку и остальное, сохраняя его единицы. Если в ваших стандартных настройках есть принтер, он приходит вместе с размером своего стола; без принтера проект сохраняет свой стол и принтер. <strong class="ui">«Закрыть настройки»</strong> справа вверху закрывает окно. Эта часть проходит по настройкам одна за другой.</p>
+<p><strong class="ui">«Экспортировать настройки»</strong> сохраняет настройки окна в файл (layerling-settings-&lt;дата&gt;.json): цвета, сетку, тени, камеру и значения форм по умолчанию вместе с темой, размером панели инструментов, углом куба вида, цветами форм и зазором каждого принтера. На другом компьютере или после потери данных браузера <strong class="ui">«Импортировать настройки»</strong> снова читает файл: он становится вашими настройками по умолчанию для новых проектов и применяется к открытому проекту, как <strong class="ui">«Использовать мои настройки по умолчанию»</strong>. Ваши собственные клавиши из сочетаний клавиш тоже попадают в файл.</p>
+</section><section class="guide-part"><h3 id="vneshniy-vid-tema-panel-instrumentov-i-kub"><span class="heading-alias" id="appearance-theme-toolbar-and-view-cube"></span>Внешний вид: тема, панель инструментов и куб</h3>
+<p><strong class="ui">«Тема»</strong> задаёт цветовую схему всей программы: <strong class="ui">«Системная»</strong> следует за компьютером, остальные — <strong class="ui">«Светлая»</strong>, <strong class="ui">«Тёмная»</strong> и <strong class="ui">«Графит (нейтральная тёмная)»</strong>. Её можно сменить и справа вверху в редакторе.</p>
+<p><strong class="ui">«Размер элементов управления»</strong> в разделе <strong class="ui">«Внешний вид»</strong> делает кнопки верхней панели, её меню фигур, панель вида слева и панель свойств справа меньше или больше: <strong class="ui">«Малый»</strong>, <strong class="ui">«Средний»</strong> (как было всегда) или <strong class="ui">«Большой»</strong>. Малый размер оставляет больше места рабочей плоскости на ноутбуке; по крупному проще попадать на большом экране или пальцем. С крупными кнопками группы панели переходят на вторую строку, когда окно слишком узкое. Размер находится на вкладке «<strong class="ui">«Лента»</strong>» настроек, хранится в этом браузере и действует для всех проектов.</p>
+<p><strong class="ui">«Цветные фигуры»</strong> показывает на картинках библиотеки фигур цвет, с которого начинается новая фигура (цвет её вида или тот, что вы сохранили через <strong class="ui">«Сохранить как параметры по умолчанию»</strong>). Выключите, если предпочитаете серые картинки; браузер запомнит выбор.</p>
+<p><strong class="ui">«Положение куба ориентации»</strong> в разделе <strong class="ui">«Внешний вид»</strong> переносит куб ориентации в другой угол рабочей области: <strong class="ui">«Вверху слева»</strong> (как было всегда), <strong class="ui">«Вверху справа»</strong>, <strong class="ui">«Внизу слева»</strong> или <strong class="ui">«Внизу справа»</strong>. В любом углу, кроме верхнего левого, панель вида поднимается на место, которое освободил куб. Внизу справа куб стоит прямо над переключателем <strong class="ui">«Сетка привязки»</strong>. Пока справа открыты свойства фигуры, куб на правой стороне отходит левее них. Угол хранится в этом браузере и действует для всех проектов. В узком окне, например на телефоне, настройка скрыта, и куб остаётся вверху слева.</p>
+</section><section class="guide-part"><h3 id="vneshniy-vid-knopki-na-lente"><span class="heading-alias" id="appearance-buttons-in-the-ribbon"></span>Внешний вид: кнопки на ленте</h3>
+<p><strong class="ui">«Кнопки на ленте»</strong> убирает с ленты группы и кнопки, которыми вы никогда не пользуетесь. Щёлкните по группе, чтобы открыть её список: «<strong class="ui">«Показывать эту группу»</strong>» убирает всю группу, флажок рядом с кнопкой — только эту кнопку. «<strong class="ui">«Показать все»</strong>» возвращает всё. Группа без кнопок исчезает, остальные сдвигаются, и в одну строку помещается больше ленты.</p>
+<p>Убранное пропадает только с ленты: поиск команд (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>) по-прежнему его находит, а его клавиша по-прежнему его запускает. Стрелки у группы двигают её вверх или вниз по списку, а значит, и по ленте; «<strong class="ui">«Сбросить порядок»</strong>» возвращает исходный порядок. Стрелки у кнопки так же двигают её внутри группы; в группе «<strong class="ui">«Изменение»</strong>» она остаётся в своём именованном разделе. Группа «Фигуры» и «Справка» остаются всегда, а «Фигуры» сохраняют место после первых двух групп. Выбор запоминает этот браузер, и он попадает в файл из «<strong class="ui">«Экспортировать настройки»</strong>». Он действует в 3D-редакторе; у эскиза своя панель.</p>
+</section><section class="guide-part"><h3 id="vneshniy-vid-bystryy-rezhim"><span class="heading-alias" id="appearance-fast-mode"></span>Внешний вид: быстрый режим</h3>
+<p><strong class="ui">«Быстрый режим»</strong> — для медленных компьютеров. Он выключает тени, линии кромок на всех телах и инерцию камеры и рисует вид только в разрешении экрана. Ваши собственные настройки сохраняются на потом, а переключатели, которые он перекрывает, пишут <strong class="ui">«Выключено в быстром режиме»</strong>, пока он включён. Что ещё помогает на медленном компьютере — ниже, в разделе «Когда layerling тормозит».</p>
+</section><section class="guide-part"><h3 id="vneshniy-vid-tsveta-rabochey-oblasti-i-eskiza"><span class="heading-alias" id="appearance-colours-of-the-work-area-and-the-sketch"></span>Внешний вид: цвета рабочей области и эскиза</h3>
+<p>Цвета рабочей области задаются в разделе <strong class="ui">«Внешний вид»</strong>: <strong class="ui">«Фон окна (светлая тема)»</strong> и <strong class="ui">«Рабочая плоскость под сеткой (светлая тема)»</strong> для светлой темы (тёмные темы сохраняют свои), рядом с цветом сетки в разделе <strong class="ui">«Рабочая плоскость»</strong>. Каждый цвет — кнопка, показывающая этот цвет. Щелчок открывает маленькое окно с цветовым полем, рядом готовых цветов, полем для шестнадцатеричного значения и стрелкой, возвращающей цвет, с которого начинал layerling. <kbd>Enter</kbd> принимает введённое шестнадцатеричное значение, как и щелчок вне окна.</p>
+<p>У вида эскиза свои цвета: <strong class="ui">«Эскиз: фон окна (светлая тема)»</strong> для окна вокруг листа, <strong class="ui">«Эскиз: область под сеткой (светлая тема)»</strong> для листа под сеткой и <strong class="ui">«Эскиз: цвет сетки (светлая тема)»</strong>, всё для светлой темы. <strong class="ui">«Как в рабочей области»</strong> одним щелчком берёт три цвета рабочей области.</p>
+<p><strong class="ui">«Классический вид»</strong> настраивает рабочую область так, как её показывает Tinkercad: белый фон, бледно-голубая миллиметровая сетка с более тёмной линией каждый сантиметр, чёрные линии кромок, свет сверху с мягкими тенями. Каждое значение потом можно изменить отдельно. Все они начинаются так, как layerling выглядел всегда, а что подходит вам, зависит от вашего монитора.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/settings-appearance.webp" alt="Настройки в разделе «Внешний вид»: цвета фона и рабочей плоскости для светлой темы и переключатель линий кромок на всех телах." width="1280" height="800" loading="lazy"><figcaption>Настройки в разделе «Внешний вид»: цвета фона и рабочей плоскости для светлой темы и переключатель линий кромок на всех телах.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/editor-dark.webp" alt="Редактор в тёмной цветовой схеме. Схему выбирают в правом верхнем углу: «Системная», «Светлая», «Тёмная» или «Графит»." width="1280" height="800" loading="lazy"><figcaption>Редактор в тёмной цветовой схеме. Схему выбирают в правом верхнем углу: «Системная», «Светлая», «Тёмная» или «Графит».</figcaption></figure>
+</section><section class="guide-part"><h3 id="vneshniy-vid-strelki-osey-i-linii-kromok"><span class="heading-alias" id="appearance-axis-arrows-and-edge-lines"></span>Внешний вид: стрелки осей и линии кромок</h3>
+<p><strong class="ui">«Стрелки осей»</strong> (включено по умолчанию) рисует три стрелки в заднем левом углу стола: X красная вправо, Y зелёная назад и Z синяя вверх — в ту сторону, куда считают поля положения. Это то же правило правой руки, которым пользуются Tinkercad, CAD-программы и слайсеры. Когда рабочая плоскость лежит на грани, стрелки следуют за ней. Если они мешают, выключите их здесь.</p>
+<p><strong class="ui">«Линии кромок на всех телах»</strong> рисует контур на каждом теле цветом <strong class="ui">«Цвет линий кромок»</strong> (сначала чёрным, как в Tinkercad): это помогает, когда тёмные цвета сливаются. По умолчанию выключено, а очень большие импортированные сетки пропускаются.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/edge-lines.webp" alt="Три тёмных тела с включёнными линиями кромок: контуры не дают им слиться." width="1280" height="800" loading="lazy"><figcaption>Три тёмных тела с включёнными линиями кромок: контуры не дают им слиться.</figcaption></figure>
+<p><strong class="ui">«Показывать отверстия заметнее»</strong> рисует отверстия более тёмным серым, менее прозрачными и с тёмной линией вокруг. Это помогает, когда отверстие трудно найти среди прозрачных тел. В отличие от линий кромок, остаётся включённым в быстром режиме.</p>
+</section><section class="guide-part"><h3 id="vneshniy-vid-svet-i-teni"><span class="heading-alias" id="appearance-light-and-shadows"></span>Внешний вид: свет и тени</h3>
+<p><strong class="ui">«Показывать тени»</strong> включает и выключает падающие тени. Два ползунка управляют освещением тел. <strong class="ui">«Интенсивность теней»</strong> задаёт, насколько тёмные падающие тени, а <strong class="ui">«Контраст затенения»</strong> переносит свет от равномерного рассеянного к основному: в сторону «резко» теневые стороны темнеют и тени заметнее, в сторону «мягко» всё становится площе. В самом верху контраст очень сильный, и теневые стороны и тени становятся по-настоящему тёмными. <strong class="ui">«Мягкость теней»</strong> делает края теней мягкими вместо резких. <strong class="ui">«Направление света»</strong> поворачивает основной свет вокруг стола (0° спереди, 90° справа), а <strong class="ui">«Высота света»</strong> поднимает его; при 90° он стоит прямо над столом, как в Tinkercad, и тени падают прямо под тела. <strong class="ui">«Мягкий свет»</strong> даёт большую часть света оттуда, откуда вы смотрите, и поворачивает его вместе с видом: ни одна грань не остаётся тёмной, а обращённая вверх грань тёмного цвета больше не выгорает до белого. Основной свет немного остаётся для теней, и ползунок контраста по-прежнему работает. Если при низком свете ещё виден яркий блик, поднимите <strong class="ui">«Высота света»</strong> до 90°: тогда это похоже на Tinkercad. <strong class="ui">«Сбросить свет и тени»</strong> возвращает всё обратно.</p>
+</section><section class="guide-part"><h3 id="vneshniy-vid-razmery-na-rabochey-ploskosti"><span class="heading-alias" id="appearance-measures-on-the-workplane"></span>Внешний вид: размеры на рабочей плоскости</h3>
+<p><strong class="ui">«Показывать размеры перемещения»</strong> показывает, насколько вы сдвигаете при перетаскивании, <strong class="ui">«Показывать расстояния до начала координат»</strong> — расстояния от выделения до начала координат стола, и при нескольких выделенных телах. С <strong class="ui">«Размеры видны всегда»</strong> эти размеры видны постоянно, а не только при перетаскивании. Пока выделено повёрнутое тело, его углы показаны под ним на рабочей плоскости; <strong class="ui">«Показывать углы повёрнутых тел»</strong> это выключает. Подробнее в главе <a href="/api/desktop/layerling/ui/ru/measuring-and-notes.html">Измерения и заметки</a>.</p>
+</section><section class="guide-part"><h3 id="vneshniy-vid-vydelenie-i-peremeshchenie"><span class="heading-alias" id="appearance-selecting-and-moving"></span>Внешний вид: выделение и перемещение</h3>
+<p><strong class="ui">«Выделять перед перемещением»</strong>: тело сначала нужно выделить, и только следующее перетаскивание его сдвигает. Это помогает, когда тела трогают дети или торопливые руки, и на сенсорном экране.</p>
+<p><strong class="ui">«Направление рамки решает»</strong>: рамка, протянутая вправо, выделяет только то, что целиком лежит внутри неё, протянутая влево — всё, чего она касается (рисуется пунктиром), как в SketchUp.</p>
+<p><strong class="ui">«Двойной щелчок открывает эскиз»</strong> решает, открывает ли двойной щелчок по выдавленному эскизу эскиз снова, как в Tinkercad, а <strong class="ui">«Двойной щелчок открывает группу или связку»</strong> — открывает ли двойной щелчок группу или связку для правки. <strong class="ui">«Двойной щелчок по рабочей плоскости центрирует там вид»</strong> решает, переносит ли двойной щелчок по пустой рабочей плоскости вид в эту точку.</p>
+<p><strong class="ui">«Привязка к другим фигурам при перемещении»</strong> позволяет краям и центру фигуры привязываться к другим фигурам, пока вы её тащите; в меню сетки справа внизу тот же переключатель. <strong class="ui">«Фигура следует за указателем при добавлении»</strong> заставляет новую фигуру висеть на указателе мыши и ложиться на грань под ним, как Cruise в Tinkercad; если выключено, новая фигура появляется в середине стола. Подробнее в главе <a href="/api/desktop/layerling/ui/ru/select-and-arrange.html">Выделение и расстановка</a>.</p>
+</section><section class="guide-part"><h3 id="vneshniy-vid-vid"><span class="heading-alias" id="appearance-the-view"></span>Внешний вид: вид</h3>
+<p><strong class="ui">«Открывать редактор в перспективном виде»</strong>: редактор тогда открывается в перспективном виде, а не в плоском.</p>
+<p><strong class="ui">«Открывать редактор с полосами прокрутки»</strong>: проект тогда открывается с полосами прокрутки вида. Настройка сохраняется вместе с проектом и через <strong class="ui">«Сделать по умолчанию»</strong>.</p>
+<p><strong class="ui">«Начальный вид»</strong> задаёт ракурс, в котором открывается новый проект и к которому возвращает <strong class="ui">«Исходный вид»</strong>. Поверните и приблизьте вид так, как вам нравится, затем нажмите <strong class="ui">«Взять текущий вид»</strong>; <strong class="ui">«Стандартный»</strong> возвращает обычный вид спереди справа. Это действует для каждого проекта в этом браузере. Проект, который вы открываете снова, по-прежнему открывается так, как вы его оставили.</p>
+<p><strong class="ui">«Скорость приближения»</strong> — ползунок от медленно до быстро: как быстро масштабируют колёсико и тачпад; кнопки и клавиши масштаба сохраняют свои маленькие шаги. <strong class="ui">«Инерция камеры»</strong>: после того как вы отпускаете мышь, вид ещё мгновение вращается и мягко замедляется. Если выключено, он сразу останавливается, как в Tinkercad и Fusion 360.</p>
+<p><strong class="ui">«Отмечать нависания от {angle}°»</strong> — угол, начиная с которого грань считается нависанием, когда вы включаете показ нависаний в меню видимости: такие грани заштрихованы красным и белым. 30° — осторожно, 70° рассчитывает на хорошее охлаждение печати; 45° — обычное начало. Пока они показаны, строка под видом сообщает самое крутое нависание и сколько см² нуждаются в поддержках.</p>
+<p><strong class="ui">«Разрезать импортированные сетки до»</strong> ограничивает, сколько треугольников может иметь импортированная сетка, когда вы её режете, объединяете или пересекаете, потому что это считается в вашем браузере. Сетка выше предела не обрабатывается; сначала упростите сетку или поднимите предел, если компьютер справляется. Более высокий предел может на несколько секунд заморозить редактор.</p>
+</section><section class="guide-part"><h3 id="izmereniya-edinitsy-masshtab-i-shagi-privyazki"><span class="heading-alias" id="measurement-units-scale-and-snap-steps"></span>Измерения: единицы, масштаб и шаги привязки</h3>
+<p>В разделе <strong class="ui">«Измерения»</strong> вы задаёте <strong class="ui">«Единицы»</strong>, единицу, в которой показываются размеры (<strong class="ui">«Масштаб»</strong>: миллиметры, сантиметры или метры в метрической системе, дюймы или футы в имперской), сколько знаков после запятой показывает число (<strong class="ui">«Точность»</strong>), <strong class="ui">«Сетка привязки»</strong>, к которому привязываются перемещение и масштабирование, и свои шаги привязки в <strong class="ui">«Свои сетки привязки»</strong>.</p>
+<p>В настройках, в разделе <strong class="ui">«Измерения»</strong>, вы задаёте <strong class="ui">«Единицы»</strong>. При <strong class="ui">«Дюймовые»</strong> layerling показывает все размеры в дюймах: на фигуре, на панели свойств, на рулетке и на линейке. Тогда сетка привязки предлагает шаги от 1/64 до 1 дюйма, а сетка на столе рисуется в дюймах (от 1/8 до 1 дюйма, по умолчанию 1/4 дюйма) с более заметной линией на каждом целом дюйме. В разделе <strong class="ui">«Показывать дюймы как»</strong> вы выбираете, показывать дюймы дробями, как в Tinkercad (1 5/8, с округлением до 1/64 дюйма), или десятичными числами (1,625) с тем числом знаков после запятой, которое задано в разделе <strong class="ui">«Точность»</strong>. Вводить можно и так, и так, в том числе «1 5/8». Быстрее переключаться между миллиметрами и дюймами можно маленьким переключателем <strong>mm | in</strong> рядом с <strong class="ui">«Сетка привязки»</strong> внизу окна свойств: он меняет единицы, сетку платы и шаг привязки так же, как настройки, для этого проекта.</p>
+<p>Там же, под <strong class="ui">«Свои сетки привязки»</strong>, вы добавляете свои шаги привязки: имя и размер в миллиметрах — например «Шаг выводов 2,54 мм» для расстояний между выводами микросхем DIP, штырьковых разъёмов и отверстий макетных плат или «MX Key Unit» с 19,05 мм для шага клавиш клавиатуры. Меню шага привязки тогда предлагает этот размер целиком, половинками и четвертями (1 ×, ½ × и ¼ ×) — так фигуры можно сдвигать на целый шаг, половину или четверть. Если нужен только сам размер, снимите галочку <strong class="ui">«Также половину и четверть»</strong> рядом с ним: тогда в меню будет только этот один шаг. Свои шаги хранятся вместе с проектом и включаются в значения по умолчанию через <strong class="ui">«Сделать по умолчанию»</strong>. Если нужен только сам размер, снимите флажок <strong class="ui">«Также половину и четверть»</strong> рядом; тогда в меню будет только этот один шаг.</p>
+<p><strong class="ui">«Начинать новые проекты с угольником в начале координат»</strong>: тогда каждый новый проект в этом браузере начинается с угольником в начале координат, см. <a href="/api/desktop/layerling/ui/ru/measuring-and-notes.html">Измерения и заметки</a>. Уже существующие проекты остаются как есть, а угольник, который вы убрали из проекта, больше не появляется.</p>
+</section><section class="guide-part"><h3 id="rabochaya-ploskost-stol-i-printer"><span class="heading-alias" id="workplane-plate-and-printer"></span>Рабочая плоскость: стол и принтер</h3>
+<p><strong class="ui">«Принтер»</strong> подгоняет рабочую плоскость под стол вашего принтера и отмечает тела, выходящие за него, см. главу <a href="/api/desktop/layerling/ui/ru/printing.html">Печать</a>. <strong class="ui">«Надписи на столе печати»</strong> пишет на столе название проекта, а при выбранном принтере — его название и область печати.</p>
+<p><strong class="ui">«Зазор вашего принтера»</strong> — это место на сторону, которое нужно напечатанному штифту, чтобы вращаться в напечатанном отверстии на вашем принтере. <strong class="ui">«Создать тест посадки»</strong> кладёт на стол тест посадки, который его измеряет; новые крышки, ласточкины хвосты, защёлки, гайки и проверка зазора затем начинают с него, см. <a href="/api/desktop/layerling/ui/ru/printing.html">Печать</a>. Он хранится в этом браузере, а не в проекте.</p>
+<p><strong class="ui">«Размер рабочей плоскости»</strong> задаёт столу свой размер, <strong class="ui">«Ширина»</strong> и <strong class="ui">«Длина»</strong> в миллиметрах или выбранной единице. Сетка всегда проходит через начало координат, поэтому более сильные линии лежат на осях, каким бы ни был стол.</p>
+</section><section class="guide-part"><h3 id="rabochaya-ploskost-setka"><span class="heading-alias" id="workplane-grid"></span>Рабочая плоскость: сетка</h3>
+<p><strong class="ui">«Показывать сетку»</strong> показывает или скрывает сетку на столе. <strong class="ui">«Размер блока сетки»</strong> задаёт расстояние между её линиями, а <strong class="ui">«Более тёмная линия сетки каждые»</strong> — идёт ли более тёмная линия через каждые 5 или 10 шагов сетки; <strong class="ui">«Цвет более тёмной линии»</strong> даёт этой линии собственный цвет, его же получают центральный крест и край стола. <strong class="ui">«Цвет сетки»</strong> — цвет обычных линий.</p>
+<p>Каждая линия сетки становится шире при приближении, как в Tinkercad, и остаётся видимой при отдалении. Если это слишком, выключите <strong class="ui">«Линии сетки утолщаются при приближении»</strong>, и линии останутся толщиной в один пиксель при любом масштабе, как в эскизе.</p>
+<p>Если сетка пропала, например потому что какой-то цвет совпал с цветом стола, <strong class="ui">«Сбросить сетку»</strong> в конце раздела <strong class="ui">«Рабочая плоскость»</strong> возвращает её видимость, цвета, шаг и толщину линий к стандарту — здесь и в стандартных настройках, сохранённых через <strong class="ui">«Сделать по умолчанию»</strong>.</p>
+</section><section class="guide-part"><h3 id="standartnye-znacheniya-figur"><span class="heading-alias" id="shape-defaults"></span>Стандартные значения фигур</h3>
+<p>В разделе <strong class="ui">«Параметры фигур по умолчанию»</strong> вы выбираете фигуру в <strong class="ui">«Фигура»</strong> и задаёте, с чего она начинается при добавлении: её ширину, длину и высоту. <strong class="ui">«Использовать значения приложения»</strong> возвращает фигуре значения, с которыми её начинает программа. Фигуры со своими настройками показывают их в <strong class="ui">«Параметры фигуры»</strong>. Значения действуют для новых фигур, а не для уже стоящих на столе. <strong class="ui">«Лимит пользовательского размера»</strong> задаёт собственный предел того, насколько большой ручки и свойства могут сделать эту фигуру; если оставить пустым, остаются обычные пределы.</p>
+</section><section class="guide-part"><h3 id="sokhranyaemaya-istoriya"><span class="heading-alias" id="saved-history"></span>Сохраняемая история</h3>
+<p>В разделе <strong class="ui">«История»</strong> ползунок <strong class="ui">«Сохранённая история»</strong> задаёт, сколько завершённых действий остаются доступны для отмены после сохранения или повторного открытия проекта. По умолчанию — 100 действий на проект. Более низкий предел навсегда удаляет старые шаги отмены проекта.</p>
+</section></section><section class="guide-part"><h2 id="kogda-layerling-tormozit"><span class="heading-alias" id="when-layerling-feels-slow"></span>Когда layerling тормозит</h2>
+<p>layerling считает и рисует всё в вашем браузере. На старом компьютере, со слабой видеокартой или на нескольких больших экранах вид поэтому может подтормаживать. Помогает следующее:</p>
+<ul><li><strong class="ui">«Быстрый режим»</strong> в разделе <strong class="ui">«Внешний вид»</strong> разом выключает всё, что дорого обходится виду: тени, линии кромок на всех телах и инерцию камеры. Он и рисует вид только в разрешении экрана — на экранах с высоким разрешением это до четырёх раз меньше пикселей. Ваши собственные настройки сохраняются и снова вступают в силу, как только вы его выключите.</li></ul>
+<ul><li>Инерция камеры: когда вы отпускаете мышь после поворота, вид продолжает поворачиваться и плавно замедляется. Это сделано нарочно, а не подёргивание. Если вы привыкли к Tinkercad или Fusion 360, выключите <strong class="ui">«Инерция камеры»</strong> в разделе <strong class="ui">«Внешний вид»</strong> — и вид будет останавливаться сразу.</li></ul>
+<ul><li>Отдельные переключатели: без быстрого режима можно выключить и только <strong class="ui">«Показывать тени»</strong> или <strong class="ui">«Линии кромок на всех телах»</strong>.</li></ul>
+<ul><li>Задействуйте видеокарту: в Chrome откройте chrome://gpu (в Edge — edge://gpu). Напротив «WebGL» должно стоять «Hardware accelerated». Если там «Software only», аппаратное ускорение выключено в настройках браузера. На Windows можно также выбрать «Высокая производительность» для браузера в разделе Параметры → Система → Дисплей → Графика, чтобы он использовал настоящую видеокарту, а не слабую, встроенную в процессор.</li></ul>
+<ul><li>Упрощайте большие импортированные сетки: модель из многих сотен тысяч треугольников замедляет любой вид. Как её проредить, рассказано в главе о файлах, в разделе «Упрощение импортированной сетки».</li></ul>
+<ul><li>Закрывайте другие вкладки: каждая открытая вкладка layerling и любая другая 3D-страница делят одну и ту же видеокарту.</li></ul></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/ru/getting-started.html"><small>Предыдущая глава</small>С чего начать</a><a class="next" href="/api/desktop/layerling/ui/ru/shapes.html"><small>Следующая глава</small>Размещение и настройка фигур</a></div>
+      </main>
+    </div>
+    <footer class="note">Это руководство растёт вместе с программой. Если чего-то не хватает или что-то не так — напишите в <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">обсуждениях</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=ru" rel="noopener">Поддержать проект</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Обсуждения</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Подробнее на GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Заметки о выпуске v1.154.1</a></div><p class="trademark">Tinkercad — товарный знак Autodesk, Inc. layerling — независимый проект, не связанный с Autodesk, не одобренный и не спонсируемый ею.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Вернуться в редактор";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Открыть редактор";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

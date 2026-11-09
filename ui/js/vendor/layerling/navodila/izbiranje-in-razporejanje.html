@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="sl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Izbiranje in razporejanje - layerling navodila</title>
+    <meta name="description" content="Izbiranje oblik, iskanje v seznamu objektov, poravnava, zrcaljenje, vrtenje, polaganje na ploskev in množenje v poljih.">
+    <link rel="canonical" href="https://layerling.com/navodila/izbiranje-in-razporejanje.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/select-and-arrange.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/select-and-arrange.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/select-and-arrange.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/auswaehlen-und-anordnen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/select-and-arrange.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/select-and-arrange.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/select-and-arrange.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/select-and-arrange.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/selecteren-en-schikken.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/select-and-arrange.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/izbiranje-in-razporejanje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/select-and-arrange.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/select-and-arrange.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/select-and-arrange.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/select-and-arrange.html">
+    <meta property="og:title" content="Izbiranje in razporejanje - layerling navodila">
+    <meta property="og:description" content="Izbiranje oblik, iskanje v seznamu objektov, poravnava, zrcaljenje, vrtenje, polaganje na ploskev in množenje v poljih.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/navodila/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Navodila</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/navodila/search-index.json" data-nothing="Nič ni najdeno." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Išči po navodilih" aria-label="Išči po navodilih" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Jezik">Slovenščina</summary><ul><li><a href="/api/desktop/layerling/ui/guide/select-and-arrange.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/select-and-arrange.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/select-and-arrange.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/select-and-arrange.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/select-and-arrange.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/select-and-arrange.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/select-and-arrange.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/select-and-arrange.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/select-and-arrange.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/select-and-arrange.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/izbiranje-in-razporejanje.html" hreflang="sl" lang="sl" aria-current="true">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/select-and-arrange.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/select-and-arrange.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/select-and-arrange.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/select-and-arrange.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/select-and-arrange.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/select-and-arrange.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">V urejevalnik</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Urejevalnik je že odprt v drugem zavihku – preprosto preklopi nanj.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Poglavja"><h2>Poglavja</h2><p class="print-link"><a href="/api/desktop/layerling/ui/navodila/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Celotna navodila za tiskanje</span></a></p><ol><li><a href="/api/desktop/layerling/ui/navodila/prvi-koraki.html">Prvi koraki</a></li><li><a href="/api/desktop/layerling/ui/navodila/pogled-in-delovna-ravnina.html">Pogled in delovna ravnina</a></li><li><a href="/api/desktop/layerling/ui/navodila/oblike.html">Postavljanje in nastavljanje oblik</a></li><li><a href="/api/desktop/layerling/ui/navodila/izbiranje-in-razporejanje.html" aria-current="page">Izbiranje in razporejanje</a></li><li><a href="/api/desktop/layerling/ui/navodila/telesa-in-luknje.html">Telesa in luknje</a></li><li><a href="/api/desktop/layerling/ui/navodila/robovi-in-izdolbljenje.html">Posnetje robov in izdolbljenje teles</a></li><li><a href="/api/desktop/layerling/ui/navodila/skice.html">Skice: od obrisa do telesa</a></li><li><a href="/api/desktop/layerling/ui/navodila/besedilo.html">Besedilo in ukrivljen napis</a></li><li><a href="/api/desktop/layerling/ui/navodila/navoji-in-mehanika.html">Navoji, zobniki in drugi sestavni deli</a></li><li><a href="/api/desktop/layerling/ui/navodila/merjenje-in-opombe.html">Merjenje in opombe</a></li><li><a href="/api/desktop/layerling/ui/navodila/tiskanje.html">Priprava za 3D-tisk</a></li><li><a href="/api/desktop/layerling/ui/navodila/datoteke-in-shranjevanje.html">Datoteke, shranjevanje in deljenje</a></li><li><a href="/api/desktop/layerling/ui/navodila/bliznjice.html">Bližnjice na tipkovnici</a></li><li><a href="/api/desktop/layerling/ui/navodila/ai-z-mcp.html">Gradnja z umetno inteligenco (MCP)</a></li><li><a href="/api/desktop/layerling/ui/navodila/offline-in-namestitev.html">Namestitev kot aplikacije, delo brez interneta in lastno gostovanje</a></li><li><a href="/api/desktop/layerling/ui/navodila/videi.html">Videoposnetki o programu layerling</a></li><li><a href="/api/desktop/layerling/ui/navodila/tablica-in-dotik.html">Tablica in dotik</a></li></ol></nav>
+      <main>
+<h1>Izbiranje in razporejanje</h1>
+<p class="lead">Izbiranje oblik, iskanje v seznamu objektov, poravnava, zrcaljenje, vrtenje, polaganje na ploskev in množenje v poljih.</p>
+<div class="toc"><b>Na tej strani</b><ul><li><a href="#izbiranje">Izbiranje</a></li><li><a href="#seznam-objektov">Seznam objektov</a></li><li><a href="#vpisi-lego">Vpiši lego</a></li><li><a href="#parkiranje-delov-ob-plosci">Parkiranje delov ob plošči</a></li><li><a href="#zaskakovanje-med-premikanjem">Zaskakovanje med premikanjem</a></li><li><a href="#poravnava">Poravnava</a></li><li><a href="#zrcaljenje">Zrcaljenje</a></li><li><a href="#vrtenje-in-postavitev-vrtisca">Vrtenje in postavitev vrtišča</a></li><li><a href="#polaganje-na-ploskev">Polaganje na ploskev</a></li><li><a href="#polja-vrsta-in-krog">Polja: vrsta in krog</a></li><li><a href="#vzorec-lukenj-na-ploskvi">Vzorec lukenj na ploskvi</a></li><li><a href="#vlecenje-ploskve-navzven-ali-navznoter">Vlečenje ploskve navzven ali navznoter</a></li><li><a href="#sprememba-vec-delov-naenkrat">Sprememba več delov naenkrat</a></li><li><a href="#povecava-v-odstotkih">Povečava v odstotkih</a></li><li><a href="#razveljavitev">Razveljavitev</a></li><li><a href="#pogled-nazaj-pogled-zgodovine">Pogled nazaj: pogled zgodovine</a></li></ul></div>
+<section class="guide-part"><h2 id="izbiranje"><span class="heading-alias" id="selecting"></span>Izbiranje</h2>
+<p>Klik na obliko jo izbere. S <kbd>Shift</kbd> dodaš še druge ali jih spet odvzameš. Dokler držiš <kbd>Shift</kbd> in sta izbrani dve obliki ali več, ju šteje majhna številka pod kazalcem miške. Klik v prazno izbor prekliče, prav tako <kbd>Esc</kbd>. Če na prazni delovni ravnini povlečeš okvir, izbereš vse, česar se dotakne; s pridržanim <kbd>Shift</kbd> okvir doda, česar ni bilo izbranega, in odvzame, kar je bilo. Če bi raje izbral en del iz gruče, v nastavitvah (področje <strong class="ui">„Videz“</strong>) vklopi <strong class="ui">„Smer okvirja odloča“</strong>: okvir, potegnjen v desno, potem vzame samo tisto, kar leži v celoti v njem, potegnjen v levo pa še vedno vse, česar se dotakne, in njegova črta je črtkana. Med vlečenjem drži <kbd>Alt</kbd>, da okvir za to eno vlečenje obrneš, na primer da vzameš cela telesa s strani, kjer smer tega ne bi dovolila. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span> pa izbere vsa vidna telesa. Medtem ko vlečeš telo ali ročaj okvirja, <kbd>Esc</kbd> prekliče dejanje, dokler je tipka miške še pritisnjena: vse se vrne, kot je bilo, in v zgodovino se ne doda nič.</p>
+<p>Obliko za drugo obliko, na primer luknjo v telesu, dosežeš, ne da bi obračal pogled: desno klikni to mesto in izberi <strong class="ui">„Izberi drugega…“</strong>. Meni potem našteje vse oblike pod kazalcem, od spredaj nazaj. Tista, na kateri je kazalec, je v pogledu obrobljena, tudi skozi oblike pred njo; klik jo izbere, s <kbd>Shift</kbd> pa jo doda izboru. Vnos je tam vedno, ko pod kazalcem leži več kot ena oblika; na tablici isti meni odpre dolg pritisk.</p>
+<p>Kar ti je v napoto, skriješ (<strong class="ui">„Skrij izbrano“</strong>, <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>H</kbd></span>). Skrite oblike ostanejo v načrtu, samo niso vidne in ne pridejo v izvoz; okno izvoza vnaprej pove, koliko jih je. S <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></span> vrneš vse nazaj. Kar naj ostane na mestu, zakleneš s ključavnico zgoraj v nastavitvah ali s <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span>. Zaklenjene oblike ni mogoče premikati, spreminjati velikosti, vrteti, barvati ali izbrisati: njene ročice posivijo, ob puščici zgoraj se pokaže ključavnica, orodja, ki bi jo spremenila, pa so zatemnjena. Ko miško pelješ čez ročico, se mere še vedno pokažejo, tipka, ki bi jo spremenila, pa pove »Objekt zaklenjen«. Dokler je v izboru ena zaklenjena oblika, se tudi pri drugih nič ne spremeni. Skrivanje, preimenovanje, kopiranje in podvajanje še delujejo. Če želiš del pustiti, kakršen je, in z njim še naprej graditi, zakleni samo njegovo obliko: s ščitom poleg ključavnice, z <strong class="ui">„Zakleni obliko“</strong> v meniju desnega klika ali z <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd></span>. Še vedno ga lahko premikaš, vrtiš, dvigaš, poravnavaš, kopiraš in združuješ z drugimi, velikost, nastavitve in ime pa ostanejo, kot so: ročaji za velikost izginejo, njihova polja posivijo, spreminjanje velikosti, zrcaljenje, razdruževanje, orodja za robove in brisanje pa so zavrnjeni. Kopija obdrži zaklep, prav tako del v skupini: skupino lahko premikaš in spet razdružiš, ne moreš pa ji spremeniti velikosti. Ščit obliko spet odklene.</p>
+<p>Če želiš delati na nekaj delih globoko v načrtu, jih izberi in izberi <strong class="ui">„Skrij ostale“</strong> v meniju desnega klika ali pod <strong class="ui">„Možnosti vidnosti“</strong>: vse drugo se skrije v enem koraku, zato ga <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> ali <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></span> vrne. <strong class="ui">„Obrni izbor“</strong> v meniju desnega klika izbere vsako vidno obliko, ki ni bila izbrana, in izbrane spusti. Oboje je tudi v iskanju ukazov (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>), kjer jima lahko dodeliš tudi svojo tipko.</p>
+<p>Število na gumbu skupine <strong class="ui">„Vidnost“</strong> pove, koliko oblik je skritih, klik nanj pa jih spet prikaže vse. Projekt, odprt s skritimi oblikami, to enkrat sporoči z obvestilom z gumbom za prikaz. Del, ki ga skriješ pri odprti skupini, ostane skrit, ko jo zapreš z <strong class="ui">„Končano“</strong>: skupina obdrži svojo velikost in ostali deli ostanejo, kot so, pri poravnavi skriti del še vedno šteje, prikaz vseh skritih oblik pa se ga ne dotakne. Za prikaz skupino znova odpri.</p>
+</section><section class="guide-part"><h2 id="seznam-objektov"><span class="heading-alias" id="the-object-list"></span>Seznam objektov</h2>
+<p>Pri mnogih delih v pogledu zlahka izgubiš pregled. Seznam objektov (<strong class="ui">„Pokaži seznam objektov“</strong> ali <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd></span>) pokaže vse oblike kot seznam. Ostane odprt ali zaprt, kakor si ga pustil, za vse načrte, dokler ga ne zapreš; izbira se shrani v brskalniku.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/object-list.webp" alt="Seznam objektov: skupina »Skupina« z dvema delama in ob njej krogla. Ikona mape odpre skupino." width="1280" height="800" loading="lazy"><figcaption>Seznam objektov: skupina »Skupina« z dvema delama in ob njej krogla. Ikona mape odpre skupino.</figcaption></figure>
+<ul><li>Klik na vnos izbere obliko, tudi dele znotraj skupine. S <kbd>Shift</kbd> dodaš še druge vnose ali jih spet odvzameš, popolnoma enako kot v pogledu. Puščice zložijo in razpro skupine.</li><li>Oznaka kaže, ali je del <strong class="ui">„Trdno telo“</strong> ali <strong class="ui">„Luknja“</strong>.</li><li>Pod imenom piše, kakšna oblika je. Telo, ki ni več preprosta oblika (zaobljeno, izdolbeno ali uvoženo), kaže <strong class="ui">„Natančno telo“</strong>, ko ga izvoz STEP zapiše natančno, in <strong class="ui">„Mreža“</strong>, ko je sestavljeno le iz trikotnikov in gre ven kot STL. Zoženje, nagib ali zasuk, dodan šele po zaobljanju ali dolbenju telesa, upogne samo njegovo mrežo, zato takrat piše <strong class="ui">„Mreža“</strong>.</li><li>Ključavnica in oko zaklenita in skrijeta posamezne dele.</li><li>Z <strong class="ui">„Preimenuj“</strong> daš delu lastno ime; svinčnik ob imenu zgoraj v nastavitvah naredi isto za izbrano obliko. Smiselna imena pri večjih načrtih zelo pomagajo.</li><li>Gumb A–Ž v naslovni vrstici (<strong class="ui">„Razvrsti poimenovane oblike od A do Ž“</strong>) razvrsti oblike, ki si jim dal ime, po abecedi, številke pa šteje kot številke (Del 2 pred Delom 10). Oblike s privzetim imenom ostanejo spodaj v vrstnem redu dodajanja, najnovejša zadnja, deli v skupinah pa se razvrstijo enako. Spremeni se le seznam, nikoli načrt. Drugi klik spet pokaže vse v vrstnem redu dodajanja, brskalnik pa si izbiro zapomni.</li><li>Ročaj levo v vrstici (šest pik) premakne obliko na seznamu: povleci jo navzgor ali navzdol ali nanjo postavi fokus in pritisni <kbd>↑</kbd> ali <kbd>↓</kbd>. S tem se spremeni lastni vrstni red načrta, h kateremu se seznam vrne brez razvrščanja A–Z, Razveljavi pa ga povrne. Pri razvrščanju A–Z ali iskanju so ročaji skriti.</li><li>Če želite obliko dodati v skupino, skupino razprite z njeno puščico in obliko za ročico povlecite na dele skupine; skupina dobi oranžen okvir. Oblika ostane, kjer je, in obdrži svoje ime, prav tako skupina: skupina se z njo znova združi, sveženj jo preprosto sprejme. Deli razprte skupine imajo svojo ročico: povlečen iz skupine je del spet samostojen, na mestu seznama, kjer ga spustite, ali pa ga spustite na drugo razprto skupino, da ga premaknete vanjo. Skupina, v kateri ostane en sam del, izgine in pusti ta del. Razveljavi vrne vsak od teh korakov naenkrat. Med urejanjem skupine to ne deluje.</li><li>Iskalno polje najde oblike po imenu in po vrsti, torej tudi »valj« ali »luknja«. Išče tudi v skupinah, ne glede na to, kako globoko so ugnezdene: skupina z zadetkom ostane na seznamu in se razpre, tako da so vidni ustrezni deli in skupine na poti do njih. Če ime same skupine ustreza, pokaže razpro vse svoje dele.</li><li>Puščica čisto levo v naslovni vrstici zloži seznam do naslovne vrstice in ga spet razpre.</li></ul>
+<p>Seznam je zasidran desno ob orientacijski kocki. Za naslovno vrstico ga povlečeš na katerokoli mesto delovne površine; pri tem drsi pod orientacijsko kocko in vrstico pogleda. Če ga odložiš ob orientacijski kocki ali dvokliknes naslovno vrstico, se spet zasidra. Kje je stal in ali je bil zložen, si brskalnik zapomni.</p>
+</section><section class="guide-part"><h2 id="vpisi-lego"><span class="heading-alias" id="typing-a-position"></span>Vpiši lego</h2>
+<p>Kartica <strong class="ui">„Položaj“</strong> v oknu z lastnostmi pokaže, kje stoji izbrano telo, in jo lahko vpišeš: <strong class="ui">„X“</strong> in <strong class="ui">„Y“</strong> sta sredina njegovega okvirja na plošči, z enakimi predznaki kot razdalje na delovni površini, <strong class="ui">„Z (višina)“</strong> je višina njegovega spodnjega roba. Z <strong class="ui">„Merjeno od“</strong> na vrhu kartice preklopiš na <strong class="ui">„Rob“</strong>: X in Y potem kažeta levi in sprednji rob telesa, tako da rob postaviš natanko na mero. Nastavitev ostane, dokler ne preklopiš nazaj na <strong class="ui">„Sredina“</strong>. X šteje v desno, Y nazaj in Z navzgor, po pravilu desne roke kot v Tinkercadu in CAD-programih; puščice osi na plošči kažejo smeri. Vrednosti veljajo v nastavljeni enoti, drsniki pa segajo tako daleč kot vlečenje.</p>
+</section><section class="guide-part"><h2 id="parkiranje-delov-ob-plosci"><span class="heading-alias" id="parking-parts-beside-the-plate"></span>Parkiranje delov ob plošči</h2>
+<p>Obliko lahko povlečeš čez rob plošče in jo pustiš tam, približno za širino plošče na vsaki strani, da jo shraniš za pozneje. S smernimi tipkami gre poljubno daleč. Parkiran del še naprej spada k načrtu in pride v izvoz. Če naj ostane zunaj, ga skrij ali izvozi samo izbor. Če si izbral tiskalnik, te layerling ob izvozu opozori, če kaj leži zunaj njegove plošče.</p>
+</section><section class="guide-part"><h2 id="zaskakovanje-med-premikanjem"><span class="heading-alias" id="snapping-while-moving"></span>Zaskakovanje med premikanjem</h2>
+<p>Če oblika vlečeš čez delovno ravnino, se zaskoči na druge oblike: njen levi, desni, sprednji ali zadnji rob ali njena sredina se položi natanko na rob ali sredino druge oblike. Roza pomožna črta kaže, na kaj je ravno pripeta. Tako postaviš dva dela poravnana drug ob drugega ali sredinsko drug za drugim, ne da bi vpisoval številke. To velja tudi, če je mreža izklopljena. Šteje tudi sredina delovne ravnine: rožnate črte pokažejo, kdaj oblika stoji na sredini plošče vzdolž X, Y ali obeh.</p>
+<p>Če pri vlečenju držiš <kbd>Shift</kbd>, ostane gibanje na eni osi: oblika sledi smeri, X ali Y, v katero si vlekel dalje, drugo pa pusti nedotaknjeno. Najbolje je, da <kbd>Shift</kbd> pritisneš šele, ko že vlečeš; na obliki, ki še ni izbrana, klik s <kbd>Shift</kbd> samo doda k izboru.</p>
+<p>Ali povleci rdečo ali zeleno puščico na vrhu izbire: premika samo vzdolž X ali samo vzdolž Y, oblika pa sledi miški po tej črti tudi v nizkem pogledu, kjer prosto vlečenje uide daleč. Puščici se pripenjata kot pri vlečenju, <kbd>Alt</kbd> to izklopi, prevoženo razdaljo pa lahko potem klikneš in vpišeš natančno.</p>
+<p>Če je <kbd>Alt</kbd> že pritisnjen, ko se vlečenje začne, vlečeš kopijo, kot v Tinkercadu: oblika ostane, kjer je, kopija pa pristane tam, kjer spustiš. Če <kbd>Alt</kbd> pritisneš šele med potjo, se zaskakovanje prekine in oblika sledi samo mreži. Tudi pri vlečenju kopije se zaskoči šele, ko <kbd>Alt</kbd> med potjo spustiš. Zaskakovanje lahko povsem izklopiš v meniju pripenjanja spodaj desno (<strong class="ui">„Pripni na oblike“</strong>) ali v nastavitvah. Zaenkrat se zaskoči samo premikanje na običajni delovni ravnini, ne dviganje in ne sprememba velikosti.</p>
+</section><section class="guide-part"><h2 id="poravnava"><span class="heading-alias" id="aligning"></span><span class="heading-alias" id="matching-sizes"></span><span class="heading-alias" id="equal-gaps"></span>Poravnava</h2>
+<p>Dve ali več izbranih oblik poravnaš med seboj z <strong class="ui">„Poravnaj“</strong> (<kbd>L</kbd> ali desni klik na izbor in izbira ukaza): na robu izbora se pokažejo točke za levo, sredino in desno, spredaj, sredino in zadaj ter zgoraj, sredino in spodaj. Klik na točko premakne vse oblike tja. Če najprej klikneš eno od izbranih oblik, ta ostane na mestu in se druge ravnajo po njej. Zaklenjena oblika v izboru je sama ta nepremična oblika. Levo, desno, spredaj, zadaj, zgoraj in spodaj gredo po okvirju okoli oblike; sredina trikotnika, petkotnika ali zvezde je njena lastna sredina, zato luknja, centrirana na tako obliko, leži na sredini oblike in ne njenega okvirja.</p>
+<p>Poševno zavrtena oblika, na primer za 45°, ima za izhodišče okvir okoli sebe, ne svojih lastnih robov. Za poravnavo po robovih najprej postaviš delovno ravnino na ploskev te oblike (<strong class="ui">„Postavi delovno ravnino“</strong>, nato klik na ploskev): točke potem stojijo na oseh te ravnine, oblike pa se merijo in premikajo vzdolž njih, kot v Tinkercadu. Če delovno ravnino ponastaviš, spet poravnavaš po plošči.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/align.webp" alt="Poravnava na robovih izbora kaže možne cilje kot točke." width="1280" height="800" loading="lazy"><figcaption>Poravnava na robovih izbora kaže možne cilje kot točke.</figcaption></figure>
+<p>Tipka za to je <kbd>L</kbd>. <kbd>Esc</kbd> prekine.</p>
+<section class="guide-part"><h3 id="enaki-razmiki">Enaki razmiki</h3>
+<p>Ob srednji točki vsake črte stoji širša točka s črtico na vsaki strani. Razporedi tri ali več oblik v tej smeri tako, da je prostor med sosednjimi robovi povsod enak, ne glede na velikost oblik. Prva in zadnja oblika ostaneta na mestu, tiste vmes se premaknejo. Vrsta lukenj različnih velikosti tako dobi povsod enako steno vmes. Pojdi z miško čez točko in vnaprej vidiš, kam gredo oblike; vrstica stanja nato pove razmik.</p>
+<p>Če je med izbranimi oblikami plošča, ki je v tej smeri daljša od vseh drugih, se oblike razporedijo po njej: razmik do njenih robov je enak razmiku med oblikami, ena sama oblika pa pride na sredino. Oblike v več vrstah, kot živali sestavljanke z gumbki, se razporedijo vrsto za vrsto; oblike, katerih škatle se prekrivajo prečno na smer, tvorijo eno vrsto. Kjer oblike ne stojijo v čistih stolpcih, kot živali od spredaj nazaj, se oblike, ki stojijo druga ob drugi, premaknejo kot cela vrsta.</p>
+<p>Brez plošče najprej drži <kbd>Shift</kbd> in klikni prazno mesto podlage: podlaga je nato fiksna oblika, enaki razmiki razporedijo oblike po vsej podlagi z enakim razmikom do robov, druge točke pa jih poravnajo na njene robove ali sredino. Ponoven klik s <kbd>Shift</kbd> na prazno podlago jo izpusti. Klik na prazno mesto brez <kbd>Shift</kbd> konča poravnavo, tako kot <kbd>L</kbd> in <kbd>Esc</kbd>.</p>
+<p>Drži <kbd>Alt</kbd> in klikni točko, da sam vpišeš razmik, na primer 5 mm: oblike se postavijo tako daleč narazen, od prve oblike ali od tiste, ki si jo kliknil najprej; na plošči pride vrsta na sredino. Zaklenjena oblika ostane na mestu, zato ena med zunanjima oblikama prepreči enake razmike.</p>
+</section></section><section class="guide-part"><h2 id="zrcaljenje"><span class="heading-alias" id="mirroring"></span>Zrcaljenje</h2>
+<p><strong class="ui">„Zrcali“</strong> (<kbd>M</kbd> ali desni klik na izbor in izbira ukaza) prevrne izbor ob ravnini: <strong class="ui">„levo-desno“</strong>, <strong class="ui">„spredaj-zadaj“</strong> ali <strong class="ui">„zgoraj-spodaj“</strong>. Za to klikni na ustrezno puščico osi. To je praktično za simetrične dele: zgradi eno polovico, jo kopiraj in kopijo zrcali.</p>
+</section><section class="guide-part"><h2 id="vrtenje-in-postavitev-vrtisca"><span class="heading-alias" id="rotating-and-setting-the-pivot"></span>Vrtenje in postavitev vrtišča</h2>
+<p>Vrti se z zakrivljenimi puščicami na obliki, s številkami v nastavitvah ali s <kbd>R</kbd> v korakih po 45°. Ko vlečeš po krogu za vrtenje, se zasuk zaskoči na vsako črtico, to je na vsakih 22,5°; s pridržano tipko <kbd>Shift</kbd> so koraki finejši, dodatne črtice se pokažejo na vsakih 11,25°. Vleci zunaj kroga, da se vrtiš prosto v korakih po 1°, ali v korakih po 45° s tipko <kbd>Shift</kbd>. Običajno se izbor vrti okoli svoje sredine. Včasih to ni zaželeno, na primer če se nagnjena cev vrti naprej okoli svojega konca. Za to je <strong class="ui">„Nastavi središče vrtenja“</strong>: potem klikni na ploskev. Ravna ploskev poda svoje središče, na primer os konca cevi. Pri skupini ali svežnju se ploskev razteza čez dele, ki se stikajo, kot pri enem telesu, vrtišče pa gre na sredino cele ploskve, ko so deli spojeni, razen pri skupini ali svežnju z besedilom ali svežnju z luknjo. Izbor se zdaj vrti okoli te točke. Drugi klik na orodje jo spet odpravi.</p>
+<p>Koti ostanejo na telesu. V njegovih nastavitvah jih <strong class="ui">„Zasuk“</strong> kaže kot <strong class="ui">„Okoli X“</strong>, <strong class="ui">„Okoli Y“</strong> in <strong class="ui">„Okoli Z (višina)“</strong>, poimenovane kot lega: Y teče prečno čez ploščo, Z navzgor. Če tam vpišeš kot, se telo zavrti na ta kot – okoli svoje sredine ali okoli svojega lastnega vrtišča, če ga ima. Dokler je zavrteno telo izbrano, so njegovi koti prikazani tudi pod njim na delovni površini; <strong class="ui">„Prikaži kote zasukanih teles“</strong> v nastavitvah to izklopi.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/rotation-card.webp" alt="Telo, zavrteno okoli dveh osi: njegovi koti so pod njim, kartica »Vrtenje« v njegovih nastavitvah pa jih sprejme kot številke." width="1280" height="800" loading="lazy"><figcaption>Telo, zavrteno okoli dveh osi: njegovi koti so pod njim, kartica »Vrtenje« v njegovih nastavitvah pa jih sprejme kot številke.</figcaption></figure>
+<p>Če je izbrano <strong>eno telo</strong>, vrtišče spada k temu telesu: izberi druge dele in se vrni in še vedno je tam. Premika se, vrti in spreminja velikost s telesom, shrani se v projekt in se vrne z »Razveljavi«. Pod <strong class="ui">„Položaj“</strong> ima vrtišče lastne vrednosti za X, Y in Z, ki jih lahko vpišeš ali premakneš, <strong class="ui">„Odstrani“</strong> pa ga odstrani. Rdečo oznako vrtišča lahko tudi povlečeš z miško: drsi po površini teles in se zaskoči na oglišča, sredine robov in robove, tako da zatič tečaja pride natanko na oglišče. Če je izbranih več teles, vrtišče velja samo za ta izbor, nov izbor pa ga odpravi. Če jih združiš ali povežeš, ostane: skupina ga prevzame kot svoje vrtišče, z X, Y in Z pod <strong class="ui">„Položaj“</strong>. Če med vlečenjem držiš Shift, se namesto tega pripne na sredino ploskve pod kazalcem - os okrogle ploskve, sredino ravne ali konico stožca - in pri tem gleda skozi prozorna telesa.</p>
+</section><section class="guide-part"><h2 id="polaganje-na-ploskev"><span class="heading-alias" id="laying-flat-on-a-face"></span>Polaganje na ploskev</h2>
+<p>Del naj za tisk leži na svoji najboljši strani? Izberi ga, klikni <strong class="ui">„Položi na ploskev“</strong> in nato ploskev, ki naj gre navzdol. Ko s kazalcem zapelješ čez del, se ploskev pod njim posveti, torej vnaprej vidiš, katero boš vzel; zavrti pogled in preveri druge strani. Del se zavrti tako, da ta ploskev leži na delovni ravnini.</p>
+<p>Dva dela naj ležita ploskev ob ploskvi ali naj se končata poravnano? Izberi del, ki naj se premakne, klikni <strong class="ui">„Poravnaj ploskve“</strong>, nato njegovo ploskev in zatem ploskev drugega dela. V oknu <strong class="ui">„Ploskev ob ploskev“</strong> položi ploskvi druga ob drugo (hrbet ob hrbet, dotikanje), <strong class="ui">„Poravnano“</strong> ju položi poleg druga druge v isto ravnino; <strong class="ui">„Reža“</strong> pusti prostor vmes, na primer kot zračnost. <strong class="ui">„Poravnaj“</strong> del premakne: zavrti se po najkrajši poti, dokler nista ploskvi vzporedni – sploh ne, če že sta – in se potem samo pomakne proti drugi ploskvi, zato obdrži svojo stransko lego. Drugi del ostane, kjer je, »Razveljavi« pa vse vrne.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/mate-faces.webp" alt="Okno »Poravnaj ploskve«: del, ki se premakne, je izbran, naslednja je ploskev drugega dela, nato »Drugo proti drugemu« ali »Poravnano« in razmik, če želiš." width="1280" height="800" loading="lazy"><figcaption>Okno »Poravnaj ploskve«: del, ki se premakne, je izbran, naslednja je ploskev drugega dela, nato »Drugo proti drugemu« ali »Poravnano« in razmik, če želiš.</figcaption></figure>
+<p><strong>Luknje na eni osi:</strong> <strong class="ui">„Ista os“</strong> namesto tega poravna okrogle ploskve: luknjo nad luknjo, čep v luknjo, vijak v njegovo prehodno luknjo. Izberi to, preden klikneš ploskve. Nato klikni okroglo notranjost luknje (ali zunanjost čepa) na delu, ki se premakne, in okroglo ploskev drugega dela; cela okrogla ploskev zasveti, ko kažeš nanjo. <strong class="ui">„Poravnaj“</strong> zavrti del po najkrajši poti, dokler osi nista vzporedni, in ga potisne počez na drugo os. Vzdolž osi ostane, kjer je bil, zato čep obdrži višino; potisni ga noter pozneje. Deluje tudi pri uvoženih mrežah, dokler je luknja iz ploskvic okoli ene osi.</p>
+<p><strong>Točka na točko:</strong> <strong class="ui">„Točka na točko“</strong> premakne del naravnost, brez vrtenja, da ena od njegovih točk pride na točko drugega dela. Na delu, ki se premika, klikni vogal, mesto na robu, središče okroglega roba ali referenčno točko, nato točko, kamor naj pride; pika pokaže, katero točko bi zajel kazalec. Pod <strong class="ui">„Premakni po“</strong> izklopi osi, po katerih se ne sme premikati: samo z X in Y pride točka natanko nad ali pod drugo, samo z Z na isto višino. En Razveljavi to povrne.</p>
+<p><strong>Vrtenje z drugim in tretjim parom:</strong> po <strong class="ui">„Poravnaj“</strong> ostane plošča odprta za drugi par točk. Prva točka ostane, kamor je pristala, označena z modro, in <strong class="ui">„Zavrti“</strong> zavrti del okoli nje, dokler premica skozi njegovo drugo točko ne gre skozi točko, ki si jo izbral na drugem delu - tako ležita dva robova na eni premici, tudi če dela nista enako dolga. Tretji par zavrti del okoli premice skozi obe modri točki, dokler njegova tretja točka ne kaže proti izbrani tretji točki, da se ujemajo tudi ploskve - kot poravnava po treh točkah v drugih programih CAD. <strong class="ui">„Končano“</strong> konča pri vsakem koraku; vsak korak je en Razveljavi.</p>
+<p><strong>Natančen kot med dvema ploskvama:</strong> <strong class="ui">„Poravnaj ploskve“</strong> pusti ploskvi vzporedni; za kot med njima ni posebnega orodja, a do njega prideš tako. Najprej ploskvi združi z <strong class="ui">„Poravnaj ploskve“</strong>, da sta vzporedni. Nato nastavi središče vrtenja na rob, kjer se stikata (<strong class="ui">„Nastavi središče vrtenja“</strong>, klikni rob ali oglišče) in v kartici <strong class="ui">„Zasuk“</strong> dela vpiši kot, na primer 15 ali 30. Del se zavrti okoli tega središča. Osi kartice so osi plošče, zato to deluje, kadar rob poteka vzdolž X, Y ali Z.</p>
+<p>Podobno preprosta sta <strong class="ui">„Spusti na delovno ravnino“</strong> (<kbd>D</kbd>), ki izbor odloži na delovno ravnino, in <strong class="ui">„Centriraj na delovni ravnini“</strong>.</p>
+<p><span dir="ltr"><kbd>Alt</kbd>+<kbd>D</kbd></span> spusti več delov kot celoto: vsi se pomaknejo navzdol za enako razdaljo in tako ohranijo višine med seboj, medtem ko <kbd>D</kbd> spusti vsak del posebej.</p>
+<p><kbd>C</kbd> dvigne izbor, kot Cruise v Tinkercadu: sledi kazalcu miške in se uleže na ploskev drugega telesa, nad katero si, tudi na poševno. Klik ga tam odloži, <kbd>Esc</kbd> ga pusti, kjer je bil. Njegova spodnja stran potem leži na ploskvi, poravnana z robovi ploskve, kot bi bila nova oblika; svoj zasuk okoli navpične osi obdrži. Več delov potuje skupaj in ohrani razmike. Nad prazno ploščo <kbd>C</kbd> nagnjen del znova postavi pokonci na delovno ravnino. Če med prenašanjem držiš <kbd>Shift</kbd>, se del namesto tega pogrezne v ploskev: ostane pokonci, z vrhom poravnanim s ploskvijo in telesom pod njo, tako pride v telo stožčasto ali valjasto ugrezanje; nova oblika iz knjižnice se s <kbd>Shift</kbd> postavi enako. <span dir="ltr"><kbd>Shift</kbd>+<kbd>D</kbd></span> spusti izbor na delovno ravnino z vrhom namesto z dnom. Brez tipkovnice ima meni dolgega pritiska za isto <strong class="ui">„Postavi na ploskev“</strong>.</p>
+<p>S <kbd>C</kbd> poberi izbor, kot z Cruisom v Tinkercadu: visi na kazalcu in se položi na ploskev drugega telesa, nad katero si ravno, tudi na poševno. Klik ga tam odloži, <kbd>Esc</kbd> ga pusti, kjer je bil. Njegova spodnja stran potem leži na ploskvi in se ravna po njenih robovih kot nova oblika; lastni zasuk okoli navpične osi obdrži. Več delov se premika skupaj in ohrani razmik. Nad prazno ploščo <kbd>C</kbd> nagnjen del spet postavi pokonci na delovno ravnino.</p>
+</section><section class="guide-part"><h2 id="polja-vrsta-in-krog"><span class="heading-alias" id="patterns-row-and-circle"></span>Polja: vrsta in krog</h2>
+<p>Za luknjaste mreže, krožne razporeditve lukenj in zobate vence je <strong class="ui">„Polje“</strong>. Izberi oblike, ki naj se pomnožijo, in klikni nanj v orodni vrstici.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/pattern-tool.webp" alt="Polje v načinu »Krog«: kopije se najprej pokažejo kot predogled." width="1280" height="800" loading="lazy"><figcaption>Polje v načinu »Krog«: kopije se najprej pokažejo kot predogled.</figcaption></figure>
+<ul><li><strong><strong class="ui">„Vrsta“</strong>:</strong> Izbor se ponavlja z enakim razmikom. Vrsta teče v vseh treh oseh hkrati, z <strong class="ui">„Razmak X“</strong>, <strong class="ui">„Razmak Y“</strong> in <strong class="ui">„Razmak Z (višina)“</strong>: ena sama da ravno vrsto, dve ali tri poševno vrsto ali stopnice. Negativen razmik položi vrsto v drugo smer.</li><li><strong><strong class="ui">„Razporedi po telesu“</strong>:</strong> Za luknje vzdolž plošče, obešalnik za ključe ali za oblačila. Postavi prvi kos na telo ali vanj, izberi <strong class="ui">„Vzdolž X“</strong> ali <strong class="ui">„Vzdolž Y“</strong> in nastavi <strong class="ui">„Razmik do roba“</strong>: original se pomakne toliko navznoter od bližjega konca (od roba do stranice kosa), zadnja kopija pa ohrani enak razmik do drugega konca. Razmik nato sledi vrednosti <strong class="ui">„Število (z izvirnikom)“</strong>: pet lukenj ali devet, ploščo vedno zapolnijo enakomerno.</li><li><strong><strong class="ui">„Mreža“</strong>:</strong> Za luknje perforirane plošče ali polje enakih delov. <strong class="ui">„Stolpci vzdolž X (z izvirnikom)“</strong> in <strong class="ui">„Razmak X“</strong> postavita stolpce drug ob drugega, <strong class="ui">„Vrste vzdolž Y (z izvirnikom)“</strong> in <strong class="ui">„Razmak Y“</strong> vrste od spredaj nazaj. En stolpec ali ena vrsta da eno samo črto. Mreža ima največ 100 kosov; nad tem se vrste skrajšajo in okno to pove.</li><li><strong><strong class="ui">„Krog“</strong>:</strong> Izbor se razporedi okoli središča. Koliko kopij je, nastaviš pri <strong class="ui">„Število (z izvirnikom)“</strong>, <strong class="ui">„Skupni kot“</strong> je za poln krog 360°. Nastaviš, ali naj se kopije vrtijo zraven. <strong class="ui">„Dvig na kopijo“</strong> dvigne vsako kopijo malo više od prejšnje (vijak ali naraščajoča spirala), <strong class="ui">„Sprememba polmera na kopijo“</strong> pa jo oddalji od središča ali približa (ploska spirala); skupaj dasta stožčasto spiralo. Spirala naredi največ en ovoj: kot nad 360° šteje za poln krog, kopij pa je največ 100.</li></ul>
+<p>Namig: prej z <strong class="ui">„Nastavi središče vrtenja“</strong> postavi vrtišče na ploskev, potem je središče kroga natanko tam.</p>
+<p>Deli potem obdržijo središče kroga kot svojo vrtišče, tudi ko so združeni v skupino. Tja spada drug del, na primer krogla sredi treh nog: sredina okvirja delov ni središče, ker tri noge zapolnijo okvir, ki je v eno smer širši kot v drugo. Desno klikni dele in izberi <strong class="ui">„Označi vrtišče“</strong>, in sredina dela, ki ga vlečeš, se pripne nanj.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/pattern-spiral.webp" alt="Polje v načinu »Krog« s porastom in spremembo polmera na kopijo: kopije se dvigajo in širijo kot spirala." width="1280" height="800" loading="lazy"><figcaption>Polje v načinu »Krog« s porastom in spremembo polmera na kopijo: kopije se dvigajo in širijo kot spirala.</figcaption></figure>
+<p>Kopije se najprej pokažejo kot predogled. Šele <strong class="ui">„Ustvari“</strong> jih ustvari. Če so kopije luknje, jih potem združiš v skupino s telesom, v katero naj režejo.</p>
+<p>Z odkljukanim <strong class="ui">„Združi kopije“</strong> <strong class="ui">„Ustvari“</strong> v istem koraku združi izvirnik in vse kopije v en predmet, kot bi to naredilo <strong class="ui">„Združi v skupino“</strong>: obroč iz 36 kosov je potem en del, ki ga lahko premikaš, barvaš ali z njim režeš. Nad 5 kosi se polje odkljuka samo; ko ga sam odkljukaš ali počistiš, ostane, kot si ga nastavil. <strong class="ui">„Razdruži“</strong> vrne kose. Če združevanje ne uspe, vzorec vseeno pride kot ločeni kosi in sporočilo pove zakaj.</p>
+</section><section class="guide-part"><h2 id="vzorec-lukenj-na-ploskvi"><span class="heading-alias" id="hole-pattern-on-a-face"></span>Vzorec lukenj na ploskvi</h2>
+<p>Za prezračevalne reže, zvočniške mreže, košare in ohišja <strong class="ui">„Polje lukenj“</strong> enakomerno razporedi luknje po ravni ploskvi. Zato ti ni treba vsake luknje posebej ustvariti, pomnožiti in prestaviti na steno. Izberi natanko eno telo in v skupini <strong class="ui">„Spreminjanje“</strong> orodne vrstice klikni <strong class="ui">„Polje lukenj“</strong>, tik ob polju. Lahko tudi z desnim gumbom klikneš na telo ali ga poiščeš s <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</p>
+<ol><li>Klikni ravno ploskev telesa. Šteje cela ravna ploskev okoli tvojega klika, ne samo trikotnik pod kazalcem. Gre tudi okrogla stena valja, cevi ali izvrtine, glej spodaj; druga ukrivljena ploskev ne: dobiš opombo in klikneš ravno. Pri skupini ali svežnju se ploskev razteza čez dele, ki se stikajo, kot pri enem telesu, pri svežnju pa le, če med deli ni luknje. Deli se spojijo kmalu po tem, ko se orodje odpre; do takrat se pod kazalcem osvetli le ploskev enega dela, klik pa počaka, da se spojijo. Pri skupini ali svežnju z besedilom se osvetli le ploskev enega dela, dele pa spoji šele klik.</li><li>V oknu nastavi, kako luknje izgledajo in ležijo:</li></ol>
+<ul><li><strong><strong class="ui">„Oblika luknje“</strong>:</strong> <strong class="ui">„Okrogla“</strong>, <strong class="ui">„Kvadratna“</strong>, <strong class="ui">„Pravokotna“</strong>, <strong class="ui">„Šesterokotna“</strong> ali <strong class="ui">„Zareza“</strong>.</li><li><strong>Velikost:</strong> <strong class="ui">„Premer (Ø)“</strong> okrogle luknje, <strong class="ui">„Dolžina stranice“</strong> kvadratne, <strong class="ui">„Širina“</strong> in <strong class="ui">„Višina“</strong> pri pravokotniku in podolgovati luknji. Pri šestkotniku velja mera <strong class="ui">„Premer čez oglišča (Ø)“</strong>.</li><li><strong><strong class="ui">„Kot lukenj“</strong>:</strong> samo za pravokotnike in zareze: vsako luknjo zavrti v ploskvi za toliko stopinj, v nasprotni smeri urinega kazalca, gledano na ploskev, od -90 do 90. Vrste ostanejo ravne; če bi zavrtene luknje prišle preblizu, tudi poševno, layerling poveča razmik in razmik med vrstami, da med njimi ostane stena.</li><li><strong><strong class="ui">„Naklon skozi steno“</strong>:</strong> samo na ravnih ploskvah, ne s pogrezom, stožčastim pogrezom ali lastno obliko: vsako luknjo nagne skozi steno, od -60 do 60 stopinj. Na stoječi steni je pri pozitivnem naklonu notranji konec višje, zato dež odteče nazaj ven. Velikost ostane velikost same luknje, zato je na ploskvi videti nekoliko daljša; oba konca vsake luknje upoštevata rob. Naklon zakrije pogled v notranjost šele, ko je debelina stene krat sin(kot) vsaj višina luknje, za to torej uporabite nizke zareze ali debelejšo steno.</li><li><strong><strong class="ui">„Lastna oblika“</strong>:</strong> namesto luknje ponavlja obliko iz scene: kovico, izboklino ali rebro rebraste pločevine. Izberete jo pod <strong class="ui">„Oblika iz scene“</strong>. Njena širina in globina sta prostor, ki ga zavzame; na ploskvi stoji pokonci, kakor je bila narejena, brez lastnega zasuka. Telo se postavi na ploskev in se z njo združi, luknja se izreže tako globoko, kot je visoka. Sama oblika ostane, kjer je.</li><li><strong><strong class="ui">„Vrsta luknje“</strong>:</strong> samo pri okroglih luknjah. <strong class="ui">„Navadna“</strong> je ravna luknja, <strong class="ui">„Vgrez z ravnim dnom“</strong> doda ležišče za glavo vijaka s cilindrično glavo, <strong class="ui">„Stožčasti vgrez“</strong> stožec 90° za vijak z ugreznjeno glavo. Velikost je tedaj <strong class="ui">„Premer vijaka“</strong>; <strong class="ui">„Premer glave“</strong> in pri stopničasti izvrtini <strong class="ui">„Globina glave“</strong> nastavita glavo. <strong class="ui">„Velikost vijaka“</strong> izpolni vse za metrični vijak.</li><li><strong><strong class="ui">„Razmik od središča do središča“</strong>:</strong> razdalja od središča ene luknje do naslednje. Če je manjša, kot dovoljujejo luknje, jo layerling nastavi na najmanjšo možno mero, da med luknjami ostane še pregrada. Pri pravokotnikih in režah se šteje vzdolž vrste, od leve proti desni.</li><li><strong><strong class="ui">„Razmik med vrstami“</strong>:</strong> samo pri pravokotnikih in režah: razdalja od ene vrste do naslednje. Tako ozke, visoke luknje stojijo tesno druga ob drugi, vrste pa ostanejo narazen. Luknja, široka 2 mm in visoka 14 mm, pri steni 2 mm potrebuje 4 mm vzdolž vrste in 16 mm od vrste do vrste.</li><li><strong><strong class="ui">„Stena med luknjami“</strong>:</strong> ista razdalja, povedana drugače: stena, ki ostane med dvema sosednjima luknjama, to je debelina stene v tisku. Nastaviš jo in razmik od središča do središča ji sledi (pri pravokotnikih in režah tudi razmik vrst), in obratno. Pri šestkotnikih, pravokotnikih in režah layerling meri najmanjšo razdaljo med njihovimi robovi.</li><li><strong><strong class="ui">„Razporeditev“</strong>:</strong> <strong class="ui">„Mreža“</strong> položi luknje v vrstice in stolpce. <strong class="ui">„Zamaknjeno“</strong> premakne vsako drugo vrstico za pol razmika in vrstice bliže skupaj, tako da ima vsaka luknja sosede v enaki razdalji – s šestkotniki dobiš satovje.</li><li><strong><strong class="ui">„Ob robu“</strong>:</strong> namesto tega venec lukenj vzdolž zunanjega roba ploskve, za <strong class="ui">„Rob do roba ploskve“</strong> navznoter - luknje za vijake okoli pokrova ali plošče. <strong class="ui">„Razporedi po“</strong> <strong class="ui">„Razmiku“</strong> približno ohrani razmik, <strong class="ui">„Številu“</strong> določi <strong class="ui">„Število lukenj“</strong>; v obeh primerih se razmik izenači, da se venec sklene brez vrzeli. <strong class="ui">„Luknja v vsakem kotu“</strong> (na začetku vklopljeno) postavi luknjo v vsak kot in vsako stranico med njimi enakomerno razdeli. Na okrogli ploskvi ali brez kljukice gredo luknje enakomerno naokrog od vrha, <strong class="ui">„Začetek ob robu“</strong> pa premakne ves venec vzdolž roba.</li><li><strong><strong class="ui">„Rob do roba ploskve“</strong>:</strong> prosta razdalja med luknjami in robom ploskve. Ustvarijo se samo luknje, ki ležijo povsem znotraj ploskve minus rob; kar bi segalo čez, odpade. Ta rob ostane tudi okoli odprtin v ploskvi.</li><li><strong><strong class="ui">„Globina“</strong>:</strong> <strong class="ui">„Skozi celo telo“</strong> (privzeto) reže skozi celotno steno. Z <strong class="ui">„Lastna globina“</strong> podaš globino v milimetrih, na primer za vdolbine.</li></ul>
+<ol><li>Luknje se takoj pokažejo kot predogled na ploskvi in se spreminjajo z vsako vrednostjo. Okno pove, koliko lukenj gre noter. Z <strong class="ui">„Druga ploskev“</strong> izbereš drugo ploskev, <kbd>Esc</kbd> zapre orodje, in kot druga okna z orodji ga lahko premakneš za naslovno vrstico.</li><li>Šele <strong class="ui">„Ustvari“</strong> ustvari luknje.</li></ol>
+<p>Luknje so čisto navadne luknje in združene v skupino s telesom, popolnoma tako kot po <strong class="ui">„Združi v skupino“</strong>: nič ni vpečeno. <strong class="ui">„Razdruži“</strong> skupino spet razpusti in sprosti vsako luknjo, ki jo potem lahko posebej premakneš, spremeniš ali izbrišeš. Celota je en korak za <strong class="ui">„Razveljavi“</strong>. Več kot 400 lukenj naenkrat orodje ne ustvari; potem naredi luknje večje ali razmik širši.</p>
+<p>Luknje sprejme tudi okrogla stena valja, cevi ali izvrtine: lonček za svinčnike, senčnik, cev z zračniki. Namesto ravne ploskve klikni steno; pod kazalcem se osvetli cela stena. Vsaka luknja potem kaže naravnost proti osi, vrste pa tečejo okrog stene. Na steni, ki gre v celoti naokrog, ima vsaka vrsta celo število lukenj, izravnano tako, da se obroč sklene brez reže in luknje niso nikoli bližje od razmika; okno pove, koliko jih gre naokrog in kako narazen. Rob velja do zgornjega in spodnjega roba ter do odprtin v steni, na delu stene (na primer zaobljenju) tudi do njegovih stranic. <strong class="ui">„Skozi steno“</strong> preseka samo steno, ki si jo kliknil, drugo stran cevi pa pusti celo; pri polnem valju gredo luknje do njegove sredine. Če klikneš v notranjost izvrtine, gredo luknje navzven skozi njeno steno. <strong class="ui">„Ob robu“</strong> je za ravne ploskve in ga pri steni ni.</p>
+<p>Umetna inteligenca lahko isto naredi prek vmesnika MCP, z <code>layerling_perforate_face</code> (glej poglavje <a href="/api/desktop/layerling/ui/navodila/ai-z-mcp.html">Umetna inteligenca z MCP</a>).</p>
+</section><section class="guide-part"><h2 id="vlecenje-ploskve-navzven-ali-navznoter"><span class="heading-alias" id="pushing-a-face-out-or-in"></span>Vlečenje ploskve navzven ali navznoter</h2>
+<p>Za debelejšo steno, dvignjeno ploščico na ploskvi ali vanjo izrezan žep orodje <strong class="ui">„Ploskev“</strong> dela na eni ravni ploskvi. Deluje tudi na uvoženem STL, ki nima skice za spreminjanje. Izberi natanko eno telo in v skupini <strong class="ui">„Spreminjanje“</strong> orodne vrstice klikni <strong class="ui">„Ploskev“</strong>, tik ob vzorcu lukenj. Lahko tudi z desnim gumbom klikneš na telo ali ga poiščeš s <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</p>
+<ol><li>Klikni ravno ploskev telesa. Tako kot pri vzorcu lukenj šteje cela ravna ploskev okoli tvojega klika; ukrivljena ploskev tu ne gre, tudi okrogla stena ne. Pri skupini ali svežnju se ploskev kot pri vzorcu lukenj razteza čez dele, ki se stikajo.</li><li>V oknu:</li></ol>
+<ul><li><strong><strong class="ui">„Smer“</strong>:</strong> <strong class="ui">„Navzven: dodaj material“</strong> za material na ploskvi ali <strong class="ui">„Navznoter: izreži žep“</strong> za žep, izrezan vanjo. Žep ne gre globlje od telesa za ploskvijo; pri izdolbenem telesu lahko vseeno seže do votline.</li><li><strong><strong class="ui">„Odmik od roba ploskve“</strong>:</strong> kako daleč nov obris ostane znotraj roba ploskve. Navzven pri 0 šteje cela ploskev, tako se stena odebeli. Odprtine v ploskvi se povečajo za isto mero.</li><li><strong><strong class="ui">„Polmer vogalov“</strong>:</strong> zaokroži vsak vogal obrisa, tudi notranje, zato se oster vrh konča z lokom. Zareza, ožja od dvakratnega polmera, se zapre, del ploskve, ožji od dvakratnega odmika in polmera skupaj, pa odpade.</li><li><strong><strong class="ui">„Globina“</strong>:</strong> kako daleč nov del sega iz ploskve ali kako globok je žep.</li><li><strong><strong class="ui">„Kot samostojno telo (ni združeno)“</strong>:</strong> z vklopljenim stikalom je nov del (ali luknja žepa) lastno telo ob telesu namesto skupine z njim, tako da ga lahko takoj povečaš, premakneš ali z njim režeš.</li></ul>
+<ol><li>Rezultat se takoj pokaže kot predogled in sledi vsaki vrednosti. <strong class="ui">„Druga ploskev“</strong> izbere drugo ploskev, <kbd>Esc</kbd> zapre orodje.</li><li>Šele <strong class="ui">„Ustvari“</strong> ga ustvari.</li></ol>
+<p>Kar orodje doda, je čisto navadno telo iz skice, združeno v skupino s telesom, razen če je vklopljeno <strong class="ui">„Kot samostojno telo (ni združeno)“</strong> (potem <strong class="ui">„Uredi skupino“</strong> nima česa odpreti in del je prost): nič ni vpečeno. <strong class="ui">„Uredi skupino“</strong> odpre skupino, <strong class="ui">„Uredi skico“</strong> na novem delu pa pokaže obris, ki mu sledi. Na zgornji ali spodnji ploskvi preprostega telesa iz skice - eno območje, ne združeno, ne zrcaljeno, brez zožitve, zasuka in nagiba, brez poteze, obeska, posnetja ali zaokrožitve - je to lastni obris telesa, ob gradnji zamaknjen navznoter, zato njegove črte in loki ostanejo natančni povsod, kjer jih CAD-jedro lahko zamakne, za orodja za robove in izvoz STEP. Ob poznejši spremembi velikosti del obdrži svoj odmik. Na vsaki drugi ploskvi, tudi na uvoženi mreži, obris sledi trikotnikom ploskve, krivulja pa je iz kratkih ravnih kosov. Celota je en korak za <strong class="ui">„Razveljavi“</strong>. Če želiš odmik ali polmer pozneje spremeniti, korak razveljavi in orodje uporabi znova. Zgornji rob potem zaokroži z <strong class="ui">„Zaokrožitev“</strong> in <strong class="ui">„Zgornji robovi“</strong> na skupini kot zadnji korak: kot vsaka obdelava robov skupine iz nje naredi eno telo.</p>
+<p>Umetna inteligenca lahko isto naredi prek vmesnika MCP, z <code>layerling_push_face</code> (glej poglavje <a href="/api/desktop/layerling/ui/navodila/ai-z-mcp.html">Umetna inteligenca z MCP</a>).</p>
+</section><section class="guide-part"><h2 id="sprememba-vec-delov-naenkrat"><span class="heading-alias" id="changing-several-parts-at-once"></span>Sprememba več delov naenkrat</h2>
+<p>Če je izbranih več delov, polje z lastnostmi desno pokaže, koliko jih je, in ponudi, kar velja za vse hkrati: <strong class="ui">„Trdno telo“</strong> ali <strong class="ui">„Luknja“</strong>, barvo za vse (klik na <strong class="ui">„Trdno telo“</strong> odpre barve) in ključavnico za zaklep. Če je izbor mešan, klik vse spremeni v telesa ali vse v luknje. Če je kateri od delov zaklenjen, je mogoče uporabiti samo ključavnico. Mere spreminjaš z ročicami, z <strong class="ui">„Povečaj ali pomanjšaj v odstotkih“</strong> ali tako, da v oznako mere vpišeš število. Pri več delih je število mera celotnega izbora: vsak del zrase z njim, tudi razmiki med deli, kot ko povlečeš ročico. Telo in luknja gresta tudi z desnim klikom ali s <kbd>S</kbd> in <kbd>H</kbd>.</p>
+</section><section class="guide-part"><h2 id="povecava-v-odstotkih"><span class="heading-alias" id="scaling-by-percent"></span>Povečava v odstotkih</h2>
+<p>Če naj se en del ali več delov poveča ali zmanjša za isti delež, na primer vsi deli neke tiskalne datoteke za 20 %, uporabi <strong class="ui">„Povečaj ali pomanjšaj v odstotkih“</strong>. Izberi dele, klikni nanje z desnim gumbom in izberi <strong class="ui">„Povečaj ali pomanjšaj v odstotkih“</strong>, ali ga poišči s <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</p>
+<p>Pri <strong class="ui">„Nova velikost“</strong> vpišeš novo velikost v odstotkih sedanje: 120 % je petino večje, 50 % pol manjše. Širina, globina in višina se pri tem spremenijo enako, razmerja torej ostanejo. Spodnja stran ostane, kjer je, tako da nič ne zdrsne v ploščo.</p>
+<p>Pri več delih izbereš, kako rastejo:</p>
+<ul><li><strong><strong class="ui">„Skupaj“</strong>:</strong> Deli rastejo okoli skupne sredine, razdalje rastejo z njimi. Celota postane večja, kot da bi bila en del.</li><li><strong><strong class="ui">„Vsak na svojem mestu“</strong>:</strong> Vsak del raste na svojem mestu, razdalje vmes ostanejo enake.</li></ul>
+<p>Šele <strong class="ui">„Spremeni velikost“</strong> spremeni načrt, korak nazaj pa ga spet razveljavi. Če je v izboru zaklenjen del, se ne odpre.</p>
+</section><section class="guide-part"><h2 id="razveljavitev"><span class="heading-alias" id="undoing"></span>Razveljavitev</h2>
+<p><strong class="ui">„Razveljavi“</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span>) in <strong class="ui">„Uveljavi“</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span> ali <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Y</kbd></span>) greta po korakih skozi tvojo zgodovino. Koliko korakov potuje s shranjenim načrtom, nastaviš v nastavitvah pod <strong class="ui">„Zgodovina“</strong>. Ko pokažeš na enega od gumbov, njegov namig poimenuje korak, ki ga razveljavi ali uveljavi, z mero, kjer jo korak ima, na primer »Zaobljeni robovi: Box (5 mm)«; sporočilo po koraku pove isto. Za več korakov nazaj naenkrat uporabi pogled zgodovine spodaj. Sporočilo o pravkar narejenem koraku, na primer »Izbrisane 3 oblike«, ima gumb Razveljavi, ki razveljavi prav ta korak.</p>
+</section><section class="guide-part"><h2 id="pogled-nazaj-pogled-zgodovine"><span class="heading-alias" id="looking-back-the-history-view"></span>Pogled nazaj: pogled zgodovine</h2>
+<p><strong class="ui">„Zgodovina“</strong>, ob Razveljavi in Ponovi, odpre pogled v tvojo zgodovino, ne da bi karkoli spremenil. Delovna površina pokaže načrt, kakršen je bil, drsnik spodaj pa gre skozi vse korake razveljavitve: čisto desno je trenutno stanje, vsak korak v levo je ena razveljavitev prej, stanja, ki si jih razveljavil, pa ležijo desno od trenutnega. Smerne tipke gredo skozi stanja, <kbd>Esc</kbd> se vrne na trenutno stanje. Kolesce miške nad drsnikom naredi isto, eno stanje na zarezo, navzgor k starejšemu; <kbd>Page Up</kbd> in <kbd>Page Down</kbd> skočita za deset stanj, <kbd>Home</kbd> gre na najstarejše stanje, <kbd>End</kbd> pa nazaj na trenutno. Medtem lahko pogled vrtiš in zumiraš ter klikaš objekte, da jih vrneš (glej spodaj), ne moreš pa nič premakniti; načrt sam ostane natančno tak, kot je. Če vrstica kaj zakriva, jo povlečeš stran za naslovno vrstico; dvoklik nanjo jo vrne nazaj. Gumb s seznamom v naslovni vrstici pokaže vse korake z imeni na seznamu, najnovejšega na vrhu: klik na korak gre v to stanje, stanje, v katerem je načrt, je označeno z <strong class="ui">„zdaj“</strong>, razveljavljeni koraki pa so sivi. Če seznam pustiš odprt, bo odprt tudi naslednjič. Gumba za predvajanje pod drsnikom predvajata zgodovino kot film: tisti, ki kaže v desno, predvaja naprej od prikazanega stanja, tisti, ki kaže v levo, nazaj, vsako stanje za trenutek, do konca; ponoven pritisk istega gumba ustavi, drsnik, kolesce, tipke ali seznam pa prevzamejo. Zagnan na koncu svoje poti začne znova z drugega konca. <strong class="ui">„Hitrost“</strong> določa, kako dolgo ostane vsako stanje (počasi, običajno ali hitro), in si to zapomni za naslednjič. Med predvajanjem posnemi zaslon, da pokažeš, kako je del nastal.</p>
+<p>Dve stvari lahko vzameš s seboj iz prejšnjega stanja. <strong class="ui">„Nov projekt iz tega stanja“</strong> ustvari to stanje kot nov načrt v pregledu, poimenovan po tem z uro stanja v oklepaju - pri načrtu, ki je bil shranjen, preden je layerling beležil čase, namesto tega piše »Kopija« - in z zgodovino do tja, tako da Razveljavi tam gre naprej. <strong class="ui">„Izvozi to stanje“</strong> odpre običajni izvoz s tem stanjem kot načrtom, tako da ga lahko shraniš kot STL, 3MF, STEP, sliko ali datoteko LYL z zgodovino do tega stanja.</p>
+<p>V načrt lahko vrneš tudi posamezne objekte. Klikni objekt v prikazanem stanju - <kbd>Shift</kbd>+klik doda več ali enega odstrani, klik v prazno ne izbere ničesar - in izberi <strong class="ui">„Vrni v načrt“</strong>. Pogled se zapre in kopija vsakega objekta pride v trenutni načrt natanko takšna, kot je bila v tem stanju, in na mesto, kjer je bila, izbrana, poleg vsega, kar načrt vsebuje zdaj; nič drugega se ne spremeni. To je en korak, razveljavitev ga vzame nazaj. Uporabi ga za različico dela, ki si ga medtem spremenil ali izbrisal. Skupina se vrne cela; opombe in referenčne točke na objektu ostanejo. Njegovo ime nosi čas tega stanja, na primer »Kvader (12:32)«, da ga zlahka ločiš od trenutne različice. Če želiš vrniti del iz skupine, izberi skupino in izberi <strong class="ui">„Odpri skupino“</strong> ali pritisni <kbd>E</kbd>, kot v načrtu: njeni deli se razporedijo tja, kamor bi jih postavilo urejanje skupine, pripravljeni za izbiro, vrstica pa pove, v kateri skupini si. <strong class="ui">„Nazaj ven“</strong> jo spet zapre. To je samo za ogled - skupina, načrt in zgodovina ostanejo, kot so.</p>
+<p><strong class="ui">„Izbriši zgodovino“</strong> stoji sam levo spodaj v vrstici. Po vprašanju za vedno odstrani vse prejšnje korake: načrt ohrani stanje, ki ga ima zdaj (ne tistega, ki je prikazano), Razveljavi nima več kam nazaj, datoteka, shranjena pozneje, pa ne nosi zgodovine. Uporabi ga, če želiš deliti načrt brez njegove preteklosti ali začeti korake razveljavitve znova. Razveljaviti ga ni mogoče; če želiš deliti datoteko, ne da bi se dotaknil svojega načrta, raje pri izvozu izberi <strong class="ui">„Brez“</strong>.</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/navodila/oblike.html"><small>Prejšnje poglavje</small>Postavljanje in nastavljanje oblik</a><a class="next" href="/api/desktop/layerling/ui/navodila/telesa-in-luknje.html"><small>Naslednje poglavje</small>Telesa in luknje</a></div>
+      </main>
+    </div>
+    <footer class="note">Ta navodila rastejo skupaj s programom. Če kaj manjka ali ne drži, sporoči v <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">razpravah</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=sl" rel="noopener">Podpri Layerling Desktop</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Razprave</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Več na GitHubu</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Opombe ob izdaji v1.154.1</a></div><p class="trademark">Tinkercad je blagovna znamka podjetja Autodesk, Inc. layerling je neodvisen projekt in ni povezan z Autodeskom, ga ne podpira in ga ne sponzorira.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Nazaj v urejevalnik";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="V urejevalnik";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

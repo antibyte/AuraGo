@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Sketches: from outline to body - layerling kılavuzu</title>
+    <meta name="description" content="Draw a flat outline, round or chamfer its corners and pull or spin it into a body.">
+    <link rel="canonical" href="https://layerling.com/guide/sketches.html">
+    <meta name="robots" content="noindex">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/sketches.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/sketches.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/sketches.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/skizzen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/sketches.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/sketches.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/sketches.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/sketches.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/schetsen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/sketches.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/skice.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/sketches.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/sketches.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/sketches.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/sketches.html">
+    <meta property="og:title" content="Sketches: from outline to body - layerling kılavuzu">
+    <meta property="og:description" content="Draw a flat outline, round or chamfer its corners and pull or spin it into a body.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/kilavuz/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Kılavuz</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/kilavuz/search-index.json" data-nothing="Sonuç yok." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Kılavuzda ara" aria-label="Kılavuzda ara" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Dil">Türkçe</summary><ul><li><a href="/api/desktop/layerling/ui/guide/sketches.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/sketches.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/sketches.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/sketches.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/sketches.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/sketches.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/sketches.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/sketches.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/sketches.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/sketches.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/skice.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/sketches.html" hreflang="tr" lang="tr" aria-current="true">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/sketches.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/sketches.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/sketches.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/sketches.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/sketches.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Editörü aç</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Editör zaten başka bir sekmede açık – oraya geçmen yeterli.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Bölümler"><h2>Bölümler</h2><p class="print-link"><a href="/api/desktop/layerling/ui/kilavuz/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Yazdırmak için tüm kılavuz</span></a></p><ol><li><a href="/api/desktop/layerling/ui/kilavuz/getting-started.html">Getting started</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/view-and-workplane.html">View and workplane</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/shapes.html">Placing and adjusting shapes</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/select-and-arrange.html">Selecting and arranging</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/solids-and-holes.html">Solids and holes</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/edges-and-hollowing.html">Breaking edges and hollowing bodies</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/sketches.html" aria-current="page">Sketches: from outline to body</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/text.html">Text and curved lettering</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/threads-and-mechanics.html">Threads, gears and other parts</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/measuring-and-notes.html">Measuring and notes</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/printing.html">Preparing for 3D printing</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/files-and-saving.html">Files, saving and sharing</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/shortcuts.html">Keyboard shortcuts</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/ai-with-mcp.html">Building with an AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/offline-and-install.html">Installing as an app, working offline and self-hosting</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/videos.html">Videos about layerling</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/tablet-and-touch.html">Tablet and touch</a></li></ol></nav>
+      <main>
+<h1>Sketches: from outline to body</h1>
+<p class="lead">Draw a flat outline, round or chamfer its corners and pull or spin it into a body.</p>
+<p class="not-translated" role="note" lang="tr">Bu bölüm henüz Türkçeye çevrilmedi. Aşağıda İngilizce metin var.</p>
+<div class="toc"><b>Bu sayfada</b><ul><li><a href="#starting-a-sketch">Starting a sketch</a></li><li><a href="#drawing">Drawing</a></li><li><a href="#lines-by-numbers">Lines by numbers</a></li><li><a href="#curving-a-straight-side">Curving a straight side</a></li><li><a href="#reading-and-typing-angles">Reading and typing angles</a></li><li><a href="#rounding-or-chamfering-corners">Rounding or chamfering corners</a></li><li><a href="#mirroring">Mirroring</a></li><li><a href="#construction-lines">Construction lines</a></li><li><a href="#making-a-body-from-it">Making a body from it</a></li><li><a href="#sweeping-along-a-path">Sweeping along a path</a></li><li><a href="#building-as-a-stroke">Building as a stroke</a></li><li><a href="#fill-and-silhouette">Fill and silhouette</a></li><li><a href="#slanted-walls-for-stamps">Slanted walls, for stamps</a></li><li><a href="#a-picture-as-template">A picture as template</a></li><li><a href="#keys-in-sketch-mode">Keys in sketch mode</a></li></ul></div>
+<p>Not everything can be put together from basic shapes. For parts with a contour of their own, such as a bracket, a tooth profile or a vase, you first draw the <strong>outline</strong> and then make a body from it. That is what sketch mode is for.</p>
+<section class="guide-part"><h2 id="starting-a-sketch">Starting a sketch</h2>
+<p>At the top, switch from <strong class="ui">“3D editör”</strong> to <strong class="ui">“Eskiz”</strong>. In the <strong class="ui">“Oluştur”</strong> group of the ribbon, three buttons stand side by side for what the outline should become:</p>
+<ul><li><strong><strong class="ui">“Eskizi uzat”</strong>:</strong> The outline is pulled upward, like a cookie cutter.</li><li><strong><strong class="ui">“Eskizi döndür”</strong>:</strong> The outline is spun about an axis, as on a lathe. That gives vases, cups, cones and everything round.</li><li><strong><strong class="ui">“Süpürme eskizi”</strong>:</strong> The outline is pulled along a path: a cable channel that turns a corner, a conduit, a ring round a shape. See Sweeping along a path below.</li></ul>
+<p>The editor then shows a sheet with a grid. That is your drawing surface.</p>
+<p>The sketch lies on the workplane. To draw on a face of a body, for an outline that should start higher up, say, first put the workplane on that face with <kbd>W</kbd> (see <a href="/api/desktop/layerling/ui/kilavuz/view-and-workplane.html">View and workplane</a>), then start the sketch.</p>
+</section><section class="guide-part"><h2 id="drawing">Drawing</h2>
+<p>The ribbon in sketch mode is divided into areas. Below, each tool has a card of its own: what you do, one step to a line, and after an arrow what happens then. The key on the right of a card picks the tool.</p>
+<section class="guide-part"><h3 id="drawing-tools">Drawing tools</h3>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-line.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">Çizgi</strong></span><span class="card-keys"><kbd>1</kbd></span></div><ul class="card-steps"><li class="step">Click points one after another.</li><li class="step">Hold <kbd>Shift</kbd> to snap the new line in 15° steps, horizontal and vertical included.</li><li class="result">The length and angle of the new line show at the pointer.</li><li class="step">To type how long it should be, see <a href="#lines-by-numbers">Lines by numbers</a>.</li><li class="tip">Every point you click lands on the snap grid set under <strong class="ui">“Yakalama ızgarası”</strong>. With <kbd>Shift</kbd> held the 15° step comes first: the length still goes in grid steps, but the end can lie between the grid lines.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-arc.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">Yay</strong></span></div><ul class="card-steps"><li class="step">Click the two ends of the arc.</li><li class="step">Click a third point the arc runs through.</li><li class="result">Until that third click a preview follows the pointer, and the message names the radius.</li><li class="result">An end clicked on an existing point joins it, so an arc can close an outline.</li><li class="step"><kbd>Esc</kbd> drops the points clicked so far and goes back to <strong class="ui">“Seç”</strong>.</li><li class="tip">Once drawn, the arc is ordinary geometry made of points and curves: move, cut or erase it like any other line.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-bezier-curve.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">Bezier eğrisi</strong></span><span class="card-keys"><kbd>2</kbd></span></div><ul class="card-steps"><li class="step">Click a point and drag in the direction the line should carry on, as with the pen tool in Illustrator or Inkscape.</li><li class="result">The further you drag, the more it bends.</li><li class="result">The stretch to the new point bends along while you drag, so you see what you get.</li><li class="tip">Coming from Tinkercad and just want to click points? Take the <strong class="ui">“Yumuşak eğri”</strong>.</li><li class="tip">The first stretch only bends at its start if you drag at the first point too. Just clicked, the line leaves that point straight; to bend it later, select the point with <strong class="ui">“Seç”</strong> and drag its handle.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-smooth-curve.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">Yumuşak eğri</strong></span><span class="card-keys"><kbd>3</kbd></span></div><ul class="card-steps"><li class="step">Click points one after another.</li><li class="result">It lays a flowing path through the points you click.</li><li class="tip">At the two ends of an open line the curve heads straight for the next point, so the first and the last stretch bend less than the others. To bend one more, select its end point with <strong class="ui">“Seç”</strong> and drag its handle. In a closed outline every point bends alike.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">Closing or ending a line</span></div><ul class="card-steps"><li class="step">To close the outline, click the first point again at the end.</li><li class="step">To end the chain of lines without closing the outline, right-click without moving the pointer, or double-click the last point.</li><li class="result">A body comes only from a <strong>closed</strong> outline.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-freehand.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">Freehand</strong></span><span class="card-keys"><kbd>5</kbd></span></div><ul class="card-steps"><li class="step">Draw with the pen, a finger or the mouse, as on paper.</li><li class="result">When you lift it, the line becomes ordinary points: a corner where it turned sharply, smooth points in between, only as many as the shape needs, so each can be dragged afterwards.</li><li class="step">Zoom in for fine detail: the closer you look, the more closely the line follows your hand.</li><li class="result">A line that ends where it began closes into an outline that can become a body; an open one stays a line, for <strong class="ui">“Kontur”</strong> or as a path to sweep along.</li><li class="step">Start on lines or on a template picture to trace a picture by hand.</li><li class="step">Begin or end a stroke at an open end to carry that line on, so a shape can be drawn in several strokes.</li><li class="tip">The stroke does not keep to the snap grid, so that it follows your hand. A point you drag afterwards does snap to it, unless <strong class="ui">“Yakalama ızgarası”</strong> is switched off.</li></ul></div>
+<aside class="tip"><p>The digits pick a tool as long as no line is being drawn; while one is, they are its length (see below). With <strong class="ui">“Seç”</strong> and lines or points selected, the same keys change them instead: <kbd>1</kbd> makes lines straight and points corners, <kbd>2</kbd> turns lines into curves and <kbd>3</kbd> makes points smooth. With nothing selected they pick the tool as before.</p></aside>
+</section><section class="guide-part"><h3 id="shapes">Shapes</h3>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title"><strong class="ui">Eskiz şekli ekle</strong></span></div><ul class="card-steps"><li class="step">Pick a ready-made outline: <strong class="ui">“Dikdörtgen”</strong>, <strong class="ui">“Daire”</strong>, <strong class="ui">“Oval”</strong>, <strong class="ui">“Yarım daire”</strong>, <strong class="ui">“Pasta dilimi”</strong>, <strong class="ui">“Cıvata dairesi”</strong> (a disc with holes), <strong class="ui">“Üçgen”</strong>, <strong class="ui">“Altıgen”</strong>, a <strong class="ui">“Çokgen”</strong> or a <strong class="ui">“Yıldız”</strong>.</li><li class="step">Click it to put it at the origin of the sketch, or drag it from the menu to where you want it.</li><li class="step">At the bottom of the menu, <strong class="ui">“Kenar / uç sayısı”</strong> sets the number of sides of the polygon and of points of the star, and <strong class="ui">“Yıldız iç boyutu”</strong> how deep the star's valleys reach in towards the middle (10 to 90 percent of the outer radius).</li><li class="result">Both apply to the next shape you add.</li><li class="result">Like every sketch shape they are ordinary corner points afterwards, so you can move, round or chamfer them one by one.</li><li class="tip">The rectangle starts with the width and depth set for the box under <strong class="ui">“Şekil varsayılanları”</strong> in the settings, the circle and the ellipse with the width of the cylinder there; without a default of your own, and for the other shapes, they start 20 mm across.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">Overlapping outlines</span></div><ul class="card-steps"><li class="step">Push two closed outlines over each other.</li><li class="result">They stay two bodies, which merge in the 3D editor; the overlap is not a hole.</li><li class="result">Moving does not join the lines where they cross, so you can pull the shapes apart again.</li><li class="step">Draw a line across others instead, and layerling puts a point at every crossing.</li><li class="tip">A hole only comes from an outline lying wholly inside another.</li></ul></div>
+</section><section class="guide-part"><h3 id="select-and-change">Select and change</h3>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-select.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">Seç</strong></span></div><ul class="card-steps"><li class="step">Click a point or a line and drag it to move it.</li><li class="step">Click inside a closed outline to select the whole outline; inside a hole it picks the hole.</li><li class="result">You can drag or resize it straight away.</li><li class="step">Hold <kbd>Shift</kbd> and click to add a point or line to the selection or take it away again, so you can move several together.</li><li class="step">Drag a box over empty space to select everything in it.</li><li class="step">Drag a line to move it by its two ends, or all of the selection if it is part of one.</li><li class="step">The arrow keys move the selection by one grid step, <kbd>Shift</kbd> with them by a larger one.</li><li class="step">Hold <kbd>Shift</kbd> while you drag to keep the move on one axis.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">The frame round the selection</span></div><ul class="card-steps"><li class="step">Drag a corner handle to change width and height together; hold <kbd>Shift</kbd> to keep the proportions.</li><li class="step">Drag a side handle to change one direction only.</li><li class="step">Click the width or height pill to type a new size, also as a sum (&quot;60+12.5&quot;) or in percent (&quot;150%&quot;).</li><li class="step">Drag the curved arrows beyond the corners to turn the whole selection about its middle.</li><li class="result">The figure over the pointer shows the angle; with <kbd>Shift</kbd> held it moves in steps of 15°.</li><li class="result">While you turn, a ring appears: with the pointer inside it the turn snaps to 22.5°, outside it goes in whole degrees, whatever the grid.</li><li class="step"><kbd>R</kbd> turns a whole closed outline by 45° at each press.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">The bar above the sketch</span></div><ul class="card-steps"><li class="step"><strong class="ui">“Oranları koru”</strong> keeps the proportions without <kbd>Shift</kbd>: the corners and sides then stretch both ways alike, and a typed width or height changes the other one too.</li><li class="result">layerling remembers the switch.</li><li class="step">The X and Y fields show where the middle of the selection lies, in mm from the sketch's origin. Type a value to move it there, for a hole exactly 12 mm from the middle, say. Y counts upwards, as in the 3D editor.</li><li class="step">With two or more outlines selected, the bar lines them up: left, centred or right, and top, centred or bottom, on the frame round all of them.</li><li class="result">Each outline moves as a whole and keeps its shape; centred both ways, two circles become a ring.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">Locking an outline</span><span class="card-keys"><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span></span></div><ul class="card-steps"><li class="step">Click <strong class="ui">“Kilitle”</strong> in the bar to lock the selected outline, like a locked body in the 3D editor.</li><li class="result">It can no longer be moved, resized, turned or changed. Its lines turn paler, its points grey, and the frame's handles turn grey and no longer respond.</li><li class="result">Lines may still start at its corners.</li><li class="result">When outlines are lined up, a locked one stays where it is and the others line up on it.</li><li class="step">To free it, click the padlock in its corner while it is selected, or click <strong class="ui">“Kilidi aç”</strong>.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-add-or-remove-points.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">Nokta ekle veya kaldır</strong></span><span class="card-keys"><kbd>4</kbd></span></div><ul class="card-steps"><li class="step">Click a section to add a point.</li><li class="step">Click a point to remove it.</li><li class="result">layerling joins its two neighbours, so the outline stays closed.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-erase.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">Sil</strong></span></div><ul class="card-steps"><li class="step">Click a point or a line to take it away.</li><li class="step">Drag a window over several to take away everything inside it.</li><li class="step">With something selected, the button erases the selection.</li><li class="step">To get rid of only a piece of a circle, for a rounded corner say, click exactly that piece of arc between two points.</li><li class="result">The rest stays.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">Closing a gap</span></div><ul class="card-steps"><li class="step">Drag one open end onto the other, for example after erasing one side of a hexagon.</li><li class="result">It snaps there and the two become one point, so the outline is closed again.</li><li class="result">At a crossing, such as where a line cuts a circle, the sides that run straight on are joined: arc with arc, line with line, and the circle stays round.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-add-image.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">Resim ekle</strong></span></div><ul class="card-steps"><li class="step">Put a template picture under the sketch to trace it, see <a href="#a-picture-as-template">A picture as template</a>.</li></ul></div>
+</section><section class="guide-part"><h3 id="clipboard-and-history">Clipboard and history</h3>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">Copy, paste, duplicate, delete</span></div><ul class="card-steps"><li class="step"><strong class="ui">“Kopyala”</strong>, <strong class="ui">“Yapıştır”</strong>, <strong class="ui">“Çoğalt”</strong> and <strong class="ui">“Sil”</strong> work on the selected points, lines and images, as in the 3D editor; <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span> cuts.</li><li class="result">Pasted and duplicated geometry lands next to the original with a 10 mm gap, on a free spot where it touches no existing line, so it never gets joined to what is already there.</li><li class="result">It stays selected, so you can drag it straight into place.</li><li class="step"><strong class="ui">“Eskizde geri al”</strong> and <strong class="ui">“Eskizde yinele”</strong> take a step back and forward again.</li></ul></div>
+</section><section class="guide-part"><h3 id="notes">Notes</h3>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title"><strong class="ui">Not</strong></span><span class="card-keys"><kbd>N</kbd></span></div><ul class="card-steps"><li class="step">Click <strong class="ui">“Not”</strong> under <strong class="ui">“Eskiz görünüm kontrolleri”</strong>, then click where the note should go: anywhere, on a line too.</li><li class="step">Drag the pin to move it; a click on the pin folds the card away.</li><li class="result">The notes of a sketch belong to its body: in the 3D view they sit on top of an extruded or swept body and on the drawn profile of a revolved one, and they move with it.</li><li class="result">Opening the sketch again shows all of the body's notes, those placed in 3D too.</li><li class="step"><strong class="ui">“Eskizde geri al”</strong> takes back a note like a line, and <strong class="ui">“İptal”</strong> discards what changed in the notes.</li><li class="tip">More in the chapter <a href="/api/desktop/layerling/ui/kilavuz/measuring-and-notes.html">Measuring and notes</a>.</li></ul></div>
+</section><section class="guide-part"><h3 id="view-and-dimensions">View and dimensions</h3>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">Moving the view</span></div><ul class="card-steps"><li class="step">Pan with the middle mouse button, or with <kbd>Shift</kbd> or <kbd>Ctrl</kbd> plus the right mouse button, as in the 3D editor.</li><li class="step">With nothing selected, <kbd>Ctrl</kbd> and the arrow keys slide it too: a tenth of the view a press, half with <kbd>Shift</kbd> as well; the sketch moves the way they point.</li><li class="step"><kbd>Home</kbd> fits the whole sketch in the view, <kbd>F</kbd> zooms to the selection (with nothing selected, to the whole sketch), and <kbd>+</kbd> and <kbd>−</kbd> zoom in and out, as in the 3D editor.</li><li class="step">With nothing selected, double-click an empty spot to slide it to the middle of the view.</li><li class="tip"><strong class="ui">“Çalışma düzlemine çift tık görünümü oraya ortalar”</strong> in the settings switches the double-click off.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">Dimensions</span></div><ul class="card-steps"><li class="step">Click a line or a point.</li><li class="result">The sketch shows the length of the line, or for a point the lengths of the lines that meet there.</li><li class="step"><strong class="ui">“Ölçüleri göster”</strong> on the sketch toolbar hides and shows these dimensions when they get in the way, for example while shaping curves.</li><li class="step">The <strong class="ui">“Şerit metre”</strong> on the sketch toolbar measures the distance between two points; it keeps working with the dimensions hidden.</li></ul></div>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-outline.webp" alt="An L-shaped outline. At the selected corner point, top left, the lengths of the two lines are shown in millimetres, and the angle between them in degrees." width="1280" height="800" loading="lazy"><figcaption>An L-shaped outline. At the selected corner point, top left, the lengths of the two lines are shown in millimetres, and the angle between them in degrees.</figcaption></figure>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">Typing a length</span></div><ul class="card-steps"><li class="step">Click the dimension pill of a straight line and type the length in millimetres.</li><li class="step"><kbd>Enter</kbd> applies it, <kbd>Esc</kbd> cancels.</li><li class="result">The line keeps its direction, its start point stays where it is, and the lines at the other end follow. With an end point selected, that one moves.</li><li class="step"><span dir="ltr"><kbd>Alt</kbd>+<kbd>Enter</kbd></span> grows the line to both sides around its middle instead.</li><li class="result">On curves the pill only shows the length.</li></ul></div>
+</section></section><section class="guide-part"><h2 id="lines-by-numbers">Lines by numbers</h2>
+<p>Once you have set the first point with <strong class="ui">“Çizgi”</strong> or <strong class="ui">“Yumuşak eğri”</strong>, just type a number: two fields open next to the line, <strong class="ui">“Uzunluk”</strong> in millimetres and <strong class="ui">“Açı”</strong> in degrees. <kbd>&lt;</kbd> or <kbd>Tab</kbd> moves to the angle, so &quot;50&lt;30&quot; gives a line 50 mm long at 30°, as in AutoCAD. <kbd>Enter</kbd> sets the point, and you can type the next line straight away; <kbd>Esc</kbd> closes the fields without ending the line chain.</p>
+<p>The angle counts counterclockwise from the right: 0° to the right, 90° up, 180° to the left, 270° down. Leave it empty and the line follows the pointer, so you give only the length and show the direction with the mouse. Sums like &quot;40+12.5&quot; work in both fields. If the point would land off the plate, the field says so and waits for another value.</p>
+</section><section class="guide-part"><h2 id="curving-a-straight-side">Curving a straight side</h2>
+<p>Select a straight line and click <strong class="ui">“Çizgiyi kavisle”</strong> in the bar that appears: the side bows out into a curve, as in Tinkercad, and shows its two handles. Drag them to shape the curve; the further out a handle stands, the stronger the bend. Under the pointer a handle turns orange, and it also catches a click just beside it, so a template image underneath does not move by mistake. <strong class="ui">“Düz çizgi”</strong> makes the side straight again. A point you select can be made round with <strong class="ui">“Yumuşak eğri”</strong>: it gets handles of its own and the lines next to it become curves. With three or more points selected, <strong class="ui">“Noktalardan geçen eğri”</strong> in the bar lays one flowing curve from the first of them to the last, through every point in between, the way the <strong class="ui">“Yumuşak eğri”</strong> tool draws one; the lines beyond the two ends stay as they are. Other programs call this &quot;Fit curve&quot; or &quot;Fit point spline&quot;. The two differ: <strong class="ui">“Çizgiyi kavisle”</strong> bends each selected side on its own and keeps the corners between them, for an arch on one side; <strong class="ui">“Noktalardan geçen eğri”</strong> runs one curve through the points with no corners left, for smoothing a jagged traced edge. Click a handle and it lights up: the arrow keys then move it by one grid step, with <kbd>Shift</kbd> by a larger step, so you can set a curve precisely.</p>
+<p>Values can be typed too. A selected point shows <strong class="ui">“X”</strong> and <strong class="ui">“Y”</strong> in the bar: where it lies, in mm from the sketch's origin, with Y counting up. Click a handle and the bar shows <strong class="ui">“Tutamaç X”</strong> and <strong class="ui">“Tutamaç Y”</strong> instead: where the handle lies from its own point. On a smooth point the opposite handle turns along. Give the matching handle on the other side the same Y and the X with the opposite sign, and the curve comes out exactly mirrored; <strong class="ui">“Aynala”</strong> mirrors a whole half at once.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-curve.webp" alt="The bottom side of the L-shaped outline bent into a curve, with its two handles at the ends." width="1280" height="800" loading="lazy"><figcaption>The bottom side of the L-shaped outline bent into a curve, with its two handles at the ends.</figcaption></figure>
+</section><section class="guide-part"><h2 id="reading-and-typing-angles">Reading and typing angles</h2>
+<p>Click a corner point where <strong>two straight lines</strong> meet: next to the lengths, layerling shows the <strong>angle</strong> between them in degrees, with a small arc. On a closed outline it is the angle inside the shape, so a dent reads above 180°. Click the value and type a new angle. One of the two lines then turns about the corner and keeps its length, and the other stays where it is. The line that turns is drawn dashed; <kbd>Tab</kbd> switches to the other one, <kbd>Enter</kbd> applies and <kbd>Esc</kbd> cancels. What hangs at the far end of the turned line goes with it.</p>
+<p>A locked point stays where it is, and a typed value works round it: a length moves the free end of the line, and an angle turns the line whose far end is free. A single point can be locked as well: select it and press <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span>. That way you can make an outline exact one corner after the other: lock a corner, type the length and the angle of the next line, lock its end, and go on.</p>
+<p>Moving a point changes three angles: at the point itself and at the two neighbouring corners at the far ends of its lines. So layerling shows those two as well, and each can be clicked and typed. That way you set, say, the bottom left corner to 75.5° while the top left point, which moves for it, is selected. You can calculate here too, e.g. &quot;90-14.5&quot;.</p>
+<p>A corner shows no angle where a curve meets it, or where more than two lines meet. The <strong class="ui">“Ölçüleri göster”</strong> button on the sketch toolbar hides the angle together with the lengths.</p>
+</section><section class="guide-part"><h2 id="rounding-or-chamfering-corners">Rounding or chamfering corners</h2>
+<p>Click a corner point and choose <strong class="ui">“Köşeyi yuvarlat”</strong> or <strong class="ui">“Köşeye pah kır”</strong>. A small field appears for the <strong class="ui">“Yarıçap”</strong> or the <strong class="ui">“Mesafe”</strong>. Enter the size and confirm with the check mark. This works for corners between two straight lines.</p>
+<p>Several corners at once work too: select them with <kbd>Shift</kbd> and a click each, or pull a frame round them, and choose <strong class="ui">“Köşeyi yuvarlat”</strong> or <strong class="ui">“Köşeye pah kır”</strong> from the bar that appears. All of them get the same radius or distance. Where two selected corners share a side, each takes at most 45 % of it, so a rectangle rounded all round comes out alike at every corner. Points that are not a corner between two straight lines are left out, and the message says how many. A frame round a whole shape, or a click inside it, selects its corners and its lines together, and the bar then offers <strong class="ui">“Çizgiyi kavisle”</strong> and <strong class="ui">“Düz çizgi”</strong> for all the selected lines next to the corner tools.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-fillet.webp" alt="The corner at the top left is rounded with a 12 mm radius." width="1280" height="800" loading="lazy"><figcaption>The corner at the top left is rounded with a 12 mm radius.</figcaption></figure>
+</section><section class="guide-part"><h2 id="mirroring">Mirroring</h2>
+<p>Select points and lines (click, <kbd>Shift</kbd> and click, or pull a frame round them) and click <strong class="ui">“Aynala”</strong> in the bar. Then choose the axis: <strong class="ui">“Sol-sağ”</strong> mirrors across the vertical axis through the middle of the plate, <strong class="ui">“Üst-alt”</strong> across the horizontal one, and <strong class="ui">“Bir çizgiye göre”</strong> across a straight line of the sketch that you click next. The copy is added on the other side and the original stays; nothing is linked, so you can change either on its own. Points that lie on the axis are shared, so a half outline whose ends sit on the axis becomes one closed outline: draw half of a bracket, select it, mirror it and make the body. A construction line makes a good axis. <kbd>Esc</kbd> cancels.</p>
+</section><section class="guide-part"><h2 id="construction-lines">Construction lines</h2>
+<p>A construction line helps you place points without becoming part of the body. It is drawn dashed and never counts as outline: you can pull it as far beyond the shape as you like and the body does not grow.</p>
+<ul><li>Switch on <strong class="ui">“Yardımcı çizgi”</strong> in the <strong class="ui">“Çiz”</strong> group. New lines, those typed by measure too, are then construction lines. The button switches back to normal lines.</li><li>A line you have drawn already becomes a construction line when you click it and choose <strong class="ui">“Yardımcı”</strong>. <strong class="ui">“Çizgi yap”</strong> makes it a normal line again.</li><li>New points snap to where a construction line crosses another line, a blue ring shows it, and to the ends of the construction line. That is how you put a corner on a middle, at a fixed distance from an edge or on a crossing, without calculating.</li><li>New points also snap to the middle of every straight line of the sketch, to the centre of every circle and rounded corner, and to the middles of the sides of a body shown underneath (#624). A point that is being dragged ignores the middle of its own lines.</li><li>A selection you drag snaps with its middle (#1236): the centre of a circle or the middle of a rectangle lands on the ends, corners and middles of the other lines, on the centres of circles, where construction lines cross and on the corners of a body underneath; a blue ring shows where. A shape dragged in from <strong class="ui">“Eskiz şekli ekle”</strong> lands with its middle on these points too. Hold <kbd>Alt</kbd> to keep to the grid only.</li><li><strong class="ui">“Line from the middle”</strong> in the <strong class="ui">“Çiz”</strong> group draws a line from its middle: click the middle first, then the end, and the line runs the same length to the other side. The middle becomes a point of its own. Click the button again to draw normal lines.</li><li>A construction line does not cut the outline apart where it crosses it. When revolving it may lie to the right of the axis too.</li></ul>
+</section><section class="guide-part"><h2 id="making-a-body-from-it">Making a body from it</h2>
+<p>Click <strong class="ui">“Eskizi bitir”</strong>. The outline stands as a body on the workplane. In its settings you change the height, the colour and everything else as with any other shape. When you resize it, layerling builds it again from the sketch a moment later, and the sketch grows with it. So it stays an exact body that takes chamfers and fillets, and the next time you edit it the sketch has the size the body has.</p>
+<p>If the workplane lies on the side of a body, you draw the way you look at that side: up in the sketch is up on the finished body too. The faint outline of the body in the sketch view shows where it stands. If the workplane cuts through a body, the sketch view shows the outline of that cut instead, so a hollow body appears as a ring and you can line the sketch up with its walls. A point you set or drag close to a corner of these outlines snaps exactly onto it; a small blue ring shows it. That way you take edges of other bodies into the sketch, even when the workplane does not lie exactly on them. To trace round existing work, switch on <strong class="ui">“İçinden görülen parçaları göster: eskiz düzlemindeki tüm kenarları”</strong> (the layers button in the view buttons on the left): all the edges of the bodies are then drawn on the sketch plane, thin and faint, as if you looked through them, whatever height they lie at. A plane that stands upright, set on a front face for example, shows the front view this way. The choice is kept in the browser.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-result.webp" alt="The outline has become a body. The corner is rounded." width="1280" height="800" loading="lazy"><figcaption>The outline has become a body. The corner is rounded.</figcaption></figure>
+<p>With <strong class="ui">“Eskizi düzenle”</strong> you can return to the sketch at any time to change it. A double click on the body does the same, as in Tinkercad (a locked body stays closed); <strong class="ui">“Çift tık eskizi açar”</strong> in the settings switches that off. Edge treatments you already made on the body are lost, though, because the edges are created anew. A body you turned or moved in the 3D editor opens where it stands on the plate, turned as you see it there and on the plate's grid; only a tilted or mirrored body opens in its own frame.</p>
+<p>A sketch with several outlines makes one body, and outlines that overlap merge in it. To have every outline on its own, select the body and click <strong class="ui">“Parçaları ayır”</strong>: each outer outline becomes a body of its own, with the holes that lie in it, and keeps the body's height, colour and place. Each part has its own sketch to edit, with the construction lines, so you can raise or lower the parts one by one and join or cut them afterwards. Edge treatments block this, as does a body stretched since: it is then taken apart as a mesh.</p>
+<p><strong>Another kind of body from the same sketch:</strong> the badge at the top of the sketch says what it becomes, <strong class="ui">“Ekstrüzyon eskizi”</strong>, <strong class="ui">“Döndürme eskizi”</strong> or <strong class="ui">“Süpürme eskizi”</strong>. Click it and pick another, also while you edit an existing body: an imported SVG, which comes in extruded, becomes a vase or a knob when you switch it to <strong class="ui">“Döndürme eskizi”</strong>. An outline reaching across the axis moves left until its right edge lies on the axis, so the half cross-section of an SVG turns about its straight side; <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> takes the move back. When you finish, the new body takes the old one's place, name and colour, its foot at the same height. Edge treatments go, as with every edit of a sketch.</p>
+<section class="guide-part"><h3 id="revolving">Revolving</h3>
+<p>When revolving, you draw half the cross-section <strong>to the left of the axis</strong> shown in the sketch. Next to it you see a 3D preview of the revolve. It shows at once what the body will look like. You can turn, shift and zoom it with the mouse; the small button in its top right corner, or a double click on it, brings back the first view. The outline must be closed, or you build an open line as a stroke, see below. At the end click <strong class="ui">“Döndürmeyi bitir”</strong>. The other bodies of the design are shown from the front, in the same view as the profile, with the axis standing at the middle: draw the profile next to them or above them. The body stands where you drew it, and the horizontal line through the middle of the sketch is the ground: a profile drawn above it gives a body that stands higher, and its lowest point is the foot of the body. For a bigger radius, move the profile further from the axis, past the edge of the plate if need be: the plate grows with the sketch, its grid follows when you let go, and the minus button zooms out until all of it fits.</p>
+<p>A revolved body is an exact body, like an extruded one: it takes chamfers and fillets, and you can hollow it, for a cup or a vase. A body revolved with an older layerling is a mesh; open <strong class="ui">“Eskizi düzenle”</strong> and finish it again to make it exact. A profile that reaches across the axis cannot be built exactly and becomes a mesh, as before.</p>
+<p><strong>Smoother round faces: <strong class="ui">“Smoothness”</strong>.</strong> An exact revolved body is cut into small flat facets for the view, the export and the print, and on a large pot they can show on the print. Select the body and set <strong class="ui">“Smoothness”</strong> in the properties panel to <strong class="ui">“Fine”</strong> or <strong class="ui">“Extra fine”</strong>: the round faces are cut finer, at the cost of more triangles and a slower design. A helix or a mesh revolve has <strong class="ui">“Kenarlar”</strong> for this instead.</p>
+<p><strong>One continuous strand: <strong class="ui">“Adım”</strong>.</strong> A revolve turns its outline into closed rings. Select the revolved body and give it a <strong class="ui">“Adım”</strong> above 0 in the properties panel, the distance it climbs per turn, and the outline winds up as a helix instead: one continuous strand, like filament on a spool or a coil. <strong class="ui">“Tarama açısı”</strong> then becomes <strong class="ui">“Tur”</strong>, up to 200; a negative number winds left-handed. Turns closer than the outline is high melt into one body, so a solid core with a fine pitch works too. A helix is built as a mesh, so fillet, chamfer and hollow do not work on it; keep <strong class="ui">“Kenarlar”</strong> low on many turns. A pitch of 0 makes rings again.</p>
+</section></section><section class="guide-part"><h2 id="sweeping-along-a-path">Sweeping along a path</h2>
+<p><strong class="ui">“Süpürme eskizi”</strong> pulls an outline along a path: a cable channel that turns a corner, a conduit, a guard round a belt, a ring around a hexagon. It sits next to <strong class="ui">“Eskizi uzat”</strong> and <strong class="ui">“Eskizi döndür”</strong> in the <strong class="ui">“Oluştur”</strong> group.</p>
+<p>You draw two things on the same sheet:</p>
+<ul><li><strong>The cross-section</strong> as a closed outline, as usual. Draw it as you would see it looking along the path from its start: across the path is the sketch's left and right, up is up on the finished body. A hollow section, a channel or a tube, is an outline with another one inside it. By default the section is centred on the path. The menu next to the mode badge at the top lets you put its left or right edge on the path instead (<strong class="ui">“On the path: left edge”</strong>, <strong class="ui">“On the path: right edge”</strong>, seen looking along the path), so a rail can sit on one side of the line or follow the edge of a part. The body stands on the sketch plane with the lowest point of the section.</li></ul>
+<ul><li><strong>The path</strong> as a <strong class="ui">“Yardımcı çizgi”</strong>: switch it on and draw lines or curves, one chain, open or closed (a closed chain gives a ring). The path lies flat in the sketch plane.</li></ul>
+<p>Draw the section near the end of the path where it should start; the path starts at the end nearest to it. Then click <strong class="ui">“Süpürmeyi bitir”</strong>. A corner of straight pieces becomes a mitre, a curve stays smooth, and the section stays upright all the way. The body is exact, like an extruded one: fillet, chamfer and the STEP export work on it. If a closed outline or a path is missing, or there are several separate paths, layerling says so. With <strong class="ui">“Eskizi düzenle”</strong> you can return to the sketch and change the section or the path.</p>
+</section><section class="guide-part"><h2 id="building-as-a-stroke">Building as a stroke</h2>
+<p>Normally the area inside a closed outline becomes the body. With <strong class="ui">“Kontur”</strong> in the <strong class="ui">“Bitir”</strong> section you build the line itself instead, with a width you set. Tick <strong class="ui">“Kontur olarak oluştur”</strong> in the stroke window; the sketch shows straight away what comes out.</p>
+<ul><li>A <strong>closed outline</strong> becomes a frame. <strong class="ui">“Konum”</strong> says where the wall lies: <strong class="ui">“Ortada”</strong> on the drawn line, <strong class="ui">“İçte”</strong> within it or <strong class="ui">“Dışta”</strong> outside it. Outside is handy for a tolerance: draw the outline of a hole, a dovetail for instance, and give it a 0.2 mm stroke outside to get the gap the print needs.</li><li>An <strong>open line</strong> becomes a stripe, centred on the line. <strong class="ui">“Uçlar”</strong> sets how its ends look: <strong class="ui">“Düz”</strong>, <strong class="ui">“Kare”</strong> (longer by half the width) or <strong class="ui">“Yuvarlak”</strong>.</li><li><strong class="ui">“Köşeler”</strong> applies to both: <strong class="ui">“Keskin”</strong>, <strong class="ui">“Yuvarlak”</strong> or <strong class="ui">“Pahlı”</strong>.</li></ul>
+<p>The sketch keeps the drawn line. Open it again and you go on changing line and stroke; untick the box and the area is built again. Curves are broken into short straight pieces for it.</p>
+<p>In a revolve the stroke is a thin wall: draw the wall of a vase or a cup as <strong>one open line</strong> to the left of the axis, tick <strong class="ui">“Kontur”</strong> and set the width, and the revolve turns that band. What reaches across the axis is cut off at it.</p>
+</section><section class="guide-part"><h2 id="fill-and-silhouette">Fill and silhouette</h2>
+<p>You can set the stroke without opening the sketch too: in the properties of a sketch body, choose <strong class="ui">“Alan”</strong>, <strong class="ui">“Dışta kontur”</strong>, <strong class="ui">“İçte kontur”</strong> or <strong class="ui">“Ortada kontur”</strong> under <strong class="ui">“Dolgu”</strong>, with <strong class="ui">“Çizgi genişliği”</strong> and <strong class="ui">“Köşeler”</strong>. The body is built again straight away, where it stands. These match the fill modes of Tinkercad's SVG import: default, outer line and inner line. <strong class="ui">“Daha geniş”</strong> keeps the area filled and grows it by the line width all round, with sharp, round or bevelled corners: a base layer under a logo for a multicolour print, which the stroke outside alone would only give as a ring. <strong class="ui">“Narrower”</strong> does the opposite: the area stays filled and its edge moves in by the line width all round, holes included (they grow). Use both on copies of one sketch for a fit: the hole at its drawn size, the part that goes through it <strong class="ui">“Narrower”</strong> by 0.5 mm, or a wall inside a shape cut from the same outline. A width larger than the outline allows leaves nothing. In the sketch's stroke window the same two choices stand under <strong class="ui">“Konum”</strong>. With a line outside, inside or centred, <strong class="ui">“Cutting Edge”</strong> makes the wall sharp on top: its top runs in to that width with a 45° chamfer on both sides, as on a cookie cutter. 0 leaves the top flat; the edge stays when you change the line width.</p>
+<p><strong class="ui">“Silüet (deliksiz)”</strong> leaves out every outline lying inside another: holes and whatever lies in them. Only the outer outline stays. Together with <strong class="ui">“Dışta kontur”</strong> it makes a cookie cutter: import an SVG twice, once with the silhouette as an area for the base and once with the silhouette and 1 to 2 mm of stroke outside as the wall. The switch is in the <strong class="ui">“Kontur”</strong> window in sketch mode as well.</p>
+<p>Fillets and chamfers on the edges go when the body is built again, as when the sketch is edited.</p>
+</section><section class="guide-part"><h2 id="slanted-walls-for-stamps">Slanted walls, for stamps</h2>
+<p>An extruded sketch has vertical walls. A stamp, an embossing die or a punch wants slanted ones, outside and inside, with the same wall thickness all the way. Layerling has no draft angle for an extrusion, but for plain outlines the <strong class="ui">“Daralma”</strong> gets you there. One way that works:</p>
+<ol><li>Draw the outline with the hole it needs and make a body of it. Duplicate the body (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span>).</li><li>On the first body, switch on <strong class="ui">“Silüet (deliksiz)”</strong>, so the hole is filled, and give it a wider bottom than top with <strong class="ui">“Daralma”</strong>.</li><li>On the copy, open its sketch again and delete the outer outline, so that only the outline of the hole is left. Finish the sketch, switch the body to <strong class="ui">“Delik”</strong> and give it a narrower bottom than top with <strong class="ui">“Daralma”</strong>.</li><li>Move the hole into the first body, where the hole was, and group the two.</li></ol>
+<p>The walls now slope outside and inside. Taper scales the whole outline, so this is exact for plain shapes, where you can choose the sizes so the walls run parallel, and only an approximation for fine details such as lettering.</p>
+</section><section class="guide-part"><h2 id="a-picture-as-template">A picture as template</h2>
+<p>With <strong class="ui">“Resim ekle”</strong> you put a photo or a drawing under the sketch and trace it, at any time, also before the first line. You can set its size, opacity and position. Once the picture sits right, lock it with <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> so you do not move it by accident while drawing. A locked image is out of the way: clicks go through it, so you can pick lines and points on top of it and drag a frame over them. The padlock in its corner unlocks it with one click; <kbd>Alt</kbd>+click selects it without unlocking it. If its settings at the right edge cover the picture, drag them away by their title bar; a double-click on it docks them again.</p>
+<p>Under <strong class="ui">“Hizala”</strong> you line up a photo that was not taken straight:</p>
+<ul><li><strong><strong class="ui">“Döndürme”</strong>:</strong> Turn the picture about its centre, with the curved arrows beyond its corners or as a number in degrees. With <kbd>Shift</kbd> the arrows snap in 15° steps. Inside the ring that appears while turning they snap to 22.5°, outside it to whole degrees.</li><li><strong><strong class="ui">“X = 0'a”</strong></strong> and <strong><strong class="ui">“Y = 0'a”</strong>:</strong> put the picture's centre on X = 0 or Y = 0. For a revolve, X = 0 is the axis, so the picture then lies symmetric about it.</li><li><strong><strong class="ui">“Kalibre et”</strong>:</strong> Its button sits at the top, right under the preview. Click two points in the picture whose distance you know, the ends of a ruler or a known diameter, and type the real distance. The picture is scaled evenly so that distance is right; the first point stays where it was.</li><li><strong><strong class="ui">“Kırp”</strong>:</strong> The handles on the frame now crop the picture instead of scaling it; what is cut away stays stored and comes back with <strong class="ui">“Resmin tamamını göster”</strong> or when a handle is pulled out again.</li></ul>
+<p>All four touch the reference only, never the sketch.</p>
+<p><strong><strong class="ui">“İzle”</strong></strong>, in the picture's settings, sets the points for you: it traces the outline of the shape in the picture – a silhouette, a logo, a word – and shows it in red over the picture, square points for corners, round ones for smooth points. <strong class="ui">“Dark shape”</strong> or <strong class="ui">“Light shape”</strong> picks which part of the picture is the shape, <strong class="ui">“Eşik”</strong> where dark turns light, <strong class="ui">“Points”</strong> how many points the outlines get together (fewer give smoother curves, more follow the picture more closely), <strong class="ui">“Corner from”</strong> from what turn a point is a corner, <strong class="ui">“Leave out specks up to”</strong> how small a speck is left out, and <strong class="ui">“Keep holes”</strong> keeps the middle of an A or an O. <strong class="ui">“Apply”</strong> puts the outlines into the sketch exactly where the picture lies, at its size, turn and crop, and selects them: they are ordinary points to move, curve or remove, and <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> takes them back in one step. It works best with clear contrast; cut a photo with a busy background out first. What falls away – around the outlines, in the holes, what is cut away – the preview covers in the plate's colour, so only what stays shows of the picture. Outlines that lie so close that loose curves would cross get more points by themselves; the card says so. For a border outside or inside the outline, give the sketch body a stroke outside or inside its lines, or offset the finished body.</p>
+<p>For a photo – a toy on a white table, say – choose <strong><strong class="ui">“Object”</strong></strong> under <strong class="ui">“Shape”</strong>: the background is the colour at the picture's edge, and everything that stands out from it becomes one outline, whatever its colours; <strong class="ui">“Eşik”</strong> then sets how clearly it must stand out. A colourful picture on an even background starts this way. <strong class="ui">“Pick areas”</strong> outlines more: click an area in the picture, a window say, and the patch of like colour round the spot is outlined (<strong class="ui">“Colour tolerance”</strong> sets how like). Holes and clicked areas are listed under <strong class="ui">“Holes and areas”</strong>; pointing at one shows it in the preview, ✕ takes it out, and with <strong class="ui">“Cut out”</strong> off it is drawn as a construction line instead of a hole. An area that reaches the picture's edge is the background and is not taken. What no threshold and no colour can tell apart – a shadow as dark as the wheels above it – <strong class="ui">“Cut away”</strong> takes away: click corners round it (a click on the first corner, a double click or <kbd>Enter</kbd> closes it), and the outline runs along the cut; it is listed as “Cut 1”.</p>
+<p>The tree beside a house, a figure before a busy background – where no colour tells the shape from the rest, the <strong><strong class="ui">“Magnetic lasso”</strong></strong> catches it: click roughly along its edge, and between two clicks the line follows the edge by itself, round its bends too; while you move, the preview already shows where it will run. A click on the first point, a double click or <kbd>Enter</kbd> closes it, <kbd>Esc</kbd> throws it away. It is listed as “Lasso 1”, with the choice <strong class="ui">“Take in”</strong> (the area joins the shape) or <strong class="ui">“Cut away”</strong> (it is taken away); every cut has the same choice. Under <strong class="ui">“Shape”</strong>, <strong><strong class="ui">“Lasso only”</strong></strong> makes the shape only of what you catch this way – nothing else of the picture.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/trace-house.webp" alt="A drawn house traced as the object, the threshold lowered for its light wall: the magnetic lasso has cut the tree away, and the eight window panes are picked as holes." width="1280" height="800" loading="lazy"><figcaption>A drawn house traced as the object, the threshold lowered for its light wall: the magnetic lasso has cut the tree away, and the eight window panes are picked as holes.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/trace-house-body.webp" alt="The house as a body: without the tree, the windows cut through." width="1280" height="800" loading="lazy"><figcaption>The house as a body: without the tree, the windows cut through.</figcaption></figure>
+</section><section class="guide-part"><h2 id="keys-in-sketch-mode">Keys in sketch mode</h2>
+<div class="table-scroll"><table><thead><tr><th>Key</th><th>Effect</th></tr></thead><tbody><tr><td><kbd>Esc</kbd></td><td>put the note tool down; otherwise put the tool down (back to <strong class="ui">“Seç”</strong>), then clear the selection</td></tr><tr><td><kbd>Delete</kbd></td><td>delete the selected element</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>C</kbd></span></td><td>copy the selection</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span></td><td>cut the selection</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>V</kbd></span></td><td>paste</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span></td><td>duplicate the selection</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span></td><td>undo</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span></td><td>select every point and line</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>I</kbd></span></td><td><strong class="ui">“Resim ekle”</strong></td></tr><tr><td><kbd>Shift</kbd></td><td>while drawing: snap the line in 15° steps; while dragging: keep movement on one axis</td></tr><tr><td>digit, <kbd>&lt;</kbd>, <kbd>Tab</kbd>, <kbd>Enter</kbd></td><td>while drawing: type and set the length and angle of the next line</td></tr><tr><td><kbd>R</kbd></td><td>rotate the closed sketch by 45°</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span></td><td>lock or unlock the selected outline, or the template image</td></tr><tr><td><kbd>N</kbd></td><td>place a note: the next click puts it on the sketch</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span></td><td>show or hide the notes</td></tr></tbody></table></div>
+<aside class="tip"><p><strong>Tip:</strong> Draw as few points as needed. An outline with a few well-placed points gives a smoother body than a tangle of many.</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/kilavuz/edges-and-hollowing.html"><small>Önceki bölüm</small>Breaking edges and hollowing bodies</a><a class="next" href="/api/desktop/layerling/ui/kilavuz/text.html"><small>Sonraki bölüm</small>Text and curved lettering</a></div>
+      </main>
+    </div>
+    <footer class="note">Bu kılavuz programla birlikte büyür. Bir şey eksik veya yanlışsa bunu şurada söyle: <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">forum</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=tr" rel="noopener">Projeyi destekle</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Forum</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">GitHub'da daha fazlası</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Sürüm notları v1.154.1</a></div><p class="trademark">Tinkercad, Autodesk, Inc. şirketinin ticari markasıdır. layerling bağımsız bir projedir; Autodesk ile bağlantılı değildir, Autodesk tarafından desteklenmez veya sponsor edilmez.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Editöre dön";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Editörü aç";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

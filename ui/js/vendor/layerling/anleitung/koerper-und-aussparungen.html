@@ -7,8 +7,21 @@
     <meta name="description" content="Wie aus einfachen Formen Bohrungen, Nuten und Taschen werden – und wie du eine Gruppe später noch einmal ändern kannst.">
     <link rel="canonical" href="https://layerling.com/anleitung/koerper-und-aussparungen.html">
     <link rel="alternate" hreflang="en" href="https://layerling.com/guide/solids-and-holes.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/solids-and-holes.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/solids-and-holes.html">
     <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/koerper-und-aussparungen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/solids-and-holes.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/solids-and-holes.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/solids-and-holes.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/solids-and-holes.html">
     <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/lichamen-en-gaten.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/solids-and-holes.html">
+    <link rel="alternate" hreflang="pt-BR" href="https://layerling.com/guia/solids-and-holes.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/telesa-in-luknje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/solids-and-holes.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/solids-and-holes.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/solids-and-holes.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/solids-and-holes.html">
     <meta property="og:title" content="Körper und Aussparungen - layerling Anleitung">
     <meta property="og:description" content="Wie aus einfachen Formen Bohrungen, Nuten und Taschen werden – und wie du eine Gruppe später noch einmal ändern kannst.">
     <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
@@ -60,6 +73,7 @@ a { color: var(--accent); }
 .guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
 .guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
 .guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
 .editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
 .editor-elsewhere[hidden] { display: none; }
 .bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
@@ -89,26 +103,51 @@ li { margin-bottom: 4px; }
 strong.ui { font-weight: 700; white-space: nowrap; }
 kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
 code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
-pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
 pre code { padding: 0; background: none; }
 figure { margin: 22px 0; }
 figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
 figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
 aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
 aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
 .table-scroll { overflow-x: auto; margin: 0 0 16px; }
 table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
 table.keys { table-layout: fixed; }
 table.keys td:first-child { width: 42%; }
-th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
 th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
 .toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
 .toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
-.toc ul { margin: 0; padding-left: 18px; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
 .pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
 .pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
 .pager a small { display: block; color: var(--muted); font-size: 12px; }
-.pager a.next { margin-left: auto; text-align: right; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
 .cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
 .cards a:hover { border-color: var(--accent); }
@@ -131,97 +170,177 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
   .bar-inner { flex-wrap: wrap; }
   .guide-search { order: 5; flex: 1 1 100%; }
 }
-@media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
 </style>
   </head>
   <body>
     <header class="bar"><div class="bar-inner">
       <a class="brand" href="/api/desktop/layerling/ui/anleitung/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Anleitung</span></span></a>
       <form class="guide-search" id="guide-search" role="search" data-index="/anleitung/search-index.json" data-nothing="Nichts gefunden." data-umlauts="true"><input type="search" id="guide-search-input" name="q" placeholder="Anleitung durchsuchen" aria-label="Anleitung durchsuchen" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
-      <details class="lang-menu"><summary aria-label="Sprache">Deutsch</summary><ul><li><a href="/api/desktop/layerling/ui/guide/solids-and-holes.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html" hreflang="de" lang="de" aria-current="true">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html" hreflang="nl" lang="nl">Nederlands</a></li></ul></details>
+      <details class="lang-menu"><summary aria-label="Sprache">Deutsch</summary><ul><li><a href="/api/desktop/layerling/ui/guide/solids-and-holes.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/solids-and-holes.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/solids-and-holes.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html" hreflang="de" lang="de" aria-current="true">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/solids-and-holes.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/solids-and-holes.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/solids-and-holes.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/solids-and-holes.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/solids-and-holes.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/solids-and-holes.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/solids-and-holes.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/telesa-in-luknje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/solids-and-holes.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/solids-and-holes.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/solids-and-holes.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/solids-and-holes.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/solids-and-holes.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/solids-and-holes.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
       <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Zum Editor</a>
     </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Der Editor ist schon in einem anderen Tab offen - wechsle einfach dorthin.</p></header>
     <div class="shell">
-      <nav class="chapters" aria-label="Kapitel"><h2>Kapitel</h2><ol><li><a href="/api/desktop/layerling/ui/anleitung/erste-schritte.html">Erste Schritte</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html">Ansicht und Arbeitsebene</a></li><li><a href="/api/desktop/layerling/ui/anleitung/formen.html">Formen setzen und einstellen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html">Auswählen und Anordnen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html" aria-current="page">Körper und Aussparungen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html">Kanten brechen und Körper aushöhlen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html">Skizzen: vom Umriss zum Körper</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html">Text und gebogene Schrift</a></li><li><a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html">Gewinde, Zahnräder und andere Bauteile</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html">Messen und Notizen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/drucken.html">Für den 3D-Druck vorbereiten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html">Dateien, Speichern und Weitergeben</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html">Tastenkürzel</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ki-mit-mcp.html">Mit einer KI bauen (MCP)</a></li><li><a href="/api/desktop/layerling/ui/anleitung/offline-und-installieren.html">Als App installieren, ohne Internet arbeiten und selbst hosten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/videos.html">Videos über layerling</a></li></ol></nav>
+      <nav class="chapters" aria-label="Kapitel"><h2>Kapitel</h2><p class="print-link"><a href="/api/desktop/layerling/ui/anleitung/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Ganze Anleitung zum Drucken</span></a></p><ol><li><a href="/api/desktop/layerling/ui/anleitung/erste-schritte.html">Erste Schritte</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html">Ansicht und Arbeitsebene</a></li><li><a href="/api/desktop/layerling/ui/anleitung/formen.html">Formen setzen und einstellen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html">Auswählen und Anordnen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html" aria-current="page">Körper und Aussparungen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html">Kanten brechen und Körper aushöhlen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html">Skizzen: vom Umriss zum Körper</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html">Text und gebogene Schrift</a></li><li><a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html">Gewinde, Zahnräder und andere Bauteile</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html">Messen und Notizen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/drucken.html">Für den 3D-Druck vorbereiten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html">Dateien, Speichern und Weitergeben</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html">Tastenkürzel</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ki-mit-mcp.html">Mit einer KI bauen (MCP)</a></li><li><a href="/api/desktop/layerling/ui/anleitung/offline-und-installieren.html">Als App installieren, ohne Internet arbeiten und selbst hosten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/videos.html">Videos über layerling</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tablet-und-touch.html">Tablet und Touch</a></li></ol></nav>
       <main>
 <h1>Körper und Aussparungen</h1>
 <p class="lead">Wie aus einfachen Formen Bohrungen, Nuten und Taschen werden – und wie du eine Gruppe später noch einmal ändern kannst.</p>
-<div class="toc"><b>Auf dieser Seite</b><ul><li><a href="#koerper-oder-aussparung">Körper oder Aussparung</a></li><li><a href="#gruppieren">Gruppieren</a></li><li><a href="#buendeln">Bündeln</a></li><li><a href="#schnittmenge">Schnittmenge</a></li><li><a href="#eine-gruppe-bearbeiten">Eine Gruppe bearbeiten</a></li><li><a href="#teilen">Teilen</a></li><li><a href="#teile-trennen">Teile trennen</a></li></ul></div>
+<div class="toc"><b>Auf dieser Seite</b><ul><li><a href="#koerper-oder-aussparung">Körper oder Aussparung</a></li><li><a href="#gruppieren">Gruppieren</a></li><li><a href="#buendeln">Bündeln</a></li><li><a href="#schnittmenge">Schnittmenge</a></li><li><a href="#koerper-ausschneiden">Körper ausschneiden</a></li><li><a href="#einen-umriss-durch-einen-koerper-stanzen">Einen Umriss durch einen Körper stanzen</a></li><li><a href="#eine-gruppe-bearbeiten">Eine Gruppe bearbeiten</a></li><li><a href="#teilen">Teilen</a></li><li><a href="#teile-trennen">Teile trennen</a></li></ul></div>
 <p>Das ist die wichtigste Idee in layerling, und sie ist schnell gelernt: <strong>Jede Form ist entweder ein Körper oder eine Aussparung.</strong> Ein Körper bleibt stehen. Eine Aussparung ist ein Werkzeug, das Material wegnimmt.</p>
-<h2 id="koerper-oder-aussparung">Körper oder Aussparung</h2>
+<section class="guide-part"><h2 id="koerper-oder-aussparung"><span class="heading-alias" id="solid-or-hole"></span>Körper oder Aussparung</h2>
 <p>Wähle eine Form aus und klicke in ihren Einstellungen auf <strong class="ui">„Körper“</strong> oder <strong class="ui">„Aussparung“</strong>. Schneller geht es mit der Tastatur: <kbd>H</kbd> macht die Auswahl zur Aussparung, <kbd>S</kbd> wieder zum Körper. Beides steht auch im Menü, das ein Rechtsklick auf den Körper öffnet. Eine Aussparung erscheint durchscheinend, damit du siehst, wo sie sitzt. Einen Körper machst du mit <kbd>T</kbd> durchsichtig, etwa um in ein Gehäuse zu schauen; ein zweiter Druck macht ihn wieder undurchsichtig. <kbd>T</kbd> gilt für die ganze Auswahl: Ist schon einer durchsichtig, werden alle undurchsichtig, sonst alle durchsichtig.</p>
 <p>Solange nichts gruppiert ist, passiert mit einer Aussparung nichts. Sie liegt nur da und zeigt, wo später etwas wegfallen soll.</p>
 <figure><img src="/api/desktop/layerling/ui/anleitung/img/hole-before.webp" alt="Der Zylinder ist eine Aussparung. Er ragt oben aus dem Würfel heraus, damit er ihn ganz durchschneidet." width="1280" height="800" loading="lazy"><figcaption>Der Zylinder ist eine Aussparung. Er ragt oben aus dem Würfel heraus, damit er ihn ganz durchschneidet.</figcaption></figure>
-<h2 id="gruppieren">Gruppieren</h2>
-<p>Markiere Körper und Aussparung(en) und klicke auf <strong class="ui">„Gruppieren“</strong> (<kbd>Strg</kbd>+<kbd>G</kbd>). Jetzt nehmen die Aussparungen das Material aus den Körpern, die sie berühren. Übrig bleibt eine einzige neue Form.</p>
+</section><section class="guide-part"><h2 id="gruppieren"><span class="heading-alias" id="grouping"></span>Gruppieren</h2>
+<p>Markiere Körper und Aussparung(en) und klicke auf <strong class="ui">„Gruppieren“</strong> (<span dir="ltr"><kbd>Strg</kbd>+<kbd>G</kbd></span>). Jetzt nehmen die Aussparungen das Material aus den Körpern, die sie berühren. Übrig bleibt eine einzige neue Form.</p>
 <figure><img src="/api/desktop/layerling/ui/anleitung/img/hole-after.webp" alt="Das Ergebnis: ein Würfel mit einer Bohrung." width="1280" height="800" loading="lazy"><figcaption>Das Ergebnis: ein Würfel mit einer Bohrung.</figcaption></figure>
 <p>So entstehen:</p>
 <ul><li><strong>Bohrungen:</strong> ein Zylinder als Aussparung durch einen Körper.</li><li><strong>Nuten:</strong> ein länglicher Quader als Aussparung an der Kante.</li><li><strong>Taschen:</strong> eine Aussparung, die nicht ganz durchgeht.</li><li><strong>Gewinde in einem Teil:</strong> ein Gewindeloch als Aussparung, siehe <a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html">Gewinde und Mechanik</a>.</li></ul>
 <p>Sind mehrere Körper in der Gruppe, werden sie verbunden. Zwei sich berührende Körper werden also ein einziges Teil.</p>
-<p>Eine Gruppe darfst du weiter behandeln wie eine Form: verschieben, drehen, einfärben, wieder gruppieren. Mit <strong class="ui">„Gruppierung aufheben“</strong> (<kbd>Strg</kbd>+<kbd>Umschalt</kbd>+<kbd>G</kbd>) löst du sie auf, und die Einzelteile sind wieder da.</p>
-<h3 id="eine-gruppe-zur-aussparung-machen">Eine Gruppe zur Aussparung machen</h3>
+<p>Bei großen Netzen, etwa einem importierten STL mit Hunderttausenden Dreiecken, dauert das Ausschneiden ein paar Sekunden. layerling rechnet dann im Hintergrund und zeigt „<strong class="ui">„Wird berechnet … du kannst weiterarbeiten“</strong>“; die Ansicht lässt sich währenddessen drehen und die Oberfläche bedienen. Änderst du in der Zeit die Szene, wird das Ergebnis verworfen und layerling sagt es dir. Dasselbe gilt für <strong class="ui">„Teilen“</strong>.</p>
+<p>Eine Gruppe darfst du weiter behandeln wie eine Form: verschieben, drehen, einfärben, wieder gruppieren. Mit <strong class="ui">„Gruppierung aufheben“</strong> (<span dir="ltr"><kbd>Strg</kbd>+<kbd>Umschalt</kbd>+<kbd>G</kbd></span>) löst du sie auf, und die Einzelteile sind wieder da.</p>
+<section class="guide-part"><h3 id="eine-gruppe-zur-aussparung-machen"><span class="heading-alias" id="making-a-group-a-hole"></span>Eine Gruppe zur Aussparung machen</h3>
 <p>Auch eine ganze Gruppe kann ein Körper oder eine Aussparung sein. Dabei gilt eine einfache Regel:</p>
 <ul><li>Besteht die Gruppe nur aus Körpern (oder nur aus Aussparungen), schaltest du sie als Ganzes um, und ihre Teile gehen mit.</li><li>Enthält sie beides, etwa einen Würfel mit Bohrung, behält jedes Teil seinen eigenen Zustand. Die ganze Gruppe wird dann zum Werkzeug, aber die Bohrung bleibt eine Bohrung.</li></ul>
-<h2 id="buendeln">Bündeln</h2>
-<p>Manchmal sollen Teile nur zusammenbleiben, ohne eins zu werden – etwa ein weißes Logo auf einer schwarzen Platte für den Mehrfarbdruck. Dafür gibt es <strong class="ui">„Bündeln“</strong> (<kbd>Strg</kbd>+<kbd>B</kbd>), wie in Tinkercad. Ein Bündel lässt sich verschieben, drehen und in der Größe ändern wie eine Form, aber nichts wird verrechnet:</p>
-<ul><li>Jedes Teil behält seine Farbe und bleibt Körper oder Aussparung.</li><li>Aussparungen schneiden nicht.</li><li>Beim Export als STL, 3MF oder OBJ ist jedes Teil ein eigener Körper; im 3MF und OBJ mit seiner Farbe.</li></ul>
-<p><strong class="ui">„Gruppierung aufheben“</strong> (<kbd>Strg</kbd>+<kbd>Umschalt</kbd>+<kbd>G</kbd>) löst ein Bündel wieder auf, <kbd>E</kbd> öffnet es zum Bearbeiten wie eine Gruppe. Kanten fasen, verrunden und aushöhlen geht an einem Bündel nicht, weil es kein einzelner Körper ist: Gruppiere es dafür, oder bearbeite seine Teile einzeln. Soll eine Aussparung im Bündel doch schneiden, gruppiere das Bündel (Strg+G).</p>
-<h2 id="schnittmenge">Schnittmenge</h2>
-<p><strong class="ui">„Schnittmenge“</strong> behält nur das, was zwei oder mehr Körper gemeinsam haben. Lege zwei überlappende Formen übereinander, markiere beide und klicke darauf. So entsteht zum Beispiel aus einem Zylinder und einem Quader ein Stück mit runder und gerader Seite. Eine Gruppe zählt dabei so, wie sie aussieht, also mit ihren Bohrungen. Ist eine Aussparung mit markiert, bleibt das, was alle Körper mit allen Aussparungen gemeinsam haben.</p>
-<h2 id="eine-gruppe-bearbeiten">Eine Gruppe bearbeiten</h2>
-<p>Ist eine Bohrung zu klein geraten, musst du die Gruppe nicht auflösen und neu bauen. Wähle die Gruppe aus und klicke in ihren Einstellungen auf <strong class="ui">„Gruppe bearbeiten“</strong>, in der Objektliste auf das Ordnersymbol, oder drücke <kbd>E</kbd>. Ein Doppelklick auf die Gruppe tut dasselbe, wie bei Tinkercad, auch bei einem Bündel; wer das nicht mag, schaltet <strong class="ui">„Doppelklick öffnet Gruppe oder Bündel“</strong> in den Einstellungen ab. Ein Teil bewegt sich übrigens erst, wenn der Zeiger ein paar Pixel weit gezogen wurde, so verschiebt ein verwackelter Klick oder Doppelklick nichts. Die Teile liegen jetzt einzeln da, und du änderst sie mit allen Werkzeugen: ein Loch größer machen, einen Körper verschieben, eine Aussparung hinzufügen.</p>
+</section><section class="guide-part"><h3 id="groesse-aendern-aussparungen-und-kleine-teile-behalten"><span class="heading-alias" id="resizing-a-group-keeping-holes-and-small-parts"></span>Größe ändern: Aussparungen und kleine Teile behalten</h3>
+<p>Machst du eine Gruppe länger, breiter oder höher, dehnen sich ihre Teile mit, als wären sie auf Gummi gezeichnet: Die runden Löcher einer Platte werden oval und rücken nach innen. Damit sie bleiben, wie sie sind, wählst du in den Einstellungen der Gruppe unter <strong class="ui">„Beim Ändern der Größe“</strong> die Möglichkeit <strong class="ui">„Aussparungen und kleine Teile behalten“</strong>; ohne diese Wahl gilt <strong class="ui">„Alles strecken“</strong>, wie bisher bei jeder Gruppe. Von da an wird die Gruppe bei jeder Größenänderung - mit den Griffen, in den Maßfeldern oder mit <strong class="ui">„Um Prozent skalieren“</strong> - nach einer einzigen Regel neu aus ihren Teilen gebaut, für jede Richtung für sich:</p>
+<ul><li>Ein Teil, das fast über die ganze Gruppe reicht, neun Zehntel davon oder mehr, wächst oder schrumpft mit ihr und behält seinen Abstand zu beiden Seiten: die Platte selbst, eine Wand oder das Innere eines Kastens, dessen Wände so dick bleiben, wie sie waren.</li><li>Jedes andere Teil behält seine eigene Größe und seinen Abstand zur näheren Seite. Ein Teil in der Mitte bleibt in der Mitte.</li></ul>
+<p>Eine Platte mit einem Loch 5 mm vor jeder Ecke und einem Langloch in der Mitte, um 40 mm verlängert, behält also ihre Löcher rund und 5 mm vor den Ecken und das Langloch in der Mitte. Bedingungen, die du Teil für Teil festlegen müsstest, gibt es dabei nicht: Für jedes Teil gilt dieselbe Regel, so weißt du vorher, was passiert. Ein gedrehtes Teil zählt mit dem Kasten, den es in der Gruppe einnimmt, und bleibt gedreht; eine Gruppe in der Gruppe zählt als ein Teil. Während du an einem Griff ziehst, dehnt sich die Gruppe als Ganzes; lässt du los, wird sie neu gebaut, im selben Rückgängig-Schritt. Wird sie kleiner, als ein Teil mit seinem Abstand braucht, schrumpft dieses Teil wie bisher mit, und eine Meldung sagt es dir. Eine gespiegelte, verjüngte oder verdrehte Gruppe und eine mit eigenen Rundungen, Fasen oder einer Oberfläche dehnt immer alles. Wählst du die Einstellung für eine schon gedehnte Gruppe, ordnet sie deren Teile sofort neu an.</p>
+<figure><img src="/api/desktop/layerling/ui/anleitung/img/group-keep-parts.webp" alt="Eine Platte mit einem Loch 5 mm vor jeder Ecke und einem Langloch in der Mitte, mit „Aussparungen und kleine Teile behalten“ um 40 mm verlängert: Die Löcher sind noch rund und 5 mm vor den Ecken, das Langloch ist noch in der Mitte." width="1280" height="800" loading="lazy"><figcaption>Eine Platte mit einem Loch 5 mm vor jeder Ecke und einem Langloch in der Mitte, mit „Aussparungen und kleine Teile behalten“ um 40 mm verlängert: Die Löcher sind noch rund und 5 mm vor den Ecken, das Langloch ist noch in der Mitte.</figcaption></figure>
+</section></section><section class="guide-part"><h2 id="buendeln"><span class="heading-alias" id="bundling"></span>Bündeln</h2>
+<p>Manchmal sollen Teile nur zusammenbleiben, ohne eins zu werden – etwa ein weißes Logo auf einer schwarzen Platte für den Mehrfarbdruck. Dafür gibt es <strong class="ui">„Bündeln“</strong> (<span dir="ltr"><kbd>Strg</kbd>+<kbd>B</kbd></span>), wie in Tinkercad. Ein Bündel lässt sich verschieben, drehen und in der Größe ändern wie eine Form, aber nichts wird verrechnet:</p>
+<ul><li>Jedes Teil behält seine Farbe und bleibt Körper oder Aussparung. Die Einstellungen des Bündels haben dieselben Karten wie die einer Gruppe: <strong class="ui">„Körper“</strong> und <strong class="ui">„Aussparung“</strong> für das ganze Bündel (die Farben der Teile bleiben dabei), <strong class="ui">„Durchsichtig darstellen“</strong> (<kbd>T</kbd>) und <strong class="ui">„Mehrfarbig“</strong> (<span dir="ltr"><kbd>Umschalt</kbd>+<kbd>M</kbd></span>); ist „Multicolor“ ausgeschaltet, zeigt und exportiert sich das Bündel in einer Farbe. <strong class="ui">„Teile trennen“</strong> löst das Bündel auf, wie es <span dir="ltr"><kbd>Strg</kbd>+<kbd>Umschalt</kbd>+<kbd>G</kbd></span> tut.</li><li>Aussparungen schneiden nicht. Gruppierst du das Bündel mit anderen Teilen, schneiden seine Aussparungen diese Teile, die Körper des Bündels selbst aber weiterhin nicht – wie in Tinkercad. So lässt sich zum Beispiel ein Zapfen mit seiner Bohrung daneben als Bündel immer wieder verwenden.</li><li>Beim Export als STL, 3MF oder OBJ ist jedes Teil ein eigener Körper; im 3MF und OBJ mit seiner Farbe.</li></ul>
+<p><strong class="ui">„Gruppierung aufheben“</strong> (<span dir="ltr"><kbd>Strg</kbd>+<kbd>Umschalt</kbd>+<kbd>G</kbd></span>) löst ein Bündel wieder auf, <kbd>E</kbd> öffnet es zum Bearbeiten wie eine Gruppe. Kanten fasen, verrunden und aushöhlen geht an einem Bündel nicht, weil es kein einzelner Körper ist: Gruppiere es dafür, oder bearbeite seine Teile einzeln. Soll eine Aussparung im Bündel auch dessen eigene Körper schneiden, löse das Bündel auf und gruppiere seine Teile (<span dir="ltr"><kbd>Strg</kbd>+<kbd>G</kbd></span>).</p>
+</section><section class="guide-part"><h2 id="schnittmenge"><span class="heading-alias" id="intersection"></span>Schnittmenge</h2>
+<p><strong class="ui">„Schnittmenge“</strong> behält nur das, was zwei oder mehr Körper gemeinsam haben. Lege zwei überlappende Formen übereinander, markiere beide und klicke darauf. So entsteht zum Beispiel aus einem Zylinder und einem Quader ein Stück mit runder und gerader Seite. Eine Gruppe zählt dabei so, wie sie aussieht, also mit ihren Bohrungen. Ist eine Aussparung mit markiert, bleibt das, was alle Körper mit allen Aussparungen gemeinsam haben. Haben die Formen nichts gemeinsam, bleibt alles, wie es ist, und eine Meldung sagt es. Der erste Klick zeigt das gemeinsame Stück, bevor es angewendet wird: Die markierten Formen werden durchsichtig, und was sie gemeinsam haben, ist grün gezeichnet. Markiere und verschiebe jede Form einzeln, und das grüne Stück folgt; ein zweiter Klick auf <strong class="ui">„Schnittmenge“</strong> wendet es an, <kbd>Esc</kbd> schließt die Vorschau. Formen mit zu vielen Dreiecken für die Vorschau, etwa große importierte Netze, werden schon beim ersten Klick geschnitten.</p>
+<p><strong class="ui">„Hülle“</strong> hüllt die markierten Formen in einen einzigen konvexen Körper, als wären sie in Schrumpffolie gepackt: den kleinsten Körper ohne Dellen, der alle umfasst. Aus einer Halbkugel auf einem Zylinder wird eine Kuppel ohne Absatz, aus vier Zylindern an den Ecken ein Kasten mit runden Ecken, aus zwei Kugeln eine Kapsel. Aussparungen in der Auswahl werden danach aus der Hülle herausgeschnitten. Die Teile bleiben darin: <strong class="ui">„Gruppe bearbeiten“</strong> öffnet die Hülle wie eine Gruppe, und wer dort ein Teil verschiebt und abschließt, bekommt die Hülle neu berechnet. Die Hülle ist ein Dreiecksnetz, runde Formen zeigen also Facetten, und die Kantenwerkzeuge wirken darauf wie auf jedes Netz. Sind nur Aussparungen markiert, ist die Hülle selbst eine Aussparung: Zwei Zylinder-Aussparungen schneiden ein Langloch. Eine Hülle füllt alles, was in ihren Teilen hohl ist: ein Rohr, einen mit <strong class="ui">„Aushöhlen“</strong> ausgehöhlten Zylinder, ein Teil, das mit seinen Löchern gruppiert ist. Schalte unter Eigenschaften <strong class="ui">„Löcher der Teile behalten“</strong> ein, damit sie offen bleiben: Die Hülle füllt dann nur den Raum zwischen den Teilen, und eine Einbuchtung an der Seite eines Teils bleibt ebenfalls.</p>
+<p><strong class="ui">„Ausstechform“</strong> macht aus der Auswahl eine Ausstechform: eine dünne Wand um den Umriss, 15 mm hoch, und ein flacher Rand von 2 mm Höhe um ihren Fuß, damit die Form auf dem Rand steht und der Daumen etwas zum Drücken hat. Wähle eine importierte SVG oder einen Skizzenkörper, dann gilt dessen eigener Umriss. Ein liegender Text gibt die Kurven seiner Buchstaben. Jede andere Form, ob in layerling gebaut, ein importiertes Netz oder mehrere Teile, liefert den Umriss, auf dem sie steht: den Schnitt der Arbeitsfläche durch die Form, stelle sie also vorher auf die Arbeitsfläche. Teile, die sich überlappen, ergeben einen gemeinsamen Umriss, als wären sie gruppiert; Teile, die getrennt liegen, ergeben je eine Form im selben Bündel. Der Umriss wird seitenverkehrt gebaut: Die Form wird auf ihrem Rand stehend gedruckt und zum Ausstechen umgedreht, so kommen Schrift und Logos richtig herum aus dem Teig. Die Wand läuft oben auf eine 0,4 mm breite Schneidkante zu. Löcher im Umriss, etwa das Innere eines e oder a, bekommen eigene Wände, damit sie mit ausgestochen werden. Sie sind ein eigener Körper im Bündel, <strong class="ui">„Innenwände“</strong>: Soll eine Schrift oder ein Muster nur in den Teig gedrückt statt ausgestochen werden, mache sie unter Eigenschaften niedriger. Bei einer Wand von 15 mm und 5 mm dickem Teig drücken Innenwände von 12 mm 2 mm tief. Innenwände, die niedriger sind als die Wand, sind oben flach statt mit Schneidkante: Sie drücken nur, und eine Kante ließe dünne Spitzen, die abbrechen, und Rillen, in denen Teig hängen bleibt. Willst du trotzdem eine, stellst du sie unter Eigenschaften ein. Je zwei Stege am Rand, auf der Seite, auf die du drückst, halten jede Innenwand an der Wand um sie herum, rundum verteilt, 4 mm breit und 3 mm hoch. Jeder Steg steht mit seiner ganzen Breite auf den Wänden, mitten auf einer Seite, die am Umriss entlangläuft, und nie quer über ein anderes Teil. Teile nebeneinander, etwa die Buchstaben eines Namens, sind zusätzlich untereinander verbunden, die nächsten zuerst, sodass die Stege wie ein Netz durch alle laufen und auch ein Buchstabe mitten im Wort fest sitzt. Ihre Höhe änderst du unter Eigenschaften wie die des Randes. Ein Klick auf das Werkzeug öffnet ein kleines Fenster: Dort wählst du statt der Stege eine <strong class="ui">„Platte“</strong>, die den ganzen Umriss auf der Druckseite füllt, stabiler ist und besser auf der Druckplatte haftet, den Teig aber nicht mehr hinten herausdrücken lässt. <strong class="ui">„Kehlen“</strong> setzt kleine Schrägen von 45° dorthin, wo die Wände auf Rand, Stegen oder Platte stehen, damit dünne Teile wie der Punkt eines i nicht abbrechen; sie sind ein eigener Körper im Bündel. Dort stellst du auch ein, um wie viel die Innenwände niedriger sind, und ob der Umriss gespiegelt wird; die Werte bleiben für die nächste Form. Die Ausstechform ersetzt die Auswahl als Bündel aus Skizzenkörpern, <strong class="ui">„Gruppe bearbeiten“</strong> öffnet es. Wand, Innenwände und Rand sind die Füllarten der Skizze, eine Linie außen an der Silhouette: Dicke, Höhe und Farbe änderst du bei jedem Teil unter Eigenschaften, dort auch die <strong class="ui">„Schneidkante“</strong> der Wand (0 für oben flach). Wo eine enge Biegung keinen Platz für eine Fase auf beiden Seiten lässt, wird die Wand nur außen abgeschrägt, auf dieselbe Kante. Wo sich ein Umriss gar nicht fasen lässt, etwa ein Logo mit spitzen Stellen oder ein Umriss aus den Dreiecken eines Körpers, wird die Kante in feinen Stufen von 0,1 mm gebaut, die eine Druckschicht von 0,2 mm nicht von der Schräge unterscheidet; eine solche Wand ist ein Dreiecksnetz statt eines exakten Körpers. Soll der Umriss bleiben, wie er gezeichnet ist, spiegle die Form mit <strong class="ui">„Spiegeln“</strong>, <strong class="ui">„links-rechts“</strong> zurück. Ein Bild (PNG oder JPG) geht auch: Beim Importieren wird es zu einem Skizzenkörper nachgezeichnet, und dem folgt die Form.</p>
+<p><strong class="ui">„Übergang aus Skizzen“</strong> verbindet zwei Skizzenkörper oder importierte SVGs zu einem Körper: unten liegt der Umriss des unteren, oben der des oberen, dazwischen gerade Wände. So entsteht ein Trichter, ein Übergangsstück von eckig auf rund oder ein Rahmen, der sich nach oben verjüngt. Lege die beiden Körper dafür übereinander, wo sie hin sollen, auch versetzt und gedreht, markiere beide und klicke auf das Werkzeug. Der Übergang reicht von der Unterseite des unteren Körpers bis zur Oberseite des oberen.</p>
+<p>Jeder der beiden braucht genau einen Umriss. Hat er ein Loch, etwa ein Ring, braucht der andere ebenso viele, und die Löcher werden mitgezogen: Aus zwei Ringen wird eine hohle Wand. Eine Skizze, die als Linie gebaut ist (unter Eigenschaften „Linie“ außen, innen oder mittig), zählt als solcher Ring. Eine importierte SVG kommt gefüllt herein; soll sie ein Ring sein, wähle bei ihr unter Eigenschaften eine Linie. Die beiden Körper müssen flach liegen, gekippte nimmt das Werkzeug nicht.</p>
+<p>Der Übergang ist ein genauer CAD-Körper; das Kantenwerkzeug und der STEP-Export nehmen ihn als solchen. Die beiden Skizzen bleiben darin: <strong class="ui">„Gruppe bearbeiten“</strong> öffnet sie wie eine Gruppe, und wer dort eine verschiebt, ändert oder ihre Skizze bearbeitet und abschließt, bekommt den Übergang neu gebaut. <strong class="ui">„Gruppierung aufheben“</strong> gibt die beiden Skizzen wieder frei. Für zwei Rechtecke, Kreise oder Vielecke gibt es außerdem die Form „Übergang“ unter den Formen, deren Enden du als Zahlen einstellst.</p>
+</section><section class="guide-part"><h2 id="koerper-ausschneiden"><span class="heading-alias" id="cutting-one-body-out-of-another"></span>Körper ausschneiden</h2>
+<p>Bei Teilen, die zusammenpassen müssen, eine Welle in einer Hülse, eine Schraube in einem Gehäuse, baust du das eine Teil und schneidest es aus dem anderen aus. Wähle die beiden Körper und klicke im Bereich <strong class="ui">„Verbinden“</strong> auf <strong class="ui">„Passend ausschneiden“</strong>, oder klicke mit rechts und wähle es dort. Das Werkzeugfenster nennt das Teil, das bleibt, und den Körper, der die Aussparung bekommt; layerling nimmt den kleineren als Teil, und <strong class="ui">„Beide tauschen“</strong> dreht es um. Das <strong class="ui">„Spiel“</strong> macht die Aussparung ringsum um so viel größer als das Teil: 0 passt genau, 0,2 mm ist ein üblicher Wert für eine gedruckte Passung. <strong class="ui">„Ausschneiden“</strong> schneidet eine Kopie des Teils aus dem anderen Körper und lässt das Teil selbst, wo es ist. Das Ergebnis ist eine Gruppe: <strong class="ui">„Gruppierung aufheben“</strong> nimmt den Schnitt wieder auseinander. Ein Spiel verlangt, dass das Teil ein exakter Körper ist, wie beim Werkzeug <strong class="ui">„Versatz“</strong>, das dafür benutzt wird.</p>
+</section><section class="guide-part"><h2 id="einen-umriss-durch-einen-koerper-stanzen"><span class="heading-alias" id="punching-an-outline-through-a-body"></span>Einen Umriss durch einen Körper stanzen</h2>
+<p>Um den Umriss eines Körpers gerade durch einen anderen zu schneiden, wählst du zuerst den Stempel und dann den Körper zum Stanzen und klickst im Bereich <strong class="ui">„Verbinden“</strong> auf <strong class="ui">„Stanzen“</strong>, oder du wählst es nach einem Rechtsklick. Die beiden müssen sich nicht berühren: Der Stempel kann irgendwo vor dem Körper stehen, es zählt nur sein Umriss entlang der <strong class="ui">„Richtung“</strong>. Eine Teekanne über einer Platte hinterlässt so eine Öffnung in Form einer Teekanne. layerling beginnt mit der Achse, entlang der der Stempel am weitesten vom Körper entfernt steht; X läuft von links nach rechts, Y von vorn nach hinten, Z nach oben. <strong class="ui">„Beide tauschen“</strong> dreht die Rollen um, und das <strong class="ui">„Spiel“</strong> macht die Öffnung ringsum größer, 0,2 mm für ein gedrucktes Teil, das hindurchpassen soll. <strong class="ui">„Stanzen“</strong> gruppiert die Öffnung als exakten Skizzenkörper, der auf Aussparung steht, mit dem Körper, <strong class="ui">„Gruppierung aufheben“</strong> nimmt sie also wieder heraus; der Stempel bleibt, wo er ist. Verschiebe oder drehe ihn und stanze noch einmal für eine andere Öffnung.</p>
+</section><section class="guide-part"><h2 id="eine-gruppe-bearbeiten"><span class="heading-alias" id="editing-a-group"></span>Eine Gruppe bearbeiten</h2>
+<p>Ist eine Bohrung zu klein geraten, musst du die Gruppe nicht auflösen und neu bauen. Wähle die Gruppe aus und klicke in ihren Einstellungen auf <strong class="ui">„Gruppe bearbeiten“</strong>, in der Objektliste auf das Ordnersymbol, oder drücke <kbd>E</kbd>. In der Objektliste kannst du die Gruppe auch mit ihrem Pfeil aufklappen und eines ihrer Teile anklicken: Die Gruppe öffnet sich dann mit diesem Teil ausgewählt. Ein Doppelklick auf die Gruppe tut dasselbe, wie bei Tinkercad, auch bei einem Bündel; wer das nicht mag, schaltet <strong class="ui">„Doppelklick öffnet Gruppe oder Bündel“</strong> in den Einstellungen ab. Ein Teil bewegt sich übrigens erst, wenn der Zeiger ein paar Pixel weit gezogen wurde, so verschiebt ein verwackelter Klick oder Doppelklick nichts. Die Teile liegen jetzt einzeln da, und du änderst sie mit allen Werkzeugen: ein Loch größer machen, einen Körper verschieben, eine Aussparung hinzufügen.</p>
 <figure><img src="/api/desktop/layerling/ui/anleitung/img/open-group.webp" alt="Die Gruppe in Bearbeitung: Unten steht der Balken mit Abbrechen und Fertig, die Objektliste zeigt die Teile." width="1280" height="800" loading="lazy"><figcaption>Die Gruppe in Bearbeitung: Unten steht der Balken mit Abbrechen und Fertig, die Objektliste zeigt die Teile.</figcaption></figure>
 <p>Unten im Bild erscheint ein Balken. <strong class="ui">„Fertig“</strong> rechnet die Gruppe neu, mit ihrem Namen, ihrer Farbe und ihrem Zustand als Körper oder Aussparung. <strong class="ui">„Abbrechen“</strong> holt sie unverändert zurück.</p>
 <p>Ist eines der Teile selbst eine Gruppe, bearbeitest du sie genauso, und so weiter, so tief dein Entwurf geht. Der Balken zeigt, wo du bist, zum Beispiel „Halter › Schraubdom“. <strong class="ui">„Fertig“</strong> und <strong class="ui">„Abbrechen“</strong> schließen immer die innerste Gruppe ab und führen dich eine Ebene zurück. Solange du in einer Gruppe bist, lassen sich nur die Gruppen unter ihren Teilen bearbeiten; für eine andere schließe erst ab.</p>
 <p>Anders als <strong class="ui">„Gruppierung aufheben“</strong>, das eine Gruppe endgültig auflöst, behält das Bearbeiten die Gruppe: Name und Einstellungen bleiben, und mit <strong class="ui">„Abbrechen“</strong> kommst du jederzeit zurück.</p>
 <p>Ein Hinweis: Fasen und Verrundungen, die du auf die <strong>ganze</strong> Gruppe gelegt hattest, gehen beim Neuberechnen verloren. Darauf weist der Balken hin.</p>
-<h2 id="teilen">Teilen</h2>
-<p><strong class="ui">„Teilen“</strong> im Bereich <strong class="ui">„Anpassen“</strong> schneidet die Auswahl mit einer Ebene in zwei – etwa ein Teil, das zu groß für das Druckbett ist, oder eins, in das du hineinschauen willst. Markiere einen oder mehrere Körper oder Aussparungen und klicke darauf. Eine durchscheinende Ebene zeigt genau, wo der Schnitt liegt; geändert wird erst, wenn du ihn anwendest.</p>
-<ul><li><strong class="ui">„Ebenenrichtung“</strong>: <strong>X</strong> schneidet senkrecht zwischen links und rechts, <strong>Y</strong> zwischen vorne und hinten, <strong>Z</strong> waagerecht zwischen oben und unten. Die Achsen heißen wie in der Positionskarte, Z zeigt nach oben; die Ebene beginnt mit Z.</li><li><strong class="ui">„Ebenenlage“</strong>: wo die Ebene durchgeht, mit dem Schieberegler oder als Zahl. Sie beginnt in der Mitte. Du kannst auch die Pfeilspitze an der Ebene ziehen; die Ebene wandert dann in Schritten von 0,1 mm entlang des Pfeils.</li><li><strong class="ui">„Fläche wählen“</strong>, die Schaltfläche neben der Lage, legt die Ebene auf eine Fläche: Klicke darauf und dann auf die Fläche. Richtung, beide Drehungen und Lage werden passend gesetzt. Während du wählst, zeigt eine blaue Ebene unter dem Zeiger, welche Fläche sie übernimmt. Auch die Fläche eines nicht markierten Körpers geht, um den Schnitt daran auszurichten – die Ebene bleibt aber innerhalb der Auswahl. <kbd>Esc</kbd> beendet das Wählen und lässt die Ebene, wo sie war.</li><li>Die beiden Drehregler darunter drehen die Ebene um die anderen beiden Achsen, bis 180° in jede Richtung, für einen schrägen Schnitt. Sie lassen sich kombinieren.</li></ul>
+</section><section class="guide-part"><h2 id="teilen"><span class="heading-alias" id="splitting"></span>Teilen</h2>
+<p><strong class="ui">„Teilen“</strong> im Bereich <strong class="ui">„Anpassen“</strong> schneidet die Auswahl mit einer Ebene in zwei – etwa ein Teil, das zu groß für das Druckbett ist, oder eins, in das du hineinschauen willst. Markiere einen oder mehrere Körper oder Aussparungen und klicke darauf. Eine durchscheinende Ebene zeigt genau, wo der Schnitt liegt, und eine weiße Linie markiert ihn auf den Körpern selbst, dort wo die Ebene sie trifft; geändert wird erst, wenn du ihn anwendest.</p>
+<ul><li><strong class="ui">„Ebenenrichtung“</strong>: <strong>X</strong> schneidet senkrecht zwischen links und rechts, <strong>Y</strong> zwischen vorne und hinten, <strong>Z</strong> waagerecht zwischen oben und unten. Die Achsen heißen wie in der Positionskarte, Z zeigt nach oben. Die Ebene beginnt parallel zur Arbeitsebene, auf der Grundplatte also mit Z.</li><li><strong class="ui">„An Arbeitsebene ausrichten“</strong>: <strong class="ui">„Parallel“</strong> legt die Ebene parallel zur Arbeitsebene, <strong class="ui">„Quer zu X“</strong> und <strong class="ui">„Quer zu Y“</strong> stellen sie senkrecht dazu, quer zu ihrer X- oder Y-Richtung. Schneidet der Ursprung der Arbeitsebene die Auswahl, geht die Ebene durch ihn, sonst durch die Mitte. So setzt du die Arbeitsebene mit <kbd>W</kbd> auf eine schräge Fläche und schneidest genau dort, ohne an den Drehreglern zu drehen.</li><li><strong class="ui">„Ebenenlage“</strong>: wo die Ebene durchgeht, mit dem Schieberegler oder als Zahl. Sie beginnt in der Mitte. Du kannst auch die Pfeilspitze an der Ebene ziehen; die Ebene wandert dann in Schritten von 0,1 mm entlang des Pfeils.</li><li><strong class="ui">„Fläche wählen“</strong>, die Schaltfläche neben der Lage, legt die Ebene auf eine Fläche: Klicke darauf und dann auf die Fläche. Richtung, beide Drehungen und Lage werden passend gesetzt. Während du wählst, zeigt eine blaue Ebene unter dem Zeiger, welche Fläche sie übernimmt. Auch die Fläche eines nicht markierten Körpers geht, um den Schnitt daran auszurichten – die Ebene bleibt aber innerhalb der Auswahl. <kbd>Esc</kbd> beendet das Wählen und lässt die Ebene, wo sie war.</li><li>Die beiden Drehregler darunter drehen die Ebene um die anderen beiden Achsen, bis 180° in jede Richtung, für einen schrägen Schnitt. Sie lassen sich kombinieren.</li></ul>
 <p><strong class="ui">„Modell teilen“</strong> oder <kbd>Enter</kbd> schneidet, <kbd>Esc</kbd> bricht ab (beim Wählen einer Fläche beendet das erste <kbd>Esc</kbd> nur das Wählen). Jedes Objekt, durch das die Ebene geht, wird zu zwei geschlossenen Körpern, benannt nach ihrer Seite, zum Beispiel „Quader (Z+)“ und „Quader (Z-)“; Objekte, die sie verfehlt, bleiben, wie sie sind. Aus einer Aussparung werden zwei Aussparungen, und ein ausgehöhlter Körper behält seinen Hohlraum. Beide Hälften bleiben, wo sie waren – zum Drucken legst du jede mit <strong class="ui">„Auf Fläche legen“</strong> auf ihre Schnittfläche.</p>
-<p>Die Hälften sind einfache Netze: Einstellungen wie die Seitenzahl eines Zylinders oder die Buchstaben eines Textes gehen verloren, stelle sie also vorher ein. <kbd>Strg</kbd>+<kbd>Z</kbd> holt das Original in einem Schritt zurück. Gesperrte und ausgeblendete Objekte lassen sich nicht teilen.</p>
-<h2 id="teile-trennen">Teile trennen</h2>
-<p>Besteht eine Form aus mehreren voneinander getrennten Stücken, etwa ein Text aus einzelnen Buchstaben, kannst du sie mit <strong class="ui">„Teile trennen“</strong> in eigenständige Formen zerlegen.</p>
-<aside class="tip"><p><strong>Tipp:</strong> Baue Löcher immer etwas länger als das Teil, das sie durchdringen sollen. Schließt die Aussparung genau mit der Fläche ab, bleibt manchmal eine hauchdünne Haut stehen. Ein Millimeter Überstand schafft Sicherheit.</p></aside>
+<p><strong class="ui">„Verbinder“</strong> richten die Hälften wieder aus, wie es die Schneidewerkzeuge von PrusaSlicer, OrcaSlicer und Bambu Studio tun. Mit <strong class="ui">„Keine“</strong>, der Voreinstellung, wird wie oben beschrieben geteilt. <strong class="ui">„Dübel“</strong> macht ein Loch in jede Hälfte und lose Stifte, die in beide gehen: Die Stifte kommen als dritter Körper, stehend neben den Hälften auf ihrem Boden, und werden mit ihnen gedruckt – stehend werden sie in den Schichten rund wie ihre Löcher, und genau das misst die Passprobe. <strong class="ui">„Zapfen“</strong> stellt runde Zapfen auf die Hälfte, deren Name mit einem Minus endet, und macht die Löcher dafür in die andere Hälfte. Die Verbinder gehen senkrecht zur Ebene hinein, wie auch immer sie gedreht ist, jeder mit seinem Durchmesser und 1,2 mm Material bis zu jedem Rand der Schnittfläche, und zwei voneinander doppelt so weit. Jedes getrennte Stück der Schnittfläche bekommt eigene, gleichmäßig darauf verteilt: <strong class="ui">„Je Schnittfläche (0 = automatisch)“</strong> sagt, wie viele, und 0 überlässt es der Größe des Stücks, mindestens zwei. Ein Stück, das für einen zu klein ist, bekommt keinen, und wo eine Hälfte dünner ist, als ihr Loch tief ist, fällt der Verbinder weg; das Fenster sagt es, bevor du teilst, und weiße Ringe auf der Ebene zeigen, wo sie hinkommen. Passt gar keiner, werden die Teile ohne geteilt, und die Statusleiste sagt es.</p>
+<ul><li><strong class="ui">„Durchmesser“</strong> ist der der Stifte und Zapfen, anfangs 5 mm.</li><li><strong class="ui">„Tiefe in jede Hälfte“</strong> sagt, wie weit jedes Loch in seine Hälfte geht. Ein Dübel ist doppelt so lang, weniger 0,6 mm, ein Zapfen 0,3 mm kürzer als sein Loch, damit sie nie auf dem Grund eines Lochs stehen und die Hälften ganz schließen. Stifte und Zapfen haben an den Enden eine kleine Fase, jedes Loch eine an seiner Öffnung, damit eine breit gedrückte erste Schicht es nicht enger macht.</li><li><strong class="ui">„Dübel auf abbrechbarem Sockel“</strong> stellt bei <strong class="ui">„Dübel“</strong> die losen Stifte auf eine gemeinsame Platte, die am Bett hält, für Drucker, deren Bett sich bewegt und stehende Stifte wackeln lässt. Jeder Stift steht auf einem kleinen Steg in einer Fassung der Platte; nach dem Druck biegst du jeden hin und her, bis er abbricht, wie es auch beim Prüfstift der Passprobe geht.</li><li><strong class="ui">„Spiel pro Seite“</strong> ist der Raum zwischen Stift oder Zapfen und seinem Loch. Hast du das Spiel deines Druckers mit der Passprobe gemessen (im Kapitel über das Drucken), beginnt es damit, sonst mit 0,2 mm.</li></ul>
+<p><strong class="ui">„Schwalbenschwanz“</strong> hält die Hälften ohne Leim zusammen, wie der Schwalbenschwanz-Schnitt von OrcaSlicer: Eine Leiste, die von der Schnittfläche weg breiter wird, steht auf der Hälfte, deren Name mit einem Minus endet, und läuft gerade über die Schnittfläche, von Rand zu Rand; die andere Hälfte bekommt die passende Nut, an beiden Enden offen. Schieb die Hälften von der Seite ineinander, längs der Leiste; dann lassen sie sich quer zum Schnitt nicht mehr auseinanderziehen. Die Leisten laufen längs der Schnittfläche, und trifft ein Körper die Ebene in mehreren Stücken, laufen sie auf allen gleich, damit sich eine Hälfte in einem Zug aufschieben lässt. <strong class="ui">„Je Schnittfläche (0 = automatisch)“</strong> ist die Zahl der Leisten nebeneinander auf jedem Stück; 0 überlässt es der Breite des Stücks, eine je sechs Leistenbreiten, mindestens eine. Neben ihrer breiten Oberseite behält eine Leiste ihre halbe Breite und noch 1,2 mm Material bis zum Rand der Schnittfläche, und zwei Leisten bleiben doppelt so weit voneinander. Ein Stück, das dafür zu schmal oder in Laufrichtung zu kurz ist, bekommt keine, und wo die andere Hälfte dünner ist, als die Nut tief ist, fällt die Leiste weg. Weiße Umrisse auf der Ebene zeigen, wo sie hinkommen: Der gefüllte Streifen ist der Fuß der Leiste, die Linie darum ihre breite Oberseite.</p>
+<ul><li><strong class="ui">„Breite an der Schnittfläche“</strong> ist die Breite der Leiste, wo sie aus der Schnittfläche kommt, anfangs 6 mm.</li><li><strong class="ui">„Tiefe in die andere Hälfte“</strong> sagt, wie weit sie aus der Schnittfläche in die andere Hälfte ragt, anfangs 4 mm. Die Nut ist 0,3 mm tiefer, damit die Hälften ganz schließen.</li><li><strong class="ui">„Flankenwinkel“</strong> sagt, wie weit sich jede Flanke gegenüber der Senkrechten auf der Schnittfläche nach außen neigt, von 5° bis 30°, anfangs 15°. Je größer, desto breiter die Oberseite der Leiste und desto fester hält sie.</li><li><strong class="ui">„Richtung (0 = längs)“</strong>: 0 legt die Leisten längs, 90 quer über die Schnittfläche, ein Winkel dazwischen dreht sie so weit.</li><li><strong class="ui">„Spiel pro Seite“</strong> ist der Raum auf jeder Seite zwischen Leiste und Nut, aus deiner Passprobe wie bei den Dübeln. Die Enden der Leiste sind rundum angefast, damit sie die Nut findet, und die Nut hat eine Fase an ihrer Öffnung.</li></ul>
+<p>Zum Drucken legst du die Hälfte mit der Nut auf ihre Schnittfläche und druckst die Hälfte mit der Leiste andersherum, die Schnittfläche oben: Dann neigen sich die Flanken der Leiste nur um ihren Winkel nach außen, und das geht ohne Stützen.</p>
+<p>Aussparungen werden ohne Verbinder geteilt.</p>
+<p>Die Hälften sind einfache Netze: Einstellungen wie die Seitenzahl eines Zylinders oder die Buchstaben eines Textes gehen verloren, stelle sie also vorher ein. <span dir="ltr"><kbd>Strg</kbd>+<kbd>Z</kbd></span> holt das Original in einem Schritt zurück. Gesperrte und ausgeblendete Objekte lassen sich nicht teilen.</p>
+<p>Ein importiertes Netz braucht eine geschlossene Oberfläche, damit es sich teilen, gruppieren oder ausschneiden lässt. Hat es Öffnungen, etwa offen gelassene Augen einer Figur oder einen Riss in einem Scan, schließt layerling sie zuerst mit einem flachen Deckel und sagt, wie viele es geschlossen hat. Es schließt kleine Öffnungen und ebene jeder Größe; eine große Öffnung mit gebogenem Rand bleibt dir überlassen, und die Meldung sagt es. Schließe sie im Programm, aus dem das Modell stammt, oder mit einem Reparaturwerkzeug für Netze, und importiere es neu.</p>
+</section><section class="guide-part"><h2 id="teile-trennen"><span class="heading-alias" id="separating-parts"></span>Teile trennen</h2>
+<p>Besteht eine Form aus mehreren voneinander getrennten Stücken, etwa ein Text aus einzelnen Buchstaben, kannst du sie mit <strong class="ui">„Teile trennen“</strong> in eigenständige Formen zerlegen. Den Eintrag gibt es auch im Menü, das sich mit einem Rechtsklick auf die Form öffnet.</p>
+<aside class="tip"><p><strong>Tipp:</strong> Baue Löcher immer etwas länger als das Teil, das sie durchdringen sollen. Schließt die Aussparung genau mit der Fläche ab, bleibt manchmal eine hauchdünne Haut stehen. Ein Millimeter Überstand schafft Sicherheit.</p></aside></section>
 <div class="pager"><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html"><small>Vorheriges Kapitel</small>Auswählen und Anordnen</a><a class="next" href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html"><small>Nächstes Kapitel</small>Kanten brechen und Körper aushöhlen</a></div>
       </main>
     </div>
     <footer class="note">Diese Anleitung wächst mit dem Programm. Fehlt dir etwas oder stimmt etwas nicht, sag es im <a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a>.</footer>
-    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=de" rel="noopener">Projekt unterstützen</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mehr Informationen zum Projekt auf GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Versionshinweise v1.71.0</a></div><p class="trademark">Tinkercad ist eine Marke von Autodesk, Inc. layerling ist ein unabhängiges Projekt und steht in keiner Verbindung zu Autodesk, wird nicht von Autodesk unterstützt oder gesponsert.</p></footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=de" rel="noopener">Projekt unterstützen</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mehr Infos auf GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Versionshinweise v1.154.1</a></div><p class="trademark">Tinkercad ist eine Marke von Autodesk, Inc. layerling ist ein unabhängiges Projekt und steht in keiner Verbindung zu Autodesk, wird nicht von Autodesk unterstützt oder gesponsert.</p></footer>
     <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Zurück zum Editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Zum Editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
     <script>
-function guideFold(text){var out="";for(var i=0;i<text.length;i++){out+=text.charAt(i).toLowerCase().normalize("NFD").charAt(0);}return out;}
-function guideForms(word,umlauts){
-  var forms=[word];
-  if(umlauts){var plain=word.split("ae").join("a").split("oe").join("o").split("ue").join("u");if(plain!==word)forms.push(plain);}
-  if(word.indexOf("ss")>=0)forms.push(word.split("ss").join(String.fromCharCode(223)));
-  if(word.indexOf(String.fromCharCode(223))>=0)forms.push(word.split(String.fromCharCode(223)).join("ss"));
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
   return forms;
 }
-function guideFind(text,forms,from){
-  var best=null;
-  for(var i=0;i<forms.length;i++){var k=text.indexOf(forms[i],from);if(k>=0&&(!best||k<best.at))best={at:k,len:forms[i].length};}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
   return best;
 }
-function guidePrepare(entries){return entries.map(function(e){return {e:e,c:guideFold(e.c),h:guideFold(e.h),t:guideFold(e.t)};});}
-function guideTokens(query){return guideFold(query).split(" ").filter(function(w){return w.length>0;});}
-function guideSearch(prepared,query,limit,umlauts){
-  var tokens=guideTokens(query);if(!tokens.length)return [];
-  var forms=tokens.map(function(w){return guideForms(w,umlauts);}),phrase=guideForms(tokens.join(" "),umlauts),found=[];
-  prepared.forEach(function(p){
-    var score=0;
-    for(var i=0;i<tokens.length;i++){
-      var inH=guideFind(p.h,forms[i],0),inC=guideFind(p.c,forms[i],0),at=guideFind(p.t,forms[i],0);
-      if(!inH&&!inC&&!at)return;
-      if(inH)score+=10;
-      if(inC)score+=3;
-      if(at){score+=1;var n=0,k=at;while(k&&n<5){n++;k=guideFind(p.t,forms[i],k.at+k.len);}score+=n*0.3;}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
     }
-    if(tokens.length>1&&(guideFind(p.h,phrase,0)||guideFind(p.t,phrase,0)))score+=6;
-    found.push({entry:p.e,score:score,folded:p.t,forms:forms});
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
   });
-  found.sort(function(a,b){return b.score-a.score;});
-  return found.slice(0,limit||8);
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
 }
 
 function guideSnippet(hit){
@@ -239,20 +358,57 @@ function guideSnippet(hit){
   if(end<text.length)parts.push({text:" ...",mark:false});
   return parts;
 }
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
 (function(){
   var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
   var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
   function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
   function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
   function render(){
     if(!guideTokens(input.value).length){close();return;}
     if(!prepared){load().then(function(){if(prepared)render();});return;}
-    var hits=guideSearch(prepared,input.value,8,form.getAttribute("data-umlauts")==="true");
+    var hits=guideSearch(prepared,input.value,8,umlauts);
     box.textContent="";
     if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
     hits.forEach(function(hit){
       var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
-      link.href=hit.entry.u;
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
       title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
       guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
       link.appendChild(title);link.appendChild(line);box.appendChild(link);
@@ -265,7 +421,7 @@ function guideSnippet(hit){
     if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
     else if(e.key==="Escape"){input.value="";close();}
   });
-  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first)window.location.href=first.href;});
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
   box.addEventListener("keydown",function(e){
     var current=document.activeElement;
     if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}

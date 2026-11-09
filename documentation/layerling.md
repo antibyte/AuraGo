@@ -3,7 +3,7 @@
 Layerling is an optional, locally shipped browser CAD editor. Enable it in
 **Configuration → Virtual Desktop → Layerling**. No Docker container, Node
 server, model provider or separately installed skill is needed at runtime.
-Node 24.15.0 is used only when rebuilding the pinned vendor assets.
+Node 24.21.0 is used only when rebuilding the pinned vendor assets.
 
 The Desktop frame follows AuraGo's language and theme. The CAD editor uses
 German for a German Desktop and English for all other Desktop languages.
@@ -52,8 +52,8 @@ collaborative simultaneous editing or direct printer control.
 
 ## Packaging and licensing
 
-Upstream is Layerling **1.57.0**, commit
-`25f12513802e322cdccecaf138f874ff526f331d`, licensed **AGPL-3.0-only**.
+Upstream is Layerling **1.154.1**, commit
+`bdf50b068f7b0475dece5307e1b2019aa10d5305` (tag `v1.154.1`), licensed **AGPL-3.0-only**.
 The editor's Source code and AGPL links provide the corresponding source archive
 including the integration changes, dependency lockfile, license and build guide.
 Build details and upstream archive checksum: `scripts/layerling/README.md`.

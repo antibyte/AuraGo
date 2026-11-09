@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>檔案、儲存與分享 - layerling 使用者指南</title>
+    <meta name="description" content="設計存放在哪裡、如何備份、layerling 能匯入與匯出哪些格式，以及在自己的共用伺服器上可以做什麼。">
+    <link rel="canonical" href="https://layerling.com/zh-tw/files-and-saving.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/files-and-saving.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/files-and-saving.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/files-and-saving.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/dateien-und-speichern.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/files-and-saving.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/files-and-saving.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/files-and-saving.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/files-and-saving.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/bestanden-en-opslaan.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/files-and-saving.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/datoteke-in-shranjevanje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/files-and-saving.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/files-and-saving.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/files-and-saving.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/files-and-saving.html">
+    <meta property="og:title" content="檔案、儲存與分享 - layerling 使用者指南">
+    <meta property="og:description" content="設計存放在哪裡、如何備份、layerling 能匯入與匯出哪些格式，以及在自己的共用伺服器上可以做什麼。">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/zh-tw/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">使用者指南</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/zh-tw/search-index.json" data-nothing="找不到結果。" data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="搜尋指南" aria-label="搜尋指南" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="語言">繁體中文</summary><ul><li><a href="/api/desktop/layerling/ui/guide/files-and-saving.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/files-and-saving.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/files-and-saving.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/files-and-saving.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/files-and-saving.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/files-and-saving.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/files-and-saving.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/files-and-saving.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/files-and-saving.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/files-and-saving.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/datoteke-in-shranjevanje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/files-and-saving.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/files-and-saving.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/files-and-saving.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/files-and-saving.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/files-and-saving.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/files-and-saving.html" hreflang="zh-TW" lang="zh-TW" aria-current="true">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">開啟編輯器</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>編輯器已在另一個分頁中開啟，請切換到那裡。</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="章節"><h2>章節</h2><p class="print-link"><a href="/api/desktop/layerling/ui/zh-tw/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>列印完整指南</span></a></p><ol><li><a href="/api/desktop/layerling/ui/zh-tw/getting-started.html">快速上手</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/view-and-workplane.html">檢視與工作平面</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/shapes.html">放置與調整形狀</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/select-and-arrange.html">選取與排列</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/solids-and-holes.html">實體與孔</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/edges-and-hollowing.html">邊的修整與實體抽殼</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/sketches.html">草圖：從輪廓到實體</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/text.html">文字與弧形文字</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/threads-and-mechanics.html">螺紋、齒輪與其他零件</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/measuring-and-notes.html">量測與備註</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/printing.html">為 3D 列印做準備</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/files-and-saving.html" aria-current="page">檔案、儲存與分享</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/shortcuts.html">鍵盤快速鍵</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/ai-with-mcp.html">用 AI 建模（MCP）</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/offline-and-install.html">安裝為應用程式、離線使用與自架</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/videos.html">關於 layerling 的影片</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/tablet-and-touch.html">平板與觸控</a></li></ol></nav>
+      <main>
+<h1>檔案、儲存與分享</h1>
+<p class="lead">設計存放在哪裡、如何備份、layerling 能匯入與匯出哪些格式，以及在自己的共用伺服器上可以做什麼。</p>
+<div class="toc"><b>本頁內容</b><ul><li><a href="#where-your-designs-live">設計存放在哪裡</a></li><li><a href="#folders-for-your-designs">設計的資料夾</a></li><li><a href="#backing-up-and-passing-on">備份與轉交</a></li><li><a href="#attachments">附件</a></li><li><a href="#exporting">匯出</a></li><li><a href="#importing">匯入</a></li><li><a href="#simplifying-an-imported-mesh">簡化匯入的網格</a></li><li><a href="#making-an-imported-mesh-exact">將匯入的網格轉為精確實體</a></li><li><a href="#reporting-a-bug">回報問題</a></li><li><a href="#shared-designs-on-a-server">伺服器上的共用設計</a></li></ul></div>
+<section class="guide-part"><h2 id="where-your-designs-live">設計存放在哪裡</h2>
+<p>layerling 把所有東西都儲存在你電腦的瀏覽器裡。不需要帳號，也不會上傳任何內容。每一次變更都會自動儲存。起始頁上的預覽圖片，顯示的是你按 <strong class="ui">「首頁儀表板」</strong> 返回起始頁之前，最後呈現在眼前的畫面。即使過了幾天，只要在同一個瀏覽器裡開啟 layerling，一切都還在。</p>
+<p>如果你從一個空無一物的設計返回起始頁，layerling 會詢問是否要保留它。<strong class="ui">「是」</strong> 或 <kbd>Enter</kbd> 會保留，<strong class="ui">「否」</strong> 則會移除，這樣空設計才不會越堆越多。如果設計位於伺服器上的共用資料夾，<strong class="ui">「否」</strong> 會把檔案從伺服器刪除，所有使用該資料夾的人都會失去它。</p>
+<p>這有個缺點：清除瀏覽器儲存空間或換用另一台電腦的人，設計就會消失。<strong>所以要把重要的工作備份成檔案。</strong></p>
+</section><section class="guide-part"><h2 id="folders-for-your-designs">設計的資料夾</h2>
+<p>設計累積到幾十個時，單一清單就不夠用了。在起始頁上，<strong class="ui">「新增資料夾」</strong> 會為這個瀏覽器的設計建立資料夾；點擊資料夾即可開啟。資料夾裡可以再放資料夾。</p>
+<ul><li><strong>移入資料夾：</strong> 把設計拖曳到資料夾上，或在設計的選單中選擇 <strong class="ui">「移至 …」</strong>，選單會列出所有資料夾。在資料夾開啟的狀態下建立的設計，以及開啟或匯入的檔案，都會放進該資料夾。</li><li><strong>移出資料夾：</strong> 資料夾裡的第一個圖磚 <code>..</code>，以及分頁底下那一行，都能帶你回到上一層；也可以把設計拖放到上面。把資料夾拖曳到另一個資料夾上，就會放進該資料夾裡。</li><li><strong>重新命名與刪除</strong> 都在資料夾的選單裡。刪除資料夾不會刪除任何設計：原本在裡面的設計會往上移一層。</li><li><strong>搜尋</strong> 會搜尋所有資料夾；找到的設計會顯示所在的資料夾，點擊它即可開啟該資料夾。</li></ul>
+<p><strong class="ui">「全部備份」</strong> 會保留資料夾：設計會連同資料夾一起放進備份檔案，還原備份時也會放回原本的資料夾。這個瀏覽器的資料夾與伺服器上的資料夾是分開的。卡片圖片也會寫進檔案裡，所以還原後馬上就會出現。</p>
+</section><section class="guide-part"><h2 id="backing-up-and-passing-on">備份與轉交</h2>
+<p>在起始頁上，每個設計都有一個選單，可以重新命名、複製與刪除。分頁旁邊的那一排按鈕在每個分頁上都一樣。要一次刪除多個設計，點擊 <strong class="ui">「選取」</strong>：點擊一張卡片即可選取它（勾號表示已選），<strong class="ui">「全選」</strong> 選取清單中的所有設計，<strong class="ui">「刪除」</strong> 對它們只詢問一次。<strong class="ui">「完成」</strong> 或 <kbd>Esc</kbd> 離開選取。用 <strong class="ui">「全部備份」</strong> 可以把目前開啟的分頁中的所有設計打包成單一 ZIP 檔案。緊鄰其旁的 <strong class="ui">「還原備份」</strong>（全新的電腦上、還沒有任何設計時也會出現）可以把這些設計還原回來，換一個瀏覽器或換一台電腦都行；<strong class="ui">「開啟設計或匯入幾何」</strong> 也能開啟同一個檔案。這個瀏覽器的 <strong class="ui">「自訂形狀」</strong> 會跟著同一個檔案一起走，放在 <code>Custom shapes</code> 資料夾裡，參見<a href="/api/desktop/layerling/ui/zh-tw/shapes.html">形狀</a>。如果把備份還原到已經有其中部分設計的瀏覽器，那些設計不會重複加入；提示會說明有多少個本來就已經存在。無法讀取的設計會被略去，提示會寫出它的名稱。如果頁面在備份中途重新載入——通常是因為一個很大的設計占滿了瀏覽器允許的全部記憶體——起始頁隨後會說明在哪個設計處停下：把那個設計單獨存成檔案（見下文），或簡化它最大的網格，然後再備份一次。這個瀏覽器的設計上方有一行簡短的提醒，說明它們沒有儲存在其他任何地方。</p>
+<p>只備份部分設計：點選 <strong class="ui">「選取」</strong> 後，<strong class="ui">「備份」</strong> 只把所選設計連同其資料夾打包成一個 ZIP 檔案；資料夾選單中的 <strong class="ui">「備份」</strong> 會打包該資料夾及其中所有設計和資料夾。兩者都不包含自訂形狀，<strong class="ui">「還原備份」</strong> 可以像完整備份一樣還原它們。這適用於此瀏覽器中的設計。</p>
+<p>備份存到哪裡：在 Chrome 和 Edge 中，儲存對話框會詢問資料夾和名稱，並為下一次備份記住該資料夾。這樣備份就能直接存入你自己的資料夾，例如雲端硬碟。<strong class="ui">「備份自訂形狀」</strong> 也是如此。其他瀏覽器會把檔案放進它們的下載資料夾；是哪個資料夾，可在瀏覽器設定中更改。</p>
+<p>如果某個設計開啟很慢或根本打不開，通常是因為它的復原步驟歷史記錄變得非常大，請在開始頁面該設計的選單中選擇 <strong class="ui">「不帶歷史記錄開啟」</strong>。layerling 隨後只讀取目前狀態，永久刪除所有更早的步驟並開啟設計；由於無法復原，會先詢問一次。若想保留這些步驟，請先用 <strong class="ui">「備份」</strong> 備份該設計。</p>
+<p>在編輯器中備份單一設計：<strong class="ui">「匯出」</strong>，選擇 <strong>LYL</strong> 格式，然後點擊 <strong class="ui">「儲存 layerling 設計」</strong>。LYL 檔案是 layerling 自己的設計格式，包含所有內容：形狀、群組、草圖、CAD 資料、匯入的原始檔，以及歷史記錄，也就是復原步驟。在 <strong class="ui">「已儲存的操作記錄」</strong> 底下可以選擇要帶上最近多少個步驟；初始值沿用設定（功能區裡的齒輪）在 <strong class="ui">「歷史記錄」</strong> 保留的步數。最後一檔 <strong class="ui">「無」</strong> 只儲存設計目前的狀態——這是分享不帶復原步驟的檔案的方法。匯出的是副本，檔名由你在 <strong class="ui">「檔名」</strong> 中指定；瀏覽器裡的設計仍保有自己的歷史記錄。舊版本留下的 <code>.skf</code> 檔案仍可開啟，開啟後會存成 <code>.lyl</code>。</p>
+<p><strong>儲存到自己的資料夾（Chrome 與 Edge）。</strong> 在這些瀏覽器中，按鈕會開啟系統的儲存對話方塊，你可以自己挑選資料夾與檔名，也可以取代既有的檔案。之後按 <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>S</kbd></span> 就會把設計再次儲存到同一個檔案，不會再跳出對話方塊。用 <strong class="ui">「開啟設計或匯入幾何」</strong> 或匯出視窗的開啟按鈕從 <code>.lyl</code> 檔案開啟的設計，也會存回該檔案。瀏覽器可能會詢問一次修改檔案的權限。頁面重新載入後，設計就會忘記自己對應的檔案，下一次 <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>S</kbd></span> 時會再詢問一次；對話方塊會從你上次使用的資料夾開始。Firefox 與 Safari 不允許網頁這樣寫入檔案。在這些瀏覽器裡，檔案會像以前一樣下載到「下載」資料夾，<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>S</kbd></span> 會再次下載；Firefox 可以在「設定 &gt; 一般 &gt; 下載」中設定每次詢問資料夾。如果你在那裡給檔案取了別的名稱，設計會保留自己的名稱，因為檔名中的版本或日期往往是刻意的；儲存後的訊息會提供 <strong class="ui">「設計也使用這個名稱」</strong>。</p>
+<p><strong>儲存視窗什麼也沒儲存時。</strong> 如果視窗關閉時沒有選定檔案，頂部訊息會說明並提供 <strong class="ui">「改為下載」</strong>：設計會像在 Firefox 中一樣進入「下載」資料夾。瀏覽器對按「取消」關閉的視窗和無法使用的視窗回報方式相同，所以在儲存視窗對每個資料夾都失敗的電腦上，可以用這種方式繼續儲存。</p>
+</section><section class="guide-part"><h2 id="attachments">附件</h2>
+<p>說明書、零件清單、筆記、照片或規格表都可以作為檔案跟設計放在一起。功能區 <strong class="ui">「檔案」</strong> 群組中的 <strong class="ui">「附件」</strong>（迴紋針）開啟清單；迴紋針上的小圓點表示設計裡有附件。</p>
+<ul><li><strong><strong class="ui">「上傳附件」</strong>：</strong> 選擇一個或多個檔案：<code>.md</code>（Markdown）或 <code>.txt</code> 純文字（UTF-8）、<code>.png</code>、<code>.jpg</code>、<code>.jpeg</code> 或 <code>.webp</code> 圖片，或 <code>.pdf</code> 文件。檔案依內容檢查，名不符實的檔案會被拒絕，其他類型（包括 <code>.svg</code>）不能附加。文字檔最大 2 MB，圖片 16 MB，PDF 32 MB；一個設計最多 32 個檔案，合計 64 MB。</li><li><strong>清單：</strong> 箭頭依上傳時的原樣下載檔案。垃圾桶刪除檔案；該列會先再確認一次。刪除的檔案無法用復原找回，因為附件不屬於復原記錄。</li><li><strong>閱讀檔案：</strong> <code>.md</code> 或 <code>.txt</code> 檔案那一列的眼睛圖示會在視窗中開啟它供閱讀，無需下載。Markdown 以排版形式顯示，包括標題、清單、勾選框、表格和程式碼；文字檔依原樣顯示。只有指向網頁和電子郵件地址的連結有效，並在新分頁中開啟。檔案中引用的圖片不會載入，而是顯示其描述。按 Esc、點叉號或在視窗外點擊即可關閉。在歷史記錄檢視中也可以閱讀。</li><li><strong>檢視圖片：</strong> 圖片那一列的眼睛圖示會在同一視窗中開啟它，圖片較大時會縮小以符合視窗。PDF 沒有眼睛圖示：請下載後用你平常閱讀 PDF 的程式開啟。</li><li><strong>名稱已存在：</strong> layerling 會詢問如何處理。<strong class="ui">「取代」</strong> 把新內容放進同名檔案，該檔案保留在清單中的位置。<strong class="ui">「重新命名」</strong> 以另一個名稱加入新檔案，並建議第一個可用名稱，例如 <code>notes 2.md</code>。叉號則不加入新檔案。大小寫視為相同，再次上傳同一個檔案不會有任何變化。</li></ul>
+<p>附件和其他內容一樣隨設計儲存：在瀏覽器中、在 LYL 檔案中、在備份中，以及在伺服器上的設計中（加入或刪除附件後立即同步到伺服器）。它們不會隨 <strong class="ui">「插入此設計」</strong> 或自訂形狀一起帶過去，錯誤回報中也不包含附件。帶附件的設計會儲存為較新的 LYL 檔案格式：較舊的 layerling 會提示無法開啟，而不是丟掉這些檔案。沒有附件的設計儲存方式與以前完全相同。</p>
+</section><section class="guide-part"><h2 id="exporting"><span class="heading-alias" id="svg-for-a-laser-or-plotter"></span><span class="heading-alias" id="a-drawing-for-the-workshop"></span><span class="heading-alias" id="how-much-filament-does-it-take"></span>匯出</h2>
+<p>點擊 <strong class="ui">「匯出」</strong>，或按 <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>E</kbd></span>。</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/export-panel.webp" alt="匯出視窗，包含 STL、3MF、OBJ、STEP、SVG、PNG、LYL 與 2D 格式。" width="1280" height="800" loading="lazy"><figcaption>匯出視窗，包含 STL、3MF、OBJ、STEP、SVG、PNG、LYL 與 2D 格式。</figcaption></figure>
+<p>最上方是檔名，下方選擇格式。有選取項目時只匯出選取的內容，否則匯出整個設計。如果選取範圍漏掉了可見的部件，視窗裡會明確提示，<strong class="ui">「全選」</strong> 可以一鍵選取所有可見內容。檔案寫好後，視窗會自動關閉；如果匯出失敗，視窗會保持開啟並顯示訊息。</p>
+<div class="table-scroll"><table><thead><tr><th>格式</th><th>用途</th><th>注意事項</th></tr></thead><tbody><tr><td><strong>STL</strong></td><td>切片軟體與 3D 列印</td><td>三角網格。最簡單、最普遍的格式。STL 沒有部件之分：重疊的實體會合併成一個網格。若要保留成獨立部件，請匯出 3MF。在 Chrome 與 Edge 中，第一次匯出 STL 會詢問儲存位置，之後這個設計的 STL 匯出都會寫入該檔案，直到你在檔名欄位輸入別的名字，或按 <strong class="ui">「另存新檔…」</strong>。</td></tr><tr><td><strong>3MF</strong></td><td>帶顏色的切片軟體</td><td>每個實體都會保持為獨立部件，並帶有名稱與顏色。重疊的實體只有在顏色相同時才會合併；當某個形狀位於另一種顏色的實體內部時（例如板子上的標誌），先建立的實體會讓出空間給後建立的。適合 PrusaSlicer、Bambu Studio、OrcaSlicer 與 Cura。Bambu Studio 與 OrcaSlicer 開啟時會詢問如何把顏色對應到你的線材，並稱這個檔案「不是來自 Bambu」——這則訊息沒有影響。不過，OrcaSlicer 以及基於它的切片軟體不讀取每個面的顏色。因此，如果檔案中有一個多種顏色的實體（例如文字有單獨顏色的 Gridfinity 收納盒，或開啟了<strong class="ui">「多色」</strong>的群組），檔案中的每個面還會像在切片軟體中塗色那樣，用其顏色對應的線材塗色：這樣 OrcaSlicer 和 PrusaSlicer 2.9 會用各自的線材列印每種顏色（PrusaSlicer 最多 15 種顏色），而 Bambu Studio 2.9 會直接從塗色中取得線材，不再詢問。</td></tr><tr><td><strong>OBJ</strong></td><td>建模與交換</td><td>廣泛支援的網格格式。顏色以頂點色儲存在同一個檔案裡，不需要額外的 <code>.mtl</code>。Bambu Studio 與 OrcaSlicer 能讀取這些顏色，並像 3MF 一樣詢問如何對應到線材；其他程式只會看到形狀。與 3MF 相同，重疊的實體只有在顏色相同時才會合併。</td></tr><tr><td><strong>STEP</strong></td><td>完整的 CAD 程式</td><td>把方塊、圓柱、球體與圓錐保留為精確幾何，因此也包含由輪廓建立的形狀（星形、心形、橢圓、管、半球、圓弧屋頂、圓角方塊、燕尾、孔等）、彎管、楔形、角錐、拋物面體、螺紋、彈簧與齒輪，以及圓角與倒角。每個工作階段第一次匯出 STEP 時，會載入一次 CAD 核心（約 22 MB）。</td></tr><tr><td><strong>SVG</strong></td><td>雷射切割機與繪圖儀</td><td>以公釐為單位的乾淨俯視圖，包含孔與曲線輪廓。在 <strong class="ui">「視圖」</strong> 底下，<strong class="ui">「工作平面上的著地輪廓」</strong> 只會輸出物件立在工作平面上的輪廓。<strong class="ui">「從上方可見的邊」</strong> 把從上方看到的邊輸出為線條，每個實體用它自己的顏色；見下文。</td></tr><tr><td><strong>DXF</strong></td><td>雷射切割加工廠</td><td>同樣的俯視圖（<strong class="ui">「俯視剪影」</strong> 或 <strong class="ui">「工作平面上的著地輪廓」</strong>），輸出為一條由直線、真正的圓弧與圓組成的輪廓——沒有聚合線、雲形線，也沒有由短直線段拼成的曲線——位於 0 圖層、白色，DXF 2000 格式，單位公釐，不鏡像。互相接觸的實體會合併為一條輪廓，因此沒有線會被切割兩次。加工廠要求每個檔案一個零件：匯出前先選取該零件。尚未在雷射切割機上實測：歡迎回饋。</td></tr><tr><td><strong>PNG</strong></td><td>論壇貼文、列印網站、提問</td><td>目前視圖的圖片，解析度為兩倍，而且不含控點、選取框與尺寸標註。<strong class="ui">「顯示列印平台」</strong> 與 <strong class="ui">「透明背景」</strong> 在視窗中設定。先旋轉與縮放到畫面正確為止；這裡的選取範圍不影響結果。</td></tr><tr><td><strong>LYL</strong></td><td>layerling 本身</td><td>可編輯的設計，包含所有屬於它的內容。</td></tr><tr><td><strong>2D</strong></td><td>工坊、車床與銑床、說明文件</td><td>1:1 的圖面，可輸出為 PDF 或 SVG：ISO 圖紙上的前視圖、俯視圖與右視圖。詳見下文。</td></tr></tbody></table></div>
+<p><strong>會掉出來的部分用連接橋（DXF 與 SVG）。</strong> 用雷射或繪圖儀切割帶文字的板時，o、a、b 這類字母的中間會掉出來。在 DXF 的匯出視窗中，或在使用俯視圖的 SVG 的匯出視窗中勾選 <strong class="ui">「用於會掉出的部件的橋接」</strong>，小小的連接橋就會像鏤空模板那樣把這些部分連在周圍的材料上：旁邊可設定 <strong class="ui">「橋接寬度」</strong>（0.5 到 3 mm）與 <strong class="ui">「每個部件的橋接數」</strong>（1 到 4）。連接橋從不碰到其他輪廓或其他橋，也從不留下窄到無法切割的縫；只能互相支撐的部分也會被連到板上。如果某個部分在所選寬度下得不到連接橋，匯出後的訊息會說明有幾個。不勾選時什麼都不會改變。</p>
+<p><strong>把 STL 存到你自己的資料夾（Chrome 與 Edge）。</strong> 在那裡，一個設計的第一次 STL 匯出會開啟系統的儲存對話框，你可以自己選資料夾與名稱，也可以取代既有檔案。之後該設計的每次 STL 匯出都會不經對話框直接寫入同一個檔案；匯出視窗會顯示是哪個檔案，匯出按鈕旁的 <strong>另存新檔…</strong> 可另選一個。對話框會記住它自己的資料夾，與設計的資料夾分開，這樣切片檔案可以留在切片軟體旁邊。重新載入頁面後，設計會忘記它的 STL 檔案，下次匯出會再次詢問。Firefox 與 Safari 仍像以前一樣下載檔案。如果你比較希望每個 STL 都是一般下載，讓瀏覽器像 Tinkercad 那樣替已用過的名稱編號（<code>name (1).stl</code>、<code>name (2).stl</code>），請在設定的 <strong class="ui">「外觀」</strong> 下開啟 <strong class="ui">「將 STL 另存為下載」</strong>。</p>
+<p>在 <strong class="ui">「視圖」</strong> 下選擇 <strong class="ui">「從上方可見的邊」</strong> 時，SVG 會依你從上方看到的樣子顯示設計，就像工程圖的俯視圖：每條看得見的邊都是一條線，被其他零件擋住的邊會略去。每條線都有其實體的顏色，因此依顏色分類的雷射或繪圖儀軟體會把每種顏色放到獨立的圖層上。每個圖層是切割、劃線還是雕刻，在那裡選擇。</p>
+<p><strong>把 STL 存到自己的資料夾（Chrome 與 Edge）。</strong> 在這些瀏覽器中，某個設計第一次匯出 STL 時會開啟系統的儲存對話方塊，你可以自行選擇資料夾與檔名，也可以取代既有檔案。之後這個設計每次匯出 STL 都會寫入同一個檔案，不再跳出對話方塊；匯出視窗會顯示是哪個檔案，匯出按鈕旁邊的 <strong>另存新檔…</strong> 可以另選檔案。對話方塊會記住自己的資料夾，與設計用的資料夾分開，這樣切片軟體的檔案就能和切片軟體放在一起。頁面重新載入後，設計會忘記自己的 STL 檔案，下次匯出時會再詢問一次。Firefox 與 Safari 仍會像以前一樣下載檔案。</p>
+<p>沒有群組的孔，在你匯出時會從它接觸到的每個實體上挖除，與視圖顯示的一致。所以不必在每次匯出前先群組。有選取項目時，只有選取的孔會計入。孔不能單獨匯出；layerling 會指出這一點。</p>
+<p>STEP 只包含精確的 CAD 實體。匯入的網格會像<strong class="ui">「轉為精確實體」</strong>那樣為檔案轉為精確實體（見下文「將匯入的網格轉為精確實體」），因此匯出可能需要最多一分鐘；大部分為自由曲面的網格（如公仔）以及其他無法精確寫出的內容會被略過。匯出後的訊息會列出這些實體並說明原因。要給印表機使用時，請選擇 STL 或 3MF，它們能包含所有內容。</p>
+<section class="guide-part"><h3 id="section-6">工坊用圖面</h3>
+<p>選擇 <strong>2D</strong> 格式（將滑鼠游標移到上面會顯示「圖面」），並在檔名下方選擇 PDF 或 SVG。有選取項目時只繪製選取的內容，否則繪製整個可見設計；沒有群組的孔仍會切掉它們接觸到的部件。</p>
+<p>layerling 會以第一角投影繪製前視圖、俯視圖與右視圖（右視圖在前視圖左側，俯視圖在前視圖下方），使用容得下的最小 ISO 圖紙，從 A4 到 A0，零件需要時也可用更大的圖紙。比例一律為 1:1。每個視圖都會標上總寬與總高，看不見的邊以虛線表示。與視圖方向平行的圓孔會加上中心十字與標記（F1、T1、R1），底部的表格會列出它們的直徑與位置，位置從視圖左下角量起。右下角的標題欄包含名稱、比例、單位、日期與圖號。圖紙上的文字會跟隨介面語言。</p>
+<p>以 100 % 或「實際大小」列印，否則長度會對不上。圖面做不到的事：螺紋、深度、公差與斜向孔都不標註尺寸，而且尺寸來自模型網格，因此是標稱值。零件若過於複雜（超過 100,000 個三角形）或孔超過 200 個，會被拒絕並顯示訊息；這時請少選一些物件。</p>
+<p>這項投影功能基於 WC3D 的 Cadverix-3D 繪圖成果。</p>
+</section><section class="guide-part"><h3 id="section-7">需要多少線材？</h3>
+<p>對 STL、3MF、OBJ 與 STEP，<strong class="ui">「材料」</strong> 方塊會顯示所匯出內容的體積、重量與 1.75 mm 線材長度。它的計算方式與檔案一致：只算可見實體、扣掉孔、重疊只算一次。右側選擇線材——PLA、PETG、ABS、ASA、TPU 或 PA（尼龍）——重量會依其密度而定。體積是實體本身的體積。重量與線材用量是針對帶壁與填充的列印所做的粗略估計：在標題底下設定 <strong class="ui">「填充率」</strong>（初始 15 %）與 <strong class="ui">「壁數」</strong>（2），方塊會說明它計算了什麼，以及同一個零件實心時會有多重。實際數字由切片軟體自己的設定決定，所以把它當作參考：適合用來比較設計，也適合判斷線軸夠不夠用。填充 100 % 時，方塊會把零件當成實心計算，這是上限。 框會在你按下 <strong class="ui">「計算」</strong> 時才計算數字，因此即使是精細描摹的模型，匯出視窗也會立即開啟。</p>
+</section></section><section class="guide-part"><h2 id="importing">匯入</h2>
+<p>用 <strong class="ui">「匯入」</strong> 或 <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>I</kbd></span> 把外部檔案帶進設計。</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/import-panel.webp" alt="匯入視窗：開啟或插入設計，拖放幾何資料。" width="1280" height="800" loading="lazy"><figcaption>匯入視窗：開啟或插入設計，拖放幾何資料。</figcaption></figure>
+<ul><li><strong><strong class="ui">「開啟 layerling 設計」</strong>：</strong> layerling 設計（<code>.lyl</code>，或較舊的 <code>.skf</code>）會以新設計的形式回來。</li><li><strong><strong class="ui">「插入此設計」</strong>：</strong> layerling 設計的實體會加入目前開啟的設計。很適合需要反覆使用的基本形狀：建立一次、儲存，之後每次帶進來。 把一個或多個 <code>.lyl</code> 檔案拖到下方的放置區，也會以同樣的方式插入。它的<a href="/api/desktop/layerling/ui/zh-tw/measuring-and-notes.html">備註</a>會一起進來，以收合狀態出現，並接在設計中既有備註之後繼續編號；它的參考點也會一起進來。</li><li><strong><strong class="ui">「從伺服器插入」</strong>：</strong> 對儲存在伺服器上的設計同樣適用（有伺服器儲存時顯示）。選擇資料夾並點擊設計，其實體會新增到目前設計。</li><li><strong>新增幾何資料：</strong> 把 STL、OBJ、3MF、STEP、SVG、PNG 或 JPG 檔案拖進視窗，或點擊選擇檔案。匯入的網格可以旋轉、移動、用孔切割，也可以在上面繼續建模。SVG 會以草圖實體匯入，來自 picsvg.com 或 Inkscape「描摹點陣圖」這類描摹工具的也一樣：它的輪廓會變成草圖的直線與曲線，高 4 mm，從上方看與圖面方向一致。在屬性面板中設定它的 <strong class="ui">「填充」</strong>（區域，或向外、向內、居中的描邊），<strong class="ui">「剪影（無孔）」</strong> 則會略過孔，參見<a href="/api/desktop/layerling/ui/zh-tw/sketches.html">草圖</a>的「填充與剪影」。點本身要在草圖模式中修改。如果要依自己的尺寸匯入，先在匯入視窗的 <strong>SVG 與圖片：寬度（mm）</strong> 中輸入寬度，與 Tinkercad 一樣：圖面會縮放到這個寬度，高度與深度也跟著縮放，而且這個欄位在匯入一次後就會清空；留空時，SVG 會以自身尺寸匯入，圖片則寬 50 mm。只有超過 2500 條直線與曲線、非常複雜的 SVG 才會以固定網格匯入。PNG 或 JPG 圖片會被描摹成輪廓，並以同樣方式匯入成寬 50 mm 的草圖實體，之後可以再調整大小：圖片中不是背景的部分會保留，而背景是佔據圖片邊緣較多面積的部分。只含一張圖片的 SVG 也會以同樣方式描摹。無法構成實體的形狀，例如自我交錯或在一點自我接觸的輪廓，會被略過，匯入後 layerling 會說明有多少個。這時可以在繪圖程式中把重疊的部分接合、閉合輪廓，然後重新儲存檔案。在同一頁上繪製的圖面（例如把同一份文件的多個圖層分別匯出成檔案）會重新對齊，只要在匯入前開啟匯入視窗中的 <strong class="ui">「SVG：保留在圖紙頁面上的位置」</strong>：每個圖面都會保留自己在頁面上的位置，否則每個都會以自身為中心。以多種顏色繪製的 SVG 同樣依顏色匯入成一個個實體，各自保留顏色與位置；超過 12 種顏色（如描摹的圖片）則仍是一個實體。有顏色的 OBJ 或 3MF 會依顏色匯入成一個個實體，各自留在原位。在 OBJ 中，顏色可能存放在檔案本身（例如 layerling 匯出的 OBJ），或放在旁邊的 <code>.mtl</code> 裡。兩者都要選取，或者直接匯入整個 ZIP，就像 Tinkercad 提供 OBJ 的方式。3MF 本身就帶著顏色，而在 Bambu Studio、OrcaSlicer 或 PrusaSlicer 的專案中，每個部件會採用其線材的顏色。含有多個物件的 3MF（例如每個列印平台一個物件的專案）會匯入成每個物件一個實體；切片軟體裡的修飾體、負體積與支撐阻擋器會被略過。在切片軟體中塗在面上的顏色不會被讀取。</li><li><strong>DXF：</strong> 雷射切割加工廠或供應商寄來的零件輪廓 DXF，會以可以繼續編輯的零件匯入：每條封閉輪廓會變成一個高 4 mm 的實體，其中的每個孔會變成旁邊一個獨立的孔（圓孔為圓柱），因此在 3D 編輯器中可以像其他孔一樣移動孔、調整孔的大小；要移動整個零件，請全部選取。單位為公釐（英吋檔案會換算，沒有單位的檔案以公釐讀取），圓弧與圓會保持為真正的圓弧。會讀取直線、圓弧、圓、橢圓、聚合線、雲形線與圖塊；文字、尺寸標註與剖面線會被略過，未封閉的輪廓也會被略過——提示訊息會說明有多少個。厚度在屬性面板中設定。</li><li><strong>來自 Tinkercad：</strong> 從 Tinkercad 匯出的 STL 或 OBJ 會像其他網格一樣作為幾何體匯入，OBJ 會保留顏色。真正的形狀則可以透過社群的一個免費工具帶過來：taylormadearmy 的 <a href="https://taylormadearmy.github.io/tinkercad-layerling-importer/" rel="noopener">Export to layerling</a>，這是一個書籤，能在你的瀏覽器裡把 Tinkercad 設計轉換成 <code>.lyl</code> 檔案，然後在這裡用 <strong class="ui">「開啟 layerling 設計」</strong> 開啟。它不屬於 layerling，我們自己還沒有測試過；作者在 Windows 的 Chrome 上測試過。</li></ul>
+<p>用<strong>較新版本的 layerling</strong>儲存的設計，可能含有你的版本還不認識的東西，例如新形狀、新設定或自訂字型。如果 layerling 因此無法開啟，訊息會寫出兩邊的版本。如果能開啟，提示會說明較新的內容在這裡可能看起來不一樣。無論哪種情況，重新整理頁面都有幫助：layerling.com 總是提供最新版本。安裝版應用程式會在下次啟動時取得更新；在自己的伺服器上，則要自己安裝更新。</p>
+<p>模板圖片是在草圖模式中新增的，參見<a href="/api/desktop/layerling/ui/zh-tw/sketches.html">草圖</a>。</p>
+</section><section class="guide-part"><h2 id="simplifying-an-imported-mesh">簡化匯入的網格</h2>
+<p>掃描或雕刻出來的網格，三角形數量往往遠超過其形狀所需，而你在移動、切割與儲存時，每一個三角形都會被帶著走。「修改」群組中的 <strong class="ui">「簡化網格」</strong>（或在實體的右鍵選單裡）會把目前的網格，與選定保留比例所留下的結果並排顯示；兩個視圖都會跟著工作平面的滑鼠按鍵一起旋轉與縮放。用百分比或三角形數量設定要保留多少，<strong class="ui">「簡化」</strong> 就會採用較輕的網格。結果是一般網格：若針對切割或合併的結果使用，<strong class="ui">「編輯群組」</strong> 與它的原始部件都會被捨棄。開啟<strong class="ui">「保留邊緣和孔」</strong>（預設開啟）時，銳邊和孔的邊緣會精確保持原位，而平面仍會去掉大部分三角形；關閉後，簡化可能把它們磨圓以達到更少的三角形。 如果簡化停在你要求的數量之上，視窗會說明原因：開啟 <strong class="ui">「保留邊緣和孔」</strong> 時，由平面和銳邊組成的物體（例如立方體和楔形）往往無法再減少。</p>
+<p>切割、合併與交集匯入的網格是在你的瀏覽器中計算的，所以工作區設定會限制這類網格可以有多少個三角形（<strong class="ui">「匯入網格可剪裁的上限」</strong>）。超過上限的網格不會被處理，訊息會寫出它的三角形數量；請先簡化網格，或者如果電腦撐得住，再提高上限。</p>
+</section><section class="guide-part"><h2 id="making-an-imported-mesh-exact">將匯入的網格轉為精確實體</h2>
+<p>STL、OBJ 或 3MF 檔案只包含三角形，即使零件是在 CAD 中以平面和圓孔畫出來的。「<strong class="ui">「修改」</strong>」區域中的<strong class="ui">「轉為精確實體」</strong>（或物件右鍵選單中的同名指令）會在這些三角形中找出構成它們的平面、圓柱面、圓錐面、球面和圓環面，並用它們把物件重建為精確的 CAD 實體：一個孔會變成一個帶圓形邊緣的真正圓柱面，而不是上百條窄條。之後，<strong class="ui">「圓角」</strong>和<strong class="ui">「倒角」</strong>沿一條乾淨的邊進行，<strong class="ui">「刪除面」</strong>可移除整個圓角或孔壁，STEP 匯出也會帶上真正的面。狀態列會顯示找到了什麼，例如「平面：9、圓柱面：4」。</p>
+<p>與這些曲面都不吻合的部分會保留為小平面片，訊息會說明它們占表面的多少。大部分為自由曲面的物件（如公仔或雕塑造型）仍維持為網格；有缺口或牆面相互交叉、無法閉合成實體的網格也一樣。最多可處理 400,000 個三角形，大型網格可能需要幾分鐘。更大的網格可先用<strong class="ui">「簡化網格」</strong>並開啟<strong class="ui">「保留邊緣和孔」</strong>降到這個數量以下；否則請直接使用原樣的網格，這樣結果最乾淨。復原一步即可找回網格。</p>
+<p>對於帶圓形面的小網格（最多 4,000 個三角形），邊工具會自動完成這一步：替這樣的 STL 倒圓角時，會先以同樣方式重建它。</p>
+</section><section class="guide-part"><h2 id="reporting-a-bug">回報問題</h2>
+<p>如果 layerling 做出意料之外的事，可以儲存一份 <strong class="ui">「錯誤回報」</strong>：連結位於底部的頁尾，就在論壇旁邊。它是一個 ZIP 檔案，因為 GitHub 與許多論壇不接受單獨的 .lyl：裡面有你的設計（.lyl），以及一個簡短的文字檔，記錄版本、瀏覽器、螢幕尺寸、最後的訊息與任何錯誤。起始頁可以像備份一樣開啟這個 ZIP，或者你也可以解壓縮後開啟裡面的 .lyl。裡面沒有任何個人資料。把檔案附在論壇或 GitHub 的貼文中，這樣就能用完全相同的設計來追查問題。</p>
+<p>如果 layerling 因錯誤而停止，會顯示一個帶有錯誤訊息的視窗，而不是空白頁面。你可以從中把瀏覽器最後儲存的設計狀態存成 .lyl 檔案、回到起始頁，或建立新設計。視窗中的錯誤訊息與儲存下來的檔案，在你回報問題時很有幫助。</p>
+</section><section class="guide-part"><h2 id="shared-designs-on-a-server">伺服器上的共用設計</h2>
+<p>當 layerling 執行在你自己的電腦或網頁伺服器上時，它可以提供一個共用資料夾，讓所有使用者都在裡面儲存設計。起始頁這時會用兩個分頁顯示設計：<strong class="ui">「伺服器」</strong> 對應共用資料夾，另一個對應這個瀏覽器，每個分頁都標有其中的設計數量；設計較多的那個排在前面並預設開啟。你可以在那裡建立資料夾、拖曳設計來移動，並搜尋整個資料夾。存放在那裡的設計會自動存回該處。這個瀏覽器裡的設計，可以把卡片拖曳到 <strong class="ui">「伺服器」</strong> 分頁上，或使用卡片選單中的 <strong class="ui">「放到伺服器上」</strong>，放到伺服器上。當 <strong class="ui">「伺服器」</strong> 分頁開啟時，<strong class="ui">「建立新的 3D 設計」</strong> 與 <strong class="ui">「還原備份」</strong> 會把設計放進你開啟的伺服器資料夾，<strong class="ui">「全部備份」</strong> 則會把伺服器上的所有設計（連同其資料夾）及其自訂形狀打包成單一 ZIP 檔案。起始頁以檔名顯示設計，所以不論在卡片上或編輯器頂端重新命名設計，都會一併重新命名伺服器上的檔案。刪除設計或資料夾會永久移除它，連同這個瀏覽器裡的工作副本。儲存在伺服器上的自訂形狀位於其 <code>Custom shapes</code> 資料夾中，參見<a href="/api/desktop/layerling/ui/zh-tw/shapes.html">形狀</a>。</p>
+<p>有兩件事可以讓這件事更快：起始頁上的 <strong class="ui">「全部放到伺服器上」</strong> 可以一次把這個瀏覽器的所有設計放到伺服器上；勾選 <strong class="ui">「伺服器上的新設計」</strong> 則會讓每個新設計都從伺服器資料夾開始，因此從第一次變更起就儲存在那裡。這個勾選狀態會儲存在此瀏覽器中。無法放上去的設計（例如名稱在伺服器上已被佔用）會留在瀏覽器裡，訊息會說明有多少個。</p>
+<p>其他匯出格式（STL、3MF、OBJ、STEP、SVG、PNG 與工程圖）也可以放進同一個資料夾：在匯出視窗中，<strong class="ui">「儲存到伺服器」</strong> 會把檔案寫到你的設計旁邊；對於不在伺服器上的設計，則寫到起始頁上開啟的資料夾裡。共用該資料夾的程式，例如 Docker 中的切片軟體，可以從那裡開啟它。該檔案不會出現在設計清單中。如果那裡已有同名檔案，訊息會說明，再按一次按鈕就會取代它。</p>
+<p>這不是同時編輯：每個開啟檔案的人都在自己的副本上工作。如果別人在這段期間改過該檔案，layerling 會拒絕覆蓋它。</p>
+<p>在 layerling.com 上，這項功能並未開啟。如何在自己的伺服器上設定，請見 <a href="https://github.com/henmedia/layerling/blob/main/README.md" rel="noopener">GitHub 上的 README</a>。</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/zh-tw/printing.html"><small>上一章</small>為 3D 列印做準備</a><a class="next" href="/api/desktop/layerling/ui/zh-tw/shortcuts.html"><small>下一章</small>鍵盤快速鍵</a></div>
+      </main>
+    </div>
+    <footer class="note">本指南隨程式一同完善。如有缺漏或錯誤，請到 <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">討論區告訴我們</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=zh-tw" rel="noopener">支援專案</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">討論區</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">在 GitHub 上了解更多</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">版本說明 v1.154.1</a></div><p class="trademark">Tinkercad 是 Autodesk, Inc. 的商標。layerling 是獨立專案，與 Autodesk 無關聯，也未獲其認可或贊助。</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="返回編輯器";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="開啟編輯器";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

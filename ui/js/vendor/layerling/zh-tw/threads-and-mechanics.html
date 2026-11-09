@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>螺紋、齒輪與其他零件 - layerling 使用者指南</title>
+    <meta name="description" content="能相互配合的螺絲、螺帽與螺紋孔，以及齒輪、彈簧、彎管、燕尾、淚滴孔、沉頭孔與錐形沉頭孔。">
+    <link rel="canonical" href="https://layerling.com/zh-tw/threads-and-mechanics.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/threads-and-mechanics.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/threads-and-mechanics.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/threads-and-mechanics.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/gewinde-und-mechanik.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/threads-and-mechanics.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/threads-and-mechanics.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/threads-and-mechanics.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/threads-and-mechanics.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/schroefdraad-en-mechanica.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/threads-and-mechanics.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/navoji-in-mehanika.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/threads-and-mechanics.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/threads-and-mechanics.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/threads-and-mechanics.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/threads-and-mechanics.html">
+    <meta property="og:title" content="螺紋、齒輪與其他零件 - layerling 使用者指南">
+    <meta property="og:description" content="能相互配合的螺絲、螺帽與螺紋孔，以及齒輪、彈簧、彎管、燕尾、淚滴孔、沉頭孔與錐形沉頭孔。">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/zh-tw/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">使用者指南</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/zh-tw/search-index.json" data-nothing="找不到結果。" data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="搜尋指南" aria-label="搜尋指南" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="語言">繁體中文</summary><ul><li><a href="/api/desktop/layerling/ui/guide/threads-and-mechanics.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/threads-and-mechanics.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/threads-and-mechanics.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/threads-and-mechanics.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/threads-and-mechanics.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/threads-and-mechanics.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/threads-and-mechanics.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schroefdraad-en-mechanica.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/threads-and-mechanics.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/threads-and-mechanics.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/threads-and-mechanics.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/navoji-in-mehanika.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/threads-and-mechanics.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/threads-and-mechanics.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/threads-and-mechanics.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/threads-and-mechanics.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/threads-and-mechanics.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/threads-and-mechanics.html" hreflang="zh-TW" lang="zh-TW" aria-current="true">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">開啟編輯器</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>編輯器已在另一個分頁中開啟，請切換到那裡。</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="章節"><h2>章節</h2><p class="print-link"><a href="/api/desktop/layerling/ui/zh-tw/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>列印完整指南</span></a></p><ol><li><a href="/api/desktop/layerling/ui/zh-tw/getting-started.html">快速上手</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/view-and-workplane.html">檢視與工作平面</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/shapes.html">放置與調整形狀</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/select-and-arrange.html">選取與排列</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/solids-and-holes.html">實體與孔</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/edges-and-hollowing.html">邊的修整與實體抽殼</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/sketches.html">草圖：從輪廓到實體</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/text.html">文字與弧形文字</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/threads-and-mechanics.html" aria-current="page">螺紋、齒輪與其他零件</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/measuring-and-notes.html">量測與備註</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/printing.html">為 3D 列印做準備</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/files-and-saving.html">檔案、儲存與分享</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/shortcuts.html">鍵盤快速鍵</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/ai-with-mcp.html">用 AI 建模（MCP）</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/offline-and-install.html">安裝為應用程式、離線使用與自架</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/videos.html">關於 layerling 的影片</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/tablet-and-touch.html">平板與觸控</a></li></ol></nav>
+      <main>
+<h1>螺紋、齒輪與其他零件</h1>
+<p class="lead">能相互配合的螺絲、螺帽與螺紋孔，以及齒輪、彈簧、彎管、燕尾、淚滴孔、沉頭孔與錐形沉頭孔。</p>
+<div class="toc"><b>本頁內容</b><ul><li><a href="#threads">螺紋</a></li><li><a href="#3d">3D 列印用的螺紋</a></li><li><a href="#gears">齒輪</a></li><li><a href="#springs">彈簧</a></li><li><a href="#bent-tubes">彎管</a></li><li><a href="#loft">放樣</a></li><li><a href="#gridfinity">Gridfinity</a></li><li><a href="#hinge">鉸鏈</a></li><li><a href="#flexi">彈性關節（Flexi）</a></li><li><a href="#knurling">滾花</a></li><li><a href="#dovetail">燕尾</a></li><li><a href="#teardrop-hole">淚滴孔</a></li><li><a href="#port-openings">接頭開孔</a></li><li><a href="#counterbore-and-countersink">沉頭孔與錐形沉頭孔</a></li><li><a href="#screw-boss">螺絲柱</a></li><li><a href="#snap-fit">卡扣</a></li><li><a href="#ribs">加強肋</a></li></ul></div>
+<p>除了基本形狀，形狀庫裡還有一些自己拼起來會很麻煩的零件。這些零件之後都可以在設定中修改。</p>
+<section class="guide-part"><h2 id="threads">螺紋</h2>
+<p>在形狀庫中選擇 <strong class="ui">「螺紋」</strong>。在 <strong class="ui">「類型」</strong> 下決定它的類型：</p>
+<ul><li><strong><strong class="ui">「螺紋桿」</strong>：</strong> 帶螺紋的圓柱，例如沒有頭的螺絲。</li><li><strong><strong class="ui">「螺絲」</strong>：</strong> 帶頭部。頭部形狀在 <strong class="ui">「頭部」</strong> 選擇：<strong class="ui">「內六角頭」</strong>、<strong class="ui">「沉頭」</strong> 或 <strong class="ui">「六角頭」</strong>。另有<strong class="ui">「方頭」</strong>、<strong class="ui">「法蘭頭」</strong>（六角下帶一個圓盤）、<strong class="ui">「蝶形頭」</strong>和<strong class="ui">「星形旋鈕」</strong>：後兩種用手轉，初始寬度為螺紋直徑的五倍，可平放列印、不需支撐；其<strong class="ui">「頭部直徑」</strong>（蝶形頭為<strong class="ui">「跨距」</strong>）為螺紋直徑的三到八倍。 再往下可以設定<strong class="ui">「頭部直徑」</strong>(六角頭為<strong class="ui">「頭部對邊寬度」</strong>;沉頭的直徑隨高度而定)以及頭部端面的<strong class="ui">「驅動」</strong>:<strong class="ui">「內六角」</strong>、<strong class="ui">「星型 (Torx)」</strong>、<strong class="ui">「十字」</strong>、<strong class="ui">「一字」</strong>、<strong class="ui">「羅伯森（方頭）」</strong>,或用手或扳手轉的螺絲選<strong class="ui">「無」</strong>。<strong class="ui">「驅動尺寸」</strong>是內六角的對邊寬度、星型的外徑或十字的跨度;<strong class="ui">「驅動深度」</strong>是它的深度,最多為頭部的十分之九,0 表示不要。只要不改動,這些值就隨尺寸變化;六角頭預設沒有驅動。驅動屬於精確實體,因此也會出現在 STEP 匯出中。選擇<strong class="ui">「一字」</strong>時，<strong class="ui">「驅動尺寸」</strong>是槽的長度，寬度為長度的五分之一，一字起子或硬幣都能轉；初始長度為頭部允許的最大值。 <strong class="ui">「羅伯森（方頭）」</strong>是加拿大常見的方頭驅動：<strong class="ui">「驅動尺寸」</strong>是方孔的對邊寬度，預設取與規格相配的起子頭，M4 和 M5 為 2 號（2.84 公釐）。 <strong class="ui">「軸肩高度」</strong> 在頭部與螺紋之間加一個圓形軸肩，例如作為星形旋鈕下的墊塊，或讓頭部離開零件的台階；0 表示不加。<strong class="ui">「軸肩直徑」</strong> 起始為螺紋直徑的兩倍，並始終在頭部之內，因此軸肩無需支撐就能列印在頭部上；螺紋保持原長。沉頭沒有軸肩。螺帽有相同的兩個欄位：它的軸肩立在上表面上，比螺帽窄，螺紋從中穿過，高度只計算主體。</li><li><strong><strong class="ui">「螺帽」</strong>：</strong> 對應的螺帽。配套的墊圈是一個<strong class="ui">「管」</strong>：在<strong class="ui">「墊圈」</strong>中選擇螺絲規格，外徑、內徑和厚度即依 ISO 7089 設定。在<strong class="ui">「螺帽形狀」</strong>中還可選<strong class="ui">「方形」</strong>、<strong class="ui">「法蘭」</strong>（六角下帶圓盤）、<strong class="ui">「蝶形」</strong>或用手轉的<strong class="ui">「星形旋鈕」</strong>；蝶翼平放，所以蝶形螺帽不需支撐即可列印。</li><li><strong><strong class="ui">「螺紋孔」</strong>：</strong> 螺紋孔。它是一個孔。把它拖進零件、將兩者群組，零件就有內螺紋。 要做鎖螺栓的孔，請一律使用<strong class="ui">「螺紋孔」</strong>：<strong class="ui">「螺紋桿」</strong>或<strong class="ui">「螺絲」</strong>作為孔時是螺栓的完整尺寸，沒有間隙，會太緊。如果仍把它設為孔，layerling 會提示你，點選<strong class="ui">「改為螺紋孔」</strong>即可改為<strong class="ui">「螺紋孔」</strong>。</li></ul>
+<figure><img src="/api/desktop/layerling/ui/guide/img/thread-screw.webp" alt="帶圓柱頭的螺絲。右側：類型與頭部形狀，往下是規格、螺距與牙型。" width="1280" height="800" loading="lazy"><figcaption>帶圓柱頭的螺絲。右側：類型與頭部形狀，往下是規格、螺距與牙型。</figcaption></figure>
+<p>在 <strong class="ui">「規格」</strong> 下從清單選擇規格：公制 M2 到 M24，英吋規格 UNC 與 UNF 從 No. 4 到 1 英吋，以及管螺紋 G1/16 到 G4。若選擇 <strong class="ui">「自訂」</strong>，則自行設定 <strong class="ui">「直徑」</strong> 與 <strong class="ui">「螺距」</strong>。英吋或 G 規格時，欄位要求的是 <strong class="ui">「每英吋牙數」</strong>，而不是以公釐計的螺距。</p>
+<p>清單依系列分組，欄位下方會標出所選規格所屬的系列，並附上日常生活中熟悉的例子：</p>
+<ul><li><strong>M，公制粗牙：</strong> 符合 ISO 261 的 ISO 公制粗牙螺紋，標準螺絲與螺帽即採用此規格。</li><li><strong>UNC，美制英吋粗牙：</strong> 相機與三腳架螺絲為 1/4&quot;-20 UNC（ISO 1222），較大的三腳架雲台使用 3/8&quot;-16 UNC。</li><li><strong>UNF，美制英吋細牙：</strong> 與 UNC 相同直徑，但螺距更細（ASME B1.1）。</li><li><strong>G，管螺紋：</strong> 淋浴軟管以 G1/2 連接，洗衣機進水管為 G3/4。花園水龍頭末端為 G3/4，較小的水龍頭為 G1/2；快接軟管系統的水龍頭接頭就鎖在這裡。</li><li><strong><strong class="ui">「NPT – 美制錐管螺紋」</strong>：</strong> 美制錐管螺紋，符合 ASME B1.20.1，從 1/16&quot; 到 4&quot;，用於管件、閥門、壓力錶和氣動工具。它靠錐度密封，通常搭配止洩帶或密封膠。規格指的是管子：直徑是管子的外徑，也就是螺紋在大端的直徑。選擇 NPT 規格會開啟<strong class="ui">「錐形（1:16，NPT）」</strong>，並把牙型設為<strong class="ui">「自訂（梯形）」</strong>，牙側角 60°；之後再選其他規格，螺紋又變回直的。</li></ul>
+<p>G 規格是符合 ISO 228-1 的平行惠氏管螺紋，常見於水、瓦斯、液壓與氣動接頭。規格指的是管子，不是螺紋：G1 在螺紋處量得 33.249 mm。選擇 G 規格會把牙型設為 <strong class="ui">「惠氏螺紋（55°）」</strong>，選擇公制或英吋規格則設回 <strong class="ui">「V 形螺紋（ISO）」</strong>。自己選的 <strong class="ui">「梯形」</strong> 或 <strong class="ui">「圓形」</strong> 牙型會保留。標準只定義螺紋，因此 G 規格的螺絲頭與螺帽，比例和自行設定直徑時相同。錐形管螺紋 R、Rc 與 Rp 未包含在內。</p>
+<p>清單中的最後一個系列 <strong class="ui">「PCO – 瓶子」</strong> 包含 PCO 1881：大多數水瓶和汽水瓶的 28 mm 瓶口，螺紋外徑 27.4 mm，螺距 2.7 mm。它的螺紋牙頂寬而平，所以選擇它時牙型會切換為 <strong class="ui">「自訂（梯形）」</strong>，<strong class="ui">「螺紋深度」</strong> 為 1.6 mm，<strong class="ui">「牙側角」</strong> 為 30°；之後選擇的其他規格會恢復各自的牙型。瓶口用 <strong class="ui">「螺紋桿」</strong> 製作，瓶蓋用 <strong class="ui">「螺帽」</strong>，或者從圓柱體中減去一個 <strong class="ui">「螺紋孔」</strong>。尺寸依照 OpenSCAD 函式庫 BOSL2 所載的標準圖面；列印整個瓶蓋之前先列印一個試件。油桶和洗碗精瓶沒有統一標準：請測量你手上的瓶口，並在 <strong class="ui">「自訂」</strong> 中輸入數值。</p>
+<p>更多設定：</p>
+<ul><li><strong><strong class="ui">「方向」</strong>：</strong> <strong class="ui">「右旋」</strong> 或 <strong class="ui">「左旋」</strong>。</li><li><strong><strong class="ui">「頭數」</strong>：</strong> 多條螺紋並排，如導螺桿：T8x8 有 4 頭，每頭 2 mm，每條每轉升高 8 mm。此時螺距欄位顯示為<strong class="ui">「螺距（牙距）」</strong>：相鄰兩條螺紋之間的距離，決定牙型深度，下方的提示給出導程。清單中的規格和錐螺紋只有一頭。</li><li><strong><strong class="ui">「牙型」</strong>：</strong> <strong class="ui">「V 形螺紋（ISO）」</strong> 是公制與英吋螺紋的標準牙型，<strong class="ui">「惠氏螺紋（55°）」</strong> 則是 G 管螺紋的牙型：55°，牙頂與牙底為圓角。<strong class="ui">「梯形」</strong> 與 <strong class="ui">「圓形」</strong> 的牙頂與牙底是平的。這種牙型通常列印更可靠，因為不會留下細薄的牙尖。</li><li><strong><strong class="ui">「錐形（1:16，NPT）」</strong>：</strong> 螺紋直徑按 1:16 收窄，就像錐管螺紋一樣；此時<strong class="ui">「直徑」</strong>是大端的直徑。<strong class="ui">「螺紋桿」</strong>或<strong class="ui">「螺絲」</strong>朝頂部的末端變細，<strong class="ui">「螺帽」</strong>或<strong class="ui">「螺紋孔」</strong>朝頂部的入口變寬，所以把錐形螺桿倒過來就能鎖進去。任何牙型都可以做成錐形，錐形螺紋也是精確實體，可用於邊緣工具和 STEP 匯出。</li><li><strong><strong class="ui">「自訂（梯形）」</strong>：</strong> 自行塑造的梯形，牙頂與牙底同寬且平整。<strong class="ui">「牙側角」</strong> 是一顆螺牙兩側牙面之間的夾角：60° 是尖銳的 V 形螺紋，30° 是梯形螺紋；90° 以下時，牙面都不會比 45° 更平，因此螺紋不需支撐即可列印。<strong class="ui">「螺紋深度」</strong> 與 <strong class="ui">「芯徑」</strong> 是同一個尺寸的兩種說法：芯徑等於直徑減去兩倍深度，改動其中一個就會改變另一個。新的自訂牙型從 60° 的 V 形螺紋深度開始。深度受角度與螺距限制：不得淺於螺距的十分之一、不得深於直徑的 40%，也不能深到兩側牙面佔去超過十分之九的螺距。改變螺距時，深度按比例跟著變；縮放螺紋時，深度也一樣。間隙與倒角的作用與其他牙型相同。透過 MCP 橋接時，牙型為 <code>custom</code>，並帶 <code>threadFlankAngle</code> 與 <code>threadDepth</code>。</li><li><strong><strong class="ui">「間隙（XY）」</strong>：</strong> 對螺帽與螺紋孔而言，是確保列印出來的成對零件真的能轉動的餘裕。印表機越粗，這對零件需要的間隙越大。它是整個直徑上的額外空間，而 V 形螺紋牙面之間的縫隙大約只有它的一半，所以列印件需要比你想像更大的值：新螺帽從 0.4 mm 起，0.3 偏緊、0.5 偏鬆。先列印一對測試件。螺桿與螺絲在這裡有自己的間隙，會讓螺栓的直徑相應變細。它預設為 0。多出來的空間給哪一側，取決於你怎麼配對：</li><li><strong>列印螺絲配列印螺帽：</strong> 螺絲保持 0，把空間給螺帽（它一開始的 0.4 mm）。</li><li><strong>真實螺絲配列印螺帽或螺紋孔：</strong> 列印的一側承擔全部，所以螺帽保留 0.4 mm。如果螺絲會晃，值得試試更緊的 0.3 mm。</li><li><strong>列印螺絲配真實螺帽：</strong> 真實螺帽沒有間隙，所以螺絲必須更細：這裡用 0.3 到 0.4 mm，相當於列印螺帽原本會有的量。</li><li><strong><strong class="ui">「沿軸向（Z）的活動量」</strong>：</strong> 對螺帽與螺紋孔而言，是在 <strong class="ui">「間隙（XY）」</strong> 之外沿軸向的間隙。螺帽的每顆螺牙都會變薄這麼多，直徑維持不變。原因在於：<strong class="ui">「間隙（XY）」</strong> 只作用在直徑上，會把 V 形螺紋的牙面撐開到其數值的約 0.58 倍。想在牙面之間留出空隙，就得把直徑開得更大，代價是左右晃動。沿軸向的間隙把兩者分開。它預設為 0，所以已儲存的螺紋不會改變；最大可到螺距的五分之一，因為再大螺帽的螺牙就不剩什麼了。這個欄位只存在於螺帽與螺紋孔；螺桿與螺絲保有自己的間隙。更多內容見下文「3D 列印用的螺紋」。</li><li><strong><strong class="ui">「倒角，頂端」</strong>、<strong class="ui">「倒角，底端」</strong>、<strong class="ui">「頭部倒角」</strong> 與 <strong class="ui">「邊緣倒角」</strong>：</strong> 兩端的倒角，讓螺紋起牙乾淨、頭部沒有銳邊。螺桿、螺帽或螺紋孔的每一端都有自己的倒角，所以頂端可以長、底端可以短或不做。螺絲只在尖端有一個，標示為 <strong class="ui">「倒角」</strong>。在螺帽或螺紋孔上，倒角是孔口超出外徑的擴口量；錐面以 45 度一路延伸到螺紋芯部，因此外徑處不會留下台階。</li></ul>
+<p>在 <strong class="ui">「螺紋桿」</strong> 與 <strong class="ui">「螺紋孔」</strong> 之間切換螺紋會保留其長度。螺帽與螺絲則從各自的標準尺寸開始。</p>
+<ul><li><strong><strong class="ui">「品質」</strong>：</strong> 螺紋計算的精細程度。越高越精確，但越慢。</li></ul>
+<p>列印螺紋是另一個主題。列印大零件之前，先做一對螺絲與螺帽當測試，並依你的印表機調整間隙。</p>
+</section><section class="guide-part"><h2 id="3d"><span class="heading-alias" id="threads-for-3d-printing"></span>3D 列印用的螺紋</h2>
+<p>列印出來的螺紋需要在兩處留出空間，而兩者的作用不同：</p>
+<ul><li><strong>直徑上的間隙（<strong class="ui">「間隙（XY）」</strong>）：</strong> 讓螺帽變寬。螺絲兩側各有該值一半的空間，0.4 mm 時每側 0.2 mm。螺紋轉起來輕鬆，但螺絲會左右晃動。</li><li><strong>沿軸向的間隙（<strong class="ui">「沿軸向（Z）的活動量」</strong>）：</strong> 讓螺帽的螺牙變薄。螺絲未鎖緊時可以沿軸向前後移動這個量。它不會增加側向的空間。</li></ul>
+<p>兩者合起來形成牙面之間的縫隙：約為直徑間隙的 0.58 倍加上沿軸向的間隙。以 0.3 mm 的縫隙為例：以前得在直徑上留 0.5 mm，也就是每側 0.25 mm 的空間。現在直徑 0.2 mm（每側 0.1 mm）加上軸向 0.2 mm 就夠了，縫隙為 0.32 mm。</p>
+<p><strong>需要知道的影響</strong></p>
+<ul><li><strong>螺絲沿軸向有間隙。</strong> 沒有負載時可以前後移動這個量。對扣件、蓋子與外殼無所謂；對需要精確定位的導螺桿就有影響，那裡要留小或設為 0。</li><li><strong>螺帽的螺牙會變薄。</strong> 螺距 1.75 mm 下取 0.3 mm，每顆螺牙在中段幾乎薄了三分之一，強度明顯下降。重載零件請改用較粗的螺紋。</li><li><strong>計算量更大。</strong> 螺牙形狀會多出額外的點，螺紋的三角形更多，計算稍久。</li><li><strong>惠氏牙型在 STEP 匯出中沒有真正的圓弧。</strong> 帶軸向間隙的 <strong class="ui">「惠氏螺紋（55°）」</strong> 螺紋，在邊緣工具與 STEP 匯出中會變成由直線段拼成的螺牙形狀，而不是真正的圓弧。設為 0 時一切維持原樣。</li></ul>
+<p><strong>提示</strong></p>
+<ol><li><strong>先做一對測試件。</strong> 一個螺絲加一個螺帽，各只有 4 到 6 mm 高，幾分鐘就能印完。並排列印三對間隙不同的零件，挑出轉得順又不晃的那一對。</li><li><strong>從常用數值開始。</strong> 直徑間隙 0.2 到 0.3 mm、軸向間隙 0.2 mm。螺絲左右晃就降低直徑間隙；卡住就加大軸向間隙。如果不想用軸向間隙，就照舊在直徑上取 0.4 mm。</li><li><strong>軸向間隙至少應為一個層高。</strong> 低於一層的量，印表機無法解析。層高 0.2 mm 時，0.2 mm 是不錯的起點；層高 0.1 mm 時，少一些就夠。</li><li><strong>螺絲與螺帽直立列印。</strong> 軸線朝上，每一圈都落在完整的層裡，牙面才會漂亮。平放時牙面會下垂。</li><li><strong>細螺距很難印。</strong> 螺距低於約 1 mm 時，螺紋圈常常黏在一起。較粗的螺紋，或牙頂平整的 <strong class="ui">「梯形」</strong> 牙型，比細 V 形螺紋更可靠。</li><li><strong>避開細薄牙尖。</strong> V 形螺紋的牙尖很窄，印表機的噴嘴寬度幾乎蓋不到。<strong class="ui">「梯形」</strong> 與 <strong class="ui">「圓形」</strong> 牙型的螺牙較平。</li><li><strong>去毛邊並磨合。</strong> 最初幾圈常常很澀，因為列印殘留的小凸起卡在牙面上。來回轉幾次就會順。起牙處的倒角有助於鎖入。</li><li><strong>換印表機或線材。</strong> 間隙取決於印表機、材料與噴嘴。更換任一項後請重新列印測試件。</li></ol>
+<p>邊緣工具會把螺紋當作精確實體。你可以在螺紋已就位的情況下，對承載它的零件倒角或倒圓，也可以處理螺絲頭的邊緣，參見<a href="/api/desktop/layerling/ui/zh-tw/edges-and-hollowing.html">邊的修整與實體抽殼</a>。計算螺紋的邊需要一些時間：M6 幾秒鐘，G1/2 管螺紋約半分鐘。要斷開螺絲頭邊緣，最快的方法仍然是屬性裡的頭部倒角。</p>
+</section><section class="guide-part"><h2 id="gears">齒輪</h2>
+<p><strong class="ui">「齒輪」</strong> 有 <strong class="ui">「直齒輪」</strong>、<strong class="ui">「斜齒輪」</strong>、<strong class="ui">「人字齒輪」</strong> 與 <strong class="ui">「傘齒輪」</strong>，以及 <strong class="ui">「內齒圈」</strong> 與 <strong class="ui">「齒條」</strong>（見下文）。新齒輪在 <strong class="ui">「齒形」</strong> 下為 <strong class="ui">「漸開線」</strong>：齒面為漸開線的齒，與齒輪產生器及工程上的用法一致。這種齒能平順地互相滾動。你設定 <strong class="ui">「齒數」</strong> 的齒數（6 到 500）與 <strong class="ui">「模數（mm）」</strong>，尺寸隨之決定：外徑為模數 ×（齒數 + 2），節圓為模數 × 齒數。新齒輪從模數 2 開始。兩個齒輪要嚙合，必須模數相同、<strong class="ui">「壓力角」</strong> 相同（通常為 20°），且中心距為（齒數 + 齒數）× 模數 / 2。同時選取兩個齒輪，屬性面板會給出該中心距以及目前實際的中心距。如果齒輪應該留在原位，它也會給出讓它們在該處嚙合的模數，<strong class="ui">「調整兩者模數以嚙合」</strong> 一步就能讓兩個齒輪都採用該模數；各自的齒數、高度與中心孔維持不變。如果有兩個以上的齒輪，這樣做會破壞前一對：中間齒輪的模數又會改變。這時改用 <strong class="ui">「保留 {name}，調整另一個」</strong>，對兩個齒輪各用一次：該齒輪保持原樣，另一個齒輪採用它的模數，並沿兩個中心的連線移到兩者嚙合的距離。齒輪鏈要一對一對地調整，每次都保留已經就位的那個齒輪。如果此時齒對齒而不是齒對齒槽，就把其中一個齒輪轉半個齒，也就是 180° 除以它的齒數。<strong class="ui">「齒隙」</strong> 會從齒上削去一點，避免列印出來的成對齒輪卡死。這個值針對整對齒輪，每個齒輪承擔一半；0.2 mm 是不錯的起點，0 則是精確的齒輪。基圓以下，齒面筆直向下延伸到齒根，不像刀具加工那樣有根切。這適合列印，但齒數低於約 17 的極小齒輪可能會在齒根處輕微摩擦。</p>
+<p>斜齒輪多了 <strong class="ui">「螺旋角」</strong>。使用漸開線齒時，它是節圓上的真實螺旋角：兩個斜齒輪要嚙合，必須模數相同、角度相同，一個為正、一個為負。<strong class="ui">「人字齒輪」</strong> 是兩半旋向相反的斜齒輪：齒以同一方向上升到一半高度，再折返回來，像箭頭一樣。這對 3D 列印有兩個好處：齒輪會在軸上自行對正，而且沒有軸向推力，因為兩半的力相互抵消。相對地，斜齒輪會沿軸線向側面推。你像設定斜齒輪那樣設定 <strong class="ui">「螺旋角」</strong> 與 <strong class="ui">「螺旋品質」</strong>；角度對每一半都適用。兩個人字齒輪要嚙合，必須模數相同、角度相同但符號相反，一個為正、一個為負。中間沒有銑削人字齒輪那樣的退刀槽：兩半無階差地相接。</p>
+<p>傘齒輪採用漸開線齒，並讓齒往頂端逐漸變小。這是近似做法，不是精確計算出的傘齒輪對。</p>
+<p><strong class="ui">「圓弧」</strong> 是由圓弧構成的圓齒，類似 Tinkercad 的 Useful gear：齒頂與齒槽無稜角地相接。小齒輪這樣列印更寬容、轉動也更輕鬆，裝在旋鈕上時齒還帶來舒適的握感。圓齒同樣由 <strong class="ui">「齒數」</strong>、<strong class="ui">「模數（mm）」</strong> 與 <strong class="ui">「齒隙」</strong> 設定；它們沒有壓力角。圓齒比漸開線齒矮，所以外徑為模數 ×（齒數 + 1.2）。相同模數的圓齒輪可以嚙合，中心距與漸開線齒輪相同；但與漸開線齒輪配不起來。</p>
+<p><strong class="ui">「簡單」</strong> 是目前所有齒輪都用的直齒。在那裡手動設定 <strong class="ui">「齒尺寸」</strong> 與 <strong class="ui">「齒寬」</strong>。舊設計會一直保留直齒，直到你更改齒形。三種齒形都有 <strong class="ui">「中心孔」</strong>。</p>
+<p><strong class="ui">「內齒圈」</strong> 的齒朝內：一個讓較小齒輪在裡面運轉的齒圈，就像行星齒輪組的外環。它像漸開線或圓齒輪那樣，用 <strong class="ui">「齒數」</strong>、<strong class="ui">「模數（mm）」</strong> 與 <strong class="ui">「齒隙」</strong> 設定，另外還有 <strong class="ui">「輪緣」</strong>，即齒外側的輪緣。外徑為模數 ×（齒數 + 2.5）加上兩倍輪緣；圓齒則為模數 ×（齒數 + 1.7）。相同模數的齒輪要在其中運轉，中心必須位於距齒圈中心（齒圈齒數 − 其齒數）× 模數 / 2 處；同時選取兩者，屬性面板會給出該距離。行星齒輪組中，齒圈齒數 = 太陽齒輪齒數 + 2 × 行星齒輪齒數，例如 30 = 12 + 2 × 9。齒圈沒有中心孔，它本身就是環。齒數介於 26 到 33 時，齒頂最多短四分之一模數，因為否則基圓處會形成極小的邊；嚙合不受影響。</p>
+<p><strong class="ui">「Hirth 齒盤」</strong> 是一個圓盤，頂面是一圈從中心向外放射的 V 形齒。把它的副本翻過來，就能在一個齒的任意整數倍角度上與它嚙合：可用於可調角度的鉸鏈、三腳架雲台或會喀噠定位的旋鈕。每條齒頂線與齒根線都是穿過軸上同一點的直線，因此齒從中心的零高度增長到邊緣的全高，兩半會彼此自動對中。你設定 <strong class="ui">「齒數」</strong> 的數量（6 到 90）、邊緣處的 <strong class="ui">「齒高」</strong>、<strong class="ui">「中心孔」</strong>（0 表示無）與 <strong class="ui">「直徑」</strong>；齒頂達到全高。齒高最多可達接頭的整個高度：此時齒根在邊緣處一直到達底面，適合放在另一個實體上面的齒。新接頭的齒為直角，改變齒數或尺寸時會保持齒面之間的夾角，屬性面板會顯示該角度；只有齒高會改變它。<strong class="ui">「齒形」</strong> 可以從 <strong class="ui">「對稱」</strong> 切換為 <strong class="ui">「鋸齒」</strong>：此時每個齒的一個齒面在邊緣處以 <strong class="ui">「陡齒面」</strong> 中設定的角度立於端面（45° 到 90°，90° 即直角台階），另一個齒面佔據齒的其餘部分，因此接頭朝一個方向可沿平緩齒面轉過，朝另一個方向則卡住。<strong class="ui">「陡齒面在另一側」</strong> 會交換兩者。此時屬性面板顯示平緩齒面的角度。翻轉的副本同樣能與鋸齒嚙合。接頭像圓柱一樣保持圓形，因為拉伸後齒就無法在整圈上嚙合：工作平面上的每個控制點都只改變它唯一的直徑。要做配對件，複製接頭，繞 X（前後方向）轉 180°，放到第一個上面，中心對中心，抬高其高度減去齒高：這樣每個齒頂都落在齒根裡。繞其他軸旋轉可能對不上，因為那樣會齒頂對齒頂。Hirth 接頭對邊緣工具與 STEP 匯出來說是精確實體。</p>
+<p><strong class="ui">「GT2 同步輪」</strong> 是用於節距 2 mm 的 GT2 同步帶的帶輪，多數 3D 印表機都用這種皮帶；齒槽為由圓弧構成的 GT2 形狀。節距固定，因此由 <strong class="ui">「齒數」</strong>（10 到 200）決定大小：外徑 = 齒數 × 2 mm / π 減 0.51 mm，20 齒為 12.22 mm。由下而上依序為：擋邊、寬度為 <strong class="ui">「皮帶寬度」</strong> 的齒部（6 mm 皮帶約 7 mm）、第二個擋邊和輪轂；<strong class="ui">「擋邊厚度」</strong>（0 表示沒有）、<strong class="ui">「擋邊高度」</strong>、<strong class="ui">「輪轂高度」</strong>（0 表示沒有）、<strong class="ui">「輪轂直徑」</strong> 和 <strong class="ui">「中心孔」</strong> 在屬性中設定。側邊控點改變齒數，頂部控點改變皮帶寬度；如需止付螺絲，用一個孔圓柱穿過輪轂。帶輪是精確實體，可用於邊工具和 STEP 匯出。</p>
+<p><strong class="ui">「齒條」</strong> 是半徑無窮大的齒輪：一根單側帶齒的條，使用漸開線齒時齒面是壓力角下的直線。寬度（沿 X）為齒數 × 齒距，齒距為 π × 模數，所以同模數的齒條可以首尾相接，每一端都落在齒槽中。長度（沿 Y）是齒條的厚度，可自由設定，只要齒與半公釐的條身放得下。齒朝前，即朝向主視圖的觀察者；視需要轉動齒條。相同模數的齒輪要在其上滾動，中心必須位於節線前方齒數 × 模數 / 2 處；節線在齒頂後方一個模數處，圓齒則為 0.6 個模數。齒圈與齒條有漸開線齒與圓齒兩種，沒有簡單齒；切換齒輪類型會保留模數。</p>
+<p>邊緣工具與 STEP 匯出會把每個齒輪當作精確實體，漸開線齒面為平滑曲線。橢圓形輪廓上的斜齒輪仍是三角形網格，從約 31 齒起的漸開線斜齒輪也一樣。人字齒輪在這兩種情況下同樣仍是三角形網格。從約 31 齒起，這只適用於邊緣工具：STEP 匯出在任何齒數下都以精確實體寫出這種齒輪，非常大的齒輪最多需要約一分鐘。小齒限制了邊能倒圓的程度：簡單齒的齒輪直徑 30 mm、12 齒時，兩齒之間齒根處的平面只有約 0.65 mm 寬，所以全邊倒圓最多約 0.5 mm；傘齒輪頂端更小，最多約 0.4 mm。斜齒輪和人字齒輪的齒是傾斜的，會讓那個平面在斜邊上變窄：螺旋角相對齒輪高度越大，能容納的圓角越小。兩個平端面的邊可以倒圓，但只對這些邊倒角會在 CAD 核心中失敗；請改為倒圓，或以較小尺寸（例如 0.2 mm）對所有邊一起倒角。漸開線齒、螺旋角約 15 度以上（預設即如此）的人字齒輪不能一次對所有邊倒圓或倒角；請分別對兩端或兩半相接處的邊倒圓。</p>
+</section><section class="guide-part"><h2 id="springs">彈簧</h2>
+<p><strong class="ui">「彈簧」</strong> 有 <strong class="ui">「圈數」</strong> 與 <strong class="ui">「線徑」</strong>。它們連同高度一起決定彈簧的軟硬。<strong class="ui">「旋向」</strong> 決定線材的旋向：<strong class="ui">「右旋」</strong> 就像常見的壓縮彈簧，或 <strong class="ui">「左旋」</strong>。</p>
+<p>邊緣工具與 STEP 匯出會把彈簧當作精確實體：沿螺旋線的圓線材，兩端切平。例如你可以對這兩個線材端頭倒圓或倒角。</p>
+<p>在<strong class="ui">「形式」</strong>中可把彈簧改為<strong class="ui">「扁平」</strong>：一條在底板上呈波浪延伸、在自身平面內彈性變形的帶子，平放列印。<strong class="ui">「樣式」</strong>可選<strong class="ui">「圓波」</strong>、<strong class="ui">「鋸齒」</strong>或<strong class="ui">「方形」</strong>，<strong class="ui">「端部」</strong>可選帶孔的<strong class="ui">「吊環」</strong>、橫跨帶子的<strong class="ui">「凸片」</strong>或<strong class="ui">「無」</strong>。<strong class="ui">「彎數」</strong>和<strong class="ui">「帶寬」</strong>決定它有多軟；長度是彈簧的長度，寬度是波浪的幅度，高度是列印厚度。扁平彈簧同樣是精確實體。</p>
+</section><section class="guide-part"><h2 id="bent-tubes">彎管</h2>
+<p>一個 <strong class="ui">「彎管」</strong> 最多由十二段組成：一段直管，接著一個彎。每一段你設定 <strong class="ui">「直段長度」</strong>、<strong class="ui">「彎曲角度」</strong>、<strong class="ui">「彎曲半徑」</strong> 與 <strong class="ui">「滾轉角」</strong>。正在編輯的那一段會以橘色亮起，方便你掌握順序。滾轉角為 0° 時在工作平面內彎曲，90° 時管子向上彎。輪廓可以是圓形、方形、六邊形或八邊形，內部同樣如此，也可以完全實心。如果管子撞到自己，layerling 會警告你。</p>
+</section><section class="guide-part"><h2 id="loft">放樣</h2>
+<p><strong class="ui">「放樣」</strong> 把底部的一個輪廓接到頂部的另一個輪廓，就像 Fusion 的放樣：從一種直徑接到另一種直徑的軟管接頭、把方形風扇接到圓管上、向上逐漸變圓的支架。每一端你選擇 <strong class="ui">「底部輪廓」</strong> 與 <strong class="ui">「頂部輪廓」</strong>：<strong class="ui">「圓 / 橢圓」</strong>、帶 <strong class="ui">「底部圓角半徑」</strong> 的 <strong class="ui">「矩形」</strong>，或帶角數的 <strong class="ui">「多邊形」</strong>，再加上每一端的寬度、長度與高度。<strong class="ui">「頂部寬度方向偏移」</strong> 與 <strong class="ui">「頂部長度方向偏移」</strong> 把頂端向側面移動，做出傾斜過渡；底端留在原處。</p>
+<p><strong class="ui">「壁厚（0 = 實心）」</strong> 把實體變成上下開口的管。兩端開口的橫向尺寸都比外形小一個壁厚；壁面傾斜處會略薄一些。把框架拖大，兩端也跟著變大，而圓角半徑與壁厚維持不變。</p>
+<p><strong class="ui">「平滑過渡（%）」</strong> 讓過渡變得平滑。為 0 時，側面從底部到頂部筆直延伸，像圓錐一樣。為 100 時，兩端先筆直向上，再以 S 曲線在中間改變尺寸：軟管接頭從窄管平滑地擴張到寬管，而不是像漏斗那樣斜張。中間的數值在兩者之間混合。平滑過渡可與 <strong class="ui">「壁厚（0 = 實心）」</strong>、扭轉、傾斜及側向偏移一起使用；帶壁的管兩端仍保持開口。它和直邊放樣一樣是精確實體，因此邊可以倒角與倒圓，但它由多個斷面構成，計算會稍久。</p>
+<p><strong class="ui">「每圈分段」</strong> 設定圓與圓角繪製得有多精細：一個整圓在檢視以及 STL、OBJ 與 3MF 中由多少段直線組成。初始值為 96，對大多數零件已足夠平滑；對於想看起來沒有小平面的大圓端，可調高到 360。段數越多檔案越大。多邊形保持你設定的 <strong class="ui">「底部角數」</strong>。當某端是圓形或帶圓角時會顯示該欄位。</p>
+<p><strong class="ui">「扭轉」</strong> 在上升過程中讓斷面繞垂直軸均勻旋轉，任一方向最多 360°；側面於是盤旋而上。<strong class="ui">「頂部傾斜，前/後」</strong> 與 <strong class="ui">「頂部傾斜，左/右」</strong> 讓頂端傾斜，最多 45°：正值會抬高其前緣或右側。中間的斷面依比例傾斜，所以壁面平順地接到斜面上。最高點維持在設定高度。如果之後高度變得太小，傾斜端會伸到平台下方，傾斜就會退讓到剛好放得下。沿路徑彎曲（例如管彎頭）不是放樣能做到的。</p>
+<p><strong class="ui">「中間截面」</strong> 在底部與頂部之間最多加入十二個截面，用於不只是從一個輪廓過渡到另一個輪廓的實體：機身、帶瓶頸的瓶子、有腰身的花瓶。每個截面都有自己的輪廓、寬度與長度、圓角半徑或角數、離底部的高度，以及相對底端中心的側向偏移；<strong class="ui">「截面」</strong> 選擇下方欄位所針對的截面，和彎管的各段一樣。新截面放在最大的間隙中，尺寸介於相鄰截面之間，並成為接下來顯示的那個。<strong class="ui">「截面過渡」</strong> 設定實體如何穿過它們：<strong class="ui">「平滑」</strong> 讓一個曲面穿過每個截面，並且在兩個截面之間保持在它們的尺寸之內，不會鼓出去；<strong class="ui">「直線」</strong> 在截面之間用平直的壁連接。<strong class="ui">「壁厚（0 = 實心）」</strong> 在這裡也適用。扭轉、傾斜與 <strong class="ui">「平滑過渡（%）」</strong> 只用於只有兩端的放樣，在中間有截面時隱藏。沒有截面的放樣保持原樣。</p>
+<p>放樣是精確實體，扭轉與傾斜後也是：邊可以倒角與倒圓，STEP 匯出也會保留。照常加上帶螺絲孔的法蘭再群組。</p>
+</section><section class="guide-part"><h2 id="gridfinity">Gridfinity</h2>
+<p><strong class="ui">「Gridfinity」</strong> 形狀用來製作 Gridfinity（Zack Freedman 的開放式收納系統）的零件：42 mm 網格上的收納盒，可放在底板裡，也能彼此堆疊。尺寸遵循公開的 Gridfinity 規格，所以 layerling 做的收納盒能裝進其他產生器做的底板，反之亦然。layerling 不屬於 Gridfinity 專案，該專案以 MIT 授權條款釋出。在 <strong class="ui">「類型」</strong> 下選擇：</p>
+<ul><li><strong><strong class="ui">「收納盒」</strong>：</strong> 每個網格單元下方都有支腳的收納盒。<strong class="ui">「橫向單元數」</strong> 與 <strong class="ui">「縱向單元數」</strong> 以 42 mm 的網格單元計數（收納盒小 0.5 mm，一個單元為 41.5 mm）；<strong class="ui">「高度單元數」</strong> 以 7 mm 的高度單元計數，最多 20。壁頂的 <strong class="ui">「堆疊唇緣」</strong> 托住下一個收納盒的支腳，並使收納盒增高 4.4 mm：3 單元帶唇緣的收納盒高 25.4 mm。啟用 <strong class="ui">「磁鐵孔」</strong> 後，每個支腳的每個角都會有一個 6 × 2 mm 磁鐵孔。</li><li><strong><strong class="ui">「底板」</strong>：</strong> 收納盒所站的底板，高 5 mm，每個網格單元有一個插槽。它是沒有底面、沒有磁鐵孔的開放框架；開啟 <strong class="ui">「Swallowtail」</strong> 後，它立在底面上（見下文）。</li><li><strong><strong class="ui">「托盤」</strong>：</strong> 任意尺寸的平底托盤，用於桌遊收納與不需要網格的零件。<strong class="ui">「長度」</strong>、<strong class="ui">「寬度」</strong> 與 <strong class="ui">「高度」</strong> 可以自由設定（mm）：長寬 10 到 252 mm，高 3 到 140 mm。它沒有底腳、堆疊唇緣與磁鐵孔，因此不能放進底板，也不能堆疊；它的四角與收納盒一樣，按 3.75 mm 半徑倒圓。下文關於收納盒內部的內容同樣適用於托盤：底面厚 1.2 mm，可以設定；隔板與標籤台一直延伸到頂端；它們與取物口在任何留有空間的高度都可以使用；隔間數量以每個至少 6 mm 寬為限，每邊最多 24 個，總共最多 40 個。收納盒改為托盤時保持尺寸，底板改為托盤時高 20 mm，托盤改回收納盒或底板時取整到整網格單元；在 <strong class="ui">「工作區設定」</strong> 的 <strong class="ui">「形狀預設值」</strong> 中把類型設為 <strong class="ui">「托盤」</strong> 時，新托盤起始為寬 80 mm、長 40 mm、高 20 mm。</li></ul>
+<p>收納盒與底板的尺寸一律是整數網格單元（或下文半尺寸網格的 21 mm 格），最大 6 × 6（252 mm，可放進 256 mm 的列印平台）；拖曳把手會吸附到最近的單元。列印平台較大時，可以開啟 <strong class="ui">「大底板（最多 12 個單元）」</strong>，底板最多 12 × 12 個單元（504 mm）；在 <strong class="ui">「工作區設定」</strong> 中選好印表機後，比列印平台大的底板會被標出。關閉後，較大的底板會回到 6 個單元並保留留邊；12 × 12 時，計算它的邊或匯出 STEP 大約需要半分鐘。壁厚（0.95 mm）、底面（1.2 mm）與磁鐵孔深度（2.4 mm）不在規格內；孔深固定，壁厚可以設定，底面則可以抬高（見下文）。規格中的 M3 螺絲孔不會做出。唇緣頂端是尖的，與規格的畫法一致；如果你的印表機打出來有毛邊，用邊緣工具倒圓或倒角。收納盒、底板與托盤是精確實體，所以倒圓、倒角與 STEP 匯出都能用。要分隔收納盒，可把薄長方體當作隔牆群組進去：讓它們立在底面上，即高 5.95 mm 處（或抬高的底面上）；帶唇緣的收納盒，頂端至少保持在每個高度單元 7 mm 下方 0.5 mm，從收納盒底面量起（3 單元為 20.5 mm），因為下一個收納盒的支腳會向下伸入收納盒 0.35 mm。列印收納盒與底板時不需支撐，依它們在列印平台上的姿態直立列印。</p>
+<p>不是矩形的抽屜（切掉一角、後壁是圓的或呈 L 形）可以用貼合其輪廓的底板。把抽屜內部畫成草圖，或使用任何站在工作平面上的形狀，把它和一塊底板一起選取，然後在屬性中點選 <strong class="ui">「將底板貼合輪廓」</strong>。底板會填滿該形狀所在的底面區域，向內縮進 0.25 mm：42 mm 整格排在同一網格上，網格移到能放下最多格的位置（橫向和縱向各最多 6 格，開啟 <strong class="ui">「大底板（最多 12 個單元）」</strong> 時各 12 格），其餘全部為實心，因此每個插槽仍能放一般收納盒。底板會移到那裡；形狀保持不動。之後底板的尺寸以 mm 計，<strong class="ui">「長度」</strong> 和 <strong class="ui">「寬度」</strong> 會拉伸它的輪廓；<strong class="ui">「寬度」</strong> 下方的提示會說明它有多少格。關閉 <strong class="ui">「已貼合輪廓」</strong> 後，它會變回帶留邊的整單元底板。輪廓最大可以和一塊底板一樣大：每邊 334 mm，開啟 <strong class="ui">「大底板（最多 12 個單元）」</strong> 時為 586 mm，只要輪廓需要，它就保持開啟；抽屜是斜的話，請在貼合前先把底板隨它轉過去。輪廓每邊至少 10 mm，最多 1000 個點。抽屜的照片也可以提供輪廓：先在兩個已量好距離的點上使用 <strong class="ui">「校正」</strong>，再使用 <strong class="ui">「描摹」</strong>。斜著拍的照片尺寸並不準確，所以請把描出的輪廓當作起點，並檢查它的尺寸。</p>
+<p>分幾塊列印的底板可以用 <strong class="ui">「Swallowtail」</strong> 連接，它得名於古埃及神廟中把石塊固定在一起的燕尾形扣件。開啟後，底板立在 2.4 mm 厚的底面上，高度從 5 mm 變為 7.4 mm：插槽止於底面，所以收納盒會高出 2.4 mm。每條沒有留邊的側邊下方，在每個格子的中間有半個蝴蝶結形凹槽，深 2 mm，兩塊底板並排且格子對齊時，就在接縫處合成完整的凹槽。<strong class="ui">「新增連接件」</strong> 會把連接件平放在底板前方，可以直接列印：後側和右側的每個凹槽各一個，這樣跨越與下一塊底板接縫的每個凹槽都有一個。再次點選會重新放置連接件，之前為這塊底板放置的連接件會被取代。從下方把一個連接件壓入每個跨越接縫的凹槽：它開槽的兩端會擠過凹槽底部的凸台，然後在其後方彈開，於是卡入定位，把底板連在一起。凸台只在連接件兩端開槽的位置，所以連接件中間可以自由跨過接縫。<strong class="ui">「連接件間隙」</strong> 設定每個連接件比它的凹槽小多少，不更改時每側 0.05 mm：如果連接件在你的印表機上卡住或折斷，就調大它；如果裝得鬆，就調小它，然後再次點選 <strong class="ui">「新增連接件」</strong>；底板保持不變。有留邊的側邊朝向抽屜的一面內壁，沒有凹槽；貼合輪廓的底板對其抽屜來說是一整塊，沒有 <strong class="ui">「Swallowtail」</strong> 開關。Swallowtail 同樣不屬於規格。</p>
+<p>收納盒也可以做在半尺寸網格上：開啟 <strong class="ui">「半尺寸網格（21 mm）」</strong>，此時 <strong class="ui">「橫向單元數」</strong> 與 <strong class="ui">「縱向單元數」</strong> 以 21 mm 的格計數，最多 12（與 6 單元相同的 251.5 mm）。每個格都有自己的支腳，頂部寬 20.5 mm，帶有規格中的階梯，四個這樣的支腳站在普通底板的一個插槽裡，所以 1½ 或 2½ 單元的收納盒能與整數單元的並排使用。開啟 <strong class="ui">「半尺寸網格（21 mm）」</strong> 時，收納盒保持其輪廓（2 單元變成 4 格）；關閉時，奇數格會向上取整為整數單元。唇緣照舊跟隨收納盒的輪廓。啟用 <strong class="ui">「磁鐵孔」</strong> 後，每個支腳得到一個孔，從其中點朝位於 42 mm 網格上的那個格子角落，兩個方向各偏移 2.5 mm，從收納盒左後角算起：當這個角位於網格角上時，這些孔會與其他產生器所做、帶磁鐵的底板孔對齊；奇數格的收納盒還可以轉 180°，讓這個角位於右前方的網格角上。底板仍維持 42 mm 網格。半尺寸網格不屬於規格。</p>
+<p>高度 3 單元以上的收納盒，可以沿內壁設定標籤架：以任意組合開啟 <strong class="ui">「後側標籤台」</strong>、<strong class="ui">「前側標籤台」</strong>、<strong class="ui">「左側標籤台」</strong> 或 <strong class="ui">「右側標籤台」</strong>。每個開啟的標籤架都有自己的 <strong class="ui">「標籤台寬度」</strong>、<strong class="ui">「標籤台長度」</strong>，較短的標籤架還有 <strong class="ui">「標籤台位置」</strong>；下方的角落設定套用於全部。標籤架頂面平整可貼標籤，前緣有 1.2 mm 的下垂條，底面以 36 度上升。其頂端在每個高度單元 7 mm 下方 0.85 mm，從收納盒底面量起（3 單元為 20.15 mm），所以疊在唇緣上的收納盒支腳會與它保持 0.5 mm 的間隙。低於 3 單元的收納盒不顯示標籤架；回到 3 單元時會回復。標籤架不屬於規格。</p>
+<p><strong class="ui">「標籤台寬度」</strong> 是標籤架伸入收納盒的深度：14 mm，3 單元的收納盒最多 17.2 mm（抬高底面時更少）；1 單元深、2 mm 圓角的收納盒中，兩個相對的標籤架為 16.8 mm。<strong class="ui">「標籤台長度」</strong> 為 0 時，標籤架從一面牆延伸到另一面牆。較短的標籤架至少 10 mm，會顯示 <strong class="ui">「標籤台位置」</strong>，把它從所在牆的中央移開：在主視圖所示的前牆與後牆上向右移，在側牆上向前移。如果一端距牆在 1 mm 以內（帶堆疊唇緣時為 1.8 mm，因為唇緣的支撐在那裡向內傾斜），或停在該牆的標籤架上，就會繼續延伸進去；兩個在角落相遇的標籤架會合而為一。當標籤架與牆或另一個標籤架相接且空間足夠時，角落會倒圓或倒角：在 <strong class="ui">「標籤台邊角」</strong> 下選擇 <strong class="ui">「圓角」</strong> 或 <strong class="ui">「倒角」</strong>，並用 <strong class="ui">「邊角尺寸」</strong> 設定尺寸（2 mm；0 保持尖銳）。選擇 <strong class="ui">「圓角」</strong> 時，較短標籤架的自由端前角也會倒圓，尺寸相同，但最多為標籤架寬度的一半。</p>
+<p>收納盒也可以沿任一內壁設定取物口，讓小零件能沿曲面被推出來，而不必在底面與牆相接處摳出來：以任意組合開啟 <strong class="ui">「後側取物口」</strong>、<strong class="ui">「前側取物口」</strong>、<strong class="ui">「左側取物口」</strong> 或 <strong class="ui">「右側取物口」</strong>。底面沿四分之一圓升入牆內，從一面牆延伸到另一面牆，相鄰牆上的兩個取物口在角落相接。帶取物口的收納盒，每條底面邊也會按 2.8 mm（內角半徑）倒圓，取物口就是所在牆上這處圓角的放大。一旦開啟取物口，開關下方會出現 <strong class="ui">「取物口半徑」</strong>，並套用於所有取物口：在你設定之前，它的值是從底面到唇緣支撐離開牆面處這段高度的一半（該處位於每個高度單元 7 mm 下方 1.65 mm，從收納盒底面量起）；沒有唇緣的收納盒則以頂部為上限（帶唇緣的 3 單元收納盒為 6.7 mm，抬高底面時更少）。它至少為 3.5 mm，並至少比該高度小 0.5 mm；在收納盒橫向至少留下 2 mm 的底面，不論是兩個相對的取物口之間，或取物口與其對面的牆之間。1 單元高的收納盒沒有空間做取物口，也不顯示相關開關；到 2 單元時會回復。取物口同樣不屬於規格。</p>
+<p>收納盒也可以有抬高的底面，當作可切出形狀的實心坯料：<strong class="ui">「底部高度」</strong> 設定底面的高度，從收納盒底面量起（在你設定之前為 5.95 mm，即支腳上的 1.2 mm 底面），收納盒到該高度為止都是實心。帶唇緣時，只要底面不高於唇緣支撐離開牆面處，即每個高度單元 7 mm 下方 1.65 mm（3 單元為 19.35 mm），收納盒上仍可堆疊，這樣唇緣保持完整，疊在其上的收納盒支腳也保有 1.3 mm 的間隙。高於該高度時唇緣也會填滿，收納盒成為實心塊，頂面平齊於唇緣頂端，即每個高度單元 7 mm 上方 4.4 mm（3 單元為 25.4 mm）：與旁邊帶唇緣的收納盒一樣高，沒有供上方收納盒堆疊的唇緣，也沒有可倒角的邊緣，所以 <strong class="ui">「唇緣倒角」</strong> 會消失；由於沒有內部空間，<strong class="ui">「壁厚」</strong> 也會消失。在兩者之間，該欄位不接受任何高度：向上時，無論輸入、逐步調整或拖曳，都會繼續到唇緣頂端；從已填滿的收納盒向下時，會停在仍可堆疊的最高底面。從較早版本的收納盒保留下來，或由較薄的壁厚留下的兩者之間的高度，同樣以這個最高底面建構。沒有唇緣時可升到頂部，收納盒成為實心塊。把工具形狀的孔群組進去，深度依需要而定。取物口從抬高的底面開始，標籤架伸入收納盒的深度會減少，使其底面仍止於底面之上；一旦底面讓它們沒有空間，相關開關就會消失（帶唇緣的 3 單元收納盒中，取物口高於 15.35 mm 時消失，標籤架高於 15.54 mm 時消失），降低底面後又會回復。帶唇緣、壁厚不超過 1.6 mm 的 1 單元高收納盒沒有空間容納仍可堆疊的底面：其中抬高的任何底面都會把它填到唇緣頂端，即 11.4 mm。抬高底面同樣不屬於規格。</p>
+<p>對於收納盒，<strong class="ui">「邊角半徑」</strong> 會讓外角的圓角小於規範的 3.75 mm，最小到 0 即直角，這樣在抽屜裡並排的收納盒在四個相交處只留下 0.5 mm 的縫隙。只有外壁採用它，從腳上方 0.5 mm 開始：腳、內部以及疊放時收納盒所靠的唇邊斜面都保持原來的圓角，因此收納盒仍能放進底板並像以前一樣疊放，單格收納盒也仍能落在其插座的斜面上。在直角處，壁以平面結束，與唇邊頂部齊平（沒有唇邊時與收納盒頂部齊平），或與其倒角的底部齊平。開放側上的角本來就是直角。</p>
+<p>收納盒也可以分隔成隔間，而不必把隔牆群組進去：在 <strong class="ui">「隔間」</strong> 下，就在 <strong class="ui">「屬性」</strong> 下方，<strong class="ui">「欄數」</strong> 與 <strong class="ui">「列數」</strong> 設定數量，每個方向每個網格單元最多 4 個（半尺寸網格的每格 2 個），總共最多 40 個。隔板貫穿整個高度，從底面（或抬高的底面）一直到每個高度單元 7 mm 下方 0.85 mm 處，標籤架也止於那裡，所以疊在唇緣上的收納盒照常安放。隔板要求收納盒至少有 2 個高度單元，且底面至少低於其頂部 3 mm；空間不足時，收納盒會在不做隔板的情況下建構，等又有空間時再回復。<strong class="ui">「隔板厚度」</strong> 在設定前為 1.2 mm，範圍 0.8 到 3 mm。隔板初始均勻分布。要移動某一塊，在 <strong class="ui">「欄之間」</strong> 或 <strong class="ui">「列之間」</strong> 下選取它（從左或從後計數），並設定其 <strong class="ui">「位置」</strong>，從左牆或後牆內側量到隔板中央；每個隔間至少保持 6 mm 寬。一旦移動過隔板，調整收納盒尺寸時，該方向的隔板會以公釐為單位保持位置；重新設定隔間數量會讓該方向的隔板再次均勻分布。每個隔間都有收納盒的內角，按 2.8 mm 倒圓，其底面邊也按 2.8 mm 倒圓，無論有沒有取物口。取物口會在每個隔間重複：後牆有取物口時，每個隔間的後側都有一個，靠著牆或隔板。在狹窄的隔間裡，半徑會縮小，以留下 2 mm 平的底面；若隔間窄到連 3.5 mm 都放不下，該方向的取物口就會消失；<strong class="ui">「取物口半徑」</strong> 下方的說明會指出這一點。隔板同樣不屬於規格。</p>
+<p>帶隔板的收納盒可以在每個隔間裡設定標籤架，而不是沿牆的標籤架：沿牆的標籤架是給沒有隔間的收納盒用的，當收納盒回到單一隔間時，那些開關會回復。在高度 3 單元以上的收納盒中，用 <strong class="ui">「列」</strong> 與 <strong class="ui">「欄」</strong> 選擇隔間（各在隔間數多於一個時顯示），並在 <strong class="ui">「標籤台」</strong> 下選擇標籤架所靠的一側，即收納盒的牆或某塊隔板；只有當該側的標籤架仍能讓隔間保持開口時，才會提供這一側。<strong class="ui">「標籤台長度（%）」</strong> 的範圍是 10 到 100；若標籤架會短於 4 mm 就不做，並在其下方加註說明。較短的標籤架會顯示 <strong class="ui">「標籤台位置」</strong>：在後側或前側時為 <strong class="ui">「左」</strong>、<strong class="ui">「置中」</strong> 或 <strong class="ui">「右」</strong>；在左側或右側時為 <strong class="ui">「後」</strong>、<strong class="ui">「置中」</strong> 或 <strong class="ui">「前」</strong>。<strong class="ui">「標籤台寬度」</strong> 在設定前為 14 mm，狹窄隔間中更小；標籤架絕不會伸到把隔間封死：前方至少保持 6 mm 開口。這些標籤架的斷面與沿牆的標籤架相同，<strong class="ui">「屬性」</strong> 下的 <strong class="ui">「標籤台邊角」</strong> 與 <strong class="ui">「邊角尺寸」</strong> 也套用於它們。</p>
+<p>每個標籤架，無論沿牆還是在隔間裡，都可以帶一行文字，作為收納盒的一部分凸出其頂面 0.4 mm：在標籤架各項設定下方的 <strong class="ui">「文字」</strong> 中輸入，一行最多 24 個字元。只要有一個標籤架帶文字，角落設定下方的 <strong class="ui">「字型」</strong> 就為所有標籤架選擇一種字型，內建字型或自己的字型皆可，與文字相同：<strong class="ui">「你自己的字型」</strong> 視窗中的 <strong class="ui">「使用」</strong> 也能將字型套用到選取的收納盒，設計會儲存收納盒所用字母的輪廓，因此在另一台電腦上開啟時字母保持不變。文字依字距調整排列，並在標籤架頂面允許的範圍內盡量放大。<strong class="ui">「字型」</strong> 下方的 <strong class="ui">「字母大小」</strong> 設定大寫字母的高度，每個標籤架都相同，使長短不同的標籤彼此一致；對它而言太小的標籤架會把字母放大到它允許的程度，設為 0 時每個標籤架都把字母盡量放大。帶堆疊唇緣且壁厚 0.95 mm 時，文字離牆 1.5 mm，因為唇緣的支撐在此伸到標籤架上方；沒有唇緣或靠著隔板時離牆 0.3 mm；離前緣 0.4 mm，離自由端 0.4 mm，若其角為圓角則離開圓角的大小（未設定時為 2 mm）；並避開內角的圓角和在角落相接的另一個標籤架。後側和前側標籤架上的文字從收納盒前方閱讀，側面標籤架上的文字沿其牆、從收納盒內部看去閱讀；鏡像的收納盒文字方向仍然正確。文字頂部比疊放在唇緣上的收納盒底腳低 0.1 mm。若大寫字母會低於 3 mm，這段文字將被略過，下方會有提示說明；縮短文字，或加寬、加長標籤架即可騰出空間。托盤沒有文字，因為它的標籤架一直到頂部。文字是精確實體的一部分，因此 STEP 匯出中也有它們。在鏡像的群組裡，文字會反著顯示，文字物件也是如此；取消群組後，收納盒會把它們恢復正確。邊緣工具一次最多精確處理 700 段輪廓，所選全部收納盒的文字合併計算：Multilanguage 約 35 個字母，Serif 或 Script 約 15 個；超過時，部分收納盒會以網格交給邊緣工具。若要用另一種顏色列印文字，請在切片軟體中於標籤架頂面高度加入換色，3 單元的收納盒為 20.15 mm；這也會讓上方的一切換色：牆的最上方 0.85 mm 和唇緣，共 5.25 mm。</p>
+<p><strong class="ui">「文字顏色」</strong>位於<strong class="ui">「字型」</strong>下方，為收納盒所有標籤架上的文字設定單獨的顏色。在你選擇之前，文字使用收納盒的顏色，該列下方的提示會說明這一點；旁邊的箭頭會讓文字恢復收納盒的顏色，選擇收納盒的顏色也一樣。收納盒仍是一個實體：檢視中文字的頂面和側面顯示為它們的顏色，3MF 會在收納盒唯一的物件中給這些面賦予該顏色，並像在切片軟體中塗色那樣，用各自顏色對應的線材為它們以及檔案中的其他所有面塗色，因此 Bambu Studio、PrusaSlicer 2.9、OrcaSlicer 以及基於它的切片軟體（如 Snapmaker Orca 和 ElegooSlicer）會用單獨的線材列印文字，無需換色。切片軟體會以自己線材的顏色顯示它們：檔案中的第一種顏色（通常是收納盒的顏色）是線材 1，文字的顏色是下一個，檔案中的每個實體都一樣，因此請把這些線材設為你想要的顏色。已在 Snapmaker Orca 中試過；尚未在 Bambu Studio、ElegooSlicer 或 PrusaSlicer 2.9 中試過：歡迎回饋。Cura 既不讀取顏色也不讀取塗色；對它來說，上文所述的換色方法依然適用。OBJ 只在點上帶顏色，因此兩種顏色之間的邊界並不清晰。STL 和 STEP 匯出只有一種顏色；經過邊緣工具、<strong class="ui">「抽殼」</strong>、<strong class="ui">「分割」</strong>或<strong class="ui">「簡化網格」</strong>之後的收納盒也是如此，這些操作留下的是不帶收納盒設定的實體，即使之後用<strong class="ui">「轉為精確實體」</strong>轉為精確實體也一樣。如果收納盒與另一個同色實體重疊，匯出時可能會把兩者合併為一個實體，這時文字會使用收納盒的顏色。在群組或綁定中，只要<strong class="ui">「多色」</strong>開啟，文字就保留自己的顏色，正如各部件保留各自的顏色，群組被放入另一個群組時也是如此。新建的實體群組，以及有孔切到收納盒的群組，開始時該選項為關閉，只有一種顏色。</p>
+<p>收納盒還可以在任意一側開放，這樣並排放置的收納盒能連成一長條：開啟 <strong class="ui">「後側開口」</strong>、<strong class="ui">「前側開口」</strong>、<strong class="ui">「左側開口」</strong> 或 <strong class="ui">「右側開口」</strong>，可任意組合；四個全開時只剩腳上的底板。開放側在底板以上沒有壁，也沒有疊放唇邊。旁邊的壁與它們的唇邊筆直延伸到收納盒的外形並以直角結束，因此兩個相鄰的開放收納盒和任意兩個收納盒一樣相距 0.5 mm，底板也平直延伸到邊緣並在那裡以直角結束。開放側上的標籤架或指槽不會產生，其開關也會消失，該側靠隔板的指槽也一樣；該設定會保留，等你再次關閉該側時使用。旁邊壁上的標籤架與指槽，以及與之相接的隔板，都會延伸到邊緣；隔間在開放側不提供標籤架，已經在那裡選擇的會被略去，<strong class="ui">「標籤台」</strong> 下的提示會說明。腳與磁鐵孔保持不變。疊放在開放收納盒上的收納盒只靠封閉側的唇邊支撐。底板抬到頂部（有唇邊時抬到唇邊頂部）的收納盒是實心塊，不顯示開放側的開關。開放側同樣不屬於規範。</p>
+<p>開啟的一側也可以只部分開放，做成伸手進去的槽口或前面較低的壁。在開關下方，每個開放側都有自己的幾列，這裡以前側為例：<strong class="ui">「前側深度」</strong> 是開口的深度，從唇邊頂部向下量（沒有唇邊時從收納盒頂部），至少 2 mm；<strong class="ui">「前側寬度」</strong> 是它沿該側的寬度，至少 5 mm；<strong class="ui">「前側位置」</strong> 是它的位置：<strong class="ui">「左」</strong>、<strong class="ui">「置中」</strong> 或 <strong class="ui">「右」</strong>；位於一端時，<strong class="ui">「前側距離」</strong> 是它離該端的距離。起初開口就是向下到底板的整個側面，即上面描述的開放側。深度距底板不到 0.5 mm 時會直通到底板，寬度與整個側面相差不到 0.5 mm 時就是整個側面。小於這些的開口會保留該側的壁、圓角與唇邊，並從中切出一個平底直角端的缺口：直通到底板就是槽口，橫貫整個側面就是較低的壁。開口留在兩個角之間的直壁部分，或在完全開放的相鄰側旁延伸到邊緣（那裡的壁沒有圓角）；直段短於 5 mm 的側面會完全開放。缺口兩側的底板、隔板與唇邊都保留，因此疊放在上面的收納盒仍坐在唇邊上，而該側的標籤架、指槽與隔間標籤架和任何開放側一樣保持關閉。對於因壁而成為實心的收納盒，開啟的一側會完全開放。部分開放的一側仍有壁，因此即使四側都開啟，<strong class="ui">「壁厚」</strong> 也會保留。一旦某側部分開放，開放側各列下方會出現 <strong class="ui">「開口邊角」</strong>（<strong class="ui">「圓角」</strong> 或 <strong class="ui">「倒角」</strong>）與 <strong class="ui">「開口邊角尺寸」</strong>（在你設定之前為 0 即直角；最大 10 mm，該列提供的最大值以最大的角所能容納的為準），它們對從壁外看到的缺口角——上面兩個與下面兩個——進行倒圓或倒角，所有部分開放的側面都一樣。上面的角先取用尺寸，下面的角得到深度剩下的部分，因此尺寸超過深度一半時下面的角會更小，一旦上面的角用完全部尺寸，下面的角就保持直角。每個角取用的尺寸以缺口及其旁邊的壁所能容納的為限，因此對於放在一端的開口，那一端的上角不會大於開口到該端的距離；如果某個角會恰好結束在壁邊緣旁，它會縮小最多 0.5 mm 以避開邊緣，小於 0.5 mm 時保持直角。橫貫整個側面的開口沒有上角，在完全開放的相鄰側旁延伸到邊緣的開口在那一端也沒有。有唇邊時，上角只在外壁上完整地倒圓或倒角，在倒角唇邊下稍小一些；再往裡，唇邊向下傾斜的地方會更小。</p>
+<p>底板可以加襯邊，用於寬度不是整數個網格單元的抽屜：<strong class="ui">「後側留邊」</strong>、<strong class="ui">「前側留邊」</strong>、<strong class="ui">「左側留邊」</strong> 與 <strong class="ui">「右側留邊」</strong> 在網格外加上與底板 5 mm 高度（使用 <strong class="ui">「Swallowtail」</strong> 時為 7.4 mm）相同的實心邊框，每側 0 到 41 mm。網格仍是整數個 42 mm 的單元，並遠離加了襯邊的一側移動，外角保持圓角，除非 <strong class="ui">「邊角半徑」</strong> 改變它。底板尺寸是包括襯邊的整塊底板；改變襯邊會保持單元數，拖曳一側會改變單元數並保持襯邊。要填滿一個抽屜，在 <strong class="ui">「抽屜寬度」</strong> 與 <strong class="ui">「抽屜深度」</strong> 中輸入它的內部尺寸：每個方向上底板取能放下的單元數，最多 6 個（使用 <strong class="ui">「大底板（最多 12 個單元）」</strong> 時為 12 個），並把剩餘部分減去 0.5 mm（讓底板能放進去）後平均分給該方向兩側的襯邊；這兩列顯示底板所填滿的抽屜。寬 230 mm 的抽屜得到 5 個單元即 210 mm，加上 19.5 mm 的襯邊，總共 229.5 mm；請確認底板放得進你的列印床。一塊底板在你的列印床上填不滿的抽屜，就用幾塊底板並排，每塊只在朝向抽屜壁的那幾側加襯邊；用襯邊那幾列設定它們的襯邊。收納盒會保留襯邊設定，但產生時不使用；變回底板時它們會恢復。</p>
+</section><section class="guide-part"><h2 id="hinge">鉸鏈</h2>
+<p><strong class="ui">「鉸鏈」</strong> 一次列印成型，之後可以活動（列印即組裝）：兩片葉片平攤在平台上，中間沿同一軸線交替排列鉸鏈節。銷屬於後片，並帶間隙穿過前片的鉸鏈節。你設定 <strong class="ui">「長度（軸向）」</strong>、<strong class="ui">「展開寬度」</strong> 與 <strong class="ui">「鉸鏈節直徑」</strong>，還有 <strong class="ui">「鉸鏈節數」</strong> 的數量（奇數，讓銷兩端都被固定）、<strong class="ui">「插銷直徑」</strong> 與 <strong class="ui">「葉片厚度」</strong>。</p>
+<p><strong class="ui">「間隙」</strong> 是活動零件之間的間隙：銷周圍、鉸鏈節之間，以及葉片前方。0.4 mm 時，調校良好的印表機通常輕輕一扭就能鬆開；如果零件黏在一起就加大，晃得太厲害就減小。依平台上呈現的姿態平放列印鉸鏈，不要支撐（下文的抬高葉片則需要在下方加支撐）。如果你偏好用自己的銷，例如一段線材或鐵絲，在小鉸鏈上它比列印的銷更光滑，就開啟 <strong class="ui">「無插銷（使用自備插銷）」</strong>：列印的銷會被略去，孔徑等於銷直徑加間隙，貫穿每個鉸鏈節，包括兩端。用 <strong class="ui">「開合角度」</strong> 讓第二片繞銷折起，把鉸鏈擺成設計中的姿態：0° 平躺如列印時，180° 為閉合，低於 0° 時則越過平躺繼續向下折，最多到 -180°。角度不會在兩片相碰處停下；用 <strong class="ui">「檢查間隙」</strong> 並開啟 <strong class="ui">「檢查一個物件中分開的零件（一體列印）」</strong> 可以看出它們是否接觸。鉸鏈節維持原位，鉸鏈仍是一體；就地列印前記得設回 0°。你可以給葉片加孔，或把它們群組進更大的零件，例如蓋子。</p>
+<p>鉸鏈也可以做成<strong class="ui">「帶圓錐」</strong>（在<strong class="ui">「樣式」</strong>下）：每隔一個關節的兩端是圓錐，嵌入相鄰關節的錐形凹坑。沒有銷，也沒有可能下垂的長懸空橋，所以可以平放列印；圓錐為 45°。和其他樣式一樣，它是精確實體，因此倒角和圓角對它有效，STEP 匯出包含它真正的圓錐；關節對圓錐來說太短時，會做得更少。除了關節數量，也可以指定<strong class="ui">「關節寬度（最大）」</strong>：關節不會比它更寬，數量由長度決定；輸入關節數量會取消寬度。</p>
+<p><strong class="ui">「可拆式」</strong> 做出像許多門上那樣的可拆式鉸鏈：兩個鉸節，下方的帶著銷子一直到端部，上方的是可以從銷子上拔出的套筒，所以蓋子或門可以取下再掛回去。它總是兩個鉸節。它和其他樣式一樣平放整體列印；要直立列印、銷子朝上，就用 <strong class="ui">「分離部件」</strong> 把它拆開，把帶銷的那件立在它的鉸節上，另一件立在它的套筒上：這樣兩件都不需要支撐。另一側用鏡像。在 <strong class="ui">「孔型」</strong> 下，所有樣式都可選 <strong class="ui">「螺帽槽」</strong>：在每個孔上方開一個六角螺帽槽，位於闔上時朝向另一片的那一面，這樣從下方鎖入的螺栓能固定；<strong class="ui">「沉頭 + 螺帽槽」</strong> 把後片（帶銷的那片）做成沉頭，前片開螺帽槽。<strong class="ui">「螺帽對邊寬度」</strong> 是螺帽的對邊寬度；為 0 時依孔取值（M3 5.8 mm，M4 7.3 mm，含間隙）。槽深等於螺帽高度，但下面留 0.6 mm 的葉片，所以葉片越厚，螺帽嵌得越深。</p>
+<p><strong class="ui">「樣式」</strong>有三個選項：<strong class="ui">「帶銷」</strong>、<strong class="ui">「無插銷（使用自備插銷）」</strong>（為自備銷留的孔）和<strong class="ui">「帶圓錐」</strong>。選圓錐時，<strong class="ui">「圓錐直徑」</strong>決定圓錐從關節長出處的大小；圓錐越大越牢固，預設取能放下的最大值。帶圓錐的鉸鏈沒有銷也沒有孔，所以它的翼板可以和整個關節一樣厚：把<strong class="ui">「葉片厚度」</strong>設為關節直徑，翼板就與關節齊平；這樣的鉸鏈最多開啟約 90°，因為厚翼板會相碰。</p>
+<p>要用螺絲固定鉸鏈，設定 <strong class="ui">「每片葉片的螺絲孔數」</strong>：沿軸最多六個孔，孔徑為你選擇的 <strong class="ui">「孔直徑」</strong>。在 <strong class="ui">「孔型」</strong> 下，它們預設為 <strong class="ui">「沉頭」</strong>，90° 用於沉頭螺絲，位於鉸鏈合上時朝向另一片的那一面，因此螺絲頭齊平；<strong class="ui">「直孔」</strong> 則保持直孔。不設其他數值時，孔平均分配長度並位於每片的中間；<strong class="ui">「孔距（沿軸向）」</strong> 與 <strong class="ui">「孔距（橫向）」</strong> 依中心距設定它們，例如為了對上你要替換的購買鉸鏈。每個孔到邊緣、鉸節與下一個孔之間都至少保留半毫米的片；放不下那麼多時就少放，欄位會說明。<strong class="ui">「邊角半徑」</strong> 會把兩片的四個外角倒圓。無論有無銷軸，孔與圓角在 STEP 匯出與邊緣工具中都保持精確。</p>
+<p>在 <strong class="ui">「葉片形狀」</strong> 下，<strong class="ui">「指扣」</strong> 讓每個鉸節有自己的指片，寬度與鉸節相同，而不是每側一片整板；兩側的指片像兩把梳子一樣交錯。由於沒有指片位於另一側鉸節的下方，鉸鏈可以完全翻轉，使用 <strong class="ui">「帶圓錐」</strong> 樣式且指片與鉸節一樣厚（<strong class="ui">「葉片厚度」</strong> 達到 <strong class="ui">「鉸鏈節直徑」</strong>）時，它能平平地合上，一側的指片夾在另一側的指片之間。沒有板把一側的指片連起來：用列印銷軸時它們掛在銷軸上，用錐體或在裝上你自己的銷軸之前，它們是鬆散的零件。把每一側連接到你的模型上，例如一把梳子連到盒子，另一把連到盒蓋，或與模型群組。這時 <strong class="ui">「邊角半徑」</strong> 會把指尖倒圓；指片不帶螺絲孔。</p>
+<p><strong class="ui">「抬高葉片」</strong> 把前片抬高，使鉸鏈闔上時它平貼在後片上，中間留出 <strong class="ui">「間隙」</strong>：它抬高的量為 <strong class="ui">「鉸鏈節直徑」</strong> 減去兩倍 <strong class="ui">「葉片厚度」</strong> 再減去間隙，並且起點離軸稍遠一些，以保持與其他鉸節之間的間隙。這樣的鉸鏈在兩片相碰之前能開啟到遠遠越過平躺的位置：鉸節 6 mm、葉片 1.1 mm 時，低於 0° 約 125°，也就是從閉合算起約 305°，而一般鉸鏈在 84° 左右就會停住。抬高的葉片是懸空列印的，所以要從平台開始為它加支撐。螺絲孔、沉頭與螺帽槽隨它一起移動，闔上時仍朝向另一片。使用 <strong class="ui">「帶圓錐」</strong> 樣式時，兩片葉片及其間的間隙必須容納在鉸節直徑之內，因此較厚的葉片會被調薄。</p>
+</section><section class="guide-part"><h2 id="flexi"><span class="heading-alias" id="flexi-joints"></span>彈性關節（Flexi）</h2>
+<p><strong class="ui">「可撓關節」</strong> 把一個扁平的實體變成可以活動的小玩偶，例如魚、蛇或龍，一次列印成型（print-in-place）。實體由你自己畫或搭建，例如用草圖或擠出的 SVG。工具沿實體長度橫向把它切成若干節，並在每個切口處加一個關節：一節帶著一根直立的軸，中間比上下兩端粗，下一節帶間隙地把它包住。這樣關節既能卡住又不會黏連，所有斜面都是 45°，不需支撐即可列印。各節之間留出一道楔形缺口，寬度對應各節向兩側擺動的角度。</p>
+<p>選取實體（多個部件會合併，其中的孔會被減去），按下 <strong class="ui">「可撓關節」</strong>。在視窗中設定沿哪一邊切分（<strong class="ui">「較長的一邊」</strong> 取較長的一邊）、<strong class="ui">「關節」</strong> 的數量、<strong class="ui">「間隙」</strong>（一般 0.4 mm 即可）以及 <strong class="ui">「向兩側擺動的角度」</strong> 的角度。關節大小會依實體自動決定；取消 <strong class="ui">「依實體自動決定關節尺寸」</strong> 後可自己填寫 <strong class="ui">「關節直徑」</strong>。取消 <strong class="ui">「各節長度相同」</strong> 後可以設定第一個關節離起點、最後一個離終點的距離，例如讓頭部保持為一整塊。關節所在處，實體至少應約 6 mm 高、12 mm 寬；放不下時，視窗會告訴你是哪一個。</p>
+<p>把 <strong class="ui">「連接方式」</strong> 設為 <strong class="ui">「上下翻折」</strong> 後，各節改為上下翻折，就像柔性鑰匙圈、彩蛋或手環上的條帶。每個切口會變成一個平躺著橫穿物件、位於一半高度的鉸鏈：三個或五個並排的鉸節，輪流屬於兩側的兩節，其中一節的每個鉸節上都有一個 45° 的錐體，伸進另一節相鄰的鉸節裡。鉸節旁邊的切口從側面看是一個 V 形，張開的角度由 <strong class="ui">「上下翻折角度」</strong> 決定。鉸鏈的尺寸取自物件的高度，因此這裡不需要設定關節大小；放鉸鏈的位置物件至少應高 3.5 公釐（5 公釐以上更牢固）、寬約 15–20 公釐。</p>
+<p>結果是一組關節節段（網格）的組合，照擺放的樣子直接列印。如果不滿意切分，復原後換別的數值再試。先用兩三個關節試印一次，就能看出間隙是否適合你的印表機。</p>
+</section><section class="guide-part"><h2 id="knurling">滾花</h2>
+<p><strong class="ui">「滾花」</strong> 是四周佈滿溝槽的圓形握持面，用於旋鈕、撥輪與工具握把。在 <strong class="ui">「圖案」</strong> 下選擇 <strong class="ui">「直紋」</strong>（沿軸線的溝槽，像控制旋鈕）、<strong class="ui">「交叉紋」</strong>（兩排斜向溝槽交叉成小菱形），或 <strong class="ui">「圓紋」</strong>（沿軸線的溝槽與凸脊形成柔和的圓弧波浪，握感舒適而沒有銳利稜線）。圓弧溝槽保持淺於半個節距，否則凸脊會在根部鼓起；深度過大會自動退讓。你設定 <strong class="ui">「直徑」</strong> 與 <strong class="ui">「高度」</strong>、<strong class="ui">「槽數」</strong> 的數量與 <strong class="ui">「槽深」</strong>；交叉滾花還要設定相對軸線的 <strong class="ui">「槽角度」</strong>。<strong class="ui">「兩端倒角」</strong> 以 45 度切開兩端，像車削的旋鈕；0 則保持尖銳。</p>
+<p>直紋與圓弧滾花是精確實體，所以邊可以斷開與倒圓。交叉滾花仍是網格，因為當作精確實體時，30 條溝槽要計算將近一分鐘。要給軸上的旋鈕用，把滾花與一個孔群組，例如設為螺紋孔的 <strong class="ui">「螺紋」</strong>。淺於 0.4 mm 的溝槽幾乎沒有印表機能乾淨印出，而且 layerling 不會讓它們沿握持面間隔小於 0.8 mm：細的握持面得到的溝槽更少。</p>
+</section><section class="guide-part"><h2 id="dovetail">燕尾</h2>
+<p><strong class="ui">「燕尾」</strong> 是一種兩個零件相互扣住、只能從側面滑入的接頭。你設定寬端的寬度、<strong class="ui">「頸部寬度」</strong> 與燕尾的長度。為另一側複製燕尾，並把副本設為孔：<strong class="ui">「作為孔時的間隙」</strong> 就會給出一點間隙，讓接頭列印後不會卡死。</p>
+<aside class="tip"><p><strong>提示：</strong> 群組時，螺紋孔會切入與它重疊的零件。所以把它稍微放進材料裡，而不是只貼著表面。</p></aside>
+</section><section class="guide-part"><h2 id="teardrop-hole">淚滴孔</h2>
+<p>側放的孔列印時頂部會形成橋接，而橋接會下垂。因此 <strong class="ui">「淚滴孔」</strong> 頂部有一個尖點：每一層都支撐在下一層上，孔不需支撐就能印得夠圓。把 <strong class="ui">「直徑（圓形部分）」</strong> 設為孔的尺寸，M3 螺絲約 3.4 mm，並讓 <strong class="ui">「孔長度」</strong> 長到足以穿透零件。<strong class="ui">「尖端角度」</strong> 為 90°，所以兩側在 45° 相接。大多數印表機都能乾淨處理；尖端越平需要越多高度，越陡則越省高度。</p>
+<p>把淚滴孔設為孔，並與零件群組。其長度沿深度方向，尖端朝上。要在另一個方向開孔，就讓它繞垂直軸旋轉 90°。</p>
+<p>側放的<strong>螺紋孔</strong>同樣會在頂部下垂。給它配一個自己的淚滴孔：新增一個 <strong class="ui">「淚滴孔」</strong> 孔，其 <strong class="ui">「直徑（圓形部分）」</strong> 為螺紋芯部，即螺牙讓出的直徑（M10 約 8.4 mm），長度與螺紋孔相同，然後同時選取兩者。點擊 <strong class="ui">「對齊」</strong>，讓它們在中央對齊——淚滴孔的中心是其圓部的中心，而不是含尖端外框的中心，所以兩個圓彼此重合——再把兩者與零件群組。螺紋照常切出，尖端打開孔的頂部，因此不需支撐即可列印。</p>
+</section><section class="guide-part"><h2 id="port-openings"><span class="heading-alias" id="sbc-boards"></span>接頭開孔</h2>
+<p>電子產品外殼需要為線材留開孔。<strong class="ui">「接頭開孔」</strong> 就是這種開孔：一個橫放、帶圓角的挖空體。在 <strong class="ui">「接頭」</strong> 中選擇接頭（<strong class="ui">「USB-C」</strong>、<strong class="ui">「Micro-USB」</strong> 或 <strong class="ui">「USB-A」</strong>），它就會取得該接頭的尺寸，並在每邊多留約 0.25 mm 間隙。<strong class="ui">「USB-C（留出插頭空間）」</strong> 用於裝在壁後方的接頭，插頭外殼需要伸進來。寬度、高度和 <strong class="ui">「圓角半徑」</strong> 都可以手動修改，此時清單會顯示 <strong class="ui">「自訂」</strong>。<strong class="ui">「HDMI」</strong>、<strong class="ui">「Mini-HDMI」</strong>、<strong class="ui">「Micro-HDMI」</strong>、<strong class="ui">「DisplayPort」</strong> 和 <strong class="ui">「Mini DisplayPort」</strong> 像接頭本身一樣把下方的角斜切掉，DisplayPort 只切左下角；<strong class="ui">「RJ45（網路）」</strong> 適用於網路接頭。這些尺寸來自廠商建議的面板開孔和 VESA 圖紙。 <strong class="ui">「額外間隙」</strong> 會在此基礎上在每一側再加間隙，清單仍顯示該接頭：列印的盒子用 0.2 到 0.5 mm，讓電路板能滑進去。</p>
+<p>對於航模電池和馬達，清單裡有<strong class="ui">「XT30」</strong>、<strong class="ui">「XT60」</strong>、<strong class="ui">「MT60（3 針）」</strong>和<strong class="ui">「MPX（Multiplex）」</strong>，橫放，四周比插頭大約寬 0.25 mm，讓插頭能穿過——尺寸取自 Amass 和 Multiplex 的圖紙。<strong class="ui">「D-Sub 9（序列埠，RS-232/RS-485）」</strong>是序列埠（RS-232 或 RS-485）插頭的面板開孔，兩側像插頭一樣傾斜。它的兩個螺絲孔（3.18 mm）一併帶上，相距 24.99 mm，位於開口的中間高度：開口和孔是一個群組，會一起移動和旋轉，與牆壁成組後三者一起被切開。</p>
+<p>對於 Anderson Powerpole（PP15、PP30 和 PP45），清單裡有<strong class="ui">「Powerpole（1 極）」</strong>到<strong class="ui">「Powerpole（4 極）」</strong>：外殼並排拼插，每極 7.9 mm，留出燕尾榫凸舌的位置，四周約有 0.25 mm 餘量——尺寸來自 Anderson 的圖紙。</p>
+<p><strong class="ui">「SBC 主機板」</strong> 是依實際尺寸製作的單板電腦，用來圍繞它設計外殼：帶四個安裝孔的電路板，以及各自上色的元件：輪廓各異的插座——兩端圓形的 USB-C、下角切掉的 HDMI 插座——帶開口的 USB 與網路外殼、帶圓形套環的音訊插孔、每針一個圓點的排針、作為方塊的較大晶片。在 <strong class="ui">「主機板」</strong> 下選擇：Raspberry Pi 5、4 Model B、3 Model B+ 或 Zero 2 W、BIGTREETECH Pi V1.2，或小型 ESP32 板之一：Seeed Studio XIAO ESP32-C6、ESP32-C3 Super Mini 或 ESP32-C6 Super Mini——這些沒有安裝孔，USB-C 在右端，郵票孔接腳顯示為圓點。兩塊 Super Mini 沒有廠商圖紙；它們的尺寸來自社群發布的模型，全部是估計值。帶 USB-C 與 HDMI 的前邊緣朝向你。輪廓與孔來自廠商的圖紙與模型；沒有圖紙給出的高度是估計的。</p>
+<p>電路板顯示其螺絲柱應放在哪裡，以及外殼需要多高。對於開口，在 <strong class="ui">「接頭間隙」</strong> 下給接頭留出餘量——列印外殼用 0.2 到 0.5 mm——把電路板的副本設為孔，放到電路板在外殼中的位置並與外殼群組：邊緣的每個接頭都會在壁上切出它的開口。真實接頭只伸出電路板 1 到 3 mm，比許多壁都薄：<strong class="ui">「穿牆長度」</strong> 讓邊緣的每個接頭在其一側再向外伸出這麼多，從而完全切穿——比壁厚稍多一點。換一塊板或改變設定會在原位重新產生它。每塊板都以同樣的方式使用這兩個設定。</p>
+<p>microSD 卡槽也是左邊緣的接頭，位於電路板下方（Zero 2 W 上在上方），因此延伸量會切出卡穿過壁的通道；這時電路板立在卡槽上，比其底面低 1.4 mm。排線也可以引出：<strong class="ui">「排線向上穿過蓋子」</strong> 讓攝影機、顯示器與 PCIe 接頭向上穿過蓋子開口，<strong class="ui">「排線向側面穿過壁」</strong> 讓每個接頭的開口沿其長邊——排線離開的方向——延伸到較近的邊緣，再加上延伸量；在 Raspberry Pi 5 上，攝影機與顯示器排線從 PCIe 一端引出，三個開口上下疊放，在 Pi 4 與 3 B+ 上攝影機的開口在顯示器的上方。<strong class="ui">「GPIO 排針向上穿過蓋子」</strong> 讓排針向上穿過蓋子，用於 HAT 或杜邦線。向上的部分會伸出其頂部 <strong class="ui">「向上延伸」</strong>，至少 20 mm，並在周圍留出餘量。</p>
+<p>它預設為挖空體，朝向前方。把 <strong class="ui">「深度」</strong> 設得比壁厚稍大，移到電路板上接頭所在的位置，再與外殼組合。用於側壁時，繞垂直軸旋轉 90°。</p>
+</section><section class="guide-part"><h2 id="counterbore-and-countersink">沉頭孔與錐形沉頭孔</h2>
+<p>螺絲頭常常不該凸出。<strong class="ui">「沉頭孔」</strong> 為內六角螺絲（DIN 912）切出圓形沉頭孔，<strong class="ui">「錐形沉頭孔」</strong> 為沉頭螺絲（DIN 7991）切出錐形沉頭孔。兩者都以頭部一端朝上：<strong class="ui">「頭部直徑」</strong> 是沉頭孔或錐面的直徑，<strong class="ui">「桿部直徑」</strong> 是其下方的孔，<strong class="ui">「總長度」</strong> 是總長度。沉頭孔上你設定 <strong class="ui">「頭部深度」</strong>，錐形沉頭孔上設定 <strong class="ui">「錐角」</strong>（90° 適合沉頭螺絲）。預設值適合 M3 螺絲。</p>
+<p><strong class="ui">「雙面錐形沉頭孔」</strong> 是兩面都倒角的孔，用於正面與背面都要整潔的板件。它在形狀庫裡沒有獨立項目：取用 <strong class="ui">「錐形沉頭孔」</strong>，並在其屬性中開啟 <strong class="ui">「兩側」</strong>（本身就是雙面錐形沉頭孔的實體已顯示該開關開啟）：兩端各有一個錐面張開到 <strong class="ui">「頭部直徑」</strong>，中間是 <strong class="ui">「桿部直徑」</strong>。你照舊設定 <strong class="ui">「錐角」</strong> 與 <strong class="ui">「總長度」</strong>。如果孔太短，容不下兩個完整的錐面，它們會以該角度在中央相接，桿部會比你設定的更寬：10 mm 的頭部、6 mm 的桿部、90° 與 2 mm 的長度，會形成兩個從 10 mm 收窄到 8 mm 的錐面。作為孔，它像其他孔一樣被推穿零件。</p>
+<p>把形狀設為孔，並與零件群組。讓它的頂端略高於頭部應貼合的表面，使沉頭孔開口乾淨。要為六角螺帽做沉頭孔，就用六邊的 <strong class="ui">「多邊形」</strong> 當作孔。 在<strong class="ui">「螺絲規格」</strong>中可選 M2 到 M30（錐形沉孔到 M20），軸徑（ISO 273 中等通孔）、頭部直徑以及深度或角度即依標準設定（DIN 974-1、ISO 15065），長度不變。對於六角柱，<strong class="ui">「螺帽槽」</strong>依 ISO 4032 設定螺帽的對邊寬度和高度，並留 0.4 mm 列印餘量。</p>
+<p>鑽出的盲孔底部不是平的，而是鑽頭尖端留下的錐形（Discussion #621）。<strong class="ui">「沉頭孔」</strong>、<strong class="ui">「錐形沉頭孔」</strong>以及設為孔的<strong class="ui">「圓柱體」</strong>都可以這樣收尾：在<strong class="ui">「孔底」</strong>中選擇 90°、118°（常見麻花鑽）或 135° 的鑽尖，或選<strong class="ui">「鑽尖，其他角度」</strong>，再在<strong class="ui">「頂角」</strong>中輸入 60° 到 150° 之間的角度。與圖面相同，深度——圓柱體的<strong class="ui">「高度」</strong>、螺絲孔的<strong class="ui">「總長度」</strong>——只算到錐形開始的台階處；尖端在它下方，118° 時約為直徑的 0.3 倍，角度下方的一行會寫出具體多深。錐形與孔一樣寬，螺絲孔則與桿部一樣寬。<strong class="ui">「平底」</strong>讓孔底保持原樣。實體圓柱體保留平的端面，貫通的雙面錐形沉頭孔也一樣。</p>
+<p>長孔讓零件在鎖緊螺絲前仍能稍微移動，方便對齊（Discussion #1531）。在<strong class="ui">「沉頭孔」</strong>、<strong class="ui">「錐形沉頭孔」</strong>或<strong class="ui">「雙面錐形沉頭孔」</strong>上開啟<strong class="ui">「長孔」</strong>：沉頭孔或錐面以及孔身會繞過長孔的兩端，並沿其兩側筆直延伸。<strong class="ui">「長孔長度」</strong>決定延伸多長；起初與頭部一樣寬，沿寬度方向——要換方向就旋轉該孔。<strong class="ui">「頭部直徑」</strong>和<strong class="ui">「螺絲規格」</strong>只改變頭部，長孔保持不變。長孔沒有鑽尖，和圓孔一樣是精確實體。</p>
+<p><strong class="ui">「裝飾墊圈」</strong>（一種裝飾墊圈，Discussion #1131）是放在沉頭或半沉頭螺絲下面的拱形墊圈，用於在木頭或蓋板上顯得整潔。它是實心件，底面平；從較低的邊緣起，拱頂升到座面，座面是承托螺絲頭的錐面，下面是孔。在 <strong class="ui">「螺絲規格」</strong> 下選擇 M2 到 M20：孔是該規格的過孔，座面是該規格的沉頭孔，<strong class="ui">「直徑」</strong> 與 <strong class="ui">「高度」</strong> 由此得出（M3：10.3 × 2.95 mm，M6：16.6 × 4.5 mm）。你也可以自己設定 <strong class="ui">「直徑」</strong>、<strong class="ui">「高度」</strong>、<strong class="ui">「中心孔」</strong>、座面頂部的 <strong class="ui">「頭部直徑」</strong> 及其 <strong class="ui">「錐角」</strong>。它保持圓形，並且是精確實體，因此邊緣工具與 STEP 都能處理它。</p>
+</section><section class="guide-part"><h2 id="screw-boss">螺絲柱</h2>
+<p><strong class="ui">「螺絲柱」</strong> 是外殼裡用來鎖固蓋子或電路板的柱子：圓形，從頂部開孔。在 <strong class="ui">「固定方式」</strong> 中選擇裝入什麼。<strong class="ui">「熱熔螺帽」</strong> 是用烙鐵壓入的黃銅螺帽：<strong class="ui">「規格」</strong> 提供 M2 到 M5 以及 #2-56 到 1/4-20，孔依常見熱熔螺帽的要求（M3：長 5.7 mm 的螺帽用 4.0 mm 孔），比螺帽深一公釐，讓被擠開的塑膠有地方去，柱子約為孔的兩倍粗。<strong class="ui">「塑膠用自攻螺絲」</strong> 自己攻出螺紋：ST2.2 到 ST4.2（DIN 7981）、2.5 到 5 mm (K25–K50) 的塑膠螺絲或 #2 到 #10，底孔約為螺絲的 0.8 倍，柱子 2.5 倍，孔深約 2.5 個螺絲直徑。<strong class="ui">「自訂孔」</strong> 使用你輸入的孔徑和孔深。</p>
+<p><strong class="ui">「孔徑」</strong>、<strong class="ui">「孔深」</strong> 和 <strong class="ui">「外徑」</strong> 都可以手動修改；直徑下方會顯示孔周壁厚，如果比固定方式要求的薄會提示。孔與柱子一樣深時為通孔。孔口有一個小倒角，方便螺帽或螺絲進入。<strong class="ui">「支撐肋」</strong> 從柱子到底面加上兩到六條細肋；<strong class="ui">「含肋寬度」</strong>、<strong class="ui">「肋高」</strong> 和 <strong class="ui">「肋厚」</strong> 設定它們伸出多遠、多高、多厚。</p>
+<p>把螺絲柱立在已薄殼的盒子底面上並與盒子群組；在蓋子上，其上方作為孔的 <strong class="ui">「沉頭孔」</strong> 用來容納螺絲頭。設為孔並與實心零件組合時，它只切出自己的孔——放嵌件或螺絲的孔腔及其倒角——這樣你自己的塊或立柱就得到一個用於嵌件的盲孔；孔從它的頂面開始。列印出來的孔會比圖面略小：先列印一個柱子試試，再把 <strong class="ui">「孔徑」</strong> 調整零點一兩公釐。</p>
+</section><section class="guide-part"><h2 id="snap-fit">卡扣</h2>
+<p>能扣合的蓋子不需要螺絲。<strong class="ui">「卡扣」</strong> 是帶底座的卡鉤及其配對件卡座。<strong class="ui">「部件」</strong> 設為 <strong class="ui">「卡鉤和卡座」</strong> 時，兩者都位於扣合後的位置，可以一起放到蓋子和盒子上；<strong class="ui">「僅卡鉤」</strong> 或 <strong class="ui">「僅卡座」</strong> 只產生其中一個。卡齒下方是讓它滑入的斜面，即 <strong class="ui">「導入角」</strong>（30° 容易插入），上方是保持面：<strong class="ui">「保持角」</strong> 為 90° 時永久卡住，45° 時還能拆開。<strong class="ui">「倒扣深度」</strong> 是卡齒伸到卡座下方的深度，<strong class="ui">「間隙」</strong> 是兩者之間的間隙。</p>
+<p>扣合時懸臂會彎曲一個倒扣深度。<strong class="ui">「懸臂厚度」</strong> 下方顯示根部的拉伸量：PLA 約 2 % 以上會斷，PETG 和 ABS 可承受約 4 %。懸臂更長或更薄，或倒扣更小，拉伸就更小。這一對的擺放就像在直立列印的盒子裡，蓋子在上：卡鉤掛在底座下面，卡座頂面傾斜 45°，只有與倒扣深度一樣寬的保持面平伸出來，所以在壁上列印不需支撐。</p>
+<p>把這一對放在蓋子與盒壁相接的地方：卡鉤底座在蓋子下面，卡座背面貼在盒壁內側。然後用 <strong class="ui">「分離部件」</strong> 把它們分成兩個實體；卡鉤與蓋子群組，卡座與盒子群組。盡量讓蓋子列印時懸臂平躺：直立的懸臂會垂直於層彎曲，更容易斷。</p>
+</section><section class="guide-part"><h2 id="ribs">加強肋</h2>
+<p><strong class="ui">「加強肋」</strong> 用來加強底面或側壁。作為 <strong class="ui">「直肋」</strong>，長度、高度和厚度都依你的設定，<strong class="ui">「頂部」</strong> 可以是平的、圓的或倒角的。作為 <strong class="ui">「三角補強板」</strong>，它是把側壁撐在底面上的三角形：<strong class="ui">「沿底面」</strong> 沿底面，<strong class="ui">「沿壁面」</strong> 沿壁面向上，兩端都切短一點，方便乾淨地列印。</p>
+<p>開啟 <strong class="ui">「底腳」</strong> 後，加強肋沿整條長度立在一塊薄板上，位於板的中間，板比肋寬（<strong class="ui">「三角補強板」</strong> 的底腳在沿底面的那條邊下方）；薄板讓肋牢牢附著在列印平台或底面上，更薄的肋也能立得住。底腳起初是肋的三倍寬、0.8 mm 厚；<strong class="ui">「底腳寬度」</strong> 依整個寬度計算，所以形狀和底腳一樣寬，<strong class="ui">「底腳厚度」</strong> 從底部往上算。</p>
+<p><strong class="ui">「底腳形狀」</strong> 可選 <strong class="ui">「方形」</strong> 或 <strong class="ui">「橢圓形」</strong>。橢圓形底腳從上面看是一個橢圓，沒有轉角，塑料冷卻收縮時不會從列印平台上翹起。它和底腳一樣寬，長度恰好讓它在肋的兩端仍有肋的兩倍寬，這樣兩端也立在底腳上（三角補強板下方則是半個橢圓，從壁面一直延伸到尖端之外）。底腳比肋的約 2.7 倍還窄時，橢圓會很長：它最長到肋長的 1.5 倍，但絕不會短到讓兩端懸空。形狀會因伸出兩端的部分而變長，肋本身的長度不變。</p>
+<p>厚度與壁厚相當或略薄、為線寬整數倍（0.4 mm 噴嘴用 0.8 或 1.6 mm）、高度為厚度幾倍的加強肋，既能加強又不會讓壁面變形。多條排成一列用 <strong class="ui">「陣列」</strong>；把它們與盒子群組。</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/zh-tw/text.html"><small>上一章</small>文字與弧形文字</a><a class="next" href="/api/desktop/layerling/ui/zh-tw/measuring-and-notes.html"><small>下一章</small>量測與備註</a></div>
+      </main>
+    </div>
+    <footer class="note">本指南隨程式一同完善。如有缺漏或錯誤，請到 <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">討論區告訴我們</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=zh-tw" rel="noopener">支援專案</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">討論區</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">在 GitHub 上了解更多</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">版本說明 v1.154.1</a></div><p class="trademark">Tinkercad 是 Autodesk, Inc. 的商標。layerling 是獨立專案，與 Autodesk 無關聯，也未獲其認可或贊助。</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="返回編輯器";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="開啟編輯器";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

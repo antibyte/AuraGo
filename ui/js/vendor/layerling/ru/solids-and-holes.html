@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Тела и отверстия - Руководство layerling</title>
+    <meta name="description" content="Как из простых фигур получаются отверстия, пазы и углубления и как потом снова изменить группу.">
+    <link rel="canonical" href="https://layerling.com/ru/solids-and-holes.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/solids-and-holes.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/solids-and-holes.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/solids-and-holes.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/koerper-und-aussparungen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/solids-and-holes.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/solids-and-holes.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/solids-and-holes.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/solids-and-holes.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/lichamen-en-gaten.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/solids-and-holes.html">
+    <link rel="alternate" hreflang="pt-BR" href="https://layerling.com/guia/solids-and-holes.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/telesa-in-luknje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/solids-and-holes.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/solids-and-holes.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/solids-and-holes.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/solids-and-holes.html">
+    <meta property="og:title" content="Тела и отверстия - Руководство layerling">
+    <meta property="og:description" content="Как из простых фигур получаются отверстия, пазы и углубления и как потом снова изменить группу.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/ru/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Руководство</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/ru/search-index.json" data-nothing="Ничего не найдено." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Поиск по руководству" aria-label="Поиск по руководству" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Язык">Русский</summary><ul><li><a href="/api/desktop/layerling/ui/guide/solids-and-holes.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/solids-and-holes.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/solids-and-holes.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/solids-and-holes.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/solids-and-holes.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/solids-and-holes.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/solids-and-holes.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/solids-and-holes.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/solids-and-holes.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/solids-and-holes.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/telesa-in-luknje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/solids-and-holes.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/solids-and-holes.html" hreflang="ru" lang="ru" aria-current="true">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/solids-and-holes.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/solids-and-holes.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/solids-and-holes.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/solids-and-holes.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Открыть редактор</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Редактор уже открыт в другой вкладке — просто переключитесь туда.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Главы"><h2>Главы</h2><p class="print-link"><a href="/api/desktop/layerling/ui/ru/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Всё руководство для печати</span></a></p><ol><li><a href="/api/desktop/layerling/ui/ru/getting-started.html">С чего начать</a></li><li><a href="/api/desktop/layerling/ui/ru/view-and-workplane.html">Вид и рабочая плоскость</a></li><li><a href="/api/desktop/layerling/ui/ru/shapes.html">Размещение и настройка фигур</a></li><li><a href="/api/desktop/layerling/ui/ru/select-and-arrange.html">Выделение и упорядочивание</a></li><li><a href="/api/desktop/layerling/ui/ru/solids-and-holes.html" aria-current="page">Тела и отверстия</a></li><li><a href="/api/desktop/layerling/ui/ru/edges-and-hollowing.html">Обработка кромок и выдолбливание тел</a></li><li><a href="/api/desktop/layerling/ui/ru/sketches.html">Эскизы: от контура к телу</a></li><li><a href="/api/desktop/layerling/ui/ru/text.html">Текст и надписи по дуге</a></li><li><a href="/api/desktop/layerling/ui/ru/threads-and-mechanics.html">Резьба, шестерни и другие детали</a></li><li><a href="/api/desktop/layerling/ui/ru/measuring-and-notes.html">Измерения и заметки</a></li><li><a href="/api/desktop/layerling/ui/ru/printing.html">Подготовка к 3D-печати</a></li><li><a href="/api/desktop/layerling/ui/ru/files-and-saving.html">Файлы, сохранение и обмен</a></li><li><a href="/api/desktop/layerling/ui/ru/shortcuts.html">Сочетания клавиш</a></li><li><a href="/api/desktop/layerling/ui/ru/ai-with-mcp.html">Создание с помощью ИИ (MCP)</a></li><li><a href="/api/desktop/layerling/ui/ru/offline-and-install.html">Установка как приложения, работа офлайн и свой сервер</a></li><li><a href="/api/desktop/layerling/ui/ru/videos.html">Видео о layerling</a></li><li><a href="/api/desktop/layerling/ui/ru/tablet-and-touch.html">Планшет и сенсорный экран</a></li></ol></nav>
+      <main>
+<h1>Тела и отверстия</h1>
+<p class="lead">Как из простых фигур получаются отверстия, пазы и углубления и как потом снова изменить группу.</p>
+<div class="toc"><b>На этой странице</b><ul><li><a href="#telo-ili-otverstie">Тело или отверстие</a></li><li><a href="#gruppirovka">Группировка</a></li><li><a href="#svyazka">Связка</a></li><li><a href="#peresechenie">Пересечение</a></li><li><a href="#vyrezanie-odnogo-tela-iz-drugogo">Вырезание одного тела из другого</a></li><li><a href="#probivka-kontura-skvoz-telo">Пробивка контура сквозь тело</a></li><li><a href="#izmenenie-gruppy">Изменение группы</a></li><li><a href="#razdelenie">Разделение</a></li><li><a href="#razdelenie-na-chasti">Разделение на части</a></li></ul></div>
+<p>Это самая важная мысль в layerling, и она быстро усваивается: <strong>каждая фигура - это тело или отверстие.</strong> Тело остаётся. Отверстие - инструмент, который убирает материал.</p>
+<section class="guide-part"><h2 id="telo-ili-otverstie"><span class="heading-alias" id="solid-or-hole"></span>Тело или отверстие</h2>
+<p>Выделите фигуру и нажмите <strong class="ui">«Тело»</strong> или <strong class="ui">«Отверстие»</strong> в её настройках. Клавиатура быстрее: <kbd>H</kbd> превращает выделение в отверстие, <kbd>S</kbd> снова делает его телом. Оба переключателя есть и в меню, которое открывает правый щелчок по телу. Отверстие показывается прозрачным, чтобы было видно, где оно стоит. <kbd>T</kbd> делает тело прозрачным — скажем, чтобы заглянуть внутрь корпуса; повторное нажатие снова делает его непрозрачным. Это работает на всё выделение: если хотя бы одно тело уже прозрачное, все становятся непрозрачными, иначе — все прозрачными.</p>
+<p>Пока ничего не сгруппировано, с отверстием ничего не происходит. Оно просто лежит и показывает, где что-то исчезнет позже.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hole-before.webp" alt="Цилиндр - отверстие. Он торчит из верхней грани куба, чтобы прорезать его насквозь." width="1280" height="800" loading="lazy"><figcaption>Цилиндр - отверстие. Он торчит из верхней грани куба, чтобы прорезать его насквозь.</figcaption></figure>
+</section><section class="guide-part"><h2 id="gruppirovka"><span class="heading-alias" id="grouping"></span>Группировка</h2>
+<p>Выделите тела и отверстие (или несколько отверстий) и нажмите <strong class="ui">«Сгруппировать»</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>G</kbd></span>). Теперь отверстия убирают материал из тел, которых они касаются. Остаётся одна-единственная новая фигура.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hole-after.webp" alt="Результат: куб с отверстием." width="1280" height="800" loading="lazy"><figcaption>Результат: куб с отверстием.</figcaption></figure>
+<p>Так получаются:</p>
+<ul><li>Сквозные отверстия: цилиндр в роли отверстия насквозь через тело.</li><li>Пазы: вытянутый куб в роли отверстия у края.</li><li>Углубления: отверстие, которое не проходит насквозь.</li><li>Резьба в детали: резьбовое отверстие в роли отверстия, см. Резьба, шестерни и другие детали.</li></ul>
+<p>Если в группе несколько тел, они соединяются. Два соприкасающихся тела становятся одной деталью.</p>
+<p>С большими сетками, например с импортированным STL из сотен тысяч треугольников, вырезание занимает несколько секунд. layerling тогда работает в фоне и показывает «<strong class="ui">«Идёт расчёт… можно продолжать работу»</strong>»; тем временем можно вращать вид и пользоваться интерфейсом. Если за это время изменить сцену, результат отбрасывается, и layerling об этом сообщает. То же относится к <strong class="ui">«Разделение»</strong>.</p>
+<p>С группой можно обращаться как с фигурой: перемещать, поворачивать, красить, снова группировать. <strong class="ui">«Разгруппировать»</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span>) разбирает её, и отдельные детали возвращаются.</p>
+<section class="guide-part"><h3 id="kak-sdelat-gruppu-otverstiem"><span class="heading-alias" id="making-a-group-a-hole"></span>Как сделать группу отверстием</h3>
+<p>Целая группа тоже может быть телом или отверстием. Здесь действует простое правило:</p>
+<ul><li>Если группа состоит только из тел (или только из отверстий), вы переключаете её целиком, и её детали следуют за ней.</li><li>Если в ней есть и то, и другое — скажем, куб с отверстием, — каждая деталь сохраняет своё состояние. Вся группа тогда становится инструментом, но отверстие остаётся отверстием.</li></ul>
+</section><section class="guide-part"><h3 id="izmenenie-razmera-gruppy-otverstiya-i-melkie-detali-sokhranyayutsya"><span class="heading-alias" id="resizing-a-group-keeping-holes-and-small-parts"></span>Изменение размера группы: отверстия и мелкие детали сохраняются</h3>
+<p>Если сделать группу длиннее, шире или выше, её детали растягиваются вместе с ней, словно нарисованы на резине: круглые отверстия в пластине становятся овальными и сдвигаются внутрь. Чтобы они остались как есть, выберите <strong class="ui">«Сохранять отверстия и мелкие детали»</strong> в пункте <strong class="ui">«При изменении размера»</strong> в настройках группы; без этого выбора действует <strong class="ui">«Растягивать всё»</strong>, как и раньше у любой группы. С этого момента при каждом изменении размера - ручками, в полях размеров или через <strong class="ui">«Масштаб в процентах»</strong> - группа заново собирается из своих деталей по одному правилу, для каждого направления отдельно:</p>
+<ul><li>Деталь, которая проходит почти через всю группу, на девять десятых или больше, растёт или уменьшается вместе с ней и сохраняет расстояние до обеих сторон: сама пластина, стенка или внутренность коробки, стенки которой остаются той же толщины.</li><li>Любая другая деталь сохраняет свой размер и расстояние до ближайшей стороны. Деталь посередине остаётся посередине.</li></ul>
+<p>Пластина с отверстием в 5 мм от каждого угла и пазом посередине, удлинённая на 40 мм, сохраняет отверстия круглыми и в 5 мм от углов, а паз посередине. За этим не стоит решатель ограничений, и ничего не нужно настраивать для каждой детали: одно и то же правило действует для всех деталей, поэтому заранее понятно, что произойдёт. Повёрнутая деталь учитывается по габариту, который она занимает в группе, и остаётся повёрнутой; группа внутри группы считается одной деталью. Пока вы тянете ручку, группа растягивается целиком; когда отпускаете, она пересобирается, в том же шаге отмены. Если группа становится меньше, чем нужно детали вместе с её расстоянием, эта деталь, как и раньше, уменьшается вместе с группой, и об этом сообщается. Отражённая, сужающаяся или закрученная группа, а также группа со своими скруглениями, фасками или текстурой, всегда растягивает всё. Если выбрать эту настройку для уже растянутой группы, её детали сразу расставляются заново.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/group-keep-parts.webp" alt="Пластина с отверстием в 5 мм от каждого угла и пазом посередине, удлинённая на 40 мм с настройкой «Сохранять отверстия и мелкие детали»: отверстия по-прежнему круглые и в 5 мм от углов, паз по-прежнему посередине." width="1280" height="800" loading="lazy"><figcaption>Пластина с отверстием в 5 мм от каждого угла и пазом посередине, удлинённая на 40 мм с настройкой «Сохранять отверстия и мелкие детали»: отверстия по-прежнему круглые и в 5 мм от углов, паз по-прежнему посередине.</figcaption></figure>
+</section></section><section class="guide-part"><h2 id="svyazka"><span class="heading-alias" id="bundling"></span>Связка</h2>
+<p>Иногда детали должны лишь держаться вместе, не становясь одной, — например, белый логотип на чёрной пластине для многоцветной печати. Для этого есть <strong class="ui">«Связать»</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>B</kbd></span>), как в Tinkercad. Связка перемещается, поворачивается и меняет размер как фигура, но ничего не объединяется:</p>
+<ul><li>Каждая деталь сохраняет свой цвет и остаётся телом или отверстием. У настроек связки те же карточки, что у группы: <strong class="ui">«Тело»</strong> и <strong class="ui">«Отверстие»</strong> для всей связки (сохраняющие цвета деталей), <strong class="ui">«Прозрачный»</strong> (<kbd>T</kbd>) и <strong class="ui">«Многоцветность»</strong> (<span dir="ltr"><kbd>Shift</kbd>+<kbd>M</kbd></span>); с выключенной многоцветностью связка показывается и экспортируется одним цветом. <strong class="ui">«Разделить на части»</strong> разбирает связку, как <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span>.</li><li>Отверстия ничего не вырезают.</li><li>При экспорте в STL, 3MF или OBJ каждая деталь — отдельное тело; в 3MF и OBJ — со своим цветом.</li></ul>
+<p><strong class="ui">«Разгруппировать»</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span>) снова разбирает связку, <kbd>E</kbd> открывает её для изменения, как группу. Фаска, скругление и создание оболочки не работают на связке, потому что это не одно тело: для этого сгруппируйте её или обрабатывайте детали по одной. Если отверстие в связке всё же должно резать, сгруппируйте связку (Ctrl+G).</p>
+</section><section class="guide-part"><h2 id="peresechenie"><span class="heading-alias" id="intersection"></span>Пересечение</h2>
+<p><strong class="ui">«Пересечение»</strong> оставляет только то, что есть общего у двух или более тел. Положите две перекрывающиеся фигуры друг на друга, выделите обе и нажмите его. Так цилиндр и куб превращаются в деталь с одной круглой и одной прямой стороной. Группа учитывается по тому, как она выглядит, — включая отверстия. Если выделено и отверстие, остаётся то, что есть общего у всех тел со всеми отверстиями. Если у фигур нет ничего общего, ничего не меняется, и сообщение об этом говорит. Первое нажатие показывает общую часть до применения: выбранные фигуры становятся прозрачными, а то, что у них общего, рисуется зелёным. Выбирайте и двигайте каждую фигуру отдельно, зелёная часть следует за ними; повторное нажатие <strong class="ui">«Пересечение»</strong> применяет её, <kbd>Esc</kbd> закрывает предпросмотр. Фигуры со слишком большим числом треугольников для предпросмотра, например крупные импортированные сетки, пересекаются уже по первому нажатию.</p>
+<p><strong class="ui">«Оболочка»</strong> оборачивает выделенные фигуры в одно выпуклое тело, словно в термоусадочную плёнку: наименьшее тело без вмятин, которое вмещает их все. Полусфера на цилиндре становится куполом без ступеньки, четыре цилиндра по углам — коробкой со скруглёнными углами, две сферы — капсулой. Отверстия в выделении потом вырезаются из оболочки. Детали остаются внутри: <strong class="ui">«Изменить группу»</strong> открывает оболочку как группу, а перемещение детали там и закрытие строит оболочку заново. Оболочка — сетка, поэтому круглые фигуры видны с гранями, а инструменты кромок работают с ней как с любой сеткой. Если выделены только отверстия, оболочка сама становится отверстием: два цилиндрических отверстия вырезают паз. Оболочка заполняет всё, что пусто в её деталях: трубу, цилиндр, выдолбленный инструментом <strong class="ui">«Оболочка»</strong>, деталь, сгруппированную со своими отверстиями. Включите <strong class="ui">«Сохранять отверстия деталей»</strong> в Свойствах, чтобы они остались открытыми: тогда оболочка заполняет только пространство между деталями, и выемка сбоку детали тоже сохраняется.</p>
+<p><strong class="ui">«Формочка для печенья»</strong> делает из выделения формочку для печенья: тонкую стенку вокруг контура высотой 15 мм и плоский бортик 2 мм вокруг её основания, чтобы формочка стояла на бортике, а большому пальцу было на что нажимать. Выделите один импортированный SVG или одно тело из эскиза, и используется его собственный контур. Лежащий текст даёт собственные кривые своих букв. Любая другая фигура — построенная, импортированная сетка или несколько деталей — даёт то, на чём она стоит: контур, который рабочая плоскость вырезает сквозь неё, поэтому сначала поставьте её на рабочую плоскость. Перекрывающиеся детали дают один контур вокруг всех, как будто они сгруппированы; отдельные детали дают каждая свою формочку в одной связке. Контур зеркалится слева направо: формочка печатается стоя на бортике и переворачивается для вырезания, так что текст или логотип выходит из теста правильно. Верх стенки сходится в режущую кромку шириной 0,4 мм. Отверстия в контуре, внутренность e или a, получают собственные стенки, так что их тоже вырезает из печенья. Они — отдельное тело в связке, <strong class="ui">«Внутренние стенки»</strong>: чтобы текст или узор только вдавливался в тесто, а не вырезался, сделайте их ниже в Свойствах. При стенке 15 мм и тесте толщиной 5 мм внутренние стенки 12 мм вдавливают на 2 мм. Внутренние стенки ниже наружной имеют плоский верх вместо режущей кромки: они только давят, а кромка оставила бы тонкие кончики, которые отламываются, и бороздки, в которых застревает тесто. Дайте им кромку в Свойствах, если она нужна. Два мостика у бортика, со стороны, на которую давит рука, держат каждую внутреннюю стенку у окружающей её стенки, распределённые вокруг, шириной 4 мм и высотой 3 мм. Каждый мостик стоит всей шириной на стенках, посередине стороны, идущей вдоль контура, и никогда не поперёк другого элемента. Элементы рядом, например буквы имени, тоже соединяются друг с другом, сначала ближайшие, так что мостики проходят сетью через все, и буква посреди слова тоже держится. Щелчок по инструменту открывает маленькое окно: там вместо мостиков можно выбрать <strong class="ui">«Пластина»</strong>, которая заполняет весь контур со стороны нажатия, устойчивее и лучше держится на столе принтера, но больше не позволяет выдавить тесто сзади. <strong class="ui">«Галтели»</strong> добавляет небольшие откосы 45° там, где стенки стоят на бортике, мостиках или пластине, чтобы тонкие детали вроде точки над i не отламывались; они — отдельное тело в связке. Там же задаётся, насколько ниже внутренние стенки и зеркалится ли контур; значения сохраняются для следующей формочки. Меняйте их высоту в Свойствах, как высоту бортика. Формочка заменяет выделение связкой тел из эскиза, <strong class="ui">«Изменить группу»</strong> её открывает. Стенка, внутренние стенки и бортик — режимы заливки эскиза, линия снаружи силуэта: меняйте толщину, высоту или цвет каждого в Свойствах, и там же <strong class="ui">«Режущая кромка»</strong> стенки (0 для плоского верха). Где крутой изгиб не оставляет места для фаски с обеих сторон, стенка скашивается только снаружи, до той же кромки. Где контур вообще нельзя скосить — логотип с острыми концами, контур, вырезанный из треугольников тела, — кромка вместо этого строится мелкими ступеньками по 0,1 мм, которые слой печати 0,2 мм не отличит от откоса; такая стенка — сетка треугольников, а не точное тело. Чтобы сохранить контур как нарисован, отзеркальте формочку обратно через <strong class="ui">«Отразить»</strong>, <strong class="ui">«слева-справа»</strong>. Подходит и картинка PNG или JPG: при импорте она обводится в тело из эскиза, и формочка следует ему.</p>
+<p><strong class="ui">«Переход между эскизами»</strong> соединяет два тела из эскиза или импортированных SVG в одно тело: контур нижнего внизу, контур верхнего вверху, с прямыми стенками между ними. Так получается воронка, переходник с квадрата на круг или рамка, сужающаяся кверху. Поставьте два тела одно над другим, где им место, сдвинутые и повёрнутые, если нужно, выделите оба и нажмите инструмент. Лофт идёт от низа нижнего тела до верха верхнего.</p>
+</section><section class="guide-part"><h2 id="vyrezanie-odnogo-tela-iz-drugogo"><span class="heading-alias" id="cutting-one-body-out-of-another"></span>Вырезание одного тела из другого</h2>
+<p>Для деталей, которые должны подходить друг к другу, вала во втулке или болта в корпусе, ты делаешь одну деталь и вырезаешь её из другой. Выдели оба тела и нажми <strong class="ui">«Вырезать»</strong> в области <strong class="ui">«Объединение»</strong> или щёлкни правой кнопкой и выбери это там. Окно называет деталь, которая остаётся, и тело, которое получает полость; layerling берёт меньшее за деталь, а <strong class="ui">«Поменять местами»</strong> меняет их местами. <strong class="ui">«Зазор»</strong> делает полость вокруг детали настолько больше: 0 подходит точно, 0,2 мм — обычный зазор для напечатанной посадки. <strong class="ui">«Вырезать»</strong> вырезает копию детали из другого тела и оставляет саму деталь на месте. Результат — группа: <strong class="ui">«Разгруппировать»</strong> снова разбирает вырез. Для зазора деталь должна быть точным телом, как у инструмента <strong class="ui">«Смещение»</strong>, которым это делается.</p>
+</section><section class="guide-part"><h2 id="probivka-kontura-skvoz-telo"><span class="heading-alias" id="punching-an-outline-through-a-body"></span>Пробивка контура сквозь тело</h2>
+<p>Чтобы вырезать контур одного тела насквозь через другое, выберите сначала пуансон, затем тело для пробивки и нажмите <strong class="ui">«Пробить»</strong> в области <strong class="ui">«Объединение»</strong> или выберите команду по правому щелчку. Тела не обязаны касаться: пуансон может стоять где угодно перед телом, важен только его контур вдоль выбранного направления (<strong class="ui">«Направление»</strong>). Чайник над пластиной оставит в ней отверстие в форме чайника. layerling начинает с оси, вдоль которой пуансон стоит дальше всего от тела; X идёт слева направо, Y спереди назад, Z вверх. <strong class="ui">«Поменять местами»</strong> меняет роли, а <strong class="ui">«Зазор»</strong> увеличивает отверстие со всех сторон, 0,2 мм для напечатанной детали, которая должна пройти сквозь него. <strong class="ui">«Пробить»</strong> группирует отверстие с телом как точное тело эскиза в режиме отверстия, поэтому <strong class="ui">«Разгруппировать»</strong> снова его убирает; пуансон остаётся на месте. Сдвиньте или поверните его и пробейте снова, чтобы получить другое отверстие.</p>
+</section><section class="guide-part"><h2 id="izmenenie-gruppy"><span class="heading-alias" id="editing-a-group"></span>Изменение группы</h2>
+<p>Если отверстие получилось слишком маленьким, не нужно разбирать группу и собирать её заново. Выделите группу и нажмите <strong class="ui">«Изменить группу»</strong> в её настройках, значок папки в списке объектов или клавишу <kbd>E</kbd>. Двойной щелчок по группе открывает её так же, как в Tinkercad, — и по связке тоже; если вам этого не хочется, отключите <strong class="ui">«Двойной щелчок открывает группу или связку»</strong> в настройках. Деталь начинает двигаться, только когда указатель протащили на несколько пикселей, поэтому дрогнувший щелчок или двойной щелчок не сдвинет её с места. Теперь детали лежат отдельно, и вы меняете их любым инструментом: увеличиваете отверстие, перемещаете тело, добавляете отверстие.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/open-group.webp" alt="Группа в режиме изменения: внизу полоса с кнопками отмены и завершения, а список объектов показывает детали." width="1280" height="800" loading="lazy"><figcaption>Группа в режиме изменения: внизу полоса с кнопками отмены и завершения, а список объектов показывает детали.</figcaption></figure>
+<p>Внизу экрана появляется полоса. <strong class="ui">«Готово»</strong> пересобирает группу вместе с её именем, цветом и состоянием — тело или отверстие. <strong class="ui">«Отмена»</strong> возвращает её без изменений.</p>
+<p>Если одна из деталей сама является группой, её можно изменить так же, и так до любой глубины вашего проекта. Полоса показывает, где вы находитесь, например «Кронштейн › Бобышка под винт». <strong class="ui">«Готово»</strong> и <strong class="ui">«Отмена»</strong> всегда завершают самую внутреннюю группу и возвращают вас на уровень выше. Пока вы внутри группы, можно изменять только группы среди её деталей; чтобы изменить другую, сначала завершите текущую.</p>
+<p>В отличие от <strong class="ui">«Разгруппировать»</strong>, который разбирает группу навсегда, изменение сохраняет группу: её имя и настройки остаются, и вы всегда можете вернуться кнопкой <strong class="ui">«Отмена»</strong>.</p>
+<p>Одно замечание: скругления и фаски, сделанные на всей группе, при пересборке теряются. Полоса об этом сообщает.</p>
+</section><section class="guide-part"><h2 id="razdelenie"><span class="heading-alias" id="splitting"></span>Разделение</h2>
+<p><strong class="ui">«Разделение»</strong> в области <strong class="ui">«Изменение»</strong> разделяет выделение надвое плоскостью — например, деталь, которая не влезает на стол печати, или ту, внутрь которой хочется заглянуть. Выделите одно или несколько тел или отверстий и нажмите его. Полупрозрачная плоскость разделения показывает, где именно пройдёт разделение; ничего не меняется, пока вы его не примените.</p>
+<ul><li><strong class="ui">«Ориентация плоскости»</strong>: X даёт вертикальное разделение между левым и правым, Y — между передним и задним, Z — горизонтальное между верхом и низом. Оси названы как на карточке положения, Z направлена вверх; исходная ориентация плоскости — Z.</li><li><strong class="ui">«Выровнять по рабочей плоскости»</strong>: <strong class="ui">«Параллельно»</strong> кладёт плоскость параллельно рабочей плоскости, <strong class="ui">«Поперёк X»</strong> и <strong class="ui">«Поперёк Y»</strong> ставят её перпендикулярно, поперёк её направления X или Y. Если начало рабочей плоскости проходит через выделение, плоскость идёт через него, иначе через середину. Так ты кладёшь рабочую плоскость клавишей <kbd>W</kbd> на наклонную грань и режешь ровно там, не крутя ползунки поворота.</li><li><strong class="ui">«Положение плоскости»</strong>: где плоскость пересекает модель — ползунком или вводом числа. По умолчанию — посередине. Можно и потащить наконечник стрелки на самой плоскости: она движется вдоль стрелки с шагом 0,1 мм.</li><li><strong class="ui">«Выбрать грань»</strong>, кнопка рядом с положением, кладёт плоскость на грань: нажмите её, затем щёлкните по грани. Ориентация, оба поворота и положение подстраиваются под грань. Пока вы выбираете, синяя плоскость под указателем показывает, на какую грань она ляжет. Подойдёт и грань невыделенного тела — чтобы выровнять по ней разделение, — но сама плоскость остаётся в пределах выделения. <kbd>Esc</kbd> прекращает выбор и оставляет плоскость на месте.</li><li>Два ползунка поворота ниже вращают плоскость вокруг двух других осей — до 180° в каждую сторону — для разделения под углом. Их можно сочетать.</li></ul>
+<p><strong class="ui">«Разделить модель»</strong> или <kbd>Enter</kbd> выполняет разделение, <kbd>Esc</kbd> отменяет (если вы выбирали грань, первый <kbd>Esc</kbd> лишь прекращает выбор). Каждый объект, который пересекла плоскость, становится двумя замкнутыми телами, названными по своей стороне, например «Куб (Z+)» и «Куб (Z-)»; объекты, которых плоскость не коснулась, остаются как были. Отверстие становится двумя отверстиями, а тело с оболочкой сохраняет полость. Обе половины остаются там, где были: для печати уложите каждую на грань разделения кнопкой <strong class="ui">«Уложить на грань»</strong>.</p>
+<p><strong class="ui">«Соединители»</strong> снова совмещают половины, как это делают инструменты разрезания в PrusaSlicer, OrcaSlicer и Bambu Studio. С вариантом <strong class="ui">«Нет»</strong>, выбранным по умолчанию, деление происходит, как описано выше. <strong class="ui">«Шканты»</strong> делают отверстие в каждой половине и отдельные шканты, которые входят в обе: шканты появляются третьим телом, стоя рядом с половинами на их нижней плоскости, и печатаются вместе с ними — стоя, они выходят круглыми в слоях, как и их отверстия, а именно это измеряет тест посадки. <strong class="ui">«Шипы»</strong> ставят круглые шипы на половину, название которой заканчивается минусом, а отверстия для них делают в другой половине. Соединители входят перпендикулярно плоскости, как бы она ни была повёрнута, каждый со своим диаметром и 1,2 мм материала до каждого края среза, а два соединителя — вдвое дальше друг от друга. Каждый отдельный кусок среза получает свои, равномерно распределённые по нему: <strong class="ui">«На срез (0 = автоматически)»</strong> задаёт их число, а 0 оставляет его размеру куска, не меньше двух. Кусок, слишком малый даже для одного, не получает ни одного, а соединитель пропускается там, где половина тоньше глубины его отверстия; панель говорит об этом до разделения, а белые кольца на плоскости показывают, где они будут. Если не помещается ни один, детали делятся без них, и строка состояния сообщает об этом.</p>
+<ul><li><strong class="ui">«Диаметр»</strong> — диаметр шкантов и шипов, сначала 5 мм.</li><li><strong class="ui">«Глубина в каждую половину»</strong> — насколько глубоко каждое отверстие уходит в свою половину. Шкант вдвое длиннее за вычетом 0,6 мм, а шип на 0,3 мм короче своего отверстия, чтобы они никогда не упирались в дно отверстия и половины смыкались полностью. У шкантов и шипов на концах небольшая фаска, а у каждого отверстия — у входа, чтобы расплывшийся первый слой не сужал его.</li><li><strong class="ui">«Шканты на отламываемом основании»</strong> при <strong class="ui">«Шканты»</strong> ставит свободные шканты на общую пластину, которая держится на столе, для принтеров, у которых подвижный стол раскачивает стоящие детали. Каждый шкант стоит на маленьком выступе в гнезде пластины; после печати покачайте каждый, пока он не отломится, как и штифт пробы посадки.</li><li><strong class="ui">«Зазор с каждой стороны»</strong> — место между шкантом или шипом и его отверстием. Если вы измерили зазор своего принтера тестом посадки (в главе о печати), он начинается с него, иначе с 0,2 мм.</li></ul>
+<p><strong class="ui">«Ласточкин хвост»</strong> скрепляет половины без клея, как разрез «ласточкин хвост» в OrcaSlicer: гребень, расширяющийся от среза, стоит на половине, название которой оканчивается минусом, и идёт прямо через срез от края до края, а другая половина получает подходящий паз, открытый с обоих концов. Задвиньте половины друг в друга сбоку, вдоль гребня; после этого их уже не разъединить поперёк разреза. Гребни идут вдоль длинной стороны среза, а если тело пересекает плоскость несколькими кусками, на всех они идут в одну сторону, чтобы половина надвигалась одним движением. <strong class="ui">«На срез (0 = автоматически)»</strong> — число гребней рядом друг с другом на каждом куске; 0 оставляет его ширине куска: один на каждые шесть ширин гребня, не меньше одного. Рядом со своим широким верхом гребень оставляет половину своей ширины и ещё 1,2 мм материала до края среза, а два гребня — вдвое больше друг от друга. Кусок, слишком узкий для гребня или слишком короткий вдоль него, не получает ни одного, а гребень пропускается там, где другая половина тоньше глубины его паза. Белые контуры на плоскости показывают, где они будут: заполненная полоса — основание гребня, линия вокруг — его широкий верх.</p>
+<ul><li><strong class="ui">«Ширина у среза»</strong> — ширина гребня там, где он выходит из среза, сначала 6 мм.</li><li><strong class="ui">«Глубина в другую половину»</strong> — насколько он выступает из среза в другую половину, сначала 4 мм. Паз на 0,3 мм глубже, чтобы половины смыкались полностью.</li><li><strong class="ui">«Угол боковых граней»</strong> — насколько каждая боковая грань отклоняется наружу от перпендикуляра к срезу, от 5° до 30°, сначала 15°. Чем больше угол, тем шире верх гребня и тем крепче он держит.</li><li><strong class="ui">«Направление (0 = вдоль)»</strong>: 0 кладёт гребни вдоль, 90 — поперёк среза, а угол между ними поворачивает их на столько же.</li><li><strong class="ui">«Зазор с каждой стороны»</strong> — место с каждой стороны между гребнем и его пазом, из вашего теста посадки, как у шкантов. Концы гребня скошены со всех сторон, чтобы он находил паз, а у паза есть фаска у входа.</li></ul>
+<p>Для печати уложите половину с пазом на срез, а половину с гребнем печатайте наоборот, срезом вверх: тогда боковые грани гребня отклоняются наружу не больше чем на свой угол, и это печатается без поддержек.</p>
+<p>Объекты-отверстия разделяются без соединителей.</p>
+<p>Половины — это обычные полигональные сетки: настройки вроде числа сторон цилиндра или начертания букв текста пропадают, поэтому задавайте их заранее. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> одним шагом возвращает исходный объект. Заблокированные и скрытые объекты разделить нельзя.</p>
+</section><section class="guide-part"><h2 id="razdelenie-na-chasti"><span class="heading-alias" id="separating-parts"></span>Разделение на части</h2>
+<p>Если фигура состоит из нескольких отдельных кусков, например текст из отдельных букв, <strong class="ui">«Разделить на части»</strong> разделяет её на независимые фигуры. Этот пункт есть и в меню, которое открывается правым щелчком по фигуре.</p>
+<aside class="tip"><p>Совет: Всегда делайте отверстия немного длиннее детали, через которую они должны пройти. Если отверстие заканчивается точно вровень с гранью, иногда остаётся тончайшая плёнка. Один миллиметр запаса это исключает.</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/ru/select-and-arrange.html"><small>Предыдущая глава</small>Выделение и упорядочивание</a><a class="next" href="/api/desktop/layerling/ui/ru/edges-and-hollowing.html"><small>Следующая глава</small>Обработка кромок и выдолбливание тел</a></div>
+      </main>
+    </div>
+    <footer class="note">Это руководство растёт вместе с программой. Если чего-то не хватает или что-то не так — напишите в <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">обсуждениях</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=ru" rel="noopener">Поддержать проект</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Обсуждения</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Подробнее на GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Заметки о выпуске v1.154.1</a></div><p class="trademark">Tinkercad — товарный знак Autodesk, Inc. layerling — независимый проект, не связанный с Autodesk, не одобренный и не спонсируемый ею.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Вернуться в редактор";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Открыть редактор";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

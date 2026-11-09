@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>量測與備註 - layerling 使用者指南</title>
+    <meta name="description" content="捲尺、標尺與角尺，到原點的距離，附著在零件上的備註，以及可供吸附的參考點。">
+    <link rel="canonical" href="https://layerling.com/zh-tw/measuring-and-notes.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/measuring-and-notes.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/measuring-and-notes.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/measuring-and-notes.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/messen-und-notizen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/measuring-and-notes.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/measuring-and-notes.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/measuring-and-notes.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/measuring-and-notes.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/meten-en-notities.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/measuring-and-notes.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/merjenje-in-opombe.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/measuring-and-notes.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/measuring-and-notes.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/measuring-and-notes.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/measuring-and-notes.html">
+    <meta property="og:title" content="量測與備註 - layerling 使用者指南">
+    <meta property="og:description" content="捲尺、標尺與角尺，到原點的距離，附著在零件上的備註，以及可供吸附的參考點。">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/zh-tw/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">使用者指南</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/zh-tw/search-index.json" data-nothing="找不到結果。" data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="搜尋指南" aria-label="搜尋指南" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="語言">繁體中文</summary><ul><li><a href="/api/desktop/layerling/ui/guide/measuring-and-notes.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/measuring-and-notes.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/measuring-and-notes.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/measuring-and-notes.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/measuring-and-notes.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/measuring-and-notes.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/measuring-and-notes.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/measuring-and-notes.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/measuring-and-notes.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/measuring-and-notes.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/merjenje-in-opombe.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/measuring-and-notes.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/measuring-and-notes.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/measuring-and-notes.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/measuring-and-notes.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/measuring-and-notes.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/measuring-and-notes.html" hreflang="zh-TW" lang="zh-TW" aria-current="true">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">開啟編輯器</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>編輯器已在另一個分頁中開啟，請切換到那裡。</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="章節"><h2>章節</h2><p class="print-link"><a href="/api/desktop/layerling/ui/zh-tw/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>列印完整指南</span></a></p><ol><li><a href="/api/desktop/layerling/ui/zh-tw/getting-started.html">快速上手</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/view-and-workplane.html">檢視與工作平面</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/shapes.html">放置與調整形狀</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/select-and-arrange.html">選取與排列</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/solids-and-holes.html">實體與孔</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/edges-and-hollowing.html">邊的修整與實體抽殼</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/sketches.html">草圖：從輪廓到實體</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/text.html">文字與弧形文字</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/threads-and-mechanics.html">螺紋、齒輪與其他零件</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/measuring-and-notes.html" aria-current="page">量測與備註</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/printing.html">為 3D 列印做準備</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/files-and-saving.html">檔案、儲存與分享</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/shortcuts.html">鍵盤快速鍵</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/ai-with-mcp.html">用 AI 建模（MCP）</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/offline-and-install.html">安裝為應用程式、離線使用與自架</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/videos.html">關於 layerling 的影片</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/tablet-and-touch.html">平板與觸控</a></li></ol></nav>
+      <main>
+<h1>量測與備註</h1>
+<p class="lead">捲尺、標尺與角尺，到原點的距離，附著在零件上的備註，以及可供吸附的參考點。</p>
+<div class="toc"><b>本頁內容</b><ul><li><a href="#the-tape-measure">捲尺</a></li><li><a href="#the-ruler">標尺</a></li><li><a href="#the-framing-square">角尺</a></li><li><a href="#the-protractor">量角器</a></li><li><a href="#distances-to-the-origin-and-while-moving">到原點的距離與移動時的距離</a></li><li><a href="#checking-clearance">檢查間隙</a></li><li><a href="#notes">備註</a></li><li><a href="#reference-points">參考點</a></li><li><a href="#reference-images">參考圖片</a></li></ul></div>
+<p>要精確做出一個零件，就得量測。layerling 為此準備了幾種工具，它們都不會出現在匯出檔案裡。零件內部的壁厚與間隙，最好在<a href="/api/desktop/layerling/ui/zh-tw/view-and-workplane.html">剖視圖</a>中用 <strong class="ui">「量測」</strong> 量測。</p>
+<section class="guide-part"><h2 id="the-tape-measure">捲尺</h2>
+<p>捲尺位於左側邊緣檢視列的下端（<strong class="ui">「捲尺」</strong>）。它量測角、邊與面之間的距離。點擊它會展開五個按鈕。如果它們擋住你想量測的地方，就抓住左側的握柄，把它們拖到工作平面上的任何位置；雙擊握柄即可歸位：</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/tape-menu.webp" alt="捲尺及其按鈕：新增量測、移動量測點、移除量測、整條邊、刪除所有量測。" width="1280" height="800" loading="lazy"><figcaption>捲尺及其按鈕：新增量測、移動量測點、移除量測、整條邊、刪除所有量測。</figcaption></figure>
+<ol><li><strong><strong class="ui">「新增量測」</strong>：</strong> 點擊一個點，拖到下一個點再點擊，距離就會標示出來，前面標出它沿哪些軸：直線為 X、Y 或 Z，跨越一個平面為 XY、XZ 或 YZ，三個軸都有則為 3D。指標停在標籤上可看到量測沿每個軸的長度，停在點上可看到它的座標。放置第二個點時，軸、距離和沿每個軸的長度會顯示在指標旁邊。大部分位在另一個物體後方的量測會變淡；指標停在它的線或標籤上時會恢復清楚。在相對的邊或面上，當指標靠近時，第二個點會以直角對齊第一個點吸附；或者按住 <kbd>Shift</kbd>，就能落在該邊或該面上的任何位置。在同一面內或工作平面上，<kbd>Shift</kbd> 會讓量測沿主軸保持筆直。除了角和邊，點還會吸附到指標下方平面的中心，以及圓形邊（例如孔或圓柱的邊緣）的圓心：可吸附的中心以圓圈中的小十字標示；指標靠近時，點會吸附到那裡，並有提示說明它是什麼的中心（<strong class="ui">「面的中心」</strong>、<strong class="ui">「孔的中心」</strong> 或 <strong class="ui">「圓心」</strong>）。</li><li><strong><strong class="ui">「移動量測點」</strong>：</strong> 抓住這些點拖曳，數字會跟著跑。</li><li><strong><strong class="ui">「刪除量測段」</strong>：</strong> 之後點擊某一條量測即可將它移除。<strong><strong class="ui">「新增量測」</strong></strong> 作用中時，按住 <kbd>Shift</kbd> 或 <kbd>Ctrl</kbd>（Mac 上為 <kbd>Cmd</kbd>）點擊量測點或量測線，就能直接刪除，不必切換模式。</li><li><strong><strong class="ui">「量測整條邊」</strong>：</strong> 點擊一條邊會量測它的全長，例如一個圓的周長。關閉這項後，點擊會改為在邊上放一個點，第二個點則可放到任何位置，因此能量測直徑或任何其他距離。按著 <kbd>Alt</kbd> 會讓這個開關對該次點擊反轉。在圓上，當指標靠近時，與第一個點相對的點會自動吸附，而且點會落在真正的圓周上，所以量出的直徑是精確的。</li><li><strong><strong class="ui">「刪除所有量測」</strong>：</strong> 一次移除所有量測。由於無法復原，layerling 會先詢問；沒有量測時則無事可做。</li><li><strong><strong class="ui">「將中點標記為參考點」</strong>：</strong> 每一條量測的正中央都有一個小圓形標記，下半部填滿。它會在量測的正中央放一個<a href="#reference-points">參考點</a>：點擊圓形的邊（例如孔的邊緣）後，點會落在該圓的圓心，匯入的網格也一樣，那裡沒有別的東西標出孔心；若量的是直徑或任何直線距離，則落在其中點。之後拖曳形狀時，形狀會以自身中心吸附到該點。已經存在的點不會重複建立。捲尺吸附參考點的方式就跟吸附角一樣，因此可以從圓心或線段中點開始量測：先標記，再點擊該點。</li><li><strong><strong class="ui">「輸入長度:第二個點處的物體沿線移動;負值會把它移過第一個點」</strong>:</strong> 只要一條直線測量至少有一端落在物體上,就可以點擊它的數字。輸入新的長度並按 <kbd>Enter</kbd>:第二個點處的物體會沿著測量線移動,直到距離正好等於該值,就像 Tinkercad 的尺規一樣。如果只選取了第一個點處的物體,則移動它。測量點留在物體上,所以測量會跟著移動。從角、邊或面、孔的中心開始測量,就能把零件放在精確的距離上:從孔的中心量到圓柱頂面的中心,圓柱就會中心對中心地移動。負數長度會讓它越過第一個點同樣的距離,例如在盒子邊緣以內 5 mm。<a href="#reference-points">參考點</a>不屬於任何物體,所以在兩個參考點之間什麼都不會移動。如果測量沿著兩條或三條軸，輸入框中長度下方還會為每條軸各有一個小框（ΔX、ΔY、ΔZ，即指向數字時顯示的各軸距離）：在那裡輸入，物體只沿該軸移動。<kbd>Tab</kbd> 在小框之間切換，<kbd>Esc</kbd> 關閉輸入框且不移動任何東西。指向數字時會顯示哪個物體將移動，或為什麼都不能移動：它已鎖定、兩個點在同一個物體上，或兩個點都不在物體上。之後的提示會說明移動了什麼、移動了多少；復原一次即可還原。</li></ol>
+<p>按 <kbd>Esc</kbd> 離開量測模式。</p>
+</section><section class="guide-part"><h2 id="the-ruler">標尺</h2>
+<p>從形狀庫中取出<strong class="ui">「標尺」</strong>。它純粹是量測工具：不會出現在任何匯出中，也不能群組或剪下。對於每一個碰到或與標尺重疊的實體，它會直接在檢視畫面中以浮動數字顯示其範圍。你可以就地修改這個數字，實體會跟著改變。浮動的加號會建立被量測形狀的複本。它印出的刻度以公釐為單位；把單位切換為英吋後（右下角的開關），刻度就是英吋，每十六分之一英吋一條線，整英吋處標有數字。</p>
+</section><section class="guide-part"><h2 id="the-framing-square">角尺</h2>
+<p>有時從直角方向量測會更方便。點擊檢視列中的 <strong class="ui">「放置角尺」</strong>，再點擊工作平面。一把兩臂成直角、帶有像直角尺般刻度線的角尺便會放在那裡。它本身同樣不是實體。點擊實體角落附近，該角就會精確吸附到那裡。如果你幾乎每個設計都要用它，可以在設定的 <strong class="ui">「量測」</strong> 下開啟 <strong class="ui">「新設計在原點自帶角尺」</strong>：這樣每個新設計都會在原點自帶一把角尺。</p>
+<p>角尺平放在工作平面上。如果該平面位於某個實體的側面上，角尺也平放在那個側面上，參見<a href="/api/desktop/layerling/ui/zh-tw/view-and-workplane.html">檢視與工作平面</a>。在垂直牆面上標尺寸就是這麼做：把工作平面放到牆上，將角尺放在左上角，然後點擊握把，直到兩臂指向右與下。</p>
+<ul><li><strong>拖曳握把</strong>可移動它。</li><li><strong>短促地點擊握把</strong>會讓它旋轉 90°。</li><li><strong>旁邊的 ×</strong> 可將它移除。</li><li><strong>拖曳臂末端的小圓圈</strong>可加長或縮短該臂，以整毫米為單位。握柄下方最下面的按鈕 <strong class="ui">「兩臂與列印平台一樣長（拖曳臂的末端可改變其長度）」</strong> 讓兩臂與設定中所選印表機的列印平台一樣寬、一樣深。角尺會隨設計保存兩臂的長度，重新放置的角尺也會沿用。</li><li><strong>握把左側的小按鈕</strong>切換量測基準：實體的外側（端點，帶線條的圖示）或實體的中間（中點，十字準星）。每個綠色數字旁都有一個同類的小開關，只設定該數字：以直立的圓柱來說，兩臂方向取中間、高度取底部；橫躺的圓柱則是橫向取中間、軸向取一端。當三者再度一致時，握把上的按鈕就會顯示共同的模式。</li></ul>
+<p>如果實體站在其中一條臂上，角尺會自動顯示它們的尺寸。這只在基板上有效，放在實體側面則無效。 角尺把手下方帶箭頭的按鈕可以關閉這一點，讓只有選取的實體顯示尺寸；它會隨設計儲存。</p>
+<p>選取一個實體後，角尺會以綠色顯示它距角點多遠，包括沿兩臂的方向與高度。點擊綠色數字輸入距離，實體就會精確移到那裡。選取多個實體時，它們會視為一個整體：標尺量測它們共同的外輪廓，輸入數值會讓它們一起移動，而彼此的相對位置不變。</p>
+<p>綠色數字的引導線沿著地面（也就是角尺所在的平面）延伸到實體下方或旁邊的點；高度則有自己的箭頭。每個數字的開關位於該數字的邊框內。兩臂與刻度是空間中的線條：擋在它們前面的實體會遮住它們，就像一把真正的角尺會被遮住一樣。握把下方的小眼睛圖示可切換這一點：眼睛帶斜線時，實體會遮住角尺（初始狀態）；眼睛打開時，角尺會一直顯示在所有東西之上。當實體擋在兩臂前面時，臂上的數字會淡出。</p>
+<p>使用中點模式時，綠色數字會量到實體的中間，高度也一樣。這樣就能把球體的中心放在距某條邊正好 15 mm 的位置，不必再減去半徑。在牆面上，要讓孔距左邊 40 mm、距頂部 190 mm，可以這樣做：選取孔、切換到中點、輸入 40 和 190。此時高度是從牆面往外算。</p>
+<p>捲尺和角尺在你進入草圖、再回到 3D 檢視的過程中都會留在原處。兩者都不會進入歷史記錄。角尺會隨設計儲存，捲尺的量測也一樣，儲存在瀏覽器和 .lyl 檔案中：開啟設計時它們會再次出現。捲尺按鈕中的眼睛按鈕會隱藏所有量測並可再次顯示；是否隱藏也會一併儲存，新增、移動或刪除量測時會先把它們顯示出來。</p>
+</section><section class="guide-part"><h2 id="the-protractor">量角器</h2>
+<p>點擊檢視列中的 <strong class="ui">「量角器」</strong> 即可量測角度。旁邊會開啟一排按鈕；在你再次點擊該按鈕或按 <kbd>Esc</kbd> 之前，在檢視中的每次點擊都以量角器量測。它和捲尺一樣會吸附到實體的角點與邊；在實體旁邊點擊會在底板上放一個點。</p>
+<ul><li><strong class="ui">「三點量角」</strong>：先點擊角的頂點，再在兩條邊上各點擊一點。放置最後一個點時角度就已顯示；第三次點擊後它會保留，並在兩邊之間畫出圓弧。量得的是頂點處的角度，範圍 0° 到 180°。</li><li><strong class="ui">「兩個面之間的角度」</strong>：點擊兩個平面。每個面上的一小段藍線表示它朝向哪裡，標籤給出兩個面所成的兩個角度，較小的在前：45° 倒角與頂面之間顯示 45° · 135°，長方體的兩個側面只顯示 90°。曲面沒有單一方向，因此量角器要求選擇平面。</li></ul>
+<p>量完一個角後再點擊會開始新的量測，<strong class="ui">「移除角度」</strong> 會將其移除。實體移動或旋轉時角度會跟隨。它不會被儲存，也不會進入歷史記錄：收起量角器後角度就會消失。</p>
+</section><section class="guide-part"><h2 id="distances-to-the-origin-and-while-moving">到原點的距離與移動時的距離</h2>
+<p>在設定的 <strong class="ui">「外觀」</strong> 底下，有兩個用於即時尺寸的開關：</p>
+<ul><li><strong class="ui">「顯示移動尺寸」</strong> 顯示拖曳時移動了多少。用物體上方的黑色箭頭抬起時也會顯示，距離標在它的前角。放開後，點擊這樣的數字即可輸入確切的距離；負數表示向下。</li><li><strong class="ui">「顯示到原點的距離」</strong> 顯示選取物件到平台原點的距離，選取多個實體時同樣有效。</li></ul>
+<p>啟用 <strong class="ui">「尺寸一律顯示」</strong> 後，尺寸會一直可見。不在工作平面上的實體還會顯示它離平面的高度；點擊該數字即可輸入新值。 開啟 <strong class="ui">「尺寸框使用座標軸顏色」</strong> 後，每個框都使用其座標軸的顏色，與控點相同：X 紅色、Y 綠色、Z 藍色。這樣即使在小零件上，也能一眼看出哪個數字對應哪個方向。</p>
+<p>想暫時去掉它們時，按 <kbd>Q</kbd>：所選物件周圍的尺寸與距離會消失，正在移動的零件更容易看清。再按一次 <kbd>Q</kbd> 即可恢復。指向某個控點時，它仍會顯示自己的尺寸。</p>
+</section><section class="guide-part"><h2 id="checking-clearance">檢查間隙</h2>
+<p>列印後需要活動的零件 - 可動龍、一體列印的鉸鏈、盒子與蓋子、孔中的軸 - 彼此之間需要間隙。太小會黏在一起；若互相重疊，就會被列印成一整塊。<strong class="ui">「檢查間隙」</strong> 位於 <strong class="ui">「草圖間放樣」</strong> 旁邊，在列印前檢查這一點。它檢查選取的物件，未選取任何物件時檢查所有可見物件（與匯出所用的物件相同），並逐對檢查：</p>
+<ul><li><strong><strong class="ui">「重疊」</strong></strong>（紅色）：兩者共用一部分體積。它以紅色顯示在實體內部，實體隨之變為半透明，清單會列出其大小。</li><li><strong><strong class="ui">「接觸」</strong></strong>（紅色）：兩者接觸，列印時會熔合在一起。</li><li><strong><strong class="ui">「過緊」</strong></strong>（橘色）：最窄的間隙小於 <strong class="ui">「最小間隙」</strong>。</li><li><strong><strong class="ui">「正常」</strong></strong>（綠色）：最窄的間隙至少有這麼寬。</li></ul>
+<p>每一列列出兩個零件，對於間隙還會列出寬度與位置：<strong class="ui">「並排」</strong>（在同一層內）或 <strong class="ui">「層與層之間」</strong>（上方或下方：切片軟體在那裡只能留出整層的空隙，所以比一層還薄的間隙會閉合）。點選某一列，鏡頭會移到該處，兩個零件會被描邊，最窄處以一條帶數字的線標出。相距超過 5 mm 的零件對不會列出。設計不會改變：檢查不儲存任何內容，也不留下需要復原的操作。</p>
+<p><strong class="ui">「最小間隙」</strong> 一開始為 0.3 mm；0.3 偏緊，一體列印通常用 0.4。修改後清單會立即重新排序，無需重新檢查，瀏覽器會記住該值。<strong class="ui">「檢查一個物件中分開的零件（一體列印）」</strong>（預設開啟）也會檢查同一物件中彼此分離的零件：以單一 STL 匯入的可動龍或鉸鏈是一個物件，但其各節是分離的零件。它們在清單中顯示為「名稱 · Part 2」。位於另一零件空腔內的零件，例如籠中的球，算作獨立零件。</p>
+<p>如果在視窗開啟時修改了設計，會顯示 <strong class="ui">「已變更，請重新檢查」</strong>；點選它或 <strong class="ui">「重新檢查」</strong>。<kbd>Esc</kbd> 或 <strong class="ui">「關閉」</strong> 會關閉視窗。縮放也會改變間隙：縮小到 70 % 的可動模型只保留 70 % 的間隙，因此縮放後請重新檢查。</p>
+<p>檢查量測的是切片軟體同樣會得到的三角網格。圓軸和它的孔都是頂點位於圓上的多邊形，因此間隙可能比整數尺寸小百分之幾公釐。三角形過多的零件對會列為 <strong class="ui">「未檢查」</strong>。AI 可透過 <code>layerling_check_clearance</code> 執行相同的檢查。</p>
+</section><section class="guide-part"><h2 id="notes">備註</h2>
+<p>備註記錄的是幾何本身說不出來的事：『這顆螺絲緊了 0.3 mm』、『蓋子還沒印』、『尺寸是 Peter 給的』。用 <strong class="ui">「備註」</strong> 或 <kbd>N</kbd> 鍵放一條備註。</p>
+<ul><li>如果把備註放在<strong>實體上</strong>，它會跟著實體移動。</li><li>如果放在<strong>旁邊</strong>，它會留在工作平面上（<strong class="ui">「位於工作平面」</strong>）。</li><li><strong class="ui">「從物件上解除」</strong> 會把附著的備註從實體上解下。</li><li><strong class="ui">「交給 AI」</strong>把一則備註變成給 MCP 橋上 AI 代理的請求（見「AI 與 MCP」）：代理用 <code>layerling_list_notes</code> 讀取它，完成工作，並在同一則備註裡、你的文字下方回覆。它也可以在模型上放自己的備註，在某處提問或回報。請代理幫你盯著註記，它就會用 <code>layerling_wait_for_notes</code> 等待：之後你只需在模型上操作，每個新請求在你勾選後立即被接手，無需回到代理的視窗。</li><li><strong class="ui">「群組」</strong> 會把附著的備註收進群組；<strong class="ui">「取消群組」</strong> 會把它交給下方可見的零件，包含其中的群組。用 <strong class="ui">「編輯群組」</strong> 開啟群組時，備註會跟著它們下方的零件移動，再用 <strong class="ui">「完成」</strong> 回到群組裡；取消的話則回復原樣。</li><li>如果它依附的實體被刪除，或下方已經沒有可見的實體，備註會留在原處，也就是工作平面上。</li><li>拖曳圖釘可移動備註。點擊圖釘會把卡片收起，只留下小數字；再點一次就會重新展開。點進文字即可編輯。</li><li>輸入時，<kbd>Enter</kbd> 會儲存文字，<kbd>Esc</kbd> 會還原成你開始編輯前的內容；<span dir="ltr"><kbd>Shift</kbd>+<kbd>Enter</kbd></span> 會換行。</li><li><strong>在草圖中</strong>，<strong class="ui">「備註」</strong>或 <kbd>N</kbd> 同樣可以放置備註，放在草圖上的任意位置。草圖的所有備註都屬於它的實體：在 3D 檢視中，它們位於實體上——用 <strong class="ui">「擠出草圖」</strong> 或 <strong class="ui">「掃掠草圖」</strong> 產生的實體頂面上，以及用 <strong class="ui">「旋轉草圖」</strong> 產生的實體所繪製的輪廓上——並隨實體一起移動。再次開啟草圖時，會顯示該實體的備註，包括在 3D 中放置的備註。在草圖中，<strong class="ui">「草圖復原」</strong> 會像復原線條一樣復原備註，<strong class="ui">「取消」</strong> 會捨棄你對備註所做的變更。<span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span> 在這裡同樣可以顯示或隱藏備註。</li></ul>
+<p>備註會儲存在設計中，不會出現在任何匯出裡，可用 <strong class="ui">「顯示備註與參考點」</strong> 顯示或隱藏（位於 <strong class="ui">「可見性選項」</strong>，即眼睛圖示旁的箭頭），也可按 <span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span>。</p>
+</section><section class="guide-part"><h2 id="reference-points">參考點</h2>
+<p>參考點是空間中的一個單純標記，就像工作坊裡的鉛筆記號或放樣點：它不屬於任何實體，永遠不會被列印，其他東西會吸附到它上面。在實體上按右鍵，選擇 <strong class="ui">「標記中心」</strong>、<strong class="ui">「標記角點」</strong> 或 <strong class="ui">「標記邊中點」</strong>：點會出現在實體的頂面（如果選取了多個，則出現在整個選取範圍的頂面）。 <strong class="ui">「標記此面的中心」</strong> 則把點放在你按右鍵的那個平面的中心，例如側面或端面。設定了旋轉中心時，<strong class="ui">「標記旋轉中心」</strong>會在其上放一個點，這樣另一個零件的中心就能吸附到選取所繞的那個點上。</p>
+<ul><li>拖曳點可移動它，或點擊它查看座標並輸入新座標；座標會使用你設定的單位。如果卡片擋住了東西，可以抓住標題把它單獨拖開：其他卡片留在原處，雙擊標題即可歸位。你最後動過的卡片會排在其他卡片前面。卡片中的 <strong>Delete all</strong>，或右鍵選單（在實體上，或在 3D 檢視空白處）中的 <strong>Delete all reference points</strong>，會一次刪除所有點。<strong class="ui">「刪除」</strong> 會將它移除。</li><li>捲尺也能標記點：<strong class="ui">「將中點標記為參考點」</strong>，即量測正中央那個半填滿的標記，會在量測中間放一個點，例如圓孔的中心。它也能從一個點開始量測：捲尺吸附參考點就像吸附角一樣。</li><li>拖曳形狀時，它的邊與中心會吸附到點，就像吸附到其他形狀一樣（<strong class="ui">「移動時吸附到其他形狀」</strong>）。角尺也會吸附到點。</li><li>點會儲存在設計中，不會出現在任何匯出裡，並與備註一起由 <strong class="ui">「顯示備註與參考點」</strong>（<span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span>）顯示或隱藏。</li><li>AI 可以用 <code>layerling_add_reference_points</code>、<code>layerling_list_reference_points</code> 和 <code>layerling_remove_reference_points</code> 標記、列出與移除它們。</li></ul>
+</section><section class="guide-part"><h2 id="reference-images">參考圖片</h2>
+<p>參考圖片是用來對齊零件的圖片：把電路板的照片放在外殼底部，然後直接在上面放置支柱、孔和接頭開口。它是輔助參考，不是實體：永遠不會被列印或匯出（STL、3MF、OBJ、STEP、SVG），永遠不會成為組合、捆綁或切割的一部分，列印估算也不會計入它。</p>
+<ul><li>開啟 <strong class="ui">「匯入」</strong> 並選擇 <strong class="ui">「參考圖片」</strong>，然後選擇一張 PNG、JPG、WebP、GIF 或 BMP 圖片。它會放在工作平面上——底板上，或你設定工作平面的那個面上——長邊為 100 mm，半透明。</li><li>像任何形狀一樣用控制點移動、旋轉和調整大小。它前面的實體會被優先選取，因此在它上面操作不會抓起圖片。</li><li>設定中的 <strong class="ui">「透明度 (%)」</strong> 可以把它從不透明淡化到幾乎看不見。</li><li><strong class="ui">「校準」</strong> 讓它恢復真實尺寸，與草圖中相同：點擊圖片上兩個你知道實際距離的點——例如電路板的兩個安裝孔——並在 <strong class="ui">「實際距離 (mm)」</strong> 中輸入該距離。圖片會保持比例和中心不變。</li><li>用設定標題列中的鎖將它鎖定，它就會固定不動：點擊會穿過它落到底板上。在物件清單中選取它即可解鎖。</li><li>無論複製或復原多少次，圖片在設計檔案中只儲存一次。大圖片會讓檔案相應變大；新增時的提示會說明它的大小。</li><li>AI 可以用 <code>layerling_reference_image</code> 新增、移動、校準、淡化和鎖定參考圖片。使用 <code>trace</code> 可將圖片描摹為立在其上的草圖實體，與草圖中的 <strong class="ui">「描摹」</strong> 相同。</li></ul></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/zh-tw/threads-and-mechanics.html"><small>上一章</small>螺紋、齒輪與其他零件</a><a class="next" href="/api/desktop/layerling/ui/zh-tw/printing.html"><small>下一章</small>為 3D 列印做準備</a></div>
+      </main>
+    </div>
+    <footer class="note">本指南隨程式一同完善。如有缺漏或錯誤，請到 <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">討論區告訴我們</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=zh-tw" rel="noopener">支援專案</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">討論區</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">在 GitHub 上了解更多</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">版本說明 v1.154.1</a></div><p class="trademark">Tinkercad 是 Autodesk, Inc. 的商標。layerling 是獨立專案，與 Autodesk 無關聯，也未獲其認可或贊助。</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="返回編輯器";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="開啟編輯器";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

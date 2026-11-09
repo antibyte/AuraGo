@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="sl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Priprava za 3D-tisk - layerling navodila</title>
+    <meta name="description" content="Izberi svoj tiskalnik, bodi opozorjen, če kaj ne ustreza, in del pravilno položi.">
+    <link rel="canonical" href="https://layerling.com/navodila/tiskanje.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/printing.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/printing.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/printing.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/drucken.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/printing.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/printing.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/printing.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/printing.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/printen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/printing.html">
+    <link rel="alternate" hreflang="pt-BR" href="https://layerling.com/guia/printing.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/tiskanje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/printing.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/printing.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/printing.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/printing.html">
+    <meta property="og:title" content="Priprava za 3D-tisk - layerling navodila">
+    <meta property="og:description" content="Izberi svoj tiskalnik, bodi opozorjen, če kaj ne ustreza, in del pravilno položi.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/navodila/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Navodila</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/navodila/search-index.json" data-nothing="Nič ni najdeno." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Išči po navodilih" aria-label="Išči po navodilih" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Jezik">Slovenščina</summary><ul><li><a href="/api/desktop/layerling/ui/guide/printing.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/printing.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/printing.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/drucken.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/printing.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/printing.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/printing.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/printing.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/printen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/printing.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/printing.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/printing.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/tiskanje.html" hreflang="sl" lang="sl" aria-current="true">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/printing.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/printing.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/printing.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/printing.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/printing.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/printing.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">V urejevalnik</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Urejevalnik je že odprt v drugem zavihku – preprosto preklopi nanj.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Poglavja"><h2>Poglavja</h2><p class="print-link"><a href="/api/desktop/layerling/ui/navodila/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Celotna navodila za tiskanje</span></a></p><ol><li><a href="/api/desktop/layerling/ui/navodila/prvi-koraki.html">Prvi koraki</a></li><li><a href="/api/desktop/layerling/ui/navodila/pogled-in-delovna-ravnina.html">Pogled in delovna ravnina</a></li><li><a href="/api/desktop/layerling/ui/navodila/oblike.html">Postavljanje in nastavljanje oblik</a></li><li><a href="/api/desktop/layerling/ui/navodila/izbiranje-in-razporejanje.html">Izbiranje in razporejanje</a></li><li><a href="/api/desktop/layerling/ui/navodila/telesa-in-luknje.html">Telesa in luknje</a></li><li><a href="/api/desktop/layerling/ui/navodila/robovi-in-izdolbljenje.html">Posnetje robov in izdolbljenje teles</a></li><li><a href="/api/desktop/layerling/ui/navodila/skice.html">Skice: od obrisa do telesa</a></li><li><a href="/api/desktop/layerling/ui/navodila/besedilo.html">Besedilo in ukrivljen napis</a></li><li><a href="/api/desktop/layerling/ui/navodila/navoji-in-mehanika.html">Navoji, zobniki in drugi sestavni deli</a></li><li><a href="/api/desktop/layerling/ui/navodila/merjenje-in-opombe.html">Merjenje in opombe</a></li><li><a href="/api/desktop/layerling/ui/navodila/tiskanje.html" aria-current="page">Priprava za 3D-tisk</a></li><li><a href="/api/desktop/layerling/ui/navodila/datoteke-in-shranjevanje.html">Datoteke, shranjevanje in deljenje</a></li><li><a href="/api/desktop/layerling/ui/navodila/bliznjice.html">Bližnjice na tipkovnici</a></li><li><a href="/api/desktop/layerling/ui/navodila/ai-z-mcp.html">Gradnja z umetno inteligenco (MCP)</a></li><li><a href="/api/desktop/layerling/ui/navodila/offline-in-namestitev.html">Namestitev kot aplikacije, delo brez interneta in lastno gostovanje</a></li><li><a href="/api/desktop/layerling/ui/navodila/videi.html">Videoposnetki o programu layerling</a></li><li><a href="/api/desktop/layerling/ui/navodila/tablica-in-dotik.html">Tablica in dotik</a></li></ol></nav>
+      <main>
+<h1>Priprava za 3D-tisk</h1>
+<p class="lead">Izberi svoj tiskalnik, bodi opozorjen, če kaj ne ustreza, in del pravilno položi.</p>
+<div class="toc"><b>Na tej strani</b><ul><li><a href="#izbira-tiskalnika">Izbira tiskalnika</a></li><li><a href="#kadar-kaj-ne-ustreza">Kadar kaj ne ustreza</a></li><li><a href="#pravilno-poloziti-del">Pravilno položiti del</a></li><li><a href="#iskanje-previsov">Iskanje previsov</a></li><li><a href="#podporna-rebra-za-poseven-del">Podporna rebra za poševen del</a></li><li><a href="#debelina-stene-zracnost-in-posnetja">Debelina stene, zračnost in posnetja</a></li><li><a href="#zracnost-tvojega-tiskalnika-preizkus-ujemanja">Zračnost tvojega tiskalnika: preizkus ujemanja</a></li><li><a href="#preverjanje-tiska">Preverjanje tiska</a></li><li><a href="#ko-gre-zares">Ko gre zares</a></li></ul></div>
+<section class="guide-part"><h2 id="izbira-tiskalnika"><span class="heading-alias" id="choosing-your-printer"></span>Izbira tiskalnika</h2>
+<p>Odpri nastavitve (zobnik v naslovni vrstici, <strong class="ui">„Nastavitve delovnega prostora“</strong>) in preklopi na področje <strong class="ui">„Delovna ravnina“</strong>. Pri <strong class="ui">„Tiskalnik“</strong> svoj tiskalnik izbereš s seznama več kot 230 običajnih modelov, med njimi Bambu Lab, Prusa, Creality, Anycubic, Elegoo in mnogi drugi.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/settings-workplane.webp" alt="Nastavitve delovne ravnine z izbranim tiskalnikom. Tiskalna postelja in največja višina tiska prihajata iz profila rezalnika." width="1280" height="800" loading="lazy"><figcaption>Nastavitve delovne ravnine z izbranim tiskalnikom. Tiskalna postelja in največja višina tiska prihajata iz profila rezalnika.</figcaption></figure>
+<p>S tem se zgodijo tri stvari:</p>
+<ul><li>Delovna ravnina dobi velikost tiskalne postelje.</li><li>V kotu delovne površine stojita ime tiskalnika in njegov delovni prostor. Komur napis moti, ga izklopi pod <strong class="ui">„Delovna ravnina“</strong> z <strong class="ui">„Napisi na plošči“</strong>; to velja tudi za ime načrta spredaj levo.</li><li>layerling <strong>opozori</strong>, če kaj ne ustreza.</li></ul>
+<p>Profili tiskalnikov izvirajo iz OrcaSlicerja, torej so enaki, kot jih pozna tudi tvoj rezalnik. Če želiš delati brez tiskalnika, izberi <strong class="ui">„Brez tiskalnika – poljubna velikost“</strong>. Velikost delovne ravnine lahko nastaviš tudi ročno.</p>
+<p>Delta tiskalniki, na primer FLSun ali SeeMeCNC ali Anycubic Predator, tiskajo na okroglo ploščo. Z enim od njih je tudi delovna ploskev okrogla in široka kot plošča, telo pa je preveliko, takoj ko sega čez rob. Okroglo telo se meri po lastnem obrisu, ne po škatli okoli njega, zato se prilega tudi valj, ki je skoraj tako širok kot plošča.</p>
+</section><section class="guide-part"><h2 id="kadar-kaj-ne-ustreza"><span class="heading-alias" id="when-something-does-not-fit"></span>Kadar kaj ne ustreza</h2>
+<p>Telo, ki sega čez rob tiskalne plošče, se označi. Zraven se pojavi sporočilo, katere strani koliko segajo čez. Enako je, če je del <strong>previsok</strong>: višina šteje od najnižjega telesa, tako kot rezalnik postavi model.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/printer-overhang.webp" alt="Kvader je širši od tiskalne postelje Bambu Lab A1 mini. Sporočilo spodaj pove, za koliko." width="1280" height="800" loading="lazy"><figcaption>Kvader je širši od tiskalne postelje Bambu Lab A1 mini. Sporočilo spodaj pove, za koliko.</figcaption></figure>
+<p>Opozorilo ti ne preprečuje nadaljnjega dela. Je namig, da šele v rezalniku ne ugotoviš, da je del prevelik. Prevelik del je pogosto mogoče razdeliti: z <strong class="ui">„Razdeli“</strong> ga razreži na dve polovici in ju natisni ločeno.</p>
+</section><section class="guide-part"><h2 id="pravilno-poloziti-del"><span class="heading-alias" id="laying-the-part-right"></span>Pravilno položiti del</h2>
+<p>Kako del leži na plošči, odloča o trdnosti in videzu. Pri tem pomagata dve orodji v področju <strong class="ui">„Razporeditev“</strong>:</p>
+<ul><li><strong class="ui">„Položi na ploskev“</strong>: klikni ploskev in del leži s to stranjo spodaj. Najboljša smer tiska z enim klikom.</li><li><strong class="ui">„Spusti na delovno ravnino“</strong> (<kbd>D</kbd>): del postavi na delovno ravnino, če nekje visi v zraku.</li></ul>
+<p>Nekaj ravnil za smer:</p>
+<ul><li>Ploske, velike ploskve navzdol. Najbolje se oprimejo.</li><li>Dolge dele, ki so obremenjeni, položi tako, da plasti ne potekajo pravokotno na obremenitev. Plasti so najšibkejša smer.</li><li>Previse čez 45° se izogibaj ali jim v rezalniku dodaj podpore.</li></ul>
+</section><section class="guide-part"><h2 id="iskanje-previsov"><span class="heading-alias" id="finding-overhangs"></span>Iskanje previsov</h2>
+<p>V meniju ob očesu (<strong class="ui">„Vidnost“</strong>) <strong>Pokaži previse</strong> vklopi previse. Vsaka ploskev, ki kaže strmeje kot 45° navzdol, se potem pokaže rdeče-belo šrafirana – tam bi tiskalnik potreboval podpore. Kar leži na plošči, ostane prosto. Tako že med konstruiranjem vidiš, ali krogla, lok ali vodoravna izvrtina gre brez podpor; <a href="/api/desktop/layerling/ui/navodila/navoji-in-mehanika.html">kapljična izvrtina</a> je natanko za to. Če del zavrtiš ali ga z <strong class="ui">„Položi na ploskev“</strong> položiš drugače, šrafura takoj potuje zraven.</p>
+<p>Kako strmo zmore tvoj tiskalnik, nastaviš v nastavitvah pod <strong class="ui">„Videz“</strong>: od 30° (previdno) do 70° (za tiskalnike z dobrim hlajenjem dela). Ploskev, ki leži na drugem telesu, se vseeno označi – layerling vidi samo ploskev samo.</p>
+</section><section class="guide-part"><h2 id="podporna-rebra-za-poseven-del"><span class="heading-alias" id="support-ribs-for-a-tilted-part"></span>Podporna rebra za poševen del</h2>
+<p>Del, ki ga tiskaš poševno na robu, na primer pod 45°, pogosto ne potrebuje podpor: njegove ploskve so dovolj strme. Stoji pa na tankem robu in se lahko prevrne. <strong class="ui">„Podporno rebro“</strong> ga drži: pod njegovo spodnjo ploskvijo z majhno režo stoji tanko rebro na ovalni nogi, drobni mostički pa del pridržijo. Del najprej obrni na rob in naj stoji na podlagi.</p>
+<ol><li>Izberi del in klikni <strong class="ui">„Podporno rebro“</strong> v skupini <strong class="ui">„Spreminjanje“</strong> na traku, desno klikni del ali ga poišči s <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</li><li>Klikni spodnjo ploskev tam, kjer naj stoji rebro. Ploskev mora gledati navzdol, biti nagnjena med 15° in 75° in segati do podlage; rebro gre od tvojega klika naravnost navzdol po ploskvi. Če je spodnji rob dela zaobljen ali posnet, sme ploskev končati do 3 mm nad podlago: klikni ravno ploskev nad zaobljenjem.</li><li>Nastavi <strong class="ui">„Šoba“</strong>, <strong class="ui">„Višina plasti“</strong> in <strong class="ui">„Prva plast“</strong> kot v svojem rezalniku. Rebro je debelo dve progi šobe, reža do dela pol proge; vsak mostiček je širok eno progo in visok natanko eno plast ter leži na plasti tiska, da ga rezalnik natisne kot eno tanko progo, ki se čisto odlomi. <strong class="ui">„Višina rebra“</strong> pove, kako visoko rebro seže po ploskvi (na začetku do polovice), <strong class="ui">„Mostički na vsakih“</strong> pa, kako narazen so mostički, v celih plasteh.</li><li>Pod <strong class="ui">„Več nastavitev“</strong> lahko ročno nastaviš debelino, režo, širino mostičkov in debelino noge (do takrat sledijo šobi in plastem), pa tudi širino noge in zaobljenji pri nogi in zgoraj.</li><li><strong class="ui">„Ustvari“</strong> doda rebro. Z <strong class="ui">„Združi z delom“</strong> (na začetku vklopljeno) sta rebro in del v svežnju: premikata se skupaj in gresta v rezalnik kot dve telesi drug ob drugem, pri tisku povezani z mostički.</li></ol>
+<p>Rebro je mrežno telo: če ga želiš spremeniti, ga izbriši in ustvari znova. Vsak klik ustvari eno rebro; za več klikni <strong class="ui">„Druga ploskev“</strong> ali ga ponovi z <strong class="ui">„Polje“</strong>. Rebro nikjer ne sme teči v del, del pa mora stati na podlagi - sicer okno pove, zakaj ne gre. Nastavitve si ta brskalnik zapomni za naslednje rebro.</p>
+<p><strong class="ui">„Preveri zračnost“</strong> in <strong class="ui">„Preveri tisk“</strong> poznata rebro: da njegovi mostički segajo v del ter da sta rebro in mostički tanka in ležita eno plast visoko čez režo, je namenoma in se ne sporoča. Rebro, narejeno v layerling 1.148.0, te oznake še nima; naredi ga znova in preverjanji ga izpustita.</p>
+</section><section class="guide-part"><h2 id="debelina-stene-zracnost-in-posnetja"><span class="heading-alias" id="wall-thickness-clearance-and-chamfers"></span>Debelina stene, zračnost in posnetja</h2>
+<ul><li>Stene naj bodo široke vsaj dve tiskalni poti, pri šobi 0,4 mm torej 0,8 mm. Trdni deli potrebujejo 1,2 do 2 mm.</li><li>Kjer se dva dela prilegata, potrebuješ zračnost: običajno 0,2 do 0,4 mm, odvisno od tiskalnika. Zgradi majhen preizkusni par, preden natisneš velik del.</li><li>Spodnji rob, ki leži na plošči, mnogi rahlo posnamejo. To prepreči, da bi se prva plast razlezla (»slonja noga«).</li></ul>
+</section><section class="guide-part"><h2 id="zracnost-tvojega-tiskalnika-preizkus-ujemanja"><span class="heading-alias" id="your-printer-s-play-the-fit-test"></span>Zračnost tvojega tiskalnika: preizkus ujemanja</h2>
+<p>Vsak tiskalnik natisne luknje malo manjše in zatiče malo debelejše, kot so narisani, vsak za svojo mero. Zračnost, ki jo potrebujeta dva natisnjena dela, je zato sprva ugibanje. Raje jo enkrat izmeri: v nastavitvah pod <strong class="ui">„Delovna ravnina“</strong> gumb <strong class="ui">„Izdelaj preizkus ujemanja“</strong> položi preizkus ujemanja na ploščo. To je ploščica 60 × 20 × 4 mm s sedmimi luknjami za en zatič 5 mm, vsaka narisana kot 5 mm in dvakrat 0,05, 0,10, 0,15, 0,20, 0,25, 0,30 ali 0,40 mm, ob njej pa je izbočena vrednost, in še sam zatič 5 mm, ki stoji ob ploščici in ima zgoraj majhno posnetje. Sestavljen je iz navadnih oblik, zato se natisne skupaj z ostalim na plošči, brez podpor.</p>
+<p>Na tiskalniku, katerega podlaga se premika naprej in nazaj, se visok tanek zatič lahko zamaje, odlepi ali na dnu natisne valovito, z robom ali brez. Pred izdelavo preizkusa ujemanja označite <strong class="ui">„Preizkusni zatič na odlomljivem podnožju“</strong>: zatič potem stoji na majhni 10-milimetrski plošči, ki se drži podlage. Stene ležišča se ne dotika, stoji na majhnem izboklini na njegovem dnu; po tisku ga zazibajte naprej in nazaj in se odlomi.</p>
+<p>Natisni ga, kot leži, nato potiskaj zatič s posnetim koncem naprej v luknje, od najožje naprej. <strong>Najožja luknja, v kateri se zatič še vrti,</strong> pove zračnost tvojega tiskalnika. Vpiši njeno številko pod <strong class="ui">„Zračnost tvojega tiskalnika“</strong> ali jo klikni med vrednostmi pod poljem. Zračnost velja na stran, v milimetrih, in brskalnik jo hrani za vse projekte; prazno polje pomeni, da ni izmerjena. Z več tiskalniki najprej pod <strong class="ui">„Tiskalnik“</strong> izberi tistega, na katerem tiskaš: vsak tiskalnik ima svojo zračnost, nove uporabe pa začnejo z zračnostjo tiskalnika, ki je nastavljen za model. Tiskalnik brez svoje zračnosti uporabi zračnost, nastavljeno, ko ni bil izbran noben tiskalnik.</p>
+<p>Od takrat nove uporabe začnejo z zračnostjo namesto z vgrajeno vrednostjo: <strong class="ui">„Reža na stran“</strong> in <strong class="ui">„Zračnost zatiča (na vsaki strani)“</strong> v orodju <strong class="ui">„Pokrov“</strong>, zračnost novih oblik <strong class="ui">„Lastovičji rep“</strong> in <strong class="ui">„Zaskočna kljukica“</strong>, <strong class="ui">„Zračnost (XY)“</strong> nove matice ali navojne luknje – dvojna zračnost, saj je to prostor čez ves premer – in <strong class="ui">„Najmanjša zračnost“</strong> pri <strong class="ui">„Preveri zračnost“</strong>. Prav tako <strong class="ui">„Zračnost na vsaki strani“</strong> moznikov, čepov in lastovičjih repov pri <strong class="ui">„Razdeli“</strong>. Dokler tako polje še ima to vrednost, »<strong class="ui">„Iz tvojega preizkusa ujemanja“</strong>« ob njem pove, od kod je številka. Tečaj, natisnjen v enem kosu, in zgibi orodja <strong class="ui">„Flexi zgibi“</strong> obdržijo svojih 0,4 mm: ko so natisnjeni v enem kosu, morajo njihove reže ostati odprte tudi med plastmi, tega pa zatič, natisnjen posebej, ne izmeri. Prostor za vtis magneta ali ključa Gridfinity in prostor za kupljeno vtičnico ali ploščo prav tako obdržita svoje vrednosti. Telesa, ki so že v projektu, se nikoli ne spremenijo, in tudi projekt, ki ga odpreš, ne.</p>
+</section><section class="guide-part"><h2 id="preverjanje-tiska"><span class="heading-alias" id="checking-the-print"></span>Preverjanje tiska</h2>
+<p><strong class="ui">„Preveri tisk“</strong> ob <strong class="ui">„Preveri zračnost“</strong> v skupini <strong class="ui">„Združevanje“</strong> pregleda izbrane predmete ali vse vidne, če ni nič izbrano, in v enem oknu pove, kaj bi šlo pri tiskanju narobe. Vsaka od petih vrstic je zelena, če ni našla ničesar, in oranžna s tem, kaj in kje, če je:</p>
+<ul><li><strong><strong class="ui">„Tanke stene“</strong></strong>: mesta, tanjša od dveh linij šobe - 0,8 mm pri šobi 0,4 mm. Slicer tako steno izpusti ali jo natisne kot eno šibko linijo. Na vrhu okna pri <strong class="ui">„Šoba“</strong> izberite svojo šobo (0,2 do 0,8 z enim klikom, katero koli drugo v polju). Tanka mesta se na telesih pobarvajo rdeče s svetlo mrežo, vrstica pa navede najtanjše mesto in koliko površine je pretanke. Mesta pod 1 mm² in ostri robovi, na primer rob klina, se ne štejejo.</li><li><strong><strong class="ui">„Lebdeči deli“</strong></strong>: telo ali ločen del telesa, ki se ne dotika ne plošče ne drugega dela (do 0,05 mm natančno). Tiskal bi se v zraku. Del, ki leži na stoječem delu, je v redu.</li><li><strong><strong class="ui">„Majhen stik s ploščo“</strong></strong>: del na plošči, katerega prva plast je za njegovo višino zelo majhna, na primer krogla ali stožec na konici. Med tiskanjem se lahko odlepi. Opozorilo se pokaže pod 0,5 mm² naležne površine, izmerjene 0,1 mm nad ploščo, na vsak milimeter višine: krogla je vedno pod tem, kocka z 10 mm ima 10.</li><li><strong><strong class="ui">„Previsi“</strong></strong>: iste številke kot pri <strong>Pokaži previse</strong>, s kotom, ki je nastavljen tam.</li><li><strong><strong class="ui">„Odprta mreža“</strong></strong>: uvožena mreža z odprtimi robovi ali z robovi, ki si jih delijo tri ali več ploskev. Slicer mora pri taki mreži ugibati, kje je notranjost.</li></ul>
+<figure><img src="/api/desktop/layerling/ui/guide/img/print-check.webp" alt="Pladenj, katerega desna stena je debela le 0,6 mm: Preveri tisk jo pobarva rdeče in jo navede v oknu." width="1280" height="800" loading="lazy"><figcaption>Pladenj, katerega desna stena je debela le 0,6 mm: Preveri tisk jo pobarva rdeče in jo navede v oknu.</figcaption></figure>
+<p><strong class="ui">„Pokaži“</strong> v vrstici pripelje kamero tja; izbere lebdeče dele, dele z majhnim stikom in odprte mreže, pri previsih pa vklopi <strong>Pokaži previse</strong>. Telesa, ki se prekrivajo, se preverijo združena, kot jih združi slicer. Če model spremenite, medtem ko je okno odprto, se pokaže <strong class="ui">„Spremenjeno – preveri znova“</strong>; kliknite to ali <strong class="ui">„Preveri znova“</strong>. <kbd>Esc</kbd> zapre okno. Na modelu se nič ne spremeni. UI naredi isto preverjanje z <code>layerling_check_print</code>.</p>
+</section><section class="guide-part"><h2 id="ko-gre-zares"><span class="heading-alias" id="when-you-are-ready"></span>Ko gre zares</h2>
+<p>Izberi <strong class="ui">„Izvozi“</strong> in potem <strong>STL</strong> ali <strong>3MF</strong>. STL je najpreprostejša oblika. 3MF obdrži imena in barve posameznih teles, zato je praktičen, če tiskaš z več barvami. V oknu za izvoz vidiš tudi, koliko gramov in metrov filamenta bi del potreboval, če bi bil poln. Več v poglavju <a href="/api/desktop/layerling/ui/navodila/datoteke-in-shranjevanje.html">Datoteke in shranjevanje</a>.</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/navodila/merjenje-in-opombe.html"><small>Prejšnje poglavje</small>Merjenje in opombe</a><a class="next" href="/api/desktop/layerling/ui/navodila/datoteke-in-shranjevanje.html"><small>Naslednje poglavje</small>Datoteke, shranjevanje in deljenje</a></div>
+      </main>
+    </div>
+    <footer class="note">Ta navodila rastejo skupaj s programom. Če kaj manjka ali ne drži, sporoči v <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">razpravah</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=sl" rel="noopener">Podpri Layerling Desktop</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Razprave</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Več na GitHubu</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Opombe ob izdaji v1.154.1</a></div><p class="trademark">Tinkercad je blagovna znamka podjetja Autodesk, Inc. layerling je neodvisen projekt in ni povezan z Autodeskom, ga ne podpira in ga ne sponzorira.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Nazaj v urejevalnik";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="V urejevalnik";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

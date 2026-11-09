@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>العرض وسطح العمل - دليل استخدام layerling</title>
+    <meta name="description" content="التنقل حول المشهد، النظر مباشرة، ووضع أشكال جديدة على أي سطح تريده.">
+    <link rel="canonical" href="https://layerling.com/dalil/view-and-workplane.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/view-and-workplane.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/view-and-workplane.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/view-and-workplane.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/ansicht-und-arbeitsebene.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/view-and-workplane.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/view-and-workplane.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/view-and-workplane.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/view-and-workplane.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/weergave-en-werkvlak.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/view-and-workplane.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/pogled-in-delovna-ravnina.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/view-and-workplane.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/view-and-workplane.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/view-and-workplane.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/view-and-workplane.html">
+    <meta property="og:title" content="العرض وسطح العمل - دليل استخدام layerling">
+    <meta property="og:description" content="التنقل حول المشهد، النظر مباشرة، ووضع أشكال جديدة على أي سطح تريده.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/dalil/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">دليل الاستخدام</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/dalil/search-index.json" data-nothing="لم يُعثر على شيء." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="ابحث في الدليل" aria-label="ابحث في الدليل" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="اللغة">العربية</summary><ul><li><a href="/api/desktop/layerling/ui/guide/view-and-workplane.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/view-and-workplane.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/view-and-workplane.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/view-and-workplane.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/view-and-workplane.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/view-and-workplane.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/view-and-workplane.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/view-and-workplane.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/view-and-workplane.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/view-and-workplane.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/pogled-in-delovna-ravnina.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/view-and-workplane.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/view-and-workplane.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/view-and-workplane.html" hreflang="ar" lang="ar" aria-current="true">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/view-and-workplane.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/view-and-workplane.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/view-and-workplane.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">افتح المحرّر</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>المحرّر مفتوح بالفعل في علامة تبويب أخرى، فانتقل إليها.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="الفصول"><h2>الفصول</h2><p class="print-link"><a href="/api/desktop/layerling/ui/dalil/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>الدليل كاملًا للطباعة</span></a></p><ol><li><a href="/api/desktop/layerling/ui/dalil/getting-started.html">البدء</a></li><li><a href="/api/desktop/layerling/ui/dalil/view-and-workplane.html" aria-current="page">العرض وسطح العمل</a></li><li><a href="/api/desktop/layerling/ui/dalil/shapes.html">وضع الأشكال وضبطها</a></li><li><a href="/api/desktop/layerling/ui/dalil/select-and-arrange.html">التحديد والترتيب</a></li><li><a href="/api/desktop/layerling/ui/dalil/solids-and-holes.html">الأجسام الصلبة والثقوب</a></li><li><a href="/api/desktop/layerling/ui/dalil/edges-and-hollowing.html">كسر الحواف وتفريغ الأجسام</a></li><li><a href="/api/desktop/layerling/ui/dalil/sketches.html">الرسومات التخطيطية: من الحد الخارجي إلى الجسم</a></li><li><a href="/api/desktop/layerling/ui/dalil/text.html">النص والكتابة المنحنية</a></li><li><a href="/api/desktop/layerling/ui/dalil/threads-and-mechanics.html">الأسنان اللولبية والتروس والأجزاء الأخرى</a></li><li><a href="/api/desktop/layerling/ui/dalil/measuring-and-notes.html">القياس والملاحظات</a></li><li><a href="/api/desktop/layerling/ui/dalil/printing.html">التحضير للطباعة ثلاثية الأبعاد</a></li><li><a href="/api/desktop/layerling/ui/dalil/files-and-saving.html">الملفات والحفظ والمشاركة</a></li><li><a href="/api/desktop/layerling/ui/dalil/shortcuts.html">اختصارات لوحة المفاتيح</a></li><li><a href="/api/desktop/layerling/ui/dalil/ai-with-mcp.html">البناء باستخدام الذكاء الاصطناعي (MCP)</a></li><li><a href="/api/desktop/layerling/ui/dalil/offline-and-install.html">التثبيت كتطبيق والعمل دون اتصال والاستضافة الذاتية</a></li><li><a href="/api/desktop/layerling/ui/dalil/videos.html">مقاطع فيديو عن layerling</a></li><li><a href="/api/desktop/layerling/ui/dalil/tablet-and-touch.html">الأجهزة اللوحية واللمس</a></li></ol></nav>
+      <main>
+<h1>العرض وسطح العمل</h1>
+<p class="lead">التنقل حول المشهد، النظر مباشرة، ووضع أشكال جديدة على أي سطح تريده.</p>
+<div class="toc"><b>في هذه الصفحة</b><ul><li><a href="#moving-around">التنقل</a></li><li><a href="#looking-inside-the-section-view">النظر إلى الداخل: عرض المقطع (Looking inside: the section view)</a></li><li><a href="#the-workplane">سطح العمل</a></li><li><a href="#build-plates">ألواح الطباعة (Build plates)</a></li><li><a href="#grid-and-snapping">الشبكة والالتقاط (Grid and snapping)</a></li><li><a href="#layerling">عندما يشعر layerling بالبطء</a></li></ul></div>
+<section class="guide-part"><h2 id="moving-around">التنقل</h2>
+<p>باستخدام الماوس:</p>
+<div class="table-scroll"><table><thead><tr><th>ما تفعله</th><th>ما يحدث</th></tr></thead><tbody><tr><td>السحب بالزر الأيمن</td><td>تدوير العرض</td></tr><tr><td>النقر بالزر الأيمن</td><td>على جسم ما: قائمة بالأوامر الأكثر استخدامًا: تكرار، ثقب أو جسم صلب، تجميع، إخفاء، قفل، حذف والمزيد؛ على مساحة فارغة: لصق وتحديد الكل</td></tr><tr><td>السحب بالزر الأوسط</td><td>تحريك العرض (Pan)</td></tr><tr><td>عجلة الماوس</td><td>التكبير والتصغير</td></tr><tr><td>الضغط على <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> والسحب بالزر الأيسر</td><td>يحرّك العرض أيضًا (على لوحة اللمس في MacBook: اضغط <kbd>Cmd</kbd>، ثم اضغط واسحب)؛ وعلى Mac يدير الضغط على Control بدلًا من ذلك العرض، لأن Control مع النقر هو النقر الأيمن في Mac</td></tr><tr><td>النقر المزدوج على مكان فارغ من سطح العمل أو بجانب اللوحة</td><td>يحرّك العرض حتى يصبح ذلك المكان في المنتصف، ثم يدور العرض حوله</td></tr></tbody></table></div>
+<p>تحدد سرعة تكبير العجلة بـ<strong class="ui">«سرعة التكبير/التصغير»</strong> في الإعدادات، تحت <strong class="ui">«المظهر»</strong>: شريط تمرير من 1 إلى 14، يبدأ عند 5. وهو يضبط العجلة ولوحة اللمس فقط: فالأزرار والمفتاحان <kbd>+</kbd> و<kbd>−</kbd> تكبّر دائمًا بالخطوات الصغيرة نفسها. درجة واحدة من عجلة الماوس تكبر بالتساوي في كل متصفح، ولوحة اللمس تكبر بحسب مسافة التمرير.</p>
+<p><strong>أزرار الفأرة كما في برنامج التقطيع.</strong> إذا كنت معتادًا على Bambu Studio أو OrcaSlicer، فاضبط <strong class="ui">«أزرار الفأرة»</strong> في الإعدادات، تحت <strong class="ui">«المظهر»</strong>، على <strong class="ui">«مثل Bambu Studio وOrcaSlicer»</strong>. عندها يدير السحب بالزر الأيسر على مساحة فارغة العرض، ويزيحه الزر الأيمن كما يفعل الأوسط، وShift مع السحب بالزر الأيسر يرسم مربع التحديد. أما السحب على جسم فما زال يحرّكه، والنقرة اليمنى القصيرة ما زالت تفتح القائمة. وفي الرسم التخطيطي يزيح الزر الأيمن العرض أيضًا.</p>
+<p><strong>الفأرة ثلاثية الأبعاد.</strong> فأرة SpaceMouse أو أي فأرة ثلاثية الأبعاد أخرى تدير العرض ثلاثي الأبعاد وتزيحه وتكبّره: ادفع الغطاء بعيدًا للتكبير، وحرّكه جانبيًا لإزاحة العرض، وأمِله لإمالة العرض، ولُفّه لتدوير العرض. في الإعدادات، تحت <strong class="ui">«المظهر»</strong>، انقر <strong class="ui">«توصيل الفأرة ثلاثية الأبعاد»</strong> واختر الجهاز في النافذة التي يفتحها المتصفح؛ ويتذكر المتصفح الاختيار، فلا يلزم ذلك إلا مرة واحدة. يعمل هذا في Chrome وEdge، اللذين يمكنهما الوصول إلى هذه الأجهزة؛ أما Firefox وSafari فلا. إذا بدا اتجاه معكوسًا فحدّده تحت الزر: الإزاحة جانبًا، أو لأعلى ولأسفل، أو التكبير، أو الإمالة، أو التدوير.</p>
+<p>على الجهاز اللوحي أو الهاتف، يقوم إصبعان بالتكبير والتصغير (المباعدة والتقريب) وتحريك العرض (التمرير معًا). وإصبع واحد على مساحة فارغة يدير العرض، والنقر هناك يلغي التحديد؛ على شكل أو مقبض يتم العمل على التصميم، تمامًا مثل زر الماوس الأيسر. لتدوير العرض بإصبع يبدأ من على شكل أيضًا، قم بتشغيل <strong class="ui">«تدوير العرض بإصبع واحد»</strong> في شريط العرض. يظهر هذا المفتاح على الأجهزة ذات الشاشات اللمسية.</p>
+<p>تتصرف اللوحة الرسومية مع القلم مثل الماوس: الرأس هو الزر الأيسر، والزر الموجود على القلم هو الزر الأيمن، لتدوير العرض وللقائمة. يمكن ضبط المفاتيح السريعة للوحة الرسومية في برنامج التشغيل الخاص بها لتطابق <a href="/api/desktop/layerling/ui/dalil/shortcuts.html">اختصارات لوحة المفاتيح</a> في layerling.</p>
+<p><strong>على الجهاز اللوحي، اعمل باستخدام قلم استشعار (Stylus) إن أمكن.</strong> رأسه أدق بكثير من رأس الأصبع ولا يغطي ما تصوب عليه، لذا فإن النقاط الصغيرة والخطوط الدقيقة والمقابض في الرسم التخطيطي ونقاط القياس والحواف يتم إصابتها بدقة، ويكون العمل الطويل أقل إجهادًا. يتيح layerling بالفعل للإصبع الوصول إلى مسافة أبعد قليلًا للنقاط والخطوط والمقابض والحواف مقارنة بمؤشر الماوس، ولكن القلم يظل الطريقة الأكثر دقة. وهذا ينطبق على القلم الذي يتعرف عليه الجهاز اللوحي كقلم (مثل S Pen وApple Pencil وما شابههما). أما قلم اللمس العادي ذو الرأس المطاطي فتعدّه الشاشة إصبعًا، وليس أدق منه.</p>
+<p>لا يوجد زر أيمن للفأرة على الجهاز اللوحي: أبقِ إصبعك ثابتًا على شكل أو على مساحة فارغة نصف ثانية، فتُفتح القائمة التي تفتحها النقرة بالزر الأيمن، وفيها <strong>تحديد الكل</strong> عند الضغط على مساحة فارغة. و<strong>تحديد عدة أجسام</strong> في القائمة نفسها يقوم مقام Shift على الجهاز اللوحي: كل نقرة على جسم تضيفه إلى التحديد أو تُخرجه منه، حتى تنقر على مساحة فارغة أو تضغط <kbd>Esc</kbd>؛ والإصبع على مساحة فارغة ما زال يدير العرض. ويمكن الإمساك بالمقابض حول الشكل المحدد بالإصبع من مسافة قريبة بجانبها.</p>
+<section class="guide-part"><h3 id="the-view-cube">مكعب العرض (The view cube)</h3>
+<p>يعرض المكعب الموجود في أعلى اليسار اتجاه نظرك. نقرة على أحد جوانبه تقفز إلى العرض المباشر من الأعلى، الأسفل، الأمام، الخلف، اليسار أو اليمين. نقرة على زاوية من المكعب تنظر إلى النموذج بشكل قطري من تلك الزاوية، ونقرة بالقرب من حافة تنظر من تلك الحافة، بين جانبين؛ تضيء النقطة طالما كان المؤشر عليها. تمنحك أرقام لوحة المفاتيح من <kbd>1</kbd> إلى <kbd>6</kbd> المشاهد المباشرة أيضًا. اضغط معها على <kbd>Shift</kbd> وسيقوم العرض أيضًا بالتكبير على التحديد، كما يفعل <span dir="ltr"><kbd>Shift</kbd>+<kbd>F</kbd></span>.</p>
+<p>اسحب المكعب لتدوير العرض، تمامًا مثل السحب بالزر الأيمن للماوس. مع عدم تحديد أي شيء، تقوم مفاتيح الأسهم بتدوير العرض أيضًا: 15° لكل ضغطة، 90° مع <kbd>Shift</kbd>. وهي تدير النموذج في الاتجاه الذي تشير إليه - <kbd>→</kbd> يدير واجهته إلى اليمين، <kbd>↑</kbd> يميل واجهته إلى الأعلى. ومع الضغط على <kbd>Ctrl</kbd> تُزيح الأسهم العرض عبر الشاشة بدلًا من ذلك: عُشر الصورة لكل ضغطة، ونصفها مع <kbd>Shift</kbd> أيضًا. ويتحرك النموذج في الاتجاه الذي تشير إليه. إذا كان هناك شيء محدد، تقوم الأسهم بتحريكه؛ انقر على مساحة فارغة أولًا لتدوير العرض. على الشاشة اللمسية يعمل هذا بإصبع واحد، دون تشغيل <strong class="ui">«تدوير العرض بإصبع واحد»</strong>.</p>
+</section><section class="guide-part"><h3 id="the-view-bar">شريط العرض (The view bar)</h3>
+<p>على الحافة اليسرى يوجد شريط ضيق. من الأعلى:</p>
+<ul><li><strong class="ui">«العرض الرئيسي»</strong> يعيد المشهد كله إلى مجال الرؤية. المفتاح هو <kbd>Home</kbd>؛ ويفعل <kbd>F</kbd> ذلك أيضًا عندما لا يكون شيء محددًا.</li><li><strong class="ui">«توسيط العرض على التحديد»</strong> يكبّر على التحديد (<kbd>F</kbd> أو <span dir="ltr"><kbd>Shift</kbd>+<kbd>F</kbd></span>)؛ ومن دون تحديد يعرض المشهد كله، كما يفعل <kbd>F</kbd>.</li><li><strong class="ui">«تكبير»</strong> و<strong class="ui">«تصغير»</strong> يكبران ويصغران خطوة بخطوة، كما تفعل المفاتيح <kbd>+</kbd> و<kbd>−</kbd>.</li><li><strong class="ui">«عرض متعامد (Orthographic)»</strong> ينتقل إلى عرض مسطح (إسقاط متعامد) تبقى فيه الحواف المتوازية متوازية. للقياس ومحاذاة الحواف يكون ذلك غالبًا أكثر راحة من العرض المنظوري. <kbd>O</kbd> ينتقل ذهابًا وإيابًا، ونقرة ثانية تعيد العرض المنظوري.</li><li><strong class="ui">«افتح عرضًا ثانيًا»</strong> يفتح عرضًا ثانيًا للتصميم في نافذة خاصة به، موصوفة أدناه. نقرة ثانية تغلقها.</li><li><strong class="ui">«إظهار أشرطة التمرير»</strong> يُظهر شريط تمرير أسفل العرض وآخر على طول حافته اليمنى. اسحب الشريط لتحريك العرض بسلاسة، أو انقر سهمًا في طرفه لتحريكه قليلًا (استمر في الضغط ليواصل)، أو انقر بجانب الشريط للتحرك بما يقارب عرضًا كاملًا. لا شيء يدور، وعلى عكس مفاتيح الأسهم تعمل الأشرطة أيضًا أثناء تحديد جزء - مفيد عند العمل عن قرب على التفاصيل الصغيرة. نقرة ثانية تخفيها؛ ويحدد <strong class="ui">«بدء المحرر مع أشرطة التمرير»</strong> في الإعدادات ما إذا كان التصميم يُفتح بها. ويتذكر هذا المتصفح اختيارك أيضًا.</li><li><strong class="ui">«إخفاء سطح العمل»</strong> (العين فوق الشبكة) يخفي لوحة القاعدة بشبكتها، حتى تتمكن من النظر إلى الجانب السفلي للتصميم من الأسفل. العرض فقط هو ما يتغير: الأشكال الجديدة تظل تهبط على سطح العمل. نقرة ثانية تظهره مجددًا.</li><li><strong class="ui">«وضع سطح العمل»</strong>، شريط القياس وزاوية النجار أدوات قائمة بذاتها، مشروحة أدناه وفي <a href="/api/desktop/layerling/ui/dalil/measuring-and-notes.html">القياس والملاحظات</a>.</li></ul>
+<p>السهم الصغير في أعلى الشريط يخفيه إذا كان يعيق طريقك. والزر نفسه، إذا سحبته، ينقل الشريط إلى أي مكان في المحرر، وفي الرسم التخطيطي أيضًا؛ والنقر المزدوج يعيده إلى مكانه. وتتحرك المعاينة ثلاثية الأبعاد للرسم الدوراني من عنوانها بالطريقة نفسها.</p>
+<p>يفتح التصميم بالطريقة التي تركته بها: يتم الاحتفاظ بالزاوية، التكبير وموضع العرض معه في هذا المتصفح، لذا تواصل من حيث توقفت، حتى بعد الانتقال إلى الرئيسية أو إغلاق الصفحة. الملف المحفوظ (.lyl) يحمل العرض معه، لذا يفتح بنفس العرض في مكان آخر أيضًا. العرض ليس جزءًا من سجل التراجع.</p>
+<p>يمكنك أيضًا الاحتفاظ بأربعة عروض خاصة بك في كل تصميم. يحفظ <span dir="ltr"><kbd>Shift</kbd>+<kbd>7</kbd></span> أو <span dir="ltr"><kbd>Shift</kbd>+<kbd>8</kbd></span> أو <span dir="ltr"><kbd>Shift</kbd>+<kbd>9</kbd></span> أو <span dir="ltr"><kbd>Shift</kbd>+<kbd>0</kbd></span> العرض كما هو تمامًا - الزاوية والموضع والتكبير، ومسطحًا أو منظوريًا - تحت ذلك المفتاح، ويعيده المفتاح وحده (<kbd>7</kbd> أو <kbd>8</kbd> أو <kbd>9</kbd> أو <kbd>0</kbd>). تؤكد رسالة في الأسفل الحفظ؛ والحفظ مرة أخرى تحت المفتاح نفسه يستبدل العرض. ومثل العرض أعلاه، تبقى العروض المحفوظة مع التصميم في هذا المتصفح وتنتقل في الملف المحفوظ (.lyl)، وهي ليست جزءًا من سجل التراجع.</p>
+</section><section class="guide-part"><h3 id="a-second-view-in-its-own-window">عرض ثانٍ في نافذة خاصة به</h3>
+<p><strong class="ui">«افتح عرضًا ثانيًا»</strong> يفتح نافذة تعرض التصميم نفسه عبر كاميرا خاصة بها، فتراه من جهتين في آنٍ واحد - من الأمام مثلًا بينما تعمل من الأعلى. كل تغيير تجريه في المحرر يظهر هناك فورًا؛ أما التصميم نفسه فلا يتغير إلا في النافذة الرئيسية، وتبقى المقابض هناك أيضًا. في النافذة الثانية يدير الفأرة ومكعب العرض عرضها كما هنا، وكذلك المفاتيح: <kbd>1</kbd> إلى <kbd>6</kbd> و<kbd>F</kbd> و<kbd>Home</kbd> و<kbd>O</kbd> و<kbd>+</kbd> و<kbd>−</kbd>، والأسهم للتدوير و<kbd>Ctrl</kbd> مع الأسهم للإزاحة. ويقرّب <kbd>F</kbd> هناك إلى ما هو محدد في المحرر. وتعمل هناك أيضًا العروض الأربعة المحفوظة للتصميم: <kbd>7</kbd> و<kbd>8</kbd> و<kbd>9</kbd> و<kbd>0</kbd> تعيدها، و<kbd>Shift</kbd> مع أحد هذه المفاتيح يحفظ عرض تلك النافذة تحته - للنافذتين معًا. ولشريط العرض الخاص بها <strong class="ui">«العرض الرئيسي»</strong> و<strong class="ui">«توسيط العرض على التحديد»</strong> و<strong class="ui">«تكبير»</strong> و<strong class="ui">«تصغير»</strong> و<strong class="ui">«عرض متعامد (Orthographic)»</strong> و<strong class="ui">«إخفاء سطح العمل»</strong>، وهي تعمل على تلك النافذة وحدها. تُفتح النافذة حيث تركتها وبالحجم نفسه، وتُغلق مع المحرر. لا يظهر الزر على الهواتف والأجهزة اللوحية.</p>
+</section></section><section class="guide-part"><h2 id="looking-inside-the-section-view">النظر إلى الداخل: عرض المقطع (Looking inside: the section view)</h2>
+<p><strong class="ui">«عرض المقطع»</strong>، الزر الأخير في الشريط (أداة القطع)، يقطع العرض على طول مستوى حتى تتمكن من التحقق من الجدران والتجاويف والأجزاء التي تتداخل في بعضها البعض. لا يتم قطع أي شيء بالفعل: التصميم وملفاته وكل عملية تصدير تظل كاملة. حيث يمر المستوى عبر جسم صلب يمتلئ القطع بلون الجسم أغمق قليلًا، ويبقى أي ثقب بداخله فارغًا، فتفرّق بين الصلب والمفرّغ؛ ويظهر السطح المملوء بعد لحظة من توقف المستوى. من <strong class="ui">«سطح القطع»</strong> تختار شكل القطع: <strong class="ui">«مُهشَّر»</strong>، وهو الافتراضي، يُهشِّره كما في الرسم الهندسي، والجسم الموجود داخل جسم آخر يُهشَّر بالاتجاه المعاكس فيتميّز الاثنان؛ <strong class="ui">«مملوء»</strong> يملؤه بلون واحد؛ <strong class="ui">«مفتوح»</strong> يتركه مفتوحًا فترى داخل قشرة الجسم. يبقى اختيارك لكل التصاميم.</p>
+<ul><li>اختر المحور الذي يقطع المستوى عبره: X (العرض)، Y (العمق) أو Z (الارتفاع)، كما في حقول الموضع. يبدأ المستوى في منتصف تصميمك.</li><li>يحدد <strong class="ui">«المحاور من»</strong> ما تتبعه هذه المحاور. يأخذ <strong class="ui">«التصميم»</strong> محاور التصميم. ويأخذ <strong class="ui">«سطح العمل»</strong> محاور سطح العمل: عندها يقطع Z موازيًا له، وX وY عموديًا عليه، ويُحسب الموضع من نقطة أصله. إذا كان سطح العمل على وجه مائل فإنك تقطع موازيًا لذلك الوجه، ويتحرك القطع معه عندما تنقل سطح العمل. ويدير <strong class="ui">«العرض»</strong> المستوى ليواجه الشاشة: فيزيل ما يقع أمامه، وبشريط التمرير تدفعه أعمق في التصميم في اتجاه نظرك، مثلًا للوصول إلى جزء مخفي والنقر عليه. بعد تدوير العرض انقر عليه مرة أخرى فيتبع القطع العرض الجديد.</li><li><strong class="ui">«تقريبي»</strong> يحرك المستوى عبر التصميم بأكمله، <strong class="ui">«دقيق»</strong> يحركه قليلًا على جانبي موضعه، لأعشار المليمتر. ويمكنك كتابة الموضع أيضًا.</li><li>يعرض الزر الموجود بجانب المحاور الجانب الآخر من القطع، <strong class="ui">«توسيط»</strong> يضع المستوى في الوسط مجددًا، و<strong class="ui">«إظهار مستوى القطع»</strong> يخفي المستوى الأزرق.</li><li>يمكنك النقر وتحديد ما يكشفه القطع، بما في ذلك الجدران الداخلية.</li><li><strong class="ui">«سطح العمل هنا»</strong> يضع سطح العمل على القطع. يقع على مستوى المقطع ويواجه خارج الجسم الذي يبقى، مثل الوجه الذي يتركه القطع. إذا انتقلت بعد ذلك إلى الرسم التخطيطي، فإنه يبدأ هناك بالضبط، ويُظهر الحد الخارجي الباهت المقطعَ، فيمكنك الرسم على طوله والالتقاط إليه. هكذا ترسم غطاءً يناسب التجويف الذي فتحته بالمقطع، على سبيل المثال. يختار الزر الموجود بجانب المحاور الجانب الذي يبقى، ومعه الاتجاه الذي يواجهه سطح العمل. وتعيد سطح العمل إلى اللوحة الأساسية كالمعتاد.</li><li><strong class="ui">«رسم تخطيطي من المقطع»</strong> يبدأ رسمًا تخطيطيًا جديدًا على القطع مباشرة، وفيه الخطوط الخارجية للقطع كخطوط جاهزة: يأتي الثقب كدائرة حقيقية، والزاوية المدوّرة كقوس. غيّرها، واحذف ما لا تحتاجه، وتابع الرسم، ثم أنهِه: ينمو الجسم من القطع نحو الجهة المقطوعة، فتبدأ القطعة التي يجب أن تتطابق مع أخرى، مثل غطاء أو حشوة أو جوان، من الخط الخارجي لتلك القطعة نفسها. الزر بجانب المحاور يختار تلك الجهة. وكما في SVG، لا تُحسب إلا الأجسام الظاهرة، والثقوب مطروحة مسبقًا.</li><li><strong class="ui">«قياس»</strong> يقيس مباشرة على القطع: يظهر الحد الخارجي باللون الأزرق، ونقرتان عليه تعطيك المسافة، بالإضافة إلى أجزائها على طول محوري المستوى. تلتقط النقطتان إلى الحد الخارجي، والزوايا أولًا. عندما تهبط النقرة الثانية في أي مكان على الجدار المقابل، فإنها تلتقط بشكل متعامد مع النقطة الأولى - حتى تقرأ سمك الجدار والفجوات والخلوص دون التصويب بدقة. تبدأ نقرة ثالثة القياس التالي، وينهي <kbd>Esc</kbd> القياس. تحريك المستوى يمسح القياس. على الحد الخارجي الدائري، مثل القطع عبر أسطوانة أو ثقب، تعلّم علامة زائد صغيرة المركز ويلتقط المركز أيضًا. انقر على نقطة على الدائرة، ثم اذهب بالقرب من النقطة المقابلة لها: تهبط النقرة الثانية تمامًا عبر المركز، ويُظهر الرقم Ø، القطر. من المركز إلى نقطة على الدائرة تحصل على R، نصف القطر.</li><li><strong class="ui">«المقطع كملف SVG»</strong> يحفظ الحدود الخارجية على مستوى القطع كملف SVG بنسبة 1:1، لليزر أو الراسمة أو القالب أو الجلبة. يُرى قطع X من اليمين، وقطع Y من الأمام، وقطع Z من الأعلى. كما في التصدير، لا تدخل إلا الأجسام المرئية، وتُطرح الثقوب بالفعل، وتُضم الأجسام ذات اللون نفسه في حد خارجي واحد. يظل كل لون مسارًا خاصًا به بدون تعبئة، حتى تحتفظ بها برامج الليزر كطبقات مستقلة.</li></ul>
+<p>نافذة الأداة مثبتة بزرها. إذا كانت تغطي شيئًا ما، اسحبها من شريط عنوانها إلى أي مكان على سطح العمل؛ وستفتح هناك في المرة القادمة أيضًا. انقر مرتين على شريط العنوان أو أفلتها عند الزر لإعادتها.</p>
+<p>يغلق X و<kbd>Esc</kbd> النافذة؛ مع تشغيل القياس، ينهيه <kbd>Esc</kbd> أولًا. يبقى القطع حتى تقوم بإيقافه بـ<strong class="ui">«المقطع مُفعّل»</strong> أو تعود إلى الصفحة الرئيسية. طالما كان قيد التشغيل، يظل زره مبرزًا. أي شيء تضعه على الجانب المقتطع يظهر فقط بمجرد إيقاف القطع. لا يحتوي الجهاز اللوحي على <kbd>Esc</kbd>، لذا تحتوي النافذة هناك على زرين إضافيين: <strong class="ui">«رجوع»</strong> ينهي القياس إذا كان قيد التشغيل وإلا يغلق النافذة، و<strong class="ui">«إغلاق»</strong> يغلق النافذة في خطوة واحدة. لا يعرضهما الكمبيوتر.</p>
+</section><section class="guide-part"><h2 id="the-workplane">سطح العمل</h2>
+<p>تتحاذى الأشكال الجديدة مع سطح العمل. في البدء يكون ذلك هو اللوحة الأساسية مع الشبكة. ولكن يمكنك وضعه على أي سطح، لوضع شيء على جانب أو وجه مائل.</p>
+<ol><li>اضغط على <kbd>W</kbd> أو انقر على <strong class="ui">«وضع سطح العمل»</strong>.</li><li>حرك الماوس فوق وجه جسم ما. سيضيء.</li><li>نقرة تضع سطح العمل هناك. كل شيء تضيفه الآن يستقر على ذلك الوجه.</li></ol>
+<p>انقر على اللوحة الفارغة بدلًا من ذلك، وسيستقر سطح العمل مسطحًا في النقطة التي نقرت عليها، على شبكة الالتقاط. الأشكال الجديدة والرسم التخطيطي المنتهي، والدوراني أيضًا، تظهر هناك حينها بدلًا من منتصف اللوحة. طالما استقر سطح العمل مسطحًا على اللوحة بهذا الشكل، تعرض اللوحة حدودها فقط: شبكتان في المستوى نفسه ستحدثان نمطًا وامضًا.</p>
+<p>أما على الوجه، فتلتقط نقطة أصل سطح العمل في غير ذلك إلى الشبكة. انقر بالقرب من زاوية الوجه وسوف يستقر تمامًا على تلك الزاوية. بالقرب من حافة يقع على الحافة، وتتحاذى خطوط الشبكة معها؛ هكذا تختار زاوية الشبكة عن قصد. بدون زاوية أو حافة، تجري الشبكة على الوجه المستلقي بموازاة الجسم، لذا على الصندوق المدار تكون مدارة معه.</p>
+<p>نقرة بجانب اللوحة أو <kbd>Esc</kbd> تعيد سطح العمل إلى اللوحة الأساسية. والأسرع من ذلك هو <strong class="ui">«إعادة سطح العمل إلى اللوحة الأساسية»</strong>: الزر ذو السهم المتجه لأسفل يظهر في شريط العرض أسفل العين طالما كان سطح العمل مستقرًا على وجه. <span dir="ltr"><kbd>Shift</kbd>+<kbd>W</kbd></span> يضعه مباشرة على الوجه المحدد حاليًا. ويعيده <span dir="ltr"><kbd>Alt</kbd>+<kbd>W</kbd></span> إلى اللوحة الأساسية في أي وقت، سواء كان هناك شيء محدد أم لا. وإذا ضغطت <kbd>Shift</kbd> أثناء النقر، يتجه المستوى إلى الجهة الأخرى.</p>
+<p>طالما استقر سطح العمل على وجه، تظهر عين بجانب <strong class="ui">«وضع سطح العمل»</strong>. إنها تخفي سطح العمل دون إلغائه، للحصول على نظرة واضحة على التصميم: الأشكال الجديدة تظل تهبط على ذلك الوجه، والتدوير يظل يدور حوله. نقرة على العين تظهره مجددًا، وكذلك تحديد سطح عمل جديد.</p>
+<p>للنظر مباشرة على سطح العمل، اضغط <kbd>P</kbd> أو انقر على <strong class="ui">«النظر مباشرة على سطح العمل»</strong> بجانب <strong class="ui">«وضع سطح العمل»</strong> في شريط العرض. يدور العرض حتى ترى سطح العمل بشكل عمودي، من الجهة التي تنمو نحوها الأشكال الجديدة، ونقطة أصله في المنتصف. على اللوحة الأساسية يكون هذا هو العرض من الأعلى.</p>
+</section><section class="guide-part"><h2 id="build-plates">ألواح الطباعة (Build plates)</h2>
+<p>عندما يحتوي التصميم على أكثر مما يتسع له لوح واحد، مثل علبة مع غطائها وحشواتها، يمكن أن يكون له عدة ألواح طباعة. انقر <strong class="ui">«ألواح الطباعة»</strong> في مجموعة <strong class="ui">«ترتيب»</strong>، أو اختر <strong class="ui">«إلى لوح…»</strong> من قائمة النقر بزر الماوس الأيمن على جسم. يظهر شريط أسفل العرض فيه زر لكل لوح؛ ويبيّن الرقم عليه عدد الأجسام على اللوح.</p>
+<ul><li>كل لوح بحجم سطح العمل، وتقع الألواح جنبًا إلى جنب على يمين اللوح الأول، بينها 20 مم. ينتمي الجسم إلى اللوح الذي يقف عليه منتصف قاعدته، فسحبه إلى الجهة الأخرى يضعه على اللوح الآخر. يحتوي التصميم على 12 لوحًا كحد أقصى.</li><li>النقر على لوح في الشريط يعرضه، وتوضع الأشكال الجديدة والملفات المستوردة عليه بعد ذلك. <strong class="ui">«عرض كل الألواح»</strong> يعرضها كلها. النقر المزدوج على لوح أو <strong class="ui">«إعادة تسمية اللوح»</strong> يمنحه اسمًا مثل «غطاء» يُكتب على اللوح.</li><li><strong class="ui">«نقل اللوح إلى اليسار»</strong> و<strong class="ui">«نقل اللوح إلى اليمين»</strong> يغيّران الترتيب، وتنتقل الأجسام مع لوحها. <strong class="ui">«إزالة اللوح (تنتقل أجسامه إلى اللوح الأول)»</strong> يزيل اللوح النشط؛ وتنتقل أجسامه إلى اللوح الأول في المكان نفسه.</li><li><strong class="ui">«التوزيع على الألواح»</strong> يضع الأجسام المحددة، أو جميعها، صفًا بعد صف على الألواح، الأكبر أولًا، بينها 5 مم، ويضيف ألواحًا ما دامت مطلوبة. الجسم الأكبر من اللوح يبقى مكانه.</li><li>عند اختيار طابعة يُفحص كل جسم مقابل لوحه، ويُحسب ارتفاع الطباعة من أدنى جسم على ذلك اللوح. اللوح الذي عليه جسم لا يتسع يُظهر رقمه بالأحمر.</li><li>في الخصائص يُحسب X من منتصف لوح الجسم نفسه.</li></ul>
+<p>تعرض نافذة التصدير عندئذ <strong class="ui">«الألواح»</strong>: كل الألواح في ملف واحد، جنبًا إلى جنب كما في التصميم؛ أو ملف لكل لوح مجمّعة في ZIP (STL و3MF وOBJ)؛ أو لوح واحد يوضع مكان اللوح الأول. يفتح برنامج التقطيع كل ملف كلوح واحد، فلطباعة الألواح واحدًا بعد الآخر استخدم ملفات الألواح. يمكن التراجع عن نقل الأجسام بين الألواح وتوزيعها؛ أما إضافة الألواح وتسميتها وترتيبها وإزالتها فتُحفظ مع التصميم ولا يُتراجع عنها.</p>
+</section><section class="guide-part"><h2 id="grid-and-snapping">الشبكة والالتقاط (Grid and snapping)</h2>
+<p>تعرض الشبكة حجم اللوحة. في أسفل اليمين توجد <strong>خطوة الالتقاط</strong>: التحريك والتكبير/التصغير يلتقطان بخطوات بهذا الحجم، على سبيل المثال 1 مم. اجعلها أصغر للعمل الدقيق وأكبر للترتيب الأولي. <strong class="ui">«التقاط إلى الشبكة»</strong> في الشريط يحرك الأشكال المحددة بعد ذلك إلى أقرب تقاطع شبكة. أثناء التحريك، تلتقط الأشكال أيضًا بالأشكال الأخرى، انظر <a href="/api/desktop/layerling/ui/dalil/select-and-arrange.html">التحديد والترتيب</a>. ومن دون الفأرة: <span dir="ltr"><kbd>Alt</kbd>+<kbd>1</kbd></span> إلى <span dir="ltr"><kbd>Alt</kbd>+<kbd>0</kbd></span> تختار ذلك العنصر من القائمة (<span dir="ltr"><kbd>Alt</kbd>+<kbd>1</kbd></span> يوقف الالتقاط)، و<kbd>,</kbd> و<kbd>.</kbd> تجعل الخطوة أدق أو أخشن بمقاس واحد. ويعمل هذا في الرسم التخطيطي أيضًا. نقرة قصيرة بزر الفأرة الأوسط، دون تحريك الفأرة، تفتح قائمة خطوات الالتقاط عند المؤشر مباشرة، في الرسم التخطيطي أيضًا؛ أما السحب مع الضغط على الزر الأوسط فما زال يحرّك العرض.</p>
+<aside class="tip"><p><strong>نصيحة:</strong> توقف عن تدوير العرض عندما تطابق الأجزاء معًا بدقة. استخدم مفاتيح الأرقام للانتقال إلى العرض المباشر من الأعلى أو الأمام واضغط على <kbd>O</kbd> للعرض المسطح. حينها ترى في الحال ما إذا كانت الحافتان مستويتين تمامًا.</p></aside>
+<section class="guide-part"><h3 id="the-settings-window">نافذة الإعدادات (The settings window)</h3>
+<p>الترس في شريط العنوان (<strong class="ui">«إعدادات مساحة العمل»</strong>) يفتح الإعدادات. على اليسار خمسة أقسام: <strong class="ui">«المظهر»</strong> و<strong class="ui">«القياس»</strong> و<strong class="ui">«سطح العمل»</strong> و<strong class="ui">«افتراضيات الأشكال»</strong> و<strong class="ui">«السجل»</strong>. ويُعتمد كل تغيير فورًا. و<strong class="ui">«جعلها افتراضية»</strong> في الأسفل يحفظ الإعدادات الحالية كقيم افتراضية، فيبدأ التصميم الجديد بها. والملف الذي تفتحه يجلب إعداداته الخاصة؛ و<strong class="ui">«استخدام إعداداتي الافتراضية»</strong> بجانبه يضع ألوانك وشبكتك وبقية ما حفظته على التصميم المفتوح، مع الإبقاء على وحداته. وإذا كانت في إعدادك الافتراضي طابعة، فإنها تأتي مع مقاس لوحتها؛ ومن دونها يحتفظ التصميم بلوحته وطابعته. و<strong class="ui">«إغلاق الإعدادات»</strong> في أعلى اليمين يغلق النافذة. ويمر هذا الجزء على الإعدادات واحدًا واحدًا.</p>
+<p><strong class="ui">«تصدير الإعدادات»</strong> يحفظ إعدادات النافذة في ملف (layerling-settings-&lt;التاريخ&gt;.json): الألوان والشبكة والظلال والكاميرا والقيم الافتراضية للأشكال، مع السمة وحجم شريط الأدوات وزاوية مكعب العرض وألوان الأشكال وهامش كل طابعة. على جهاز آخر أو بعد فقدان بيانات المتصفح، يقرأ <strong class="ui">«استيراد الإعدادات»</strong> الملف من جديد: يصبح افتراضيك للتصاميم الجديدة ويُطبَّق على التصميم المفتوح كما يفعل <strong class="ui">«استخدام إعداداتي الافتراضية»</strong>. وتنتقل معه أيضًا مفاتيحك الخاصة من اختصارات لوحة المفاتيح.</p>
+</section><section class="guide-part"><h3 id="appearance-theme-toolbar-and-view-cube">المظهر: نظام الألوان وشريط الأدوات ومكعب العرض (Appearance: theme, toolbar and view cube)</h3>
+<p>يضبط <strong class="ui">«نظام الألوان»</strong> ألوان البرنامج كله: <strong class="ui">«النظام»</strong> يتبع جهاز الكمبيوتر، والخيارات الأخرى <strong class="ui">«فاتح»</strong> و<strong class="ui">«داكن»</strong> و<strong class="ui">«غرافيت (داكن محايد)»</strong>. ويمكنك تغييره أيضًا في أعلى يمين المحرر.</p>
+<p>يجعل <strong class="ui">«حجم عناصر التحكم»</strong> أزرار الشريط في الأعلى، وقائمة الأشكال فيه، وشريط العرض على اليسار، ولوحة الخصائص على اليمين أصغر أو أكبر: <strong class="ui">«صغير»</strong> أو <strong class="ui">«متوسط»</strong> (كما كان دائمًا) أو <strong class="ui">«كبير»</strong>. يترك الحجم الصغير مساحة أكبر لسطح العمل على الكمبيوتر المحمول، ويسهل الحجم الكبير الإصابة على شاشة كبيرة أو بالإصبع. ومع الأزرار الكبيرة تنتقل مجموعات الشريط إلى صف ثانٍ عندما تكون النافذة أضيق منها. يوجد الحجم في تبويب <strong class="ui">«الشريط»</strong> من الإعدادات، ويُحفظ في هذا المتصفح وينطبق على كل تصميم.</p>
+<p><strong class="ui">«الأشكال بالألوان»</strong> يضع على صور مكتبة الأشكال اللون الذي يبدأ به الشكل الجديد (لون نوعه، أو اللون الذي حفظته بـ<strong class="ui">«حفظ كقيم افتراضية»</strong>). أوقفه إذا كنت تفضّل الصور الرمادية؛ ويتذكر متصفحك اختيارك.</p>
+<p>يضع <strong class="ui">«موضع مكعب العرض»</strong> مكعب العرض في زاوية أخرى من سطح العمل: <strong class="ui">«أعلى اليسار»</strong> (كما كان دائمًا) أو <strong class="ui">«أعلى اليمين»</strong> أو <strong class="ui">«أسفل اليسار»</strong> أو <strong class="ui">«أسفل اليمين»</strong>. وفي أي زاوية غير أعلى اليسار، يصعد شريط العرض إلى المكان الذي تركه المكعب. وفي أسفل اليمين يقف المكعب فوق عنصر <strong class="ui">«شبكة الالتقاط»</strong> مباشرة. وما دامت خصائص شكل مفتوحة على اليمين، يتنحى المكعب الموجود على اليمين إلى يسارها. وتُحفظ الزاوية في هذا المتصفح وتنطبق على كل تصميم. وفي النافذة الضيقة، مثل الهاتف، يُخفى هذا الإعداد ويبقى المكعب في أعلى اليسار.</p>
+</section><section class="guide-part"><h3 id="appearance-buttons-in-the-ribbon">المظهر: الأزرار في الشريط (Appearance: buttons in the ribbon)</h3>
+<p>يزيل <strong class="ui">«الأزرار في الشريط»</strong> من الشريط المجموعات والأزرار التي لا تستخدمها أبدًا. انقر على مجموعة لفتح قائمتها: <strong class="ui">«إظهار هذه المجموعة»</strong> يزيل المجموعة كلها، وعلامة الاختيار بجانب زر تزيل ذلك الزر وحده. <strong class="ui">«إظهار الكل»</strong> يعيد كل شيء. المجموعة التي لا يبقى فيها زر تختفي وتتقدم المجموعات الأخرى، فيتسع صف واحد لجزء أكبر من الشريط.</p>
+<p>ما تزيله يغيب عن الشريط فقط: ما زال بحث الأوامر (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>) يجده، وما زال مفتاحه يشغّله. تنقل الأسهم بجانب المجموعة مكانها في القائمة لأعلى أو لأسفل، وبذلك في الشريط؛ ويعيد <strong class="ui">«إعادة تعيين الترتيب»</strong> الترتيب الأصلي. وتنقل الأسهم بجانب الزر مكانه بالطريقة نفسها داخل مجموعته؛ وفي <strong class="ui">«تعديل»</strong> يبقى داخل قسمه المسمّى. تبقى مجموعة الأشكال والمساعدة دائمًا، وتحتفظ مجموعة الأشكال بمكانها بعد المجموعتين الأوليين. يحفظ هذا المتصفح اختيارك، ويدخل في ملف <strong class="ui">«تصدير الإعدادات»</strong>. ينطبق على محرر ثلاثي الأبعاد؛ للرسم شريط خاص به.</p>
+</section><section class="guide-part"><h3 id="appearance-fast-mode">المظهر: الوضع السريع (Appearance: fast mode)</h3>
+<p><strong class="ui">«الوضع السريع»</strong> مخصص لأجهزة الكمبيوتر الأبطأ. فهو يوقف الظلال، وخطوط الحواف على كل الأجسام، واستمرار دوران الكاميرا، ويرسم العرض بدقة الشاشة فقط. وتُحفظ إعداداتك الخاصة لوقت لاحق، والمفاتيح التي يتجاوزها تعرض <strong class="ui">«معطل في الوضع السريع»</strong> ما دام مفعّلًا. والمزيد عما يساعد على الكمبيوتر البطيء تجده أدناه تحت «عندما يشعر layerling بالبطء».</p>
+</section><section class="guide-part"><h3 id="appearance-colours-of-the-work-area-and-the-sketch">المظهر: ألوان منطقة العمل والرسم التخطيطي (Appearance: colours of the work area and the sketch)</h3>
+<p>تُضبط ألوان منطقة العمل تحت <strong class="ui">«المظهر»</strong>: <strong class="ui">«خلفية النافذة (الوضع الفاتح)»</strong> و<strong class="ui">«سطح العمل تحت الشبكة (الوضع الفاتح)»</strong> للوضع الفاتح (الأوضاع الداكنة تحتفظ بألوانها الخاصة)، بجانب لون الشبكة تحت <strong class="ui">«سطح العمل»</strong>. وكل لون زر يُظهر اللون. والنقر عليه يفتح نافذة صغيرة فيها حقل الألوان، وصف من الألوان الجاهزة، وحقل للقيمة الست عشرية، وسهم يعيد اللون إلى ما بدأ به layerling. ويأخذ <kbd>Enter</kbd> القيمة الست عشرية المكتوبة، وكذلك النقر خارج النافذة.</p>
+<p>ولعرض الرسم التخطيطي ألوان خاصة به: <strong class="ui">«الرسم التخطيطي: خلفية النافذة (الوضع الفاتح)»</strong> للنافذة حول الورقة، و<strong class="ui">«الرسم التخطيطي: المساحة تحت الشبكة (الوضع الفاتح)»</strong> للورقة تحت الشبكة، و<strong class="ui">«الرسم التخطيطي: لون الشبكة (الوضع الفاتح)»</strong>، وكلها للوضع الفاتح. و<strong class="ui">«الرسم التخطيطي مثل منطقة العمل»</strong> يأخذ ألوان منطقة العمل الثلاثة بنقرة واحدة.</p>
+<p>يضبط <strong class="ui">«المظهر الكلاسيكي»</strong> منطقة العمل كما يعرضها Tinkercad: أرضية بيضاء، وشبكة مليمترية زرقاء باهتة مع خط أغمق كل سنتيمتر، وخطوط حواف سوداء، وضوء من الأعلى مع ظلال ناعمة. ويمكن تغيير كل قيمة وحدها بعد ذلك. وتبدأ كلها بالشكل الذي بدا به layerling دائمًا، وما يناسبك يعتمد على شاشتك.</p>
+<figure><img src="/api/desktop/layerling/ui/dalil/img/settings-appearance.webp" alt="الإعدادات تحت المظهر: ألوان الخلفية وسطح العمل للوضع الفاتح، ومفتاح خطوط الحواف على جميع الأجسام." width="1280" height="800" loading="lazy"><figcaption>الإعدادات تحت المظهر: ألوان الخلفية وسطح العمل للوضع الفاتح، ومفتاح خطوط الحواف على جميع الأجسام.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/dalil/img/editor-dark.webp" alt="المحرر في نظام الألوان الداكن. تضبط نظام الألوان في أعلى اليمين: النظام، فاتح، داكن أو غرافيت." width="1280" height="800" loading="lazy"><figcaption>المحرر في نظام الألوان الداكن. تضبط نظام الألوان في أعلى اليمين: النظام، فاتح، داكن أو غرافيت.</figcaption></figure>
+</section><section class="guide-part"><h3 id="appearance-axis-arrows-and-edge-lines">المظهر: أسهم المحاور وخطوط الحواف (Appearance: axis arrows and edge lines)</h3>
+<p><strong class="ui">«أسهم المحاور»</strong> (يعمل افتراضيًا) يرسم ثلاثة أسهم في الزاوية الخلفية اليسرى من اللوحة: <strong>X</strong> باللون الأحمر إلى اليمين، و<strong>Y</strong> باللون الأخضر إلى الخلف، و<strong>Z</strong> باللون الأزرق إلى الأعلى، بالاتجاه الذي تُحسب فيه حقول الموضع. هذه هي قاعدة اليد اليمنى التي يستخدمها Tinkercad وبرامج CAD وبرامج التقطيع أيضًا. ومع وجود سطح العمل على وجه، فإنها تتبعه. أوقف تشغيلها هنا إذا كانت تعيق طريقك.</p>
+<p><strong class="ui">«خطوط الحواف على جميع الأجسام»</strong> يرسم حدًا خارجيًا على كل جسم، بلون <strong class="ui">«لون خط الحافة»</strong> (أسود في البداية، كما في Tinkercad): يساعد ذلك عندما تختلط الألوان الداكنة ببعضها. وهو متوقف افتراضيًا، وتُستثنى الشبكات المستوردة الكبيرة جدًا.</p>
+<figure><img src="/api/desktop/layerling/ui/dalil/img/edge-lines.webp" alt="ثلاثة أجسام داكنة مع تشغيل خطوط الحواف: الحدود الخارجية تفصل بينها." width="1280" height="800" loading="lazy"><figcaption>ثلاثة أجسام داكنة مع تشغيل خطوط الحواف: الحدود الخارجية تفصل بينها.</figcaption></figure>
+<p>يرسم <strong class="ui">«إظهار الثقوب بوضوح أكبر»</strong> الثقوب بلون رمادي أغمق وأقل شفافية مع خط داكن حولها. يفيد ذلك حين يصعب العثور على ثقب بين أجسام شفافة. وعلى خلاف خطوط الحواف يبقى مفعّلًا في الوضع السريع.</p>
+</section><section class="guide-part"><h3 id="appearance-light-and-shadows">المظهر: الضوء والظلال (Appearance: light and shadows)</h3>
+<p><strong class="ui">«إظهار الظلال»</strong> يشغّل الظلال الملقاة ويوقفها. ويضبط شريطا تمرير كيفية إضاءة الأجسام. <strong class="ui">«قوة الظل»</strong> يحدد مدى دكنة الظلال الملقاة، و<strong class="ui">«تباين التظليل»</strong> ينقل الضوء من الضوء المحيط المتساوي إلى الضوء الرئيسي: باتجاه &quot;قوي&quot; تصبح الجوانب المظللة أغمق وتظهر الظلال أكثر، وباتجاه &quot;ناعم&quot; يصبح كل شيء أكثر تسطحًا. وفي الطرف الأعلى يصبح التباين قويًا جدًا، فتصبح الجوانب المظللة والظلال داكنة جدًا. <strong class="ui">«نعومة الظل»</strong> يجعل حواف الظلال ناعمة بدلًا من حادة. <strong class="ui">«اتجاه الضوء»</strong> يدير الضوء الرئيسي حول اللوحة (0° من الأمام، 90° من اليمين)، و<strong class="ui">«ارتفاع الضوء»</strong> يرفعه؛ وعند 90° يقف مباشرة فوق اللوحة كما في Tinkercad، وتقع الظلال تحت الأجسام مباشرة. <strong class="ui">«ضوء ناعم»</strong> يجعل معظم الضوء يأتي من حيث تنظر، فيدور مع العرض: لا يبقى أي وجه مظلمًا، ولم يعد الوجه الداكن المتجه إلى الأعلى يحترق إلى الأبيض. ويبقى قليل من الضوء الرئيسي للظلال، ويبقى شريط تمرير التباين يعمل. وإذا ظل انعكاس ساطع يظهر والضوء منخفض، فارفع <strong class="ui">«ارتفاع الضوء»</strong> إلى 90°: عندها يبدو كما في Tinkercad. <strong class="ui">«إعادة ضبط الضوء والظلال»</strong> يعيد كل شيء.</p>
+</section><section class="guide-part"><h3 id="appearance-measures-on-the-workplane">المظهر: القياسات على سطح العمل (Appearance: measures on the workplane)</h3>
+<p><strong class="ui">«إظهار أبعاد الحركة»</strong> يُظهر مقدار ما تحرّكه أثناء السحب، و<strong class="ui">«إظهار المسافات عن نقطة الأصل»</strong> مسافات التحديد عن نقطة أصل اللوحة، حتى مع تحديد عدة أجسام. ومع <strong class="ui">«الأبعاد مرئية دائمًا»</strong> تبقى هذه القياسات ظاهرة دائمًا، لا أثناء السحب فقط. وما دام جسم مدوّر محددًا، تظهر زواياه تحته على سطح العمل؛ و<strong class="ui">«إظهار زوايا الأجسام المدارة»</strong> يوقف ذلك. والمزيد في <a href="/api/desktop/layerling/ui/dalil/measuring-and-notes.html">القياس والملاحظات</a>.</p>
+</section><section class="guide-part"><h3 id="appearance-selecting-and-moving">المظهر: التحديد والتحريك (Appearance: selecting and moving)</h3>
+<p><strong class="ui">«التحديد قبل التحريك»</strong>: يجب عندها تحديد الجسم أولًا، والسحب التالي فقط هو الذي يحرّكه. وهذا يساعد عندما يلمس الأطفال أو الأيدي المستعجلة الأجسام، وعلى شاشة اللمس.</p>
+<p><strong class="ui">«اتجاه الإطار يحدد طريقة التحديد»</strong>: الإطار المسحوب إلى اليمين يحدد فقط ما يقع داخله بالكامل، والمسحوب إلى اليسار يحدد كل ما يلامسه (يُرسم بخطوط متقطعة)، كما في SketchUp.</p>
+<p>يحدد <strong class="ui">«النقر المزدوج يفتح الرسم التخطيطي»</strong> هل يفتح النقر المزدوج على رسم تخطيطي مبثوق الرسمَ التخطيطي مجددًا، كما في Tinkercad، و<strong class="ui">«النقر المزدوج يفتح مجموعة أو حزمة»</strong> هل يفتح النقر المزدوج على مجموعة أو حزمة للتعديل. ويحدد <strong class="ui">«النقر المزدوج على سطح العمل يوسّط العرض عنده»</strong> هل ينقل النقر المزدوج على مكان فارغ من سطح العمل العرضَ إلى ذلك المكان.</p>
+<p>يجعل <strong class="ui">«الالتقاط إلى الأشكال الأخرى أثناء التحريك»</strong> حواف الشكل ومركزه تلتقط الأشكال الأخرى أثناء سحبه؛ وفي قائمة الشبكة في أسفل اليمين المفتاح نفسه. ويجعل <strong class="ui">«الوضع بالنقر عند إضافة أشكال جديدة (Cruise)»</strong> الشكل الجديد يتعلق بمؤشر الفأرة ويقع على الوجه الذي تحته، مثل Cruise في Tinkercad؛ وعند إيقافه يظهر الشكل الجديد في منتصف اللوحة. والمزيد في <a href="/api/desktop/layerling/ui/dalil/select-and-arrange.html">التحديد والترتيب</a>.</p>
+</section><section class="guide-part"><h3 id="appearance-the-view">المظهر: العرض (Appearance: the view)</h3>
+<p><strong class="ui">«بدء المحرر في عرض المنظور (Perspective)»</strong>: يُفتح المحرر عندها في العرض المنظوري، لا في العرض المسطح.</p>
+<p><strong class="ui">«بدء المحرر مع أشرطة التمرير»</strong>: يُفتح التصميم عندها مع إظهار أشرطة تمرير العرض. يُحفظ الإعداد مع التصميم ومع <strong class="ui">«جعلها افتراضية»</strong>.</p>
+<p>يضبط <strong class="ui">«عرض البداية»</strong> الزاوية التي يُفتح بها التصميم الجديد ويعود إليها <strong class="ui">«العرض الرئيسي»</strong>. أدِر العرض وكبّره كما تحب، ثم انقر على <strong class="ui">«استخدام العرض الحالي»</strong>؛ ويعيد <strong class="ui">«القياسي»</strong> العرض المعتاد من الأمام يمينًا. ويسري ذلك على كل تصميم في هذا المتصفح. أما التصميم الذي تفتحه مرة أخرى فيُفتح كما تركته.</p>
+<p><strong class="ui">«سرعة التكبير/التصغير»</strong> شريط تمرير من بطيء إلى سريع: مدى سرعة تكبير العجلة ولوحة اللمس؛ وتحتفظ أزرار التكبير ومفاتيحه بخطواتها الصغيرة الخاصة. <strong class="ui">«استمرار دوران الكاميرا»</strong>: بعد أن تترك الفأرة يستمر العرض في الدوران لحظة ويتباطأ بلطف. وعند إيقافه يتوقف فورًا، كما في Tinkercad وFusion 360.</p>
+<p><strong class="ui">«تعليم البروزات من {angle}°»</strong> هي الزاوية التي يُعدّ الوجه ابتداءً منها بروزًا عندما تفعّل إظهار البروزات في قائمة الرؤية: فتُظلَّل هذه الأوجه بخطوط حمراء وبيضاء. 30° زاوية حذرة، و70° تعتمد على تبريد جيد للطباعة؛ و45° هي البداية المعتادة. ما دامت معروضة، يذكر سطر أسفل العرض أشد بروز وكم سم² يحتاج إلى دعامات.</p>
+<p><strong class="ui">«قطع الشبكات المستوردة حتى»</strong> يحدد عدد المثلثات الذي يُسمح به لشبكة مستوردة عندما تقطعها أو تدمجها أو تأخذ تقاطعها، لأن ذلك يُحسب في متصفحك. والشبكة التي تتجاوز الحد لا تُعالج؛ بسّط الشبكة أولًا، أو ارفع الحد إذا كان جهازك يحتمل ذلك. وقد يجمّد الحد الأعلى المحرر بضع ثوانٍ.</p>
+</section><section class="guide-part"><h3 id="measurement-units-scale-and-snap-steps">القياس: الوحدات والمقياس وخطوات الالتقاط (Measurement: units, scale and snap steps)</h3>
+<p>تحت <strong class="ui">«القياس»</strong> تضبط <strong class="ui">«الوحدات»</strong>، والوحدة التي تظهر بها القياسات (<strong class="ui">«المقياس»</strong>: المليمتر أو السنتيمتر أو المتر في النظام المتري، والبوصة أو القدم في النظام الإمبراطوري)، وعدد المنازل العشرية التي يعرضها الرقم (<strong class="ui">«الدقة»</strong>)، و<strong class="ui">«شبكة الالتقاط»</strong> التي يلتقط بها التحريك وتغيير الحجم، وخطوات الالتقاط الخاصة بك تحت <strong class="ui">«شبكات التقاط مخصصة»</strong>.</p>
+<p>تحت <strong class="ui">«القياس»</strong> في الإعدادات تضبط <strong class="ui">«الوحدات»</strong>. مع <strong class="ui">«إمبراطوري (بوصة)»</strong>، يعرض layerling كل قياس بالبوصة، على الشكل، وفي لوحة الخصائص، وعلى شريط القياس والمسطرة. وتقدم شبكة الالتقاط حينها خطوات من 1/64 إلى 1 بوصة، وتُرسم الشبكة على اللوحة بالبوصة (1/8 إلى 1 بوصة، و1/4 بوصة افتراضيًا) مع خط أقوى عند كل بوصة كاملة. وتحت <strong class="ui">«إظهار البوصات كـ»</strong> تختار هل تظهر البوصات كسورًا كما في Tinkercad (1 5/8، مقرّبة إلى 1/64 بوصة) أم أرقامًا عشرية (1.625) بعدد المنازل العشرية المضبوط تحت <strong class="ui">«الدقة»</strong>. ويمكنك كتابة أي منهما، ومن ذلك &quot;1 5/8&quot;. وللتبديل السريع بين المليمتر والبوصة يوجد المفتاح الصغير <strong>mm | in</strong> بجانب <strong class="ui">«شبكة الالتقاط»</strong> أسفل نافذة الخصائص: فهو يغيّر الوحدة وشبكة اللوحة وخطوة الالتقاط كما تفعل الإعدادات، لهذا التصميم.</p>
+<p>تحت <strong class="ui">«شبكات التقاط مخصصة»</strong> في المكان نفسه تضيف خطوات التقاط خاصة بك: اسم وحجم بالمليمتر، على سبيل المثال &quot;خطوة الأرجل 2.54 مم&quot; للتباعد بين رقاقات DIP ورؤوس الدبابيس وثقوب اللوحات المطبوعة، أو &quot;وحدة مفتاح MX&quot; بـ19.05 مم للتباعد بين مفاتيح لوحة المفاتيح. وتقدم قائمة خطوات الالتقاط حينها ذلك القياس كاملًا ونصفه وربعه (1 × و½ × و¼ ×)، فيمكن تحريك الأشكال بخطوة واحدة أو نصف خطوة أو ربع خطوة. وإذا كنت تريد القياس نفسه فقط، ألغِ تحديد <strong class="ui">«النصف والربع أيضًا»</strong> بجانبه؛ فلا تحتوي القائمة حينها إلا على تلك الخطوة. وتُحفظ الخطوات المخصصة مع التصميم وتنتقل مع <strong class="ui">«جعلها افتراضية»</strong>.</p>
+<p><strong class="ui">«بدء التصاميم الجديدة مع زاوية النجار عند نقطة الأصل»</strong>: يبدأ عندها كل تصميم جديد في هذا المتصفح بزاوية نجار عند نقطة الأصل، انظر <a href="/api/desktop/layerling/ui/dalil/measuring-and-notes.html">القياس والملاحظات</a>. تبقى التصاميم الموجودة كما هي، وزاوية النجار التي تزيلها من تصميم تبقى محذوفة.</p>
+</section><section class="guide-part"><h3 id="workplane-plate-and-printer">سطح العمل: اللوحة والطابعة (Workplane: plate and printer)</h3>
+<p>يضبط <strong class="ui">«الطابعة»</strong> حجم سطح العمل على سرير الطباعة في طابعتك وينبّه إلى الأجسام التي تتجاوزها، انظر <a href="/api/desktop/layerling/ui/dalil/printing.html">الطباعة</a>. ويكتب <strong class="ui">«تسميات اللوحة»</strong> اسم التصميم على اللوحة، واسم الطابعة وحجم البناء عند اختيار طابعة.</p>
+<p><strong class="ui">«خلوص طابعتك»</strong> هو المسافة لكل جانب التي يحتاجها دبوس مطبوع ليدور في ثقب مطبوع على طابعتك. يضع <strong class="ui">«اصنع اختبار الملاءمة»</strong> على اللوحة اختبار الملاءمة الذي يقيسه، ثم تبدأ به الأغطية وذيول الحمامة ومشابك الطقّ والصواميل الجديدة وفحص الخلوص، انظر <a href="/api/desktop/layerling/ui/dalil/printing.html">الطباعة</a>. ويُحفظ في هذا المتصفح، لا في التصميم.</p>
+<p>يعطي <strong class="ui">«حجم سطح العمل»</strong> اللوحة حجمًا خاصًا بك، بـ<strong class="ui">«العرض»</strong> و<strong class="ui">«الطول»</strong> بالمليمتر أو بالوحدة التي اخترتها. وتمر الشبكة دائمًا بنقطة الأصل، لذا تقع الخطوط الأقوى على المحاور مهما كانت قياسات اللوحة.</p>
+</section><section class="guide-part"><h3 id="workplane-grid">سطح العمل: الشبكة (Workplane: grid)</h3>
+<p><strong class="ui">«إظهار الشبكة»</strong> يُظهر الشبكة على اللوحة أو يخفيها. ويضبط <strong class="ui">«حجم كتلة الشبكة»</strong> التباعد بين خطوطها، و<strong class="ui">«خط شبكة أغمق كل»</strong> هل يأتي الخط الأغمق كل 5 أم كل 10 خطوات شبكة؛ ويعطي <strong class="ui">«لون الخط الأغمق»</strong> ذلك الخط لونًا خاصًا به، ويأخذه تقاطع المركز وحدود اللوحة أيضًا. و<strong class="ui">«لون الشبكة»</strong> هو لون الخطوط العادية.</p>
+<p>يزداد عرض كل خط في الشبكة كلما كبّرت العرض، كما في Tinkercad، ويبقى ظاهرًا كلما صغّرت. وإذا كان ذلك أكثر مما تريد، أوقف <strong class="ui">«خطوط الشبكة تكبر عند التكبير»</strong> فتبقى الخطوط بعرض بكسل واحد عند كل تكبير، كما في الرسم التخطيطي.</p>
+<p>إذا اختفت الشبكة، مثلًا لأن لونًا ضُبط على لون اللوحة، فإن <strong class="ui">«إعادة ضبط الشبكة»</strong> في نهاية قسم <strong class="ui">«سطح العمل»</strong> يعيد رؤيتها وألوانها وتباعدها وسُمك خطوطها إلى الوضع القياسي، هنا وفي القيم الافتراضية المحفوظة بـ<strong class="ui">«جعلها افتراضية»</strong>.</p>
+</section><section class="guide-part"><h3 id="shape-defaults">القيم الافتراضية للأشكال (Shape defaults)</h3>
+<p>تحت <strong class="ui">«افتراضيات الأشكال»</strong> تختار شكلًا بـ<strong class="ui">«الشكل»</strong> وتضبط كيف يبدأ عند إضافته: عرضه وطوله وارتفاعه. ويعيد <strong class="ui">«استخدام افتراضيات التطبيق»</strong> الشكل إلى ما يبدأ به البرنامج. والأشكال التي لها إعدادات خاصة تعرضها تحت <strong class="ui">«تفاصيل الشكل»</strong>. وتنطبق القيم على الأشكال الجديدة، لا على الموجودة على اللوحة. ويضبط <strong class="ui">«حد مخصص للحجم»</strong> حدًا أقصى خاصًا بك لمدى ما يمكن أن تكبّر به المقابض والخصائص ذلك الشكل؛ وإذا تُرك فارغًا تبقى الحدود المعتادة.</p>
+</section><section class="guide-part"><h3 id="saved-history">السجل المحفوظ (Saved history)</h3>
+<p>تحت <strong class="ui">«السجل»</strong> يضبط شريط التمرير <strong class="ui">«السجل المحفوظ»</strong> عدد الإجراءات المكتملة التي تبقى متاحة لـ«تراجع» بعد حفظ التصميم أو إعادة فتحه. والقيمة الافتراضية 100 إجراء في التصميم. والحد الأقل يتخلص نهائيًا من خطوات التراجع الأقدم في التصميم.</p>
+</section></section><section class="guide-part"><h2 id="layerling"><span class="heading-alias" id="when-layerling-feels-slow"></span>عندما يشعر layerling بالبطء</h2>
+<p>يحسب layerling ويرسم كل شيء في متصفحك. لذلك على جهاز كمبيوتر قديم، مع بطاقة رسوميات ضعيفة أو على عدة شاشات كبيرة، يمكن أن يبدو العرض بطيئًا. هذا يساعد:</p>
+<ul><li><strong><strong class="ui">«الوضع السريع»</strong></strong> تحت <strong class="ui">«المظهر»</strong> يوقف تشغيل كل ما يكلف العرض الكثير فورًا: الظلال، خطوط الحواف على جميع الأجسام واستمرار دوران الكاميرا. كما أنه يرسم العرض بالدقة الخاصة بالشاشة فقط، وهي على الشاشات عالية الدقة أقل بما يصل إلى أربعة أضعاف البكسلات. يتم الاحتفاظ بإعداداتك الخاصة وتنطبق مرة أخرى بمجرد إيقاف تشغيله.</li><li><strong>تستمر الكاميرا في الدوران:</strong> عندما تترك الماوس بعد التدوير، يستمر العرض في الدوران لبرهة ويتباطأ بلطف. هذا عن قصد، وليس تقطّعًا. إذا كنت معتادًا على Tinkercad أو Fusion 360، أوقف تشغيل <strong class="ui">«استمرار دوران الكاميرا»</strong> تحت <strong class="ui">«المظهر»</strong>، وسيتوقف العرض فورًا.</li><li><strong>مفاتيح فردية:</strong> بدون الوضع السريع يمكنك أيضًا إيقاف تشغيل <strong class="ui">«إظهار الظلال»</strong> فقط أو <strong class="ui">«خطوط الحواف على جميع الأجسام»</strong>.</li><li><strong>استخدم بطاقة الرسوميات:</strong> في Chrome افتح <code>chrome://gpu</code> (في Edge <code>edge://gpu</code>). بجانب &quot;WebGL&quot; يجب أن يقول &quot;Hardware accelerated&quot;. إذا قال &quot;Software only&quot;، فإن التسريع العتادي متوقف في إعدادات المتصفح. على نظام Windows يمكنك أيضًا اختيار &quot;أداء عالٍ&quot; للمتصفح تحت الإعدادات ← النظام ← العرض ← الرسوميات، حتى يستخدم بطاقة الرسوميات الحقيقية وليس الضعيفة الموجودة في المعالج.</li><li><strong>تبسيط الشبكات المستوردة الكبيرة:</strong> النموذج المكوّن من مئات الآلاف من المثلثات يبطئ أي عرض. كيفية تخفيفه موجودة في فصل الملفات، تحت &quot;تبسيط شبكة مستوردة&quot;.</li><li><strong>إغلاق التبويبات الأخرى:</strong> كل تبويب layerling مفتوح وكل صفحة ثلاثية الأبعاد أخرى تشارك بطاقة الرسوميات نفسها.</li></ul></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/dalil/getting-started.html"><small>الفصل السابق</small>البدء</a><a class="next" href="/api/desktop/layerling/ui/dalil/shapes.html"><small>الفصل التالي</small>وضع الأشكال وضبطها</a></div>
+      </main>
+    </div>
+    <footer class="note">ينمو هذا الدليل مع البرنامج. إذا كان هناك شيء ناقص أو خاطئ، فأخبرنا في <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">النقاشات</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=ar" rel="noopener">دعم المشروع</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">المناقشات</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">المزيد على GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">ملاحظات الإصدار v1.154.1</a></div><p class="trademark">Tinkercad هي علامة تجارية لشركة Autodesk, Inc. برنامج layerling هو مشروع مستقل وليس تابعًا لشركة Autodesk أو مدعومًا منها.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="العودة إلى المحرّر";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="افتح المحرّر";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

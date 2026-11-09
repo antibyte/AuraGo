@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Měření a poznámky - Uživatelská příručka Layerlingu</title>
+    <meta name="description" content="Měření vzdáleností, pravítko a úhelník, vzdálenosti od počátku, poznámky připojené k dílu a referenční body pro přichytávání.">
+    <link rel="canonical" href="https://layerling.com/prirucka/measuring-and-notes.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/measuring-and-notes.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/measuring-and-notes.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/measuring-and-notes.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/messen-und-notizen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/measuring-and-notes.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/measuring-and-notes.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/measuring-and-notes.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/measuring-and-notes.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/meten-en-notities.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/measuring-and-notes.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/merjenje-in-opombe.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/measuring-and-notes.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/measuring-and-notes.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/measuring-and-notes.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/measuring-and-notes.html">
+    <meta property="og:title" content="Měření a poznámky - Uživatelská příručka Layerlingu">
+    <meta property="og:description" content="Měření vzdáleností, pravítko a úhelník, vzdálenosti od počátku, poznámky připojené k dílu a referenční body pro přichytávání.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/prirucka/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Uživatelská příručka</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/prirucka/search-index.json" data-nothing="Nic nenalezeno." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Hledat v příručce" aria-label="Hledat v příručce" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Jazyk">Čeština</summary><ul><li><a href="/api/desktop/layerling/ui/guide/measuring-and-notes.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/measuring-and-notes.html" hreflang="cs" lang="cs" aria-current="true">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/measuring-and-notes.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/measuring-and-notes.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/measuring-and-notes.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/measuring-and-notes.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/measuring-and-notes.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/measuring-and-notes.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/measuring-and-notes.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/measuring-and-notes.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/merjenje-in-opombe.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/measuring-and-notes.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/measuring-and-notes.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/measuring-and-notes.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/measuring-and-notes.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/measuring-and-notes.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/measuring-and-notes.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Otevřít editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Editor už je otevřený v jiné kartě. Přepněte se do ní.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Kapitoly"><h2>Kapitoly</h2><p class="print-link"><a href="/api/desktop/layerling/ui/prirucka/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Vytisknout celou příručku</span></a></p><ol><li><a href="/api/desktop/layerling/ui/prirucka/getting-started.html">Začínáme</a></li><li><a href="/api/desktop/layerling/ui/prirucka/view-and-workplane.html">Pohled a pracovní rovina</a></li><li><a href="/api/desktop/layerling/ui/prirucka/shapes.html">Vkládání a úpravy tvarů</a></li><li><a href="/api/desktop/layerling/ui/prirucka/select-and-arrange.html">Výběr a uspořádání</a></li><li><a href="/api/desktop/layerling/ui/prirucka/solids-and-holes.html">Tělesa a výřezy</a></li><li><a href="/api/desktop/layerling/ui/prirucka/edges-and-hollowing.html">Úpravy hran a vytváření dutin</a></li><li><a href="/api/desktop/layerling/ui/prirucka/sketches.html">Náčrty: od obrysu k tělesu</a></li><li><a href="/api/desktop/layerling/ui/prirucka/text.html">Text a nápisy po oblouku</a></li><li><a href="/api/desktop/layerling/ui/prirucka/threads-and-mechanics.html">Závity, ozubení a další mechanické díly</a></li><li><a href="/api/desktop/layerling/ui/prirucka/measuring-and-notes.html" aria-current="page">Měření a poznámky</a></li><li><a href="/api/desktop/layerling/ui/prirucka/printing.html">Příprava pro 3D tisk</a></li><li><a href="/api/desktop/layerling/ui/prirucka/files-and-saving.html">Soubory, ukládání a sdílení</a></li><li><a href="/api/desktop/layerling/ui/prirucka/shortcuts.html">Klávesové zkratky</a></li><li><a href="/api/desktop/layerling/ui/prirucka/ai-with-mcp.html">Modelování s AI pomocí MCP</a></li><li><a href="/api/desktop/layerling/ui/prirucka/offline-and-install.html">Instalace, práce bez internetu a vlastní hosting</a></li><li><a href="/api/desktop/layerling/ui/prirucka/videos.html">Videa o Layerlingu</a></li><li><a href="/api/desktop/layerling/ui/prirucka/tablet-and-touch.html">Tablet a dotyk</a></li></ol></nav>
+      <main>
+<h1>Měření a poznámky</h1>
+<p class="lead">Měření vzdáleností, pravítko a úhelník, vzdálenosti od počátku, poznámky připojené k dílu a referenční body pro přichytávání.</p>
+<div class="toc"><b>Na této stránce</b><ul><li><a href="#mereni-vzdalenosti">Měření vzdáleností</a></li><li><a href="#pravitko">Pravítko</a></li><li><a href="#uhelnik">Úhelník</a></li><li><a href="#uhlomer">Úhloměr</a></li><li><a href="#vzdalenosti-od-pocatku-a-pri-presouvani">Vzdálenosti od počátku a při přesouvání</a></li><li><a href="#kontrola-vule">Kontrola vůle</a></li><li><a href="#poznamky">Poznámky</a></li><li><a href="#referencni-body">Referenční body</a></li><li><a href="#referencni-obrazky">Referenční obrázky</a></li></ul></div>
+<p>Přesné modelování vyžaduje měření. Layerling nabízí několik nástrojů, které se do exportu nezahrnují. Tloušťku stěn a mezery uvnitř dílu nejsnáze změříte v <a href="/api/desktop/layerling/ui/prirucka/view-and-workplane.html">pohledu v řezu</a> pomocí <strong class="ui">„Měření“</strong>.</p>
+<section class="guide-part"><h2 id="mereni-vzdalenosti"><span class="heading-alias" id="the-tape-measure"></span>Měření vzdáleností</h2>
+<p>Nástroj je ve spodní části levé lišty pohledu, <strong class="ui">„Měření vzdáleností“</strong>. Měří vzdálenosti mezi rohy, hranami a plochami. Kliknutím otevřete nabídku pěti tlačítek. Překáží-li, přetáhněte ji za úchyt vlevo na jiné místo. Dvojklik na úchyt ji vrátí.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/tape-menu.webp" alt="Nabídka měření: přidání, přesunutí bodů, odebrání, celé hrany a odstranění všech měření." width="1280" height="800" loading="lazy"><figcaption>Nabídka měření: přidání, přesunutí bodů, odebrání, celé hrany a odstranění všech měření.</figcaption></figure>
+<ol><li><strong><strong class="ui">„Přidat měření“</strong>:</strong> Klikněte na první bod, přesuňte ukazatel k druhému a znovu klikněte. Zobrazí se vzdálenost a před ní osy, podél kterých měření vede: X, Y nebo Z u přímého, XY, XZ nebo YZ napříč rovinou, 3D pro všechny tři. Najeďte na popisek a uvidíte, jak daleko měření sahá podél každé osy; na bodu uvidíte jeho souřadnice. Při umisťování druhého bodu se osy, vzdálenost a rozsah podél každé osy zobrazují vedle ukazatele. Měření, které leží většinou za jiným tělesem, zbledne; po najetí na jeho čáru nebo popisek se znovu zobrazí naplno. Kromě rohů a hran se bod přichytí také ke středu rovné plochy pod ukazatelem a ke středu kruhové hrany, například okraje otvoru nebo válce: nabízený střed označuje malý křížek v kroužku; když se k němu ukazatel přiblíží, bod se na něj přichytí a nápověda řekne, čeho je to střed (<strong class="ui">„Střed plochy“</strong>, <strong class="ui">„Střed otvoru“</strong> nebo <strong class="ui">„Střed kružnice“</strong>).</li><li><strong><strong class="ui">„Přesunout body měření“</strong>:</strong> Přetáhněte měřicí body; hodnota se průběžně mění.</li><li><strong><strong class="ui">„Smazat část měření“</strong>:</strong> Po zapnutí klikněte na měření, které chcete odstranit.</li><li><strong><strong class="ui">„Měřit celé hrany“</strong>:</strong> Kliknutí na hranu změří celou její délku, například obvod kružnice. Při vypnutí se na hranu umístí bod a druhý můžete zvolit kdekoliv. Změříte tak průměr i jiné vzdálenosti. <kbd>Alt</kbd> režim pro jedno kliknutí obrátí. Na kružnici se při přiblížení ukazatele přichytí bod protilehlý prvnímu. Body leží na skutečné kružnici, takže průměr vyjde přesně.</li><li><strong><strong class="ui">„Smazat všechna měření“</strong>:</strong> Odstraní všechna měření. Protože operaci nelze vrátit, program si vyžádá potvrzení. Bez měření nemá příkaz co odstranit.</li><li><strong><strong class="ui">„Označit střed referenčním bodem“</strong>:</strong> Uprostřed každého měření je malá kulatá značka se spodní polovinou vyplněnou. Vytvoří <a href="#referencni-body">referenční bod</a> ve středu měření. U kruhové hrany, například okraje otvoru, je to střed kružnice, a to i u importované sítě. U průměru nebo přímého měření vznikne bod v polovině úsečky. Přetahovaný tvar se na něj přichytí svým středem. Již existující bod se nevytváří znovu. Měřicí pásmo se k referenčním bodům přichytává stejně jako k rohům. Chcete-li měřit od středu kružnice nebo úsečky, nejprve jej označte a potom na bod klikněte.</li><li><strong><strong class="ui">„Zadejte délku: těleso u druhého bodu se posune podél čáry; záporná délka ho posune za první bod“</strong>:</strong> Leží-li aspoň jeden konec přímého měření na tělese, lze na jeho číslo kliknout. Zadejte novou délku a stiskněte <kbd>Enter</kbd>: těleso u druhého bodu se posune podél změřené čáry, až je vzdálenost přesně taková, jako u pravítka v Tinkercadu. Je-li vybráno jen těleso u prvního bodu, posune se to. Měřicí body zůstávají na tělese, takže měření jde s ním. Měřte od rohu, hrany nebo středu plochy či otvoru, a díly tak umístíte na přesnou vzdálenost: od středu otvoru ke středu horní plochy válce se válec posune střed na střed. Záporná délka ho posune o tolik za první bod, třeba 5 mm dovnitř za hranu kvádru. <a href="#referencni-body">Referenční bod</a> nepatří k žádnému tělesu, mezi dvěma referenčními body se proto nic neposune. Vede-li měření podél dvou nebo tří os, má pole pod délkou ještě políčko pro každou z nich (ΔX, ΔY, ΔZ, vzdálenosti, které se ukážou při najetí na číslo): zadejte hodnotu tam a těleso se posune jen podél této osy. <kbd>Tab</kbd> přechází z políčka na políčko, <kbd>Esc</kbd> pole zavře a nic neposune. Při najetí na číslo uvidíte, které těleso se posune, nebo proč žádné nemůže: je zamčené, oba body leží na stejném tělese, nebo žádný neleží na tělese. Hlášení potom řekne, co se posunulo a o kolik; jedno Zpět to vrátí.</li></ol>
+<p><kbd>Esc</kbd> ukončí režim měření.</p>
+</section><section class="guide-part"><h2 id="pravitko"><span class="heading-alias" id="the-ruler"></span>Pravítko</h2>
+<p><strong class="ui">„Pravítko“</strong> vložíte z knihovny tvarů. Je to pouze měřicí pomůcka: neexportuje se a nelze ji slučovat ani odečítat. U těles dotýkajících se pravítka nebo zasahujících přes něj zobrazí rozměr přímo v pohledu. Číselný údaj lze upravit a těleso se podle něj změní. Plovoucí tlačítko plus vytvoří kopii měřeného tvaru. Natištěná stupnice je v milimetrech; po přepnutí jednotky na palce (přepínač vpravo dole) je v palcích, s čárkou na každou šestnáctinu palce a očíslovanými celými palci.</p>
+</section><section class="guide-part"><h2 id="uhelnik"><span class="heading-alias" id="the-framing-square"></span>Úhelník</h2>
+<p>Pro měření v pravém úhlu použijte <strong class="ui">„Umístit úhelník“</strong> v liště pohledu a klikněte na pracovní rovinu. Vloží se dvě kolmá ramena s ryskami. Ani úhelník není tělesem. Kliknete-li blízko rohu objektu, jeho počátek se přesně přichytí k tomuto rohu. Pokud ho potřebujete skoro v každém návrhu, zapněte v nastavení pod <strong class="ui">„Měření“</strong> volbu <strong class="ui">„Začínat nové návrhy s úhelníkem v počátku souřadnic“</strong>: každý nový návrh pak začne s úhelníkem v počátku souřadnic.</p>
+<p>Úhelník leží na pracovní rovině. Je-li rovina umístěna na boku tělesa, leží tam i úhelník, viz <a href="/api/desktop/layerling/ui/prirucka/view-and-workplane.html">Pohled a pracovní rovina</a>. Pro kótování na svislé stěně na ni nejprve položte pracovní rovinu, úhelník přiložte k levému hornímu rohu a klikáním na úchyt natočte ramena doprava a dolů.</p>
+<ul><li><strong>Tažením úchytu</strong> měníte polohu.</li><li><strong>Krátkým kliknutím na úchyt</strong> otočíte úhelník o 90°.</li><li><strong>×</strong> vedle úhelníku jej odstraní.</li><li><strong>Tažením malého kroužku na konci ramene</strong> rameno prodloužíte nebo zkrátíte, po celých milimetrech. Nejspodnější tlačítko pod úchytem, <strong class="ui">„Ramena dlouhá jako tisková podložka (tažením za konec ramene změníte jeho délku)“</strong>, nastaví obě ramena na šířku a hloubku tiskové podložky tiskárny zvolené v nastavení. Úhelník si délky ramen pamatuje s návrhem a nově umístěný je převezme.</li><li><strong>Malé tlačítko vlevo od úchytu</strong> přepíná měření od vnějšího okraje tělesa, se symbolem čar, nebo od jeho středu, se zaměřovacím křížem. Stejný malý přepínač je i u každého zeleného čísla a nastavuje pouze danou kótu. U stojícího válce tak můžete měřit v obou ramenech ke středu a ve výšce ke spodní straně, u ležícího napříč ke středu a podélně ke konci. Pokud se všechna tři nastavení shodují, tlačítko u úchytu ukáže společný režim.</li></ul>
+<p>U těles umístěných u ramen úhelník automaticky ukazuje rozměry. To funguje pouze na základní podložce, nikoli na boční stěně. Tlačítko se šipkou pod úchytem úhelníku to vypne, takže míry ukazují jen vybraná tělesa; ukládá se s projektem.</p>
+<p>Po výběru tělesa se zeleně zobrazí vzdálenosti od rohu podél obou ramen i výškově. Kliknutím na zelené číslo zadáte požadovanou vzdálenost a těleso se přesune. Více vybraných těles se posuzuje jako celek: měří se společný obrys a zadaná hodnota přesune celý výběr bez změny vzájemných poloh.</p>
+<p>V režimu středu vedou zelené rozměry do středu tělesa, včetně výšky. Střed koule tak umístíte přesně 15 mm od okraje bez odečítání poloměru. Otvor na stěně umístíte například 40 mm zleva a 190 mm shora tak, že jej vyberete, zapnete měření od středu a zadáte 40 a 190. Výška v tomto případě směřuje ven ze stěny.</p>
+<p>Měřicí nástroj i úhelník zůstávají na místě při přechodu do náčrtu a zpět do 3D. Ani jeden se neukládá do historie. Úhelník se s projektem ukládá, stejně jako měření měřicího nástroje, v prohlížeči i v souboru .lyl: po otevření projektu jsou zase tam. Tlačítko s okem mezi tlačítky měřicího nástroje všechna měření skryje a znovu zobrazí; uloží se i to, zda jsou skrytá, a kdo měření přidá, posune nebo smaže, uvidí je předtím znovu.</p>
+</section><section class="guide-part"><h2 id="uhlomer"><span class="heading-alias" id="the-protractor"></span>Úhloměr</h2>
+<p>Úhel změříte tlačítkem <strong class="ui">„Úhloměr“</strong> v liště pohledu. Vedle něj se otevře řada tlačítek, a dokud na tlačítko znovu nekliknete nebo nestisknete <kbd>Esc</kbd>, měří každé kliknutí do pohledu úhloměrem. Stejně jako měření vzdáleností se přichytává k rohům a hranám těles; vedle těles položí bod na podložku.</p>
+<ul><li><strong class="ui">„Úhel ze tří bodů“</strong>: nejprve klikněte na vrchol úhlu, pak na bod na každém rameni. Už při umisťování posledního bodu se úhel zobrazuje; po třetím kliknutí zůstane, s obloukem mezi rameny. Je to úhel ve vrcholu, od 0° do 180°.</li><li><strong class="ui">„Úhel mezi dvěma plochami“</strong>: klikněte na dvě rovné plochy. Krátká modrá čárka na každé ukazuje, kam plocha směřuje, a popisek uvádí oba úhly, které plochy svírají, menší jako první: zkosení 45° proti horní ploše dá 45° · 135°, dvě stěny kvádru jen 90°. Zakřivená plocha nemá jediný směr, proto úhloměr žádá rovnou plochu.</li></ul>
+<p>Další kliknutí po hotovém úhlu začne nový a <strong class="ui">„Odstranit úhel“</strong> jej odstraní. Úhel sleduje tělesa, když je posunete nebo otočíte. Nic z něj se neukládá ani nejde do historie: zmizí, jakmile úhloměr odložíte.</p>
+</section><section class="guide-part"><h2 id="vzdalenosti-od-pocatku-a-pri-presouvani"><span class="heading-alias" id="distances-to-the-origin-and-while-moving"></span>Vzdálenosti od počátku a při přesouvání</h2>
+<p>V nastavení <strong class="ui">„Vzhled“</strong> jsou dva přepínače průběžného kótování:</p>
+<ul><li><strong class="ui">„Zobrazit rozměry posunu“</strong> zobrazuje posunutí během tažení. Patří sem i zvedání černou šipkou nad tělesem, měřené podél jeho přední hrany. Po puštění klikni na takové číslo a napiš přesnou vzdálenost; záporná hodnota jde dolů.</li><li><strong class="ui">„Zobrazit vzdálenosti od počátku souřadnic“</strong> zobrazuje vzdálenosti výběru od počátku podložky, i při výběru více těles.</li></ul>
+<p><strong class="ui">„Rozměry vždy viditelné“</strong> ponechá rozměry zobrazené trvale. Když těleso nestojí na pracovní rovině, zobrazí se i jeho výška nad ní; kliknutím na číslo zadáš novou. S volbou <strong class="ui">„Políčka rozměrů v barvách os“</strong> dostane každé políčko barvu své osy jako úchyty: červenou pro X, zelenou pro Y a modrou pro Z. I u malého dílu tak hned vidíš, které číslo je které.</p>
+<p>Když na chvíli překážejí, stiskněte <kbd>Q</kbd>: rozměry a vzdálenosti kolem výběru zmizí a díl, který posouváte, je dobře vidět. Další <kbd>Q</kbd> je vrátí. Úchyt, na který ukážete, svůj rozměr ukáže i tak.</p>
+</section><section class="guide-part"><h2 id="kontrola-vule"><span class="heading-alias" id="checking-clearance"></span>Kontrola vůle</h2>
+<p>Díly, které se mají po tisku pohybovat - flexi drak, pant tištěný vcelku, krabička s víkem, osa v otvoru - potřebují mezi sebou mezeru. Když je příliš malá, slepí se; když se překrývají, vytisknou se jako jeden kus. <strong class="ui">„Zkontrolovat vůli“</strong> vedle <strong class="ui">„Přechod mezi náčrty“</strong> to zkontroluje před tiskem. Vezme vybrané objekty, nebo všechny viditelné, když není nic vybráno (tytéž, které bere export), a zkontroluje každou dvojici:</p>
+<ul><li><strong><strong class="ui">„Překrytí“</strong></strong> (červeně): oba díly sdílejí objem. Ten se ukáže červeně uvnitř těles, která zprůhlední, a seznam uvede jeho velikost.</li><li><strong><strong class="ui">„Dotýkají se“</strong></strong> (červeně): díly se dotýkají a při tisku se spojí.</li><li><strong><strong class="ui">„Příliš těsné“</strong></strong> (oranžově): nejužší mezera je menší než <strong class="ui">„Minimální vůle“</strong>.</li><li><strong><strong class="ui">„V pořádku“</strong></strong> (zeleně): nejužší mezera je alespoň tak široká.</li></ul>
+<p>Každý řádek jmenuje oba díly a u mezery její šířku a polohu: <strong class="ui">„vedle sebe“</strong> (ve stejné vrstvě) nebo <strong class="ui">„mezi vrstvami“</strong> (nad nebo pod: tam může slicer nechat volné jen celé vrstvy, takže mezera tenčí než jedna vrstva se zavře). Klepnutí na řádek přesune kameru na místo, orámuje oba díly a vyznačí nejužší místo čárou s číslem. Dvojice vzdálené víc než 5 mm se neuvádějí. Na návrhu se nic nemění: kontrola nic neukládá a nezanechává nic k vrácení.</p>
+<p><strong class="ui">„Minimální vůle“</strong> začíná na 0,3 mm; 0,3 je těsné, 0,4 obvyklé pro tisk vcelku. Změna hned znovu seřadí seznam bez nové kontroly a prohlížeč si hodnotu zapamatuje. <strong class="ui">„Kontrolovat oddělené díly jednoho objektu (tisk v celku)“</strong> (na začátku zapnuto) kontroluje proti sobě i oddělené díly jednoho objektu: flexi drak nebo pant importovaný jako jedno STL je jeden objekt, ale jeho články jsou oddělené díly. V seznamu jsou jako „Název · Díl 2“. Díl v dutině jiného, třeba kulička v kleci, je samostatný díl.</p>
+<p>Když návrh změníte, zatímco je okno otevřené, ukáže se <strong class="ui">„Změněno – zkontrolovat znovu“</strong>; klepněte na to nebo na <strong class="ui">„Zkontrolovat znovu“</strong>. <kbd>Esc</kbd> nebo <strong class="ui">„Zavřít“</strong> okno zavře. Mezery mění i změna velikosti: flexi model zmenšený na 70 % má jen 70 % své vůle, po změně velikosti proto kontrolujte znovu.</p>
+<p>Kontrola měří trojúhelníkovou síť, kterou dostane i slicer. Kulatá osa a její otvor jsou mnohoúhelníky s vrcholy na kružnici, takže mezera může vyjít o několik setin menší než kulaté rozměry. Dvojice s příliš mnoha trojúhelníky je uvedena jako <strong class="ui">„Nezkontrolováno“</strong>. AI provede stejnou kontrolu pomocí <code>layerling_check_clearance</code>.</p>
+</section><section class="guide-part"><h2 id="poznamky"><span class="heading-alias" id="notes"></span>Poznámky</h2>
+<p>Poznámka zachytí informace, které geometrie nevyjadřuje: „Šroub je o 0,3 mm těsný“, „Ještě vytisknout víko“ nebo „Rozměr od Petra“. Vložíte ji pomocí <strong class="ui">„Poznámka“</strong> nebo klávesy <kbd>N</kbd>.</p>
+<ul><li>Poznámka umístěná <strong>na těleso</strong> se pohybuje spolu s ním.</li><li>Poznámka <strong>vedle tělesa</strong> zůstává na pracovní rovině, <strong class="ui">„Na pracovní rovině“</strong>.</li><li><strong class="ui">„Odpojit od objektu“</strong> odpojí poznámku od tělesa.</li><li><strong class="ui">„Pro AI“</strong> změní poznámku v zadání pro AI agenta na mostu MCP (viz „AI s MCP“): agent ji přečte přes <code>layerling_list_notes</code>, udělá práci a odpoví ve stejné poznámce, pod tvým textem. Může také na model dávat vlastní poznámky, aby se na místě na něco zeptal nebo něco ohlásil. Požádejte agenta, aby hlídal vaše poznámky, a bude na ně čekat pomocí <code>layerling_wait_for_notes</code>: pak pracujete jen na modelu a každý nový požadavek se převezme, jakmile políčko zaškrtnete, bez návratu do okna agenta.</li><li><strong class="ui">„Sloučit“</strong> vezme připojenou poznámku do skupiny; <strong class="ui">„Rozdělit sloučení“</strong> ji předá viditelné části pod ní, i vnořené skupině. Dokud je skupina otevřená přes <strong class="ui">„Upravit sloučení“</strong>, její poznámky se pohybují s částí pod nimi a tlačítkem <strong class="ui">„Hotovo“</strong> se vrátí ke skupině; zrušení je vrátí do původního stavu.</li><li>Když je její těleso smazáno nebo pod ní už není žádné viditelné těleso, poznámka zůstane, kde byla, na pracovní rovině.</li><li>Tažením za špendlík poznámku přesunete. Kliknutím na špendlík kartu sbalíte, zůstane jen malé číslo; dalším kliknutím ji zase otevřete. Kliknutím do textu ho upravíte.</li><li><kbd>Enter</kbd> potvrdí text, <kbd>Esc</kbd> vrátí podobu před zahájením úpravy. <span dir="ltr"><kbd>Shift</kbd>+<kbd>Enter</kbd></span> vloží nový řádek.</li><li><strong>V náčrtu</strong> vložíte poznámku také pomocí <strong class="ui">„Poznámka“</strong> nebo klávesy <kbd>N</kbd>, kamkoli do náčrtu. Všechny poznámky náčrtu patří k jeho tělesu: ve 3D zobrazení na něm sedí, nahoře na tělese vytvořeném přes <strong class="ui">„Vysunout náčrt“</strong> nebo <strong class="ui">„Náčrt podél dráhy“</strong> a na nakresleném profilu tělesa vytvořeného přes <strong class="ui">„Rotovat profil náčrtu“</strong>, a pohybují se s ním. Když náčrt znovu otevřete, ukáže poznámky tělesa, i ty vložené ve 3D. V náčrtu vezme <strong class="ui">„Zpět v náčrtu“</strong> poznámku zpět stejně jako čáru a <strong class="ui">„Zrušit“</strong> zahodí, co jste na poznámkách změnili. <span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span> poznámky i zde zobrazí nebo skryje.</li></ul>
+<p>Poznámky se ukládají v projektu, do exportu se nezahrnují a jejich viditelnost přepíná <strong class="ui">„Zobrazit poznámky a body“</strong> (v <strong class="ui">„Možnosti viditelnosti“</strong>, šipce vedle ikony oka) nebo zkratka <span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span>.</p>
+</section><section class="guide-part"><h2 id="referencni-body"><span class="heading-alias" id="reference-points"></span>Referenční body</h2>
+<p>Referenční bod je samostatná značka v prostoru, podobná rysce při práci v dílně. Nepatří žádnému tělesu, netiskne se a ostatní objekty se na něj přichytávají. Klikněte pravým tlačítkem na těleso a vyberte <strong class="ui">„Označit střed“</strong>, <strong class="ui">„Označit rohy“</strong> nebo <strong class="ui">„Označit středy hran“</strong>. Body vzniknou na horní ploše tělesa, případně celého výběru. <strong class="ui">„Označit střed této stěny“</strong> místo toho umístí bod doprostřed rovné stěny, na kterou jste klikli pravým tlačítkem, třeba na boku nebo na konci. Je-li nastaven střed otáčení, <strong class="ui">„Označit střed otáčení“</strong> umístí bod přesně na něj, takže se střed jiného dílu zachytí v bodě, kolem kterého se výběr otáčí.</p>
+<ul><li>Bod přesunete tažením nebo kliknutím otevřete souřadnice v nastavených jednotkách. Každou kartu lze přetáhnout za záhlaví samostatně; ostatní zůstanou na místě. Dvojklik ji vrátí a naposledy použitá karta se zobrazí vpředu. <strong>Odstranit všechny</strong> na kartě nebo v nabídce pravého tlačítka odstraní všechny body najednou. <strong class="ui">„Smazat“</strong> odstraní jednotlivý bod.</li><li>Bod vytvoří i měřicí nástroj: <strong class="ui">„Označit střed referenčním bodem“</strong>, napůl vyplněná značka uprostřed měření, označí jeho střed, například střed kruhového otvoru. Měřit lze také od takového bodu: pásmo se k referenčním bodům přichytává stejně jako k rohům.</li><li>Při tažení se na body přichytávají hrany i středy tvarů, stejně jako na jiná tělesa při <strong class="ui">„Při posunu přichytávat k jiným tvarům“</strong>. Přichytává se i úhelník.</li><li>Body se ukládají do projektu, neexportují se a zobrazují či skrývají se společně s poznámkami přes <strong class="ui">„Zobrazit poznámky a body“</strong> (<span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span>).</li><li>AI je může vytvářet, vypisovat a odstraňovat pomocí <code>layerling_add_reference_points</code>, <code>layerling_list_reference_points</code> a <code>layerling_remove_reference_points</code>.</li></ul>
+</section><section class="guide-part"><h2 id="referencni-obrazky"><span class="heading-alias" id="reference-images"></span>Referenční obrázky</h2>
+<p>Referenční obrázek je obrázek, podle kterého zarovnáte díly: položte fotku desky plošných spojů na dno její krabičky a usaďte distanční sloupky, otvory a výřezy pro konektory přesně na ni. Je to pomůcka, ne těleso: nikdy se netiskne, nikdy neexportuje (STL, 3MF, OBJ, STEP, SVG), nikdy není součástí skupiny, svazku ani řezu a odhad tisku ho vynechává.</p>
+<ul><li>Otevřete <strong class="ui">„Import“</strong> a zvolte <strong class="ui">„Referenční obrázek“</strong>, pak obrázek PNG, JPG, WebP, GIF nebo BMP. Položí se na pracovní rovinu - na podložku, nebo na plochu, na kterou jste pracovní rovinu položili -, delší stranou 100 mm a napůl průhledný.</li><li>Posouvejte, otáčejte a měňte ho úchyty jako každý tvar. Těleso před ním se vybere jako první, takže při práci na něm obrázek omylem nechytnete.</li><li><strong class="ui">„Průhlednost (%)“</strong> v jeho nastavení ho zeslabí od plně viditelného po sotva patrný.</li><li><strong class="ui">„Kalibrovat“</strong> mu dá skutečnou velikost jako ve skice: klikněte na dva body obrázku, jejichž skutečnou vzdálenost znáte - třeba dva montážní otvory desky - a zadejte tuto vzdálenost do pole <strong class="ui">„Skutečná vzdálenost (mm)“</strong>. Obrázek si zachová proporce i střed.</li><li>Zamkněte ho zámkem v záhlaví jeho nastavení a zůstane na místě: kliknutí pak jím procházejí na podložku. K odemčení ho vyberte v seznamu objektů.</li><li>Obrázek je v souboru návrhu uložen jednou, ať se kopíruje nebo vrací kolikrát chce. Velký obrázek zvětší soubor o tolik; hlášení při přidání uvede jeho velikost.</li><li>AI ho přidá, posune, kalibruje, zeslabí a zamkne pomocí <code>layerling_reference_image</code>. S <code>trace</code> obrázek obkreslí do tělesa náčrtu, které na něm stojí, jako <strong class="ui">„Obkreslit“</strong> v náčrtu.</li></ul></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/prirucka/threads-and-mechanics.html"><small>Předchozí kapitola</small>Závity, ozubení a další mechanické díly</a><a class="next" href="/api/desktop/layerling/ui/prirucka/printing.html"><small>Další kapitola</small>Příprava pro 3D tisk</a></div>
+      </main>
+    </div>
+    <footer class="note">Příručka se rozšiřuje spolu s aplikací. Pokud něco chybí nebo je nesprávně, napište do <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">diskuze</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=cs" rel="noopener">Podpořit projekt</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Diskuze</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Více na GitHubu</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Poznámky k vydání v1.154.1</a></div><p class="trademark">Tinkercad je ochranná známka společnosti Autodesk, Inc. Layerling je nezávislý projekt a není se společností Autodesk propojen, podporován ani sponzorován.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Zpět do editoru";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Otevřít editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

@@ -7,8 +7,20 @@
     <meta name="description" content="Meetlint, liniaal en winkelhaak, afstanden tot de oorsprong, notities die aan een onderdeel vast blijven zitten, en referentiepunten waarop dingen uitlijnen.">
     <link rel="canonical" href="https://layerling.com/handleiding/meten-en-notities.html">
     <link rel="alternate" hreflang="en" href="https://layerling.com/guide/measuring-and-notes.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/measuring-and-notes.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/measuring-and-notes.html">
     <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/messen-und-notizen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/measuring-and-notes.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/measuring-and-notes.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/measuring-and-notes.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/measuring-and-notes.html">
     <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/meten-en-notities.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/measuring-and-notes.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/merjenje-in-opombe.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/measuring-and-notes.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/measuring-and-notes.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/measuring-and-notes.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/measuring-and-notes.html">
     <meta property="og:title" content="Meten en notities - layerling handleiding">
     <meta property="og:description" content="Meetlint, liniaal en winkelhaak, afstanden tot de oorsprong, notities die aan een onderdeel vast blijven zitten, en referentiepunten waarop dingen uitlijnen.">
     <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
@@ -60,6 +72,7 @@ a { color: var(--accent); }
 .guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
 .guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
 .guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
 .editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
 .editor-elsewhere[hidden] { display: none; }
 .bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
@@ -89,26 +102,51 @@ li { margin-bottom: 4px; }
 strong.ui { font-weight: 700; white-space: nowrap; }
 kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
 code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
-pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
 pre code { padding: 0; background: none; }
 figure { margin: 22px 0; }
 figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
 figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
 aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
 aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
 .table-scroll { overflow-x: auto; margin: 0 0 16px; }
 table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
 table.keys { table-layout: fixed; }
 table.keys td:first-child { width: 42%; }
-th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
 th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
 .toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
 .toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
-.toc ul { margin: 0; padding-left: 18px; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
 .pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
 .pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
 .pager a small { display: block; color: var(--muted); font-size: 12px; }
-.pager a.next { margin-left: auto; text-align: right; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
 .cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
 .cards a:hover { border-color: var(--accent); }
@@ -131,88 +169,161 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
   .bar-inner { flex-wrap: wrap; }
   .guide-search { order: 5; flex: 1 1 100%; }
 }
-@media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
 </style>
   </head>
   <body>
     <header class="bar"><div class="bar-inner">
       <a class="brand" href="/api/desktop/layerling/ui/handleiding/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Handleiding</span></span></a>
       <form class="guide-search" id="guide-search" role="search" data-index="/handleiding/search-index.json" data-nothing="Niets gevonden." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Handleiding doorzoeken" aria-label="Handleiding doorzoeken" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
-      <details class="lang-menu"><summary aria-label="Taal">Nederlands</summary><ul><li><a href="/api/desktop/layerling/ui/guide/measuring-and-notes.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html" hreflang="nl" lang="nl" aria-current="true">Nederlands</a></li></ul></details>
+      <details class="lang-menu"><summary aria-label="Taal">Nederlands</summary><ul><li><a href="/api/desktop/layerling/ui/guide/measuring-and-notes.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/measuring-and-notes.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/measuring-and-notes.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/measuring-and-notes.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/measuring-and-notes.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/measuring-and-notes.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/measuring-and-notes.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html" hreflang="nl" lang="nl" aria-current="true">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/measuring-and-notes.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/measuring-and-notes.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/measuring-and-notes.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/merjenje-in-opombe.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/measuring-and-notes.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/measuring-and-notes.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/measuring-and-notes.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/measuring-and-notes.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/measuring-and-notes.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/measuring-and-notes.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
       <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Naar de editor</a>
     </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>De editor is al open in een ander tabblad - schakel daar gewoon naartoe.</p></header>
     <div class="shell">
-      <nav class="chapters" aria-label="Hoofdstukken"><h2>Hoofdstukken</h2><ol><li><a href="/api/desktop/layerling/ui/handleiding/aan-de-slag.html">Aan de slag</a></li><li><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html">Weergave en werkvlak</a></li><li><a href="/api/desktop/layerling/ui/handleiding/vormen.html">Vormen plaatsen en aanpassen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html">Selecteren en schikken</a></li><li><a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html">Lichamen en gaten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/randen-en-uithollen.html">Randen breken en lichamen uithollen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html">Schetsen: van omtrek naar lichaam</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html">Tekst en gebogen belettering</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schroefdraad-en-mechanica.html">Schroefdraad, tandwielen en andere onderdelen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html" aria-current="page">Meten en notities</a></li><li><a href="/api/desktop/layerling/ui/handleiding/printen.html">Voorbereiden op 3D-printen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html">Bestanden, opslaan en delen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/sneltoetsen.html">Sneltoetsen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/ai-met-mcp.html">Bouwen met een AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/handleiding/offline-en-installeren.html">Installeren als app, offline werken en zelf hosten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/videos.html">Video's over layerling</a></li></ol></nav>
+      <nav class="chapters" aria-label="Hoofdstukken"><h2>Hoofdstukken</h2><p class="print-link"><a href="/api/desktop/layerling/ui/handleiding/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Hele handleiding, om af te drukken</span></a></p><ol><li><a href="/api/desktop/layerling/ui/handleiding/aan-de-slag.html">Aan de slag</a></li><li><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html">Weergave en werkvlak</a></li><li><a href="/api/desktop/layerling/ui/handleiding/vormen.html">Vormen plaatsen en aanpassen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html">Selecteren en schikken</a></li><li><a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html">Lichamen en gaten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/randen-en-uithollen.html">Randen breken en lichamen uithollen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html">Schetsen: van omtrek naar lichaam</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html">Tekst en gebogen belettering</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schroefdraad-en-mechanica.html">Schroefdraad, tandwielen en andere onderdelen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html" aria-current="page">Meten en notities</a></li><li><a href="/api/desktop/layerling/ui/handleiding/printen.html">Voorbereiden op 3D-printen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html">Bestanden, opslaan en delen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/sneltoetsen.html">Sneltoetsen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/ai-met-mcp.html">Bouwen met een AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/handleiding/offline-en-installeren.html">Installeren als app, offline werken en zelf hosten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/videos.html">Video's over layerling</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tablet-en-touch.html">Tablet en touch</a></li></ol></nav>
       <main>
 <h1>Meten en notities</h1>
 <p class="lead">Meetlint, liniaal en winkelhaak, afstanden tot de oorsprong, notities die aan een onderdeel vast blijven zitten, en referentiepunten waarop dingen uitlijnen.</p>
-<div class="toc"><b>Op deze pagina</b><ul><li><a href="#het-meetlint">Het meetlint</a></li><li><a href="#de-liniaal">De liniaal</a></li><li><a href="#de-winkelhaak">De winkelhaak</a></li><li><a href="#afstanden-tot-de-oorsprong-en-tijdens-het-verplaatsen">Afstanden tot de oorsprong en tijdens het verplaatsen</a></li><li><a href="#notities">Notities</a></li><li><a href="#referentiepunten">Referentiepunten</a></li></ul></div>
+<div class="toc"><b>Op deze pagina</b><ul><li><a href="#het-meetlint">Het meetlint</a></li><li><a href="#de-liniaal">De liniaal</a></li><li><a href="#de-winkelhaak">De winkelhaak</a></li><li><a href="#de-gradenboog">De gradenboog</a></li><li><a href="#afstanden-tot-de-oorsprong-en-tijdens-het-verplaatsen">Afstanden tot de oorsprong en tijdens het verplaatsen</a></li><li><a href="#speling-controleren">Speling controleren</a></li><li><a href="#notities">Notities</a></li><li><a href="#referentiepunten">Referentiepunten</a></li><li><a href="#referentieafbeeldingen">Referentieafbeeldingen</a></li></ul></div>
 <p>Om een onderdeel precies te bouwen, moet je meten. layerling heeft daar verschillende hulpmiddelen voor. Geen daarvan komt in een export terecht. Wanddiktes en tussenruimtes binnen een onderdeel meet je het best in de <a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html">doorsnedeweergave</a> met <strong class="ui">“Meten”</strong>.</p>
-<h2 id="het-meetlint">Het meetlint</h2>
-<p>Het meetlint zit aan de onderkant van de camerabalk aan de linkerrand (<strong class="ui">“Meetlint”</strong>). Het meet afstanden tussen hoeken, randen en vlakken. Een klik erop opent vijf knoppen. Zitten die in de weg bij wat je wilt meten, sleep ze dan aan de greep links naar een willekeurige plek op het werkvlak; een dubbelklik op de greep zet ze terug:</p>
-<figure><img src="/api/desktop/layerling/ui/handleiding/img/tape-menu.webp" alt="Het meetlint met zijn knoppen: meting toevoegen, meetpunten verplaatsen, meting verwijderen, hele randen, alle metingen verwijderen." width="1280" height="800" loading="lazy"><figcaption>Het meetlint met zijn knoppen: meting toevoegen, meetpunten verplaatsen, meting verwijderen, hele randen, alle metingen verwijderen.</figcaption></figure>
-<ol><li><strong><strong class="ui">“Meting toevoegen”</strong>:</strong> Klik op een punt, sleep naar het volgende en klik daarop. De afstand krijgt een label.</li><li><strong><strong class="ui">“Meetpunten verplaatsen”</strong>:</strong> Pak de punten en verplaats ze, het getal volgt mee.</li><li><strong><strong class="ui">“Deel van meting verwijderen”</strong>:</strong> Klik daarna op een meting om die te verwijderen.</li><li><strong><strong class="ui">“Hele randen meten”</strong>:</strong> Een klik op een rand meet de hele rand, bij een cirkel bijvoorbeeld de omtrek. Staat dit uit, dan zet een klik in plaats daarvan een punt op de rand, en het tweede punt mag overal liggen, zodat je de diameter of een andere afstand kunt meten. <kbd>Alt</kbd> draait de schakelaar voor één klik om. Op een cirkel klikt het punt tegenover het eerste vast zodra de aanwijzer in de buurt komt, en de punten liggen op de echte cirkel, zodat de diameter precies klopt.</li><li><strong><strong class="ui">“Alle metingen verwijderen”</strong>:</strong> Verwijdert alle metingen in één keer. Omdat dit niet ongedaan kan worden gemaakt, vraagt layerling het eerst; zijn er geen metingen, dan is er niets te doen.</li></ol>
+<section class="guide-part"><h2 id="het-meetlint"><span class="heading-alias" id="the-tape-measure"></span>Het meetlint</h2>
+<p>Het meetlint zit aan de onderkant van de weergavebalk aan de linkerrand (<strong class="ui">“Meetlint”</strong>). Het meet afstanden tussen hoeken, randen en vlakken. Een klik erop opent vijf knoppen. Zitten die in de weg bij wat je wilt meten, sleep ze dan aan de greep links naar een willekeurige plek op het werkvlak; een dubbelklik op de greep zet ze terug:</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/tape-menu.webp" alt="Het meetlint met zijn knoppen: meting toevoegen, meetpunten verplaatsen, meting verwijderen, hele randen, alle metingen verwijderen." width="1280" height="800" loading="lazy"><figcaption>Het meetlint met zijn knoppen: meting toevoegen, meetpunten verplaatsen, meting verwijderen, hele randen, alle metingen verwijderen.</figcaption></figure>
+<ol><li><strong><strong class="ui">“Meting toevoegen”</strong>:</strong> Klik op een punt, sleep naar het volgende en klik daarop. De afstand krijgt een label, met ervoor de assen waarlangs ze loopt: X, Y of Z voor een rechte, XY, XZ of YZ schuin over een vlak, 3D voor alle drie. Beweeg over het label om te zien hoe ver de meting langs elke as reikt, en over een punt om zijn coördinaten te zien. Terwijl je het tweede punt zet, staan de assen, de afstand en het bereik langs elke as naast de aanwijzer. Een meting die grotendeels achter een ander lichaam ligt, vervaagt; beweeg over haar lijn of label en ze is weer volledig zichtbaar. Behalve op hoeken en randen klikt een punt ook vast in het midden van het platte vlak onder de aanwijzer en in het middelpunt van een ronde rand, zoals de rand van een gat of van een cilinder: een klein kruis in een cirkel toont het midden; komt de aanwijzer in de buurt, dan klikt het punt daar vast en zegt een hint waarvan het het midden is (<strong class="ui">“Midden van het vlak”</strong>, <strong class="ui">“Midden van het gat”</strong> of <strong class="ui">“Middelpunt van de cirkel”</strong>).</li><li><strong><strong class="ui">“Meetpunten verplaatsen”</strong>:</strong> Pak de punten en verplaats ze, het getal volgt mee.</li><li><strong><strong class="ui">“Deel van meting verwijderen”</strong>:</strong> Klik daarna op een meting om die te verwijderen.</li><li><strong><strong class="ui">“Hele randen meten”</strong>:</strong> Een klik op een rand meet de hele rand, bij een cirkel bijvoorbeeld de omtrek. Staat dit uit, dan zet een klik in plaats daarvan een punt op de rand, en het tweede punt mag overal liggen, zodat je de diameter of een andere afstand kunt meten. <kbd>Alt</kbd> draait de schakelaar voor één klik om. Op een cirkel klikt het punt tegenover het eerste vast zodra de aanwijzer in de buurt komt, en de punten liggen op de echte cirkel, zodat de diameter precies klopt.</li><li><strong><strong class="ui">“Alle metingen verwijderen”</strong>:</strong> Verwijdert alle metingen in één keer. Omdat dit niet ongedaan kan worden gemaakt, vraagt layerling het eerst; zijn er geen metingen, dan is er niets te doen.</li><li><strong><strong class="ui">“Midden als referentiepunt markeren”</strong>:</strong> In het midden van elke meting zit een klein rond merkteken, de onderste helft gevuld. Het zet een <a href="#referentiepunten">referentiepunt</a> in het midden van de meting: na een klik op een ronde rand, zoals de rand van een gat, in het middelpunt van die cirkel - ook bij een geïmporteerd net, waar anders niets het midden van een gat markeert - en bij een diameter of elke rechte meting halverwege. Een vorm die je sleept snapt dan met zijn midden op het punt. Een punt dat er al is, wordt niet dubbel gemaakt. Het meetlint klikt vast aan een referentiepunt zoals aan een hoek: zo meet je vanaf het middelpunt van een cirkel of vanaf het midden van een lijn - punt zetten, dan aanklikken.</li><li><strong><strong class="ui">“Lengte typen: het lichaam bij het tweede punt schuift langs de lijn; een negatieve lengte schuift het voorbij het eerste punt”</strong>:</strong> Ligt minstens één uiteinde van een rechte meting op een lichaam, dan is het getal aan te klikken. Typ een nieuwe lengte en druk op <kbd>Enter</kbd>: het lichaam bij het tweede punt schuift langs de gemeten lijn tot de afstand precies zo groot is, zoals met de liniaal in Tinkercad. Is alleen het lichaam bij het eerste punt geselecteerd, dan schuift dat. De meetpunten blijven op het lichaam, dus de meting gaat mee. Meet vanaf een hoek, een rand of het midden van een vlak of een gat om onderdelen op een exacte afstand te zetten: van het midden van een gat naar het midden van de bovenkant van een cilinder schuift de cilinder van midden tot midden. Een negatieve lengte schuift het zo ver voorbij het eerste punt, bijvoorbeeld 5 mm binnen de rand van een doos. Een <a href="#referentiepunten">referentiepunt</a> hoort bij geen enkel lichaam; tussen twee referentiepunten schuift er dus niets. Loopt de meting langs twee of drie assen, dan heeft het veld onder de lengte ook een vakje voor elk ervan (ΔX, ΔY, ΔZ, de afstanden die verschijnen als je naar het getal wijst): typ daar, en het lichaam schuift alleen langs die as. <kbd>Tab</kbd> springt van vakje naar vakje, <kbd>Esc</kbd> sluit het veld zonder iets te verschuiven. Wijs je naar het getal, dan zie je welk lichaam schuift, of waarom geen enkel dat kan: het is vergrendeld, beide punten liggen op hetzelfde lichaam, of geen van beide ligt op een lichaam. De melding daarna zegt wat er hoeveel verschoven is; één keer ongedaan maken zet het terug.</li></ol>
 <p><kbd>Esc</kbd> verlaat de meetmodus.</p>
-<h2 id="de-liniaal">De liniaal</h2>
-<p>De <strong class="ui">“Liniaal”</strong> haal je uit de vormenbibliotheek. Het is puur een meetinstrument: hij komt in geen enkele export terecht en kan niet gegroepeerd of geknipt worden. Voor elk lichaam dat de liniaal raakt of overlapt, toont hij de afmeting als zwevend getal direct in de weergave. Je kunt dat getal daar meteen aanpassen, en het lichaam volgt. Het zwevende plusteken maakt een kopie van de gemeten vorm.</p>
-<h2 id="de-winkelhaak">De winkelhaak</h2>
-<p>Soms meet je beter in een rechte hoek. Klik op <strong class="ui">“Winkelhaak plaatsen”</strong> in de camerabalk en dan op het werkvlak. Daar wordt een winkelhaak geplaatst met twee armen in een rechte hoek, met maatstreepjes zoals op een blokhaak. Ook die heeft geen eigen lichaam. Klik je dicht bij de hoek van een lichaam, dan klikt zijn hoek precies daar vast.</p>
+</section><section class="guide-part"><h2 id="de-liniaal"><span class="heading-alias" id="the-ruler"></span>De liniaal</h2>
+<p>De <strong class="ui">“Liniaal”</strong> haal je uit de vormenbibliotheek. Het is puur een meetinstrument: hij komt in geen enkele export terecht en kan niet gegroepeerd of geknipt worden. Voor elk lichaam dat de liniaal raakt of overlapt, toont hij de afmeting als zwevend getal direct in de weergave. Je kunt dat getal daar meteen aanpassen, en het lichaam volgt. Het zwevende plusteken maakt een kopie van de gemeten vorm. De opgedrukte schaal is in millimeters; zet je de eenheid om op inches (de schakelaar rechtsonder), dan is hij in inches, met een streepje per zestiende inch en genummerde hele inches.</p>
+</section><section class="guide-part"><h2 id="de-winkelhaak"><span class="heading-alias" id="the-framing-square"></span>De winkelhaak</h2>
+<p>Soms meet je beter in een rechte hoek. Klik op <strong class="ui">“Winkelhaak plaatsen”</strong> in de weergavebalk en dan op het werkvlak. Daar wordt een winkelhaak geplaatst met twee armen in een rechte hoek, met maatstreepjes zoals op een blokhaak. Ook die heeft geen eigen lichaam. Klik je dicht bij de hoek van een lichaam, dan klikt zijn hoek precies daar vast. Heb je hem in bijna elk ontwerp nodig, zet dan in de instellingen onder <strong class="ui">“Maatvoering”</strong> <strong class="ui">“Nieuwe ontwerpen starten met een winkelhaak in de oorsprong”</strong> aan: elk nieuw ontwerp begint dan met een winkelhaak in de oorsprong.</p>
 <p>De winkelhaak ligt op het werkvlak. Ligt dat op de zijkant van een lichaam, dan ligt de winkelhaak ook op die zijkant, zie <a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html">Weergave en werkvlak</a>. Zo maat je op een verticale wand: zet het werkvlak op de wand, plaats de winkelhaak in de linkerbovenhoek en klik op de greep tot de armen naar rechts en naar beneden wijzen.</p>
-<ul><li><strong>De greep slepen</strong> verplaatst hem.</li><li><strong>Een korte klik op de greep</strong> draait hem 90°.</li><li><strong>Het ×</strong> ernaast verwijdert hem.</li><li><strong>Het knopje links van de greep</strong> wisselt waarvandaan gemeten wordt: de buitenkant van een lichaam (eindpunt, een icoon met lijnen) of het midden ervan (middelpunt, een vizierkruis).</li></ul>
-<p>Staan er lichamen bij een van de armen, dan toont de winkelhaak automatisch hun afmetingen. Dat werkt alleen op de bodemplaat, niet op de zijkant van een lichaam.</p>
+<ul><li><strong>De greep slepen</strong> verplaatst hem.</li><li><strong>Een korte klik op de greep</strong> draait hem 90°.</li><li><strong>Het ×</strong> ernaast verwijdert hem.</li><li><strong>Sleep aan het cirkeltje aan het einde van een arm</strong> om die arm langer of korter te maken, in hele millimeters. De onderste knop onder de greep, <strong class="ui">“Armen zo lang als het printbed (sleep aan het einde van een arm om de lengte te wijzigen)”</strong>, maakt beide armen zo lang als het printbed van de printer in de instellingen breed en diep is. De winkelhaak bewaart de lengte van zijn armen bij het ontwerp, en een opnieuw geplaatste neemt die over.</li><li><strong>Het knopje links van de greep</strong> wisselt waarvandaan gemeten wordt: de buitenkant van een lichaam (eindpunt, een icoon met lijnen) of het midden ervan (middelpunt, een vizierkruis). Naast elk groen getal zit zo'n klein schakelaartje dat alleen dat getal omzet: bij een staande cilinder het midden in de twee armen en de onderkant in de hoogte, bij een liggende het midden dwars en een uiteinde in de lengte. Komen alle drie weer overeen, dan toont het knopje bij de greep de gemeenschappelijke stand.</li></ul>
+<p>Staan er lichamen bij een van de armen, dan toont de winkelhaak automatisch hun afmetingen. Dat werkt alleen op de bodemplaat, niet op de zijkant van een lichaam. De knop met de pijl onder de greep van de winkelhaak schakelt dat uit, zodat alleen de geselecteerde lichamen hun afmetingen tonen; hij wordt met het ontwerp opgeslagen.</p>
 <p>Selecteer je een lichaam, dan toont de winkelhaak in het groen hoe ver het van de hoek af staat, langs beide armen en in de hoogte. Klik op een groen getal om een afstand te typen, en het lichaam schuift precies daarheen. Met meerdere lichamen geselecteerd tellen ze als één: de winkelhaak meet hun gezamenlijke omtrek, en een getypte waarde verplaatst ze allemaal samen zonder hun onderlinge posities te veranderen.</p>
 <p>Met het middelpunt tellen de groene getallen tot het midden van het lichaam, ook in de hoogte. Zo plaats je een bol met zijn middelpunt precies 15 mm van een rand, zonder de straal ervan af te trekken. Op een wand plaats je een gat op 40 mm van links en 190 mm van boven zo: selecteer het gat, schakel naar middelpunt, typ 40 en 190. De hoogte telt daar vanaf de wand naar buiten.</p>
-<p>Zowel het meetlint als de winkelhaak blijven staan terwijl je schetst en terugkeert naar de 3D-weergave. Ze worden niet met het ontwerp opgeslagen en niet in de geschiedenis, en ze verdwijnen als je de pagina herlaadt.</p>
-<h2 id="afstanden-tot-de-oorsprong-en-tijdens-het-verplaatsen">Afstanden tot de oorsprong en tijdens het verplaatsen</h2>
+<p>Zowel het meetlint als de winkelhaak blijven staan terwijl je schetst en terugkeert naar de 3D-weergave. Geen van beide komt in de geschiedenis. De winkelhaak wordt met het ontwerp opgeslagen, en de metingen van het meetlint ook, in de browser en in het .lyl-bestand: als je het ontwerp opent, zijn ze er weer. De oogknop tussen de knoppen van het meetlint verbergt alle metingen en toont ze weer; of ze verborgen zijn, wordt ook bewaard, en wie een meting zet, verplaatst of verwijdert, ziet ze eerst weer.</p>
+</section><section class="guide-part"><h2 id="de-gradenboog"><span class="heading-alias" id="the-protractor"></span>De gradenboog</h2>
+<p>Met <strong class="ui">“Gradenboog”</strong> in de weergavebalk meet je hoeken. Ernaast gaat een rij knoppen open, en tot je de knop opnieuw aanklikt of op <kbd>Esc</kbd> drukt, meet een klik in de weergave met de gradenboog. Net als het meetlint klikt hij vast op hoeken en randen van lichamen; naast de lichamen zet hij een punt op de plaat.</p>
+<ul><li><strong class="ui">“Hoek uit drie punten”</strong>: klik eerst op het hoekpunt van de hoek, dan op een punt op elk been. Terwijl je het laatste punt plaatst, staat de hoek er al; na de derde klik blijft hij staan, met een boog tussen de benen. Het is de hoek in het hoekpunt, van 0° tot 180°.</li><li><strong class="ui">“Hoek tussen twee vlakken”</strong>: klik op twee platte vlakken. Een kort blauw streepje op elk vlak toont welke kant het op kijkt, en het label geeft beide hoeken die de vlakken maken, de kleinste eerst: een afschuining van 45° tegen de bovenkant geeft 45° · 135°, twee zijden van een blok alleen 90°. Een gebogen vlak heeft geen enkele richting, dus vraagt de gradenboog om een plat vlak.</li></ul>
+<p>De volgende klik na een afgemaakte hoek begint een nieuwe, en <strong class="ui">“Hoek verwijderen”</strong> verwijdert hem. De hoek volgt de lichamen als ze verschuiven of draaien. Niets ervan wordt opgeslagen of komt in de geschiedenis: hij is weg zodra je de gradenboog wegzet.</p>
+</section><section class="guide-part"><h2 id="afstanden-tot-de-oorsprong-en-tijdens-het-verplaatsen"><span class="heading-alias" id="distances-to-the-origin-and-while-moving"></span>Afstanden tot de oorsprong en tijdens het verplaatsen</h2>
 <p>In de instellingen onder <strong class="ui">“Weergave”</strong> staan twee schakelaars voor live maten:</p>
-<ul><li><strong class="ui">“Verplaatsingsmaten tonen”</strong> toont hoeveel je verplaatst tijdens het slepen.</li><li><strong class="ui">“Afstanden tot de oorsprong tonen”</strong> toont de afstanden van de selectie tot de oorsprong van de plaat, ook bij meerdere geselecteerde lichamen.</li></ul>
-<p>Met <strong class="ui">“Maten altijd zichtbaar”</strong> blijven de maten altijd zichtbaar.</p>
-<h2 id="notities">Notities</h2>
+<ul><li><strong class="ui">“Verplaatsingsmaten tonen”</strong> toont hoeveel je verplaatst tijdens het slepen. Dat geldt ook bij het optillen met de zwarte pijl boven een lichaam; de afstand staat dan bij de voorste hoek. Na het loslaten klik je op zo'n getal en typ je de precieze afstand; een min gaat omlaag.</li><li><strong class="ui">“Afstanden tot de oorsprong tonen”</strong> toont de afstanden van de selectie tot de oorsprong van de plaat, ook bij meerdere geselecteerde lichamen.</li></ul>
+<p>Met <strong class="ui">“Maten altijd zichtbaar”</strong> blijven de maten altijd zichtbaar. Staat een lichaam niet op het werkvlak, dan staat ook zijn hoogte erboven erbij; klik op het getal om een nieuwe waarde te typen. Met <strong class="ui">“Maatvakjes in askleuren”</strong> krijgt elk vakje de kleur van zijn as, net als de grepen: rood voor X, groen voor Y en blauw voor Z. Zo zie je ook bij een klein onderdeel in één oogopslag welk getal welk is.</p>
+<p>Zitten ze even in de weg, druk dan op <kbd>Q</kbd>: de maten en afstanden rond de selectie verdwijnen, zodat een deel dat je verschuift goed te zien is. Nog eens <kbd>Q</kbd> haalt ze terug. Een greep waar je naar wijst, toont zijn maat toch.</p>
+</section><section class="guide-part"><h2 id="speling-controleren"><span class="heading-alias" id="checking-clearance"></span>Speling controleren</h2>
+<p>Onderdelen die na het printen moeten bewegen - een flexi-draak, een in één keer geprint scharnier, een doos met deksel, een as in zijn boring - hebben ruimte tussen elkaar nodig. Te weinig en ze plakken aan elkaar; overlappen ze, dan worden ze als één stuk geprint. <strong class="ui">“Speling controleren”</strong>, naast <strong class="ui">“Overgang tussen schetsen”</strong>, controleert dat vóór het printen. Het neemt de geselecteerde objecten, of alle zichtbare als niets is geselecteerd (dezelfde als bij een export), en controleert elk paar:</p>
+<ul><li><strong><strong class="ui">“Overlap”</strong></strong> (rood): de twee delen een volume. Het verschijnt rood in de lichamen, die doorzichtig worden, en de lijst noemt de grootte.</li><li><strong><strong class="ui">“Raken elkaar”</strong></strong> (rood): ze raken elkaar en smelten samen bij het printen.</li><li><strong><strong class="ui">“Te krap”</strong></strong> (oranje): de smalste spleet is kleiner dan de <strong class="ui">“Minimale speling”</strong>.</li><li><strong><strong class="ui">“In orde”</strong></strong> (groen): de smalste spleet is minstens zo breed.</li></ul>
+<p>Elke regel noemt de twee onderdelen en, bij een spleet, de breedte en waar die ligt: <strong class="ui">“naast elkaar”</strong> (in dezelfde laag) of <strong class="ui">“tussen de lagen”</strong> (erboven of eronder: daar kan de slicer alleen hele lagen vrijlaten, dus een spleet dunner dan één laag sluit). Klik op een regel: de camera gaat erheen, beide onderdelen krijgen een omlijning en een lijn met het getal markeert de smalste plek. Paren die verder dan 5 mm uit elkaar liggen, staan niet in de lijst. Het ontwerp verandert niet: de controle slaat niets op en laat niets achter om ongedaan te maken.</p>
+<p>De <strong class="ui">“Minimale speling”</strong> begint bij 0,3 mm; 0,3 is krap, 0,4 gebruikelijk bij print-in-place. Aanpassen sorteert de lijst meteen opnieuw, zonder nieuwe controle, en de browser onthoudt de waarde. <strong class="ui">“Losse delen van één object controleren (print-in-place)”</strong> (aan bij de start) controleert ook de losse delen van één object tegen elkaar: een flexi-draak of scharnier dat als één STL is geïmporteerd, is één object, maar de schakels zijn losse delen. Ze staan in de lijst als &quot;Naam · Deel 2&quot;. Een deel in een holte van een ander, een bal in een kooi, is een eigen deel.</p>
+<p>Verander je het ontwerp terwijl het venster open is, dan toont het <strong class="ui">“Gewijzigd – opnieuw controleren”</strong>; klik daarop of op <strong class="ui">“Opnieuw controleren”</strong>. <kbd>Esc</kbd> of <strong class="ui">“Sluiten”</strong> sluit het venster. Ook schalen verandert de spleten: een flexi-model op 70 % houdt 70 % van zijn speling, dus controleer na het schalen opnieuw.</p>
+<p>De controle meet het driehoeksnet dat ook de slicer krijgt. Een ronde as en zijn boring zijn veelhoeken met de hoeken op de cirkel, dus een spleet kan enkele honderdsten kleiner uitkomen dan de ronde maten. Een paar met te veel driehoeken staat als <strong class="ui">“Niet gecontroleerd”</strong> in de lijst. Een AI voert dezelfde controle uit met <code>layerling_check_clearance</code>.</p>
+</section><section class="guide-part"><h2 id="notities"><span class="heading-alias" id="notes"></span>Notities</h2>
 <p>Een notitie legt vast wat de geometrie niet zegt: &quot;Deze schroef zit 0,3 mm te krap&quot;, &quot;het deksel nog printen&quot;, &quot;maat van Peter&quot;. Plaats er een met <strong class="ui">“Notitie”</strong> of de toets <kbd>N</kbd>.</p>
-<ul><li>Plaats je de notitie <strong>op een lichaam</strong>, dan reist ze mee.</li><li>Plaats je haar <strong>ernaast</strong>, dan blijft ze op het werkvlak (<strong class="ui">“Op het werkvlak”</strong>).</li><li><strong class="ui">“Losmaken van object”</strong> maakt een vastgemaakte notitie los van het lichaam.</li><li>Slepen verplaatst de notitie, een klik opent haar om te bewerken.</li><li>Terwijl je schrijft, bewaart <kbd>Enter</kbd> de tekst en zet <kbd>Esc</kbd> hem terug zoals hij was voordat je begon; <kbd>Shift</kbd>+<kbd>Enter</kbd> begint een nieuwe regel.</li></ul>
-<p>Notities worden in het ontwerp opgeslagen, komen in geen enkele export terecht en kun je tonen of verbergen met <strong class="ui">“Notities en punten tonen”</strong>.</p>
-<h2 id="referentiepunten">Referentiepunten</h2>
-<p>Een referentiepunt is een kaal merkteken in de ruimte, zoals een potloodstreep of een aftekenpunt in een werkplaats: het hoort bij geen enkel lichaam, wordt nooit geprint, en andere dingen klikken eraan vast. Klik met rechts op een lichaam en kies <strong class="ui">“Middelpunt markeren”</strong>, <strong class="ui">“Hoeken markeren”</strong> of <strong class="ui">“Randmiddens markeren”</strong>: de punten verschijnen op het bovenvlak van het lichaam (van de hele selectie, als je er meerdere hebt geselecteerd).</p>
-<ul><li>Sleep een punt om het te verplaatsen, of klik erop om de coördinaten te zien en nieuwe te typen; ze gebruiken de eenheid die je hebt ingesteld. De kaart kun je aan zijn titel wegslepen als die iets bedekt, en een dubbelklik op de titel zet hem terug. <strong class="ui">“Verwijderen”</strong> verwijdert het punt.</li><li>Sleep je een vorm, dan klikken zijn randen en zijn midden vast aan een punt, zoals ze aan andere vormen vastklikken (<strong class="ui">“Bij verplaatsen uitlijnen op andere vormen”</strong>). Ook de winkelhaak klikt vast aan punten.</li><li>Punten worden in het ontwerp opgeslagen, komen in geen enkele export terecht en worden samen met de notities getoond of verborgen met <strong class="ui">“Notities en punten tonen”</strong>.</li><li>Een AI kan ze markeren, opsommen en verwijderen met <code>layerling_add_reference_points</code>, <code>layerling_list_reference_points</code> en <code>layerling_remove_reference_points</code>.</li></ul>
+<ul><li>Plaats je de notitie <strong>op een lichaam</strong>, dan reist ze mee.</li><li>Plaats je haar <strong>ernaast</strong>, dan blijft ze op het werkvlak (<strong class="ui">“Op het werkvlak”</strong>).</li><li><strong class="ui">“Losmaken van object”</strong> maakt een vastgemaakte notitie los van het lichaam.</li><li><strong class="ui">“Voor de AI”</strong> maakt van een notitie een verzoek aan een AI-agent op de MCP-brug (zie „AI met MCP”): de agent leest haar met <code>layerling_list_notes</code>, doet het werk en antwoordt in dezelfde notitie, onder jouw tekst. Hij kan ook eigen notities op het model zetten, om op een plek iets te vragen of te melden. Vraag de agent je notities in de gaten te houden, dan wacht hij erop met <code>layerling_wait_for_notes</code>: je werkt dan alleen nog aan het model, en elk nieuw verzoek wordt opgepakt zodra je het vakje aanvinkt, zonder terug te gaan naar het venster van de agent.</li><li><strong class="ui">“Groeperen”</strong> neemt een vastgemaakte notitie mee in de groep; <strong class="ui">“Groep opheffen”</strong> geeft haar door aan het zichtbare onderdeel eronder, ook aan een groep daarbinnen. Zolang een groep met <strong class="ui">“Groep bewerken”</strong> open is, bewegen de notities van die groep mee met het onderdeel eronder en gaan ze met <strong class="ui">“Klaar”</strong> terug naar de groep; annuleren zet ze terug zoals ze waren.</li><li>Wordt haar lichaam verwijderd, of ligt er geen zichtbaar lichaam meer onder, dan blijft de notitie staan waar ze stond, op het werkvlak.</li><li>Slepen aan de speld verplaatst de notitie. Een klik op de speld klapt de kaart in, alleen het kleine nummer blijft staan; nog een klik klapt hem weer open. Een klik in de tekst bewerkt hem.</li><li>Terwijl je schrijft, bewaart <kbd>Enter</kbd> de tekst en zet <kbd>Esc</kbd> hem terug zoals hij was voordat je begon; <span dir="ltr"><kbd>Shift</kbd>+<kbd>Enter</kbd></span> begint een nieuwe regel.</li><li><strong>In een schets</strong> zet <strong class="ui">“Notitie”</strong> of <kbd>N</kbd> ook een notitie, waar je maar wilt op de schets. Alle notities van een schets horen bij haar lichaam: in de 3D-weergave zitten ze erop, bovenop een lichaam gemaakt met <strong class="ui">“Schets extruderen”</strong> of <strong class="ui">“Schets langs pad”</strong> en op het getekende profiel van een lichaam gemaakt met <strong class="ui">“Schets omwentelen”</strong>, en ze bewegen mee. Open je de schets opnieuw, dan toont ze de notities van het lichaam, ook die in 3D zijn gezet. In de schets neemt <strong class="ui">“Schets ongedaan maken”</strong> een notitie terug zoals een lijn, en <strong class="ui">“Annuleren”</strong> verwerpt wat je aan de notities hebt veranderd. <span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span> toont of verbergt de notities ook hier.</li></ul>
+<p>Notities worden in het ontwerp opgeslagen, komen in geen enkele export terecht en kun je tonen of verbergen met <strong class="ui">“Notities en punten tonen”</strong> (onder <strong class="ui">“Zichtbaarheidsopties”</strong>, de pijl naast het oog-pictogram) of met <span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span>.</p>
+</section><section class="guide-part"><h2 id="referentiepunten"><span class="heading-alias" id="reference-points"></span>Referentiepunten</h2>
+<p>Een referentiepunt is een kaal merkteken in de ruimte, zoals een potloodstreep of een aftekenpunt in een werkplaats: het hoort bij geen enkel lichaam, wordt nooit geprint, en andere dingen klikken eraan vast. Klik met rechts op een lichaam en kies <strong class="ui">“Middelpunt markeren”</strong>, <strong class="ui">“Hoeken markeren”</strong> of <strong class="ui">“Randmiddens markeren”</strong>: de punten verschijnen op het bovenvlak van het lichaam (van de hele selectie, als je er meerdere hebt geselecteerd). <strong class="ui">“Midden van dit vlak markeren”</strong> zet er in plaats daarvan een in het midden van het vlakke vlak waarop je rechtsklikte, bijvoorbeeld aan een zijkant of een uiteinde. Is er een draaipunt gezet, dan zet <strong class="ui">“Draaipunt markeren”</strong> er precies een op, zodat het midden van een ander onderdeel vastklikt op het punt waar de selectie om draait.</p>
+<ul><li>Sleep een punt om het te verplaatsen, of klik erop om de coördinaten te zien en nieuwe te typen; ze gebruiken de eenheid die je hebt ingesteld. Elke kaart kun je aan zijn titel wegslepen als die iets bedekt, en wel afzonderlijk: de andere blijven waar ze zijn, en een dubbelklik op de titel zet hem terug. De kaart die je het laatst hebt aangeraakt, ligt voor de andere. <strong>Alles verwijderen</strong> in een kaart, of in het rechtsklikmenu, verwijdert alle punten in één keer. <strong class="ui">“Verwijderen”</strong> verwijdert het punt.</li><li>Het meetlint kan ook een punt zetten: <strong class="ui">“Midden als referentiepunt markeren”</strong>, het half gevulde merkteken in het midden van een meting, zet er een in het midden, bijvoorbeeld in het middelpunt van een rond gat. En het meet vanaf een punt: het meetlint klikt vast aan referentiepunten zoals aan hoeken.</li><li>Sleep je een vorm, dan klikken zijn randen en zijn midden vast aan een punt, zoals ze aan andere vormen vastklikken (<strong class="ui">“Bij verplaatsen uitlijnen op andere vormen”</strong>). Ook de winkelhaak klikt vast aan punten.</li><li>Punten worden in het ontwerp opgeslagen, komen in geen enkele export terecht en worden samen met de notities getoond of verborgen met <strong class="ui">“Notities en punten tonen”</strong> (<span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span>).</li><li>Een AI kan ze markeren, opsommen en verwijderen met <code>layerling_add_reference_points</code>, <code>layerling_list_reference_points</code> en <code>layerling_remove_reference_points</code>.</li></ul>
+</section><section class="guide-part"><h2 id="referentieafbeeldingen"><span class="heading-alias" id="reference-images"></span>Referentieafbeeldingen</h2>
+<p>Een referentieafbeelding is een afbeelding om onderdelen op uit te lijnen: leg een foto van een printplaat op de bodem van haar behuizing en zet de afstandhouders, gaten en uitsparingen voor de aansluitingen er precies op. Het is een hulpmiddel, geen lichaam: ze wordt nooit geprint, nooit geëxporteerd (STL, 3MF, OBJ, STEP, SVG), hoort nooit bij een groep, een bundel of een snede, en de printschatting laat haar weg.</p>
+<ul><li>Open <strong class="ui">“Importeren”</strong> en kies <strong class="ui">“Referentieafbeelding”</strong>, daarna een PNG-, JPG-, WebP-, GIF- of BMP-afbeelding. Ze komt op het werkvlak - op de plaat, of op het vlak waar je het werkvlak op hebt gelegd -, met de langste zijde 100 mm, half doorzichtig.</li><li>Verplaats, draai en schaal haar met haar grepen zoals elke vorm. Een lichaam ervoor wordt eerst gekozen, dus wie erop werkt, pakt niet per ongeluk de afbeelding.</li><li><strong class="ui">“Doorzichtig (%)”</strong> in haar instellingen vervaagt haar van helemaal zichtbaar tot nauwelijks nog te zien.</li><li><strong class="ui">“Kalibreren”</strong> geeft haar haar echte grootte, zoals in de schets: klik op twee punten op de afbeelding waarvan je de werkelijke afstand kent - twee bevestigingsgaten van de printplaat bijvoorbeeld - en typ die afstand bij <strong class="ui">“Werkelijke afstand (mm)”</strong>. De afbeelding houdt haar verhoudingen en haar midden.</li><li>Vergrendel haar met het slot in de kop van haar instellingen, dan blijft ze liggen: klikken gaan er dan doorheen naar de plaat. Kies haar in de objectlijst om haar te ontgrendelen.</li><li>De afbeelding staat één keer in het ontwerpbestand, hoe vaak ze ook wordt gekopieerd of ongedaan gemaakt. Een grote afbeelding maakt het bestand zoveel groter; de melding bij het toevoegen noemt haar grootte.</li><li>Een AI voegt er een toe, verplaatst, kalibreert, vervaagt en vergrendelt haar met <code>layerling_reference_image</code>. Met <code>trace</code> trekt ze de afbeelding over tot een schetslichaam dat erop staat, zoals <strong class="ui">“Overtrekken”</strong> in de schets.</li></ul></section>
 <div class="pager"><a href="/api/desktop/layerling/ui/handleiding/schroefdraad-en-mechanica.html"><small>Vorig hoofdstuk</small>Schroefdraad, tandwielen en andere onderdelen</a><a class="next" href="/api/desktop/layerling/ui/handleiding/printen.html"><small>Volgend hoofdstuk</small>Voorbereiden op 3D-printen</a></div>
       </main>
     </div>
     <footer class="note">Deze handleiding groeit mee met het programma. Mis je iets of klopt er iets niet, laat het ons weten in de <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussies</a>.</footer>
-    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=nl" rel="noopener">Steun het project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussies</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Meer over het project op GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.71.0</a></div><p class="trademark">Tinkercad is een handelsmerk van Autodesk, Inc. layerling is een onafhankelijk project en is niet gelieerd aan, goedgekeurd of gesponsord door Autodesk.</p></footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=nl" rel="noopener">Steun het project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussies</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Meer op GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.154.1</a></div><p class="trademark">Tinkercad is een handelsmerk van Autodesk, Inc. layerling is een onafhankelijk project en is niet gelieerd aan, goedgekeurd of gesponsord door Autodesk.</p></footer>
     <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Terug naar de editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Naar de editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
     <script>
-function guideFold(text){var out="";for(var i=0;i<text.length;i++){out+=text.charAt(i).toLowerCase().normalize("NFD").charAt(0);}return out;}
-function guideForms(word,umlauts){
-  var forms=[word];
-  if(umlauts){var plain=word.split("ae").join("a").split("oe").join("o").split("ue").join("u");if(plain!==word)forms.push(plain);}
-  if(word.indexOf("ss")>=0)forms.push(word.split("ss").join(String.fromCharCode(223)));
-  if(word.indexOf(String.fromCharCode(223))>=0)forms.push(word.split(String.fromCharCode(223)).join("ss"));
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
   return forms;
 }
-function guideFind(text,forms,from){
-  var best=null;
-  for(var i=0;i<forms.length;i++){var k=text.indexOf(forms[i],from);if(k>=0&&(!best||k<best.at))best={at:k,len:forms[i].length};}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
   return best;
 }
-function guidePrepare(entries){return entries.map(function(e){return {e:e,c:guideFold(e.c),h:guideFold(e.h),t:guideFold(e.t)};});}
-function guideTokens(query){return guideFold(query).split(" ").filter(function(w){return w.length>0;});}
-function guideSearch(prepared,query,limit,umlauts){
-  var tokens=guideTokens(query);if(!tokens.length)return [];
-  var forms=tokens.map(function(w){return guideForms(w,umlauts);}),phrase=guideForms(tokens.join(" "),umlauts),found=[];
-  prepared.forEach(function(p){
-    var score=0;
-    for(var i=0;i<tokens.length;i++){
-      var inH=guideFind(p.h,forms[i],0),inC=guideFind(p.c,forms[i],0),at=guideFind(p.t,forms[i],0);
-      if(!inH&&!inC&&!at)return;
-      if(inH)score+=10;
-      if(inC)score+=3;
-      if(at){score+=1;var n=0,k=at;while(k&&n<5){n++;k=guideFind(p.t,forms[i],k.at+k.len);}score+=n*0.3;}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
     }
-    if(tokens.length>1&&(guideFind(p.h,phrase,0)||guideFind(p.t,phrase,0)))score+=6;
-    found.push({entry:p.e,score:score,folded:p.t,forms:forms});
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
   });
-  found.sort(function(a,b){return b.score-a.score;});
-  return found.slice(0,limit||8);
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
 }
 
 function guideSnippet(hit){
@@ -230,20 +341,57 @@ function guideSnippet(hit){
   if(end<text.length)parts.push({text:" ...",mark:false});
   return parts;
 }
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
 (function(){
   var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
   var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
   function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
   function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
   function render(){
     if(!guideTokens(input.value).length){close();return;}
     if(!prepared){load().then(function(){if(prepared)render();});return;}
-    var hits=guideSearch(prepared,input.value,8,form.getAttribute("data-umlauts")==="true");
+    var hits=guideSearch(prepared,input.value,8,umlauts);
     box.textContent="";
     if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
     hits.forEach(function(hit){
       var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
-      link.href=hit.entry.u;
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
       title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
       guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
       link.appendChild(title);link.appendChild(line);box.appendChild(link);
@@ -256,7 +404,7 @@ function guideSnippet(hit){
     if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
     else if(e.key==="Escape"){input.value="";close();}
   });
-  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first)window.location.href=first.href;});
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
   box.addEventListener("keydown",function(e){
     var current=document.activeElement;
     if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}

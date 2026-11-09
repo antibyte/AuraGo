@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Текст и надписи по дуге - Руководство layerling</title>
+    <meta name="description" content="Выпуклые или выгравированные надписи в семи шрифтах, а при желании - по дуге окружности, например на монете, крышке или кольце.">
+    <link rel="canonical" href="https://layerling.com/ru/text.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/text.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/text.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/text.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/text.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/text.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/text.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/text.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/text.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/tekst.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/text.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/besedilo.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/text.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/text.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/text.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/text.html">
+    <meta property="og:title" content="Текст и надписи по дуге - Руководство layerling">
+    <meta property="og:description" content="Выпуклые или выгравированные надписи в семи шрифтах, а при желании - по дуге окружности, например на монете, крышке или кольце.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/ru/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Руководство</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/ru/search-index.json" data-nothing="Ничего не найдено." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Поиск по руководству" aria-label="Поиск по руководству" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Язык">Русский</summary><ul><li><a href="/api/desktop/layerling/ui/guide/text.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/text.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/text.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/text.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/text.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/text.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/text.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/text.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/text.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/text.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/besedilo.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/text.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/text.html" hreflang="ru" lang="ru" aria-current="true">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/text.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/text.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/text.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/text.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Открыть редактор</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Редактор уже открыт в другой вкладке — просто переключитесь туда.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Главы"><h2>Главы</h2><p class="print-link"><a href="/api/desktop/layerling/ui/ru/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Всё руководство для печати</span></a></p><ol><li><a href="/api/desktop/layerling/ui/ru/getting-started.html">С чего начать</a></li><li><a href="/api/desktop/layerling/ui/ru/view-and-workplane.html">Вид и рабочая плоскость</a></li><li><a href="/api/desktop/layerling/ui/ru/shapes.html">Размещение и настройка фигур</a></li><li><a href="/api/desktop/layerling/ui/ru/select-and-arrange.html">Выделение и упорядочивание</a></li><li><a href="/api/desktop/layerling/ui/ru/solids-and-holes.html">Тела и отверстия</a></li><li><a href="/api/desktop/layerling/ui/ru/edges-and-hollowing.html">Обработка кромок и выдолбливание тел</a></li><li><a href="/api/desktop/layerling/ui/ru/sketches.html">Эскизы: от контура к телу</a></li><li><a href="/api/desktop/layerling/ui/ru/text.html" aria-current="page">Текст и надписи по дуге</a></li><li><a href="/api/desktop/layerling/ui/ru/threads-and-mechanics.html">Резьба, шестерни и другие детали</a></li><li><a href="/api/desktop/layerling/ui/ru/measuring-and-notes.html">Измерения и заметки</a></li><li><a href="/api/desktop/layerling/ui/ru/printing.html">Подготовка к 3D-печати</a></li><li><a href="/api/desktop/layerling/ui/ru/files-and-saving.html">Файлы, сохранение и обмен</a></li><li><a href="/api/desktop/layerling/ui/ru/shortcuts.html">Сочетания клавиш</a></li><li><a href="/api/desktop/layerling/ui/ru/ai-with-mcp.html">Создание с помощью ИИ (MCP)</a></li><li><a href="/api/desktop/layerling/ui/ru/offline-and-install.html">Установка как приложения, работа офлайн и свой сервер</a></li><li><a href="/api/desktop/layerling/ui/ru/videos.html">Видео о layerling</a></li><li><a href="/api/desktop/layerling/ui/ru/tablet-and-touch.html">Планшет и сенсорный экран</a></li></ol></nav>
+      <main>
+<h1>Текст и надписи по дуге</h1>
+<p class="lead">Выпуклые или выгравированные надписи в семи шрифтах, а при желании - по дуге окружности, например на монете, крышке или кольце.</p>
+<div class="toc"><b>На этой странице</b><ul><li><a href="#dobavlenie-teksta">Добавление текста</a></li><li><a href="#svoi-shrifty">Свои шрифты</a></li><li><a href="#vypuklyy-tekst-ili-gravirovka">Выпуклый текст или гравировка</a></li><li><a href="#trafarety-peremychki-dlya-serediny-bukv">Трафареты: перемычки для середины букв</a></li><li><a href="#kontur-siluet-i-shire">Контур, силуэт и «Шире»</a></li><li><a href="#sloi-i-birki-s-imenem">Слои и бирки с именем</a></li><li><a href="#birki-so-znachkom">Бирки со значком</a></li><li><a href="#qr-kody">QR-коды</a></li><li><a href="#tekst-po-duge-okruzhnosti">Текст по дуге окружности</a></li></ul></div>
+<section class="guide-part"><h2 id="dobavlenie-teksta"><span class="heading-alias" id="adding-text"></span>Добавление текста</h2>
+<p>Выберите <strong class="ui">«Текст»</strong> в библиотеке фигур и поставьте его. В поле <strong class="ui">«Текст»</strong> справа введите то, что должно быть написано. Настройки ниже:</p>
+<ul><li><strong class="ui">«Шрифт»</strong>: доступно семь шрифтов: Multilanguage, Sans, Serif, Script, Monospace, Rounded и Stencil (буквы из прямых линий). Новый текст сразу набирается шрифтом Sans. Буквы с диакритикой, например ä, ö, ü, é, и знак € есть в каждом шрифте. Свои шрифты добавляются сверху — см. Свои шрифты ниже.</li><li><strong class="ui">«Размер букв»</strong>: насколько крупные буквы при виде сверху; их толщину задаёт <strong class="ui">«Высота»</strong>.</li><li><strong class="ui">«Высота»</strong>: насколько надпись выступает над поверхностью.</li><li><strong class="ui">«Скос»</strong>: скругляет кромки букв, чтобы они выглядели мягче. В <strong class="ui">«Сегменты»</strong> вы задаёте, на сколько шагов.</li><li><strong><strong class="ui">«Кромка букв»</strong>:</strong> скругляет или снимает фаску с верхней кромки букв, как на именной табличке: <strong class="ui">«Нет»</strong>, <strong class="ui">«Скругление»</strong> или <strong class="ui">«Фаска»</strong>, с размером <strong class="ui">«Размер кромки»</strong> (сначала 0,4 мм, не выше самого текста). Она идёт дальше, чем <strong class="ui">«Скос»</strong>, но лишь настолько, насколько широки штрихи: где штрих тоньше двух размеров, кромка заканчивается более узкой верхушкой. Низ остаётся плоским, поэтому отдельные буквы потом можно приклеить. Пока выбрана кромка, она заменяет <strong class="ui">«Скос»</strong>.</li><li><strong>Длина:</strong> Текст может содержать до 250 символов. Буквы сохраняют свой размер, а строка становится такой длинной, как нужно; чтобы её укоротить, уменьшите буквы. <strong class="ui">«Кромка букв»</strong> работает для текста до 40 символов: для более длинного расчёт занял бы минуты.</li><li>Размер: длину и ширину строки вы задаёте, как у любой фигуры. Перетаскивайте маркеры или вводите размеры.</li><li><strong class="ui">«Растянуть буквы по рамке»</strong>: сначала выключено: буквы сохраняют пропорции и стоят посередине рамки, поэтому рамка, растянутая шире или глубже, чем нужно слову, остаётся больше букв. Если включить, буквы растягиваются в обоих направлениях на всю рамку: заглавную букву можно сделать ниже или уже, как в Tinkercad. Это для прямого текста; у изогнутого текста свой размер букв.</li><li><strong class="ui">«Автоматический кернинг»</strong>: сдвигает ближе пары букв, между которыми остаётся слишком много места, например AY, AV, LT или To, по форме самих букв, в любом шрифте, и в своём тоже. У новых текстов он включён; у текстов, созданных раньше, выключен, чтобы в сохранённом проекте ничего не сдвинулось. Буквы сохраняют размер, рамка подстраивается. Работает с прямым и изогнутым текстом, но не с вертикальным, арабским, ивритом или японским.</li><li><strong class="ui">«Буквы сверху вниз»</strong>: ставит буквы сверху вниз друг под другом, каждую по центру одной вертикальной линии — например, для таблички на дверной раме или имени вдоль ручки. Рамка становится вертикальной, буквы сохраняют размер; <strong class="ui">«Интервал между буквами (%)»</strong> задаёт промежуток между ними. У текста по дуге буквы встают колонкой вдоль левой стороны окружности и остаются прямыми; <strong class="ui">«С правой стороны»</strong> переносит колонку на правую сторону.</li></ul>
+<p>Сначала текст — одно тело. Если вы хотите обрабатывать буквы по отдельности, нажмите <strong class="ui">«Разделить на части»</strong>. Тогда каждая буква станет отдельной фигурой.</p>
+<p><strong>Несколько строк:</strong> Текст — это одна строка. Для таблички или вывески из нескольких строк откройте под настройками карточку <strong class="ui">«Текстовый блок»</strong>: введите строки в <strong class="ui">«Строки»</strong>, выберите <strong class="ui">«Выравнивание»</strong> (<strong class="ui">«Слева»</strong>, <strong class="ui">«По центру»</strong> или <strong class="ui">«Справа»</strong>), <strong class="ui">«Интервал строк»</strong> и <strong class="ui">«Следующая строка (%)»</strong> — при 80 % каждая строка на пятую часть меньше предыдущей. Кнопка делает каждую строку отдельным текстом под предыдущей, со шрифтом, высотой и заливкой этого текста; первая занимает место этого текста. Потом каждой строке можно задать свой размер, шрифт или цвет.</p>
+<p>Кромки текста тоже можно обработать фаской или скруглением, прямые и кривые, см. Обработка кромок и создание оболочек. Берите небольшие размеры, например от 0,2 до 0,5 мм, потому что штрихи букв узкие.</p>
+</section><section class="guide-part"><h2 id="svoi-shrifty"><span class="heading-alias" id="your-own-fonts"></span>Свои шрифты</h2>
+<p>Помимо семи встроенных шрифтов вы можете использовать любой свой: файл шрифта с компьютера или, в Chrome и Edge, шрифт, установленный в системе. Выберите <strong class="ui">«Ваши шрифты…»</strong> внизу списка <strong class="ui">«Шрифт»</strong>. Откроется окно <strong class="ui">«Ваши шрифты»</strong>.</p>
+<ul><li><strong class="ui">«Выбрать файл шрифта…»</strong> принимает файлы TrueType (.ttf), OpenType (.otf) или WOFF (.woff). Файл можно просто перетащить в окно.</li><li>На Windows установленные шрифты лежат в папке Fonts (C:\Windows\Fonts). Диалог выбора файлов браузера её скрывает. Откройте папку в Проводнике и перетащите шрифт в окно <strong class="ui">«Ваши шрифты»</strong>. Шрифты, установленные только для вас, лежат в %LOCALAPPDATA%\Microsoft\Windows\Fonts — её диалог тоже показывает. На Mac шрифты лежат в /Library/Fonts и ~/Library/Fonts.</li><li><strong class="ui">«Шрифт с компьютера…»</strong> показывает шрифты, установленные в системе. При первом использовании браузер спросит, разрешить ли layerling их читать. Поле поиска быстро находит нужный шрифт, щелчок выбирает его.</li></ul>
+<p>Если текст выделен, он сразу применит новый шрифт. Иначе шрифт появится под <strong class="ui">«Шрифт»</strong> в группе <strong class="ui">«Ваши шрифты»</strong>, а кнопка <strong class="ui">«Использовать»</strong> в окне применит его к выделенным текстам. Свои шрифты работают так же, как встроенные: текст по дуге, фаски и скругления на кромках, экспорт в STEP — всё работает одинаково. Буквы, которых в шрифте нет, берутся из Sans.</p>
+<section class="guide-part"><h3 id="arabskiy-i-ivrit"><span class="heading-alias" id="arabic-and-hebrew"></span>Арабский и иврит</h3>
+<p>Арабский, персидский, урду и иврит пишутся справа налево: первая буква стоит справа, и в смешанном тексте, таком как «Name عربي», только арабское слово идёт в обратную сторону, цифры остаются как обычно. Арабские буквы соединяются с соседями, как того требует письмо, а лам-алиф превращается в лигатуру. Для этого нужен шрифт с такими буквами; во встроенных их нет. Добавьте свой — например Arial, Tahoma или Segoe UI на Windows — или бесплатный: Noto Naskh Arabic, Noto Sans Arabic, Amiri. Знаки огласовок стоят при своих буквах. Текст по дуге, контур, силуэт, слои и бирки с именами работают с ним так же, как с любым другим текстом.</p>
+</section><section class="guide-part"><h3 id="chto-rabotaet-v-kakom-brauzere"><span class="heading-alias" id="what-works-in-which-browser"></span>Что работает в каком браузере</h3>
+<div class="table-scroll"><table><thead><tr><th>Браузер</th><th>Выбор файла шрифта</th><th>Шрифт из системы</th></tr></thead><tbody><tr><td>Chrome и Edge на компьютере, а также установленное приложение layerling</td><td>да</td><td>да, после запроса браузера</td></tr><tr><td>Firefox</td><td>да</td><td>нет</td></tr><tr><td>Safari на Mac</td><td>да</td><td>нет</td></tr><tr><td>Планшеты и телефоны</td><td>да, из файлов устройства</td><td>нет</td></tr></tbody></table></div>
+<p>Веб-страницы не могут просто так читать установленные шрифты. Разрешение на это есть только у Chrome и Edge, и только на защищённых страницах, по https, как на layerling.com. Когда layerling работает по http — скажем, на вашем сервере или как установка Docker в домашней сети, — опции <strong class="ui">«Шрифт с компьютера…»</strong> нет; тогда перетащите шрифт из Проводника. В остальных браузерах выбирайте файл шрифта из папки шрифтов — результат тот же. Если вы когда-то отказали Chrome или Edge, снова разрешите чтение в настройках сайта — за замком слева от адреса.</p>
+<p>layerling не читает файлы WOFF2 (почти всегда есть версия TTF или OTF), коллекции шрифтов (.ttc, несколько шрифтов в одном файле) и цветные шрифты эмодзи. Из очень больших шрифтов, например китайских, layerling берёт первые 8000 символов. Переменный шрифт читается со своими значениями по умолчанию — как правило, это обычное начертание.</p>
+<p>Некоторые шрифты — прежде всего рукописные и переменные — рисуют букву из перекрывающихся штрихов. При чтении шрифта layerling объединяет их в один чистый контур, чтобы тело оставалось пригодным для печати. Такие буквы состоят из очень коротких прямых кусочков вместо кривых — на вид это незаметно.</p>
+</section><section class="guide-part"><h3 id="gde-khranyatsya-shrifty"><span class="heading-alias" id="where-the-fonts-are-kept"></span>Где хранятся шрифты</h3>
+<p>Свой шрифт остаётся в этом браузере на этом компьютере. Другой браузер или другой компьютер о нём не узнает, пока вы не добавите его и там. Очистка данных сайта в браузере стирает и шрифты. В окне <strong class="ui">«Ваши шрифты»</strong> корзина убирает шрифт из браузера. Ваши проекты при этом ничего не теряют — как показывает следующий раздел.</p>
+</section><section class="guide-part"><h3 id="peredacha-proektov-so-svoim-shriftom"><span class="heading-alias" id="passing-on-designs-with-a-font-of-your-own"></span>Передача проектов со своим шрифтом</h3>
+<p>Проект не хранит файл шрифта — только контуры букв, которые используют его тексты, включая и те, что были на предыдущих шагах истории. Если в тексте написано «Hello», с проектом едут только H, e, l и o. Это верно для любого способа сохранения: в браузере, на своём сервере, файлом .lyl и в <strong class="ui">«Собственные фигуры»</strong>.</p>
+<p>Таким образом:</p>
+<ul><li>Проект открывается корректно где угодно, в том числе на компьютере без шрифта. Тексты выглядят так же, их можно перемещать, поворачивать, масштабировать и скруглять.</li><li>Новым буквам нужен шрифт. Если кто-то без шрифта введёт букву, которой проект не привёз с собой, layerling нарисует её из Sans. В <strong class="ui">«Шрифт»</strong> такой шрифт помечен <strong class="ui">«только символы проекта»</strong>. Добавление файла шрифта вернёт все буквы.</li><li>Экспорт несёт только геометрию. STL, 3MF, OBJ, STEP и SVG содержат тела и контуры, но не шрифт.</li><li>Старые версии layerling о своих шрифтах ещё не знают и рисуют такие тексты шрифтом Multilanguage.</li></ul>
+<p>Лицензии: шрифты защищены авторским правом, и их лицензия говорит, что с ними можно делать. Встроенные контуры букв — то же, что PDF-файлы берут с собой из шрифта, и большинство лицензий это разрешает. Но некоторые коммерческие шрифты запрещают передавать даже отдельные буквы. Прежде чем передавать или публиковать проект со своим шрифтом, проверьте лицензию шрифта. Бесплатные шрифты — например, из Google Fonts (по большей части под SIL Open Font License) — можно передавать без опасений. Для напечатанной детали или экспортированного STL это неважно: в них уже нет шрифта, только геометрия.</p>
+</section></section><section class="guide-part"><h2 id="vypuklyy-tekst-ili-gravirovka"><span class="heading-alias" id="raised-or-engraved"></span>Выпуклый текст или гравировка</h2>
+<ul><li>Выпуклый: поставьте текст на поверхность и сгруппируйте его с телом — он вырастет рельефом.</li><li>Гравировка: переключите текст в режим <strong class="ui">«Отверстие»</strong>, дайте ему немного войти в поверхность и сгруппируйте с телом — буквы выгравируются.</li></ul>
+<p>Для надписи на боковой грани сначала поставьте на эту грань рабочую плоскость, см. Вид и рабочая плоскость.</p>
+</section><section class="guide-part"><h2 id="trafarety-peremychki-dlya-serediny-bukv"><span class="heading-alias" id="stencils-bridges-for-the-middle-of-letters"></span>Трафареты: перемычки для середины букв</h2>
+<p>Если прорезать текст сквозь пластину, у букв вроде O, A и B пропадает середина: она лежит в букве свободно и выпадает. <strong class="ui">«Перемычки трафарета»</strong> удерживают её на пластине маленькими перемычками, как на трафарете.</p>
+<ol><li>Переключите текст на <strong class="ui">«Отверстие»</strong>, проведите его сквозь пластину и выделите оба объекта, сгруппированные или нет.</li><li>Нажмите <strong class="ui">«Перемычки трафарета»</strong> в группе <strong class="ui">«Изменение»</strong> на ленте, щёлкните выделение правой кнопкой или найдите команду через <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>. Перемычки показываются оранжевым там, где они встанут.</li><li>Задайте <strong class="ui">«Ширина перемычки»</strong> и <strong class="ui">«Перемычек на часть»</strong>. <strong class="ui">«Высота перемычек»</strong> начинается с толщины пластины; более низкие перемычки стоят вровень с низом, посередине или вровень с верхом пластины, как указано в <strong class="ui">«Положение»</strong>. На трафарете для краски из баллончика перемычки сверху оставляют под собой место для краски.</li><li><strong class="ui">«Создать»</strong> группирует перемычки с пластиной.</li></ol>
+<p>Каждая перемычка — обычный параллелепипед: откройте группу, чтобы сдвинуть, удалить или добавить свою. Если позже измените текст, выделите группу и снова нажмите <strong class="ui">«Перемычки трафарета»</strong>; новые перемычки встанут на место старых. Текст, который только гравирован и не проходит насквозь, перемычек не получает: там ничего не выпадает. Для лазера или плоттера экспорт DXF и SVG добавляет такие же перемычки, см. <a href="/api/desktop/layerling/ui/ru/files-and-saving.html">Файлы, сохранение и обмен</a>.</p>
+</section><section class="guide-part"><h2 id="kontur-siluet-i-shire"><span class="heading-alias" id="outline-silhouette-and-wider"></span>Контур, силуэт и «Шире»</h2>
+<p>Текст не обязательно строить залитыми буквами. <strong class="ui">«Заливка»</strong> в свойствах предлагает те же варианты, что и Tinkercad:</p>
+<ul><li><strong class="ui">«Залитый»</strong>: буквы как есть.</li><li><strong class="ui">«Контур»</strong>: линия по контуру букв, наполовину внутри, наполовину снаружи.</li><li><strong class="ui">«Внешняя линия»</strong>: линия вокруг букв снаружи.</li><li><strong class="ui">«Внутренняя линия»</strong>: линия внутри букв.</li></ul>
+<p>Когда выбрана линия, под списком появляются две настройки: <strong class="ui">«Толщина линии»</strong> задаёт толщину линии, а <strong class="ui">«Углы»</strong> — как она проходит углы (<strong class="ui">«Скруглённые»</strong>, <strong class="ui">«Фаска»</strong> или <strong class="ui">«Острые»</strong>). Более редкие настройки — под <strong class="ui">«Ещё»</strong>: <strong class="ui">«Силуэт (без отверстий)»</strong> убирает отверстия в O, A или e, а <strong class="ui">«Шире (основа для многоцветной печати)»</strong> оставляет буквы залитыми и делает их шире на ширину линии со всех сторон; соприкасающиеся буквы срастаются в одно целое.</p>
+<p>С линией снаружи, линией по центру или режимом «Шире» габаритная коробка текста растёт, а буквы сохраняют размер. <strong class="ui">«Скос»</strong> и <strong class="ui">«Сегменты»</strong> существуют только для залитых букв.</p>
+</section><section class="guide-part"><h2 id="sloi-i-birki-s-imenem"><span class="heading-alias" id="layers-and-name-tags"></span>Слои и бирки с именем</h2>
+<p>Бирка с именем для многоцветной печати — это текст слоями: сверху буквы, под ними тот же текст чуть шире вторым цветом, внизу пластина без отверстий третьим. layerling делает её в один щелчок:</p>
+<ul><li>Новая бирка с именем: выберите <strong class="ui">«Бирка с именем»</strong> в библиотеке фигур и поставьте её. На ней написано «Name» белыми буквами на красном ободке и тёмной пластине.</li><li>Из текста: выделите текст и нажмите <strong class="ui">«Создать слои»</strong> вверху его настроек.</li></ul>
+<p>Все настройки бирки — в карточке <strong class="ui">«Бирка с именем»</strong>, вверху настроек:</p>
+<ul><li><strong class="ui">«Текст»</strong> и <strong class="ui">«Шрифт»</strong>, свои шрифты тоже. Бирка растёт вместе со словами.</li><li><strong class="ui">«Размер букв»</strong>: высота заглавных букв, в мм. Все слои следуют за ней и остаются выровненными.</li><li><strong class="ui">«Буквы сверху вниз»</strong>: ставит табличку вертикально, буквы друг под другом, все слои вместе с ними.</li><li><strong class="ui">«Слои»</strong>: по строке на слой, сверху вниз. В каждой строке — цвет (щёлкните по цветному квадрату), насколько слой шире букв, его высота и переключатель <strong class="ui">«Без отверстий»</strong>, который заполняет отверстия в буквах вроде O и A. <strong class="ui">«Углы»</strong> задаёт, как более широкий слой огибает углы букв: <strong class="ui">«Скруглённые»</strong>, <strong class="ui">«Фаска»</strong> или <strong class="ui">«Острые»</strong>. Верхняя строка — сами буквы. + добавляет слой внизу, – убирает нижний слой. У бирки от двух до шести слоёв.</li><li><strong class="ui">«Отверстие под колечко»</strong>: придаёт нижнему слою прямой язычок с круглым концом и отверстием для брелока; язычок растёт вместе с отверстием. Отверстие 3 мм, как по умолчанию, даёт язычок шириной 6,5 мм, выступающий на 6,75 мм, — край отверстия в 2 мм от края нижнего слоя. Выберите <strong class="ui">«Диаметр отверстия»</strong> и <strong class="ui">«Сторона»</strong>: <strong class="ui">«Левая»</strong>, <strong class="ui">«Правая»</strong> или <strong class="ui">«Верхняя»</strong>. <strong class="ui">«Свободно»</strong> убирает отверстие с бирки и ставит рядом отдельный <strong class="ui">«Язычок для колечка»</strong> цвета и высоты нижнего слоя: обычную фигуру, которую вы двигаете и поворачиваете её маркерами туда, где он нужен бирке. Когда он на месте, <strong class="ui">«Закрепить на бирке»</strong> в его свойствах делает его частью ближайшей бирки прямо там, где он стоит: отверстие проходит через каждый слой, до которого достаёт, ушко соединяется с нижним слоем, и оба остаются у этого угла букв, когда меняются слова или размер. <strong class="ui">«Свободно»</strong> снова выводит язычок туда, где он был, чтобы передвинуть его ещё раз. Отверстие проходит сквозь все слои, которых касается, а когда вы меняете слова, размер букв или шрифт, язычок переезжает следом. <strong class="ui">«Положение вдоль стороны»</strong> сдвигает ушко вверх или вниз вдоль его стороны (сверху — влево или вправо), до места, где оно вышло бы за сторону; 0 — середина. Это помогает, когда середина стороны попадает на пустоту, например рядом с буквой J: сдвинь ушко туда, где буква выступает.</li><li><strong class="ui">«Кромка букв»</strong>: скругляет верхнюю кромку букв верхнего слоя или снимает с неё фаску — так отделывают напечатанные бирки: <strong class="ui">«Нет»</strong>, <strong class="ui">«Скругление»</strong> или <strong class="ui">«Фаска»</strong>, с размером <strong class="ui">«Размер кромки»</strong> (для начала 0,4 мм, максимум — высота слоя). Работает с любым шрифтом и любым словом. Кромка входит в сетку букв, поэтому инструмент кромок берёт такой текст как сетку — для столь мелкого текста это тяжело; кромку лучше задать здесь.</li></ul>
+<p>Каждое изменение видно сразу. Бирка — это связка: она двигается как единое целое, а каждый слой остаётся отдельным телом своего цвета, как нужно слайсеру для многоцветной печати. Чтобы скруглить кромки одного слоя или снять с них фаску, нажмите <strong class="ui">«Изменить связку»</strong> и выберите слой — см. Обработка кромок и создание оболочек.</p>
+<section class="guide-part"><h3 id="mnogo-birok-srazu"><span class="heading-alias" id="many-name-tags-at-once"></span>Много бирок сразу</h3>
+<p>Введите имена в <strong class="ui">«Список имён»</strong>, по одному в строке, до сотни. Кнопка ниже показывает, сколько бирок получится, например «Создать 12 бирок с именем». Каждая бирка получает те же слои, размер букв и отверстие для брелока и остаётся отдельным объектом; они раскладываются рядами под первой с шагом 5 мм. У обычного текста список имён тоже есть, ниже в его настройках.</p>
+</section></section><section class="guide-part"><h2 id="birki-so-znachkom"><span class="heading-alias" id="icon-tags"></span>Бирки со значком</h2>
+<p>Бирка со значком — та же бирка, но вместо букв SVG-значок: сердце, облако, логотип клуба. Сверху значок, под ним тот же контур чуть шире вторым цветом, внизу пластина без отверстий.</p>
+<ul><li>Новая бирка со значком: выберите <strong class="ui">«Бирка со значком»</strong> в библиотеке фигур. Откроется небольшое окно: нажмите <strong class="ui">«Обзор…»</strong>, выберите файл SVG, PNG или JPG, проверьте картинку, укажите <strong class="ui">«Ширина (мм)»</strong> значка и нажмите <strong class="ui">«ОК»</strong>. Бирка появится со значком посередине стола печати, с теми же слоями, что и новая бирка с именем.</li><li>Из тела эскиза: у импортированного SVG или нарисованного вами эскиза вверху настроек есть <strong class="ui">«Создать слои»</strong>.</li></ul>
+<p>Карточка <strong class="ui">«Бирка со значком»</strong> вверху настроек содержит:</p>
+<ul><li><strong class="ui">«Другой файл…»</strong>: ставит на бирку значок из другого файла (SVG, PNG или JPG); слои и ширина остаются как есть.</li><li><strong class="ui">«Ширина»</strong>: ширина верхнего значка, в мм. Все слои следуют за ней и остаются выровненными.</li><li><strong class="ui">«Слои»</strong>: строки как у бирки с именем — цвет, насколько шире, <strong class="ui">«Углы»</strong>, высота и <strong class="ui">«Без отверстий»</strong>, кнопки + и –, от двух до шести слоёв. Верхняя строка — сам значок.</li><li><strong class="ui">«Отверстие под колечко»</strong>: как у бирки с именем: отверстие для кольца для ключей через каждый слой, с язычком со скруглённым концом на нижнем слое, за пределами значка. <strong class="ui">«Диаметр отверстия»</strong> и <strong class="ui">«Сторона»</strong> задают его размер и место; <strong class="ui">«Свободно»</strong> даёт отдельный язычок, как у бирки с именем. Язычок строится по контуру значка, так что на очень рваном значке проверьте, где он касается стола. <strong class="ui">«Положение вдоль стороны»</strong> сдвигает язычок вдоль его стороны, как у бирки с именем.</li><li><strong class="ui">«Количество»</strong>: сколько бирок нужно, от 1 до 100. <strong class="ui">«Сколько поместится»</strong> рассчитывает это по столу печати принтера, выбранного в настройках, — для небольших логотипов это полный стол. Кнопка ниже создаёт их с шагом 5 мм, посередине стола печати; первая — сама бирка.</li></ul>
+<p>SVG нужен с замкнутыми контурами: рисунок из одних открытых линий биркой не станет. У тела эскиза, построенного обводкой, она сохраняется: область этой линии и есть значок.</p>
+<p>Изображение (PNG или JPG) обводится в контур, и в предпросмотре виден этот контур. В строке <strong class="ui">«Обвести по»</strong> выберите <strong class="ui">«Тёмной части»</strong> или <strong class="ui">«Светлой части»</strong>: эта часть станет значком; сначала выбрана часть, которая не является фоном. Прозрачные пиксели никогда не входят в значок. SVG, в котором нет ничего, кроме одного изображения (так Inkscape сохраняет импортированный растр), обводится так же. Контур следует за пикселями, поэтому маленькое изображение даёт неровный край: лучше всего подходят изображения от нескольких сотен пикселей. <strong class="ui">«Другой файл…»</strong> берёт у изображения ту часть, которая не является фоном.</p>
+</section><section class="guide-part"><h2 id="qr-kody"><span class="heading-alias" id="qr-codes"></span>QR-коды</h2>
+<p>QR-код превращает текст или веб-адрес в узор, который читает камера телефона: ссылка на ваш магазин на табличке, имя сети Wi-Fi на подставке, номер телефона на брелоке.</p>
+<p>Выберите <strong class="ui">«QR-код»</strong> в библиотеке фигур. Откроется окно; курсор уже стоит в текстовом поле:</p>
+<ul><li><strong><strong class="ui">«Текст или адрес»</strong>:</strong> что говорит код. Enter создаёт код, Shift+Enter начинает новую строку. Под полем видно, сколько места занято; буквы кириллицы, умлауты и другие особые знаки занимают два байта. Если текст слишком длинный, поле об этом скажет.</li><li><strong><strong class="ui">«Коррекция ошибок»</strong>:</strong> L, M, Q или H. Более высокий уровень читается, даже если часть кода загрязнена или поцарапана (L около 7 %, M 15 %, Q 25 %, H 30 %), но для того же текста нужно больше модулей, и каждый модуль становится меньше. Сначала выбран M.</li><li><strong><strong class="ui">«Исполнение»</strong>:</strong> <strong class="ui">«Только код»</strong> строит только код высотой 4 мм. <strong class="ui">«Выпуклый на пластине»</strong> ставит его высотой 1 мм на белую пластину толщиной 3 мм, связкой из двух цветов, чтобы многоцветная печать напечатала код тёмным, а пластину светлой. <strong class="ui">«Гравировка»</strong> вырезает код на глубину 1 мм в пластине.</li><li><strong><strong class="ui">«Размер по»</strong>:</strong> введите <strong class="ui">«Ширина»</strong> всего кода (сначала 40 мм) или размер одного модуля; другое число показано ниже. Для модулей меньше 0,8 мм появляется предупреждение. Это эмпирическое правило для сопла 0,4 мм, а не гарантия: роль играют принтер, материал, цвета и телефон.</li><li><strong><strong class="ui">«Свободная зона (4 модуля)»</strong>:</strong> сканерам нужно пустое поле шириной в четыре модуля вокруг кода. На пластине поле — часть пластины; выключайте его, только если пластина лежит на большей светлой поверхности. У кода без пластины нет своего поля: оставьте место вокруг него свободным.</li><li><strong>Высоты:</strong> высота кода, на пластине — высота кода или глубина гравировки, и толщина пластины.</li></ul>
+<p>Предпросмотр показывает код таким, каким он будет построен. <strong class="ui">«OK»</strong> ставит его в середину стола.</p>
+<p>Код — такое же тело, как любое другое: перемещайте, поворачивайте, масштабируйте его (ширину и глубину оставляйте равными, иначе код исказится), группируйте, или сделайте его отверстием и сгруппируйте с собственной деталью, чтобы выгравировать его там. Масштабирование меняет весь код; каждый модуль остаётся квадратным.</p>
+<p>Карточка <strong class="ui">«QR-код»</strong> вверху его настроек содержит текст. Измените его и нажмите <strong class="ui">«Создать заново»</strong>: код строится заново там, где стоит, и такой ширины, как сейчас. Коррекция ошибок, свободная зона и исполнение остаются такими, как были выбраны; для других настроек создайте новый код из библиотеки.</p>
+<p>Отсканируйте код телефоном перед печатью и ещё раз после неё. Лучше всего читается тёмное на светлом; светлый код на тёмной пластине читает не каждый телефон.</p>
+</section><section class="guide-part"><h2 id="tekst-po-duge-okruzhnosti"><span class="heading-alias" id="text-on-a-circular-arc"></span>Текст по дуге окружности</h2>
+<p>Нужно, чтобы надпись шла не прямо, а по краю монеты, крышки или кольца? Для этого есть настройка <strong class="ui">«По дуге»</strong>.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/curved-text.webp" alt="Текст идёт по кругу. Все буквы стоят на одной общей линии." width="1280" height="800" loading="lazy"><figcaption>Текст идёт по кругу. Все буквы стоят на одной общей линии.</figcaption></figure>
+<p>Как только вы её включите, текст пойдёт по кругу. Все буквы стоят на одной базовой линии, так же ровно, как в обычном тексте. Настроек пять:</p>
+<ul><li><strong class="ui">«Радиус дуги»</strong> (от 5 до 500 мм): радиус окружности, по которой идёт базовая линия букв. Буквы остаются на месте, меняется только их изгиб.</li><li><strong class="ui">«Ширина букв (%)»</strong> (от 25 до 400 %): насколько широко рисуется каждая буква, в процентах от её собственной ширины. Ниже 100 буквы уже, выше — шире; их высота остаётся, а дуга, которую они занимают, растёт или уменьшается вместе с ними. Например, для высокой узкой надписи на монете. В прямом тексте это делает <strong class="ui">«Растянуть буквы по рамке»</strong> вместе с рамкой.</li><li><strong class="ui">«Размер букв»</strong>: высота букв — она больше не зависит от ширины фигуры.</li><li><strong class="ui">«По нижнему краю»</strong>: переносит текст с верха окружности на её низ — буквы тогда смотрят головами к центру.</li><li><strong class="ui">«Вверх ногами»</strong>: переворачивает только буквы, чтобы их можно было читать с другой стороны. Текст остаётся на своём месте на окружности.</li></ul>
+<p>Центр окружности — центр фигуры. Поэтому выравнивание работает как обычно: если отцентрировать текст по цилиндру или кольцу, он встанет точно соосно с ним. Когда вы тянете маркер, радиус и размер букв растут вместе, поэтому надпись не искажается.</p>
+<aside class="tip"><p>Совет: Наверху окружности буквы стоят снаружи базовой линии; с <strong class="ui">«По нижнему краю»</strong> — внутри, головами к центру. Чтобы надпись поместилась на диске, радиус плюс размер букв должны быть меньше радиуса диска.</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/ru/sketches.html"><small>Предыдущая глава</small>Эскизы: от контура к телу</a><a class="next" href="/api/desktop/layerling/ui/ru/threads-and-mechanics.html"><small>Следующая глава</small>Резьба, шестерни и другие детали</a></div>
+      </main>
+    </div>
+    <footer class="note">Это руководство растёт вместе с программой. Если чего-то не хватает или что-то не так — напишите в <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">обсуждениях</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=ru" rel="noopener">Поддержать проект</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Обсуждения</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Подробнее на GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Заметки о выпуске v1.154.1</a></div><p class="trademark">Tinkercad — товарный знак Autodesk, Inc. layerling — независимый проект, не связанный с Autodesk, не одобренный и не спонсируемый ею.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Вернуться в редактор";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Открыть редактор";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

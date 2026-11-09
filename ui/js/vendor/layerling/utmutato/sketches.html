@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="hu">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Vázlatok: a körvonaltól a testig - layerling útmutató</title>
+    <meta name="description" content="Rajzolj egy lapos körvonalat, kerekítsd le vagy törd le a sarkait, és húzd ki vagy forgasd körbe testté.">
+    <link rel="canonical" href="https://layerling.com/utmutato/sketches.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/sketches.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/sketches.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/sketches.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/skizzen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/sketches.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/sketches.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/sketches.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/sketches.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/schetsen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/sketches.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/skice.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/sketches.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/sketches.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/sketches.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/sketches.html">
+    <meta property="og:title" content="Vázlatok: a körvonaltól a testig - layerling útmutató">
+    <meta property="og:description" content="Rajzolj egy lapos körvonalat, kerekítsd le vagy törd le a sarkait, és húzd ki vagy forgasd körbe testté.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/utmutato/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Útmutató</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/utmutato/search-index.json" data-nothing="Nincs találat." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Keresés az útmutatóban" aria-label="Keresés az útmutatóban" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Nyelv">Magyar</summary><ul><li><a href="/api/desktop/layerling/ui/guide/sketches.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/sketches.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/sketches.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/sketches.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/sketches.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/sketches.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/sketches.html" hreflang="hu" lang="hu" aria-current="true">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/sketches.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/sketches.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/sketches.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/skice.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/sketches.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/sketches.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/sketches.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/sketches.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/sketches.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/sketches.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Szerkesztő megnyitása</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>A szerkesztő már nyitva van egy másik lapon – egyszerűen válts át oda.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Fejezetek"><h2>Fejezetek</h2><p class="print-link"><a href="/api/desktop/layerling/ui/utmutato/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>A teljes útmutató nyomtatáshoz</span></a></p><ol><li><a href="/api/desktop/layerling/ui/utmutato/getting-started.html">Első lépések</a></li><li><a href="/api/desktop/layerling/ui/utmutato/view-and-workplane.html">Nézet és munkasík</a></li><li><a href="/api/desktop/layerling/ui/utmutato/shapes.html">Alakzatok elhelyezése és beállítása</a></li><li><a href="/api/desktop/layerling/ui/utmutato/select-and-arrange.html">Kijelölés és elrendezés</a></li><li><a href="/api/desktop/layerling/ui/utmutato/solids-and-holes.html">Tömör testek és lyukak</a></li><li><a href="/api/desktop/layerling/ui/utmutato/edges-and-hollowing.html">Élek letörése és testek kiüregelése</a></li><li><a href="/api/desktop/layerling/ui/utmutato/sketches.html" aria-current="page">Vázlatok: a körvonaltól a testig</a></li><li><a href="/api/desktop/layerling/ui/utmutato/text.html">Szöveg és íves feliratok</a></li><li><a href="/api/desktop/layerling/ui/utmutato/threads-and-mechanics.html">Menetek, fogaskerekek és más alkatrészek</a></li><li><a href="/api/desktop/layerling/ui/utmutato/measuring-and-notes.html">Mérés és jegyzetek</a></li><li><a href="/api/desktop/layerling/ui/utmutato/printing.html">Előkészítés 3D nyomtatásra</a></li><li><a href="/api/desktop/layerling/ui/utmutato/files-and-saving.html">Fájlok, mentés és megosztás</a></li><li><a href="/api/desktop/layerling/ui/utmutato/shortcuts.html">Billentyűparancsok</a></li><li><a href="/api/desktop/layerling/ui/utmutato/ai-with-mcp.html">Építés MI-vel (MCP)</a></li><li><a href="/api/desktop/layerling/ui/utmutato/offline-and-install.html">Telepítés alkalmazásként, offline munka és saját üzemeltetés</a></li><li><a href="/api/desktop/layerling/ui/utmutato/videos.html">Videók a layerlingről</a></li><li><a href="/api/desktop/layerling/ui/utmutato/tablet-and-touch.html">Tablet and touch</a></li></ol></nav>
+      <main>
+<h1>Vázlatok: a körvonaltól a testig</h1>
+<p class="lead">Rajzolj egy lapos körvonalat, kerekítsd le vagy törd le a sarkait, és húzd ki vagy forgasd körbe testté.</p>
+<div class="toc"><b>Ezen az oldalon</b><ul><li><a href="#vazlat-inditasa">Vázlat indítása</a></li><li><a href="#rajzolas">Rajzolás</a></li><li><a href="#vonalak-szamokkal">Vonalak számokkal</a></li><li><a href="#egyenes-oldal-goerbitese">Egyenes oldal görbítése</a></li><li><a href="#szoegek-leolvasasa-es-begepelese">Szögek leolvasása és begépelése</a></li><li><a href="#sarkok-lekerekitese-vagy-letoerese">Sarkok lekerekítése vagy letörése</a></li><li><a href="#tuekroezes">Tükrözés</a></li><li><a href="#segedvonalak">Segédvonalak</a></li><li><a href="#test-keszitese-belole">Test készítése belőle</a></li><li><a href="#vegighuzas-egy-palyan">Végighúzás egy pályán</a></li><li><a href="#vonalkent-epites">Vonalként építés</a></li><li><a href="#kitoeltes-es-sziluett">Kitöltés és sziluett</a></li><li><a href="#ferde-falak-belyegzokhoez">Ferde falak, bélyegzőkhöz</a></li><li><a href="#kep-mint-minta">Kép mint minta</a></li><li><a href="#billentyuk-vazlatmodban">Billentyűk vázlatmódban</a></li></ul></div>
+<p>Nem minden rakható össze alapalakzatokból. A saját kontúrral rendelkező alkatrészeknél, például egy konzolnál, egy fogprofilnál vagy egy vázánál előbb megrajzolod a <strong>körvonalat</strong>, aztán testet készítesz belőle. Erre való a vázlatmód.</p>
+<section class="guide-part"><h2 id="vazlat-inditasa"><span class="heading-alias" id="starting-a-sketch"></span>Vázlat indítása</h2>
+<p>Felül válts a <strong class="ui">„3D szerkesztő”</strong> nézetről a <strong class="ui">„Vázlat”</strong> nézetre. A szalag <strong class="ui">„Létrehozás”</strong> csoportjában két gomb áll egymás mellett aszerint, hogy mi legyen a körvonalból:</p>
+<ul><li><strong><strong class="ui">„Vázlat kihúzása”</strong>:</strong> A körvonal felfelé húzódik ki, mint egy sütikiszúró.</li><li><strong><strong class="ui">„Vázlat forgatása”</strong>:</strong> A körvonal egy tengely körül fordul körbe, mint az esztergán. Így lesznek vázák, poharak, kúpok és minden, ami kerek.</li></ul>
+<p>A szerkesztő ezután egy rácsos lapot mutat. Ez a rajzfelületed.</p>
+</section><section class="guide-part"><h2 id="rajzolas"><span class="heading-alias" id="drawing"></span><span class="heading-alias" id="drawing-tools"></span><span class="heading-alias" id="shapes"></span><span class="heading-alias" id="select-and-change"></span><span class="heading-alias" id="clipboard-and-history"></span><span class="heading-alias" id="notes"></span><span class="heading-alias" id="view-and-dimensions"></span>Rajzolás</h2>
+<p>A szalag vázlatmódban területekre oszlik:</p>
+<ul><li><strong>Rajzolás:</strong> a <strong class="ui">„Vonal”</strong> egyenes szakaszokat rajzol: kattints egymás után pontokra; nyomva tartott <kbd>Shift</kbd> billentyűvel az új vonal 15°-os lépésekben illeszkedik, a vízszintest és a függőlegest is beleértve. Az új vonal hossza és szöge a mutatónál látszik. Azt is begépelheted, milyen hosszú legyen, lásd <a href="#vonalak-szamokkal">Vonalak számokkal</a>. A(z) <strong class="ui">„Ív”</strong> valódi körívet rajzol három ponton át: előbb kattints a két végére, majd egy harmadik pontra, amelyen az ív átfut; a harmadik kattintásig előnézet követi a mutatót, az üzenet pedig megadja a sugarat. Egy meglévő pontra kattintott vég hozzákapcsolódik, így egy ív lezárhat egy körvonalat. Az <kbd>Esc</kbd> elveti az eddig kattintott pontokat, és visszatér a(z) <strong class="ui">„Kijelölés”</strong> eszközhöz. Utána az ív pontokból és görbékből álló közönséges geometria: mozgasd, vágd vagy töröld, mint bármely más vonalat. A <strong class="ui">„Bézier-görbe”</strong> a fogantyúival alakítható: kattints egy pontra, és húzd abba az irányba, amerre a vonalnak folytatódnia kell, mint az Illustrator vagy az Inkscape tolleszközével. Minél messzebbre húzod, annál jobban hajlik; az új pontig tartó szakasz húzás közben vele hajlik, így látod, mit kapsz. Pont elhelyezése közbeni húzás meghajlítja a görbét; ha a Tinkercadből jössz, és csak pontokra kattintanál, használd a <strong class="ui">„Sima görbe”</strong> eszközt. A <strong class="ui">„Sima görbe”</strong> folyamatos útvonalat fektet a kattintott pontokon át. A körvonal lezárásához a végén kattints újra az első pontra. Ha a vonalláncot a körvonal lezárása nélkül fejeznéd be, kattints jobb gombbal a mutató mozgatása nélkül, vagy kattints duplán az utolsó pontra.</li><li><strong><strong class="ui">„Freehand”</strong>:</strong> rajzolj tollal, ujjal vagy egérrel, mint a papíron. Amikor felemeled, a vonal közönséges pontokká válik: sarok ott, ahol élesen fordult, közöttük sima pontok, csak annyi, amennyi az alakhoz kell, így mindegyik utólag húzható. Finom részletekhez nagyíts: minél közelebbről nézed, annál pontosabban követi a vonal a kezed. Az a vonal, amely ott ér véget, ahol kezdődött, körvonallá zárul, amelyből test lehet; a nyitott vonal vonal marad, a <strong class="ui">„Vonal”</strong> számára vagy pályaként, amely mentén söpörni lehet. Vonalakon és sablonképen is indítható, így egy kép kézzel is körberajzolható. Az a húzás, amely egy nyitott végen kezdődik vagy végződik, azt a vonalat folytatja, így egy alak több húzással is megrajzolható. Az <kbd>5</kbd> billentyű is ezt az eszközt választja.</li><li><strong>Alakzatok:</strong> a <strong class="ui">„Vázlatalakzat hozzáadása”</strong> kész körvonalakat kínál: <strong class="ui">„Téglalap”</strong>, <strong class="ui">„Kör”</strong>, <strong class="ui">„Ovális”</strong>, <strong class="ui">„Félkör”</strong>, <strong class="ui">„Körcikk”</strong>, <strong class="ui">„Furatkör”</strong> (lyukakkal ellátott tárcsa), <strong class="ui">„Háromszög”</strong>, <strong class="ui">„Hatszög”</strong>, egy <strong class="ui">„Sokszög”</strong> és egy <strong class="ui">„Csillag”</strong>. Kattints egyre, hogy a vázlat origójába kerüljön, vagy húzd a menüből oda, ahová szeretnéd. A menü alján az <strong class="ui">„Oldalak / ágak”</strong> a sokszög oldalainak és a csillag ágainak számát adja meg, a <strong class="ui">„Csillag belső mérete”</strong> pedig azt, hogy a csillag völgyei milyen mélyen nyúljanak be a közepe felé (a külső sugár 10–90 százaléka); mindkettő a következőként hozzáadott alakzatra vonatkozik. Mint minden vázlatalakzat, utána közönséges sarokpontok, így egyenként mozgathatod, kerekítheted vagy törheted le őket. A vonalsort a körvonal lezárása nélkül egy mozdulatlan jobb kattintással vagy az utolsó pont dupla kattintásával fejezheted be. A téglalap a beállítások <strong class="ui">„Alakzatok alapértékei”</strong> részében a dobozhoz megadott szélességgel és mélységgel indul, a kör és az ellipszis az ottani henger szélességével; saját érték nélkül, és a többi alakzatnál, 20 mm-esek.</li><li><strong>Átfedés:</strong> Ha két zárt körvonalat egymásra tolsz, két test marad, amelyek a 3D szerkesztőben egyesülnek; az átfedés nem lyuk. Lyuk csak olyan körvonalból lesz, amely teljesen egy másikon belül fekszik. A mozgatás nem köti össze a vonalakat ott, ahol keresztezik egymást, így az alakzatokat újra széthúzhatod. Ha viszont egy vonalat másokon keresztül rajzolsz, a layerling minden kereszteződésbe pontot tesz.</li><li><strong>Kijelölés:</strong> a <strong class="ui">„Kijelölés”</strong> pontokat és vonalakat mozgat. Egy zárt körvonalon belül kattintva az egész körvonalat kijelölöd, így azonnal húzhatod vagy átméretezheted; egy lyukon belül a lyukat választja ki. A kijelölés körüli keretnek nyolc fogantyúja van: a sarkok a szélességet és a magasságot együtt változtatják, nyomva tartott <kbd>Shift</kbd> billentyűvel megtartva az arányokat. Az oldalsók csak egy irányt változtatnak. A megjelenő sávban a(z) <strong class="ui">„Arányok megtartása”</strong> <kbd>Shift</kbd> nélkül is megtartja az arányokat: a sarkok és az oldalak ilyenkor mindkét irányba egyformán nyújtanak, egy begépelt szélesség vagy magasság pedig a másikat is megváltoztatja. A layerling megjegyzi a kapcsolót. A <strong class="ui">„Zárolás”</strong> (vagy a <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span>) zárolja a kijelölt körvonalat, mint egy zárolt testet a 3D szerkesztőben: nem mozgatható és nem módosítható többé, a vonalai halványabbak, a pontjai szürkék, a keret fogantyúi pedig szürkék lesznek és nem reagálnak. Amíg ki van jelölve, a sarkában lévő lakatra kattintva feloldod. A sarkaiban továbbra is kezdődhetnek vonalak. A(z) <strong class="ui">„Feloldás”</strong> vagy újra a <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> felszabadítja. A keret sarkainál lévő ívelt nyilak a közepe körül forgatják az egész kijelölést: a mutató fölötti szám a szöget mutatja, és nyomva tartott <kbd>Shift</kbd> billentyűvel 15°-os lépésekben mozog. Forgatás közben megjelenik egy gyűrű: ha a mutató benne van, a forgatás 22,5°-os lépésekben illeszkedik, kívüle egész fokokban halad, a rácstól függetlenül. Az <kbd>R</kbd> minden lenyomásra 45°-kal forgat el egy egész zárt körvonalat. A szélesség vagy a magasság címkéjére kattintva új méretet gépelhetsz, összegként („60+12,5”) vagy százalékban („150%”) is. A vázlat feletti sáv X és Y mezője mutatja, hol van a kijelölés közepe, mm-ben a vázlat origójától; írj be egy értéket, és pontosan oda kerül, például egy furat 12 mm-re a középtől. Az Y felfelé nő, mint a 3D szerkesztőben. Nyomva tartott <kbd>Shift</kbd> billentyűvel egy pontra vagy vonalra kattintva hozzáadod a kijelöléshez, vagy kiveszed belőle, így többet is kiválaszthatsz, és együtt mozgathatod őket. Üres terület fölött keretet húzva mindent kijelölsz, ami benne van. Két vagy több kijelölt körvonalnál a sáv igazítja is őket: balra, középre vagy jobbra, illetve felülre, középre vagy alulra, a mindegyik körüli keret szerint. Minden körvonal egészben mozog, és megtartja az alakját; mindkét irányban középre igazítva két körből gyűrű lesz. Egy zárolt körvonal a helyén marad, a többi hozzá igazodik. Egy vonal is húzható (a két végénél fogva mozog, vagy az egész kijelöléssel együtt, ha annak része). A nyílbillentyűk egy rácslépéssel mozgatják a kijelölést, <kbd>Shift</kbd> billentyűvel együtt nagyobbal, húzás közben nyomva tartott <kbd>Shift</kbd> billentyűvel pedig a mozgás egy tengelyen marad. <strong class="ui">„Pontok hozzáadása vagy eltávolítása”</strong>: egy szakaszra kattintva pontot ad hozzá, egy pontra kattintva eltávolítja. Itt van még a <strong class="ui">„Radír”</strong> (egy pontra vagy vonalra kattintva eltávolítja, a több fölé húzott ablak mindent eltávolít benne, kijelölés esetén pedig a gomb törli a kijelölést) és egy mintakép beszúrása (<strong class="ui">„Kép hozzáadása”</strong>). Ha eltávolítasz egy pontot, a layerling összeköti a két szomszédját, így a körvonal zárva marad. Egy rést úgy zársz be, például egy hatszög egyik oldalának törlése után, hogy az egyik nyitott véget a másikra húzod: odaillik, és a kettőből egy pont lesz, így a körvonal ismét zárt. Egy kereszteződésnél, például ahol egy vonal átvág egy kört, az egyenesen továbbfutó oldalak kapcsolódnak össze: ív az ívvel, vonal a vonallal, és a kör kerek marad. Ha egy körnek csak egy darabját távolítanád el, mondjuk egy lekerekített sarokhoz, kattints a radírral pontosan arra az ívdarabra két pont között; a többi megmarad.</li><li><strong>Vágólap:</strong> a <strong class="ui">„Másolás”</strong>, a <strong class="ui">„Beillesztés”</strong>, a <strong class="ui">„Másolat készítése”</strong> és a <strong class="ui">„Törlés”</strong> a kijelölt pontokon, vonalakon és képeken működik, mint a 3D szerkesztőben; a <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span> kivág. A beillesztett és a másolatként készült geometria 10 mm-es hézaggal az eredeti mellé kerül, egy szabad helyre, ahol nem ér hozzá meglévő vonalhoz, így sosem kapcsolódik ahhoz, ami már ott van. Kijelölve marad, így azonnal a helyére húzhatod.</li><li><strong>Előzmények:</strong> <strong class="ui">„Vázlat: visszavonás”</strong> és <strong class="ui">„Vázlat: mégis”</strong>.</li><li><strong><strong class="ui">„Vázlatnézet vezérlői”</strong>:</strong> a <strong class="ui">„Jegyzet”</strong> (vagy az <kbd>N</kbd>) jegyzetet tesz a vázlatra, mint a 3D-szerkesztőben: a következő kattintás elhelyezi, bárhová, akár egy vonalra is. A tűt húzva elmozdíthatod; egy kattintás a tűre összecsukja a kártyát. A vázlat jegyzetei a vázlat testéhez tartoznak: a 3D nézetben a <strong class="ui">„Vázlat kihúzása”</strong> vagy <strong class="ui">„Sweep sketch”</strong> művelettel készült test tetején és a <strong class="ui">„Vázlat forgatása”</strong> művelettel készült test megrajzolt profilján ülnek, és vele együtt mozognak. A vázlat újbóli megnyitása a test összes jegyzetét mutatja, a 3D-ben elhelyezetteket is. A <strong class="ui">„Vázlat: visszavonás”</strong> egy jegyzetet ugyanúgy visszavon, mint egy vonalat, a <strong class="ui">„Mégse”</strong> pedig elveti a jegyzetek változásait. Bővebben a Mérés és jegyzetek fejezetben.</li><li><strong>Nézet:</strong> A középső egérgombbal vagy a <kbd>Shift</kbd> vagy a <kbd>Ctrl</kbd> és a jobb egérgomb együttes használatával mozgatod, mint a 3D szerkesztőben. Ha semmi sincs kijelölve, a <kbd>Ctrl</kbd> és a nyilak is eltolják: lenyomásonként a kép tizedével, a <kbd>Shift</kbd> billentyűvel együtt a felével; a vázlat arra mozdul, amerre mutatnak. A <kbd>Home</kbd> az egész vázlatot beilleszti a nézetbe, az <kbd>F</kbd> a kijelölésre nagyít (kijelölés nélkül az egész vázlatot illeszti be), a <kbd>+</kbd> és a <kbd>−</kbd> pedig nagyít és kicsinyít, mint a 3D szerkesztőben. Ha semmi sincs kijelölve, egy üres helyre duplán kattintva a nézet úgy csúszik el, hogy az a hely középre kerüljön, mint a 3D szerkesztőben; a beállításokban a <strong class="ui">„Dupla kattintás a munkasíkon oda helyezi a nézet közepét”</strong> kapcsolja ki. A vázlat eszköztárán lévő <strong class="ui">„Mérőszalag”</strong> két pont közötti távolságot mér. A vázlat azonnal méreteket is mutat, amint valamire rákattintasz: egy vonal hosszát, egy pontnál pedig az ott találkozó vonalak hosszát. A vázlat eszköztárán lévő <strong class="ui">„Méretek mutatása”</strong> gomb elrejti és megmutatja ezeket a méreteket, ha útban vannak, például görbék alakítása közben; a mérőszalag tovább működik. Egy egyenes vonalon a méretcímkére kattintva milliméterben begépelheted a hosszt; az <kbd>Enter</kbd> alkalmazza, az <kbd>Esc</kbd> elveti. A vonal megtartja az irányát, a kezdőpontja a helyén marad, a másik végén lévő vonalak pedig követik. Ha egy végpont van kijelölve, az mozdul el. Az <span dir="ltr"><kbd>Alt</kbd>+<kbd>Enter</kbd></span> a közepe körül mindkét irányba megnöveli a vonalat. Görbéken a címke csak a hosszt mutatja.</li></ul>
+<p>Test csak <strong>zárt</strong> körvonalból lesz.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-outline.webp" alt="Egy L alakú körvonal. A kijelölt sarokpontnál, bal felül, a két vonal hossza milliméterben, a köztük lévő szög pedig fokban látszik." width="1280" height="800" loading="lazy"><figcaption>Egy L alakú körvonal. A kijelölt sarokpontnál, bal felül, a két vonal hossza milliméterben, a köztük lévő szög pedig fokban látszik.</figcaption></figure>
+</section><section class="guide-part"><h2 id="vonalak-szamokkal"><span class="heading-alias" id="lines-by-numbers"></span>Vonalak számokkal</h2>
+<p>Ha a <strong class="ui">„Vonal”</strong> vagy a <strong class="ui">„Sima görbe”</strong> eszközzel letetted az első pontot, egyszerűen gépelj be egy számot: a vonal mellett két mező nyílik meg, a <strong class="ui">„Hossz”</strong> milliméterben és a <strong class="ui">„Szög”</strong> fokban. A <kbd>&lt;</kbd> vagy a <kbd>Tab</kbd> a szögre lép, így az „50&lt;30” egy 50 mm hosszú, 30°-os vonalat ad, mint az AutoCAD-ben. Az <kbd>Enter</kbd> leteszi a pontot, és azonnal begépelheted a következő vonalat; az <kbd>Esc</kbd> bezárja a mezőket anélkül, hogy a vonalláncot befejezné.</p>
+<p>A szöget jobbról, az óramutató járásával ellentétesen számolja: 0° jobbra, 90° felfelé, 180° balra, 270° lefelé. Ha üresen hagyod, a vonal a mutatót követi, így csak a hosszt adod meg, az irányt pedig egérrel mutatod. Az olyan összegek, mint a „40+12,5”, mindkét mezőben működnek. Ha a pont a tárgyasztalon kívülre esne, a mező ezt jelzi, és másik értékre vár.</p>
+</section><section class="guide-part"><h2 id="egyenes-oldal-goerbitese"><span class="heading-alias" id="curving-a-straight-side"></span>Egyenes oldal görbítése</h2>
+<p>Jelölj ki egy egyenes vonalat, és kattints a megjelenő sávon a <strong class="ui">„Vonal görbítése”</strong> gombra: az oldal görbévé hajlik, mint a Tinkercadben, és megmutatja a két fogantyúját. Húzd őket a görbe alakításához; minél kijjebb áll egy fogantyú, annál erősebb a hajlás. A mutató alatt a fogantyú narancssárga lesz, és a közvetlenül mellé eső kattintást is elkapja, így az alatta lévő mintakép nem mozdul el véletlenül. Az <strong class="ui">„Egyenes vonal”</strong> újra egyenessé teszi az oldalt. Egy kijelölt pontot a <strong class="ui">„Sima görbe”</strong> gombbal tehetsz kereknek: saját fogantyúkat kap, a mellette lévő vonalak pedig görbék lesznek. Ha három vagy több pont van kijelölve, a sávon a <strong class="ui">„Görbe pontokon át”</strong> egyetlen sima görbét fektet az elsőtől az utolsóig, minden közbülső ponton át, ahogy a <strong class="ui">„Sima görbe”</strong> eszköz rajzolja; a két végen túli vonalak változatlanok maradnak. Más programokban ennek „Fit curve” vagy „Fit point spline” a neve. A különbség: a <strong class="ui">„Vonal görbítése”</strong> minden kijelölt oldalt külön hajlít, és megtartja a köztük lévő sarkokat, így egy oldalon lévő ívhez való; a <strong class="ui">„Görbe pontokon át”</strong> egyetlen görbét vezet át a pontokon sarkok nélkül, így egy átrajzolt, recés szél simításához való.</p>
+<p>Az értékek be is írhatók. Egy kijelölt pont a sávban <strong class="ui">„X”</strong> és <strong class="ui">„Y”</strong> mezőt mutat: hol van, mm-ben a vázlat origójától, az Y felfelé nő. Kattints egy fogantyúra, és a sáv helyette <strong class="ui">„Fogantyú X”</strong> és <strong class="ui">„Fogantyú Y”</strong> mezőt mutat: hol van a fogantyú a saját pontjától. Sima pontnál a szemközti fogantyú vele fordul. Add a másik oldalon a megfelelő fogantyúnak ugyanazt az Y-t és ellentétes előjelű X-et, és a görbe pontosan tükrözve jön ki; a <strong class="ui">„Tükrözés”</strong> egy egész felet tükröz egyszerre.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-curve.webp" alt="Az L alakú körvonal alsó oldala görbévé hajlítva, a két végén a fogantyúival." width="1280" height="800" loading="lazy"><figcaption>Az L alakú körvonal alsó oldala görbévé hajlítva, a két végén a fogantyúival.</figcaption></figure>
+</section><section class="guide-part"><h2 id="szoegek-leolvasasa-es-begepelese"><span class="heading-alias" id="reading-and-typing-angles"></span>Szögek leolvasása és begépelése</h2>
+<p>Kattints egy olyan sarokpontra, ahol <strong>két egyenes vonal</strong> találkozik: a hosszak mellett a layerling fokban mutatja a köztük lévő <strong>szöget</strong> is, egy kis ívvel. Zárt körvonalon ez az alakzaton belüli szög, így egy behorpadás 180° fölötti értéket mutat. Kattints az értékre, és gépelj be új szöget. A két vonal közül az egyik ilyenkor a sarok körül fordul, és megtartja a hosszát, a másik a helyén marad. A forduló vonal szaggatottan rajzolódik; a <kbd>Tab</kbd> a másikra vált, az <kbd>Enter</kbd> alkalmazza, az <kbd>Esc</kbd> elveti. Ami a forduló vonal túlsó végén lóg, az vele megy.</p>
+<p>A zárolt pont a helyén marad, és a beírt érték ehhez igazodik: a hossz a vonal szabad végét mozgatja, a szög pedig azt a vonalat fordítja, amelynek túlsó vége szabad. Egyetlen pont is zárolható: jelöld ki, és nyomd meg a <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> billentyűt. Így sarokról sarokra pontossá teheted a körvonalat: zárolj egy sarkot, írd be a következő vonal hosszát és szögét, zárold a végét, és folytasd.</p>
+<p>Egy pont mozgatása három szöget változtat meg: magánál a pontnál és a vonalai túlsó végén lévő két szomszédos saroknál. Ezért a layerling ezt a kettőt is mutatja, és mindkettő kattintható és begépelhető. Így állíthatod be például a bal alsó sarkot 75,5°-ra, miközben a bal felső pont, amely ehhez elmozdul, ki van jelölve. Itt is számolhatsz, pl. „90-14,5”.</p>
+<p>Egy sarok nem mutat szöget, ha egy görbe találkozik vele, vagy ha kettőnél több vonal találkozik ott. A vázlat eszköztárán lévő <strong class="ui">„Méretek mutatása”</strong> gomb a hosszakkal együtt a szöget is elrejti.</p>
+</section><section class="guide-part"><h2 id="sarkok-lekerekitese-vagy-letoerese"><span class="heading-alias" id="rounding-or-chamfering-corners"></span>Sarkok lekerekítése vagy letörése</h2>
+<p>Kattints egy sarokpontra, és válaszd a <strong class="ui">„Sarok lekerekítése”</strong> vagy a <strong class="ui">„Sarok letörése”</strong> lehetőséget. Egy kis mező jelenik meg a <strong class="ui">„Sugár”</strong> vagy a <strong class="ui">„Távolság”</strong> számára. Add meg a méretet, és erősítsd meg a pipával. Ez két egyenes vonal közötti sarkoknál működik.</p>
+<p>Egyszerre több sarok is megy: jelöld ki őket <kbd>Shift</kbd> billentyűvel és egy-egy kattintással, vagy húzz köréjük keretet, és válaszd a megjelenő sávon a <strong class="ui">„Sarok lekerekítése”</strong> vagy a <strong class="ui">„Sarok letörése”</strong> lehetőséget. Mindegyik ugyanazt a sugarat vagy távolságot kapja. Ahol két kijelölt saroknak közös oldala van, mindegyik legfeljebb 45%-ot vehet el belőle, így egy körben lekerekített téglalap minden sarkán egyforma lesz. Azok a pontok, amelyek nem két egyenes vonal közötti sarkok, kimaradnak, és az üzenet megmondja, hány. Egy egész alakzat köré húzott keret vagy egy kattintás a belsejébe a sarkait és a vonalait együtt jelöli ki, és a sáv ilyenkor a saroklehetőségek mellett az összes kijelölt vonalhoz kínálja a <strong class="ui">„Vonal görbítése”</strong> és az <strong class="ui">„Egyenes vonal”</strong> parancsot.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-fillet.webp" alt="A bal felső sarok 12 mm-es sugárral lekerekítve." width="1280" height="800" loading="lazy"><figcaption>A bal felső sarok 12 mm-es sugárral lekerekítve.</figcaption></figure>
+</section><section class="guide-part"><h2 id="tuekroezes"><span class="heading-alias" id="mirroring"></span>Tükrözés</h2>
+<p>Jelölj ki pontokat és vonalakat (kattintással, <kbd>Shift</kbd>+kattintással vagy keret húzásával), és kattints a sávban a <strong class="ui">„Tükrözés”</strong> gombra. Ezután válassz tengelyt: a <strong class="ui">„Balra-jobbra”</strong> a lap közepén átmenő függőleges tengelyre tükröz, a <strong class="ui">„Fent-lent”</strong> a vízszintesre, a <strong class="ui">„Egyenesre”</strong> pedig a vázlat egy egyenes vonalára, amelyre utána kattintasz. A másolat a másik oldalra kerül, az eredeti marad; semmi sincs összekötve, így mindkettőt külön módosíthatod. A tengelyen lévő pontok közösek, ezért a félkörvonal, amelynek végei a tengelyen vannak, zárt körvonallá válik: rajzold meg egy konzol felét, jelöld ki, tükrözd, és készítsd el a testet. Jó tengely a segédvonal. Az <kbd>Esc</kbd> megszakítja.</p>
+</section><section class="guide-part"><h2 id="segedvonalak"><span class="heading-alias" id="construction-lines"></span>Segédvonalak</h2>
+<p>A segédvonal segít a pontok elhelyezésében anélkül, hogy a test része lenne. Szaggatottan rajzolódik, és sosem számít körvonalnak: akármilyen messzire túlhúzhatod az alakzaton, a test nem nő.</p>
+<ul><li>Kapcsold be a <strong class="ui">„Rajzolás”</strong> csoportban a <strong class="ui">„Segédvonal”</strong> gombot. Az új vonalak, a méret szerint begépeltek is, ezután segédvonalak lesznek. A gomb visszavált a normál vonalakra.</li><li>Egy már megrajzolt vonal akkor lesz segédvonal, ha rákattintasz, és a <strong class="ui">„Segédvonal”</strong> lehetőséget választod. A <strong class="ui">„Legyen vonal”</strong> újra normál vonallá teszi.</li><li>A(z) <strong class="ui">„Line from the middle”</strong> a(z) <strong class="ui">„Rajzolás”</strong> csoportban a közepétől rajzol egy vonalat: előbb a közepére kattints, majd a végére, és a vonal ugyanakkora hosszan fut a másik oldalra is. A közép saját pont lesz. Kattints újra a gombra, hogy normál vonalakat rajzolj.</li><li>Az új pontok oda illeszkednek, ahol egy segédvonal keresztez egy másik vonalat – ezt egy kék gyűrű jelzi –, valamint a segédvonal végeihez. Így tehetsz egy sarkot egy felezőpontra, egy éltől adott távolságra vagy egy kereszteződésre, számolás nélkül.</li><li>A segédvonal nem vágja szét a körvonalat ott, ahol keresztezi. Forgatásnál a tengelytől jobbra is lehet.</li></ul>
+</section><section class="guide-part"><h2 id="test-keszitese-belole"><span class="heading-alias" id="making-a-body-from-it"></span>Test készítése belőle</h2>
+<p>Kattints a <strong class="ui">„Vázlat befejezése”</strong> gombra. A körvonal testként áll a munkasíkon. A beállításaiban úgy változtatod a magasságát, a színét és minden mást, mint bármely más alakzatnál. Ha átméretezed, a layerling egy pillanattal később újra felépíti a vázlatból, és a vázlat vele nő. Így pontos test marad, amely élletörést és lekerekítést is fogad, és amikor legközelebb szerkeszted, a vázlat olyan méretű, mint a test.</p>
+<p>Ha a munkasík egy test oldalán fekszik, úgy rajzolsz, ahogy arra az oldalra nézel: ami a vázlatban fent van, az a kész testen is fent lesz. A test halvány körvonala a vázlatnézetben mutatja, hol áll. Ha a munkasík átvág egy testen, a vázlatnézet helyette ennek a vágásnak a körvonalát mutatja, így egy üreges test gyűrűként jelenik meg, és a vázlatot a falaihoz igazíthatod. Egy pont, amelyet ezeknek a körvonalaknak egy sarka közelébe teszel vagy húzol, pontosan ráilleszkedik; egy kis kék gyűrű jelzi. Így vehetsz át más testek éleit a vázlatba, akkor is, ha a munkasík nem pontosan rajtuk fekszik. Ha meglévő munka mentén rajzolnál, kapcsold be az <strong class="ui">„Az átlátszó részek mutatása: minden élük a vázlatsíkon”</strong> gombot (a rétegek gomb a bal oldali nézetgombok között): ilyenkor a testek összes éle vékonyan és halványan a vázlatsíkra rajzolódik, mintha átnéznél rajtuk, akármilyen magasan fekszenek. Egy függőlegesen álló, például egy elülső lapra helyezett sík így az elölnézetet mutatja. A választás a böngészőben megmarad.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-result.webp" alt="A körvonalból test lett. A sarok le van kerekítve." width="1280" height="800" loading="lazy"><figcaption>A körvonalból test lett. A sarok le van kerekítve.</figcaption></figure>
+<p>A <strong class="ui">„Vázlat szerkesztése”</strong> gombbal bármikor visszatérhetsz a vázlathoz, hogy módosítsd. A testre dupla kattintás ugyanezt teszi, mint a Tinkercadben (egy zárolt test zárva marad); a beállításokban a <strong class="ui">„Dupla kattintás megnyitja a vázlatot”</strong> ezt kikapcsolja. A testen már elvégzett élműveletek viszont elvesznek, mert az élek újonnan jönnek létre. Egy test, amelyet a 3D-szerkesztőben elforgattál vagy elmozdítottál, ott nyílik meg, ahol a lapon áll, úgy elforgatva, ahogy ott látod, és a lap rácsán; csak a megdöntött vagy tükrözött test nyílik meg a saját helyzetében.</p>
+<p>A több körvonalas vázlatból egy test lesz, és az egymást átfedő körvonalak összeolvadnak benne. Ha minden körvonalat külön szeretnél, jelöld ki a testet, és kattints a(z) <strong class="ui">„Részek szétválasztása”</strong> gombra: minden külső körvonal önálló test lesz a benne fekvő lyukakkal, és megtartja a test magasságát, színét és helyét. Minden résznek saját szerkeszthető vázlata van a segédvonalakkal együtt, így a részeket egyenként emelheted vagy süllyesztheted, majd egyesítheted vagy kivonhatod. Az élkezelések ezt megakadályozzák, ahogy az utólag nyújtott test is: azt hálóként bontja szét.</p>
+<p><strong>Másfajta test ugyanabból a vázlatból:</strong> a vázlat tetején lévő címke mutatja, mi lesz belőle: <strong class="ui">„Kihúzás vázlat”</strong>, <strong class="ui">„Forgatási vázlat”</strong> vagy <strong class="ui">„Sweep sketch”</strong>. Kattints rá és válassz másikat, akkor is, ha egy meglévő testet szerkesztesz: egy importált SVG, amely kihúzva érkezik, vázává vagy gombbá válik, ha <strong class="ui">„Forgatási vázlat”</strong> lesz belőle. A tengelyen átnyúló körvonal balra csúszik, amíg a jobb széle a tengelyre nem kerül; a <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> visszavonja az eltolást. Befejezéskor az új test a régi helyére kerül, annak nevével és színével, a talpa ugyanazon a magasságon. Az élkezelések elvesznek, mint a vázlat minden módosításánál.</p>
+<section class="guide-part"><h3 id="forgatas"><span class="heading-alias" id="revolving"></span>Forgatás</h3>
+<p>Forgatásnál a keresztmetszet felét <strong>a vázlatban látható tengelytől balra</strong> rajzolod. Mellette a forgatás 3D előnézetét látod. Azonnal mutatja, hogyan fog kinézni a test. A körvonalnak zártnak kell lennie, vagy egy nyitott vonalat vonalként építesz meg, lásd lent. A végén kattints a <strong class="ui">„Forgatás befejezése”</strong> gombra. A terv többi teste elölnézetben látszik, ugyanabban a nézetben, mint a profil, a tengellyel középen: rajzold a profilt melléjük vagy föléjük. A test ott áll, ahová rajzoltad, és a vázlat közepén átmenő vízszintes vonal a talaj: a fölötte rajzolt profil magasabban álló testet ad, a legalsó pontja pedig a test talpa.</p>
+<p>A forgatott test pontos test, mint a kihúzott: fogadja az élletörést és a lekerekítést, és kiüregelheted, egy pohárhoz vagy vázához. Egy régebbi layerlinggel forgatott test háló; nyisd meg a <strong class="ui">„Vázlat szerkesztése”</strong> gombbal, és fejezd be újra, hogy pontos legyen. Egy tengelyen átnyúló profil nem építhető fel pontosan, és háló lesz belőle, mint korábban.</p>
+<p><strong>Simább kerek felületek: <strong class="ui">„Smoothness”</strong>.</strong> A pontos forgástestet a nézethez, az exporthoz és a nyomtatáshoz kis sík lapokra bontja a program, és egy nagy cserépen ezek látszhatnak a nyomaton. Jelöld ki a testet, és a tulajdonságpanelen állítsd a <strong class="ui">„Smoothness”</strong> értékét <strong class="ui">„Fine”</strong> vagy <strong class="ui">„Extra fine”</strong> fokozatra: a kerek felületek finomabban oszlanak fel, több háromszög és lassabb terv árán. Csavarvonalnál vagy hálós forgatásnál erre a <strong class="ui">„Oldalak”</strong> szolgál.</p>
+<p><strong>Egyetlen folytonos szál: <strong class="ui">„Menetemelkedés”</strong>.</strong> A forgatás a körvonalból zárt gyűrűket készít. Jelöld ki a forgatott testet, és a tulajdonságpanelen adj neki 0-nál nagyobb <strong class="ui">„Menetemelkedés”</strong> értéket, vagyis hogy fordulatonként mennyit emelkedik, és a körvonal csavarvonalba tekeredik: egyetlen folytonos szál, mint a filament az orsón vagy egy rugó. A <strong class="ui">„Ívszög”</strong> helyén ekkor <strong class="ui">„Menetszám”</strong> áll, legfeljebb 200; a negatív szám balos tekercselést ad. A körvonal magasságánál sűrűbb menetek egyetlen testté olvadnak össze, így egy tömör mag finom menetemelkedéssel is működik. A csavarvonal hálóként épül, így lekerekítés, élletörés és kiüregelés nem működik rajta; sok menetnél tartsd alacsonyan a <strong class="ui">„Oldalak”</strong> értékét. A 0 menetemelkedés ismét gyűrűket ad.</p>
+</section></section><section class="guide-part"><h2 id="vegighuzas-egy-palyan"><span class="heading-alias" id="sweeping-along-a-path"></span>Végighúzás egy pályán</h2>
+<p>A <strong class="ui">„Sweep sketch”</strong> egy körvonalat húz végig egy pályán: egy sarkon befordulő kábelcsatornát, egy védőcsövet, egy szíjvédőt, egy gyűrűt egy hatszög körül. A <strong class="ui">„Létrehozás”</strong> csoportban a <strong class="ui">„Vázlat kihúzása”</strong> és a <strong class="ui">„Vázlat forgatása”</strong> mellett található.</p>
+<p>Ugyanarra a lapra két dolgot rajzolsz:</p>
+<ul><li><strong>A keresztmetszetet</strong> zárt körvonalként, a szokásos módon. Úgy rajzold, ahogy a pálya mentén a kezdetétől nézve látnád: a pályán keresztül a vázlat bal és jobb oldala, a fent a kész testen is fent van. Egy üreges keresztmetszet, egy csatorna vagy cső, egy körvonal egy másikkal a belsejében. Alapból a keresztmetszet a pályára van középre igazítva. A fenti módjelvény melletti menüben inkább a bal vagy a jobb szélét teheted a pályára (<strong class="ui">„On the path: left edge”</strong>, <strong class="ui">„On the path: right edge”</strong>, a pálya mentén nézve), így egy sín a vonal egyik oldalán ülhet, vagy egy alkatrész szélét követheti. A test a keresztmetszet legalsó pontjával áll a vázlatsíkon.</li></ul>
+<ul><li><strong>A pályát</strong> <strong class="ui">„Segédvonal”</strong> segítségével: kapcsold be, és rajzolj vonalakat vagy görbéket, egyetlen láncot, nyitottat vagy zártat (a zárt lánc gyűrűt ad). A pálya laposan fekszik a vázlatsíkban.</li></ul>
+<p>A keresztmetszetet a pályának annál a végénél rajzold, ahol kezdődnie kell; a pálya a hozzá legközelebbi végén kezdődik. Ezután kattints a <strong class="ui">„Finish sweep”</strong> gombra. Az egyenes darabokból álló sarok gérbe vágódik, egy görbe sima marad, és a keresztmetszet végig függőleges marad. A test pontos, mint egy kihúzott test: a lekerekítés, a letörés és a STEP-export működik rajta. Ha hiányzik egy zárt körvonal vagy egy pálya, vagy több különálló pálya van, a layerling jelzi. Az <strong class="ui">„Vázlat szerkesztése”</strong> gombbal visszatérhetsz a vázlathoz, és módosíthatod a keresztmetszetet vagy a pályát.</p>
+</section><section class="guide-part"><h2 id="vonalkent-epites"><span class="heading-alias" id="building-as-a-stroke"></span>Vonalként építés</h2>
+<p>Általában a zárt körvonal belseje lesz a test. A <strong class="ui">„Befejezés”</strong> rész <strong class="ui">„Vonal”</strong> gombjával ehelyett magát a vonalat építed meg, általad megadott vastagsággal. Pipáld be az ablakban a <strong class="ui">„Vonalként készüljön”</strong> lehetőséget; a vázlat azonnal mutatja, mi lesz belőle.</p>
+<ul><li>Egy <strong>zárt körvonalból</strong> keret lesz. A <strong class="ui">„Helyzet”</strong> adja meg, hol fekszik a fal: <strong class="ui">„Középen”</strong> a megrajzolt vonalon, <strong class="ui">„Belül”</strong> azon belül, vagy <strong class="ui">„Kívül”</strong> azon kívül. A kívül tűréshez hasznos: rajzold meg egy lyuk, például egy fecskefark körvonalát, és adj neki 0,2 mm-es külső vonalat, hogy meglegyen a nyomtatáshoz szükséges hézag.</li><li>Egy <strong>nyitott vonalból</strong> csík lesz, a vonalra középre igazítva. A <strong class="ui">„Végek”</strong> adja meg, hogyan néznek ki a végei: <strong class="ui">„Lapos”</strong>, <strong class="ui">„Szögletes”</strong> (fél vastagsággal hosszabb) vagy <strong class="ui">„Kerek”</strong>.</li><li>A <strong class="ui">„Sarkok”</strong> mindkettőre vonatkozik: <strong class="ui">„Éles”</strong>, <strong class="ui">„Kerek”</strong> vagy <strong class="ui">„Letört”</strong>.</li></ul>
+<p>A vázlat megtartja a megrajzolt vonalat. Nyisd meg újra, és tovább módosíthatod a vonalat és a vastagságot; vedd ki a pipát, és újra a felület épül meg. A görbék ehhez rövid egyenes darabokra bomlanak.</p>
+<p>Forgatásnál a vonal vékony fal: rajzold meg egy váza vagy egy pohár falát <strong>egyetlen nyitott vonalként</strong> a tengelytől balra, kapcsold be a <strong class="ui">„Vonal”</strong> gombot, és állítsd be a vastagságot, a forgatás pedig ezt a sávot forgatja körbe. Ami a tengelyen átnyúlik, azt ott levágja.</p>
+</section><section class="guide-part"><h2 id="kitoeltes-es-sziluett"><span class="heading-alias" id="fill-and-silhouette"></span>Kitöltés és sziluett</h2>
+<p>A vonalat a vázlat megnyitása nélkül is beállíthatod: egy vázlattest tulajdonságai között a <strong class="ui">„Kitöltés”</strong> alatt válaszd a <strong class="ui">„Felület”</strong>, a <strong class="ui">„Körvonal kívül”</strong>, a <strong class="ui">„Körvonal belül”</strong> vagy a <strong class="ui">„Körvonal középen”</strong> lehetőséget, a <strong class="ui">„Vonalvastagság”</strong> és a <strong class="ui">„Sarkok”</strong> értékkel együtt. A test azonnal újraépül, ott, ahol áll. Ezek a Tinkercad SVG-importjának kitöltési módjainak felelnek meg: alapértelmezett, külső vonal és belső vonal. A <strong class="ui">„Szélesebb”</strong> kitöltve hagyja a felületet, és körben a vonalvastagsággal megnöveli, éles, kerek vagy letört sarkokkal: alapréteg egy logó alá többszínű nyomtatáshoz, amelyet a külső vonal egymagában csak gyűrűként adna. A(z) <strong class="ui">„Narrower”</strong> az ellenkezőjét teszi: a felület kitöltve marad, a széle pedig körben a vonalvastagsággal befelé húzódik, a lyukakat is beleértve (azok nőnek). Használd mindkettőt egy vázlat másolatain illesztéshez: a lyuk a rajzolt méretében, az átmenő rész <strong class="ui">„Narrower”</strong> 0,5 mm-rel, vagy egy fal egy ugyanabból a körvonalból kivágott alakzaton belül. A körvonal által megengedettnél nagyobb szélesség semmit sem hagy meg. A vázlat vonalablakában ugyanez a két lehetőség a(z) <strong class="ui">„Helyzet”</strong> alatt áll. Kívül, belül vagy középen futó vonallal a(z) <strong class="ui">„Cutting Edge”</strong> a fal tetejét élessé teszi: a teteje erre a szélességre fut össze, mindkét oldalon 45°-os letöréssel, mint egy sütiszaggatón. A 0 laposan hagyja a tetejét; az él megmarad, ha a vonalvastagságot változtatod.</p>
+<p>A <strong class="ui">„Sziluett (lyukak nélkül)”</strong> kihagy minden olyan körvonalat, amely egy másikon belül fekszik: a lyukakat és mindent, ami bennük van. Csak a külső körvonal marad. A <strong class="ui">„Körvonal kívül”</strong> beállítással együtt sütikiszúrót ad: importálj egy SVG-t kétszer, egyszer a sziluettel felületként az alaphoz, egyszer pedig a sziluettel és 1–2 mm-es külső vonallal a falhoz. A kapcsoló vázlatmódban a <strong class="ui">„Vonal”</strong> ablakban is megtalálható.</p>
+<p>Az éleken lévő lekerekítések és élletörések elvesznek, amikor a test újraépül, mint a vázlat szerkesztésekor.</p>
+</section><section class="guide-part"><h2 id="ferde-falak-belyegzokhoez"><span class="heading-alias" id="slanted-walls-for-stamps"></span>Ferde falak, bélyegzőkhöz</h2>
+<p>Egy kihúzott vázlatnak függőleges falai vannak. Egy bélyegzőnek, dombornyomó szerszámnak vagy lyukasztónak viszont ferdék kellenek, kívül és belül, végig ugyanazzal a falvastagsággal. A layerlingben nincs kihúzási szög, de egyszerű körvonalaknál a <strong class="ui">„Kúposítás”</strong> segítségével célba érsz. Egy működő módszer:</p>
+<ol><li>Rajzold meg a körvonalat a szükséges lyukkal, és készíts belőle testet. Készíts másolatot a testről (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span>).</li><li>Az első testen kapcsold be a <strong class="ui">„Sziluett (lyukak nélkül)”</strong> kapcsolót, hogy a lyuk kitöltődjön, és a <strong class="ui">„Kúposítás”</strong> segítségével adj neki szélesebb aljat, mint a teteje.</li><li>A másolaton nyisd meg újra a vázlatát, és töröld a külső körvonalat, hogy csak a lyuk körvonala maradjon. Fejezd be a vázlatot, állítsd a testet <strong class="ui">„Lyuk”</strong> típusúra, és a <strong class="ui">„Kúposítás”</strong> segítségével adj neki keskenyebb aljat, mint a teteje.</li><li>Mozgasd a lyukat az első testbe, oda, ahol a lyuk volt, és csoportosítsd a kettőt.</li></ol>
+<p>A falak most kívül és belül is lejtenek. A kúposítás az egész körvonalat méretezi, így ez egyszerű alakzatoknál pontos, ahol a méreteket úgy választhatod meg, hogy a falak párhuzamosan fussanak, finom részleteknél, például feliratoknál viszont csak közelítés.</p>
+</section><section class="guide-part"><h2 id="kep-mint-minta"><span class="heading-alias" id="a-picture-as-template"></span>Kép mint minta</h2>
+<p>A <strong class="ui">„Kép hozzáadása”</strong> segítségével egy fényképet vagy rajzot teszel a vázlat alá, és körberajzolod. Beállíthatod a méretét, az átlátszatlanságát és a helyzetét. Ha a kép a helyén van, zárold a <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> billentyűkkel, hogy rajzolás közben véletlenül se mozdítsd el. A zárolt kép nincs útban: a kattintások átmennek rajta, így a rajta lévő vonalakat és pontokat kiválaszthatod, és keretet húzhatsz föléjük. A sarkában lévő lakatra kattintva feloldod; az <kbd>Alt</kbd> nyomva tartásával kattintva feloldás nélkül jelölöd ki. Ha a jobb szélen lévő beállításai eltakarják a képet, húzd el őket a címsoruknál fogva; egy dupla kattintás rajta újra rögzíti őket.</p>
+<p>Az <strong class="ui">„Igazítás”</strong> alatt egy nem egyenesen készült fényképet igazítasz be:</p>
+<ul><li><strong><strong class="ui">„Elforgatás”</strong>:</strong> A kép elforgatása a közepe körül, a sarkainál lévő ívelt nyilakkal vagy fokban megadott számként. <kbd>Shift</kbd> billentyűvel a nyilak 15°-os lépésekben illeszkednek. A forgatáskor megjelenő gyűrűn belül 22,5°-os lépésekben illeszkednek, kívüle egész fokokban.</li><li><strong><strong class="ui">„X = 0-ra”</strong></strong> és <strong><strong class="ui">„Y = 0-ra”</strong>:</strong> a kép közepét X = 0-ra vagy Y = 0-ra teszi. Forgatásnál az X = 0 a tengely, így a kép ezután szimmetrikusan fekszik körülötte.</li><li><strong><strong class="ui">„Kalibrálás”</strong>:</strong> A gombja felül van, közvetlenül az előnézet alatt. Kattints a képen két olyan pontra, amelyek távolságát ismered, egy vonalzó két végére vagy egy ismert átmérőre, és gépeld be a valódi távolságot. A kép egyenletesen úgy méreteződik, hogy ez a távolság stimmeljen; az első pont a helyén marad.</li><li><strong><strong class="ui">„Körbevágás”</strong>:</strong> A keret fogantyúi ilyenkor méretezés helyett körbevágják a képet; ami levágódik, tárolva marad, és az <strong class="ui">„Az egész kép mutatása”</strong> gombbal vagy egy fogantyú újbóli kihúzásával visszajön.</li></ul>
+<p>Mind a négy csak a mintaképet érinti, a vázlatot soha.</p>
+<p>A kép beállításaiban a <strong><strong class="ui">„Körberajzolás”</strong></strong> elhelyezi helyetted a pontokat: körberajzolja a képen lévő forma körvonalát – egy sziluettet, logót, szót –, és pirossal mutatja a kép fölött, a sarkokat négyzetes, a sima pontokat kerek pontokkal. A <strong class="ui">„Dark shape”</strong> vagy <strong class="ui">„Light shape”</strong> választja ki, a kép melyik része a forma, a <strong class="ui">„Küszöb”</strong>, hol vált a sötét világosba, a <strong class="ui">„Points”</strong>, hány pontot kapnak összesen a körvonalak (kevesebb simább görbéket ad, több szorosabban követi a képet), a <strong class="ui">„Corner from”</strong>, mekkora fordulattól sarok egy pont, a <strong class="ui">„Leave out specks up to”</strong>, mekkora pöttyöket hagy ki, a <strong class="ui">„Keep holes”</strong> pedig megtartja egy A vagy O közepét. Az <strong class="ui">„Apply”</strong> pontosan oda teszi a körvonalakat a vázlatba, ahol a kép van, annak méretével, elforgatásával és vágásával, és kijelöli őket: közönséges pontok, amelyeket mozgathatsz, hajlíthatsz vagy törölhetsz, a <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> pedig egy lépésben visszavonja őket. Tiszta kontraszttal működik a legjobban; a zsúfolt hátterű fotót előbb vágd ki. Ami kiesik – a körvonalak körül, a lyukakban, amit levágsz –, azt az előnézet a lap színével takarja, így a képből csak az látszik, ami megmarad. Az olyan közeli körvonalak, amelyeknél laza görbék keresztezték volna egymást, maguktól több pontot kapnak; a kártya ezt jelzi. A körvonalon kívüli vagy belüli szegélyhez adj a vázlattestnek a vonalain kívüli vagy belüli körvonalat, vagy told el a kész testet.</p>
+<p>Egy fotóhoz – például egy fehér asztalon álló játékhoz – válaszd a <strong class="ui">„Shape”</strong> alatt a <strong><strong class="ui">„Object”</strong></strong> lehetőséget: a háttér a kép szélének színe, és minden, ami elüt tőle, egyetlen körvonal lesz, bármilyen színű is; a <strong class="ui">„Küszöb”</strong> ekkor azt szabja meg, mennyire kell elütnie. Egy színes kép egyenletes háttéren így indul. A <strong class="ui">„Pick areas”</strong> többet is körberajzol: kattints egy területre a képen, például egy ablakra, és a pont körüli hasonló színű folt körvonalat kap (a <strong class="ui">„Colour tolerance”</strong> szabja meg, mennyire hasonló). A lyukak és a kattintott területek a <strong class="ui">„Holes and areas”</strong> alatt szerepelnek; ha rámutatsz egyre, az előnézetben látszik, a ✕ kiveszi, kikapcsolt <strong class="ui">„Cut out”</strong> mellett pedig lyuk helyett szerkesztővonalként rajzolódik. A kép széléig érő terület a háttér, azt nem veszi fel. Amit semmilyen küszöb és szín nem választ el – egy árnyék, amely olyan sötét, mint a fölötte lévő kerekek –, azt a <strong class="ui">„Cut away”</strong> veszi el: kattints a sarkaira körülötte (kattintás az első sarokra, dupla kattintás vagy <kbd>Enter</kbd> zárja), és a körvonal a vágás mentén fut; „Vágás 1” néven szerepel.</p>
+<p>Fa egy ház mellett, alak egy zsúfolt háttér előtt – ahol semmilyen szín nem választja el a formát a többitől, ott a <strong><strong class="ui">„Magnetic lasso”</strong></strong> fogja meg: kattints nagyjából a széle mentén, és két kattintás között a vonal magától követi a szélt, a kanyarokban is; mozgatás közben az előnézet már mutatja, merre fut majd. Kattintás az első pontra, dupla kattintás vagy <kbd>Enter</kbd> zárja, <kbd>Esc</kbd> eldobja. „Lasszó 1” néven szerepel, választhatóan <strong class="ui">„Take in”</strong> (a terület a formához adódik) vagy <strong class="ui">„Cut away”</strong> (elvész); minden vágásnál ugyanez a választás. A <strong class="ui">„Shape”</strong> alatt a <strong><strong class="ui">„Lasso only”</strong></strong> csak abból készít formát, amit így megfogsz – semmi mást a képből.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/trace-house.webp" alt="Egy rajzolt ház objektumként átrajzolva, a küszöb a világos falához leengedve: a mágneses lasszó levágta a fát, a nyolc ablaküveg pedig lyukként van kiválasztva." width="1280" height="800" loading="lazy"><figcaption>Egy rajzolt ház objektumként átrajzolva, a küszöb a világos falához leengedve: a mágneses lasszó levágta a fát, a nyolc ablaküveg pedig lyukként van kiválasztva.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/trace-house-body.webp" alt="A ház testként: a fa nélkül, az ablakok átvágva." width="1280" height="800" loading="lazy"><figcaption>A ház testként: a fa nélkül, az ablakok átvágva.</figcaption></figure>
+</section><section class="guide-part"><h2 id="billentyuk-vazlatmodban"><span class="heading-alias" id="keys-in-sketch-mode"></span>Billentyűk vázlatmódban</h2>
+<div class="table-scroll"><table><thead><tr><th>Billentyű</th><th>Hatás</th></tr></thead><tbody><tr><td><kbd>Esc</kbd></td><td>a jegyzeteszköz letétele; különben az eszköz letétele (vissza: <strong class="ui">„Kijelölés”</strong>), majd a kijelölés megszüntetése</td></tr><tr><td><kbd>Delete</kbd></td><td>a kijelölt elem törlése</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>C</kbd></span></td><td>a kijelölés másolása</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span></td><td>a kijelölés kivágása</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>V</kbd></span></td><td>beillesztés</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span></td><td>másolat a kijelölésről</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span></td><td>visszavonás</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span></td><td>minden pont és vonal kijelölése</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>I</kbd></span></td><td><strong class="ui">„Kép hozzáadása”</strong></td></tr><tr><td><kbd>Shift</kbd></td><td>rajzolás közben: a vonal 15°-os lépésekben illeszkedik; húzás közben: a mozgás egy tengelyen marad</td></tr><tr><td>számjegy, <kbd>&lt;</kbd>, <kbd>Tab</kbd>, <kbd>Enter</kbd></td><td>rajzolás közben: a következő vonal hosszának és szögének begépelése és letétele</td></tr><tr><td><kbd>R</kbd></td><td>a zárt vázlat elforgatása 45°-kal</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span></td><td>a mintakép zárolása vagy feloldása</td></tr><tr><td><kbd>N</kbd></td><td>jegyzet elhelyezése: a következő kattintás a vázlatra teszi</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span></td><td>a jegyzetek megjelenítése vagy elrejtése</td></tr></tbody></table></div>
+<aside class="tip"><p><strong>Tipp:</strong> Annyi pontot rajzolj, amennyi feltétlenül kell. Néhány jól elhelyezett pontból álló körvonal simább testet ad, mint sok pont gubanca.</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/utmutato/edges-and-hollowing.html"><small>Előző fejezet</small>Élek letörése és testek kiüregelése</a><a class="next" href="/api/desktop/layerling/ui/utmutato/text.html"><small>Következő fejezet</small>Szöveg és íves feliratok</a></div>
+      </main>
+    </div>
+    <footer class="note">Ez az útmutató a programmal együtt bővül. Ha valami hiányzik vagy nem stimmel, szólj a <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">beszélgetésekben</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=hu" rel="noopener">A projekt támogatása</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Beszélgetések</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Bővebben a GitHubon</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Kiadási megjegyzések – v1.154.1</a></div><p class="trademark">A Tinkercad az Autodesk, Inc. védjegye. A layerling független projekt, nem kapcsolódik az Autodeskhez, és az Autodesk nem támogatja vagy szponzorálja.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Vissza a szerkesztőhöz";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Szerkesztő megnyitása";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

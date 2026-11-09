@@ -4,7 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {adaptNasscadEmail} from './nasscad-email-adapter.mjs';
 
-const revision = '279da7c0f0ca28dfae19c11c8be231f326dfda4f';
+const revision = 'ba7cc40362c75c74165af5d6732d810cceda86cc';
 const out = 'internal/desktop/bundled_apps/nasscad';
 const manifestPath = `${out}/provenance.json`;
 const digest = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
@@ -31,6 +31,7 @@ const names = [
   'nasscad-buildvolume.js', 'nasscad-audit-fixes.js', 'nasscad-object-range.js',
   'nass-demo-engine.js', 'nass-demo-solar.js', 'nasscad_user_manual.html',
   'nasscript_doc.html', 'nassscript-engine-preview.png', 'solar-system-snapshot.png',
+  'nasscad-license.css', 'nasscad-license.js', 'license.html', 'NASSCAD_User_Manual_EN.pdf',
 ];
 const outputs = new Map(), upstream = {};
 function patch(text, before, after) {
@@ -49,7 +50,11 @@ for (const name of names) {
     text = patch(text, "sc.src = _WASM_CSG_FILE;", "sc.src = _WASM_CSG_FILE + location.search;");
     text = patch(text, 'new URL(demoSources[key],document.baseURI)', 'new URL(demoSources[key]+location.search,document.baseURI)');
     // Signed workspace access must also cover the local illustrated guides.
+    text = patch(text, '<link rel="stylesheet" href="nasscad-license.css">', `<script>document.write('<link rel="stylesheet" href="nasscad-license.css'+location.search+'">')</script>`);
     text = patch(text, '</head>', `<script>document.addEventListener('DOMContentLoaded',()=>{for(const link of document.querySelectorAll('a[href]')){const url=new URL(link.href);if(url.origin===location.origin&&url.pathname.startsWith(new URL('.',location.href).pathname)) {url.search=location.search;link.href=url.href;}}});</script>\n</head>`);
+  } else if (name === 'license.html') {
+    text = patch(text, 'href="NASSCAD_V4_7_0.htm"', 'href="index.html"');
+    text = patch(text, '</head>', `<script>document.addEventListener('DOMContentLoaded',()=>{for(const link of document.querySelectorAll('a[href]')){const url=new URL(link.href);if(url.origin===location.origin&&url.pathname.startsWith(new URL('.',location.href).pathname)) {url.search=location.search;link.href=url.href;}}});</script></head>`);
   } else if (name === 'nasscript_doc.html') {
     // The guide must not reach Google: no analytics, and its font stacks fall back to local fonts.
     text = text.replace(/<!-- GA4[^]*?<\/script>/, '<!-- AuraGo: no analytics. -->');
@@ -66,10 +71,10 @@ for (const name of names) {
     text = patch(text, 'new URL(name, _ifcAssetBase).href', 'new URL(name, _ifcAssetBase).href + location.search');
   }
   text = adaptNasscadEmail(name, text);
-  outputs.set(target, name.endsWith('.js') || name.endsWith('.htm') || name === 'nasscript_doc.html' ? Buffer.from(text) : bytes);
+  outputs.set(target, name.endsWith('.js') || name.endsWith('.htm') || name === 'nasscript_doc.html' || name === 'license.html' ? Buffer.from(text) : bytes);
 }
 fs.mkdirSync(out, {recursive:true});
 for (const [name, bytes] of outputs) fs.writeFileSync(`${out}/${name}`, bytes);
-const manifest = {version:'4.7.0', revision, source:`https://github.com/Nx-Nass/NASSCAD/tree/${revision}`, adapter_sha256:inputHash, upstream, files:Object.fromEntries([...outputs].map(([n,b])=>[n,digest(b)]))};
+const manifest = {version:'4.7.0', revision, source:`https://github.com/Nx-Nass/NASSCAD/tree/${revision}`, release:'v4.7.0-agpl', adapter_sha256:inputHash, upstream, files:Object.fromEntries([...outputs].map(([n,b])=>[n,digest(b)]))};
 fs.writeFileSync(manifestPath, JSON.stringify(manifest,null,2)+'\n');
 console.log(`Vendored ${outputs.size} NASSCAD browser assets`);

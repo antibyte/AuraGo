@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="es-ES">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Bocetos: del contorno al cuerpo - Guía de usuario de layerling</title>
+    <meta name="description" content="Dibujar un contorno plano, redondear o achaflanar sus esquinas y convertirlo en un cuerpo estirándolo o haciéndolo girar.">
+    <link rel="canonical" href="https://layerling.com/guia-es/sketches.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/sketches.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/sketches.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/sketches.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/skizzen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/sketches.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/sketches.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/sketches.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/sketches.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/schetsen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/sketches.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/skice.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/sketches.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/sketches.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/sketches.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/sketches.html">
+    <meta property="og:title" content="Bocetos: del contorno al cuerpo - Guía de usuario de layerling">
+    <meta property="og:description" content="Dibujar un contorno plano, redondear o achaflanar sus esquinas y convertirlo en un cuerpo estirándolo o haciéndolo girar.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/guia-es/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Guía de usuario</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/guia-es/search-index.json" data-nothing="No se ha encontrado nada." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Buscar en la guía" aria-label="Buscar en la guía" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Idioma">Español</summary><ul><li><a href="/api/desktop/layerling/ui/guide/sketches.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/sketches.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/sketches.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/sketches.html" hreflang="es-ES" lang="es-ES" aria-current="true">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/sketches.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/sketches.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/sketches.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/sketches.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/sketches.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/sketches.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/skice.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/sketches.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/sketches.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/sketches.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/sketches.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/sketches.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/sketches.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Abrir el editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>El editor ya está abierto en otra pestaña: cambia a ella.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Capítulos"><h2>Capítulos</h2><p class="print-link"><a href="/api/desktop/layerling/ui/guia-es/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Guía completa, para imprimir</span></a></p><ol><li><a href="/api/desktop/layerling/ui/guia-es/getting-started.html">Primeros pasos</a></li><li><a href="/api/desktop/layerling/ui/guia-es/view-and-workplane.html">Vista y plano de trabajo</a></li><li><a href="/api/desktop/layerling/ui/guia-es/shapes.html">Colocar y ajustar formas</a></li><li><a href="/api/desktop/layerling/ui/guia-es/select-and-arrange.html">Seleccionar y organizar</a></li><li><a href="/api/desktop/layerling/ui/guia-es/solids-and-holes.html">Sólidos y orificios</a></li><li><a href="/api/desktop/layerling/ui/guia-es/edges-and-hollowing.html">Romper aristas y vaciar cuerpos</a></li><li><a href="/api/desktop/layerling/ui/guia-es/sketches.html" aria-current="page">Bocetos: del contorno al cuerpo</a></li><li><a href="/api/desktop/layerling/ui/guia-es/text.html">Texto y letras en arco</a></li><li><a href="/api/desktop/layerling/ui/guia-es/threads-and-mechanics.html">Roscas, engranajes y otras piezas</a></li><li><a href="/api/desktop/layerling/ui/guia-es/measuring-and-notes.html">Medidas y notas</a></li><li><a href="/api/desktop/layerling/ui/guia-es/printing.html">Preparar la impresión 3D</a></li><li><a href="/api/desktop/layerling/ui/guia-es/files-and-saving.html">Archivos: guardar y compartir</a></li><li><a href="/api/desktop/layerling/ui/guia-es/shortcuts.html">Atajos de teclado</a></li><li><a href="/api/desktop/layerling/ui/guia-es/ai-with-mcp.html">Construir con una IA (MCP)</a></li><li><a href="/api/desktop/layerling/ui/guia-es/offline-and-install.html">Instalar como aplicación, trabajar sin conexión y alojarlo tú mismo</a></li><li><a href="/api/desktop/layerling/ui/guia-es/videos.html">Vídeos sobre layerling</a></li><li><a href="/api/desktop/layerling/ui/guia-es/tablet-and-touch.html">Tableta y pantalla táctil</a></li></ol></nav>
+      <main>
+<h1>Bocetos: del contorno al cuerpo</h1>
+<p class="lead">Dibujar un contorno plano, redondear o achaflanar sus esquinas y convertirlo en un cuerpo estirándolo o haciéndolo girar.</p>
+<div class="toc"><b>En esta página</b><ul><li><a href="#empezar-un-boceto">Empezar un boceto</a></li><li><a href="#dibujar">Dibujar</a></li><li><a href="#lineas-a-medida">Líneas a medida</a></li><li><a href="#curvar-un-lado-recto">Curvar un lado recto</a></li><li><a href="#leer-y-escribir-angulos">Leer y escribir ángulos</a></li><li><a href="#redondear-o-achaflanar-esquinas">Redondear o achaflanar esquinas</a></li><li><a href="#reflejar">Reflejar</a></li><li><a href="#lineas-de-construccion">Líneas de construcción</a></li><li><a href="#convertirlo-en-un-cuerpo">Convertirlo en un cuerpo</a></li><li><a href="#barrer-a-lo-largo-de-una-trayectoria">Barrer a lo largo de una trayectoria</a></li><li><a href="#construir-como-trazo">Construir como trazo</a></li><li><a href="#relleno-y-silueta">Relleno y silueta</a></li><li><a href="#paredes-inclinadas-para-sellos">Paredes inclinadas, para sellos</a></li><li><a href="#una-imagen-como-plantilla">Una imagen como plantilla</a></li><li><a href="#teclas-en-el-modo-de-boceto">Teclas en el modo de boceto</a></li></ul></div>
+<p>No todo se puede montar con formas básicas. Para piezas con un contorno propio, como un soporte, el perfil de un diente o un jarrón, primero dibujas el <strong>contorno</strong> y luego haces un cuerpo a partir de él. Para eso está el modo de boceto.</p>
+<section class="guide-part"><h2 id="empezar-un-boceto"><span class="heading-alias" id="starting-a-sketch"></span>Empezar un boceto</h2>
+<p>Arriba, cambia de <strong class="ui">«Editor 3D»</strong> a <strong class="ui">«Boceto»</strong>. En el grupo <strong class="ui">«Crear»</strong> de la cinta hay tres botones, uno al lado del otro, según lo que quieras que salga del contorno:</p>
+<ul><li><strong><strong class="ui">«Extruir boceto»</strong>:</strong> El contorno se estira hacia arriba, como un cortador de galletas.</li><li><strong><strong class="ui">«Revolucionar boceto»</strong>:</strong> El contorno gira alrededor de un eje, como en un torno. Así salen jarrones, vasos, conos y todo lo que sea redondo.</li><li><strong><strong class="ui">«Boceto de barrido»</strong>:</strong> El contorno avanza a lo largo de una trayectoria: una canaleta para cables que dobla una esquina, un conducto, un anillo alrededor de una forma. Lo tienes más abajo, en «Barrer a lo largo de una trayectoria».</li></ul>
+<p>El editor muestra entonces una hoja con cuadrícula. Esa es tu superficie de dibujo.</p>
+</section><section class="guide-part"><h2 id="dibujar"><span class="heading-alias" id="drawing"></span><span class="heading-alias" id="drawing-tools"></span><span class="heading-alias" id="shapes"></span><span class="heading-alias" id="select-and-change"></span><span class="heading-alias" id="clipboard-and-history"></span><span class="heading-alias" id="notes"></span><span class="heading-alias" id="view-and-dimensions"></span>Dibujar</h2>
+<p>En el modo de boceto, la cinta está dividida en zonas:</p>
+<ul><li><strong>Dibujar:</strong> <strong class="ui">«Línea»</strong> traza tramos rectos: haz clic en un punto tras otro; si mantienes pulsada <kbd>Mayús</kbd>, la nueva línea se ajusta en pasos de 15°, horizontal y vertical incluidas. Junto al puntero aparecen la longitud y el ángulo de la nueva línea. También puedes escribir cuánto debe medir: lo explica <a href="#lineas-a-medida">Líneas a medida</a>. <strong class="ui">«Arco»</strong> dibuja un arco de circunferencia de verdad que pasa por tres puntos: primero haz clic en sus dos extremos y luego en un tercer punto por el que pase el arco; hasta ese tercer clic, una vista previa sigue al puntero y el mensaje indica el radio. Si colocas un extremo sobre un punto que ya existe, se une a él, así que un arco puede cerrar un contorno. <kbd>Esc</kbd> descarta los puntos marcados hasta ese momento y vuelve a <strong class="ui">«Seleccionar»</strong>. Después, el arco es geometría normal, hecha de puntos y curvas: lo mueves, lo cortas o lo borras como cualquier otra línea. La <strong class="ui">«Curva de Bézier»</strong> se moldea con sus tiradores: haz clic en un punto y arrastra en la dirección en la que debe continuar la línea, como con la pluma de Illustrator o Inkscape. Cuanto más arrastras, más se curva; el tramo hasta el nuevo punto se va curvando mientras arrastras, así que ves lo que vas a obtener. Arrastrar al colocar un punto curva la línea; si vienes de Tinkercad y solo quieres hacer clic en puntos, usa la <strong class="ui">«Curva suave»</strong>. La <strong class="ui">«Curva suave»</strong> traza un recorrido fluido por los puntos en los que haces clic. Para cerrar el contorno, al final vuelve a hacer clic en el primer punto. Para terminar la cadena de líneas sin cerrar el contorno, haz clic derecho sin mover el puntero o doble clic en el último punto.</li><li><strong><strong class="ui">«Mano alzada»</strong>:</strong> dibuja con el lápiz, un dedo o el ratón, como en papel. Al levantarlo, la línea se convierte en puntos normales: una esquina donde giró bruscamente y puntos suaves entre medias, solo los que la forma necesita, así que cada uno se puede arrastrar después. Acerca la vista para los detalles finos: cuanto más de cerca miras, más fielmente sigue la línea tu mano. Una línea que termina donde empezó se cierra en un contorno que puede convertirse en un cuerpo; una abierta sigue siendo una línea, para <strong class="ui">«Trazo»</strong> o como trayectoria de barrido. También empieza sobre líneas y sobre una imagen de plantilla, así que se puede calcar una imagen a mano. Un trazo que empieza o termina en un extremo abierto continúa esa línea, así que una forma se puede dibujar en varios trazos.</li><li><strong>Formas:</strong> <strong class="ui">«Añadir forma de boceto»</strong> ofrece contornos ya hechos: <strong class="ui">«Rectángulo»</strong>, <strong class="ui">«Círculo»</strong>, <strong class="ui">«Óvalo»</strong>, <strong class="ui">«Semicírculo»</strong>, <strong class="ui">«Sector circular»</strong>, <strong class="ui">«Círculo de orificios»</strong> (un disco con orificios), <strong class="ui">«Triángulo»</strong>, <strong class="ui">«Hexágono»</strong>, un <strong class="ui">«Polígono»</strong> y una <strong class="ui">«Estrella»</strong>. Haz clic en una para colocarla en el origen del boceto, o arrástrala desde el menú hasta donde la quieras. Al final del menú, <strong class="ui">«Lados / puntas»</strong> fija el número de lados del polígono y de puntas de la estrella, y <strong class="ui">«Medida interior de la estrella»</strong>, cuánto se adentran los valles de la estrella hacia el centro (del 10 al 90 % del radio exterior); los dos valores se aplican a la siguiente forma que añadas. Como cualquier forma de boceto, después son simples puntos de esquina, así que puedes moverlos, redondearlos o achaflanarlos uno a uno. El rectángulo empieza con la anchura y la profundidad fijadas para la caja en <strong class="ui">«Valores iniciales de las formas»</strong>, en los ajustes, y el círculo y la elipse, con la anchura del cilindro; sin un valor propio, y en las demás formas, empiezan con 20 mm de lado a lado.</li><li><strong>Superponer:</strong> Si pones dos contornos cerrados uno encima del otro, siguen siendo dos cuerpos, que se fusionan en el Editor 3D; la zona en común no es un orificio. Un orificio solo sale de un contorno que queda entero dentro de otro. Al mover, las líneas no se unen donde se cruzan, así que puedes volver a separar las formas. En cambio, si dibujas una línea que cruza otras, layerling pone un punto en cada cruce.</li><li><strong>Selección:</strong> <strong class="ui">«Seleccionar»</strong> mueve puntos y líneas. Un clic dentro de un contorno cerrado selecciona el contorno entero, para que puedas arrastrarlo o cambiar su tamaño enseguida; dentro de un orificio, selecciona el orificio. El marco que rodea la selección tiene ocho tiradores: los de las esquinas cambian la anchura y la altura a la vez, y conservan las proporciones mientras mantienes pulsada <kbd>Mayús</kbd>. Los de los lados solo cambian una dirección. <strong class="ui">«Mantener proporciones»</strong>, en la barra que aparece, conserva las proporciones sin <kbd>Mayús</kbd>: las esquinas y los lados estiran entonces por igual en las dos direcciones, y si escribes una anchura o una altura, la otra cambia también. layerling recuerda esta opción. A su lado, <strong class="ui">«Bloquear»</strong> bloquea el contorno seleccionado, como un cuerpo bloqueado en el Editor 3D (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> hace lo mismo): ya no se puede mover, redimensionar, girar ni modificar, sus líneas se vuelven más pálidas y sus puntos grises, y los tiradores del marco se vuelven grises y ya no responden. Mientras está seleccionado, un clic en el candado de su esquina lo desbloquea. Aun así, pueden salir líneas de sus esquinas. <strong class="ui">«Desbloquear»</strong>, o volver a pulsar <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span>, lo libera. Las flechas curvas junto a las esquinas del marco giran toda la selección alrededor de su centro: la cifra sobre el puntero indica el ángulo, y con <kbd>Mayús</kbd> pulsada gira en pasos de 15°. Al girar aparece un anillo: con el puntero dentro, el giro se ajusta en pasos de 22,5°; fuera avanza en grados enteros, sea cual sea la cuadrícula. <kbd>R</kbd> gira 45° un contorno cerrado entero con cada pulsación. Haz clic en la etiqueta de la anchura o de la altura para escribir un tamaño nuevo, también como suma («60+12,5») o en porcentaje («150%»). Los campos X e Y de la barra sobre el boceto muestran dónde está el centro de la selección, en mm desde el origen del boceto; escribe un valor y se mueve justo allí, por ejemplo un orificio a 12 mm del centro. Y cuenta hacia arriba, como en el editor 3D. Con <kbd>Mayús</kbd> pulsada, un clic en un punto o en una línea lo añade a la selección o lo vuelve a quitar, así que puedes elegir varios y moverlos juntos. Arrastra un recuadro sobre una zona vacía para seleccionar todo lo que quede dentro. Con dos o más contornos seleccionados, la barra también los alinea: a la izquierda, al centro o a la derecha, y arriba, al centro o abajo, respecto al marco que los rodea a todos. Cada contorno se mueve entero y conserva su forma; centrados en los dos sentidos, dos círculos forman un anillo. Un contorno bloqueado se queda donde está, y los demás se alinean con él. También se puede arrastrar una línea (se mueve por sus dos extremos o, si forma parte de una selección, se mueve la selección entera). Las teclas de flecha mueven la selección un paso de cuadrícula, y con <kbd>Mayús</kbd>, uno mayor; y si mantienes pulsada <kbd>Mayús</kbd> mientras arrastras, el movimiento se limita a un eje. <strong class="ui">«Añadir o quitar puntos»</strong>: un clic en un tramo añade un punto y un clic en un punto lo quita. Además están <strong class="ui">«Borrar»</strong> (un clic en un punto o en una línea lo quita, una ventana arrastrada sobre varios quita todo lo que hay dentro y, si hay algo seleccionado, el botón borra la selección) y la inserción de una imagen de plantilla (<strong class="ui">«Añadir imagen»</strong>). Cuando quitas un punto, layerling une sus dos vecinos para que el contorno siga cerrado. Para cerrar un hueco, por ejemplo después de borrar un lado de un hexágono, arrastra un extremo abierto hasta el otro: se engancha ahí y los dos se convierten en un solo punto, así que el contorno vuelve a quedar cerrado. En un cruce, como donde una línea corta un círculo, se unen los tramos que continúan en la misma dirección: arco con arco, línea con línea, y el círculo sigue siendo redondo. Para quitar solo un trozo de un círculo, por ejemplo para una esquina redondeada, haz clic con el borrador justo en ese trozo de arco entre dos puntos; el resto se queda.</li><li><strong>Portapapeles:</strong> <strong class="ui">«Copiar»</strong>, <strong class="ui">«Pegar»</strong>, <strong class="ui">«Duplicar»</strong> y <strong class="ui">«Eliminar»</strong> actúan sobre los puntos, las líneas y las imágenes seleccionados, igual que en el Editor 3D; <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span> corta. Lo que pegas o duplicas aparece junto al original, a 10 mm de distancia, en un hueco libre donde no toca ninguna línea existente, de modo que nunca se une a lo que ya hay. Se queda seleccionado, para que puedas arrastrarlo directamente a su sitio.</li><li><strong>Historial:</strong> <strong class="ui">«Deshacer en el boceto»</strong> y <strong class="ui">«Rehacer en el boceto»</strong>.</li><li><strong><strong class="ui">«Controles de la vista del boceto»</strong>:</strong> <strong class="ui">«Nota»</strong> (o <kbd>N</kbd>) coloca una nota en el boceto, como en el editor 3D: el siguiente clic la coloca, en cualquier lugar, también sobre una línea. Arrastra la chincheta para moverla; un clic en la chincheta pliega la tarjeta. Las notas de un boceto pertenecen a su cuerpo: en la vista 3D se sitúan encima de un cuerpo extruido o barrido y sobre el perfil dibujado de uno de revolución, y se mueven con él. Al volver a abrir el boceto se muestran todas las notas del cuerpo, también las colocadas en 3D. <strong class="ui">«Deshacer en el boceto»</strong> deshace una nota como una línea, y <strong class="ui">«Cancelar»</strong> descarta lo que cambió en las notas. Más en el capítulo Medidas y notas.</li><li><strong>Vista:</strong> La desplazas con el botón central del ratón, o con <kbd>Mayús</kbd> o <kbd>Ctrl</kbd> y el botón derecho, como en el Editor 3D. Sin nada seleccionado, <kbd>Ctrl</kbd> y las flechas también la desplazan: una décima parte de la imagen por pulsación, o la mitad si además pulsas <kbd>Mayús</kbd>; el boceto se mueve hacia donde apuntan. <kbd>Inicio</kbd> encuadra el boceto entero, <kbd>F</kbd> hace zoom sobre la selección (sin selección, sobre todo el boceto), y <kbd>+</kbd> y <kbd>−</kbd> acercan y alejan, como en el Editor 3D. Sin nada seleccionado, un doble clic en un sitio vacío desliza la vista para que ese sitio quede en el centro, como en el Editor 3D; <strong class="ui">«El doble clic en el plano de trabajo centra allí la vista»</strong> en los ajustes lo desactiva. La <strong class="ui">«Cinta métrica»</strong> de la barra de herramientas del boceto mide la distancia entre dos puntos. Además, el boceto muestra medidas en cuanto haces clic en algo: la longitud de una línea o, en un punto, las longitudes de las líneas que se juntan en él. El botón <strong class="ui">«Mostrar medidas»</strong> de la barra de herramientas del boceto oculta y muestra estas medidas cuando estorban, por ejemplo mientras das forma a curvas; la cinta métrica sigue funcionando. En una línea recta puedes hacer clic en la etiqueta de la medida y escribir la longitud en milímetros; <kbd>Intro</kbd> la aplica y <kbd>Esc</kbd> cancela. La línea mantiene su dirección, su punto inicial se queda donde está y las líneas del otro extremo la siguen. Si tienes seleccionado un extremo, se mueve ese. <span dir="ltr"><kbd>Alt</kbd>+<kbd>Intro</kbd></span> alarga la línea por los dos lados a partir de su centro. En las curvas, la etiqueta solo muestra la longitud.</li></ul>
+<p>Un cuerpo solo sale de un contorno <strong>cerrado</strong>.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-outline.webp" alt="Un contorno en forma de L. En el punto de esquina seleccionado, arriba a la izquierda, aparecen las longitudes de las dos líneas en milímetros y el ángulo entre ellas en grados." width="1280" height="800" loading="lazy"><figcaption>Un contorno en forma de L. En el punto de esquina seleccionado, arriba a la izquierda, aparecen las longitudes de las dos líneas en milímetros y el ángulo entre ellas en grados.</figcaption></figure>
+<p>Las teclas del <kbd>1</kbd> al <kbd>4</kbd> eligen las herramientas de dibujo, en el orden de la barra: <strong class="ui">«Línea»</strong>, <strong class="ui">«Curva de Bézier»</strong>, <strong class="ui">«Curva suave»</strong> y <strong class="ui">«Añadir o quitar puntos»</strong>. Funcionan mientras no estés dibujando una línea; si lo estás, las cifras son su longitud (lo verás a continuación). Con la herramienta <strong class="ui">«Seleccionar»</strong> y líneas o puntos seleccionados, esas mismas teclas los cambian: <kbd>1</kbd> hace rectas las líneas y convierte los puntos en esquinas, <kbd>2</kbd> convierte las líneas en curvas y <kbd>3</kbd> suaviza los puntos. Sin nada seleccionado, eligen la herramienta como siempre. <kbd>5</kbd> elige <strong class="ui">«Mano alzada»</strong>.</p>
+</section><section class="guide-part"><h2 id="lineas-a-medida"><span class="heading-alias" id="lines-by-numbers"></span>Líneas a medida</h2>
+<p>Una vez colocado el primer punto con <strong class="ui">«Línea»</strong> o <strong class="ui">«Curva suave»</strong>, basta con escribir un número: junto a la línea se abren dos campos, <strong class="ui">«Longitud»</strong> en milímetros y <strong class="ui">«Ángulo»</strong> en grados. <kbd>&lt;</kbd> o <kbd>Tab</kbd> pasa al ángulo, así que «50&lt;30» da una línea de 50 mm a 30°, como en AutoCAD. <kbd>Intro</kbd> fija el punto y puedes escribir la siguiente línea enseguida; <kbd>Esc</kbd> cierra los campos sin terminar la cadena de líneas.</p>
+<p>El ángulo se cuenta desde la derecha en sentido antihorario: 0° hacia la derecha, 90° hacia arriba, 180° hacia la izquierda y 270° hacia abajo. Si lo dejas vacío, la línea sigue al puntero: das solo la longitud y marcas la dirección con el ratón. En los dos campos funcionan sumas como «40+12,5». Si el punto fuera a quedar fuera de la hoja, el campo te lo dice y espera otro valor.</p>
+</section><section class="guide-part"><h2 id="curvar-un-lado-recto"><span class="heading-alias" id="curving-a-straight-side"></span>Curvar un lado recto</h2>
+<p>Selecciona una línea recta y haz clic en <strong class="ui">«Curvar línea»</strong> en la barra que aparece: el lado se arquea y se convierte en una curva, como en Tinkercad, y muestra sus dos tiradores. Arrástralos para dar forma a la curva; cuanto más se aleja un tirador, más se curva. Bajo el puntero, un tirador se vuelve naranja y también recoge un clic justo al lado, para que una imagen de plantilla debajo no se mueva por error. <strong class="ui">«Línea recta»</strong> vuelve a dejar recto el lado. Un punto seleccionado se puede redondear con <strong class="ui">«Curva suave»</strong>: recibe sus propios tiradores y las líneas contiguas se convierten en curvas. Con tres o más puntos seleccionados, <strong class="ui">«Curva por puntos»</strong> en la barra traza una sola curva suave desde el primero hasta el último, pasando por cada punto intermedio, tal como la dibuja la herramienta <strong class="ui">«Curva suave»</strong>; las líneas más allá de los dos extremos quedan como estaban. En otros programas se llama «Fit curve» o «Fit point spline». La diferencia: <strong class="ui">«Curvar línea»</strong> curva cada lado seleccionado por separado y mantiene las esquinas entre ellos, para un arco en un lado; <strong class="ui">«Curva por puntos»</strong> pasa una sola curva por los puntos sin dejar esquinas, para suavizar un borde dentado calcado. Haz clic en un tirador y se ilumina: las teclas de flecha lo mueven entonces un paso de cuadrícula, y con <kbd>Mayús</kbd>, un paso mayor, así que puedes ajustar una curva con precisión.</p>
+<p>Los valores también se pueden escribir. Un punto seleccionado muestra <strong class="ui">«X»</strong> y <strong class="ui">«Y»</strong> en la barra: dónde está, en mm desde el origen del boceto, con Y contando hacia arriba. Haz clic en un tirador y la barra muestra en su lugar <strong class="ui">«Tirador X»</strong> y <strong class="ui">«Tirador Y»</strong>: dónde está el tirador respecto a su propio punto. En un punto suave, el tirador opuesto gira con él. Da al tirador correspondiente del otro lado la misma Y y la X con el signo contrario, y la curva sale exactamente simétrica; <strong class="ui">«Reflejar»</strong> refleja toda una mitad de una vez.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-curve.webp" alt="El lado inferior del contorno en forma de L, curvado, con sus dos tiradores en los extremos." width="1280" height="800" loading="lazy"><figcaption>El lado inferior del contorno en forma de L, curvado, con sus dos tiradores en los extremos.</figcaption></figure>
+</section><section class="guide-part"><h2 id="leer-y-escribir-angulos"><span class="heading-alias" id="reading-and-typing-angles"></span>Leer y escribir ángulos</h2>
+<p>Haz clic en un punto de esquina donde se juntan <strong>dos líneas rectas</strong>: junto a las longitudes, layerling muestra en grados el <strong>ángulo</strong> que forman, con un pequeño arco. En un contorno cerrado es el ángulo interior de la forma, así que en un entrante pasa de 180°. Haz clic en el valor y escribe un ángulo nuevo. Una de las dos líneas gira entonces alrededor de la esquina y conserva su longitud, y la otra se queda donde está. La línea que gira se dibuja discontinua; <kbd>Tab</kbd> cambia a la otra, <kbd>Intro</kbd> aplica y <kbd>Esc</kbd> cancela. Lo que cuelga del otro extremo de la línea girada se mueve con ella.</p>
+<p>Un punto bloqueado se queda donde está, y un valor escrito lo respeta: una longitud mueve el extremo libre de la línea y un ángulo gira la línea cuyo otro extremo está libre. También se puede bloquear un solo punto: selecciónalo y pulsa <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span>. Así puedes dejar un contorno exacto esquina a esquina: bloquea una esquina, escribe la longitud y el ángulo de la línea siguiente, bloquea su extremo y continúa.</p>
+<p>Al mover un punto cambian tres ángulos: el del propio punto y los de las dos esquinas vecinas, en el otro extremo de sus líneas. Por eso layerling muestra también esos dos, y en cada uno puedes hacer clic y escribir. Así puedes poner, por ejemplo, la esquina inferior izquierda a 75,5° mientras tienes seleccionado el punto superior izquierdo, que es el que se mueve para conseguirlo. Aquí también puedes hacer cálculos, como «90-14,5».</p>
+<p>Una esquina no muestra ningún ángulo si llega a ella una curva o si se juntan en ella más de dos líneas. El botón <strong class="ui">«Mostrar medidas»</strong> de la barra de herramientas del boceto oculta el ángulo junto con las longitudes.</p>
+</section><section class="guide-part"><h2 id="redondear-o-achaflanar-esquinas"><span class="heading-alias" id="rounding-or-chamfering-corners"></span>Redondear o achaflanar esquinas</h2>
+<p>Haz clic en un punto de esquina y elige <strong class="ui">«Redondear esquina»</strong> o <strong class="ui">«Achaflanar esquina»</strong>. Aparece un pequeño campo para el <strong class="ui">«Radio»</strong> o la <strong class="ui">«Distancia»</strong>. Escribe la medida y confírmala con la marca de verificación. Funciona en esquinas entre dos líneas rectas.</p>
+<p>También puedes hacer varias esquinas a la vez: selecciónalas con <kbd>Mayús</kbd> y un clic en cada una, o arrastra un marco a su alrededor, y elige <strong class="ui">«Redondear esquina»</strong> o <strong class="ui">«Achaflanar esquina»</strong> en la barra que aparece. Todas reciben el mismo radio o la misma distancia. Cuando dos esquinas seleccionadas comparten un lado, cada una ocupa como mucho el 45 % de él, así que un rectángulo redondeado por completo queda igual en todas sus esquinas. Los puntos que no son una esquina entre dos líneas rectas se dejan fuera, y el mensaje dice cuántos son. Un marco alrededor de una forma entera, o un clic dentro de ella, selecciona a la vez sus esquinas y sus líneas, y la barra ofrece entonces, además de las herramientas de esquinas, <strong class="ui">«Curvar línea»</strong> y <strong class="ui">«Línea recta»</strong> para todas las líneas seleccionadas.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-fillet.webp" alt="La esquina superior izquierda se redondea con un radio de 12 mm." width="1280" height="800" loading="lazy"><figcaption>La esquina superior izquierda se redondea con un radio de 12 mm.</figcaption></figure>
+</section><section class="guide-part"><h2 id="reflejar"><span class="heading-alias" id="mirroring"></span>Reflejar</h2>
+<p>Selecciona puntos y líneas (con un clic, con <kbd>Mayús</kbd> y clic, o arrastrando un marco a su alrededor) y haz clic en <strong class="ui">«Reflejar»</strong> en la barra. Después elige el eje: <strong class="ui">«Izquierda-derecha»</strong> refleja respecto al eje vertical que pasa por el centro de la hoja; <strong class="ui">«Arriba-abajo»</strong>, respecto al horizontal, y <strong class="ui">«Respecto a una línea»</strong>, respecto a una línea recta del boceto en la que haces clic a continuación. La copia se añade al otro lado y el original se queda; no hay ningún vínculo, así que puedes cambiar cada uno por separado. Los puntos que están sobre el eje se comparten, de modo que medio contorno con los extremos sobre el eje se convierte en un único contorno cerrado: dibuja la mitad de un soporte, selecciónala, refléjala y haz el cuerpo. Una línea de construcción sirve muy bien de eje. <kbd>Esc</kbd> cancela.</p>
+</section><section class="guide-part"><h2 id="lineas-de-construccion"><span class="heading-alias" id="construction-lines"></span>Líneas de construcción</h2>
+<p>Una línea de construcción te ayuda a colocar puntos sin formar parte del cuerpo. Se dibuja discontinua y nunca cuenta como contorno: puedes alargarla todo lo que quieras más allá de la forma sin que el cuerpo crezca.</p>
+<ul><li>Activa <strong class="ui">«Línea de construcción»</strong> en el grupo <strong class="ui">«Dibujar»</strong>. Las líneas nuevas, también las que escribes a medida, son entonces líneas de construcción. El mismo botón te devuelve a las líneas normales.</li><li>Una línea ya dibujada se convierte en auxiliar si haces clic en ella y eliges <strong class="ui">«Construcción»</strong>. <strong class="ui">«Convertir en línea»</strong> la vuelve a convertir en una línea normal.</li><li>Los puntos nuevos se ajustan a los cruces de una línea de construcción con otra línea (lo indica un anillo azul) y a los extremos de la línea de construcción. Así pones una esquina en un punto medio, a una distancia fija de un lado o en un cruce, sin hacer cálculos.</li><li>Los puntos nuevos también se ajustan al punto medio de cada línea recta del boceto, al centro de cada círculo y de cada esquina redondeada, y a los puntos medios de los lados de un cuerpo que se vea debajo (#624). Un punto que estás arrastrando no tiene en cuenta el punto medio de sus propias líneas.</li><li>Una selección que arrastras se ajusta por su centro (#1236): el centro de un círculo o de un rectángulo cae en los extremos, esquinas y puntos medios de las demás líneas, en los centros de los círculos, donde se cruzan las líneas auxiliares y en las esquinas de un cuerpo debajo; un anillo azul muestra dónde. Una forma que arrastras desde <strong class="ui">«Añadir forma de boceto»</strong> también cae con su centro en esos puntos. Mantén <kbd>Alt</kbd> para quedarte solo en la cuadrícula.</li><li><strong class="ui">«Línea desde el centro»</strong>, en el grupo <strong class="ui">«Dibujar»</strong>, dibuja una línea a partir de su centro: haz clic primero en el centro y luego en el extremo, y la línea se prolonga lo mismo hacia el otro lado. El centro pasa a ser un punto más. Vuelve a hacer clic en el botón para dibujar líneas normales.</li><li>Una línea de construcción no corta el contorno donde lo cruza. En una revolución también puede quedar a la derecha del eje.</li></ul>
+</section><section class="guide-part"><h2 id="convertirlo-en-un-cuerpo"><span class="heading-alias" id="making-a-body-from-it"></span>Convertirlo en un cuerpo</h2>
+<p>Haz clic en <strong class="ui">«Terminar boceto»</strong>. El contorno queda como un cuerpo sobre el plano de trabajo. En sus ajustes cambias la altura, el color y todo lo demás, como en cualquier otra forma. Si cambias su tamaño, layerling lo reconstruye a partir del boceto un momento después, y el boceto crece con él. Así sigue siendo un cuerpo exacto que admite chaflanes y redondeos, y la próxima vez que lo edites, el boceto tendrá el tamaño que tiene el cuerpo.</p>
+<p>Si el plano de trabajo está sobre un lateral de un cuerpo, dibujas tal como ves ese lateral: lo que está arriba en el boceto también queda arriba en el cuerpo terminado. El contorno tenue del cuerpo en la vista del boceto muestra dónde está. Si el plano de trabajo atraviesa un cuerpo, la vista del boceto muestra en su lugar el contorno de ese corte, de modo que un cuerpo vaciado aparece como un anillo y puedes alinear el boceto con sus paredes. Un punto que colocas o arrastras cerca de una esquina de estos contornos se ajusta exactamente a ella; lo indica un pequeño anillo azul. Así llevas al boceto aristas de otros cuerpos, aunque el plano de trabajo no esté justo sobre ellas. Para calcar sobre lo que ya tienes hecho, activa <strong class="ui">«Mostrar las piezas por transparencia: todas sus aristas sobre el plano del boceto»</strong> (el botón de las capas, entre los botones de vista de la izquierda): todas las aristas de los cuerpos se dibujan entonces sobre el plano del boceto, finas y tenues, como si miraras a través de ellos, estén a la altura que estén. Un plano vertical, colocado por ejemplo sobre una cara frontal, muestra así la vista de frente. La elección se guarda en el navegador.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-result.webp" alt="El contorno se ha convertido en un cuerpo. La esquina está redondeada." width="1280" height="800" loading="lazy"><figcaption>El contorno se ha convertido en un cuerpo. La esquina está redondeada.</figcaption></figure>
+<p>Con <strong class="ui">«Editar boceto»</strong> puedes volver al boceto en cualquier momento para cambiarlo. Un doble clic en el cuerpo hace lo mismo, como en Tinkercad (un cuerpo bloqueado no se abre); la opción <strong class="ui">«El doble clic abre el boceto»</strong>, en los ajustes, lo desactiva. Eso sí, los chaflanes y redondeos que ya hubieras hecho en el cuerpo se pierden, porque las aristas se crean de nuevo. Un cuerpo que hayas girado o movido en el editor 3D se abre donde está sobre la placa, girado como lo ves allí y sobre la cuadrícula de la placa; solo un cuerpo inclinado o reflejado se abre en su propia orientación.</p>
+<p>Un boceto con varios contornos da un solo cuerpo, y los contornos que se superponen se fusionan en él. Para que cada contorno vaya por su cuenta, selecciona el cuerpo y haz clic en <strong class="ui">«Separar piezas»</strong>: cada contorno exterior pasa a ser un cuerpo independiente, con los orificios que tiene dentro, y conserva la altura, el color y la posición del cuerpo. Cada pieza tiene su propio boceto para editar, con las líneas de construcción, así que puedes subir o bajar las piezas una a una y después unirlas o restarlas. Los chaflanes y redondeos lo impiden, igual que haber estirado el cuerpo después: en ese caso se separa como malla.</p>
+<p><strong>Otro tipo de cuerpo a partir del mismo boceto:</strong> el indicador de la parte de arriba del boceto dice en qué se va a convertir: <strong class="ui">«Boceto de extrusión»</strong>, <strong class="ui">«Boceto de revolución»</strong> o <strong class="ui">«Boceto de barrido»</strong>. Haz clic en él y elige otro, también mientras editas un cuerpo existente: un SVG importado, que llega extruido, se convierte en un jarrón o en un pomo si lo cambias a <strong class="ui">«Boceto de revolución»</strong>. Un contorno que cruza el eje se desplaza a la izquierda hasta que su extremo derecho queda sobre el eje, así que la media sección de un SVG gira alrededor de su lado recto; <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> deshace el desplazamiento. Al terminar, el cuerpo nuevo ocupa el lugar del anterior, con su nombre y su color, y con la base a la misma altura. Los chaflanes y redondeos se pierden, como en cualquier edición de un boceto.</p>
+<section class="guide-part"><h3 id="revolucion"><span class="heading-alias" id="revolving"></span>Revolución</h3>
+<p>En una revolución, dibujas media sección <strong>a la izquierda del eje</strong> que aparece en el boceto. Al lado ves una vista previa en 3D de la revolución, que muestra al instante cómo será el cuerpo. Puedes girarla, desplazarla y acercarla con el ratón; el botoncito de su esquina superior derecha, o un doble clic sobre ella, recupera la vista inicial. El contorno tiene que estar cerrado; si no, construye la línea abierta como trazo (lo verás más abajo). Al final, haz clic en <strong class="ui">«Terminar revolución»</strong>. Los demás cuerpos del diseño se ven de frente, en la misma vista que el perfil, con el eje en el centro: dibuja el perfil al lado o encima de ellos. El cuerpo queda donde lo dibujaste, y la línea horizontal que pasa por el centro del boceto es el suelo: un perfil dibujado por encima de ella da un cuerpo que queda más alto, y su punto más bajo es la base del cuerpo.</p>
+<p>Un cuerpo de revolución es un cuerpo exacto, igual que uno extruido: admite chaflanes y redondeos, y puedes vaciarlo para hacer un vaso o un jarrón. Un cuerpo de revolución hecho con una versión antigua de layerling es una malla; abre <strong class="ui">«Editar boceto»</strong> y vuelve a terminarlo para que sea exacto. Un perfil que cruza el eje no se puede construir de forma exacta y se convierte en una malla, como antes.</p>
+<p><strong>Caras redondas más suaves: <strong class="ui">«Suavidad»</strong>.</strong> Un cuerpo de revolución exacto se divide en pequeñas facetas planas para la vista, la exportación y la impresión, y en una maceta grande pueden verse en la impresión. Selecciona el cuerpo y pon <strong class="ui">«Suavidad»</strong> en el panel de propiedades en <strong class="ui">«Fina»</strong> o <strong class="ui">«Muy fina»</strong>: las caras redondas se dividen más finamente, a cambio de más triángulos y un diseño más lento. Una hélice o una revolución de malla tiene <strong class="ui">«Lados»</strong> para esto.</p>
+<p><strong>Una hebra continua: <strong class="ui">«Paso»</strong>.</strong> Una revolución convierte su contorno en anillos cerrados. Selecciona el cuerpo de revolución y, en el panel de propiedades, dale a <strong class="ui">«Paso»</strong> un valor mayor que 0, que es lo que sube en cada vuelta: el contorno se enrolla entonces en hélice, como una hebra continua, igual que el filamento en una bobina o una espiral. El ajuste <strong class="ui">«Amplitud»</strong> pasa a ser <strong class="ui">«Vueltas»</strong>, hasta 200; un número negativo enrolla a izquierdas. Si las vueltas están más juntas de lo que mide de alto el contorno, se funden en un solo cuerpo, así que también funciona un núcleo macizo con un paso fino. Una hélice se construye como malla, así que no admite redondeos, chaflanes ni vaciado; con muchas vueltas, mantén bajo el valor de <strong class="ui">«Lados»</strong>. Un paso de 0 vuelve a dar anillos.</p>
+</section></section><section class="guide-part"><h2 id="barrer-a-lo-largo-de-una-trayectoria"><span class="heading-alias" id="sweeping-along-a-path"></span>Barrer a lo largo de una trayectoria</h2>
+<p><strong class="ui">«Boceto de barrido»</strong> hace avanzar un contorno a lo largo de una trayectoria: una canaleta para cables que dobla una esquina, un conducto, un protector alrededor de una correa, un anillo alrededor de un hexágono. Está junto a <strong class="ui">«Extruir boceto»</strong> y <strong class="ui">«Revolucionar boceto»</strong>, en el grupo <strong class="ui">«Crear»</strong>.</p>
+<p>Dibujas dos cosas en la misma hoja:</p>
+<ul><li><strong>La sección</strong>, como un contorno cerrado, igual que siempre. Dibújala tal como la verías si miraras a lo largo de la trayectoria desde su inicio: lo que va de lado a lado de la trayectoria es la izquierda y la derecha del boceto, y arriba es arriba en el cuerpo terminado. Una sección hueca, la de una canaleta o la de un tubo, es un contorno con otro dentro. De forma predeterminada, la sección se centra en la trayectoria. El menú que hay junto al indicador de arriba te deja poner en su lugar su borde izquierdo o derecho sobre la trayectoria (<strong class="ui">«Por el borde izquierdo»</strong>, <strong class="ui">«Por el borde derecho»</strong>, mirando a lo largo de la trayectoria), para que un carril quede a un lado de la línea o siga el borde de una pieza. El cuerpo se apoya en el plano del boceto por el punto más bajo de la sección.</li></ul>
+<ul><li><strong>La trayectoria</strong>, como una <strong class="ui">«Línea de construcción»</strong>: actívala y dibuja líneas o curvas, en una sola cadena, abierta o cerrada (una cadena cerrada da un anillo). La trayectoria queda plana en el plano del boceto.</li></ul>
+<p>Dibuja la sección cerca del extremo de la trayectoria por el que debe empezar; la trayectoria empieza en el extremo que le queda más cerca. Después haz clic en <strong class="ui">«Terminar barrido»</strong>. Una esquina formada por tramos rectos se convierte en un inglete, una curva sigue siendo suave, y la sección se mantiene vertical durante todo el recorrido. El cuerpo es exacto, como uno extruido: admite redondeos, chaflanes y la exportación a STEP. Si falta un contorno cerrado o una trayectoria, o si hay varias trayectorias separadas, layerling te lo dice. Con <strong class="ui">«Editar boceto»</strong> puedes volver al boceto y cambiar la sección o la trayectoria.</p>
+</section><section class="guide-part"><h2 id="construir-como-trazo"><span class="heading-alias" id="building-as-a-stroke"></span>Construir como trazo</h2>
+<p>Normalmente, el cuerpo es la superficie que hay dentro de un contorno cerrado. Con <strong class="ui">«Trazo»</strong>, en la sección <strong class="ui">«Terminar»</strong>, construyes en cambio la propia línea, con la anchura que elijas. Marca <strong class="ui">«Construir como trazo»</strong> en la ventana del trazo; el boceto muestra enseguida lo que va a salir.</p>
+<ul><li>Un <strong>contorno cerrado</strong> se convierte en un marco. <strong class="ui">«Posición»</strong> indica dónde queda la pared: <strong class="ui">«Centrado»</strong>, sobre la línea dibujada; <strong class="ui">«Dentro»</strong>, por dentro, o <strong class="ui">«Fuera»</strong>, por fuera. Por fuera viene bien para una tolerancia: dibuja el contorno de un orificio, por ejemplo una cola de milano, y dale un trazo exterior de 0,2 mm para conseguir la holgura que necesita la pieza impresa.</li><li>Una <strong>línea abierta</strong> se convierte en una franja centrada en la línea. <strong class="ui">«Extremos»</strong> fija cómo son sus extremos: <strong class="ui">«Planos»</strong>, <strong class="ui">«Cuadrados»</strong> (más larga en media anchura) o <strong class="ui">«Redondeados»</strong>.</li><li><strong class="ui">«Esquinas»</strong> vale para los dos casos: <strong class="ui">«En punta»</strong>, <strong class="ui">«Redondeadas»</strong> o <strong class="ui">«Biseladas»</strong>.</li></ul>
+<p>El boceto conserva la línea dibujada. Si lo vuelves a abrir, sigues cambiando la línea y el trazo; si desmarcas la casilla, se vuelve a construir la superficie. Para ello, las curvas se dividen en tramos rectos cortos.</p>
+<p>En una revolución, el trazo es una pared fina: dibuja la pared de un jarrón o de un vaso como <strong>una sola línea abierta</strong> a la izquierda del eje, activa <strong class="ui">«Trazo»</strong> y fija la anchura, y la revolución hace girar esa banda. Lo que cruza el eje se recorta en él.</p>
+</section><section class="guide-part"><h2 id="relleno-y-silueta"><span class="heading-alias" id="fill-and-silhouette"></span>Relleno y silueta</h2>
+<p>También puedes fijar el trazo sin abrir el boceto: en las propiedades de un cuerpo de boceto, elige <strong class="ui">«Superficie»</strong>, <strong class="ui">«Trazo exterior»</strong>, <strong class="ui">«Trazo interior»</strong> o <strong class="ui">«Trazo centrado»</strong> en <strong class="ui">«Relleno»</strong>, junto con <strong class="ui">«Grosor de línea»</strong> y <strong class="ui">«Esquinas»</strong>. El cuerpo se vuelve a construir al momento, donde está. Equivalen a los modos de relleno de la importación de SVG de Tinkercad: predeterminado, línea exterior y línea interior. <strong class="ui">«Más ancho»</strong> mantiene la superficie rellena y la agranda por todo el contorno en la anchura de la línea, con esquinas vivas, redondeadas o biseladas: es la capa base bajo un logotipo para una impresión multicolor, que con el trazo exterior por sí solo saldría como un anillo. <strong class="ui">«Más estrecho»</strong> hace lo contrario: la superficie sigue rellena y su borde se desplaza hacia dentro en la anchura de la línea por todo el contorno, orificios incluidos (que crecen). Usa las dos opciones en copias de un mismo boceto para que algo encaje: el orificio a su tamaño dibujado y la pieza que pasa por él, con <strong class="ui">«Más estrecho»</strong> de 0,5 mm, o una pared dentro de una forma recortada con el mismo contorno. Una anchura mayor de la que admite el contorno no deja nada. En la ventana de trazo del boceto, estas dos mismas opciones están en <strong class="ui">«Posición»</strong>. Con un trazo exterior, interior o centrado, <strong class="ui">«Filo»</strong> afila la parte de arriba de la pared: se estrecha hasta esa anchura con un chaflán de 45° por los dos lados, como en un cortador de galletas. Con 0, la parte de arriba queda plana; el filo se mantiene cuando cambias la anchura de la línea.</p>
+<p><strong class="ui">«Silueta (sin orificios)»</strong> deja fuera todos los contornos que quedan dentro de otro: los orificios y lo que haya dentro de ellos. Solo queda el contorno exterior. Junto con <strong class="ui">«Trazo exterior»</strong> sirve para hacer un cortador de galletas: importa un SVG dos veces, una con la silueta como superficie para la base y otra con la silueta y entre 1 y 2 mm de trazo exterior para la pared. Esta opción también está en la ventana <strong class="ui">«Trazo»</strong> del modo de boceto.</p>
+<p>Los redondeos y chaflanes de las aristas se pierden cuando el cuerpo se vuelve a construir, igual que al editar el boceto.</p>
+</section><section class="guide-part"><h2 id="paredes-inclinadas-para-sellos"><span class="heading-alias" id="slanted-walls-for-stamps"></span>Paredes inclinadas, para sellos</h2>
+<p>Un boceto extruido tiene las paredes verticales. Un sello, una matriz para estampar en relieve o un punzón las necesitan inclinadas, por fuera y por dentro, con el mismo grosor de pared en todo el recorrido. layerling no tiene ángulo de desmoldeo para la extrusión, pero con contornos sencillos lo consigues con <strong class="ui">«Estrechamiento»</strong>. Un método que funciona:</p>
+<ol><li>Dibuja el contorno con el orificio que necesita y haz un cuerpo con él. Duplica el cuerpo (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span>).</li><li>En el primer cuerpo, activa <strong class="ui">«Silueta (sin orificios)»</strong>, para que el orificio quede relleno, y con <strong class="ui">«Estrechamiento»</strong> dale una base más ancha que la parte de arriba.</li><li>En la copia, vuelve a abrir su boceto y elimina el contorno exterior, de modo que solo quede el contorno del orificio. Termina el boceto, cambia el cuerpo a <strong class="ui">«Orificio»</strong> y con <strong class="ui">«Estrechamiento»</strong> dale una base más estrecha que la parte de arriba.</li><li>Mete el orificio en el primer cuerpo, donde estaba el orificio, y agrupa los dos.</li></ol>
+<p>Ahora las paredes están inclinadas por fuera y por dentro. Esta opción escala el contorno entero, así que el resultado es exacto en formas sencillas, en las que puedes elegir las medidas para que las paredes queden paralelas, y solo aproximado en detalles finos como las letras.</p>
+</section><section class="guide-part"><h2 id="una-imagen-como-plantilla"><span class="heading-alias" id="a-picture-as-template"></span>Una imagen como plantilla</h2>
+<p>Con <strong class="ui">«Añadir imagen»</strong> pones una foto o un dibujo debajo del boceto y lo calcas. Puedes ajustar su tamaño, su opacidad y su posición. Cuando la imagen esté bien colocada, bloquéala con <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> para no moverla sin querer mientras dibujas. Una imagen bloqueada no estorba: los clics la atraviesan, así que puedes elegir líneas y puntos que estén encima y arrastrar un marco sobre ellos. Un clic en el candado de su esquina la desbloquea; <kbd>Alt</kbd>+clic la selecciona sin desbloquearla. Si sus ajustes, en el borde derecho, tapan la imagen, apártalos arrastrándolos por la barra de título; con un doble clic en ella vuelven a acoplarse.</p>
+<p>En <strong class="ui">«Alinear»</strong> enderezas una foto que salió torcida:</p>
+<ul><li><strong><strong class="ui">«Rotación»</strong>:</strong> Gira la imagen alrededor de su centro, con las flechas curvas junto a sus esquinas o escribiendo los grados. Con <kbd>Mayús</kbd>, las flechas se ajustan en pasos de 15°. Dentro del anillo que aparece al girar se ajustan en pasos de 22,5°, fuera en grados enteros.</li><li><strong><strong class="ui">«A X = 0»</strong></strong> y <strong><strong class="ui">«A Y = 0»</strong>:</strong> colocan el centro de la imagen en X = 0 o en Y = 0. En una revolución, X = 0 es el eje, así que la imagen queda simétrica respecto a él.</li><li><strong><strong class="ui">«Calibrar»</strong>:</strong> Su botón está arriba, justo debajo de la vista previa. Haz clic en dos puntos de la imagen cuya distancia conozcas, como los extremos de una regla o un diámetro conocido, y escribe la distancia real. La imagen se escala por igual para que esa distancia sea correcta; el primer punto se queda donde estaba.</li><li><strong><strong class="ui">«Recortar»</strong>:</strong> Los tiradores del marco recortan ahora la imagen en lugar de escalarla; lo recortado se guarda y vuelve con <strong class="ui">«Mostrar la imagen entera»</strong> o al volver a estirar un tirador hacia fuera.</li></ul>
+<p>Las cuatro actúan solo sobre la imagen de plantilla, nunca sobre el boceto.</p>
+<p><strong><strong class="ui">«Calcar»</strong></strong>, en los ajustes de la imagen, pone los puntos por ti: calca el contorno de la forma de la imagen (una silueta, un logotipo, una palabra) y lo muestra en rojo sobre ella, con puntos cuadrados para las esquinas y redondos para los puntos suaves. <strong class="ui">«Forma oscura»</strong> o <strong class="ui">«Forma clara»</strong> elige qué parte de la imagen es la forma, <strong class="ui">«Umbral»</strong> dónde lo oscuro pasa a claro, <strong class="ui">«Puntos»</strong> cuántos puntos reciben los contornos en total (menos dan curvas más suaves, más siguen la imagen más de cerca), <strong class="ui">«Esquina a partir de»</strong> a partir de qué giro un punto es una esquina, <strong class="ui">«Omitir motas de hasta»</strong> por debajo de qué tamaño se descarta una mota, y <strong class="ui">«Conservar orificios»</strong> conserva el centro de una A o una O. <strong class="ui">«Aplicar»</strong> pone los contornos en el boceto justo donde está la imagen, con su tamaño, giro y recorte, y los deja seleccionados: son puntos normales para mover, curvar o quitar, y <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> los deshace en un paso. Funciona mejor con buen contraste; recorta antes una foto con un fondo recargado. Lo que se descarta (alrededor de los contornos, en los orificios, lo que se recorta) la vista previa lo cubre con el color de la placa, así que de la imagen solo se ve lo que queda. Los contornos tan juntos que unas curvas sueltas se cruzarían reciben más puntos solos; la tarjeta lo indica. Para un borde por fuera o por dentro del contorno, da al cuerpo de boceto un trazo por fuera o por dentro de sus líneas, o desplaza el cuerpo terminado.</p>
+<p>Para una foto (un juguete sobre una mesa blanca, por ejemplo), elige <strong><strong class="ui">«Objeto»</strong></strong> en <strong class="ui">«Forma»</strong>: el fondo es el color del borde de la imagen, y todo lo que destaca de él se convierte en un solo contorno, sean cuales sean sus colores; <strong class="ui">«Umbral»</strong> fija entonces lo claramente que debe destacar. Una imagen colorida sobre un fondo uniforme empieza así. <strong class="ui">«Elegir zonas»</strong> contornea más: haz clic en una zona de la imagen, una ventana por ejemplo, y se contornea la mancha de color parecido alrededor del punto (<strong class="ui">«Tolerancia de color»</strong> fija lo parecido). Los orificios y las zonas en las que has hecho clic aparecen en <strong class="ui">«Orificios y zonas»</strong>; al señalar uno se ve en la vista previa, ✕ lo quita, y con <strong class="ui">«Restar»</strong> desactivado se dibuja como línea de construcción en vez de como orificio. Una zona que llega al borde de la imagen es el fondo y no se toma. Lo que ningún umbral ni color distingue (una sombra tan oscura como las ruedas de encima) lo quita <strong class="ui">«Recortar»</strong>: haz clic en las esquinas a su alrededor (un clic en la primera esquina, un doble clic o <kbd>Intro</kbd> lo cierra), y el contorno sigue el corte; aparece como «Recorte 1».</p>
+<p>El árbol junto a una casa, una figura ante un fondo recargado: donde ningún color separa la forma del resto, el <strong><strong class="ui">«Lazo magnético»</strong></strong> la atrapa: haz clic aproximadamente a lo largo de su borde, y entre dos clics la línea sigue el borde sola, también en sus curvas; mientras mueves el puntero, la vista previa ya muestra por dónde irá. Un clic en el primer punto, un doble clic o <kbd>Intro</kbd> lo cierra, y <kbd>Esc</kbd> lo descarta. Aparece como «Lazo 1», con la elección <strong class="ui">«Añadir»</strong> (la zona se une a la forma) o <strong class="ui">«Recortar»</strong> (se quita); cada corte tiene la misma elección. En <strong class="ui">«Forma»</strong>, <strong><strong class="ui">«Solo lazo»</strong></strong> hace la forma solo con lo que atrapes así, sin nada más de la imagen.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/trace-house.webp" alt="Una casa dibujada, calcada como objeto, con el umbral bajado por su pared clara: el lazo magnético ha recortado el árbol, y los ocho cristales de las ventanas están elegidos como orificios." width="1280" height="800" loading="lazy"><figcaption>Una casa dibujada, calcada como objeto, con el umbral bajado por su pared clara: el lazo magnético ha recortado el árbol, y los ocho cristales de las ventanas están elegidos como orificios.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/trace-house-body.webp" alt="La casa como cuerpo: sin el árbol y con las ventanas atravesadas." width="1280" height="800" loading="lazy"><figcaption>La casa como cuerpo: sin el árbol y con las ventanas atravesadas.</figcaption></figure>
+</section><section class="guide-part"><h2 id="teclas-en-el-modo-de-boceto"><span class="heading-alias" id="keys-in-sketch-mode"></span>Teclas en el modo de boceto</h2>
+<div class="table-scroll"><table><thead><tr><th>Tecla</th><th>Efecto</th></tr></thead><tbody><tr><td><kbd>Esc</kbd></td><td>soltar la herramienta de notas; si no, soltar la herramienta (volver a <strong class="ui">«Seleccionar»</strong>) y, después, quitar la selección</td></tr><tr><td><kbd>Supr</kbd></td><td>eliminar el elemento seleccionado</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>C</kbd></span></td><td>copiar la selección</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span></td><td>cortar la selección</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>V</kbd></span></td><td>pegar</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span></td><td>duplicar la selección</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span></td><td>deshacer</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span></td><td>seleccionar todos los puntos y líneas</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>I</kbd></span></td><td><strong class="ui">«Añadir imagen»</strong></td></tr><tr><td><kbd>Mayús</kbd></td><td>al dibujar: ajustar la línea en pasos de 15°; al arrastrar: limitar el movimiento a un eje</td></tr><tr><td>cifra, <kbd>&lt;</kbd>, <kbd>Tab</kbd>, <kbd>Intro</kbd></td><td>al dibujar: escribir y fijar la longitud y el ángulo de la línea siguiente</td></tr><tr><td><kbd>R</kbd></td><td>girar 45° el boceto cerrado</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span></td><td>bloquear o desbloquear el contorno seleccionado o la imagen de plantilla</td></tr><tr><td><kbd>N</kbd></td><td>colocar una nota: el siguiente clic la pone en el boceto</td></tr><tr><td><span dir="ltr"><kbd>Mayús</kbd>+<kbd>N</kbd></span></td><td>mostrar u ocultar las notas</td></tr></tbody></table></div>
+<aside class="tip"><p><strong>Consejo:</strong> Dibuja solo los puntos que hagan falta. Un contorno con pocos puntos bien colocados da un cuerpo más suave que una maraña de muchos.</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/guia-es/edges-and-hollowing.html"><small>Capítulo anterior</small>Romper aristas y vaciar cuerpos</a><a class="next" href="/api/desktop/layerling/ui/guia-es/text.html"><small>Capítulo siguiente</small>Texto y letras en arco</a></div>
+      </main>
+    </div>
+    <footer class="note">Esta guía crece con el programa. Si falta algo o algo no es correcto, dínoslo en las <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discusiones</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=es" rel="noopener">Apoyar el proyecto</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Foro</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Más en GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Novedades v1.154.1</a></div><p class="trademark">Tinkercad es una marca comercial de Autodesk, Inc. layerling es un proyecto independiente: no está afiliado a Autodesk ni cuenta con su respaldo o su patrocinio.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Volver al editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Abrir el editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

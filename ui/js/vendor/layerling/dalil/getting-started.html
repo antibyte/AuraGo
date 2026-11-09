@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>البدء - دليل استخدام layerling</title>
+    <meta name="description" content="من صفحة فارغة إلى قطعتك الأولى للطابعة ثلاثية الأبعاد، في خمس دقائق، بدون حساب ودون الحاجة إلى تثبيت أي شيء.">
+    <link rel="canonical" href="https://layerling.com/dalil/getting-started.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/getting-started.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/getting-started.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/getting-started.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/erste-schritte.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/getting-started.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/getting-started.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/getting-started.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/getting-started.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/aan-de-slag.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/getting-started.html">
+    <link rel="alternate" hreflang="pt-PT" href="https://layerling.com/guia-pt-pt/getting-started.html">
+    <link rel="alternate" hreflang="pt-BR" href="https://layerling.com/guia/getting-started.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/prvi-koraki.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/getting-started.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/getting-started.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/getting-started.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/getting-started.html">
+    <meta property="og:title" content="البدء - دليل استخدام layerling">
+    <meta property="og:description" content="من صفحة فارغة إلى قطعتك الأولى للطابعة ثلاثية الأبعاد، في خمس دقائق، بدون حساب ودون الحاجة إلى تثبيت أي شيء.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/dalil/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">دليل الاستخدام</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/dalil/search-index.json" data-nothing="لم يُعثر على شيء." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="ابحث في الدليل" aria-label="ابحث في الدليل" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="اللغة">العربية</summary><ul><li><a href="/api/desktop/layerling/ui/guide/getting-started.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/getting-started.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/getting-started.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/erste-schritte.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/getting-started.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/getting-started.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/getting-started.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/getting-started.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/aan-de-slag.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/getting-started.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/getting-started.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/getting-started.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/prvi-koraki.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/getting-started.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/getting-started.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/getting-started.html" hreflang="ar" lang="ar" aria-current="true">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/getting-started.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/getting-started.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/getting-started.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">افتح المحرّر</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>المحرّر مفتوح بالفعل في علامة تبويب أخرى، فانتقل إليها.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="الفصول"><h2>الفصول</h2><p class="print-link"><a href="/api/desktop/layerling/ui/dalil/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>الدليل كاملًا للطباعة</span></a></p><ol><li><a href="/api/desktop/layerling/ui/dalil/getting-started.html" aria-current="page">البدء</a></li><li><a href="/api/desktop/layerling/ui/dalil/view-and-workplane.html">العرض وسطح العمل</a></li><li><a href="/api/desktop/layerling/ui/dalil/shapes.html">وضع الأشكال وضبطها</a></li><li><a href="/api/desktop/layerling/ui/dalil/select-and-arrange.html">التحديد والترتيب</a></li><li><a href="/api/desktop/layerling/ui/dalil/solids-and-holes.html">الأجسام الصلبة والثقوب</a></li><li><a href="/api/desktop/layerling/ui/dalil/edges-and-hollowing.html">كسر الحواف وتفريغ الأجسام</a></li><li><a href="/api/desktop/layerling/ui/dalil/sketches.html">الرسومات التخطيطية: من الحد الخارجي إلى الجسم</a></li><li><a href="/api/desktop/layerling/ui/dalil/text.html">النص والكتابة المنحنية</a></li><li><a href="/api/desktop/layerling/ui/dalil/threads-and-mechanics.html">الأسنان اللولبية والتروس والأجزاء الأخرى</a></li><li><a href="/api/desktop/layerling/ui/dalil/measuring-and-notes.html">القياس والملاحظات</a></li><li><a href="/api/desktop/layerling/ui/dalil/printing.html">التحضير للطباعة ثلاثية الأبعاد</a></li><li><a href="/api/desktop/layerling/ui/dalil/files-and-saving.html">الملفات والحفظ والمشاركة</a></li><li><a href="/api/desktop/layerling/ui/dalil/shortcuts.html">اختصارات لوحة المفاتيح</a></li><li><a href="/api/desktop/layerling/ui/dalil/ai-with-mcp.html">البناء باستخدام الذكاء الاصطناعي (MCP)</a></li><li><a href="/api/desktop/layerling/ui/dalil/offline-and-install.html">التثبيت كتطبيق والعمل دون اتصال والاستضافة الذاتية</a></li><li><a href="/api/desktop/layerling/ui/dalil/videos.html">مقاطع فيديو عن layerling</a></li><li><a href="/api/desktop/layerling/ui/dalil/tablet-and-touch.html">الأجهزة اللوحية واللمس</a></li></ol></nav>
+      <main>
+<h1>البدء</h1>
+<p class="lead">من صفحة فارغة إلى قطعتك الأولى للطابعة ثلاثية الأبعاد، في خمس دقائق، بدون حساب ودون الحاجة إلى تثبيت أي شيء.</p>
+<div class="toc"><b>في هذه الصفحة</b><ul><li><a href="#creating-a-design">إنشاء تصميم</a></li><li><a href="#the-editor-at-a-glance">لمحة سريعة عن المحرر</a></li><li><a href="#the-buttons-around-the-work-area">الأزرار حول منطقة العمل</a></li><li><a href="#your-first-part">قطعتك الأولى</a></li><li><a href="#new-since-your-last-visit">الجديد منذ زيارتك الأخيرة (New since your last visit)</a></li><li><a href="#from-design-to-print">من التصميم إلى الطباعة</a></li></ul></div>
+<p>layerling برنامج تصميم للطباعة ثلاثية الأبعاد يعمل مباشرة في متصفحك. تبني القطعة من أشكال بسيطة، وتقطع فيها ثقوبًا، وتدوّر حوافها، ثم ترسلها إلى برنامج التقطيع (Slicer). لا حاجة إلى تثبيت أي شيء ولا إلى إنشاء حساب. ما تبنيه يبقى على جهازك.</p>
+<figure><img src="/api/desktop/layerling/ui/dalil/img/start-page.webp" alt="الصفحة الرئيسية لـlayerling: «إنشاء تصميم ثلاثي الأبعاد جديد» في الأعلى، وتصاميمك والدليل السريع في الأسفل." width="1280" height="800" loading="lazy"><figcaption>الصفحة الرئيسية لـlayerling: «إنشاء تصميم ثلاثي الأبعاد جديد» في الأعلى، وتصاميمك والدليل السريع في الأسفل.</figcaption></figure>
+<section class="guide-part"><h2 id="creating-a-design">إنشاء تصميم</h2>
+<p>افتح <a href="https://layerling.com/" rel="noopener">layerling.com</a>. في الصفحة الرئيسية انقر على <strong class="ui">«إنشاء تصميم ثلاثي الأبعاد جديد»</strong>. يفتح المحرر بسطح عمل فارغ، وهو الشبكة التي يتشكل عليها كل شيء.</p>
+<p>إذا كان لديك ملف بالفعل وتريد المتابعة منه، فاستخدم <strong class="ui">«فتح تصميم أو استيراد أشكال هندسية»</strong>. يعمل ذلك مع تصاميم layerling (<code>.lyl</code>) وكذلك مع ملفات STL أو OBJ أو 3MF أو STEP أو SVG.</p>
+<p>تظهر جميع تصاميمك لاحقًا في الصفحة الرئيسية مع صورة معاينة. تُحفظ في مساحة تخزين متصفحك، ويجري حفظها تلقائيًا بعد كل تغيير، لذا لا يوجد زر حفظ. <strong>لا يتحمل layerling أي مسؤولية عن التصاميم المحفوظة في المتصفح.</strong> قد يتعطل المتصفح، أو قد يتسبب تحديثه في مشكلات، لذا احتفظ بنسخة احتياطية من تصاميمك من وقت لآخر باستخدام <strong class="ui">«نسخ احتياطي للكل»</strong> في الصفحة الرئيسية، أو احفظها كملفات. وتستعيد النسخة الاحتياطية بـ<strong class="ui">«استعادة نسخة احتياطية»</strong>. يشرح فصل <a href="/api/desktop/layerling/ui/dalil/files-and-saving.html">الملفات والحفظ</a> كيفية جمع التصاميم في ملف ومشاركتها مع الآخرين. إذا أردت تذكيرًا، فعّل <strong class="ui">«السؤال قبل إغلاق علامة التبويب»</strong> في الإعدادات (ترس الشريط): سيسأل المتصفح حينها قبل إغلاق علامة تبويب بها تصميم مفتوح أو إعادة تحميلها.</p>
+</section><section class="guide-part"><h2 id="the-editor-at-a-glance">لمحة سريعة عن المحرر</h2>
+<figure><img src="/api/desktop/layerling/ui/dalil/img/editor-areas.webp" alt="المحرر مع مناطقه المسماة: الشريط في الأعلى، ومكعب العرض وتحته شريط العرض، وبجانبهما رسالة الحالة وقائمة الأجسام، وخصائص الشكل المحدد في الجهة الأخرى." width="1280" height="800" loading="lazy"><figcaption>المحرر مع مناطقه المسماة: الشريط في الأعلى، ومكعب العرض وتحته شريط العرض، وبجانبهما رسالة الحالة وقائمة الأجسام، وخصائص الشكل المحدد في الجهة الأخرى.</figcaption></figure>
+<ul><li><strong>في الأعلى</strong> يوجد <strong>الشريط</strong>، وهو مرتب حسب المهام: <strong class="ui">«الحافظة»</strong> و<strong class="ui">«السجل»</strong> و<strong class="ui">«الأشكال»</strong> و<strong class="ui">«الرؤية»</strong> و<strong class="ui">«دمج»</strong> و<strong class="ui">«تعديل»</strong> و<strong class="ui">«ترتيب»</strong> و<strong class="ui">«ملف»</strong>؛ و<strong class="ui">«مساعدة»</strong> فوقه في صف العنوان، والمنزل بجانب علامات التبويب يعيدك إلى صفحة البداية. عندما تكون النافذة أضيق من أن تتسع لكل المجموعات، تنطوي الأقل استخدامًا في زر واحد تحت اسمها، يتدلى تحته سهم صغير بلون المجموعة: أشِر إليه أو المسه فتنفتح أدواته تحته. و<strong class="ui">«السجل»</strong> المطوية هي الاستثناء: زرها هو <strong class="ui">«تراجع»</strong> نفسه، والسهم تحته وحده يفتح <strong class="ui">«إعادة»</strong> والباقي. أما الدبوس في أعلى اليمين، على يسار العدسة، فيُبقي كل المجموعات مفتوحة بدلًا من ذلك. مرّر المؤشر فوق أي أيقونة لترى اسمها، حتى الرمادية منها؛ و<strong class="ui">«المساعدة التفاعلية»</strong> (علامة الاستفهام تحت <strong class="ui">«مساعدة»</strong>، أو Shift+F1) يشرح أيًّا منها بنقرة ويقودك إلى قسمها في هذا الدليل. أينما رأيت علامة استفهام صغيرة، مثلًا في خصائص الشكل أو في مكتبة الأشكال أو في نوافذ الأدوات، فإنها تقودك مباشرة إلى الفصل المطابق من هذا الدليل. مجموعة <strong class="ui">«تعديل»</strong> مقسّمة إلى أربعة أقسام، واسم كل قسم فوق أدواته: <strong class="ui">«انعكاس ونمط»</strong> و<strong class="ui">«تقسيم وتشكيل»</strong> و<strong class="ui">«حواف وجدران»</strong> و<strong class="ui">«السطح»</strong>. ويقول الرمز الرمادي أيضًا ما الذي ينتظره، مثل <strong class="ui">«حدّد جسمًا واحدًا»</strong> أو <strong class="ui">«التحديد مقفل: ألغِ القفل أولًا»</strong>. لا تجد أداة؟ اضغط <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span> واكتب اسمها؛ ويذكّرك التصميم الفارغ بذلك أسفل العرض.</li><li><strong>في الوسط</strong> يقع سطح العمل. هنا تضع الأشكال، وتسحبها لتأخذ شكلها، وترى النتيجة.</li><li><strong>على اليمين</strong> تظهر <strong>لوحة الخصائص</strong> للشكل المحدد: اللون والأبعاد والموضع وكل ما يحدد هذا الشكل. إدخال الأرقام أدق من السحب.</li><li><strong>على اليسار</strong> يوجد شريط العرض ومكعب العرض فوقه. تتيح لك التنقل حول المشهد، والمزيد عنها في فصل <a href="/api/desktop/layerling/ui/dalil/view-and-workplane.html">العرض وسطح العمل</a>.</li><li><strong>بجانب شريط العرض</strong> تُفتح <strong>قائمة الأجسام</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>U</kbd></span>) وفيها كل أشكال التصميم. المزيد في <a href="/api/desktop/layerling/ui/dalil/select-and-arrange.html">التحديد والترتيب</a>.</li><li><strong>بجانب مكعب العرض</strong> تظهر <strong>رسالة الحالة</strong> عندما يكون لدى layerling ما يخبرك به، مثل ما تنتظره منك الأداة الآن. وحين لا يوجد ما يُقال لا تظهر.</li><li><strong>نوافذ الأدوات</strong> تُفتح فوق سطح العمل عندما تبدأ أداة مثل التنعيم أو النمط أو التفريغ. اسحبها من شريط عنوانها جانبًا إذا غطّت شيئًا.</li><li><strong>في أعلى الصفحة تمامًا</strong> تنتقل بين <strong class="ui">«المحرر ثلاثي الأبعاد»</strong> و<strong class="ui">«رسم تخطيطي»</strong>، وتغيّر اسم التصميم، وتختار اللغة ونظام الألوان.</li></ul>
+</section><section class="guide-part"><h2 id="the-buttons-around-the-work-area">الأزرار حول منطقة العمل</h2>
+<p>مرّر المؤشر فوق زر لترى اسمه. وإن لم تكن متأكدًا مما يفعله زر، فانقر في منطقة <strong class="ui">«مساعدة»</strong> على <strong class="ui">«المساعدة التفاعلية»</strong> (<span dir="ltr"><kbd>Shift</kbd>+<kbd>F1</kbd></span>) ثم على الزر. هنا الأزرار التي يُسأل عنها أكثر من غيرها.</p>
+<section class="guide-part"><h3 id="paste">لصق</h3>
+<p><strong class="ui">«لصق»</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>V</kbd></span>) يضيف إلى التصميم ما نسخته بـ <strong class="ui">«نسخ»</strong>. <strong class="ui">«تكرار»</strong> ينسخ ويلصق في خطوة واحدة. ويضع اللصق كل جزء بجانب مكانه الأصلي بقليل. أما الأجزاء القادمة من برنامج آخر فقد تقع بعيدًا عن اللوحة، ولها <strong class="ui">«اللصق في المنتصف والإسقاط»</strong> في الإعدادات، تحت <strong class="ui">«المظهر»</strong>: عندها يضع اللصق الأجزاء معًا في منتصف سطح العمل ويُسقطها عليه.</p>
+</section><section class="guide-part"><h3 id="delete">حذف</h3>
+<p><strong class="ui">«حذف»</strong> (<kbd>Delete</kbd>) يزيل الأشكال المحددة. <strong class="ui">«تراجع»</strong> يعيدها.</p>
+</section><section class="guide-part"><h3 id="ungroup">فك التجميع</h3>
+<p><strong class="ui">«فك التجميع»</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span>) يفكّ المجموعة المحددة من جديد إلى الأشكال التي صُنعت منها.</p>
+</section><section class="guide-part"><h3 id="workspace-settings">إعدادات مساحة العمل</h3>
+<p><strong class="ui">«إعدادات مساحة العمل»</strong> يفتح إعدادات منطقة العمل: الوحدة وحجم اللوحة والطابعة والشبكة والألوان والإضاءة وغيرها. المزيد في <a href="/api/desktop/layerling/ui/dalil/view-and-workplane.html">العرض وسطح العمل</a>.</p>
+</section><section class="guide-part"><h3 id="theme">نظام الألوان</h3>
+<p><strong class="ui">«نظام الألوان»</strong> في أعلى الصفحة يحدد مظهر layerling: كنظامك أو فاتحًا أو داكنًا أو بلون الغرافيت.</p>
+</section><section class="guide-part"><h3 id="rename-design">إعادة تسمية التصميم</h3>
+<p><strong class="ui">«إعادة تسمية التصميم»</strong>: القلم بجانب الاسم في أعلى الصفحة. اكتب الاسم الجديد واضغط <kbd>Enter</kbd>.</p>
+</section><section class="guide-part"><h3 id="design-name">اسم التصميم</h3>
+<p>اسم التصميم (<strong class="ui">«اسم التصميم»</strong>) في أعلى الصفحة. انقر عليه واكتب، و<kbd>Enter</kbd> يثبّت الاسم.</p>
+</section><section class="guide-part"><h3 id="visibility-options">خيارات الرؤية</h3>
+<p><strong class="ui">«خيارات الرؤية»</strong>، السهم بجانب أيقونة العين، يضم ما يمكنك إظهاره أو إخفاؤه: قائمة الأجسام وكل ما أخفيته والملاحظات وبروزات الطباعة. المزيد في <a href="/api/desktop/layerling/ui/dalil/select-and-arrange.html">التحديد والترتيب</a>.</p>
+</section><section class="guide-part"><h3 id="hide-selected">إخفاء المحدد</h3>
+<p><strong class="ui">«إخفاء المحدد»</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>H</kbd></span>) يخفي الأشكال المحددة. تبقى في التصميم وفي قائمة الأجسام؛ و<strong class="ui">«خيارات الرؤية»</strong> يُظهرها من جديد.</p>
+</section><section class="guide-part"><h3 id="search-commands">البحث عن الأوامر</h3>
+<p><strong class="ui">«البحث عن الأوامر (Ctrl+K)»</strong>: اكتب ما تبحث عنه، أداة أو شكلًا أو إعدادًا، وانقر على النتيجة.</p>
+</section><section class="guide-part"><h3 id="hide-the-view-bar">إخفاء شريط العرض</h3>
+<p><strong class="ui">«إخفاء شريط العرض»</strong> يطوي شريط العرض على اليسار ويمنح منطقة العمل مساحة أكبر؛ و<strong class="ui">«إظهار شريط العرض»</strong> يعيدها.</p>
+</section><section class="guide-part"><h3 id="snap-grid">شبكة الالتقاط</h3>
+<p><strong class="ui">«شبكة الالتقاط»</strong>، في أسفل الخصائص، هو الخطوة التي يلتصق بها التحريك وتغيير الحجم. وبجانبه المفتاح الصغير <strong>mm | in</strong> يغيّر الوحدة. المزيد في <a href="/api/desktop/layerling/ui/dalil/view-and-workplane.html">العرض وسطح العمل</a>.</p>
+</section><section class="guide-part"><h3 id="unit-millimetres-or-inches">الوحدة: مليمتر أو بوصة</h3>
+<p>المفتاح <strong>mm | in</strong> بجانب <strong class="ui">«شبكة الالتقاط»</strong> يغيّر الوحدة وشبكة اللوحة وخطوة الالتصاق لهذا التصميم.</p>
+</section><section class="guide-part"><h3 id="the-footer">تذييل الصفحة</h3>
+<p>في أسفل النافذة: <strong class="ui">«دعم المشروع»</strong> يقود إلى الصفحة التي يمكنك فيها دعم المشروع؛ <strong class="ui">«دليل المستخدم»</strong> يفتح هذا الدليل؛ <strong class="ui">«المناقشات»</strong> يقود إلى مكان الأسئلة والأفكار وتقارير الأخطاء (النقاشات على GitHub، وبالألمانية منتدى drucktipps3d)؛ <strong class="ui">«تقرير عن خطأ»</strong> يصنع ملف ZIP لتقرير خطأ؛ <strong class="ui">«المزيد على GitHub»</strong> يقود إلى المشروع على GitHub، ورقم الإصدار يفتح ملاحظات الإصدار. روابط بيانات الناشر وسياسة الخصوصية تعود لمن يشغّل نسخة layerling التي تستخدمها.</p>
+</section></section><section class="guide-part"><h2 id="your-first-part">قطعتك الأولى</h2>
+<p>كمثال، سنبني مكعبًا فيه ثقب.</p>
+<ol><li>انقر على <strong class="ui">«إضافة شكل»</strong> في الشريط واختر <strong class="ui">«صندوق»</strong>. يعلق الشكل الآن بمؤشر الفأرة، ونقرة على سطح العمل تضعه في مكانه.</li><li>على اليمين، اضبط الأبعاد، مثلًا 40 مم طولًا و40 مم عرضًا و20 مم ارتفاعًا.</li><li>ضع <strong class="ui">«أسطوانة»</strong> في الوسط بالطريقة نفسها، بقطر 14 مم وارتفاع 30 مم. يجب أن تكون أطول من المكعب حتى تخترقه بالكامل.</li><li>حدد الأسطوانة وانقر على <strong class="ui">«ثقب»</strong> على اليمين. تصبح شفافة: تحوّل الجسم الصلب إلى أداة تزيل المادة.</li><li>حدد الشكلين كليهما وانقر على <strong class="ui">«تجميع»</strong>. أصبح في المكعب الآن ثقب.</li></ol>
+<figure><img src="/api/desktop/layerling/ui/dalil/img/hole-before.webp" alt="الأسطوانة ثقب، وهي تبرز من أعلى المكعب." width="1280" height="800" loading="lazy"><figcaption>الأسطوانة ثقب، وهي تبرز من أعلى المكعب.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/dalil/img/hole-after.webp" alt="بعد التجميع، أصبح في المكعب ثقب نافذ." width="1280" height="800" loading="lazy"><figcaption>بعد التجميع، أصبح في المكعب ثقب نافذ.</figcaption></figure>
+<p>هكذا تُصنع الثقوب النافذة والشقوق والجيوب. يشرح فصل <a href="/api/desktop/layerling/ui/dalil/solids-and-holes.html">الأجسام الصلبة والثقوب</a> ذلك بالتفصيل.</p>
+</section><section class="guide-part"><h2 id="new-since-your-last-visit">الجديد منذ زيارتك الأخيرة (New since your last visit)</h2>
+<p>عندما تفتح layerling مرة أخرى بعد تحديث، تعرض بطاقة في الصفحة الرئيسية ما أُضيف منذ زيارتك الأخيرة: كل إصدار منذ ذلك الحين، الأحدث أولًا. بعد غياب طويل يمكنك التمرير إلى الأسفل داخل البطاقة. وأسفلها، يضيف <strong class="ui">«عرض الإصدارات السابقة»</strong> الإصدارات التي سبقت زيارتك الأخيرة أيضًا. أغلقها بـ<strong class="ui">«فهمت»</strong> فلا تظهر مجددًا حتى التحديث التالي. ويعرض <strong class="ui">«ما الجديد؟»</strong> في تذييل الصفحة الرئيسية أحدث الإضافات مرة أخرى في أي وقت. يتذكر المتصفح آخر إصدار رأيته، ولا تخرج منه أي معلومات عنك.</p>
+<p>في نسخة من layerling على جهازك أو خادمك الخاص، يحتوي إشعار «يتوفر تحديث» على زر <strong class="ui">«معاينة: ماذا يتضمن التحديث؟»</strong> يعرض ما يتضمنه التحديث قبل أن تثبّته. لا تُجلب هذه القائمة من GitHub إلا عندما تضغط على الزر.</p>
+</section><section class="guide-part"><h2 id="from-design-to-print">من التصميم إلى الطباعة</h2>
+<p>عندما تنتهي من قطعتك، انقر على <strong class="ui">«تصدير»</strong>، واختر STL أو 3MF ونزّل الملف. افتحه في برنامج التقطيع لديك، مثل Bambu Studio أو PrusaSlicer أو OrcaSlicer أو Cura. إذا اخترت طابعتك في الإعدادات، يمكنك أن ترى أثناء البناء ما إذا كانت القطعة تتسع على سرير الطباعة. المزيد في فصل <a href="/api/desktop/layerling/ui/dalil/printing.html">الطباعة</a>.</p>
+<aside class="tip"><p><strong>نصيحة:</strong> إذا كنت قادمًا من Tinkercad فستجد طريقك بسرعة: سرير الطباعة والأشكال والجسم الصلب والثقب والتجميع والمحاذاة والانعكاس تعمل تقريبًا بالطريقة نفسها. أما الجديد فهو أساسًا شطف الحواف وتنعيمها، والتفريغ، والأسنان اللولبية، والرسومات التخطيطية (Sketches). يمكنك أيضًا نقل تصاميمك من Tinkercad، راجع <a href="/api/desktop/layerling/ui/dalil/files-and-saving.html">الملفات والحفظ والمشاركة</a>.</p></aside></section>
+<div class="pager"><a class="next" href="/api/desktop/layerling/ui/dalil/view-and-workplane.html"><small>الفصل التالي</small>العرض وسطح العمل</a></div>
+      </main>
+    </div>
+    <footer class="note">ينمو هذا الدليل مع البرنامج. إذا كان هناك شيء ناقص أو خاطئ، فأخبرنا في <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">النقاشات</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=ar" rel="noopener">دعم المشروع</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">المناقشات</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">المزيد على GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">ملاحظات الإصدار v1.154.1</a></div><p class="trademark">Tinkercad هي علامة تجارية لشركة Autodesk, Inc. برنامج layerling هو مشروع مستقل وليس تابعًا لشركة Autodesk أو مدعومًا منها.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="العودة إلى المحرّر";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="افتح المحرّر";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Bryd kanter og hul former - layerling brugervejledning</title>
+    <meta name="description" content="Fas og rund på valgte kanter, vægge med jævn tykkelse til kasser, krus og kabinetter.">
+    <link rel="canonical" href="https://layerling.com/vejledning/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/kanten-und-aushoehlen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/randen-en-uithollen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/robovi-in-izdolbljenje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/edges-and-hollowing.html">
+    <meta property="og:title" content="Bryd kanter og hul former - layerling brugervejledning">
+    <meta property="og:description" content="Fas og rund på valgte kanter, vægge med jævn tykkelse til kasser, krus og kabinetter.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/vejledning/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Brugervejledning</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/vejledning/search-index.json" data-nothing="Intet fundet." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Søg i vejledningen" aria-label="Søg i vejledningen" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Sprog">Dansk</summary><ul><li><a href="/api/desktop/layerling/ui/guide/edges-and-hollowing.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/edges-and-hollowing.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/edges-and-hollowing.html" hreflang="da" lang="da" aria-current="true">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/edges-and-hollowing.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/edges-and-hollowing.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/edges-and-hollowing.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/edges-and-hollowing.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/randen-en-uithollen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/edges-and-hollowing.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/edges-and-hollowing.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/edges-and-hollowing.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/robovi-in-izdolbljenje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/edges-and-hollowing.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/edges-and-hollowing.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/edges-and-hollowing.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/edges-and-hollowing.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/edges-and-hollowing.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/edges-and-hollowing.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Åbn editoren</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Editoren er allerede åben i en anden fane – skift bare til den.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Kapitler"><h2>Kapitler</h2><p class="print-link"><a href="/api/desktop/layerling/ui/vejledning/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Hele vejledningen, til udskrivning</span></a></p><ol><li><a href="/api/desktop/layerling/ui/vejledning/getting-started.html">Kom godt i gang</a></li><li><a href="/api/desktop/layerling/ui/vejledning/view-and-workplane.html">Visning og arbejdsplan</a></li><li><a href="/api/desktop/layerling/ui/vejledning/shapes.html">Placering og justering af former</a></li><li><a href="/api/desktop/layerling/ui/vejledning/select-and-arrange.html">Valg og arrangering</a></li><li><a href="/api/desktop/layerling/ui/vejledning/solids-and-holes.html">Solider og huller</a></li><li><a href="/api/desktop/layerling/ui/vejledning/edges-and-hollowing.html" aria-current="page">Bryd kanter og hul former</a></li><li><a href="/api/desktop/layerling/ui/vejledning/sketches.html">Skitser: fra omrids til form</a></li><li><a href="/api/desktop/layerling/ui/vejledning/text.html">Tekst og buede bogstaver</a></li><li><a href="/api/desktop/layerling/ui/vejledning/threads-and-mechanics.html">Gevind, tandhjul og andre dele</a></li><li><a href="/api/desktop/layerling/ui/vejledning/measuring-and-notes.html">Måling og noter</a></li><li><a href="/api/desktop/layerling/ui/vejledning/printing.html">Forberedelse til 3D-print</a></li><li><a href="/api/desktop/layerling/ui/vejledning/files-and-saving.html">Filer, lagring og deling</a></li><li><a href="/api/desktop/layerling/ui/vejledning/shortcuts.html">Tastaturgenveje</a></li><li><a href="/api/desktop/layerling/ui/vejledning/ai-with-mcp.html">Byg med en AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/vejledning/offline-and-install.html">Installér som app, arbejd offline og vær selv vært</a></li><li><a href="/api/desktop/layerling/ui/vejledning/videos.html">Videoer om layerling</a></li><li><a href="/api/desktop/layerling/ui/vejledning/tablet-and-touch.html">Tablet og touch</a></li></ol></nav>
+      <main>
+<h1>Bryd kanter og hul former</h1>
+<p class="lead">Fas og rund på valgte kanter, vægge med jævn tykkelse til kasser, krus og kabinetter.</p>
+<div class="toc"><b>På denne side</b><ul><li><a href="#fasning-og-runding-af-kanter">Fasning og runding af kanter</a></li><li><a href="#udhuling-af-former">Udhuling af former</a></li><li><a href="#et-lag-til-et-abent-legeme">Et låg til et åbent legeme</a></li><li><a href="#en-kabelkanal-gennem-et-legeme">En kabelkanal gennem et legeme</a></li><li><a href="#forskyd-legemer">Forskyd legemer</a></li><li><a href="#slet-flader">Slet flader</a></li></ul></div>
+<section class="guide-part"><h2 id="fasning-og-runding-af-kanter"><span class="heading-alias" id="chamfering-and-filleting-edges"></span>Fasning og runding af kanter</h2>
+<p>Skarpe kanter ser sjældent godt ud på en printet del, og de er heller ikke specielt stærke. En <strong>fas</strong> skærer kanten af i en vinkel, en <strong>rund</strong> afrunder den. Begge virker på de kanter du klikker.</p>
+<ol><li>Vælg formen (eller gruppen).</li><li>Klik på <strong class="ui">“Rund”</strong> eller <strong class="ui">“Fas”</strong> i båndet, tryk <kbd>B</kbd> for rund eller <span dir="ltr"><kbd>Shift</kbd>+<kbd>B</kbd></span> for fas, eller højreklik formen og vælg det fra menuen.</li><li>Formens kanter lyser op. Klik dem der skal berøres. Endnu et klik tager en kant ud igen. Med <kbd>Shift</kbd> tilføjer eller fjerner du en enkelt kant.</li><li>Sæt størrelsen og bekræft med <strong class="ui">“Anvend”</strong> eller <kbd>Enter</kbd>. Bagefter forbliver vinduet åbent på det nye legeme med samme størrelse, så den næste afrunding eller affasning kan følge med det samme; <strong class="ui">“Færdig”</strong>, <kbd>Esc</kbd> eller krydset lukker det. Med <kbd>Shift</kbd> eller <kbd>Ctrl</kbd> føjer et klik på <strong class="ui">“Topkanter”</strong>, <strong class="ui">“Bundkanter”</strong>, <strong class="ui">“Lodrette kanter”</strong> eller <strong class="ui">“Vandrette kanter”</strong> disse kanter til de valgte i stedet for at erstatte dem.</li></ol>
+<figure><img src="/api/desktop/layerling/ui/guide/img/fillet-preview.webp" alt="&quot;Rund kanter&quot;-værktøjet: alle skarpe kanter er valgt, billedet viser forhåndsvisningen med 4 mm radius." width="1280" height="800" loading="lazy"><figcaption>&quot;Rund kanter&quot;-værktøjet: alle skarpe kanter er valgt, billedet viser forhåndsvisningen med 4 mm radius.</figcaption></figure>
+<p>Værktøjsvinduet sidder øverst til højre. Hvis det dækker kanter du vil klikke, træk det væk i dets titellinje; det åbner dér næste gang også, og det samme gør <strong class="ui">“Hul”</strong> og <strong class="ui">“Mønster”</strong>. Dobbeltklik titellinjen for at sætte det tilbage.</p>
+<p>At vælge en form fra formlisten mens vinduet er åbent lukker det uden at anvende noget, og de kanter du klikkede glemmes. Klikket placerer så den nye form i stedet for at vælge kanter.</p>
+<p>I vinduet finder du:</p>
+<ul><li><strong class="ui">“Alle skarpe kanter”</strong> vælger alle kanter på én gang, <strong class="ui">“Ryd”</strong> tømmer markeringen.</li><li><strong><strong class="ui">“Radius”</strong></strong> for runding. For fas sætter du <strong class="ui">“Afstand”</strong> eller <strong class="ui">“Vinkel”</strong>.</li><li><strong class="ui">“Variabel radius”</strong> (kun for runding) lader radius ændre sig langs én kant: lille i den ene ende, større i den anden, jævnt imellem, som hvor en lige væg møder en skrå. Klik en enkelt kant, og sæt så <strong class="ui">“Radius i starten”</strong> og <strong class="ui">“Radius i enden”</strong>. Hvilken ende der tæller som starten, følger af hvordan kanten blev bygget; kommer den større radius ud i den forkerte ende, vender <strong class="ui">“Byt om enderne”</strong> den om. Det virker på én kant ad gangen, så rund flere kanter efter hinanden. <strong class="ui">“Redigér”</strong> tager begge værdier tilbage.</li><li><strong class="ui">“Konkav (skær ud)”</strong> (kun for runding) vender rundingen om: i stedet for at afrunde kanten skærer den en skål ud af den, der er et kvarter af en cirkel, som de indhakkede hjørner på en kasse. Skålen er en cylinder med den valgte <strong class="ui">“Radius”</strong> der ligger langs kanten, så den virker ved enhver vinkel mellem fladerne, men kun på lige kanter, og ikke sammen med <strong class="ui">“Variabel radius”</strong>. <strong class="ui">“Redigér”</strong> tager den tilbage.</li><li><strong class="ui">“Skarp-kant-tærskel”</strong> bestemmer hvilke kanter der overhovedet tæller som skarpe. En værdi på 25° behandler kun klare knæk som kanter og lader flade overgange være.</li><li><strong class="ui">“Lodrette kanter”</strong> vælger de kanter der står lige op, som hjørnerne af en kasse: én runding runder så alle de lodrette hjørner på én gang.</li><li><strong class="ui">“Topkanter”</strong> vælger kun kanterne langs den allerøverste top af formen. Det er den hurtige vej til en småkageudstikker: byg omridset i en skitse som en streg, fas så topkanterne. <strong class="ui">“Vinkel”</strong> sætter hvor stejl faser er; den kan ikke nå længere end væggen er tyk.</li><li><strong class="ui">“Bundkanter”</strong> vælger kun kanterne langs den allernederste bund af formen, modstykket til <strong class="ui">“Topkanter”</strong>. Det er den hurtige vej til kun at afrunde eller affase foden på en del.</li><li><strong class="ui">“Chamfillet”</strong>, valgt øverst i affasningsvinduet ved siden af <strong class="ui">“Fas”</strong>, laver den printbare fod på en del: en affasning ved pladen, der går tangentielt over i en afrunding mod væggen, så de første lag ikke behøver støtte, og kanten alligevel ender blødt. <strong class="ui">“Afstand”</strong> er den højde, foden fylder, <strong class="ui">“Vinkel”</strong> (15° til 75°) hvor stejl affasningen er ved pladen. Kanterne vælger du med <strong class="ui">“Bundkanter”</strong>.</li><li><strong class="ui">“Kun synlige kanter”</strong> skjuler kanterne der ligger bag formen fra hvor du kigger. Som standard vises hver kant igennem formen, hvilket bliver forvirrende på en travl del; med kontakten til ser du, og kan klikke, kun de kanter der vender mod dig. Drej visningen for at nå de andre. En kant tegnet i rødt (se nedenfor) vises altid.</li><li><strong class="ui">“Et klik vælger også kanter der fortsætter glat”</strong>: et klik vælger så også kanter der glat flyder ind i hinanden, for eksempel alle kanter rundt om en flade med rundede hjørner. Kontakten bestemmer kun hvad et klik vælger: CAD-kernen fører altid en fas eller rund med videre langs sådanne glat fortsættende kanter. Vinduet fortæller dig langs hvor mange flere kanter det sker.</li><li><strong class="ui">“Bevar kantstørrelse ved størrelsesændring”</strong> bevarer fasen eller runding som den er, selvom du skalerer formen senere.</li><li><strong class="ui">“Forhåndsvisningskvalitet”</strong> (<strong class="ui">“Kladde”</strong>, <strong class="ui">“Standard”</strong> eller <strong class="ui">“Fin”</strong>) bestemmer hvor fint forhåndsvisningen beregnes. For vanskelige dele er <strong class="ui">“Kladde”</strong> hurtigere.</li><li>Vinduet husker sine indstillinger i denne browser, ét sæt hver for affasning, afrunding og affasning med afrunding: størrelse, vinkel, tærskel, forhåndsvisningens kvalitet og kontakterne bliver, som du forlod dem, efter <strong class="ui">“Anvend”</strong>, efter en fortrydelse og næste gang du åbner værktøjet. En størrelse, kroppen ikke kan rumme, viger for den, der regnes ud fra kroppen. Kun <strong class="ui">“Et klik vælger også kanter der fortsætter glat”</strong> starter forfra: til ved en krops første affasning eller afrunding, derefter fra.</li></ul>
+<p>Mens du justerer størrelsen, genberegner layerling forhåndsvisningen. Det kan tage et øjeblik. Du må blive ved med at justere; den sidste værdi du valgte er det der beregnes.</p>
+<p>Hvis størrelsen er for stor til kanten, siger layerling det og foreslår en mindre værdi. Ofte gør et eller to millimeter mindre det. Ved skarpe vinkler har en rund brug for mere plads end dens radius antyder. På en lille skærm ruller vinduet selv ned så beskeden er i syne.</p>
+<p>Når en markering der virkede fejler efter du klikker én kant mere, bliver den kant rød og tegnes bredere: det er den der ikke kan behandles sammen med de andre ved denne størrelse. Klik den igen for at tage den ud, eller gør størrelsen mindre. Klikker du flere kanter mens beskeden står, bliver den første ved med at være rød. Når der ikke er en tidligere markering der virkede - det allerførste klik, eller en størrelse du lige hævede - bliver kanterne der fejler selv alene røde, eller alle sammen hvis det kun er deres kombination.</p>
+<p>En afrunding langs en buet kant har en grænse mere. Hvor kanten bøjer udad på legemet tættere end radiussen, som ved spidsen af en dråbe tegnet i en skitse eller hentet ind som SVG, kan afrundingen ikke følge bøjningen. layerling siger så, hvor tæt den skarpeste bøjning er, og tegner kanterne med den røde. Vælg en mindre radius, eller tegn bøjningen rundere. Et skarpt hjørne er ikke sådan en bøjning: to kanter mødes der, og hver afrundes for sig. Afrund derfor topkanterne, før du afrunder et hjørne med en lille radius: det afrundede hjørne ville være en tæt bøjning for toppen.</p>
+<p>Før den giver op, prøver layerling én gang til med de korte kanter ved enderne af de valgte, højst dobbelt så lange som størrelsen. Sådan en sidder, hvor en tidligere fas ender på en væg, der stadig er skarp: en kort skrå kant i hjørnet, og så længe den er skarp, kan hjørnet ikke bearbejdes. Hjælper det, er de kanter bagefter også valgt, og en besked fortæller, hvor mange der blev taget med. Og hvor de valgte kanter mødes i et spidst indvendigt hjørne, som to skiver i en sky, har en runding ikke plads i nogen størrelse: så runder layerling de hjørner først, med samme eller en mindre størrelse, og beskeden siger hvor mange og hvor meget (en fas faser dem).</p>
+<p>Kanten under markøren tegnes også bredere, så du kan se hvilken et klik vil vælge.</p>
+<p>Et hul tager også <strong class="ui">“Fas”</strong> og <strong class="ui">“Rund”</strong>, og det samme gør <strong class="ui">“Hul”</strong>, <strong class="ui">“Forskydning”</strong> og <strong class="ui">“Slet flade”</strong>: det forbliver et hul og skærer med sin nye form. Afrundes de fire lodrette kanter på et kassehul, får du en lomme med runde indvendige hjørner, og et hul gjort større med <strong class="ui">“Forskydning”</strong> skærer med så meget mere luft. Kanten, hvor et hul møder delen, bearbejder du i stedet på den færdige gruppe: den kant hører til den.</p>
+<section class="guide-part"><h3 id="tage-en-kantbehandling-tilbage"><span class="heading-alias" id="taking-an-edge-treatment-back"></span>Tage en kantbehandling tilbage</h3>
+<p>En behandlet form kan altid behandles igen. Vælg den igen og åbn værktøjet - Rund, Fas eller Hul, hver viser listen: under <strong class="ui">“Fortryd en kantfunktion”</strong> ser du hvad der allerede er på den. <strong class="ui">“Fortryd”</strong> tager en enkelt behandling tilbage. Bemærk: hvis nyere behandlinger ligger ovenpå, følger de med, og vinduet fortæller dig hvor mange.</p>
+<p>Ved siden af en fas, en rund eller en udhuling er der også <strong class="ui">“Redigér”</strong>. Den tager behandlingen tilbage på samme måde, men åbner værktøjet igen med det samme med de samme kanter og den gamle værdi. Du ændrer værdien og anvender igen: en 3 mm rund bliver til 5 mm uden at klikke kanterne igen. Hvis nyere behandlinger ligger ovenpå, følger de med her også. Det gælder for kantbehandlinger du laver fra nu af; ældre tilbyder kun at tage tilbage, og det samme gør enkelte dele af en gruppe.</p>
+<p>På en gruppe, for eksempel en cylinder med et hul, hører den behandlede kant til den færdige form, ikke til en af dens dele. Så bliver gruppen til én form. <strong class="ui">“Opdel gruppe”</strong> virker alligevel: Det tager først kantbehandlingerne tilbage og opløser derefter gruppen, i ét trin som <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> fortryder. Tag behandlingen tilbage som beskrevet ovenfor og gruppen vender tilbage med alle sine dele. Den nemmeste måde er at behandle kanter til sidst. Det gælder også gevind: kantværktøjet tager et gevind som dets eksakte form, så en blok med et gevindhul får sine kanter rundet med gevindet på plads. At beregne et gevinds kanter tager længere end for en almindelig form, et par sekunder for en M6 og omkring et halvt minut for et G1/2-rørgevind.</p>
+<aside class="tip"><p><strong>Godt at vide:</strong> layerling arbejder med rigtig CAD-geometri til runding og fas, ikke kun et mesh af trekanter. Det er derfor en rundet kant stadig er en rundet kant i STEP-eksporten.</p></aside>
+<p>En del importeret som STEP beholder også sin CAD-geometri: fas, rund og udhuling virker på formen fra filen, uanset hvor fint delen er tegnet på skærmen. STL, OBJ og 3MF bringer kun trekanter, og en fint tegnet del kan være for tæt for kantværktøjet. Hvis en del også er tilgængelig som STEP, importér den. <strong class="ui">“Gør eksakt”</strong> gør først sådan en del til en eksakt form med rigtige planer og cylindre, se <a href="/api/desktop/layerling/ui/vejledning/files-and-saving.html">Filer, lagring og deling</a>, &quot;Gør et importeret mesh eksakt&quot;.</p>
+</section></section><section class="guide-part"><h2 id="udhuling-af-former"><span class="heading-alias" id="hollowing-bodies"></span>Udhuling af former</h2>
+<p>Kasser, krus, kabinetter og låg har én ting til fælles: de er tomme indeni, med vægge af jævn tykkelse. Det er præcis det <strong class="ui">“Hul”</strong> gør.</p>
+<ol><li>Vælg formen og klik på <strong class="ui">“Hul”</strong>, eller højreklik formen og vælg det fra menuen.</li><li>Sæt <strong class="ui">“Vægtykkelse”</strong>.</li><li>Under <strong class="ui">“Åbne sider”</strong> slår du de sider til der forbliver åbne: <strong class="ui">“Top”</strong>, <strong class="ui">“Bund”</strong>, <strong class="ui">“For”</strong>, <strong class="ui">“Bag”</strong>, <strong class="ui">“Venstre”</strong> eller <strong class="ui">“Højre”</strong>, så mange du vil - kun <strong class="ui">“For”</strong> laver en slids til en skuffe, <strong class="ui">“Venstre”</strong> og <strong class="ui">“Højre”</strong> en tunnel. Med ingen side slået til forbliver formen lukket hele vejen rundt, med et hulrum i midten. <strong class="ui">“Lukket (hulrum indeni)”</strong> slår alle sider fra med ét klik. <strong class="ui">“Top”</strong> er allerede slået til, når vinduet åbner; et klik på den lukker toppen igen. Et legeme, der er lukket hele vejen rundt, ser uændret ud udefra: snitvisningen viser hulrummet.</li><li>Bestem om <strong class="ui">“Indvendige kanter”</strong> skal være <strong class="ui">“Rundede”</strong> eller <strong class="ui">“Skarpe”</strong>.</li><li>Klik på <strong class="ui">“Anvend”</strong>.</li></ol>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-panel.webp" alt="Udhulingsvinduet med vægtykkelse, en kontakt for hver side der forbliver åben, og de indvendige kanter." width="1280" height="800" loading="lazy"><figcaption>Udhulingsvinduet med vægtykkelse, en kontakt for hver side der forbliver åben, og de indvendige kanter.</figcaption></figure>
+<p>Væggene vokser indad. Ydersiden forbliver som den er.</p>
+<p><strong class="ui">“Indvendige kanter”</strong> betyder kun noget hvor de indvendige vægge går fra hinanden - ved et trin i formen eller omkring en åbning. Hjørnerne på hulrummet i en almindelig kasse er altid skarpe, med begge indstillinger. For en rundet inderside, rund formens ydre kanter først (se ovenfor), så hul den ud: indersiden følger med radius minus vægtykkelsen. Hvis den rundede inderside ikke kan bygges, hvilket kan ske med et omrids lavet af meget mange korte lige stykker såsom en tegnet skitse, bygger layerling den samme udhulede form med skarpe indvendige hjørner i stedet.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-result.webp" alt="Resultatet: en skal med 3 mm væg, åben foroven." width="1280" height="800" loading="lazy"><figcaption>Resultatet: en skal med 3 mm væg, åben foroven.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-sides.webp" alt="Den samme kasse med kun forsiden åben: en slids til en skuffe." width="1280" height="800" loading="lazy"><figcaption>Den samme kasse med kun forsiden åben: en slids til en skuffe.</figcaption></figure>
+<p>For hver åben side har formen brug for en flad flade helt ude ved kanten på den side. Kugler og frie former kan derfor ikke udhules på denne måde. Hvis væggen er for tyk til formen, siger layerling det og beder om en tyndere. En rundet kasse, hvis top- og bundkanter også er rundet, er et sådant tilfælde: væggen skal være tydeligt tyndere end den runding, eller sæt rundingen til 0 først.</p>
+<p>En form med en lomme - en blok med et hul der ikke går hele vejen igennem, lavet ved at gruppere en kasse med et hævet hul - kan også udhules, med toppen åben: væggene rundt om lommen udhules også, så en ring af hulrum bliver mellem ydervæggen og lommen, åben foroven, og et tyndt hulrum ligger under lommens bund.</p>
+<p><strong>Former der ender i en spids,</strong> såsom en kegle eller en revolvet trekant, har ingen flad flade på toppen der kan forblive åben. Et helt lukket hulrum virker der heller ikke, fordi en spids ikke kan forskydes indad: selv med 1 mm væg får du beskeden om at væggene ikke kan være så tykke. Tegn væggen ind i profilen før du revolverer i stedet: duplikér omridset, skalér kopien ensartet ned, læg den i midten af det store omrids og skær det store med det, så revolver det hele (kapitel Skitser, afsnit Revolver). Afstanden mellem de to omrids er vægtykkelsen.</p>
+<p>Hvis du ændrer størrelse på en udhulet form senere, udhuler layerling den igen med det samme ved den nye størrelse. Væggen forbliver så tyk som du valgte, runde former inkluderet. En cylinder du trækker længere den ene vej end den anden bliver til en ellipse. Afrundinginger og affasninger du lagde på den efter udhulingen lægges igen på de samme kanter.</p>
+<aside class="tip"><p><strong>Tip:</strong> Med en 0,4 mm dyse er 1,2 til 2 mm væg et godt udgangspunkt: tyndt nok til at spare materiale, tykt nok til en solid del.</p></aside>
+</section><section class="guide-part"><h2 id="et-lag-til-et-abent-legeme"><span class="heading-alias" id="a-lid-for-an-open-body"></span>Et låg til et åbent legeme</h2>
+<p><strong class="ui">“Låg”</strong> laver låget til et legeme, der er åbent foroven: en kasse, du har udhulet med åben top, en potte, en bakke. Vælg legemet og klik på <strong class="ui">“Låg”</strong>. I vinduet vælger du typen:</p>
+<ul><li><strong class="ui">“Stikkes ind”</strong>: en plade så stor som legemet med en læbe nedenunder, der går ind i åbningen.</li><li><strong class="ui">“Over ydersiden”</strong>: en plade en væg bredere end legemet med en kant nedenunder, der går uden om.</li><li><strong class="ui">“Begge sider”</strong>: en plade en væg bredere end legemet med begge dele: en læbe ned i åbningen og en kant uden om. Legemets væg sidder i en rille mellem dem, som på en madkasse.</li><li><strong class="ui">“Flad”</strong>: kun pladen, til at lægge ovenpå eller lime på.</li><li><strong class="ui">“Skrues på”</strong>: et låg, der skrues på som på et syltetøjsglas, til et rundt legeme; mere om det nedenfor.</li><li><strong class="ui">“Skrues i”</strong>: en plade med en prop med gevind, der skrues ind i åbningen på et rundt legeme; mere om det nedenfor.</li><li><strong class="ui">“Bajonet”</strong>: en drejelås til et rundt legeme, et låg, der trykkes ned over knaster og drejes; mere om det nedenfor.</li><li><strong class="ui">“Skydes ind”</strong>: en plade, der skydes ind i en kasse gennem én væg, som låget på et penalhus af træ; mere om det nedenfor.</li></ul>
+<p>Derefter indstiller du tykkelsen (<strong class="ui">“Lågets tykkelse”</strong>), pasningen (<strong class="ui">“Pasning”</strong>, <strong class="ui">“Spalten pr. side”</strong> mellem låg og legeme: 0,1 mm stramt, 0,2 mm normalt, 0,3 mm løst eller enhver værdi op til 1 mm) og hvor dybt læben eller kanten når ned, og hvor tyk dens væg er. Klik på <strong class="ui">“Lav låg”</strong>: låget ligger ved siden af legemet, vendt med pladen nedad, så det printes uden støtte. Legemet forbliver, som det er. Låget følger enhver omrids, rundt eller kantet, fordi det tages fra selve legemet lige under dets kant. Et legeme uden åbning foroven får kun et fladt låg; til de andre skal du først udhule det med åben top. For et legeme der er en eksakt CAD-legeme, som en afrundet kasse udhulet med <strong class="ui">“Hul”</strong>, er låget også en eksakt legeme, med runde hjørner der bliver runde: runding eller affasning af dets kanter med kantværktøjet som med alle andre. Andre legemer, og låg med søjler til magneterne, får et låg lavet af trekanter.</p>
+<aside class="tip"><p><strong>Tip:</strong> Hvor stramt et låg sidder, afhænger af printeren. Print først en lille kasse med låg; sidder det for stramt, så vælg den næste, løsere pasning.</p></aside>
+<p>Slå <strong class="ui">“Magneter i hjørnerne”</strong> til, så holder fire runde magneter låget i stedet for en stram pasning. Vælg en <strong class="ui">“Magnet”</strong> (6 × 2, 8 × 3 eller 10 × 3 mm) eller indstil <strong class="ui">“Magnetens diameter”</strong> og <strong class="ui">“Magnetens højde”</strong> selv, og <strong class="ui">“Spillerum om magneten”</strong>: 0,1 mm for at trykke magneterne ind, 0,2 til 0,3 mm for at lime dem. Layerling skærer en lomme i hvert hjørne af legemets kant og en over for den i lågets plade, lidt dybere end magneten, så den aldrig stikker op. Hvor væggen er for tynd til en lomme, fylder en søjle hjørnet fra bunden op til kanten, og lågets læbe går uden om den. Legemet grupperes med sine lommer og søjler: opløser du gruppen, har du det igen, som det var. Pladen skal være mindst magnetens højde plus 0,8 mm tyk; når du slår magneterne til, bliver den det.</p>
+<p>Slå <strong class="ui">“Hængsel”</strong> til, så klapper låget op om en stift langs en lige side af kroppen: bagsiden eller den side, du vælger under <strong class="ui">“Hængslets side”</strong> (som i startvisningen, hvor bagsiden vender væk fra dig). Der skiftes knoerne, de yderste på kroppen og dem imellem på låget, med <strong class="ui">“Spil i hængslet”</strong> imellem, og et hul til stiften går gennem dem alle: Med en <strong class="ui">“Stiftdiameter”</strong> på 1,75 mm er et stykke filament stiften; slå <strong class="ui">“Print også stiften”</strong> til for en tykkere, der printes for sig. I kroppens del af hængslet sidder stiften stramt, så et stykke filament, der er trykket ind, bliver siddende, og i lågets del drejer den: <strong class="ui">“Spil om stiften (pr. side)”</strong> er dens plads dér på hver side, 0,2 mm til at begynde med; giv mere, hvis låget drejer tungt. En printet stift har 0,15 mm på hver side i kroppens del, da den kommer ud i fuld tykkelse: den sidder stadig stramt, men kan trykkes ind. Kroppens knoer står på en skråning på 45°, så kroppen printes stående uden support; lågets flugter med dets overside, så det stadig printes vendt om. <strong class="ui">“Knoer (0 = automatisk)”</strong> på 0 giver omkring én kno pr. 10 mm. Et hængsel passer til et låg, der stikkes i, eller et fladt låg; en kant uden om ville ramme bagvæggen, når låget åbnes. På en rund side, en dåse eller et rør, går hængslet der, hvor væggen højst falder en knoradius væk fra hængslets linje, og kroppens knoer står på en lille klods, der når ind til væggen. <strong class="ui">“Dråbeformede stifthuller (hænger ikke ned ved print)”</strong> (slået til fra start) giver stifthullerne en spids foroven, som hver del printes, så de ikke hænger ned; en printet stift ligger på en lille flade. Under <strong class="ui">“Hængseltype”</strong> sætter <strong class="ui">“Forsænket”</strong> knoerne ind i væggen i stedet for bag den: kassen beholder sine mål, hver del er skåret ud om den andens knoer, og låget åbner til omkring 140°. <strong class="ui">“Drejestifter”</strong> laver et låg, der ligger på en lille kant i åbningen og drejer på to stifter gennem sidevæggene, til omkring 95°; også her beholder kassen sine mål. Begge kræver en lige side og går uden magneter.</p>
+<p>Ved hængslet <strong class="ui">“Forsænket”</strong> slår du <strong class="ui">“Endepropper”</strong> til for at lukke stifthullet i begge ender: så er stiften skjult og kan ikke glide ud. De sidste 4 mm af hullet er så firkantede i hver ende, stillet på et hjørne, så de også har en spids foroven og ikke hænger ned ved print, og lige store nok til, at stiften kan komme igennem: skub først stiften ind, og tryk så en prop i hver ende. De firkantede propper kan ikke dreje og sidder lige så stramt som stiften i kroppen; hver er skåret i flugt med kassens yderside, også ved afrundede hjørner (på sådan en kasse går hængslet helt ind i hjørnerne, med eller uden propper). De ligger ved siden af låget, på en flad side. Stiften bliver kortere af dem, og statuslinjen siger, hvor lang.</p>
+<aside class="tip"><p><strong>Tip:</strong> Tryk først magneterne ind i legemet. Sæt så en magnet mere på hver af dem, hvor den selv vender rigtigt, og tryk låget ned på dem (med en dråbe lim i lommerne, hvis de sidder løst): så kommer hver magnet ind i låget over for sin partner, og de tiltrækker hinanden.</p></aside>
+<p>Slå <strong class="ui">“Klikknopper”</strong> til, så klikker låget på plads: små runde knopper på ydersiden af dets læbe (på et låg over ydersiden på indersiden af kanten) klikker ind i fordybninger, som Layerling skærer ind i legemets væg de samme steder, én midt på hver lige side på 12 mm eller mere, to på en side over 80 mm, fire rundt om en rund åbning og ingen på hængslets side. <strong class="ui">“Knoppernes højde”</strong> er, hvor langt hver knop går ind i væggen, 0,4 mm til at begynde med: mindre til en lille kasse eller en stiv læbe, mere for et fastere klik. Under <strong class="ui">“Greb”</strong> giver <strong class="ui">“Trækflig”</strong> pladen en flig, lige så tyk som pladen, der rager 6 mm ud over dens forkant (eller kanten over for hængslet), så låget stadig printes vendt om, og <strong class="ui">“Fingergreb”</strong> skærer en fordybning til en finger ind i legemets forvæg lige under lågets kant og lader altid 0,8 mm af væggen stå; ingen af dem passer til et drejelåg, og knopperne heller ikke til et fladt låg.</p>
+<p>Vælg <strong class="ui">“Skrues på”</strong>, så skrues låget på som på et syltetøjsglas: legemet får et gevind udvendigt på sin top, og låget det samme gevind inden i sin kant. Det kræver et rundt legeme, for eksempel en cylinder, et rør eller en rund krukke, udhulet med toppen åben, med en væg på mindst 0,8 mm; en kasse eller en oval afvises. En afrundet eller affaset kant, som et kar drejet af en linje med runde ender har, kan blive, som den er, både ved dette låg og ved <strong class="ui">“Bajonet”</strong> nedenfor: gevindet eller knasterne kommer på den lige væg under afrundingen, og låget går ud over den. Gevindet lægges uden på væggen i stedet for at blive skåret ind i den, så selv en tynd væg beholder sin styrke, og det grupperes med legemet: opløser du gruppen, har du legemet igen, som det var. Stigningen (<strong class="ui">“Gevindstigning”</strong>) er, hvor meget gevindet stiger på én omgang, 3 mm til at begynde med, som på et glas; gevindet er tre tiendedele af det dybt (højst 1,5 mm), og flankerne står i 45°, så legemet printes stående og låget på sin plade, begge uden support. Omgangene (<strong class="ui">“Omgange”</strong>) er, hvor mange gange det går rundt, og sammen med stigningen, hvor langt lågets kant når ned. Spalten (<strong class="ui">“Spalten pr. side”</strong>) er pladsen i gevindet på hver side, målt i radius som ved en møtrik; går låget tungt, så vælg en løsere pasning. Drej låget med uret for at lukke det. Låg og gevind består af trekanter, og magneter, hængsel, klikknopper og greb passer ikke til et skruelåg.</p>
+<p>Under <strong class="ui">“Gevind”</strong> kan du i stedet for <strong class="ui">“Brugerdefineret”</strong> vælge gevindet på en standardflaske eller et standardglas: PCO 1881 er halsen på 28 mm på de fleste vand- og sodavandsflasker, PCO 1810 den ældre med det højere gevind, GL 45 gevindet på laboratorieflasker (DIN 168), Mason 70 og Mason 86 den almindelige og den brede åbning på Mason-glas. Låget laves så efter standarden og passer på sådan en flaske eller sådan et glas fra butikken; standarden fastlægger stigningen og hvor langt låget går ned, og <strong class="ui">“Spalten pr. side”</strong> er pladsen hele vejen rundt om dens gevind. Legemet får kun halsens gevind, hvis det foroven er netop den hals: rundt og lige så bredt som halsen under gevindet, hvilket vinduet fortæller dig (24,94 mm for PCO 1881); så passer et købt låg også på det. Ethvert andet legeme forbliver, som det er, og kun låget laves; det siger statuslinjen. Vil du lave et låg til en flaske, du har, så vælg en cylinder omtrent så bred som dens hals, klik på <strong class="ui">“Låg”</strong>, og vælg <strong class="ui">“Skrues på”</strong> og flaskens gevind. En standards flanker er stejlere end det brugerdefinerede gevinds 45°, så undersiden af gevindet på legemet og gevindgangene i låget hænger mere ud, når de printes; de er kun omkring en millimeter dybe, men print først ét låg for at se, hvordan din printer klarer dem. Der findes ingen offentliggjort tegning af Mason-glassenes gevind, og målene er taget på rigtige glas: prøv låget på dit glas.</p>
+<p>Før du klikker på <strong class="ui">“Lav låg”</strong>, måler vinduet toppen af dit legeme og siger, om den er halsen: hvor bred den er, hvor bred halsen skal være under gevindet, og om legemet får gevindet, eller kun låget laves. Er den det ikke, og er legemet en cylinder, et rør eller en udhulet cylinder, der står op, gør <strong class="ui">“Tilpas legemet til halsen”</strong> det lige så bredt som halsen, midt i det, der tæller (65,85 mm for Mason 70), og beholder dets højde; et udhulet legeme beholder sine vægge lige så tykke, som de var. <strong class="ui">“Lav låg”</strong> giver det så halsens gevind, og én fortryd tager tilpasningen tilbage. For ethvert andet legeme, fx en gruppe eller et importeret net, siger vinduet, hvor bredt du skal gøre det foroven.</p>
+<p>Vælg <strong class="ui">“Skrues i”</strong>, så går gevindet den anden vej, for eksempel til et penneglas, der skal være glat udvendigt: legemet får gevindet inden i sin åbning, som en møtrik, og låget er en plade så stor som legemet med en prop nedenunder, der har det samme gevind og skrues i, til pladen ligger på kanten. Legemet og dets åbning skal begge være runde om samme midte, for eksempel en cylinder, et rør eller en rund krukke, udhulet med toppen åben, med en væg på mindst 0,8 mm; en kasse, en oval eller en firkantet åbning afvises, og det samme gør en åbning, der er for smal eller ikke dyb nok til proppen. Også her lægges gevindet på væggen i stedet for at blive skåret ind i den: væggen beholder sin styrke, udvendigt er alt som før, og åbningen bliver kun gevindets dybde smallere foroven. Stigningen (<strong class="ui">“Gevindstigning”</strong>), omgangene (<strong class="ui">“Omgange”</strong>) og spalten (<strong class="ui">“Spalten pr. side”</strong>) virker som ved et skruelåg; stigning og omgange bestemmer også, hvor langt proppen når ned. Proppen er hul, en ring med en væg (<strong class="ui">“Proppens væg”</strong>) på 1,6 mm til at begynde med (mindst 0,8 mm), og forbliver massiv, hvor åbningen ikke giver plads til et hul. Legemet printes stående og låget på sin plade med proppen opad, begge uden support. Drej låget med uret for at lukke det. Som ved et skruelåg består låg og gevind af trekanter, og magneter, hængsel, klikknopper og greb passer ikke til det.</p>
+<p>Vælg <strong class="ui">“Bajonet”</strong>, så låses låget med et drej, som en pære i sin fatning, for eksempel for at samle delene af en lampe eller lukke en rund dåse: legemet får knaster, der står ud udvendigt på dets top (<strong class="ui">“Knaster”</strong>: tre til at begynde med, to til fire), og låget et L-formet spor inden i sin kant til hver. Sæt låget på med sporene over knasterne, tryk det ned og drej det med uret, til det klikker, 40° med tre knaster (45° med to, 30° med fire): så ligger der en afsats i låget under hver knast og holder det, og et stop afslutter drejet. Med <strong class="ui">“Drejevinkel (0 = automatisk)”</strong> vælger du selv drejet, op til en kvart omgang på 90°, for eksempel til et låg med to knaster, der lukkes med et drej på 90°; på 0 er det det drej, knasterne giver. Sporet til hver knast, dens drej og et stop før det næste spor skal passe rundt om legemet: med flere knaster eller på et lille legeme tilpasses en drejevinkel, der ikke passer, til det, der passer, og statuslinjen siger det. To knaster når 90° på alle legemer undtagen de mindste; fire drejer højst omkring 65° på et legeme med 40 til 80 mm i diameter. Ligesom et skruelåg kræver det et rundt legeme med en væg på mindst 0,8 mm, og knasterne grupperes med legemet. Deres størrelse følger dets diameter: de står en fyrretyvendedel af den ud af væggen (1,2 til 2,5 mm); deres underside og afsatsen skråner 45°, så legemet printes stående og låget på sin plade, begge uden support. <strong class="ui">“Kantens dybde”</strong> er, hvor langt låget når ned, 8 mm til at begynde med; under knasterne fører det låget langs væggen. <strong class="ui">“Spalten pr. side”</strong> er pladsen omkring knasterne og langs væggen, og den starter med din printers spillerum, når du har målt det; <strong class="ui">“Spalte i højden”</strong> er pladsen over afsatsen, altså hvor meget det låste låg kan løftes, 0,3 mm til at begynde med. <strong class="ui">“Låsenæsens højde”</strong> er, hvor langt en lille ribbe bag hver låst knast rækker ind i dens vej: knasten klikker forbi den, så låget ikke drejer tilbage af sig selv. Tag mindre, hvis låget drejer for tungt, 0 for ingen. Drej låget tilbage og løft det af for at åbne det. Låg og knaster består af trekanter, og magneter, hængsel, klikknopper og greb passer ikke til et bajonetlåg.</p>
+<p>Slå <strong class="ui">“Holdebånd”</strong> til ved et skruelåg eller et bajonetlåg, så bliver låget ved legemet, når det er åbent, som på en drikkeflaske. Holdebåndet er én del, der ligger fladt ved siden af låget: to åbne ringe forbundet med en strop. Den store ring klikkes nedefra på låget og sidder under en krave øverst på det, holdt af en vulst. Den lille sidder om legemet lige under låget, på en vulst som legemet får der, og gevindet eller knasterne ovenover holder den på plads: bøj den lidt op og skub den ned over dem, eller nedefra over vulsten. Begge ringe drejer frit, så låget stadig drejes af og på, og stroppen er lang nok til, at det åbne låg hænger ved siden af halsen. Print holdebåndet i PETG eller TPU; i PLA tåler det kun få bøjninger. Vulsterne skråner 45°, så låg og legeme stadig printes uden support, og ringene holder afstand (<strong class="ui">“Spalten pr. side”</strong>) til det, de drejer på. Holdebåndet kræver et par millimeter af legemet under låget, rundt og lige så bredt som foroven, og en lågkant på omkring 4 mm; mangler det, siger værktøjet det.</p>
+<p>Et skruelåg eller et bajonetlåg kan være et klaplåg som på en flaske shampoo eller ketchup: sæt flueben ved <strong class="ui">“Klaplåg”</strong>, så får lågets plade en rund åbning i midten (<strong class="ui">“Åbning”</strong>: dens diameter, til at begynde med 8 mm) med en klap i, der lukker den, i flugt med oversiden. Låget bliver siddende, og du åbner kun klappen. Et låg printes på sin plade, så en klap, der blev foldet over fra siden, ville ligge på hovedet med proppen mod byggepladen. Derfor printes klappen i selve åbningen med spalten (<strong class="ui">“Spalten pr. side”</strong>) hele vejen rundt og er selv proppen: dens kant smalner ind i 45° lige under oversiden, så den hviler på pladen og ikke kan trykkes ind, og fortil griber en lille kant ind under åbningens kant, så den klikker i. Ved dens lige bagkant forbinder en strimmel, 0,4 mm tyk og 3 mm lang, der ligger fladt på byggepladen, den med låget og bøjer som hængsel, så klappen aldrig falder af; under strimlen hælder klap og låg ind mod hinanden i et V. Intet hælder mere end 45°, og låget printes i ét stykke uden support. Du åbner klappen med en negl i rillen hen over den og løfter; du lukker den ved at trykke, til den klikker. Print et klaplåg i PETG eller PP: i PLA knækker strimlen efter få bøjninger. Pladen skal være mindst 1,8 mm tyk (med en spalte på 0,2 mm), og åbning og hængsel skal være inden for legemets åbning; en for stor åbning afvises med den største, der passer.</p>
+<p>Skruehætter og bajonethætter kan få deres øverste kant afrundet eller affaset: vælg <strong class="ui">“Afrundet”</strong> eller <strong class="ui">“Affaset”</strong> under <strong class="ui">“Øverste kant”</strong> og indstil <strong class="ui">“Kantstørrelse”</strong>, 1 mm til at begynde med, højst så meget som pladen er tyk. Kanten laves sammen med hætten, for bagefter er hætte og gevind ét net med alt for mange trekanter til kantværktøjet. Hætten printes vendt om, så kanten ligger på pladen: en affasning printer rent, og en afrunding på 1 eller 2 mm gør det også.</p>
+<p>Vælg <strong class="ui">“Skydes ind”</strong> til et låg, der skydes ind som på et penalhus af træ: en plade i åbningen, med oversiden i flugt med kanten, hvis kanter løber i noter i tre vægge. Den fjerde væg, den du vælger under <strong class="ui">“Skydes ind fra”</strong> (forsiden til at begynde med, som i startvisningen), sænkes ned til lågets underside, hvor låget passerer, så det glider ind over væggen, og lågets ende udfylder udskæringen, i flugt med væggens yderside. En kasse, der står drejet på arbejdsplanet, får også et: den valgte væg er så den, der vender mest mod den side. Det kræver en kasse med lodrette, lige vægge, gerne med runde hjørner; et rundt legeme afvises. Noterne bliver så dybe, som <strong class="ui">“Lågets tykkelse”</strong> tillader, lidt under 1 mm for et låg på 2 mm og op til 1,5 mm for et tykkere, og lader altid 0,8 mm af væggen stå bag sig; foroven skråner de 45°, så kassen printes stående og låget på sin overside, begge uden support. Er væggene eller låget for tynde til noterne, siger vinduet, hvor tykke de skal være. <strong class="ui">“Spalten pr. side”</strong> er lågets slør i noterne på hver side; glider det tungt, så tag en løsere pasning. Vægge inde i kassen sænkes også under låget. Slå <strong class="ui">“Klikknopper”</strong> til, så klikker en lille knop under lågets ende forbi den sænkede væg, så låget ikke glider ud af sig selv; <strong class="ui">“Knoppernes højde”</strong> er, hvor langt den når ned under væggens top. Under <strong class="ui">“Greb”</strong> giver <strong class="ui">“Fingergreb”</strong> låget fire riller på tværs af oversiden nær den ende, til din tommelfinger, og <strong class="ui">“Trækflig”</strong> en trækflig der. Noterne og udskæringen grupperes med kassen som et hul: ophæver du grupperingen, har du kassen tilbage, som den var. Magneter og hængsel passer ikke til et skydelåg.</p>
+<p>Vil du have låget sænket under kanten, så indstil <strong class="ui">“Ramme over låget”</strong> (0 til at begynde med). Låget og dets noter ligger så tilsvarende lavere, og væggene beholder deres fulde højde over dem, som en ramme om låget. Heller ikke væggen, låget skydes ind gennem, bliver så sænket: den beholder sin fulde højde og får en slids, hvor låget går igennem, og lågets ende udfylder slidsen, i flugt med ydersiden. Over låget giver slidsen samme spillerum som i siderne (<strong class="ui">“Spalten pr. side”</strong>), og med <strong class="ui">“Klikknopper”</strong> også knoppens højde, så låget kan bue lidt op over den, når det trækkes ud; over slidsen skal der stå mindst 1 mm af væggen, og en lavere ramme afvises med den ramme, der skal til (1,2 mm ved en spalte på 0,2 mm). Kassen printes stadig stående: kun slidsens overside printes i luften, som en kort, vandret bro over lågets bredde, som de fleste printere klarer uden support. Tommelfingerrillerne sidder så lige bag den væg, og en trækflig stikker ud af slidsen.</p>
+</section><section class="guide-part"><h2 id="en-kabelkanal-gennem-et-legeme"><span class="heading-alias" id="a-cable-channel-through-a-body"></span>En kabelkanal gennem et legeme</h2>
+<p><strong class="ui">“Kabelkanal”</strong> lægger en rund gang gennem et legeme til et kabel eller en LED-ledning, fra der hvor det går ind, til der hvor det kommer ud, og finder selv vejen. Vælg legemet og klik på <strong class="ui">“Kabelkanal”</strong>, og klik så på legemet der, hvor kablet går ind (<strong class="ui">“Indgang”</strong>), og der, hvor det kommer ud (<strong class="ui">“Udgang”</strong>). Vejen begynder og ender lige, vinkelret på overfladen, går lige, hvor den kan, og bøjer, hvor den må, aldrig skarpere end <strong class="ui">“Mindste bøjning”</strong>, og holder sig så langt fra ydersiden som muligt, aldrig tættere end <strong class="ui">“Mindste væg”</strong>. Et kabel kan skubbes gennem en bøjning på cirka fem gange dets diameter; <strong class="ui">“Diameter”</strong> er kanalens egen.</p>
+<p>Mens panelet er åbent, ser du gennem legemet, med kanalen indeni og et mærke i hver ende. Panelet fortæller, hvor lang kanalen er, dens skarpeste bøjning og dens tyndeste væg, med rødt, når en bøjning eller væggen måtte blive mindre end ønsket; så hjælper en mindre værdi ved <strong class="ui">“Mindste bøjning”</strong> eller en anden ind- eller udgang. <strong class="ui">“Sæt igen”</strong> flytter en ende. <strong class="ui">“Lav kanal”</strong> skærer kanalen ind: den bliver et <strong class="ui">“Bøjet rør”</strong> som hul, grupperet med legemet, så legemet forbliver eksakt, og efter at gruppen er opløst, kan røret stadig ændres. Et bøjet rør har højst elleve bøjninger; en vej, der kræver flere, beder om en anden ind- eller udgang.</p>
+</section><section class="guide-part"><h2 id="forskyd-legemer"><span class="heading-alias" id="offsetting-bodies"></span>Forskyd legemer</h2>
+<p>Hver flade på et legeme kan flyttes den samme afstand, udad eller indad. Det er, hvad en pasning, et låg eller en snapsamling har brug for: et spillerum på 0,1 til 0,3 mm hele vejen rundt, mens detaljerne bliver, hvor de er, hvad skalering ikke kan give.</p>
+<ol><li>Vælg ét legeme og klik på <strong class="ui">“Forskydning”</strong>, eller højreklik på legemet og vælg det der.</li><li>Vælg <strong class="ui">“Forstør”</strong> eller <strong class="ui">“Formindsk”</strong> og indstil <strong class="ui">“Afstand”</strong>.</li><li><strong class="ui">“Ydre hjørner”</strong> bestemmer de ydre hjørner: afrundet holder den forskudte flade rund, skarp lader fladerne løbe videre, til de mødes.</li><li>Sæt hak ved <strong class="ui">“Behold originalen og tilføj det forskudte legeme som hul”</strong> for at beholde delen, som den er, og få det forstørrede legeme som en kopi, der allerede er et hul. Grupper hullet med modstykket, så skærer det præcis det spillerum, du valgte.</li><li>Klik på <strong class="ui">“Forskyd”</strong>.</li></ol>
+<p>Sæt flueben ved <strong class="ui">“Kun til siderne: flade over- og undersider bliver i deres højde”</strong>, når kun omridset skal vokse eller skrumpe: siderne flytter sig med afstanden, mens hver flad over- og underside bliver i sin højde. Et skilt får en kant hele vejen rundt, en sokkel bliver bredere, og legemet bliver ikke højere. På et trappeformet legeme beholder hvert trin sin egen højde. En tekst, der forskydes via sine omrids, beholder så også sin højde.</p>
+<p>Uden hak forskydes selve legemet. Det bliver et fast, nøjagtigt legeme, som efter en affasning: listen øverst i vinduet tager forskydningen tilbage, og <strong class="ui">“Redigér”</strong> åbner værktøjet igen med den gamle afstand. Kun nøjagtige CAD-legemer kan forskydes - kasser, cylindre og de andre former, grupper af dem, importerede STEP-dele. Et legeme, der kun er et mesh af trekanter, som mange STL-importer, kan ofte ikke. En afstand, der er for stor til legemet, for eksempel en formindskelse ud over den tyndeste væg, afvises.</p>
+<p>En tekst, hvis bogstaver kernen ikke kan forskyde som et legeme - i nogle fonte et A, B, M, N, W eller 9 - forskydes gennem dens egne omrids i stedet: den får fyldet <strong class="ui">“Bredere (basis for flerfarvet print)”</strong> med afstanden (smallere når den krymper) og vokser lige så meget i toppen og bunden. Den bliver en tekst, du kan redigere videre. Det virker på en tekst med udfyldte bogstaver og uden afrunding; en tekst der allerede har en fyld-tilstand afvises som før.</p>
+</section><section class="guide-part"><h2 id="slet-flader"><span class="heading-alias" id="deleting-faces"></span>Slet flader</h2>
+<p>En runding i vejen, et hul på det forkerte sted, et buldug du ikke har brug for mere: <strong class="ui">“Slet flade”</strong> tager det af formen igen, uden at formen bygges på ny.</p>
+<ol><li>Vælg formen og klik på <strong class="ui">“Slet flade”</strong>, eller højreklik formen og vælg det fra menuen.</li><li>Klik hver flade af det der skal væk: fladerne af en runding, væggen i et hul, siden og toppen af et buldug. En valgt flade lyser op; endnu et klik tager den ud igen. Vinduet tæller fladerne.</li><li>Klik på <strong class="ui">“Slet”</strong> eller tryk <kbd>Delete</kbd>. <kbd>Esc</kbd> lukker værktøjet uden at ændre noget.</li></ol>
+<p>Fladerne omkring de slettede vokser, indtil hullet er lukket. En kasse med rundede topkanter får sine skarpe kanter tilbage, et hul bliver fyldt, et buldug er væk. Formen bevarer sin eksakte form, så den kan faseres og rundes igen, og STEP-eksporten beholder dens sande flader. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> tager sletningen tilbage i ét skridt. Den står også under <strong class="ui">“Fortryd en kantfunktion”</strong> sammen med runder og faser, hvor <strong class="ui">“Fortryd”</strong> tager den tilbage; der er ingen <strong class="ui">“Redigér”</strong> til den. På en gruppe er resultatet ét legeme, som ved en kantbehandling.</p>
+<p>Vælg alle fladerne af det der skal væk, og kun dem. Kan fladerne omkring dem ikke lukke hullet, siger layerling det, og intet ændres: en hovedside af en kasse har for eksempel ingen nabo, der kan tage dens plads. Sletter du kun bunden af en lomme, bliver den til et hul lige igennem, fordi lommens vægge løber videre på den anden side.</p>
+<p><strong class="ui">“Slet flade”</strong> kræver eksakte flader: det virker på dele importeret som STEP og på layerlings egne former. Det layerling gemmer som mesh har ingen: en importeret STL, OBJ eller 3MF, en delt, viklet eller forenklet form, eller en meget detaljeret form som et langt stykke tekst. Importer en del som STEP, hvis du kan. På en detaljeret importeret del kan nogle få flader være for meget for CAD-kernen: efter 45 sekunder stoppes sletningen, og intet ændres. En form der ændres i størrelse efter en kantbehandling, mens kantstørrelsen bevares, har ingen eksakte flader i den nye størrelse, indtil ændringen af størrelsen tages tilbage.</p>
+<p>Et importeret mesh, der er gjort eksakt med <strong class="ui">“Gør eksakt”</strong>, kan beholde hårtynde flader, hvor filens trekanter var dårlige, mellem flader, der ligger i samme plan, så en side kommer ud som strimler, der ikke kan slettes hver for sig. Sådan en tynd flade, for smal til at klikke på, følger med en valgt flade, når den rører den og fører videre til en anden flade i den valgte flades plan, sammen med de tynde flader, der hænger sammen med den, og som også rører en flade i den valgte flades plan; vinduet tæller dem som taget med.</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/vejledning/solids-and-holes.html"><small>Forrige kapitel</small>Solider og huller</a><a class="next" href="/api/desktop/layerling/ui/vejledning/sketches.html"><small>Næste kapitel</small>Skitser: fra omrids til form</a></div>
+      </main>
+    </div>
+    <footer class="note">Denne vejledning vokser sammen med programmet. Hvis noget mangler eller er forkert, så fortæl os i <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">diskussioner</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=da" rel="noopener">Støt projektet</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Diskussioner</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mere på GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Udgivelsesnoter v1.154.1</a></div><p class="trademark">Tinkercad er et varemærke tilhørende Autodesk, Inc. layerling er et uafhængigt projekt og er ikke tilknyttet, anbefalet eller sponsoreret af Autodesk.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Tilbage til editoren";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Åbn editoren";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

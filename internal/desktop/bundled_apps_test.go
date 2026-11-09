@@ -51,6 +51,9 @@ func TestSeedNasscadBundledAppWritesWorkspaceEntry(t *testing.T) {
 		"LICENSE":                       100,
 		"THIRD-PARTY.md":                100,
 		"web-ifc-LICENSE.md":            100,
+		"nasscad-license.css":           100,
+		"license.html":                  100,
+		"NASSCAD_User_Manual_EN.pdf":    100_000,
 	} {
 		info, err := os.Stat(filepath.Join(root, "Apps", "nasscad", name))
 		if err != nil {

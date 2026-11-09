@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="sl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Telesa in luknje - layerling navodila</title>
+    <meta name="description" content="Kako iz preprostih oblik nastanejo izvrtine, utori in žepi – in kako skupino pozneje še enkrat spremeniš.">
+    <link rel="canonical" href="https://layerling.com/navodila/telesa-in-luknje.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/solids-and-holes.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/solids-and-holes.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/solids-and-holes.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/koerper-und-aussparungen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/solids-and-holes.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/solids-and-holes.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/solids-and-holes.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/solids-and-holes.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/lichamen-en-gaten.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/solids-and-holes.html">
+    <link rel="alternate" hreflang="pt-BR" href="https://layerling.com/guia/solids-and-holes.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/telesa-in-luknje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/solids-and-holes.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/solids-and-holes.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/solids-and-holes.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/solids-and-holes.html">
+    <meta property="og:title" content="Telesa in luknje - layerling navodila">
+    <meta property="og:description" content="Kako iz preprostih oblik nastanejo izvrtine, utori in žepi – in kako skupino pozneje še enkrat spremeniš.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/navodila/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Navodila</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/navodila/search-index.json" data-nothing="Nič ni najdeno." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Išči po navodilih" aria-label="Išči po navodilih" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Jezik">Slovenščina</summary><ul><li><a href="/api/desktop/layerling/ui/guide/solids-and-holes.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/solids-and-holes.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/solids-and-holes.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/solids-and-holes.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/solids-and-holes.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/solids-and-holes.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/solids-and-holes.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/solids-and-holes.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/solids-and-holes.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/solids-and-holes.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/telesa-in-luknje.html" hreflang="sl" lang="sl" aria-current="true">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/solids-and-holes.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/solids-and-holes.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/solids-and-holes.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/solids-and-holes.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/solids-and-holes.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/solids-and-holes.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">V urejevalnik</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Urejevalnik je že odprt v drugem zavihku – preprosto preklopi nanj.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Poglavja"><h2>Poglavja</h2><p class="print-link"><a href="/api/desktop/layerling/ui/navodila/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Celotna navodila za tiskanje</span></a></p><ol><li><a href="/api/desktop/layerling/ui/navodila/prvi-koraki.html">Prvi koraki</a></li><li><a href="/api/desktop/layerling/ui/navodila/pogled-in-delovna-ravnina.html">Pogled in delovna ravnina</a></li><li><a href="/api/desktop/layerling/ui/navodila/oblike.html">Postavljanje in nastavljanje oblik</a></li><li><a href="/api/desktop/layerling/ui/navodila/izbiranje-in-razporejanje.html">Izbiranje in razporejanje</a></li><li><a href="/api/desktop/layerling/ui/navodila/telesa-in-luknje.html" aria-current="page">Telesa in luknje</a></li><li><a href="/api/desktop/layerling/ui/navodila/robovi-in-izdolbljenje.html">Posnetje robov in izdolbljenje teles</a></li><li><a href="/api/desktop/layerling/ui/navodila/skice.html">Skice: od obrisa do telesa</a></li><li><a href="/api/desktop/layerling/ui/navodila/besedilo.html">Besedilo in ukrivljen napis</a></li><li><a href="/api/desktop/layerling/ui/navodila/navoji-in-mehanika.html">Navoji, zobniki in drugi sestavni deli</a></li><li><a href="/api/desktop/layerling/ui/navodila/merjenje-in-opombe.html">Merjenje in opombe</a></li><li><a href="/api/desktop/layerling/ui/navodila/tiskanje.html">Priprava za 3D-tisk</a></li><li><a href="/api/desktop/layerling/ui/navodila/datoteke-in-shranjevanje.html">Datoteke, shranjevanje in deljenje</a></li><li><a href="/api/desktop/layerling/ui/navodila/bliznjice.html">Bližnjice na tipkovnici</a></li><li><a href="/api/desktop/layerling/ui/navodila/ai-z-mcp.html">Gradnja z umetno inteligenco (MCP)</a></li><li><a href="/api/desktop/layerling/ui/navodila/offline-in-namestitev.html">Namestitev kot aplikacije, delo brez interneta in lastno gostovanje</a></li><li><a href="/api/desktop/layerling/ui/navodila/videi.html">Videoposnetki o programu layerling</a></li><li><a href="/api/desktop/layerling/ui/navodila/tablica-in-dotik.html">Tablica in dotik</a></li></ol></nav>
+      <main>
+<h1>Telesa in luknje</h1>
+<p class="lead">Kako iz preprostih oblik nastanejo izvrtine, utori in žepi – in kako skupino pozneje še enkrat spremeniš.</p>
+<div class="toc"><b>Na tej strani</b><ul><li><a href="#telo-ali-luknja">Telo ali luknja</a></li><li><a href="#zdruzevanje-v-skupino">Združevanje v skupino</a></li><li><a href="#povezovanje-v-svezenj">Povezovanje v sveženj</a></li><li><a href="#presek">Presek</a></li><li><a href="#izrezovanje-enega-telesa-iz-drugega">Izrezovanje enega telesa iz drugega</a></li><li><a href="#izsekovanje-obrisa-skozi-telo">Izsekovanje obrisa skozi telo</a></li><li><a href="#urejanje-skupine">Urejanje skupine</a></li><li><a href="#rezanje">Rezanje</a></li><li><a href="#locevanje-delov">Ločevanje delov</a></li></ul></div>
+<p>To je najpomembnejša zamisel v programu layerling in se je hitro naučiš: <strong>Vsaka oblika je ali telo ali luknja.</strong> Telo ostane. Luknja je orodje, ki odvzema material.</p>
+<section class="guide-part"><h2 id="telo-ali-luknja"><span class="heading-alias" id="solid-or-hole"></span>Telo ali luknja</h2>
+<p>Izberi obliko in v njenih nastavitvah klikni <strong class="ui">„Trdno telo“</strong> ali <strong class="ui">„Luknja“</strong>. Hitreje gre s tipkovnico: <kbd>H</kbd> naredi izbor za luknjo, <kbd>S</kbd> spet za telo. Oboje je tudi v meniju, ki ga odpre desni klik na telo. Luknja je prosojna, da vidiš, kje sedi. <kbd>T</kbd> naredi telo prosojno, na primer da pogledaš v ohišje; drugi pritisk ga spet naredi neprosojnega. Deluje na celoten izbor: če je katero telo že prosojno, postanejo vsa neprosojna, sicer vsa prosojna.</p>
+<p>Dokler ni nič združeno v skupino, se z luknjo ne zgodi nič. Samo leži tam in kaže, kje naj pozneje nekaj odpade.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hole-before.webp" alt="Valj je luknja. Gleda iz kocke navzgor, da jo povsem prereže." width="1280" height="800" loading="lazy"><figcaption>Valj je luknja. Gleda iz kocke navzgor, da jo povsem prereže.</figcaption></figure>
+</section><section class="guide-part"><h2 id="zdruzevanje-v-skupino"><span class="heading-alias" id="grouping"></span>Združevanje v skupino</h2>
+<p>Označi telo in luknje ter klikni <strong class="ui">„Združi v skupino“</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>G</kbd></span>). Zdaj luknje odvzamejo material telesom, ki se jih dotikajo. Ostane ena sama nova oblika.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hole-after.webp" alt="Rezultat: kocka z izvrtino." width="1280" height="800" loading="lazy"><figcaption>Rezultat: kocka z izvrtino.</figcaption></figure>
+<p>Tako nastanejo:</p>
+<ul><li><strong>Izvrtine:</strong> valj kot luknja skozi telo.</li><li><strong>Utori:</strong> podolgovat kvader kot luknja ob robu.</li><li><strong>Žepi:</strong> luknja, ki ne gre čisto skozi.</li><li><strong>Navoji v delu:</strong> navojna luknja kot luknja, glej <a href="/api/desktop/layerling/ui/navodila/navoji-in-mehanika.html">Navoji in mehanika</a>.</li></ul>
+<p>Če je v skupini več teles, se povežejo. Dve telesi, ki se dotikata, postaneta torej en sam del.</p>
+<p>Pri velikih mrežah, na primer pri uvoženem STL s stotisoči trikotnikov, rez traja nekaj sekund. layerling potem dela v ozadju in kaže »<strong class="ui">„Računam … lahko delaš naprej“</strong>«; medtem lahko vrtiš pogled in uporabljaš vmesnik. Če v tem času spremeniš sceno, se rezultat zavrže in layerling ti to pove. Enako velja za <strong class="ui">„Razdeli“</strong>.</p>
+<p>Skupino smeš obravnavati naprej kot obliko: premikati, vrteti, barvati, spet združevati. Z <strong class="ui">„Razdruži“</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span>) jo razdružiš in posamezni deli so spet tu.</p>
+<section class="guide-part"><h3 id="skupino-spremeniti-v-luknjo"><span class="heading-alias" id="making-a-group-a-hole"></span>Skupino spremeniti v luknjo</h3>
+<p>Tudi cela skupina je lahko telo ali luknja. Pri tem velja preprosto pravilo:</p>
+<ul><li>Če skupina vsebuje samo telesa (ali samo luknje), jo preklopiš kot celoto in njeni deli gredo zraven.</li><li>Če vsebuje oboje, na primer kocko z izvrtino, vsak del obdrži svoje stanje. Cela skupina potem postane orodje, a izvrtina ostane izvrtina.</li></ul>
+</section><section class="guide-part"><h3 id="spreminjanje-velikosti-skupine-luknje-in-majhni-deli-ostanejo"><span class="heading-alias" id="resizing-a-group-keeping-holes-and-small-parts"></span>Spreminjanje velikosti skupine: luknje in majhni deli ostanejo</h3>
+<p>Ko skupino podaljšaš, razširiš ali zvišaš, se njeni deli raztegnejo z njo, kot bi bili narisani na gumi: okrogle luknje v plošči postanejo ovalne in se pomaknejo navznoter. Da ostanejo take, kot so, v nastavitvah skupine pri <strong class="ui">„Pri spreminjanju velikosti“</strong> izberi <strong class="ui">„Ohrani luknje in majhne dele“</strong>; brez te izbire velja <strong class="ui">„Raztegni vse“</strong>, kot doslej pri vsaki skupini. Odtlej se skupina ob vsaki spremembi velikosti - z ročaji, v poljih za mere ali s <strong class="ui">„Povečaj ali pomanjšaj v odstotkih“</strong> - znova sestavi iz svojih delov po enem samem pravilu, za vsako smer posebej:</p>
+<ul><li>Del, ki sega skoraj čez vso skupino, devet desetin ali več, raste ali se krči z njo in ohrani razdaljo do obeh stranic: sama plošča, stena ali notranjost škatle, katere stene ostanejo enako debele.</li><li>Vsak drug del ohrani svojo velikost in razdaljo do bližje stranice. Del na sredini ostane na sredini.</li></ul>
+<p>Plošča z luknjo 5 mm od vsakega vogala in utorom na sredini, podaljšana za 40 mm, tako obdrži luknje okrogle in 5 mm od vogalov ter utor na sredini. Za tem ni nobenega reševalnika omejitev in ničesar ti ni treba nastavljati del za delom: za vse dele velja isto pravilo, zato vnaprej veš, kaj se bo zgodilo. Zavrten del šteje s kvadrom, ki ga zavzema v skupini, in ostane zavrten; skupina v skupini šteje kot en del. Medtem ko vlečeš ročaj, se skupina raztegne kot celota; ko spustiš, se znova sestavi, v istem koraku razveljavitve. Če skupino zmanjšaš pod to, kar del s svojo razdaljo potrebuje, se ta del kot doslej skrči z njo in sporočilo te na to opozori. Zrcaljena, zožena ali zasukana skupina in skupina z lastnimi zaokrožitvami, posnetji ali teksturo vedno raztegne vse. Če nastavitev izbereš za skupino, ki je že raztegnjena, se njeni deli takoj znova razporedijo.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/group-keep-parts.webp" alt="Plošča z luknjo 5 mm od vsakega vogala in utorom na sredini, z izbiro »Ohrani luknje in majhne dele« podaljšana za 40 mm: luknje so še vedno okrogle in 5 mm od vogalov, utor je še vedno na sredini." width="1280" height="800" loading="lazy"><figcaption>Plošča z luknjo 5 mm od vsakega vogala in utorom na sredini, z izbiro »Ohrani luknje in majhne dele« podaljšana za 40 mm: luknje so še vedno okrogle in 5 mm od vogalov, utor je še vedno na sredini.</figcaption></figure>
+</section></section><section class="guide-part"><h2 id="povezovanje-v-svezenj"><span class="heading-alias" id="bundling"></span>Povezovanje v sveženj</h2>
+<p>Včasih naj deli samo ostanejo skupaj, ne da bi postali eno – na primer bel logotip na črni plošči za večbarvni tisk. Za to je <strong class="ui">„Sveženj“</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>B</kbd></span>), kot v Tinkercadu. Sveženj lahko premikaš, vrtiš in mu spreminjaš velikost kot obliki, a nič se ne izračuna:</p>
+<ul><li>Vsak del obdrži svojo barvo in ostane telo ali luknja. Nastavitve svežnja imajo iste kartice kot skupina: <strong class="ui">„Trdno telo“</strong> in <strong class="ui">„Luknja“</strong> za cel sveženj (ki obdržita barve delov), <strong class="ui">„Prozorno“</strong> (<kbd>T</kbd>) in <strong class="ui">„Večbarvno“</strong> (<span dir="ltr"><kbd>Shift</kbd>+<kbd>M</kbd></span>); z izklopljeno večbarvnostjo se sveženj prikaže in izvozi v eni barvi. <strong class="ui">„Loči dele“</strong> sveženj razdre, kot <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span>.</li><li>Luknje ne režejo.</li><li>Pri izvozu kot STL, 3MF ali OBJ je vsak del svoje telo; v 3MF in OBJ s svojo barvo.</li></ul>
+<p><strong class="ui">„Razdruži“</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span>) sveženj spet razdruži, <kbd>E</kbd> ga odpre za urejanje kot skupino. Posnetja, zaokrožitve in izdolbljenje na svežnju ne gredo, ker ni eno samo telo: za to ga združi v skupino ali urejaj njegove dele posamezno. Če naj luknja v svežnju vseeno reže, sveženj združi v skupino (Ctrl+G).</p>
+</section><section class="guide-part"><h2 id="presek"><span class="heading-alias" id="intersection"></span>Presek</h2>
+<p><strong class="ui">„Logični presek“</strong> obdrži samo to, kar imata dve ali več teles skupnega. Položi dve prekrivajoči se obliki drugo čez drugo, označi obe in klikni nanj. Tako na primer iz valja in kvadra nastane kos z okroglo in ravno stranjo. Skupina pri tem šteje tako, kot izgleda, torej z izvrtinami. Če je označena tudi luknja, ostane to, kar imajo vsa telesa skupnega z vsemi luknjami.</p>
+<p><strong class="ui">„Ovojnica“</strong> ovije izbrane oblike v eno konveksno telo, kot bi jih zavil v skrčljivo folijo: najmanjše telo brez vdolbin, ki jih vse zajame. Polkrogla na valju postane kupola brez stopnice, štirje valji v vogalih škatla z zaobljenimi vogali, dve krogli kapsula. Luknje v izboru se iz ovojnice izrežejo potem. Deli ostanejo v njej: <strong class="ui">„Uredi skupino“</strong> odpre ovojnico kot skupino, premik dela v njej in zaprtje pa ovojnico zgradi na novo. Ovojnica je mreža, zato so na okroglih oblikah vidne ploskvice, orodja za robove pa z njo delajo kot z vsako mrežo. Če so izbrane samo luknje, je ovojnica sama luknja: dve valjasti luknji izrežeta režo. Ovojnica zapolni vse, kar je v njenih delih votlo: cev, valj, izvotljen z orodjem <strong class="ui">„Izdolbi“</strong>, del, združen s svojimi luknjami. V Lastnostih vklopite <strong class="ui">„Ohrani luknje delov“</strong>, da ostanejo odprte: ovojnica tedaj zapolni le prostor med deli, vdolbina ob strani dela pa prav tako ostane.</p>
+<p><strong class="ui">„Modelček“</strong> naredi iz izbora modelček za piškote: tanko steno okoli obrisa, visoko 15 mm, in raven rob 2 mm okoli njenega vznožja, tako da modelček stoji na robu in ima palec na kaj pritisniti. Izberi en uvožen SVG ali eno telo iz skice in uporabi se njegov lastni obris. Ležeče besedilo da lastne krivulje svojih črk. Vsaka druga oblika, sestavljena, uvožena mreža ali več delov, da tisto, na čemer stoji: obris, ki ga delovna ravnina prereže skozi njo, zato jo najprej postavi na delovno ravnino. Deli, ki se prekrivajo, dajo en obris okoli vseh, kot bi bili združeni v skupino; ločeni deli dajo vsak svoj modelček v istem svežnju. Obris se zrcali z leve na desno: modelček se natisne stoječ na robu in se za rezanje obrne, tako da besedilo ali logotip pride na testo pravilno obrnjen. Vrh stene se zoži v rezilni rob, širok 0,4 mm. Luknje v obrisu, notranjost črke e ali a, dobijo lastne stene, tako da se tudi izrežejo iz piškota. So lastno telo v svežnju, <strong class="ui">„Notranje stene“</strong>: če naj se besedilo ali vzorec v testo le vtisne namesto izreže, jih v Lastnostih naredi nižje. S steno 15 mm in testom debeline 5 mm notranje stene 12 mm vtisnejo 2 mm globoko. Notranje stene, nižje od zunanje, imajo namesto rezilnega roba raven vrh: samo pritiskajo, rob pa bi pustil tanke konice, ki se odlomijo, in žlebove, v katerih se ujame testo. Če želiš rob, jim ga daj v Lastnostih. Dva mostička ob robu, na strani, na katero pritiska roka, držita vsako notranjo steno ob steni okoli nje, razporejena naokoli, široka 4 mm in visoka 3 mm. Vsak mostiček stoji s celo širino na stenah, na sredini stranice, ki teče vzdolž obrisa, in nikoli čez drug del. Deli drug ob drugem, na primer črke imena, se povežejo tudi med sabo, najbližji najprej, tako da mostički tečejo kot mreža skozi vse in je držana tudi črka sredi besede. Klik na orodje odpre majhno okno: tam namesto mostičkov izbereš <strong class="ui">„Plošča“</strong>, ki zapolni cel obris na strani, kjer pritiskaš, je stabilnejša in se bolje drži tiskalne plošče, a ne dovoli več iztisniti testa od zadaj. <strong class="ui">„Zaokrožitve“</strong> doda majhne naklone 45° tam, kjer stene stojijo na robu, mostičkih ali plošči, da se tanki deli, kot pika nad i, ne odlomijo; so lastno telo v svežnju. Tam nastaviš tudi, za koliko so notranje stene nižje in ali se obris zrcali; vrednosti ostanejo za naslednji modelček. Njihovo višino spreminjaj v Lastnostih kot višino roba. Modelček nadomesti izbor s svežnjem teles iz skice, <strong class="ui">„Uredi skupino“</strong> ga odpre. Stena, notranje stene in rob so načini polnila skice, črta zunaj silhuete: debelino, višino ali barvo vsakega spreminjaj v Lastnostih, tam tudi <strong class="ui">„Rezilo“</strong> stene (0 za raven vrh). Kjer ostra krivina ne pusti prostora za posnetje z obeh strani, se stena posname samo zunaj, do istega roba. Kjer obrisa sploh ni mogoče posneti - logotip z ostrimi konicami, obris, izrezan iz trikotnikov telesa -, se rob namesto tega zgradi v drobnih stopnicah po 0,1 mm, ki jih tiskalna plast 0,2 mm ne loči od naklona; taka stena je mreža trikotnikov, ne natančno telo. Če želiš obris ohraniti, kot je narisan, modelček zrcali nazaj z <strong class="ui">„Zrcali“</strong>, <strong class="ui">„levo-desno“</strong>. Deluje tudi slika PNG ali JPG: ob uvozu se obriše v telo iz skice in modelček sledi temu.</p>
+<p><strong class="ui">„Prehod med skicama“</strong> poveže dve telesi iz skice ali uvožena SVG v eno telo: obris spodnjega spodaj, obris zgornjega zgoraj, z ravnimi stenami vmes. Tako nastane lijak, prehodni kos iz kvadrata v krog ali okvir, ki se navzgor oži. Postavi telesi drugo nad drugo, kamor spadata, premaknjeni in zavrteni, kot želiš, izberi obe in klikni orodje. Loft sega od dna spodnjega telesa do vrha zgornjega.</p>
+</section><section class="guide-part"><h2 id="izrezovanje-enega-telesa-iz-drugega"><span class="heading-alias" id="cutting-one-body-out-of-another"></span>Izrezovanje enega telesa iz drugega</h2>
+<p>Pri delih, ki morajo ustrezati drug drugemu, gred v puši ali vijak v ohišju, naredite en del in ga izrežete iz drugega. Izberite obe telesi in kliknite <strong class="ui">„Izreži“</strong> v območju <strong class="ui">„Združevanje“</strong> ali kliknite z desno tipko in ga izberite tam. Okno navede del, ki ostane, in telo, ki dobi votlino; layerling vzame manjše telo za del, <strong class="ui">„Zamenjaj oba“</strong> pa ju zamenja. <strong class="ui">„Zračnost“</strong> naredi votlino okoli dela toliko večjo: 0 ustreza natančno, 0,2 mm je običajna zračnost za natisnjeno ujemanje. <strong class="ui">„Izreži“</strong> izreže kopijo dela iz drugega telesa in pusti sam del tam, kjer je. Rezultat je skupina: <strong class="ui">„Razdruži“</strong> rez spet razstavi. Zračnost zahteva, da je del natančno telo, kot pri orodju <strong class="ui">„Odmik“</strong>, ki se uporablja za to.</p>
+</section><section class="guide-part"><h2 id="izsekovanje-obrisa-skozi-telo"><span class="heading-alias" id="punching-an-outline-through-a-body"></span>Izsekovanje obrisa skozi telo</h2>
+<p>Če želiš izrezati obris enega telesa naravnost skozi drugo, najprej izberi pečat, nato telo za izsekanje, in klikni <strong class="ui">„Izsekaj“</strong> v območju <strong class="ui">„Združevanje“</strong> ali ga izberi z desnim klikom. Telesi se ne rabita dotikati: pečat lahko stoji kjer koli pred telesom, šteje le njegov obris, gledan v smeri (<strong class="ui">„Smer“</strong>). Čajnik nad ploščo tako v njej pusti odprtino v obliki čajnika. layerling začne z osjo, vzdolž katere pečat stoji najdlje od telesa; X poteka od leve proti desni, Y od spredaj nazaj, Z navzgor. <strong class="ui">„Zamenjaj oba“</strong> zamenja vlogi, <strong class="ui">„Zračnost“</strong> pa odprtino naokoli poveča, 0,2 mm za natisnjen del, ki mora iti skozi. <strong class="ui">„Izsekaj“</strong> združi odprtino s telesom kot natančno telo skice, nastavljeno kot luknja, zato jo <strong class="ui">„Razdruži“</strong> spet odstrani; pečat ostane, kjer je. Premakni ali zavrti ga in izsekaj znova za drugo odprtino.</p>
+</section><section class="guide-part"><h2 id="urejanje-skupine"><span class="heading-alias" id="editing-a-group"></span>Urejanje skupine</h2>
+<p>Če je izvrtina ratala premajhna, skupine ni treba razdružiti in zgraditi znova. Izberi skupino in v njenih nastavitvah klikni <strong class="ui">„Uredi skupino“</strong>, v seznamu objektov ikono mape, ali pritisni <kbd>E</kbd>. Dvoklik na skupino naredi isto, kot v Tinkercadu, tudi pri svežnju; kdor tega ne mara, izklopi <strong class="ui">„Dvojni klik odpre skupino ali sveženj“</strong> v nastavitvah. Del se sicer premakne šele, ko je kazalec potegnjen nekaj pikslov daleč, tako da nespretni klik ali dvoklik nič ne premakne. Deli zdaj ležijo posamezno in jih spreminjaš z vsemi orodji: luknjo povečaš, telo premakneš, luknjo dodaš.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/open-group.webp" alt="Skupina v urejanju: spodaj je vrstica z Prekliči in Končano, seznam objektov kaže dele." width="1280" height="800" loading="lazy"><figcaption>Skupina v urejanju: spodaj je vrstica z Prekliči in Končano, seznam objektov kaže dele.</figcaption></figure>
+<p>Spodaj v sliki se pokaže vrstica. <strong class="ui">„Končano“</strong> skupino ponovno izračuna, z njenim imenom, barvo in stanjem kot telo ali luknja. <strong class="ui">„Prekliči“</strong> jo vrne nespremenjeno.</p>
+<p>Če je eden od delov sam skupina, ga urejaš prav tako, in tako naprej, tako globoko, kot sega tvoj načrt. Vrstica kaže, kje si, na primer »Držalo › Vijačni steber«. <strong class="ui">„Končano“</strong> in <strong class="ui">„Prekliči“</strong> vedno zaključita najnotranjejšo skupino in te vrneta eno raven nazaj. Dokler si v skupini, lahko urejaš samo skupine pod njenimi deli; za drugo najprej zaključi.</p>
+<p>Za razliko od <strong class="ui">„Razdruži“</strong>, ki skupino dokončno razpusti, urejanje skupino ohrani: ime in nastavitve ostanejo, z <strong class="ui">„Prekliči“</strong> pa se lahko kadarkoli vrneš.</p>
+<p>Opomba: posnetja in zaokrožitve, ki si jih položil na <strong>celotno</strong> skupino, se pri ponovnem izračunu izgubijo. Na to opozori vrstica.</p>
+</section><section class="guide-part"><h2 id="rezanje"><span class="heading-alias" id="splitting"></span>Rezanje</h2>
+<p><strong class="ui">„Razdeli“</strong> v področju <strong class="ui">„Spreminjanje“</strong> razreže izbor z ravnino na dva dela – na primer del, ki je prevelik za tiskalno posteljo, ali takega, v katerega želiš pogledati. Označi eno ali več teles ali lukenj in klikni nanj. Prosojna ravnina kaže natanko, kje je rez; spremeni se šele, ko ga uporabiš.</p>
+<ul><li><strong class="ui">„Usmerjenost ravnine“</strong>: <strong>X</strong> reže navpično med levo in desno, <strong>Y</strong> med spredaj in zadaj, <strong>Z</strong> vodoravno med zgoraj in spodaj. Osi se imenujejo kot v kartici lege, Z kaže navzgor; ravnina se začne z Z.</li><li><strong class="ui">„Poravnaj z delovno ravnino“</strong>: <strong class="ui">„Vzporedno“</strong> položi ravnino vzporedno z delovno ravnino, <strong class="ui">„Prečno na X“</strong> in <strong class="ui">„Prečno na Y“</strong> jo postavita pravokotno nanjo, prečno na njeno smer X ali Y. Če izhodišče delovne ravnine seka izbor, gre ravnina skozenj, sicer skozi sredino. Tako z <kbd>W</kbd> postaviš delovno ravnino na poševno ploskev in režeš natanko tam, brez vrtenja drsnikov.</li><li><strong class="ui">„Položaj ravnine“</strong>: kje gre ravnina skozi, z drsnikom ali kot številka. Začne se na sredini. Lahko tudi povlečeš puščično konico na ravnini; ravnina se potem premika po korakih po 0,1 mm vzdolž puščice.</li><li><strong class="ui">„Izberi ploskev“</strong>, gumb ob legi, položi ravnino na ploskev: klikni nanj in nato na ploskev. Smer, oba zasuka in lega se nastavijo ustrezno. Medtem ko izbiraš, modra ravnina pod kazalcem kaže, katero ploskev prevzame. Gre tudi ploskev neoznačenega telesa, da po njej poravnaš rez – ravnina pa ostane znotraj izbora. <kbd>Esc</kbd> konča izbiranje in pusti ravnino, kjer je bila.</li><li>Dva vrtljiva drsnika spodaj vrtita ravnino okoli drugih dveh osi, do 180° v vsako smer, za poševen rez. Lahko ju kombiniraš.</li></ul>
+<p><strong class="ui">„Razdeli model“</strong> ali <kbd>Enter</kbd> razreže, <kbd>Esc</kbd> prekine (pri izbiranju ploskve prvi <kbd>Esc</kbd> konča samo izbiranje). Vsak predmet, skozi katerega gre ravnina, postane dve zaprti telesi, poimenovani po svoji strani, na primer »Kvader (Z+)« in »Kvader (Z-)«; predmeti, ki jih zgreši, ostanejo, kot so. Iz luknje nastaneta dve luknji, izdolbeno telo pa obdrži svojo votlino. Obe polovici ostaneta, kjer sta bili – za tisk vsako z <strong class="ui">„Položi na ploskev“</strong> položiš na njeno ploskev reza.</p>
+<p><strong class="ui">„Spojniki“</strong> spet poravnajo polovici, kot to delajo orodja za rez v PrusaSlicerju, OrcaSlicerju in Bambu Studiu. Z možnostjo <strong class="ui">„Brez“</strong>, ki je privzeta, se razdeli, kot je opisano zgoraj. <strong class="ui">„Mozniki“</strong> naredi luknjo v vsaki polovici in ločene moznike, ki gredo v obe: mozniki pridejo kot tretje telo, ki stoji poleg polovic na njunem dnu, da jih natisneš z njima – stoje so v plasteh okrogli kot njihove luknje, in prav to meri preizkus ujemanja. <strong class="ui">„Čepi“</strong> postavi okrogle čepe na polovico, katere ime se konča z minusom, luknje zanje pa naredi v drugi polovici. Spojniki gredo noter pravokotno na ravnino, kakorkoli je zasukana, vsak s svojim premerom in 1,2 mm materiala do vsakega roba ploskve reza, dva pa dvakrat toliko narazen. Vsak ločen kos ploskve reza dobi svoje, enakomerno razporejene po njem: <strong class="ui">„Na ploskev reza (0 = samodejno)“</strong> pove, koliko, 0 pa to prepusti velikosti kosa, vsaj dva. Kos, ki je premajhen za enega, ne dobi nobenega, spojnik pa izpade tam, kjer je polovica tanjša, kot je njegova luknja globoka; plošča to pove, preden razdeliš, beli obročki na ravnini pa kažejo, kam pridejo. Če ne gre noben, se deli razdelijo brez njih, in vrstica stanja to pove.</p>
+<ul><li><strong class="ui">„Premer“</strong> je premer moznikov in čepov, na začetku 5 mm.</li><li><strong class="ui">„Globina v vsako polovico“</strong> pove, kako globoko gre vsaka luknja v svojo polovico. Moznik je dvakrat toliko dolg manj 0,6 mm, čep pa 0,3 mm krajši od svoje luknje, da nikoli ne stojita na dnu luknje in se polovici povsem zapreta. Mozniki in čepi imajo na koncih majhno posnetje, vsaka luknja pa ga ima ob ustju, da je razlezena prva plast ne zoži.</li><li><strong class="ui">„Mozniki na odlomljivem podnožju“</strong> pri <strong class="ui">„Mozniki“</strong> postavi proste moznike na skupno ploščo, ki se drži podlage, za tiskalnike, katerih premična podlaga zamaje stoječe dele. Vsak moznik stoji na majhni izboklini v ležišču plošče; po tisku vsakega zazibajte, dokler se ne odlomi, tako kot zatič preizkusa ujemanja.</li><li><strong class="ui">„Zračnost na vsaki strani“</strong> je prostor med moznikom ali čepom in njegovo luknjo. Ko izmeriš zračnost svojega tiskalnika s preizkusom ujemanja (v poglavju o tiskanju), se začne z njo, sicer z 0,2 mm.</li></ul>
+<p><strong class="ui">„Lastovičji rep“</strong> drži polovici skupaj brez lepila, kot rez z lastovičjim repom v OrcaSlicerju: letev, ki se od ploskve reza navzven širi, stoji na polovici, katere ime se konča z minusom, in teče naravnost čez ploskev reza od roba do roba; druga polovica dobi ustrezen utor, odprt na obeh koncih. Polovici potisneš eno v drugo s strani, vzdolž letve; potem ju prečno na rez ni več mogoče razdvojiti. Letve tečejo vzdolž daljše strani ploskve reza, in če telo seka ravnino v več kosih, tečejo na vseh v isto smer, da polovico nasuneš z enim gibom. <strong class="ui">„Na ploskev reza (0 = samodejno)“</strong> je število letev drugo ob drugi na vsakem kosu; 0 to prepusti širini kosa, ena na vsakih šest širin letve, vsaj ena. Ob svoji široki zgornji strani letev obdrži polovico svoje širine in še 1,2 mm materiala do roba ploskve reza, dve letvi pa dvakrat toliko druga od druge. Kos, ki je za letev preozek ali v njeni smeri prekratek, ne dobi nobene, letev pa odpade tam, kjer je druga polovica tanjša, kot je globok njen utor. Beli obrisi na ravnini kažejo, kam pridejo: zapolnjeni pas je vznožje letve, črta okoli njega njena široka zgornja stran.</p>
+<ul><li><strong class="ui">„Širina ob ploskvi reza“</strong> je širina letve tam, kjer pride iz ploskve reza, na začetku 6 mm.</li><li><strong class="ui">„Globina v drugo polovico“</strong> pove, kako daleč štrli iz ploskve reza v drugo polovico, na začetku 4 mm. Utor je 0,3 mm globlji, da se polovici povsem zapreta.</li><li><strong class="ui">„Kot bokov“</strong> pove, koliko se vsak bok nagne navzven od pravokotnice na ploskev reza, od 5° do 30°, na začetku 15°. Večji ko je, širša je zgornja stran letve in trdneje drži.</li><li><strong class="ui">„Smer (0 = vzdolžno)“</strong>: 0 položi letve vzdolžno, 90 prečno čez ploskev reza, kot vmes pa jih zasuče za toliko.</li><li><strong class="ui">„Zračnost na vsaki strani“</strong> je prostor na vsaki strani med letvijo in njenim utorom, iz tvojega preizkusa ujemanja kot pri moznikih. Konca letve sta naokoli posneta, da najde utor, utor pa ima posnetje ob ustju.</li></ul>
+<p>Za tisk položi polovico z utorom na njeno ploskev reza, polovico z letvijo pa natisni obrnjeno, s ploskvijo reza zgoraj: boka letve se tedaj nagibata navzven le za svoj kot, kar se natisne brez podpor.</p>
+<p>Oblike, ki so luknje, se razdelijo brez spojnikov.</p>
+<p>Polovici sta preprosti mreži: nastavitve, kot je število stranic valja ali črke besedila, se izgubijo, zato jih nastavi prej. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> vrne original v enem koraku. Zaklenjenih in skritih predmetov ni mogoče razrezati.</p>
+</section><section class="guide-part"><h2 id="locevanje-delov"><span class="heading-alias" id="separating-parts"></span>Ločevanje delov</h2>
+<p>Če oblika sestoji iz več med seboj ločenih kosov, na primer besedilo iz posameznih črk, jo lahko z <strong class="ui">„Loči dele“</strong> razstaviš v samostojne oblike. Ukaz je tudi v meniju, ki se odpre z desnim klikom na obliko.</p>
+<aside class="tip"><p><strong>Namig:</strong> Luknje vedno naredi malo daljše od dela, ki naj ga prebodejo. Če luknja zaključi natanko s ploskvijo, včasih ostane čisto tanka kožica. En milimeter preseka da varnost.</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/navodila/izbiranje-in-razporejanje.html"><small>Prejšnje poglavje</small>Izbiranje in razporejanje</a><a class="next" href="/api/desktop/layerling/ui/navodila/robovi-in-izdolbljenje.html"><small>Naslednje poglavje</small>Posnetje robov in izdolbljenje teles</a></div>
+      </main>
+    </div>
+    <footer class="note">Ta navodila rastejo skupaj s programom. Če kaj manjka ali ne drži, sporoči v <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">razpravah</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=sl" rel="noopener">Podpri Layerling Desktop</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Razprave</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Več na GitHubu</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Opombe ob izdaji v1.154.1</a></div><p class="trademark">Tinkercad je blagovna znamka podjetja Autodesk, Inc. layerling je neodvisen projekt in ni povezan z Autodeskom, ga ne podpira in ga ne sponzorira.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Nazaj v urejevalnik";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="V urejevalnik";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

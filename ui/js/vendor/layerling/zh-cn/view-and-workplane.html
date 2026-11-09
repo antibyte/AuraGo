@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>视图与工作平面 - layerling 用户指南</title>
+    <meta name="description" content="在场景中移动、正对着观察，以及把新形状放到任意你喜欢的表面上。">
+    <link rel="canonical" href="https://layerling.com/zh-cn/view-and-workplane.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/view-and-workplane.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/view-and-workplane.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/view-and-workplane.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/ansicht-und-arbeitsebene.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/view-and-workplane.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/view-and-workplane.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/view-and-workplane.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/view-and-workplane.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/weergave-en-werkvlak.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/view-and-workplane.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/pogled-in-delovna-ravnina.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/view-and-workplane.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/view-and-workplane.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/view-and-workplane.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/view-and-workplane.html">
+    <meta property="og:title" content="视图与工作平面 - layerling 用户指南">
+    <meta property="og:description" content="在场景中移动、正对着观察，以及把新形状放到任意你喜欢的表面上。">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/zh-cn/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">用户指南</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/zh-cn/search-index.json" data-nothing="未找到结果。" data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="搜索指南" aria-label="搜索指南" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="语言">简体中文</summary><ul><li><a href="/api/desktop/layerling/ui/guide/view-and-workplane.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/view-and-workplane.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/view-and-workplane.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/view-and-workplane.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/view-and-workplane.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/view-and-workplane.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/view-and-workplane.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/view-and-workplane.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/view-and-workplane.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/view-and-workplane.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/pogled-in-delovna-ravnina.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/view-and-workplane.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/view-and-workplane.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/view-and-workplane.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/view-and-workplane.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/view-and-workplane.html" hreflang="zh-CN" lang="zh-CN" aria-current="true">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/view-and-workplane.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">打开编辑器</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>编辑器已在另一个标签页中打开，请切换到那里。</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="章节"><h2>章节</h2><p class="print-link"><a href="/api/desktop/layerling/ui/zh-cn/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>打印完整指南</span></a></p><ol><li><a href="/api/desktop/layerling/ui/zh-cn/getting-started.html">快速上手</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/view-and-workplane.html" aria-current="page">视图与工作平面</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/shapes.html">放置与调整形状</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/select-and-arrange.html">选择与排列</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/solids-and-holes.html">实体与孔</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/edges-and-hollowing.html">处理边与抽壳实体</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/sketches.html">草图：从轮廓到实体</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/text.html">文字与弧形文字</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/threads-and-mechanics.html">螺纹、齿轮和其他零件</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/measuring-and-notes.html">测量与备注</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/printing.html">为 3D 打印做准备</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/files-and-saving.html">文件、保存与分享</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/shortcuts.html">键盘快捷键</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/ai-with-mcp.html">用 AI 搭建（MCP）</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/offline-and-install.html">安装为应用、离线使用与自托管</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/videos.html">关于 layerling 的视频</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/tablet-and-touch.html">平板与触控</a></li></ol></nav>
+      <main>
+<h1>视图与工作平面</h1>
+<p class="lead">在场景中移动、正对着观察，以及把新形状放到任意你喜欢的表面上。</p>
+<div class="toc"><b>本页内容</b><ul><li><a href="#moving-around">移动视图</a></li><li><a href="#looking-inside-the-section-view">查看内部：剖视图</a></li><li><a href="#the-workplane">工作平面</a></li><li><a href="#build-plates">打印板</a></li><li><a href="#grid-and-snapping">网格与吸附</a></li><li><a href="#layerling">layerling 卡顿的时候</a></li></ul></div>
+<section class="guide-part"><h2 id="moving-around"><span class="heading-alias" id="the-view-cube"></span><span class="heading-alias" id="the-view-bar"></span><span class="heading-alias" id="a-second-view-in-its-own-window"></span>移动视图</h2>
+<p>使用鼠标：</p>
+<div class="table-scroll"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td>按住右键拖动</td><td>旋转视图</td></tr><tr><td>单击右键</td><td>在实体上打开常用命令菜单：复制、设为孔或实体、分组、隐藏、锁定、删除等；在空白处为“粘贴”和“全选”</td></tr><tr><td>按住中键拖动</td><td>平移视图</td></tr><tr><td>滚轮</td><td>放大和缩小</td></tr><tr><td>按住 <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> 并用左键拖动</td><td>也可平移视图（在 MacBook 触控板上：按住 <kbd>Cmd</kbd>，按下并拖动）</td></tr><tr><td>双击工作平面上的空白处或平台旁边</td><td>平移视图，使该处位于中央；之后视图绕该处旋转</td></tr></tbody></table></div>
+<p>滚轮缩放的速度在设置的 <strong class="ui">“外观”</strong> 下用 <strong class="ui">“缩放速度”</strong> 设定：滑块范围 1 到 14，初始为 5。它只作用于滚轮和触控板：按钮以及 <kbd>+</kbd> 和 <kbd>−</kbd> 键始终按同样的小步距缩放。鼠标滚轮的一格在任何浏览器里缩放幅度都相同，触控板则按你滑过的距离缩放。</p>
+<p><strong>与切片软件一致的鼠标按键。</strong> 如果你习惯了 Bambu Studio 或 OrcaSlicer，在设置的 <strong class="ui">“外观”</strong> 下把 <strong class="ui">“鼠标按键”</strong> 设为 <strong class="ui">“类似 Bambu Studio 和 OrcaSlicer”</strong>。这样在空白处左键拖动会旋转视图，右键像中键一样平移视图，Shift 加左键拖动会画出选择框。拖动实体仍会移动它，短按右键仍会打开菜单。在草图中右键同样平移视图。</p>
+<p><strong>3D 鼠标。</strong> SpaceMouse 或其他 3D 鼠标可以旋转、平移和缩放 3D 视图：把帽往前推即可放大，滑动它平移视图，倾斜它倾斜视图，扭转它旋转视图。在设置的 <strong class="ui">“外观”</strong> 下点击 <strong class="ui">“连接 3D 鼠标”</strong>，并在浏览器打开的窗口中选择设备；浏览器会记住这个选择，所以只需做一次。这在能访问此类设备的 Chrome 和 Edge 中可用；Firefox 和 Safari 不行。如果某个方向的操作反了，请在按钮下方勾选它：左右平移、上下平移、缩放、倾斜或扭转。</p>
+<p>平板或手机上，两根手指缩放（张开和捏合）并平移视图（并拢滑动）。一根手指在空白处会转动视图，在那里轻点会清除选择；落在形状或控制柄上时，则像鼠标左键那样操作设计。要让从形状上开始的手指也能转动视图，请打开视图栏中的 <strong class="ui">“用单指旋转视图”</strong>。这个开关只在带触摸屏的设备上显示。</p>
+<p>带笔的绘图板用起来像鼠标：笔尖是左键，笔杆上的按键是右键，用于转动视图和打开菜单。绘图板的热键可以在其驱动中设为 layerling 的<a href="/api/desktop/layerling/ui/zh-cn/shortcuts.html">键盘快捷键</a>。</p>
+<p><strong>在平板上，尽量使用触控笔。</strong> 它的笔尖比指尖细得多，也不会挡住你要对准的地方，因此草图中的小点、细线和控制柄、测量点与边都能精确点中，长时间工作也更省力。layerling 已经让手指比鼠标指针更容易够到点、线、控制柄和边，但触控笔仍然是更精确的方式。这适用于绘图板能识别为笔的笔（S Pen、Apple Pencil 等）。普通橡胶笔尖的触控笔在屏幕上等同于手指，并不会更细。</p>
+<p>平板没有鼠标右键：把一根手指在形状或空白处按住半秒，就会打开右键所打开的菜单，空白处还有<strong>全选</strong>。同一菜单里的<strong>多选</strong>在平板上代替 Shift：之后每次点按实体都会把它加入或移出选择，直到你点按空白处或按 <kbd>Esc</kbd>；手指落在空白处仍然会转动视图。选中形状周围的控制柄，手指从旁边一点的位置也能抓住。</p>
+<section class="guide-part"><h3 id="section-2">视图立方体</h3>
+<p>左上角的立方体显示你正看向哪里。点击它的某一面，就会跳到从上、下、前、后、左或右看的正视图。点击立方体的角，会从那个角斜着看向模型；点击边附近，则从那条边看过去，位于两个面之间；指针停在上面时该处会亮起。数字键 <kbd>1</kbd> 到 <kbd>6</kbd> 也能给出正视图。同时按住 <kbd>Shift</kbd>，视图还会缩放到选中项，就像 <span dir="ltr"><kbd>Shift</kbd>+<kbd>F</kbd></span> 那样。</p>
+<p>拖动立方体可以转动视图，和按住右键拖动一样。没有选中任何东西时，方向键也会转动视图：每按一次 15°，配合 <kbd>Shift</kbd> 为 90°。它们按所指的方向转动模型——<kbd>→</kbd> 把模型的正面转向右，<kbd>↑</kbd> 把它的正面向上仰。按住 <kbd>Ctrl</kbd> 时，方向键改为让视图在屏幕上平移：每按一次移动画面的十分之一，同时按 <kbd>Shift</kbd> 则为一半。模型按所指的方向移动。如果选中了东西，方向键会移动它；先点击空白处再转动视图。在触摸屏上，用一根手指即可，无需打开 <strong class="ui">“用单指旋转视图”</strong>。</p>
+</section><section class="guide-part"><h3 id="section-3">视图栏</h3>
+<p>左边缘是一条窄栏。从上往下：</p>
+<ul><li><strong class="ui">“复位视图”</strong> 把整个场景重新装回画面。快捷键是 <kbd>Home</kbd>；没有选中任何东西时，<kbd>F</kbd> 也可以。</li><li><strong class="ui">“将视图居中到选中项”</strong> 缩放到选中项（<kbd>F</kbd> 或 <span dir="ltr"><kbd>Shift</kbd>+<kbd>F</kbd></span>）。</li><li><strong class="ui">“放大”</strong> 和 <strong class="ui">“缩小”</strong> 按步缩放，<kbd>+</kbd> 和 <kbd>−</kbd> 键也是如此。</li><li><strong class="ui">“正交视图”</strong> 切换到平面视图，平行边保持平行。对于测量和对齐边，这通常比透视视图更舒服。<kbd>O</kbd> 来回切换，再点一次也会返回。</li><li><strong class="ui">“打开第二个视图”</strong> 在单独的窗口中打开设计的第二视图，详见下文。再点一次将其关闭。</li><li><strong class="ui">“显示滚动条”</strong> 会在视图底部和右边缘各显示一条滚动条。拖动滚动条可平滑地移动视图，点击两端的箭头可小幅移动（按住会持续移动），点击滑块旁边则移动几乎整个视图。视图不会旋转，而且与方向键不同，选中零件时滚动条照样可用——在近处处理小细节时很方便。再次点击可隐藏它们；设置中的 <strong class="ui">“编辑器启动时显示滚动条”</strong> 决定设计打开时是否显示它们。此浏览器也会记住这一选择。</li><li><strong class="ui">“隐藏工作平面”</strong>（网格上方的眼睛）连同网格一起隐藏平台，让你可以从下方查看设计的底面。改变的只是视图：新形状仍然落在工作平面上。再点一次会重新显示。</li><li><strong class="ui">“放置工作平面”</strong>、卷尺和直角尺是各自的工具，下文以及<a href="/api/desktop/layerling/ui/zh-cn/measuring-and-notes.html">测量与注释</a>中会介绍。</li></ul>
+<p><strong class="ui">“打开第二个视图”</strong> 会打开一个窗口，用它自己的相机显示同一个设计，让你同时从两个方向观察——比如你从上方操作时，从前方看它。你在编辑器里做的每处更改都会立即显示在那里；设计只在主窗口中修改，手柄也只留在主窗口。在第二窗口中，鼠标和视图立方体像这里一样旋转它的视图，按键也一样：<kbd>1</kbd> 到 <kbd>6</kbd>、<kbd>F</kbd>、<kbd>Home</kbd>、<kbd>O</kbd>、<kbd>+</kbd> 和 <kbd>−</kbd>，方向键旋转，<kbd>Ctrl</kbd> 加方向键平移。在那里 <kbd>F</kbd> 会缩放到编辑器中选中的对象。设计的四个已保存视图在那里也可用：<kbd>7</kbd>、<kbd>8</kbd>、<kbd>9</kbd> 和 <kbd>0</kbd> 调出它们，<kbd>Shift</kbd> 加其中一个键会把该窗口的视图保存到这个键下——两个窗口共用。它自己的视图栏有 <strong class="ui">“复位视图”</strong>、<strong class="ui">“将视图居中到选中项”</strong>、<strong class="ui">“放大”</strong>、<strong class="ui">“缩小”</strong>、<strong class="ui">“正交视图”</strong> 和 <strong class="ui">“隐藏工作平面”</strong>，只作用于该窗口。窗口会在你上次离开的位置以相同大小打开，并随编辑器一起关闭。在手机和平板上不显示此按钮。</p>
+<p>栏最顶部的小箭头会在它挡路时把它收起。</p>
+<p>设计会按你离开时的样子打开：视图的角度、缩放和位置会随设计保存在这个浏览器中，所以你可以从停下的地方继续，即使回过起始页或关闭过页面也一样。保存的文件（.lyl）会带上视图，因此在别处打开时也是这个视角。视图不属于撤销历史。</p>
+<p>每个设计中还可以保存四个自己的视图。<span dir="ltr"><kbd>Shift</kbd>+<kbd>7</kbd></span>、<span dir="ltr"><kbd>Shift</kbd>+<kbd>8</kbd></span>、<span dir="ltr"><kbd>Shift</kbd>+<kbd>9</kbd></span> 或 <span dir="ltr"><kbd>Shift</kbd>+<kbd>0</kbd></span> 把当前视图原样保存到该键下——包括角度、位置、缩放以及平面或透视——只按该键（<kbd>7</kbd>、<kbd>8</kbd>、<kbd>9</kbd> 或 <kbd>0</kbd>）即可恢复。底部会有消息确认保存；在同一键下再次保存会替换该视图。和上面的视图一样，保存的视图会随设计留在这个浏览器中，并随保存的文件（.lyl）一起带走，它们也不属于撤销历史。</p>
+</section></section><section class="guide-part"><h2 id="looking-inside-the-section-view">查看内部：剖视图</h2>
+<p><strong class="ui">“剖视图”</strong>，栏中最后一个按钮（切割工具），沿一个平面把视图切开，以便检查壁、空腔以及互相嵌套的零件。不会真的切掉任何东西：设计、它的文件和所有导出都保持完整。平面穿过实体的地方，切面会以该实体稍暗的颜色填充，内部的孔则保持空白，这样就能区分实心与空心；平面停止移动片刻后，填充面才会出现。在<strong class="ui">“剖切面”</strong>中选择剖切面的样子：<strong class="ui">“剖面线”</strong>（默认）像工程图一样画剖面线，位于另一实体内部的实体剖面线方向相反，两者因此分得清；<strong class="ui">“填充”</strong>以单色填充；<strong class="ui">“开放”</strong>保持开放，你会看到实体外壳的内部。这个选择对所有设计都有效。</p>
+<ul><li>选择平面横跨的轴：X（宽度）、Y（深度）或 Z（高度），与位置字段中的相同。平面从设计的中间开始。</li><li><strong class="ui">“坐标基准”</strong> 设定这些轴跟随什么。<strong class="ui">“设计”</strong> 采用设计的坐标轴。<strong class="ui">“工作平面”</strong> 采用工作平面的坐标轴：此时 Z 平行于它切割，X 和 Y 与它垂直，位置从它的原点算起。工作平面位于斜面时，你就平行于该面切割，移动工作平面时切口也会跟着移动。<strong class="ui">“视图”</strong> 把平面转向屏幕：它去掉前方遮挡的部分，滑块则沿视线把平面推入设计更深处，例如为了够到被埋住的零件并点击它。转动视图后，再点一次，切口就会跟随新视图。</li><li><strong class="ui">“粗调”</strong> 让平面横跨整个设计移动，<strong class="ui">“微调”</strong> 让它在当前位置两侧小幅移动，以十分之一毫米为单位。也可以直接输入位置。</li><li>坐标轴旁的按钮显示切口的另一侧，<strong class="ui">“居中”</strong> 把平面放回中间，<strong class="ui">“显示剖切平面”</strong> 隐藏蓝色平面。</li><li>你可以点击并选中切口露出的内容，包括内壁。</li><li><strong class="ui">“在此处放置工作平面”</strong> 把工作平面放到切口上。它位于剖面上，朝向保留下来的实体外侧，就像切割留下的面。如果你随后切换到草图，草图会正好从那里开始，淡淡的轮廓显示切口，你可以沿着它绘制并吸附。例如，这就是给用剖视图打开的空腔配一个盖子的画法。坐标轴旁的按钮选择保留哪一侧，也就决定了工作平面朝哪个方向。像平常一样，可以把工作平面放回底板。</li><li><strong class="ui">“从剖面创建草图”</strong> 直接在切口上开始一个新草图，切口的轮廓已经作为线条放在里面：孔是真正的圆，圆角是圆弧。修改它们，删掉不需要的，继续绘制，然后完成：实体从切口向被切掉的那一侧长出，因此必须与另一个零件配合的零件，例如盖子、嵌件或密封垫，正是从那个零件自己的轮廓开始。坐标轴旁边的按钮选择这一侧。与 SVG 一样，只计入可见实体，孔已经扣除。</li><li><strong class="ui">“测量”</strong> 直接在切口上测量：轮廓以蓝色显示，在它上面点击两次即可得到距离，以及沿平面两个轴的分量。两个点都会吸附到轮廓上，优先吸附角点。当第二次点击落在对侧壁上任意位置时，它会与第一个点垂直对齐——因此不用精确瞄准，就能读出壁厚、间隙和公差。第三次点击开始下一次测量，<kbd>Esc</kbd> 结束测量。移动平面会清除测量。在圆形轮廓上，例如穿过圆柱或孔的切口，小十字会标出圆心，圆心也会吸附。点击圆上一点，再靠近它正对面的点：第二次点击会正好落在圆心另一侧，读数显示 Ø，即直径。从圆心到圆上一点则得到 R，即半径。</li><li><strong class="ui">“剖切导出为 SVG”</strong> 把切割平面上的轮廓按 1:1 保存为 SVG，供激光切割机、绘图仪、模板或垫片使用。X 切口从右侧看，Y 切口从前面看，Z 切口从上方看。与导出时一样，只有可见实体才会写入，孔已经扣除，同色的实体会合并成一个轮廓。每种颜色保持为独立的无填充路径，这样激光软件会把它们当作不同图层分开。</li></ul>
+<p>工具窗口附着在它的按钮上。如果它挡住了东西，可以抓住标题栏把它拖到工作平面上的任意位置；下次也会在那里打开。双击标题栏或把它拖回按钮处即可复原。</p>
+<p>X 和 <kbd>Esc</kbd> 会关闭窗口；如果正在测量，<kbd>Esc</kbd> 会先结束测量。切口会一直保留，直到你用 <strong class="ui">“剖切已启用”</strong> 将其关闭，或回到设计总览。开启时，它的按钮保持高亮。放在被切掉那一侧的任何东西，只有关闭切口后才会显示。平板没有 <kbd>Esc</kbd>，所以那里的窗口多两个按钮：<strong class="ui">“返回”</strong> 在测量进行时结束测量，否则关闭窗口；<strong class="ui">“关闭”</strong> 一步关闭窗口。电脑上不显示这两个按钮。</p>
+</section><section class="guide-part"><h2 id="the-workplane">工作平面</h2>
+<p>新形状会与工作平面对齐。起初它是带网格的底板。但你可以把它放到任何表面上，以便在侧壁或斜面上放置东西。</p>
+<ol><li>按 <kbd>W</kbd> 或点击 <strong class="ui">“放置工作平面”</strong>。</li><li>把鼠标移到实体的某个面上。该面会亮起。</li><li>点击一下就把工作平面放在那里。此后添加的所有东西都位于该面上。</li></ol>
+<p>如果改为点击空白的平台，工作平面会平放在你点击的位置，并吸附到网格上。新形状和完成的草图（包括旋转生成的）会出现在那里，而不是平台中央。工作平面这样平放在平台上时，平台只显示轮廓：同一平面里的两个网格会造成闪烁的花纹。</p>
+<p>在面上时，工作平面的原点否则会吸附到网格。点击靠近面角的位置，它就正好落在那个角上。靠近边时它落在边上，网格也与边对齐；这就是有意选择网格角度的方法。没有角或边时，平放的面上的网格与实体平行，所以在一个转过的长方体上，网格也会跟着转。</p>
+<p>点击平台旁边或按 <kbd>Esc</kbd> 会把工作平面送回底板。更快的是 <strong class="ui">“工作平面回到底板”</strong>：工作平面位于面上时，带向下箭头的按钮会出现在视图栏里眼睛的下方。<span dir="ltr"><kbd>Shift</kbd>+<kbd>W</kbd></span> 直接把它放到当前选中的面上。<span dir="ltr"><kbd>Alt</kbd>+<kbd>W</kbd></span> 随时把它放回底板，无论是否选中了东西。如果点击时按住 <kbd>Shift</kbd>，平面会朝向另一边。</p>
+<p>工作平面位于面上时，<strong class="ui">“放置工作平面”</strong> 旁边会出现一只眼睛。它会隐藏工作平面而不取消它，方便清楚地查看设计：新形状仍然落在那个面上，旋转也仍然绕它进行。点击眼睛会重新显示，设定新的工作平面也会。</p>
+<p>要正对工作平面查看，按 <kbd>P</kbd> 或点击视图栏中 <strong class="ui">“放置工作平面”</strong> 旁边的 <strong class="ui">“正对工作平面”</strong>。视图会转到正对平面的方向，从新形状生长的那一侧看过去，平面原点位于中间。在底板上，这就是俯视图。</p>
+</section><section class="guide-part"><h2 id="build-plates">打印板</h2>
+<p>当一个设计的内容超出一个打印板所能打印的范围时，例如一个盒子连同盖子和内衬，它可以有多个打印板。点击 <strong class="ui">“排列”</strong> 组中的 <strong class="ui">“打印板”</strong>，或在物体的右键菜单中选择 <strong class="ui">“移到打印板…”</strong>。视图底部会出现一个栏，每个打印板一个按钮；按钮上的数字表示该打印板上有多少个物体。</p>
+<ul><li>每个打印板与工作平面一样大，打印板并排排列在第一个打印板的右侧，相距 20 毫米。物体属于其底面中心所在的打印板，因此把它拖到另一边就会放到另一个打印板上。一个设计最多有 12 个打印板。</li><li>在栏中点击一个打印板会显示它，之后新形状和导入的文件会放在它上面。<strong class="ui">“显示所有打印板”</strong> 显示全部。双击打印板或使用 <strong class="ui">“重命名打印板”</strong> 可以给它起一个名字，例如“盖子”，名字会写在打印板上。</li><li><strong class="ui">“打印板左移”</strong> 和 <strong class="ui">“打印板右移”</strong> 改变顺序，物体随其打印板一起移动。<strong class="ui">“删除打印板（其上的物体移到第一个打印板）”</strong> 删除当前打印板；其上的物体会移到第一个打印板的相同位置。</li><li><strong class="ui">“分布到打印板”</strong> 将所选物体（或全部物体）逐行排列到打印板上，先放最大的，间距 5 毫米，并在需要时添加打印板。比打印板大的物体会留在原处。</li><li>选择打印机后，每个物体都按自己的打印板检查，打印高度从该打印板上最低的物体算起。有物体放不下的打印板，其数字显示为红色。</li><li>在属性中，X 从物体所在打印板的中心算起。</li></ul>
+<p>导出窗口随后提供 <strong class="ui">“打印板”</strong>：所有打印板在一个文件中，像设计中一样并排；每个打印板一个文件，打包成 ZIP（STL、3MF 和 OBJ）；或单个打印板，放到第一个打印板的位置。切片软件会把每个文件作为一个打印板打开，所以要依次打印各个打印板，请使用按打印板分开的文件。在打印板之间移动物体和分布物体可以撤销；添加、命名、排序和删除打印板会随设计保存，但不能撤销。</p>
+</section><section class="guide-part"><h2 id="grid-and-snapping">网格与吸附</h2>
+<p>网格显示平台的大小。右下角是<strong>吸附步距</strong>：移动和缩放按这个步距吸附，例如 1 mm。精细作业时调小，粗略摆放时调大。功能区中的 <strong class="ui">“吸附到网格”</strong> 会在之后把选中的形状移到最近的网格交叉点。移动时，形状还会吸附到其他形状，见<a href="/api/desktop/layerling/ui/zh-cn/select-and-arrange.html">选择与排列</a>。 不移动鼠标、用鼠标中键短按一下，会在指针处直接打开吸附步长菜单，在草图中也一样；按住中键拖动仍然平移视图。</p>
+<aside class="tip"><p><strong>提示：</strong> 精确拼合零件时，不要一边转着视图。用数字键转到俯视或正视，再按 <kbd>O</kbd> 切换到平面显示。这样一眼就能看出两条边是否真的齐平。</p></aside>
+<section class="guide-part"><h3 id="the-settings-window">设置窗口</h3>
+<p>标题行中的齿轮（<strong class="ui">“工作区设置”</strong>）打开设置。左侧有五个区域：<strong class="ui">“外观”</strong>、<strong class="ui">“测量”</strong>、<strong class="ui">“工作平面”</strong>、<strong class="ui">“形状默认值”</strong> 和 <strong class="ui">“历史记录”</strong>。改动立即生效。底部的 <strong class="ui">“设为默认”</strong> 把当前设置保存为默认值，让新设计从这些设置开始。打开的文件会带着它自己的设置；旁边的 <strong class="ui">“使用我的默认值”</strong> 会把你保存的颜色、网格等应用到打开的设计上，同时保留它的单位。如果你的默认设置里有打印机，这台打印机连同它的平台尺寸也会一起带过来；没有的话，设计保留原有的平台和打印机。右上角的 <strong class="ui">“关闭设置”</strong> 关闭窗口。本节逐项介绍这些设置。</p>
+<p><strong class="ui">“导出设置”</strong> 把窗口的设置保存为文件（layerling-settings-&lt;日期&gt;.json）：颜色、网格、阴影、相机和形状默认值，以及主题、工具栏大小、视图立方体的角落、形状颜色和每台打印机的间隙。在另一台电脑上或浏览器数据丢失后，<strong class="ui">“导入设置”</strong> 会再次读取该文件：它成为新设计的默认值，并像 <strong class="ui">“使用我的默认值”</strong> 一样应用到已打开的设计。你在键盘快捷键中设定的自定义按键也会一起保存。</p>
+</section><section class="guide-part"><h3 id="appearance-theme-toolbar-and-view-cube">外观：主题、工具栏与视图立方体</h3>
+<p><strong class="ui">“主题”</strong> 设定整个程序的配色：<strong class="ui">“跟随系统”</strong> 跟随电脑，其余为 <strong class="ui">“浅色”</strong>、<strong class="ui">“深色”</strong> 和 <strong class="ui">“石墨”</strong>。也可以在编辑器右上角更改。</p>
+<p><strong class="ui">“控件大小”</strong> 让顶部功能区的按钮、其形状菜单、左侧视图栏和右侧属性面板变小或变大：<strong class="ui">“小”</strong>、<strong class="ui">“中”</strong>（一直以来的样子）或 <strong class="ui">“大”</strong>。小尺寸在笔记本电脑上给工作平面留出更多空间；大尺寸在大屏幕上或用手点击时更容易命中。使用大按钮时，如果窗口太窄，功能区的各组会排到第二行。尺寸在设置的“<strong class="ui">“功能区”</strong>”标签页中，保存在这个浏览器中，对所有设计生效。</p>
+<p><strong class="ui">“彩色形状”</strong> 会把新形状的初始颜色（其类型的颜色，或你用 <strong class="ui">“保存为默认值”</strong> 保存的颜色）显示在形状库的图片上。如果你更喜欢灰色图片，就把它关掉；浏览器会记住你的选择。</p>
+<p><strong class="ui">“视图立方体位置”</strong> 把视图立方体放到工作平面的另一个角：<strong class="ui">“左上”</strong>（一直以来的位置）、<strong class="ui">“右上”</strong>、<strong class="ui">“左下”</strong> 或 <strong class="ui">“右下”</strong>。除了左上角，视图栏都会上移到立方体让出的位置。在右下角时，立方体正好位于 <strong class="ui">“吸附网格”</strong> 控件上方。右侧打开形状属性时，右侧的立方体会让到属性面板左边。这个角保存在浏览器中，对所有设计生效。窗口很窄时（例如手机上），该设置会隐藏，立方体留在左上角。</p>
+</section><section class="guide-part"><h3 id="appearance-buttons-in-the-ribbon">外观：功能区中的按钮</h3>
+<p><strong class="ui">“功能区中的按钮”</strong> 把你从不使用的组和按钮从功能区中移除。点击一个组打开它的列表：<strong class="ui">“显示此组”</strong> 移除整个组，按钮旁的勾选框只移除这一个按钮。<strong class="ui">“全部显示”</strong> 把一切恢复。没有按钮的组会消失，其他组随之前移，一行就能放下更多功能区。</p>
+<p>移除的内容只是不在功能区中：命令搜索（<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>）仍能找到它，它的快捷键仍能运行它。组旁边的箭头把它在列表中上移或下移，也就是在功能区中移动；<strong class="ui">“重置顺序”</strong>会恢复原来的顺序。按钮旁边的箭头以同样方式在其组内移动它；在“<strong class="ui">“修改”</strong>”组中，它仍留在自己的命名分区内。“形状”组和“帮助”始终保留，“形状”组固定在前两个组之后。这个浏览器会记住你的选择，它也会写入 <strong class="ui">“导出设置”</strong> 的文件。它适用于 3D 编辑器；草图有自己的工具栏。</p>
+</section><section class="guide-part"><h3 id="appearance-fast-mode">外观：快速模式</h3>
+<p><strong class="ui">“快速模式”</strong> 用于较慢的电脑。它会关闭阴影、所有实体的边线和相机的惯性，并且只按屏幕分辨率绘制视图。你自己的设置会保留下来供以后使用，开启期间被覆盖的开关会显示 <strong class="ui">“在快速模式下关闭”</strong>。更多关于慢电脑的提速方法见下文“layerling 卡顿的时候”。</p>
+</section><section class="guide-part"><h3 id="appearance-colours-of-the-work-area-and-the-sketch">外观：工作区与草图的颜色</h3>
+<p>工作区的颜色在 <strong class="ui">“外观”</strong> 下设置：浅色主题的 <strong class="ui">“窗口背景（浅色主题）”</strong> 和 <strong class="ui">“网格下方的工作平面（浅色主题）”</strong>（深色主题保留自己的颜色），网格颜色则在 <strong class="ui">“工作平面”</strong> 下。每种颜色都是一个显示该颜色的按钮。点击后会打开一个小窗口，其中有色域、一行预设颜色、十六进制值输入框，以及一个把颜色恢复为 layerling 初始值的箭头。按 <kbd>Enter</kbd> 应用输入的十六进制值，点击窗口外也会应用。</p>
+<p>草图视图有自己的颜色：<strong class="ui">“草图：窗口背景（浅色主题）”</strong> 用于纸张周围的窗口，<strong class="ui">“草图：网格下方区域（浅色主题）”</strong> 用于网格下方的纸张，<strong class="ui">“草图：网格颜色（浅色主题）”</strong> 用于网格，均针对浅色主题。<strong class="ui">“草图与工作区一致”</strong> 一键采用工作区的三种颜色。</p>
+<p><strong class="ui">“经典外观”</strong> 把工作区布置成 Tinkercad 的样子：白色地面、淡蓝色的毫米网格（每厘米一条较深的线）、黑色边线、来自上方的光以及柔和阴影。之后每个值仍可单独更改。这些初始值都是 layerling 一直以来的样子，哪种合适取决于你的显示器。</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/settings-appearance.webp" alt="外观下的设置：浅色主题的背景色和工作平面颜色，以及所有实体边线的开关。" width="1280" height="800" loading="lazy"><figcaption>外观下的设置：浅色主题的背景色和工作平面颜色，以及所有实体边线的开关。</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/editor-dark.webp" alt="深色配色方案下的编辑器。在右上角设置配色方案：跟随系统、浅色、深色或石墨。" width="1280" height="800" loading="lazy"><figcaption>深色配色方案下的编辑器。在右上角设置配色方案：跟随系统、浅色、深色或石墨。</figcaption></figure>
+</section><section class="guide-part"><h3 id="appearance-axis-arrows-and-edge-lines">外观：坐标轴箭头与边线</h3>
+<p><strong class="ui">“坐标轴箭头”</strong>（默认开启）在平台后左角画出三个箭头：<strong>X</strong> 为红色指向右，<strong>Y</strong> 为绿色指向后，<strong>Z</strong> 为蓝色指向上，与位置字段的计数方式一致。这就是 Tinkercad、CAD 程序和切片软件也采用的右手定则。工作平面位于面上时，它们会跟随该面。如果它们挡路，可以在这里关闭。</p>
+<p><strong class="ui">“所有实体显示边线”</strong> 为每个实体绘制轮廓，颜色由 <strong class="ui">“边线颜色”</strong> 决定（初始为黑色，与 Tinkercad 相同）：当深色彼此混在一起时会很有帮助。默认关闭，非常大的导入网格会被略过。</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/edge-lines.webp" alt="三个开启了边线的深色实体：轮廓把它们区分开来。" width="1280" height="800" loading="lazy"><figcaption>三个开启了边线的深色实体：轮廓把它们区分开来。</figcaption></figure>
+<p><strong class="ui">“更清晰地显示孔”</strong> 把孔画成更深的灰色、更不透明，并在周围加一条深色线。当孔在透明实体中难以找到时很有帮助。与边线不同，它在快速模式下仍然开启。</p>
+</section><section class="guide-part"><h3 id="appearance-light-and-shadows">外观：光照与阴影</h3>
+<p><strong class="ui">“显示阴影”</strong> 打开或关闭投射阴影。两个滑块设定实体的受光方式。<strong class="ui">“阴影强度”</strong> 决定投射阴影的深浅，<strong class="ui">“着色对比度”</strong> 把光从均匀的环境光转向主光：偏向“强烈”时，背光面更暗、阴影更明显；偏向“柔和”时，整体更平。对比度拉到最高会非常强，背光面和阴影会变得很暗。<strong class="ui">“阴影柔和度”</strong> 让阴影边缘变柔和而不是锐利。<strong class="ui">“光照方向”</strong> 让主光绕平台旋转（0° 从前方，90° 从右方），<strong class="ui">“光照高度”</strong> 把它抬高；90° 时它像 Tinkercad 那样位于平台正上方，阴影正好落在实体下方。<strong class="ui">“柔和光照”</strong> 让大部分光线来自你观察的方向，并随视图转动：没有哪个面会留在暗处，朝上的深色面也不再被照得发白。主光仍保留一点用于阴影，对比度滑块依然有效。如果光线放低后仍能看到明亮的反光，把 <strong class="ui">“光照高度”</strong> 抬到 90°：这时看起来就像 Tinkercad。<strong class="ui">“重置光照与阴影”</strong> 恢复全部设置。</p>
+</section><section class="guide-part"><h3 id="appearance-measures-on-the-workplane">外观：工作平面上的测量</h3>
+<p><strong class="ui">“显示移动尺寸”</strong> 显示拖动时移动了多少，<strong class="ui">“显示到原点的距离”</strong> 显示选中项到平台原点的距离，选中多个实体时也会显示。开启 <strong class="ui">“尺寸始终可见”</strong> 后，这些测量会一直可见，而不只在拖动时显示。选中转过的实体时，其角度会显示在工作平面上它的下方；<strong class="ui">“显示旋转后实体的角度”</strong> 可关闭这一显示。更多内容见<a href="/api/desktop/layerling/ui/zh-cn/measuring-and-notes.html">测量与注释</a>。</p>
+</section><section class="guide-part"><h3 id="appearance-selecting-and-moving">外观：选择与移动</h3>
+<p><strong class="ui">“先选中再移动”</strong>：实体必须先被选中，下一次拖动才会移动它。当小孩或匆忙的手会碰到实体时，以及在触摸屏上，这很有用。</p>
+<p><strong class="ui">“由框选方向决定”</strong>：向右拖出的选框只选中完全位于其中的对象，向左拖出的选框则选中它碰到的所有对象（以虚线绘制），与 SketchUp 相同。</p>
+<p><strong class="ui">“双击打开草图”</strong> 决定双击拉伸出的草图是否会重新打开草图，与 Tinkercad 相同；<strong class="ui">“双击打开分组或捆绑”</strong> 决定双击分组或捆绑是否会打开它进行编辑。<strong class="ui">“双击工作平面，视图以该处为中心”</strong> 决定双击工作平面上的空白处是否会把视图移到该处。</p>
+<p><strong class="ui">“移动时吸附到其他形状”</strong> 让形状的边和中心在拖动时吸附到其他形状；右下角的网格菜单有同样的开关。<strong class="ui">“添加新形状时启用巡航”</strong> 让新形状挂在鼠标指针上，并落在其下方的面上，类似 Tinkercad 的 Cruise；关闭时，新形状出现在平台中央。更多内容见<a href="/api/desktop/layerling/ui/zh-cn/select-and-arrange.html">选择与排列</a>。</p>
+<p><strong class="ui">“起始视图”</strong> 设定新设计打开时的角度，也是 <strong class="ui">“复位视图”</strong> 返回的角度。把视图转动、缩放到你喜欢的样子，然后点击 <strong class="ui">“使用当前视图”</strong>；<strong class="ui">“标准”</strong> 恢复通常的右前方视图。它对此浏览器中的所有设计都有效。再次打开的设计仍按你离开时的样子打开。</p>
+</section><section class="guide-part"><h3 id="appearance-the-view">外观：视图</h3>
+<p><strong class="ui">“编辑器以透视视图启动”</strong>：编辑器随即以透视视图打开，而不是平面视图。</p>
+<p><strong class="ui">“编辑器启动时显示滚动条”</strong>：设计打开时即显示视图的滚动条。此设置随设计一起保存，也会随 <strong class="ui">“设为默认”</strong> 保存。</p>
+<p><strong class="ui">“缩放速度”</strong> 是一个从慢到快的滑块：滚轮和触控板缩放的速度；缩放按钮和按键仍保持自己的小步距。<strong class="ui">“相机继续转动”</strong>：松开鼠标后，视图会继续转一小会儿并平缓减速。关闭后它会立刻停住，与 Tinkercad 和 Fusion 360 相同。</p>
+<p><strong class="ui">“标记 {angle}° 起的悬垂”</strong> 是在可见性菜单中打开“显示悬垂”时，一个面被视为悬垂的起始角度：这些面会以红白斜线标示。30° 偏保守，70° 依赖良好的打印冷却；45° 是常用的起点。显示时，视图下方的一行会写出最陡的悬垂，以及有多少 cm² 需要支撑。</p>
+<p><strong class="ui">“剪切导入网格上限为”</strong> 限制导入网格在切割、合并或相交时允许的三角形数量，因为这些计算在你的浏览器中完成。超过上限的网格不会被处理；请先简化网格，或者如果电脑承受得住，就提高上限。上限过高可能让编辑器卡住几秒。</p>
+</section><section class="guide-part"><h3 id="measurement-units-scale-and-snap-steps">测量：单位、比例与吸附步距</h3>
+<p>在 <strong class="ui">“测量”</strong> 下，你可以设置 <strong class="ui">“单位”</strong>，即测量显示所用的单位（<strong class="ui">“比例”</strong>：公制为毫米、厘米或米，英制为英寸或英尺）、数字显示的小数位数（<strong class="ui">“精度”</strong>）、移动和调整尺寸时吸附的 <strong class="ui">“吸附网格”</strong>，以及 <strong class="ui">“自定义吸附网格”</strong> 下自己的吸附步距。</p>
+<p>在设置的 <strong class="ui">“测量”</strong> 下设置 <strong class="ui">“单位”</strong>。使用 <strong class="ui">“英制”</strong> 时，layerling 会把所有测量显示为英寸——形状上、属性面板中、卷尺和标尺上都是如此。吸附网格随后提供从 1/64 到 1 英寸的步距，平台的网格也按英寸绘制（1/8 到 1 英寸，默认 1/4 英寸），每个整英寸处有一条更粗的线。在 <strong class="ui">“英寸显示方式”</strong> 下，你可以选择英寸显示为像 Tinkercad 那样的分数（1 5/8，四舍五入到 1/64 英寸），还是显示为小数（1.625），小数位数由 <strong class="ui">“精度”</strong> 设定。两种写法都能输入，包括“1 5/8”。在毫米和英寸之间快速切换的方法是属性窗口底部 <strong class="ui">“吸附网格”</strong> 旁的小开关 <strong>mm | in</strong>：它会像设置一样改变单位、平台的网格和吸附步距，且只作用于当前设计。</p>
+<p>在同一处的 <strong class="ui">“自定义吸附网格”</strong> 下，可以添加自己的吸附步距：一个名称和一个以毫米为单位的大小，例如用“Pin pitch 2.54 mm”表示 DIP 芯片、排针和洞洞板孔的间距，或用 19.05 mm 的“MX Key Unit”表示键盘按键的间距。吸附步距菜单随后会提供该尺寸的整份、一半和四分之一（1 ×、½ × 和 ¼ ×），因此形状可以按一个间距、半个间距或四分之一个间距移动。如果你只想要该尺寸本身，取消勾选旁边的 <strong class="ui">“同时提供半格和四分之一格”</strong>；菜单就只剩这一个步距。自定义步距随设计保存，也会随 <strong class="ui">“设为默认”</strong> 一起保存。</p>
+<p><strong class="ui">“新设计在原点自带直角尺”</strong>：此浏览器中的每个新设计都会在原点自带一把直角尺，见 <a href="/api/desktop/layerling/ui/zh-cn/measuring-and-notes.html">测量与备注</a>。已有的设计保持不变；你从某个设计中移除的直角尺也不会再出现。</p>
+</section><section class="guide-part"><h3 id="workplane-plate-and-printer">工作平面：平台与打印机</h3>
+<p><strong class="ui">“打印机”</strong> 把工作平面调整为打印机的打印床大小，并标出超出边界的实体，见<a href="/api/desktop/layerling/ui/zh-cn/printing.html">打印</a>。<strong class="ui">“平台标签”</strong> 在平台上写设计的名称，选择打印机后还会写上打印机名称和成型体积。</p>
+<p><strong class="ui">“打印机间隙”</strong>是在你的打印机上，打印出的销钉要能在打印出的孔中转动所需的每侧余量。<strong class="ui">“生成配合测试”</strong>会把用来测量它的配合测试件放到平台上；之后新的盖子、燕尾、卡扣、螺母和间隙检查都以它为起点，见<a href="/api/desktop/layerling/ui/zh-cn/printing.html">打印</a>。它保存在这个浏览器中，而不是设计里。</p>
+<p><strong class="ui">“工作平面尺寸”</strong> 给平台设定自定义尺寸，用 <strong class="ui">“宽度”</strong> 和 <strong class="ui">“长度”</strong>，单位为毫米或你选择的单位。网格始终穿过原点，所以无论平台多大，较粗的线都位于坐标轴上。</p>
+</section><section class="guide-part"><h3 id="workplane-grid">工作平面：网格</h3>
+<p><strong class="ui">“显示网格”</strong> 显示或隐藏平台上的网格。<strong class="ui">“网格块大小”</strong> 设定网格线的间距，<strong class="ui">“加深网格线间隔”</strong> 设定较深的线每隔 5 个还是 10 个网格步距出现；<strong class="ui">“加深线颜色”</strong> 给这条线单独的颜色，中心十字和平台边框也会采用；<strong class="ui">“网格颜色”</strong> 是普通网格线的颜色。</p>
+<p>放大时网格的每条线都会变宽，与 Tinkercad 相同，缩小时也保持可见。如果觉得太粗，关闭 <strong class="ui">“缩放时网格线变粗”</strong>，线条在任何缩放下都保持一个像素宽，与草图中一样。</p>
+<p>如果网格消失了，比如因为颜色被设成了与平台相同，<strong class="ui">“工作平面”</strong> 区域末尾的 <strong class="ui">“重置网格”</strong> 会把它的可见性、颜色、间距和线宽恢复为标准值，这里的设置以及用 <strong class="ui">“设为默认”</strong> 保存的默认值都会恢复。</p>
+</section><section class="guide-part"><h3 id="shape-defaults">形状默认值</h3>
+<p>在 <strong class="ui">“形状默认值”</strong> 下，用 <strong class="ui">“形状”</strong> 选择一种形状，并设定添加它时的初始状态：宽度、长度和高度。<strong class="ui">“使用应用默认值”</strong> 把该形状恢复为程序的初始值。有各自设置的形状会在 <strong class="ui">“形状详情”</strong> 下显示这些设置。这些值只作用于新形状，不作用于已经在平台上的形状。<strong class="ui">“自定义尺寸限制”</strong> 为控制柄和属性可以把该形状做到多大设定你自己的上限；留空则保留通常的限制。</p>
+</section><section class="guide-part"><h3 id="saved-history">保存的历史记录</h3>
+<p>在 <strong class="ui">“历史记录”</strong> 下，滑块 <strong class="ui">“已保存的历史记录”</strong> 设定保存或重新打开设计后，有多少已完成的操作仍可用于撤销。每个设计默认保留 100 个操作。降低上限会永久丢弃该设计较早的撤销步骤。</p>
+</section></section><section class="guide-part"><h2 id="layerling"><span class="heading-alias" id="when-layerling-feels-slow"></span>layerling 卡顿的时候</h2>
+<p>layerling 在你的浏览器中计算并绘制一切。因此在较旧的电脑上、显卡较弱时，或在多块大屏幕上，视图可能会显得迟缓。以下方法有帮助：</p>
+<ul><li><strong><strong class="ui">“快速模式”</strong></strong>：<strong class="ui">“外观”</strong> 下的快速模式会立即关闭所有让视图开销很大的效果：阴影、所有实体的边线和相机的惯性。它还只按屏幕自身分辨率绘制视图，在高分辨率屏幕上像素最多减少到四分之一。你自己的设置会保留，一关闭快速模式就重新生效。</li><li><strong>相机会继续转：</strong> 转动后松开鼠标时，视图会继续转一小会儿并平缓减速。这是有意为之，不是卡顿。如果你习惯了 Tinkercad 或 Fusion 360，可在 <strong class="ui">“外观”</strong> 下关闭 <strong class="ui">“相机继续转动”</strong>，视图会立刻停住。</li><li><strong>单独关闭各项：</strong> 不用快速模式，也可以只关闭 <strong class="ui">“显示阴影”</strong> 或 <strong class="ui">“所有实体显示边线”</strong>。</li><li><strong>使用显卡：</strong> 在 Chrome 中打开 <code>chrome://gpu</code>（Edge 中为 <code>edge://gpu</code>）。在“WebGL”旁边应显示“Hardware accelerated”。如果显示“Software only”，说明浏览器设置中的硬件加速已关闭。在 Windows 上，还可以在“设置”→“系统”→“显示”→“图形”中为浏览器选择“高性能”，让它使用真正的显卡，而不是处理器中较弱的显卡。</li><li><strong>简化大型导入网格：</strong> 包含几十万个三角形的模型会拖慢任何视图。精简方法见文件一章中的“简化导入的网格”。</li><li><strong>关闭其他标签页：</strong> 每个打开的 layerling 标签页和其他 3D 页面都共用同一块显卡。</li></ul></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/zh-cn/getting-started.html"><small>上一章</small>快速上手</a><a class="next" href="/api/desktop/layerling/ui/zh-cn/shapes.html"><small>下一章</small>放置与调整形状</a></div>
+      </main>
+    </div>
+    <footer class="note">本指南随程序一同完善。如有缺漏或错误，请到 <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">讨论区反馈</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=zh-cn" rel="noopener">支持项目</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">讨论区</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">在 GitHub 上了解更多</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">发行说明 v1.154.1</a></div><p class="trademark">Tinkercad 是 Autodesk, Inc. 的商标。layerling 是一个独立项目，与 Autodesk 无关联，也未获其认可或赞助。</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="返回编辑器";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="打开编辑器";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

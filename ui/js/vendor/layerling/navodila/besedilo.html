@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="sl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Besedilo in ukrivljen napis - layerling navodila</title>
+    <meta name="description" content="Napisi dvignjeni ali vdolbeni, s sedmimi pisavami ali z lastno – in po želji vzdolž krožnega loka, na primer na kovancu, pokrovu ali obroču.">
+    <link rel="canonical" href="https://layerling.com/navodila/besedilo.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/text.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/text.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/text.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/text.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/text.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/text.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/text.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/text.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/tekst.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/text.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/besedilo.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/text.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/text.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/text.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/text.html">
+    <meta property="og:title" content="Besedilo in ukrivljen napis - layerling navodila">
+    <meta property="og:description" content="Napisi dvignjeni ali vdolbeni, s sedmimi pisavami ali z lastno – in po želji vzdolž krožnega loka, na primer na kovancu, pokrovu ali obroču.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/navodila/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Navodila</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/navodila/search-index.json" data-nothing="Nič ni najdeno." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Išči po navodilih" aria-label="Išči po navodilih" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Jezik">Slovenščina</summary><ul><li><a href="/api/desktop/layerling/ui/guide/text.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/text.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/text.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/text.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/text.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/text.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/text.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/text.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/text.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/text.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/besedilo.html" hreflang="sl" lang="sl" aria-current="true">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/text.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/text.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/text.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/text.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/text.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/text.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">V urejevalnik</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Urejevalnik je že odprt v drugem zavihku – preprosto preklopi nanj.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Poglavja"><h2>Poglavja</h2><p class="print-link"><a href="/api/desktop/layerling/ui/navodila/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Celotna navodila za tiskanje</span></a></p><ol><li><a href="/api/desktop/layerling/ui/navodila/prvi-koraki.html">Prvi koraki</a></li><li><a href="/api/desktop/layerling/ui/navodila/pogled-in-delovna-ravnina.html">Pogled in delovna ravnina</a></li><li><a href="/api/desktop/layerling/ui/navodila/oblike.html">Postavljanje in nastavljanje oblik</a></li><li><a href="/api/desktop/layerling/ui/navodila/izbiranje-in-razporejanje.html">Izbiranje in razporejanje</a></li><li><a href="/api/desktop/layerling/ui/navodila/telesa-in-luknje.html">Telesa in luknje</a></li><li><a href="/api/desktop/layerling/ui/navodila/robovi-in-izdolbljenje.html">Posnetje robov in izdolbljenje teles</a></li><li><a href="/api/desktop/layerling/ui/navodila/skice.html">Skice: od obrisa do telesa</a></li><li><a href="/api/desktop/layerling/ui/navodila/besedilo.html" aria-current="page">Besedilo in ukrivljen napis</a></li><li><a href="/api/desktop/layerling/ui/navodila/navoji-in-mehanika.html">Navoji, zobniki in drugi sestavni deli</a></li><li><a href="/api/desktop/layerling/ui/navodila/merjenje-in-opombe.html">Merjenje in opombe</a></li><li><a href="/api/desktop/layerling/ui/navodila/tiskanje.html">Priprava za 3D-tisk</a></li><li><a href="/api/desktop/layerling/ui/navodila/datoteke-in-shranjevanje.html">Datoteke, shranjevanje in deljenje</a></li><li><a href="/api/desktop/layerling/ui/navodila/bliznjice.html">Bližnjice na tipkovnici</a></li><li><a href="/api/desktop/layerling/ui/navodila/ai-z-mcp.html">Gradnja z umetno inteligenco (MCP)</a></li><li><a href="/api/desktop/layerling/ui/navodila/offline-in-namestitev.html">Namestitev kot aplikacije, delo brez interneta in lastno gostovanje</a></li><li><a href="/api/desktop/layerling/ui/navodila/videi.html">Videoposnetki o programu layerling</a></li><li><a href="/api/desktop/layerling/ui/navodila/tablica-in-dotik.html">Tablica in dotik</a></li></ol></nav>
+      <main>
+<h1>Besedilo in ukrivljen napis</h1>
+<p class="lead">Napisi dvignjeni ali vdolbeni, s sedmimi pisavami ali z lastno – in po želji vzdolž krožnega loka, na primer na kovancu, pokrovu ali obroču.</p>
+<div class="toc"><b>Na tej strani</b><ul><li><a href="#dodajanje-besedila">Dodajanje besedila</a></li><li><a href="#lastne-pisave">Lastne pisave</a></li><li><a href="#dvignjeno-ali-vdolbeno">Dvignjeno ali vdolbeno</a></li><li><a href="#sablone-mosticki-za-sredino-crk">Šablone: mostički za sredino črk</a></li><li><a href="#kontura-silhueta-in-sirse">Kontura, silhueta in širše</a></li><li><a href="#plasti-in-napisi-z-imenom">Plasti in napisi z imenom</a></li><li><a href="#simbolne-oznake">Simbolne oznake</a></li><li><a href="#kode-qr">Kode QR</a></li><li><a href="#besedilo-na-kroznem-loku">Besedilo na krožnem loku</a></li></ul></div>
+<section class="guide-part"><h2 id="dodajanje-besedila"><span class="heading-alias" id="adding-text"></span>Dodajanje besedila</h2>
+<p>V knjižnici oblik izberi <strong class="ui">„Besedilo“</strong> in ga odloži. V polje <strong class="ui">„Besedilo“</strong> desno vpišeš, kaj naj tam piše. Nastavitve pod njim:</p>
+<ul><li><strong><strong class="ui">„Pisava“</strong>:</strong> Na voljo je sedem pisav: Multilanguage, Sans, Serif, Script, Monospace, Rounded in Stencil (črke iz ravnih črt). Novo besedilo se začne v Sans. Šumniki in znaki € so v vsaki pisavi. Lastne pisave se dodajo, glej <a href="#lastne-pisave">Lastne pisave</a> spodaj.</li><li><strong><strong class="ui">„Velikost črk“</strong>:</strong> Kako velike so črke, gledano od zgoraj; <strong class="ui">„Višina“</strong> določa, kako debele so.</li><li><strong><strong class="ui">„Višina“</strong>:</strong> Kako visoko pisava štrli iz ploskve.</li><li><strong><strong class="ui">„Poševni rob“</strong>:</strong> Zaobli robove črk, da delujejo mehkeje. Z <strong class="ui">„Segmenti“</strong> določiš, v koliko stopnjah.</li><li><strong><strong class="ui">„Rob črk“</strong>:</strong> zaobli ali posname zgornji rob črk, kakor pri imenski tablici: <strong class="ui">„Brez“</strong>, <strong class="ui">„Zaobljen“</strong> ali <strong class="ui">„Posnet“</strong>, z velikostjo <strong class="ui">„Velikost roba“</strong> (na začetku 0,4 mm, največ tako visoka kot besedilo). Gre dlje kot <strong class="ui">„Poševni rob“</strong>, a le toliko, kolikor so črte široke: kjer je črta tanjša od dvakratne velikosti, se rob konča z ožjo zgornjo ploskvijo. Spodnja stran ostane ravna, zato lahko posamezne črke pozneje prilepiš. Dokler je rob izbran, nadomesti <strong class="ui">„Poševni rob“</strong>.</li><li><strong>Dolžina:</strong> Besedilo ima lahko do 250 znakov. Črke ohranijo velikost, vrstica pa postane tako dolga, kot je treba; krajšo naredite z manjšimi črkami. <strong class="ui">„Rob črk“</strong> deluje pri besedilu do 40 znakov, ker bi se pri daljšem računal več minut.</li><li><strong><strong class="ui">„Razmik med črkami (%)“</strong>:</strong> Prostor med črkami poleg tistega, ki ga ima pisava, v odstotkih velikosti črk: 0 ga pusti, kot ga je naredila pisava, nad tem stojijo črke bolj narazen, pod tem (do -50) tesneje, kar lastna pisava pogosto potrebuje. Črke obdržijo velikost in okvir sledi vrstici, pri ravnem in ukrivljenem besedilu. Razmik se ne uporabi za arabščino in hebrejščino, katerih črke se povezujejo.</li><li><strong>Velikost:</strong> Dolžino in širino vrstice nastaviš kot pri vsaki obliki. Povleci ročice ali vpiši mere.</li><li><strong><strong class="ui">„Raztegni črke na okvir“</strong>:</strong> Na začetku izklopljeno: črke obdržijo razmerja in stojijo na sredini okvirja, zato okvir, ki je razvlečen širše ali globlje, kot besedilo potrebuje, ostane večji od črk. Če vklopiš, se črke raztegnejo v obe smeri čez ves okvir: veliko črko lahko narediš nižjo ali ožjo, kot v Tinkercadu. Velja za ravno besedilo; ukrivljeno besedilo ima svojo velikost črk.</li><li><strong><strong class="ui">„Samodejni kerning“</strong>:</strong> Približa pare črk, med katerimi ostane preveč prostora, na primer AY, AV, LT ali To, izmerjeno po oblikah samih črk, v vsaki pisavi, tudi v lastnih. Nova besedila ga imajo vklopljenega; besedila, narejena prej, izklopljenega, da se v shranjenem načrtu nič ne premakne. Črke ohranijo velikost, okvir se prilagodi. Deluje pri ravnem in ukrivljenem besedilu, ne pri navpičnem besedilu, arabščini, hebrejščini ali japonščini.</li><li><strong><strong class="ui">„Črke ena pod drugo“</strong>:</strong> Zloži črke od zgoraj navzdol, vsako na sredino ene pokončne vrstice, za napis na podboju vrat ali ime vzdolž pisala. Okvir se postavi pokonci in črke obdržijo velikost; <strong class="ui">„Razmik med črkami (%)“</strong> nastavi razmik med njimi. Pri ukrivljenem besedilu črke tvorijo stolpec ob levi strani kroga, vsaka stoji pokonci; <strong class="ui">„Na desni strani“</strong> postavi stolpec na desno stran.</li></ul>
+<p>Besedilo je sprva eno samo telo. Če želiš črke obravnavati posamezno, klikni <strong class="ui">„Loči dele“</strong>. Potem je vsaka črka lastna oblika.</p>
+<p><strong>Več vrstic:</strong> Besedilo ima eno vrstico. Za tablo ali ploščo z več vrsticami pod nastavitvami odpri kartico <strong class="ui">„Blok besedila“</strong>: vnesi vrstice v <strong class="ui">„Vrstice“</strong>, izberi <strong class="ui">„Poravnava“</strong> (<strong class="ui">„Levo“</strong>, <strong class="ui">„Sredina“</strong> ali <strong class="ui">„Desno“</strong>), <strong class="ui">„Razmik vrstic“</strong> in <strong class="ui">„Naslednja vrstica (%)“</strong> - pri 80 % je vsaka vrstica za petino manjša od zgornje. Gumb naredi iz vsake vrstice samostojno besedilo pod zgornjo, v pisavi, višini in polnilu tega besedila; prva zasede mesto tega besedila. Nato lahko vsaka vrstica dobi svojo velikost, pisavo ali barvo.</p>
+<p>Tudi robove pisave lahko posnameš ali zaobliš, ravno ali ukrivljeno, glej <a href="/api/desktop/layerling/ui/navodila/robovi-in-izdolbljenje.html">Posnetje robov in izdolbljenje teles</a>. Vzemi majhne mere, kot 0,2 do 0,5 mm, saj so poteze črk ozke.</p>
+</section><section class="guide-part"><h2 id="lastne-pisave"><span class="heading-alias" id="your-own-fonts"></span>Lastne pisave</h2>
+<p>Poleg sedmih priloženih pisav lahko vzameš katerokoli lastno pisavo: datoteko pisave z računalnika ali, v Chromu in Edgeu, pisavo, ki je nameščena na tvojem računalniku. Za to pod <strong class="ui">„Pisava“</strong> čisto spodaj izberi <strong class="ui">„Lastne pisave …“</strong>. Odpre se okno <strong class="ui">„Lastne pisave“</strong>.</p>
+<ul><li><strong><strong class="ui">„Izberi datoteko pisave …“</strong></strong> sprejme datoteko TrueType (<code>.ttf</code>), datoteko OpenType (<code>.otf</code>) ali datoteko WOFF (<code>.woff</code>). Datoteko lahko tudi preprosto povlečeš v okno.</li><li><strong>V Windowsih</strong> so nameščene pisave v mapi »Pisave« (<code>C:\Windows\Fonts</code>). Pogovorno okno za datoteke v brskalniku jo skrije. Namesto tega jo odpri v Raziskovalcu in povleci želeno pisavo v okno <strong class="ui">„Lastne pisave“</strong>. Pisave, ki so nameščene samo zate, ležijo v <code>%LOCALAPPDATA%\Microsoft\Windows\Fonts</code>; to mapo pokaže tudi pogovorno okno za datoteke. Na Macu so pisave v <code>/Library/Fonts</code> in <code>~/Library/Fonts</code>.</li><li><strong><strong class="ui">„Pisava iz računalnika …“</strong></strong> našteje pisave, nameščene na tvojem računalniku. Prvič brskalnik vpraša, ali jih sme layerling brati. Prek iskalnega polja hitro najdeš pisavo, klik jo prevzame.</li></ul>
+<p>Če je ravno izbrano besedilo, takoj dobi novo pisavo. Sicer je potem pod <strong class="ui">„Pisava“</strong> v skupini <strong class="ui">„Lastne pisave“</strong>, z <strong class="ui">„Uporabi“</strong> v oknu pa jo nastaviš na izbrana besedila. Lastne pisave se obnašajo kot priložene: besedilo na krožnem loku, posnetja in zaokrožitve na robovih ter izvoz STEP delujejo enako. Črke, ki jih pisava nima, layerling vzame iz Sans.</p>
+<section class="guide-part"><h3 id="arabscina-in-hebrejscina"><span class="heading-alias" id="arabic-and-hebrew"></span>Arabščina in hebrejščina</h3>
+<p>Arabščina, perzijščina, urdujščina in hebrejščina se pišejo od desne proti levi: prva črka stoji na desni, pri mešanem besedilu, kot je »Name عربي«, pa teče nazaj samo arabska beseda, števke ostanejo kot običajno. Arabske črke se povezujejo s sosednjimi, kot zahteva pisava, lam-alef pa postane ligatura. Za to je potrebna pisava, ki te črke ima; vgrajene je nimajo. Dodaj svojo, na primer Arial, Tahoma ali Segoe UI v Windowsih, ali prosto pisavo, kot so Noto Naskh Arabic, Noto Sans Arabic ali Amiri. Samoglasniški znaki sedijo na črki, ki jim pripada. Besedilo na krožnem loku, kontura, silhueta, plasti in napisi z imenom delujejo z njo kot z vsakim drugim besedilom.</p>
+</section><section class="guide-part"><h3 id="kaj-gre-v-katerem-brskalniku"><span class="heading-alias" id="what-works-in-which-browser"></span>Kaj gre v katerem brskalniku</h3>
+<div class="table-scroll"><table><thead><tr><th>Brskalnik</th><th>Izbira datoteke pisave</th><th>Pisava z računalnika</th></tr></thead><tbody><tr><td>Chrome in Edge na računalniku, tudi nameščena aplikacija layerling</td><td>da</td><td>da, po vprašanju brskalnika</td></tr><tr><td>Firefox</td><td>da</td><td>ne</td></tr><tr><td>Safari na Macu</td><td>da</td><td>ne</td></tr><tr><td>Tablica in telefon</td><td>da, iz datotek naprave</td><td>ne</td></tr></tbody></table></div>
+<p>Spletne strani ne smejo kar brati nameščenih pisav. Samo Chrome in Edge imata za to lastno dovoljenje, in še to samo na varnih straneh, torej prek <code>https</code>, kot pri layerling.com. Če layerling teče prek <code>http</code>, na primer na lastnem strežniku ali kot namestitev Docker v domačem omrežju, <strong class="ui">„Pisava iz računalnika …“</strong> manjka; potem pisavo povlečeš iz Raziskovalca. V drugih brskalnikih izbereš datoteko pisave iz mape s pisavami, rezultat je enak. Če si vprašanje v Chromu ali Edgeu zavrnil, dostop spet omogočiš v nastavitvah spletnega mesta, prek ključavnice levo od naslova.</p>
+<p>Česar layerling ne zna brati, so datoteke WOFF2 (za to skoraj vedno obstaja različica TTF ali OTF), zbirke pisav (<code>.ttc</code>, vsebujejo več pisav v eni datoteki) in barvne pisave emojijev. Pri zelo velikih pisavah, na primer za kitajščino, layerling vzame prvih 8000 znakov. Pri spremenljivih pisavah velja osnovna nastavitev pisave, običajno normalna različica.</p>
+<p>Nekatere pisave, predvsem pisane in spremenljive, črko narišejo iz potez, ki se prekrivajo. layerling jih ob branju združi v čist obris, da telo ostane tiskljivo. Take črke potem sestojijo iz zelo kratkih ravnih kosov namesto iz krivulj; vidi se ne.</p>
+</section><section class="guide-part"><h3 id="kje-ostanejo-pisave"><span class="heading-alias" id="where-the-fonts-are-kept"></span>Kje ostanejo pisave</h3>
+<p>Lastna pisava ostane <strong>v tem brskalniku na tem računalniku</strong>. Drug brskalnik ali drug računalnik je ne pozna, dokler je tam prav tako ne dodaš. Kdor izbriše podatke spletnih mest v brskalniku, izbriše tudi pisave. V oknu <strong class="ui">„Lastne pisave“</strong> pisavo odstraniš iz brskalnika s košem. Tvoji načrti pri tem nič ne izgubijo, kot pokaže naslednji razdelek.</p>
+</section><section class="guide-part"><h3 id="posredovanje-nacrtov-z-lastno-pisavo"><span class="heading-alias" id="passing-on-designs-with-a-font-of-your-own"></span>Posredovanje načrtov z lastno pisavo</h3>
+<p>Načrt <strong>ne shrani datoteke pisave</strong>, ampak samo obrise črk, ki jih njegova besedila uporabljajo, tudi tiste iz prejšnjih korakov v zgodovini. Če v besedilu piše »Hallo«, potujejo zraven samo H, a, l in o. To velja za vsak način, kako je načrt shranjen: v brskalniku, na lastnem strežniku, kot datoteka <code>.lyl</code> in v <strong class="ui">„Oblike po meri“</strong>.</p>
+<p>Iz tega sledi:</p>
+<ul><li><strong>Načrt se povsod odpre pravilno</strong>, tudi na računalniku brez pisave. Besedila izgledajo enako in jih lahko premikaš, vrtiš, povečuješ in zaokrožaš.</li><li><strong>Nove črke potrebujejo pisavo.</strong> Če kdo brez pisave vtipka črko, ki je načrt ni prinesel, jo layerling nariše iz Sans. Pod <strong class="ui">„Pisava“</strong> potem piše pisava z dodatkom <strong class="ui">„samo črke iz zasnove“</strong>. Kdor doda datoteko pisave, spet dobi vse črke.</li><li><strong>Izvozi vsebujejo samo geometrijo.</strong> STL, 3MF, OBJ, STEP in SVG vsebujejo telesa in obrise, ne pisave.</li><li><strong>Starejše različice programa layerling</strong> lastnih pisav še ne poznajo in taka besedila narišejo v Multilanguage.</li></ul>
+<p><strong>Licence:</strong> Pisave so zaščitene z avtorskimi pravicami in njihova licenca ureja, kaj smeš z njimi početi. Vdelani obrisi črk so isto, kar datoteke PDF vzamejo od pisave, in to večina licenc dovoljuje. Nekatere pisave, ki jih lahko kupiš, pa prepovedujejo vsako posredovanje, tudi posameznih črk. Preden načrt z lastno pisavo posreduješ ali objaviš, zato preveri licenco pisave. Proste pisave, kot so tiste iz Google Fonts (običajno pod licenco SIL Open Font License), smeš brez pomislekov posredovati. Za natisnjen del ali izvožen STL to ni pomembno: v njem ni več pisave, samo še geometrija.</p>
+</section></section><section class="guide-part"><h2 id="dvignjeno-ali-vdolbeno"><span class="heading-alias" id="raised-or-engraved"></span>Dvignjeno ali vdolbeno</h2>
+<ul><li><strong>Dvignjeno:</strong> Besedilo postavi na ploskev in ga združi v skupino s telesom. Zraste kot reliefen napis.</li><li><strong>Vdolbeno:</strong> Besedilo preklopi na <strong class="ui">„Luknja“</strong>, pusti, da malo sega v ploskev, in ga združi v skupino s telesom. Črke so potem vgravirane.</li></ul>
+<p>Za napise na stranski ploskvi najprej položi delovno ravnino na to ploskev, glej <a href="/api/desktop/layerling/ui/navodila/pogled-in-delovna-ravnina.html">Pogled in delovna ravnina</a>.</p>
+</section><section class="guide-part"><h2 id="sablone-mosticki-za-sredino-crk"><span class="heading-alias" id="stencils-bridges-for-the-middle-of-letters"></span>Šablone: mostički za sredino črk</h2>
+<p>Ko besedilo izrežeš skozi ploščo, črke, kot so O, A in B, izgubijo sredino: ohlapno leži v črki in izpade. <strong class="ui">„Mostički šablone“</strong> jo z majhnimi mostički drži na plošči, kot pri šabloni.</p>
+<ol><li>Besedilo preklopi na <strong class="ui">„Luknja“</strong>, naj gre skozi ploščo, in izberi oboje, združeno ali ne.</li><li>Klikni <strong class="ui">„Mostički šablone“</strong> v skupini <strong class="ui">„Spreminjanje“</strong> na traku, desno klikni izbor ali ga poišči z <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>. Mostički se oranžno pokažejo tam, kamor pridejo.</li><li>Nastavi <strong class="ui">„Širina mostička“</strong> in <strong class="ui">„Mostički na del“</strong>. <strong class="ui">„Višina mostičkov“</strong> se začne pri debelini plošče; nižji mostički so poravnani s spodnjo stranjo, na sredini ali poravnani z zgornjo stranjo plošče, kot pove <strong class="ui">„Položaj“</strong>. Pri šabloni za razpršilno barvo mostički zgoraj pod seboj pustijo prostor za barvo.</li><li><strong class="ui">„Ustvari“</strong> združi mostičke s ploščo.</li></ol>
+<p>Vsak mostiček je navaden kvader: odpri skupino, da enega premakneš, izbrišeš ali dodaš svojega. Če besedilo pozneje spremeniš, izberi skupino in znova klikni <strong class="ui">„Mostički šablone“</strong>; novi mostički nadomestijo stare. Besedilo, ki je le vgravirano in ne gre skozi, ne dobi mostičkov, saj tam nič ne izpade. Za laser ali risalnik izvoz DXF in SVG doda enake mostičke, glej <a href="/api/desktop/layerling/ui/navodila/datoteke-in-shranjevanje.html">Datoteke, shranjevanje in deljenje</a>.</p>
+</section><section class="guide-part"><h2 id="kontura-silhueta-in-sirse"><span class="heading-alias" id="outline-silhouette-and-wider"></span>Kontura, silhueta in širše</h2>
+<p>Besedila ni treba zgraditi kot napolnjene črke. <strong class="ui">„Polnilo“</strong> v lastnostih ponuja isto izbiro kot Tinkercad:</p>
+<ul><li><strong><strong class="ui">„Polno“</strong>:</strong> črke, kot so.</li><li><strong><strong class="ui">„Kontura“</strong>:</strong> črta vzdolž obrisa črk, pol znotraj in pol zunaj.</li><li><strong><strong class="ui">„Zunanja črta“</strong>:</strong> črta zunaj okoli črk.</li><li><strong><strong class="ui">„Notranja črta“</strong>:</strong> črta znotraj v črkah.</li></ul>
+<p>Če je izbrana črta, se tik pod seznamom pokažeta dve nastavitvi: <strong class="ui">„Širina črte“</strong> določa, kako debela je črta, <strong class="ui">„Vogali“</strong>, kako teče okoli vogalov (<strong class="ui">„Zaobljeni“</strong>, <strong class="ui">„Prisekani“</strong> ali <strong class="ui">„Ostri“</strong>). Redkejše nastavitve so pod <strong class="ui">„Več“</strong>: <strong class="ui">„Silhueta (brez lukenj)“</strong> izpusti luknje v O, A ali e, <strong class="ui">„Širše (podlaga za večbarvni tisk)“</strong> pa pusti črke napolnjene in jih naredi povsod debelejše za širino črte; črke, ki se pri tem dotaknejo, zrastejo v en kos.</p>
+<p>S črto zunaj, sredinsko črto ali »Širše« raste tudi okvir besedila, črke pa obdržijo svojo velikost. <strong class="ui">„Poševni rob“</strong> in <strong class="ui">„Segmenti“</strong> sta samo za napolnjene črke.</p>
+</section><section class="guide-part"><h2 id="plasti-in-napisi-z-imenom"><span class="heading-alias" id="layers-and-name-tags"></span>Plasti in napisi z imenom</h2>
+<p>Napis z imenom za večbarvni tisk je besedilo v plasteh: zgoraj črke, pod njimi isto besedilo malo širše v drugi barvi, čisto spodaj plošča brez lukenj v tretji. layerling to naredi z enim klikom:</p>
+<ul><li><strong>Nov napis z imenom:</strong> V knjižnici oblik izberi <strong class="ui">„Napis z imenom“</strong> in ga odloži. Na njem piše »Ime« z belimi črkami na rdečem robu in temni plošči.</li><li><strong>Iz besedila:</strong> Izberi besedilo in zgoraj v njegovih nastavitvah klikni <strong class="ui">„Naredi plasti“</strong>.</li></ul>
+<p>Vse nastavitve napisa so v kartici <strong class="ui">„Napis z imenom“</strong>, čisto na vrhu nastavitev:</p>
+<ul><li><strong><strong class="ui">„Besedilo“</strong></strong> in <strong><strong class="ui">„Pisava“</strong></strong>, tudi lastne pisave. Napis raste z besedami.</li><li><strong><strong class="ui">„Velikost črk“</strong>:</strong> kako visoke so velike črke, v mm. Vse plasti gredo zraven in ostanejo prekrite.</li><li><strong><strong class="ui">„Črke ena pod drugo“</strong>:</strong> postavi ploščico pokonci s črkami druga pod drugo, z vsemi plastmi.</li><li><strong><strong class="ui">„Plasti“</strong>:</strong> ena vrstica na plast, od zgoraj navzdol. Vsaka vrstica ima barvo (klikni na barvno polje), za koliko je plast širša od črk, svojo višino in <strong class="ui">„Brez lukenj“</strong>, ki zapolni luknje v črkah, kot sta O in A. <strong class="ui">„Vogali“</strong> določa, kako širša plast teče okoli vogalov črk: <strong class="ui">„Zaobljeni“</strong>, <strong class="ui">„Posneti“</strong> ali <strong class="ui">„Ostri“</strong>. Zgornja vrstica so same črke. <strong>+</strong> doda plast spodaj, <strong>–</strong> odvzame zadnjo. Napis ima od dveh do šest plasti.</li><li><strong><strong class="ui">„Luknja za obesek“</strong>:</strong> da najnižji plasti raven jeziček z okroglim koncem in luknjo za obesek za ključe; jeziček raste z luknjo. Luknja 3 mm, privzeta vrednost, da 6,5 mm širok jeziček, ki sega 6,75 mm čez; rob luknje leži 2 mm od roba najnižje plasti. Izberi <strong class="ui">„Premer luknje“</strong> in <strong class="ui">„Stran“</strong>: <strong class="ui">„Levo“</strong>, <strong class="ui">„Desno“</strong> ali <strong class="ui">„Zgoraj“</strong>. <strong class="ui">„Prosto“</strong> sname luknjo z napisne ploščice in ob njej postavi lasten <strong class="ui">„Jeziček za obesek“</strong> v barvi in višini najnižje plasti: navadno obliko, ki jo z njenimi ročicami premakneš in zavrtiš, kamor jo ploščica potrebuje. Ko je na mestu, ga <strong class="ui">„Pritrdi na napis“</strong> v njegovih lastnostih naredi del najbližje ploščice, natanko tam, kjer stoji: luknja gre skozi vsako plast, ki jo doseže, uho se poveže z najnižjo plastjo, oboje pa ostane ob tem vogalu črk, ko se spremenijo besede ali velikost. <strong class="ui">„Prosto“</strong> jeziček znova postavi ven, kjer je bil, da ga lahko še enkrat premakneš. Luknja gre skozi vsako plast, ki se je dotika, jeziček pa se premika zraven, če spremeniš besede, velikost črk ali pisavo. <strong class="ui">„Položaj ob strani“</strong> premakne jeziček ob njegovi strani navzgor ali navzdol (zgoraj: levo ali desno), do mesta, kjer bi zapustil stran; 0 je sredina. Pomaga, ko sredina strani naleti na vrzel, na primer ob črki J: premakni jeziček tja, kjer črka sega ven.</li><li><strong><strong class="ui">„Rob črk“</strong>:</strong> zaobli ali poševno odreže zgornji rob črk na vrhnji plasti, tako kot se natisnjen napis dokonča: <strong class="ui">„Brez“</strong>, <strong class="ui">„Zaobljen“</strong> ali <strong class="ui">„Posnet“</strong>, z <strong class="ui">„Velikost roba“</strong> (sprva 0,4 mm, največ tako visoko kot plast). To gre za vsako pisavo in vsako besedo. Rob spada k mreži črk; robno orodje zato tako besedilo vzame kot mrežo, kar je pri tako fini pisavi težko - rob raje izberi tu.</li></ul>
+<p>Vsako spremembo vidiš takoj. Napis je sveženj: premika se kot celota, vsaka plast pa ostane svoje telo v svoji barvi, tako kot jo rezalnik potrebuje za večbarvni tisk. Da robove plasti zaobliš ali poševno odrežeš, klikni <strong class="ui">„Uredi sveženj“</strong> in izberi plast, glej <a href="/api/desktop/layerling/ui/navodila/robovi-in-izdolbljenje.html">Posnetje robov in izdolbljenje teles</a>.</p>
+<section class="guide-part"><h3 id="veliko-napisov-z-imenom-naenkrat"><span class="heading-alias" id="many-name-tags-at-once"></span>Veliko napisov z imenom naenkrat</h3>
+<p>Imena vpiši v <strong class="ui">„Seznam imen“</strong>, eno na vrstico, do sto. Gumb pod njim pove, koliko napisov naredi, na primer »Naredi 12 napisov z imenom«. Vsak napis dobi iste plasti, isto velikost črk in isto luknjo in je lasten objekt; ležijo v vrstah pod prvim, 5 mm narazen. Tudi preprosto besedilo ima seznam imen, nižje v svojih nastavitvah.</p>
+</section></section><section class="guide-part"><h2 id="simbolne-oznake"><span class="heading-alias" id="icon-tags"></span>Simbolne oznake</h2>
+<p>Simbolna oznaka je ista oznaka s simbolom SVG namesto črk: srček, oblak, logotip društva. Zgoraj simbol, pod njim isti obris malo širši v drugi barvi, čisto spodaj plošča brez lukenj.</p>
+<ul><li><strong>Nova simbolna oznaka:</strong> v knjižnici oblik izberi <strong class="ui">„Simbolna oznaka“</strong>. Odpre se majhno okno: klikni <strong class="ui">„Prebrskaj …“</strong>, izberi datoteko SVG, PNG ali JPG, preveri sliko, vpiši <strong class="ui">„Širina (mm)“</strong> simbola in klikni <strong class="ui">„V redu“</strong>. Oznaka stoji na sredini plošče, v enakih plasteh kot nov napis z imenom.</li><li><strong>Iz telesa skice:</strong> uvožena datoteka SVG ali skica, ki si jo narisal, ima na vrhu nastavitev <strong class="ui">„Naredi plasti“</strong>.</li></ul>
+<p>Kartica <strong class="ui">„Simbolna oznaka“</strong> na vrhu nastavitev vsebuje:</p>
+<ul><li><strong><strong class="ui">„Druga datoteka …“</strong>:</strong> na oznako postavi simbol druge datoteke (SVG, PNG ali JPG); plasti in širina ostanejo, kot so.</li><li><strong><strong class="ui">„Širina“</strong>:</strong> kako širok je simbol zgoraj, v mm. Vse plasti sledijo in ostanejo poravnane.</li><li><strong><strong class="ui">„Plasti“</strong>:</strong> vrstice kot pri napisu z imenom – barva, za koliko širše, <strong class="ui">„Vogali“</strong>, višina in <strong class="ui">„Brez lukenj“</strong>, <strong>+</strong> in <strong>–</strong>, od dve do šest plasti. Zgornja vrstica je simbol sam.</li><li><strong><strong class="ui">„Luknja za obesek“</strong>:</strong> kot pri napisni ploščici: luknja za obesek za ključe skozi vsako plast, z jezičkom z okroglim koncem na najnižji plasti, zunaj ikone. <strong class="ui">„Premer luknje“</strong> in <strong class="ui">„Stran“</strong> izbereta njegovo velikost in mesto; <strong class="ui">„Prosto“</strong> da lasten jeziček, kot pri napisni ploščici. Jeziček je narejen za obris ikone, zato pri zelo razčlenjeni ikoni preveri, kje se je dotika. <strong class="ui">„Položaj ob strani“</strong> premakne jeziček vzdolž njegove strani, kot pri napisni ploščici.</li><li><strong><strong class="ui">„Število“</strong>:</strong> koliko oznak želiš, od 1 do 100. <strong class="ui">„Kolikor jih gre“</strong> izračuna število iz plošče tiskalnika, izbranega v nastavitvah; pri majhnih logotipih polna plošča. Gumb spodaj jih naredi, 5 mm narazen, razporejene na sredini plošče; prva je oznaka sama.</li></ul>
+<p>SVG potrebuje sklenjene obrise; risba samo iz odprtih črt ne more postati oznaka. Telo skice, katerega polnilo je črta, jo obdrži: ploščina te črte je simbol.</p>
+<p><strong>Slika (PNG ali JPG)</strong> se izsledi v obris in predogled pokaže obris. Pod <strong class="ui">„Izsledeno iz“</strong> izbereš, ali simbol postane <strong class="ui">„Temen del“</strong> ali <strong class="ui">„Svetel del“</strong>; na začetku je to del, ki ni ozadje. Prozorne točke nikoli ne spadajo k simbolu. SVG, ki vsebuje samo eno sliko, kot ga shrani Inkscape po uvozu bitne slike, se izsledi enako. Obris sledi točkam, zato majhna slika da hrapav rob: najbolje delujejo slike z nekaj sto točkami ali več. <strong class="ui">„Druga datoteka …“</strong> vzame del slike, ki ni njeno ozadje.</p>
+</section><section class="guide-part"><h2 id="kode-qr"><span class="heading-alias" id="qr-codes"></span>Kode QR</h2>
+<p>Koda QR iz besedila ali spletnega naslova naredi vzorec, ki ga prebere kamera telefona: povezava do tvoje trgovine na tablici, ime omrežja Wi-Fi na podstavku, telefonska številka na obesku za ključe.</p>
+<p>V knjižnici oblik izberi <strong class="ui">„Koda QR“</strong>. Odpre se okno; kazalec je že v polju za besedilo:</p>
+<ul><li><strong><strong class="ui">„Besedilo ali naslov“</strong>:</strong> kaj koda pove. Enter ustvari kodo, Shift+Enter začne novo vrstico. Pod poljem vidiš, koliko prostora je porabljenega; črke s strešicami in drugi posebni znaki zasedejo dva bajta. Če je besedilo predolgo, ti polje to pove.</li><li><strong><strong class="ui">„Popravek napak“</strong>:</strong> L, M, Q ali H. Višjo stopnjo je še mogoče prebrati, ko je del kode umazan ali opraskan (L približno 7 %, M 15 %, Q 25 %, H 30 %), vendar za isto besedilo potrebuje več modulov, zato je vsak modul manjši. Najprej je izbrana M.</li><li><strong><strong class="ui">„Izvedba“</strong>:</strong> <strong class="ui">„Samo koda“</strong> zgradi samo kodo, visoko 4 mm. <strong class="ui">„Dvignjena na plošči“</strong> jo postavi 1 mm visoko na belo ploščo debeline 3 mm, kot sveženj dveh barv, tako da večbarvni tisk natisne kodo temno in ploščo svetlo. <strong class="ui">„Vgravirana“</strong> kodo vreže 1 mm globoko v ploščo.</li><li><strong><strong class="ui">„Velikost po“</strong>:</strong> vnesi <strong class="ui">„Širina“</strong> cele kode (najprej 40 mm) ali velikost enega modula; drugo število je zapisano spodaj. Moduli, manjši od 0,8 mm, dobijo opozorilo. To je okvirno pravilo za šobo 0,4 mm, ne zagotovilo: vlogo igrajo tiskalnik, material, barve in telefon.</li><li><strong><strong class="ui">„Tiho območje (4 moduli)“</strong>:</strong> čitalniki potrebujejo okoli kode prazen rob širine štirih modulov. Na plošči je rob del plošče; izklopi ga le, če plošča leži na večji svetli površini. Koda sama nima svojega roba: prostor okoli nje pusti prazen.</li><li><strong>Višine:</strong> višina kode, na plošči višina kode ali globina gravure, in debelina plošče.</li></ul>
+<p>Predogled pokaže kodo, kot bo zgrajena. <strong class="ui">„V redu“</strong> jo postavi na sredino plošče.</p>
+<p>Koda je telo kot vsako drugo: premakni jo, zavrti, povečaj (širino in globino ohrani enaki, sicer se koda popači), združi jo, ali jo spremeni v luknjo in jo združi v svoj del, da jo tam vgraviraš. Povečava poveča celo kodo; vsak modul ostane kvadraten.</p>
+<p>Kartica <strong class="ui">„Koda QR“</strong> na vrhu njenih nastavitev vsebuje besedilo. Spremeni ga in klikni <strong class="ui">„Ustvari znova“</strong>: koda se zgradi znova tam, kjer stoji, in tako široka, kot je zdaj. Popravek napak, tiho območje in izvedba ostanejo, kot so bili izbrani; za druge izbire ustvari novo kodo iz knjižnice.</p>
+<p>Kodo pred tiskom skeniraj s telefonom, in po tisku še enkrat. Temno na svetlem se bere najbolje; svetle kode na temni plošči ne prebere vsak telefon.</p>
+</section><section class="guide-part"><h2 id="besedilo-na-kroznem-loku"><span class="heading-alias" id="text-on-a-circular-arc"></span>Besedilo na krožnem loku</h2>
+<p>Naj napis ne teče naravnost, ampak sledi robu kovanca, pokrova ali obroča? Za to je nastavitev <strong class="ui">„Po loku“</strong>.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/curved-text.webp" alt="Besedilo sledi krogu. Vse črke stojijo na skupni črti." width="1280" height="800" loading="lazy"><figcaption>Besedilo sledi krogu. Vse črke stojijo na skupni črti.</figcaption></figure>
+<p>Takoj ko jo vklopiš, besedilo teče vzdolž kroga. Vse črke stojijo na isti osnovni črti, tako enakomerno kot pri običajnem besedilu. Poleg je pet nastavitev:</p>
+<ul><li><strong><strong class="ui">„Polmer loka“</strong></strong> (5 do 500 mm): Polmer kroga, na katerem teče osnovna črta črk. Črke ostanejo na svojem mestu, spremeni se le njihova ukrivljenost.</li><li><strong><strong class="ui">„Širina črk (%)“</strong></strong> (25 do 400 %): Kako široko je narisana vsaka črka, v odstotkih njene lastne širine. Pod 100 so črke ožje, nad 100 širše; njihova višina ostane, lok, ki ga zasedajo, pa se z njimi podaljša ali skrajša. Na primer za visok, ozek napis na kovancu. Pri ravnem besedilu to naredi <strong class="ui">„Raztegni črke na okvir“</strong> z okvirjem.</li><li><strong><strong class="ui">„Velikost črk“</strong>:</strong> Kako visoke so črke. Ne visi več na širini oblike.</li><li><strong><strong class="ui">„Po spodnji strani“</strong>:</strong> Preklopi besedilo z zgornje strani kroga na spodnjo. Črke potem kažejo z glavo proti središču.</li><li><strong><strong class="ui">„Na glavo“</strong>:</strong> Obrne samo črke, da jih lahko bereš z druge strani. Besedilo pri tem ostane na svojem mestu na krogu.</li></ul>
+<p><strong>Središče kroga je središče oblike.</strong> Zato poravnava deluje kot običajno: če besedilo sredinsko poravnaš z valjem ali obročem, sedi natanko koncentrično na njem. Če povlečeš za ročico, polmer in velikost pisave rasteta skupaj, tako da se pisava ne popači.</p>
+<aside class="tip"><p><strong>Namig:</strong> Zgoraj na krogu stojijo črke zunaj osnovne črte, z <strong class="ui">„Po spodnji strani“</strong> znotraj, z glavami proti središču. Da pisava ustreza plošči, naj bo polmer plus velikost pisave manjši od polmera plošče.</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/navodila/skice.html"><small>Prejšnje poglavje</small>Skice: od obrisa do telesa</a><a class="next" href="/api/desktop/layerling/ui/navodila/navoji-in-mehanika.html"><small>Naslednje poglavje</small>Navoji, zobniki in drugi sestavni deli</a></div>
+      </main>
+    </div>
+    <footer class="note">Ta navodila rastejo skupaj s programom. Če kaj manjka ali ne drži, sporoči v <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">razpravah</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=sl" rel="noopener">Podpri Layerling Desktop</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Razprave</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Več na GitHubu</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Opombe ob izdaji v1.154.1</a></div><p class="trademark">Tinkercad je blagovna znamka podjetja Autodesk, Inc. layerling je neodvisen projekt in ni povezan z Autodeskom, ga ne podpira in ga ne sponzorira.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Nazaj v urejevalnik";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="V urejevalnik";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

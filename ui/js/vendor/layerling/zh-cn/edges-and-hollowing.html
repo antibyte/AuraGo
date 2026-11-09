@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>处理边与抽壳实体 - layerling 用户指南</title>
+    <meta name="description" content="对指定的边做倒角或圆角，为盒子、杯子和壳体抽出等壁厚的空腔。">
+    <link rel="canonical" href="https://layerling.com/zh-cn/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/kanten-und-aushoehlen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/randen-en-uithollen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/robovi-in-izdolbljenje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/edges-and-hollowing.html">
+    <meta property="og:title" content="处理边与抽壳实体 - layerling 用户指南">
+    <meta property="og:description" content="对指定的边做倒角或圆角，为盒子、杯子和壳体抽出等壁厚的空腔。">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/zh-cn/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">用户指南</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/zh-cn/search-index.json" data-nothing="未找到结果。" data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="搜索指南" aria-label="搜索指南" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="语言">简体中文</summary><ul><li><a href="/api/desktop/layerling/ui/guide/edges-and-hollowing.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/edges-and-hollowing.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/edges-and-hollowing.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/edges-and-hollowing.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/edges-and-hollowing.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/edges-and-hollowing.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/edges-and-hollowing.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/randen-en-uithollen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/edges-and-hollowing.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/edges-and-hollowing.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/edges-and-hollowing.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/robovi-in-izdolbljenje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/edges-and-hollowing.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/edges-and-hollowing.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/edges-and-hollowing.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/edges-and-hollowing.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/edges-and-hollowing.html" hreflang="zh-CN" lang="zh-CN" aria-current="true">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/edges-and-hollowing.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">打开编辑器</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>编辑器已在另一个标签页中打开，请切换到那里。</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="章节"><h2>章节</h2><p class="print-link"><a href="/api/desktop/layerling/ui/zh-cn/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>打印完整指南</span></a></p><ol><li><a href="/api/desktop/layerling/ui/zh-cn/getting-started.html">快速上手</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/view-and-workplane.html">视图与工作平面</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/shapes.html">放置与调整形状</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/select-and-arrange.html">选择与排列</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/solids-and-holes.html">实体与孔</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/edges-and-hollowing.html" aria-current="page">处理边与抽壳实体</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/sketches.html">草图：从轮廓到实体</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/text.html">文字与弧形文字</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/threads-and-mechanics.html">螺纹、齿轮和其他零件</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/measuring-and-notes.html">测量与备注</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/printing.html">为 3D 打印做准备</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/files-and-saving.html">文件、保存与分享</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/shortcuts.html">键盘快捷键</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/ai-with-mcp.html">用 AI 搭建（MCP）</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/offline-and-install.html">安装为应用、离线使用与自托管</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/videos.html">关于 layerling 的视频</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/tablet-and-touch.html">平板与触控</a></li></ol></nav>
+      <main>
+<h1>处理边与抽壳实体</h1>
+<p class="lead">对指定的边做倒角或圆角，为盒子、杯子和壳体抽出等壁厚的空腔。</p>
+<div class="toc"><b>本页内容</b><ul><li><a href="#chamfering-and-filleting-edges">为边做倒角与圆角</a></li><li><a href="#hollowing-bodies">抽壳实体</a></li><li><a href="#a-lid-for-an-open-body">为开口的物体做盖子</a></li><li><a href="#a-cable-channel-through-a-body">穿过实体的线缆通道</a></li><li><a href="#offsetting-bodies">偏移实体</a></li><li><a href="#deleting-faces">删除面</a></li></ul></div>
+<section class="guide-part"><h2 id="chamfering-and-filleting-edges">为边做倒角与圆角</h2>
+<p>在打印件上，锋利的边很少好看，也并不特别结实。<strong>倒角</strong>把边斜着切掉，<strong>圆角</strong>把边磨圆。两者都作用于你点击的边。</p>
+<ol><li>选中实体（或分组）。</li><li>在功能区点击 <strong class="ui">“圆角”</strong> 或 <strong class="ui">“倒角”</strong>，按 <kbd>B</kbd> 打开圆角、按 <span dir="ltr"><kbd>Shift</kbd>+<kbd>B</kbd></span> 打开倒角，或右键点击实体并从菜单中选择。</li><li>实体的边会亮起。点击要处理的边。再点一次可将该边取消。按住 <kbd>Shift</kbd> 可单独添加或移除一条边。</li><li>设置尺寸，然后用 <strong class="ui">“应用”</strong> 或 <kbd>Enter</kbd> 确认。之后窗口会带着相同尺寸停在新实体上，马上就能接着做下一个圆角或倒角；<strong class="ui">“完成”</strong>、<kbd>Esc</kbd> 或叉号可关闭它。按住 <kbd>Shift</kbd> 或 <kbd>Ctrl</kbd> 点击 <strong class="ui">“顶部边”</strong>、<strong class="ui">“底部边”</strong>、<strong class="ui">“竖直边”</strong> 或 <strong class="ui">“水平边”</strong> 时，这些边会加入已选的边，而不是替换它们。</li></ol>
+<figure><img src="/api/desktop/layerling/ui/guide/img/fillet-preview.webp" alt="“圆角边”工具：已选中所有锋利的边，图中显示 4 mm 半径的预览。" width="1280" height="800" loading="lazy"><figcaption>“圆角边”工具：已选中所有锋利的边，图中显示 4 mm 半径的预览。</figcaption></figure>
+<p>工具窗口位于右上角。如果它挡住了你要点击的边，抓住标题栏把它拖开；下次它也会在那里打开，<strong class="ui">“抽壳”</strong> 和 <strong class="ui">“阵列”</strong> 同样如此。双击标题栏可将其复位。</p>
+<p>窗口打开时从形状列表中选取形状会关闭窗口，不应用任何更改，你点过的边也会被遗忘。这一次点击会放置新形状，而不是选取边。</p>
+<p>窗口中包括：</p>
+<ul><li><strong class="ui">“所有锐边”</strong> 一次选中所有边，<strong class="ui">“清除”</strong> 清空选择。</li><li>圆角用 <strong><strong class="ui">“半径”</strong></strong>。倒角则设置 <strong class="ui">“距离”</strong> 或 <strong class="ui">“角度”</strong>。</li><li><strong class="ui">“可变半径”</strong>（仅圆角）让半径沿一条边变化：一端小，另一端大，中间匀速过渡，例如直壁与斜壁相交处。先点击单条边，再设置 <strong class="ui">“起点半径”</strong> 和 <strong class="ui">“终点半径”</strong>。哪一端算起点取决于这条边是如何生成的；如果较大的半径出现在错误的一端，可用 <strong class="ui">“交换两端”</strong> 对调。它一次只处理一条边，所以多条边要依次倒圆。<strong class="ui">“编辑”</strong> 可把两个数值调回来。</li><li><strong class="ui">“凹形（挖去）”</strong>（仅圆角）把圆角反过来：不是把边倒圆，而是从边上切出一个四分之一圆的凹槽，就像盒子上的凹角。凹槽是一根沿边放置、半径为所选 <strong class="ui">“半径”</strong> 的圆柱，因此适用于两面之间的任何角度，但只能用于直边，且不能与 <strong class="ui">“可变半径”</strong> 同时使用。<strong class="ui">“编辑”</strong> 可以恢复它。</li><li><strong class="ui">“锐边阈值”</strong> 决定哪些边算作锋利的边。设为 25° 时，只有明显的折角才算边，平缓过渡不受影响。</li><li><strong class="ui">“竖直边”</strong> 选取竖直向上的边，例如长方体的角：一次圆角就能把所有竖直的角一起倒圆。</li><li><strong class="ui">“顶部边”</strong> 只选取实体最顶部的边。做饼干模具时这是快捷做法：在草图里用描边画出轮廓，再对顶部边做倒角。<strong class="ui">“角度”</strong> 设置倒角的陡峭程度；倒角深度不会超过壁厚。</li><li><strong class="ui">“底部边”</strong> 只选取实体最底部的边，是 <strong class="ui">“顶部边”</strong> 的镜像。想只对零件底部做圆角或倒角时，这是快捷做法。</li><li>在倒角窗口顶部 <strong class="ui">“倒角”</strong> 旁选择的 <strong class="ui">“圆滑倒角”</strong>，用于做零件可打印的底部：在平台上是一段倒角，朝壁面方向相切地过渡为圆角，这样最初几层不需要支撑，边的收尾依然柔和。<strong class="ui">“距离”</strong> 是底部占用的高度，<strong class="ui">“角度”</strong>（15° 到 75°）是平台处倒角的陡峭程度。用 <strong class="ui">“底部边”</strong> 选取边。</li><li><strong class="ui">“仅可见边”</strong> 隐藏从你的视角看位于实体背后的边。默认情况下所有边都会透过实体显示，零件复杂时容易看花眼；打开此开关后，你只能看到并点击朝向你的边。转动视图才能处理其余的边。以红色显示的边（见下文）始终可见。</li><li><strong class="ui">“单击还会选中平滑延续的边”</strong>：点击时还会一并选取彼此平滑相接的边，例如带圆角的面周围的所有边。这个开关只决定点击选取哪些边：CAD 内核总会让倒角或圆角沿着这类平滑延续的边延伸下去。窗口会告诉你它还沿多少条边延伸。</li><li><strong class="ui">“缩放时保持边尺寸”</strong> 即使之后缩放实体，也让倒角或圆角保持原来的大小。</li><li><strong class="ui">“预览质量”</strong>（<strong class="ui">“草稿”</strong>、<strong class="ui">“标准”</strong> 或 <strong class="ui">“精细”</strong>）决定预览的计算精度。零件复杂时 <strong class="ui">“草稿”</strong> 更快。</li><li>窗口会在此浏览器中记住它的设置，倒角、圆角和倒角加圆角各一套：尺寸、角度、阈值、预览质量和各开关在<strong class="ui">“应用”</strong>之后、撤销之后以及下次打开工具时都保持你离开时的样子。物体容不下的尺寸会让位于按物体算出的尺寸。只有<strong class="ui">“单击还会选中平滑延续的边”</strong>会重新开始：物体的第一次倒角或圆角时打开，之后关闭。</li></ul>
+<p>调整尺寸时，layerling 会重新计算预览。这可能需要一点时间。你可以继续调整；最终计算的是你最后选择的数值。</p>
+<p>如果尺寸对这条边来说太大，layerling 会提示并建议一个更小的值。通常少一两毫米就够了。在尖锐的夹角处，圆角需要的空间比半径看起来更大。屏幕较小时，窗口会自动向下滚动，让提示信息显示出来。</p>
+<p>如果原本可行的选择在又点了一条边后失败，那条边会变红并画得更粗：在当前尺寸下，它无法与其他边一起处理。再点一次可将它取消，或把尺寸调小。提示仍在时继续点击其他边，最早出问题的那条会保持红色。如果没有先前可行的选择——比如第一次点击，或你刚调大的尺寸——则单独处理也失败的边会变红；若只是它们的组合失败，则全部变红。如果所选棱边相交于尖锐的内角（比如云朵形状中两个圆盘相接处），圆角在任何尺寸下都没有空间：这时 layerling 会先以相同或更小的尺寸对这些内角倒圆角，消息会说明有几处、用了多大（倒角时则先倒角）。</p>
+<p>沿弯曲边的圆角还有一个限制。边在实体外侧弯曲得比半径更紧的地方，例如草图中画出或以 SVG 导入的水滴尖端，圆角无法顺着弯曲走。这时 layerling 会给出最紧弯曲的半径，并把有此弯曲的边画成红色。请选择更小的半径，或把弯曲画得更圆。尖角不是这种弯曲：两条边在那里相交，各自单独倒圆。因此，先给顶部边倒圆，再用小半径给角倒圆：倒圆后的角对顶部边来说就是很紧的弯曲。</p>
+<p>在放弃之前，layerling 会再试一次：把所选边两端的短边一并加上，长度最多为尺寸的两倍。这样的短边出现在之前的倒角止于一面仍是尖角的墙的地方：角上有一条短的斜边，只要它保持尖角，这个角就无法处理。如果这样可行，这些边随后也会被选中，并有一条消息说明一并加上了几条。</p>
+<p>指针下方的边也会画得更粗，方便你看出点击会选中哪一条。</p>
+<p>孔同样可以使用<strong class="ui">“倒角”</strong>和<strong class="ui">“圆角”</strong>,<strong class="ui">“抽壳”</strong>、<strong class="ui">“偏移”</strong>和<strong class="ui">“删除面”</strong>也一样:它仍然是孔,并以新的形状进行切除。把长方体孔的四条竖直边倒圆,就会切出内角为圆角的凹槽;用<strong class="ui">“偏移”</strong>放大的孔会多留出相应的间隙。若要处理孔与零件相交处的边,请改为处理完成后的组:那条边属于组。</p>
+<section class="guide-part"><h3 id="taking-an-edge-treatment-back">撤销边处理</h3>
+<p>处理过的实体随时可以再次处理。重新选中它并打开工具——圆角、倒角或抽壳都会显示这份列表：在 <strong class="ui">“撤销边特征”</strong> 下可以看到它上面已经有哪些处理。<strong class="ui">“撤销”</strong> 可撤销单次处理。注意：如果上面还叠着更新的处理，它们会一并撤销，窗口会告诉你有多少个。</p>
+<p>倒角、圆角或抽壳旁边还有 <strong class="ui">“编辑”</strong>。它以同样的方式撤销该处理，但会立刻用相同的边和原来的数值重新打开工具。你改完数值再应用即可：3 mm 的圆角变成 5 mm，无需再点一遍边。如果上面叠着更新的处理，这里它们也会一并撤销。这适用于从今往后做的边处理；更早的处理只提供撤销，分组中的单个部件也是如此。</p>
+<p>对分组，比如带孔圆柱体，被处理的边属于最终成形的实体，而不属于其中某个部件。因此分组会变成一个实体。<strong class="ui">“取消分组”</strong> 对它仍然有效：它会先撤销边处理特征，再解散分组，整个过程一步完成，<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> 即可撤销。若按上文所述撤销该处理，分组会带着所有部件恢复。最省事的做法是把边处理留到最后。螺纹也是如此：边工具把螺纹当作它的精确实体，所以带螺纹孔的方块可以在螺纹就位的情况下倒圆边。计算螺纹的边比普通形状更耗时，M6 需要几秒，G1/2 管螺纹约需半分钟。</p>
+<aside class="tip"><p><strong>值得了解：</strong> layerling 对圆角和倒角使用真正的 CAD 几何，而不只是三角网格。因此在 STEP 导出中，倒圆的边依然是倒圆的边。</p></aside>
+<p>以 STEP 导入的零件也会保留其 CAD 几何：倒角、圆角和抽壳都作用在文件中的实体上，无论屏幕上把零件画得多精细。STL、OBJ 和 3MF 只带来三角面，绘制精细的零件可能对边工具来说过于稠密。如果某个零件同时有 STEP 版本，就导入它。<strong class="ui">“转为精确实体”</strong>会先把这样的零件变成带有真正平面和圆柱面的精确实体，见<a href="/api/desktop/layerling/ui/zh-cn/files-and-saving.html">文件、保存与分享</a>中的“将导入的网格转为精确实体”。</p>
+</section></section><section class="guide-part"><h2 id="hollowing-bodies">抽壳实体</h2>
+<p>盒子、杯子、壳体和盖子都有一个共同点：内部是空的，壁厚均匀。这正是 <strong class="ui">“抽壳”</strong> 做的事。</p>
+<ol><li>选中实体并点击 <strong class="ui">“抽壳”</strong>，或右键点击实体并从菜单中选择。</li><li>设置 <strong class="ui">“壁厚”</strong>。</li><li>在 <strong class="ui">“开口侧”</strong> 下打开要保持开口的各个面：<strong class="ui">“顶部”</strong>、<strong class="ui">“底部”</strong>、<strong class="ui">“前”</strong>、<strong class="ui">“后”</strong>、<strong class="ui">“左”</strong> 或 <strong class="ui">“右”</strong>，想开几个都行——只开 <strong class="ui">“前”</strong> 会做出抽屉槽，开 <strong class="ui">“左”</strong> 和 <strong class="ui">“右”</strong> 则做成通道。一个面都不开时，实体四周封闭，中间留有空腔。<strong class="ui">“封闭（内腔）”</strong> 一键关掉所有面。窗口打开时 <strong class="ui">“顶部”</strong> 已经处于打开状态；再点击它就会把顶部重新封上。四周封闭的实体从外面看没有变化：剖视图能显示空腔。</li><li>选择 <strong class="ui">“内部边”</strong> 是 <strong class="ui">“圆角”</strong> 还是 <strong class="ui">“尖角”</strong>。</li><li>点击 <strong class="ui">“抽壳”</strong>。</li></ol>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-panel.webp" alt="抽壳窗口，包含壁厚、每个保持开口的面各自的开关，以及内壁的边。" width="1280" height="800" loading="lazy"><figcaption>抽壳窗口，包含壁厚、每个保持开口的面各自的开关，以及内壁的边。</figcaption></figure>
+<p>壁向内部生长。外部保持不变。</p>
+<p><strong class="ui">“内部边”</strong> 只在内壁分开的地方才有影响——实体上的台阶处或开口周围。普通长方体空腔的角在两种设置下都是尖的。想要圆润的内壁，先对实体的外边倒圆（见上文），再抽壳：内壁会按半径减去壁厚来跟随。如果圆润的内壁无法生成，例如轮廓由大量很短的直线段组成时（比如描摹的图形），layerling 会改用尖锐的内角来构建同样的抽壳实体。</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-result.webp" alt="结果：壁厚 3 mm、顶部开口的壳体。" width="1280" height="800" loading="lazy"><figcaption>结果：壁厚 3 mm、顶部开口的壳体。</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-sides.webp" alt="同一个盒子，只打开前面：一个抽屉槽。" width="1280" height="800" loading="lazy"><figcaption>同一个盒子，只打开前面：一个抽屉槽。</figcaption></figure>
+<p>每个开口面都要求实体在该侧的最边缘有一块平面。因此球体和自由曲面形状不能这样抽壳。如果壁厚对实体来说太厚，layerling 会提示并要求更小的值。上下边也做了圆角的长方体就是这种情况：它的壁厚必须明显小于那个圆角，或者先把圆角设为 0。</p>
+<p>带凹槽的实体——比如把长方体与一个抬高的孔分组，做出不通透的孔——也能抽壳，顶部开口：凹槽周围的壁同样会被抽空，于是外壁与凹槽之间留下一圈顶部开口的空腔，凹槽底面之下还有一层薄空腔。</p>
+<p><strong>以尖端收尾的实体，</strong>例如圆锥或旋转出的三角形，顶部没有可以保持开口的平面。全封闭空腔在这里也行不通，因为尖端无法向内偏移：即使壁厚只有 1 mm，也会提示无法使用这样的壁厚。改为在旋转之前把壁画进轮廓：复制轮廓，将副本等比缩小，把它放到大轮廓中间并用它切掉大轮廓，再整体旋转（见“草图”章节的“旋转”一节）。两条轮廓之间的距离就是壁厚。</p>
+<p>如果之后调整已抽壳实体的尺寸，layerling 会立即按新尺寸重新抽壳。壁厚保持你选择的厚度，圆形实体也一样。圆柱体若某一方向拉得比另一方向多，就会变成椭圆。</p>
+<aside class="tip"><p><strong>提示：</strong> 使用 0.4 mm 喷嘴时，1.2 到 2 mm 的壁厚是个不错的起点：够薄以节省材料，够厚以保证零件结实。</p></aside>
+</section><section class="guide-part"><h2 id="a-lid-for-an-open-body">为开口的物体做盖子</h2>
+<p><strong class="ui">“盖子”</strong> 为顶部开口的物体制作盖子：顶部开口挖空的盒子、花盆、托盘。选中物体并点击 <strong class="ui">“盖子”</strong>。在窗口中选择类型：</p>
+<ul><li><strong class="ui">“压入”</strong>：与物体一样大的盖板，下方有一圈插入开口的唇边。</li><li><strong class="ui">“套在外面”</strong>：比物体宽一个壁厚的盖板，下方有一圈从外侧套住的围边。</li><li><strong class="ui">“内外两侧”</strong>：比物体宽一个壁厚的盖板，下方两者都有：伸进开口的唇边和从外侧套住的围边。物体的壁正好卡在两者之间的槽里，就像保鲜盒一样。</li><li><strong class="ui">“平盖”</strong>：只有盖板，用于放在上面或粘上。</li><li><strong class="ui">“旋盖”</strong>：像罐子盖一样旋上去的盖子，适用于圆形实体；详见下文。</li><li><strong class="ui">“旋入”</strong>：带螺纹塞子的板，塞子旋入圆形实体的开口；详见下文。</li><li><strong class="ui">“卡口”</strong>：用于圆形实体的旋转锁扣，盖子压过凸耳后转动锁紧；详见下文。</li><li><strong class="ui">“滑盖”</strong>：从一面壁滑进盒子的板，就像木制铅笔盒的盖子；详见下文。</li></ul>
+<p>然后设置厚度（<strong class="ui">“盖子厚度”</strong>）、配合（<strong class="ui">“配合”</strong>，盖子与物体之间每边的 <strong class="ui">“每侧间隙”</strong>：0.1 mm 紧、0.2 mm 正常、0.3 mm 松，或 1 mm 以内的任意值），以及唇边或围边向下伸多深、壁有多厚。点击 <strong class="ui">“生成盖子”</strong>：盖子放在物体旁边，翻转过来、盖板朝下，因此无需支撑即可打印。物体保持不变。盖子会跟随任何轮廓，圆形或有棱角的都可以，因为它直接取自物体边缘下方一点的截面。顶部没有开口的物体只能得到平盖；要做其他几种，请先以顶部开口的方式把它挖空。如果物体是精确 CAD 实体，例如用挖空功能挖空的圆角盒，盖子也是精确实体，圆角保持圆润：可以像其他实体一样用边缘工具为它的边倒圆角或倒角。其他物体，以及带磁铁立柱的盖子，得到的是由三角形组成的盖子。</p>
+<aside class="tip"><p><strong>提示：</strong> 盖子的松紧取决于打印机。先打印一个带盖的小盒子；如果太紧，就换下一档更松的配合。</p></aside>
+<p>勾选 <strong class="ui">“角落放磁铁”</strong>，盖子就靠四块圆形磁铁固定，而不是靠紧配合。选择 <strong class="ui">“磁铁”</strong>（6 × 2、8 × 3 或 10 × 3 mm），或设置 <strong class="ui">“磁铁直径”</strong> 和 <strong class="ui">“磁铁高度”</strong>，以及 <strong class="ui">“磁铁周围间隙”</strong>：0.1 mm 用于压入磁铁，0.2 到 0.3 mm 用于粘接。layerling 会在物体边缘的每个角切出一个凹槽，并在盖板上对应位置切出一个，比磁铁略深，因此磁铁永远不会凸出。壁太薄放不下凹槽的地方，会有一根立柱从底部一直填到边缘，盖子的唇边绕过它。物体会与它的凹槽和立柱组合在一起：取消组合即可恢复原样。盖板厚度至少要等于磁铁高度加 0.8 mm；开启磁铁时会自动这样设置。</p>
+<p>勾选 <strong class="ui">“铰链”</strong>，盖子就会沿物体的一条直边绕销轴打开：后侧，或在 <strong class="ui">“铰链所在侧”</strong> 中选择的那一侧（以初始视图为准，后侧背对着你）。铰节沿这条边交替排列，外侧的在物体上，中间的在盖子上，间隔 <strong class="ui">“铰链间隙”</strong>，销孔贯穿所有铰节：<strong class="ui">“销钉直径”</strong> 为 1.75 mm 时，一段耗材就是销轴；勾选 <strong class="ui">“同时打印销钉”</strong> 可得到单独打印的更粗销轴。销轴在物体一侧的铰链部分里卡紧，压进去的一段耗材不会滑出；在盖子一侧的部分里转动：<strong class="ui">“销钉间隙（每侧）”</strong> 是它在那里每侧的余量，起初 0.2 mm；盖子转动发涩时就调大一些。打印的销轴在物体一侧的部分里每侧有 0.15 mm，因为它打印出来是全尺寸的：仍然卡得很紧，但可以压进去。物体上的铰节立在 45° 斜面上，因此物体可以直立打印而无需支撑；盖子上的铰节与其顶面齐平，因此盖子仍可翻转打印。<strong class="ui">“铰节（0 = 自动）”</strong> 设为 0 时，大约每 10 mm 一个铰节。铰链适用于插入式盖子或平盖；外侧的围边在打开时会撞到后壁。在圆形的侧面上，例如罐子或管子，铰链沿着壁与铰链轴线的距离不超过一个铰节半径的那一段布置，物体上的铰节立在一个伸到壁上的小块上。<strong class="ui">“泪滴形销孔（打印时不下垂）”</strong>（默认开启）让销孔在每个零件的打印方向上顶部带尖，因此不会下垂；打印的销轴放在一个小平面上。在 <strong class="ui">“铰链类型”</strong> 中，<strong class="ui">“齐平”</strong> 把铰节放进壁内而不是壁后：盒子保持原尺寸，每个零件都在另一个零件的铰节周围开出缺口，盖子可打开到约 140°。<strong class="ui">“转轴销”</strong> 做出一个盖子，它落在开口内的一个小台阶上，绕穿过两侧壁的两根销轴转动，可打开到约 95°；盒子在这里也保持原尺寸。两者都需要一条直边，并且不用磁铁。</p>
+<p>对于 <strong class="ui">“齐平”</strong> 铰链，勾选 <strong class="ui">“两端堵头”</strong> 可把销孔两端封住：销轴被藏起来，也不会滑出。销孔两端最后 4 mm 会变成方形，以一个角朝上立着，因此顶部同样带尖，打印时不会下垂，大小刚好让销轴穿过：先插入销轴，再在两端各压入一个堵头。方形堵头不能转动，和销轴在主体里一样卡紧；每个堵头都按盒子外表面切齐，圆角也一样（这样的盒子上，无论有没有堵头，铰链都会一直延伸到角里）。它们放在盖子旁边，平躺在一个平面上。销轴因此变短，状态栏会显示它的长度。</p>
+<aside class="tip"><p><strong>提示：</strong> 先把磁铁压入物体。然后在每块磁铁上再放一块，让它以正确的一面吸上，再把盖子压到这些磁铁上（如果凹槽偏松，滴一滴胶）：这样每块磁铁都会面对它的搭档装进盖子，彼此相吸。</p></aside>
+<p>勾选 <strong class="ui">“卡扣凸点”</strong>，盖子就能咔哒扣住：唇边外侧的小圆凸点（套在外面的盖子则在扣沿内侧）卡进 Layerling 在物体壁上同样位置切出的凹坑，每条 12 mm 及以上的直边中间一个，长于 80 mm 的边两个，圆形开口一圈四个，铰链那一侧不放。<strong class="ui">“凸点高度”</strong> 是每个凸点伸进壁里的深度，起初 0.4 mm：小盒子或较硬的唇边调小，想扣得更紧就调大。在 <strong class="ui">“把手”</strong> 中，<strong class="ui">“拉片”</strong> 给盖板加一个与盖板一样厚的拉片，伸出前缘（或铰链对面的边缘）6 mm，盖子仍可翻转打印；<strong class="ui">“指槽”</strong> 则在盖子边缘正下方的物体前壁上切出一个容纳手指的凹槽，始终保留 0.8 mm 的壁厚；两者都不适用于转轴盖，凸点也不适用于平盖。</p>
+<p>选择 <strong class="ui">“旋盖”</strong>，盖子就像罐子盖一样旋上去：实体顶部外侧会加上螺纹，盖子边沿内侧是相同的螺纹。这需要圆形实体，例如顶部开口挖空的圆柱、管子或圆罐，壁厚至少 0.8 毫米；盒子或椭圆会被拒绝。边缘带圆角或倒角的实体（例如由两端为圆头的线条旋转而成的器皿）可以保持原样，这种盖子和下面的 <strong class="ui">“卡口”</strong> 都是如此：螺纹或凸耳放在圆角下方的直壁上，盖子罩过圆角。螺纹加在壁的外侧，而不是切进壁里，所以即使壁很薄也能保持强度；它会和实体组合在一起：取消组合，实体就恢复原样。<strong class="ui">“螺距”</strong> 是螺纹转一圈上升的高度，起始为 3 毫米，和罐子一样；螺纹深度为螺距的十分之三（最多 1.5 毫米），侧面呈 45°，因此实体直立打印、盖子平板朝下打印，都不需要支撑。<strong class="ui">“圈数”</strong> 是螺纹绕的圈数，它和螺距一起决定盖子边沿向下伸多远。<strong class="ui">“每侧间隙”</strong> 是螺纹每侧的空隙，像螺母一样按半径量；如果盖子拧起来很紧，就选更松的配合。顺时针转动盖子即可拧紧。盖子和螺纹由三角形构成，磁铁、铰链、卡扣凸点和把手都不能与旋盖同时使用。</p>
+<p>在 <strong class="ui">“螺纹”</strong> 下，可以不用 <strong class="ui">“自定义”</strong>，而选标准瓶子或罐子的螺纹：PCO 1881 是大多数饮用水和汽水瓶的 28 毫米瓶口，PCO 1810 是螺纹较高的旧款瓶口，GL 45 是实验室瓶的螺纹（DIN 168），Mason 70 和 Mason 86 是梅森罐的标准口和宽口。此时盖子按标准制作，能拧到商店买来的这类瓶子或罐子上；螺距和盖子向下伸多远由标准决定，<strong class="ui">“每侧间隙”</strong> 是其螺纹四周的空隙。只有当实体顶部正是这种瓶颈时（圆形，且与螺纹下的瓶颈一样宽，窗口会告诉你尺寸，PCO 1881 为 24.94 毫米），实体才会加上瓶口螺纹；这样买来的盖子也能拧到它上面。其他实体保持不变，只生成盖子，状态栏会说明。要为手头的瓶子做盖子，选一个与瓶颈差不多宽的圆柱，点击 <strong class="ui">“盖子”</strong>，再选 <strong class="ui">“旋盖”</strong> 和瓶子的螺纹。标准螺纹的侧面比自定义螺纹的 45° 更陡，所以打印时实体上螺纹的下侧和盖子里的螺纹悬垂更多；它们只有约 1 毫米深，但最好先打印一个盖子，看看你的打印机表现如何。梅森罐的螺纹没有公开图纸，尺寸取自实物测量：请在你的罐子上试一试盖子。</p>
+<p>在你点击 <strong class="ui">“生成盖子”</strong> 之前，窗口会测量实体顶部，并告诉你它是不是瓶颈：它有多宽，螺纹下的瓶颈需要多宽，以及实体会加上螺纹还是只生成盖子。如果不是，而实体是直立的圆柱、管或抽壳圆柱，<strong class="ui">“将实体调整为瓶颈尺寸”</strong> 会把它改成瓶颈的宽度，取允许范围的中间值（Mason 70 为 65.85 毫米），并保持高度；抽壳实体的壁厚保持不变。之后 <strong class="ui">“生成盖子”</strong> 会给它加上瓶口螺纹，撤销一次即可取消这次调整。对于其他实体，例如组合或导入的网格，窗口会告诉你应把顶部改成多宽。</p>
+<p>选择 <strong class="ui">“旋入”</strong>，螺纹就反过来，例如用于外侧要保持光滑的笔筒：实体开口内侧会加上螺纹，像螺母一样；盖子是一块与实体同样大的板，下方有一个带相同螺纹的塞子，旋进去直到板落在边缘上。实体和它的开口都必须是同心的圆形，例如顶部开口挖空的圆柱、管子或圆罐，壁厚至少 0.8 毫米；盒子、椭圆或方形开口会被拒绝，对塞子来说太窄或不够深的开口也一样。这里螺纹同样是加在壁上，而不是切进壁里：壁保持强度，外侧保持原样，开口只在顶部窄了一个螺纹深度。<strong class="ui">“螺距”</strong>、<strong class="ui">“圈数”</strong> 和 <strong class="ui">“每侧间隙”</strong> 的作用与旋盖相同；螺距和圈数也决定塞子向下伸多远。塞子是空心的，是一个圆环，<strong class="ui">“塞子壁厚”</strong> 起始为 1.6 毫米（至少 0.8 毫米）；开口太小、留不出孔的地方，塞子就是实心的。实体直立打印，盖子平板朝下、塞子朝上打印，都不需要支撑。顺时针转动盖子即可拧紧。和旋盖一样，盖子和螺纹由三角形构成，磁铁、铰链、卡扣凸点和把手都不能与它同时使用。</p>
+<p>选择 <strong class="ui">“卡口”</strong>，盖子就像灯泡拧进灯座一样转动锁紧，可以用来连接灯具的各节，或者盖上圆盒：实体顶部外侧会伸出凸耳（<strong class="ui">“凸耳”</strong>：起始为 3 个，可选 2 到 4 个），盖子边沿内侧为每个凸耳开一条 L 形槽。把盖子的槽对准凸耳放上去，向下压，再顺时针转动直到咔嗒一声：3 个凸耳转 40°（2 个转 45°，4 个转 30°）。这时每个凸耳下方都有盖子的一道台阶把它扣住，转到头有挡块。用 <strong class="ui">“旋转角度（0 = 自动）”</strong> 可以自己设定转动角度，最多四分之一圈即 90°，例如两个凸耳、转 90° 就盖紧的盖子；设为 0 时，转动角度由凸耳数量决定。每个凸耳的槽、它的转动行程和到下一条槽之前的挡块都要在实体一圈内放得下：凸耳更多或实体较小时，放不下的角度会调整到放得下的值，状态栏会说明。2 个凸耳除了最小的实体外都能转到 90°；4 个凸耳在直径 40 到 80 毫米的实体上最多约转 65°。和旋盖一样，它需要圆形实体，壁厚至少 0.8 毫米；凸耳会和实体组合在一起。凸耳大小随实体直径而定：从壁上伸出直径的四十分之一（1.2 到 2.5 毫米）；凸耳底面和台阶都是 45° 斜面，所以实体可以立着打印，盖子放在顶板上打印，两者都无需支撑。<strong class="ui">“扣沿深度”</strong> 是盖子向下伸的距离，起始为 8 毫米；在凸耳下方，它让盖子沿着壁对正。<strong class="ui">“每侧间隙”</strong> 是凸耳四周和沿壁的空隙，测量过打印机的间隙后就从该间隙开始；<strong class="ui">“高度方向间隙”</strong> 是台阶上方的空隙，也就是锁住的盖子能抬起多少，起始为 0.3 毫米。<strong class="ui">“锁止筋高度”</strong> 是每个锁定凸耳后面那道小筋伸进它路径的距离：凸耳咔嗒一声越过它，盖子就不会自己转回去。转得太紧就调小，设为 0 则不加。打开时把盖子转回去再取下。盖子和凸耳由三角形构成，磁铁、铰链、卡扣凸点和把手都不能与卡口盖同时使用。</p>
+<p>给旋盖或卡口盖勾选 <strong class="ui">“系带”</strong>，盖子打开后仍连在实体上，就像饮料瓶的瓶盖。系带是一个零件，平放在盖子旁边：两个开口环由一条带子相连。大环从下方卡到盖子上，位于盖顶凸缘的下方，由一圈凸棱挡住。小环套在紧贴盖子下方的实体上，坐在实体在那里多出的一圈凸棱上，上方的螺纹或凸耳让它脱不出来：把它稍微掰开，从上面套过去，或者从下面越过凸棱。两个环都能自由转动，所以盖子照样可以转动开合，带子也足够长，打开的盖子可以挂在瓶颈旁边。系带请用 PETG 或 TPU 打印；PLA 只经得起几次弯折。凸棱都是 45° 斜面，所以盖子和实体仍然无需支撑即可打印，两个环与所套部位之间都留有 <strong class="ui">“每侧间隙”</strong>。系带需要盖子下方有几毫米的实体，圆形且与顶部一样宽，盖子的扣沿也要约 4 毫米深；如果不够，工具会提示。</p>
+<p>旋盖和卡口盖都可以做成翻盖，就像洗发水或番茄酱瓶上的那样：勾选 <strong class="ui">“翻盖”</strong>，盖子的顶板中间就会开一个圆孔（<strong class="ui">“开口”</strong>：它的直径，起始为 8 mm），孔里有一片与顶面齐平的翻盖把它封住。盖子一直盖着，你只打开翻盖。盖子是顶板朝下打印的，所以从旁边翻过来的盖片会上下颠倒，塞子朝着打印平台。因此翻盖就在孔里直接打印，四周留出间隙（<strong class="ui">“每侧间隙”</strong>），它自己就是塞子：它的边缘在顶面下方以 45° 收窄，所以搭在顶板上，按不进去；前端有一道卡扣伸到孔边下方，所以合上时咔嗒一声卡住。在它平直的后边，一条 0.4 mm 厚、3 mm 长、平躺在打印平台上的细带把它和顶板连在一起，弯折时就是铰链，所以翻盖永远不会掉；细带下面，翻盖和顶板以 V 形相互倾斜。所有斜面都不超过 45°，盖子整件无需支撑一次打印。打开时把指甲伸进翻盖上的横槽往上掀；关闭时按下去，直到咔嗒一声。翻盖请用 PETG 或 PP 打印：PLA 的细带弯几次就会断。顶板至少要 1.8 mm 厚（间隙为 0.2 mm 时），开口连同铰链必须落在实体的开口之内；开口太大会被拒绝，并告诉你能放下的最大值。</p>
+<p>螺旋盖和卡口盖的顶部边缘可以倒圆角或倒角：在 <strong class="ui">“顶部边缘”</strong> 下选择 <strong class="ui">“圆角”</strong> 或 <strong class="ui">“倒角”</strong>，并设置 <strong class="ui">“边缘尺寸”</strong>，开始为 1 mm，最多与盖板一样厚。边缘随盖子一起生成，因为之后盖子和螺纹是一个网格，三角形太多，边缘工具无法处理。盖子翻转打印，因此该边缘贴在热床上：倒角打印干净，1 或 2 mm 的圆角也可以。</p>
+<p>选择 <strong class="ui">“滑盖”</strong>，盖子就像木制铅笔盒那样滑进去：它是开口里的一块板，顶面与边沿齐平，边缘在三面壁的槽里滑动。第四面壁就是在 <strong class="ui">“滑入侧”</strong> 里选的那一面（起始为前面，与起始视图一致），盖子经过的地方会降低到盖子底面的高度，盖子从它上方滑进去，盖子的末端正好填满这个缺口，与壁的外侧齐平。斜着放在工作平面上的盒子也可以：所选的一面就是最接近那个方向的壁。这需要直壁竖直的盒子，圆角也可以；圆形实体会被拒绝。槽的深度取决于 <strong class="ui">“盖子厚度”</strong>：2 毫米厚的盖子略小于 1 毫米，更厚的盖子最多 1.5 毫米，槽后面总会留下 0.8 毫米的壁；槽的顶面倾斜 45°，所以盒子立着打印、盖子顶面朝下打印，都无需支撑。如果壁或盖子太薄、开不了槽，窗口会告诉你需要多厚。<strong class="ui">“每侧间隙”</strong> 是盖子在槽里每侧的间隙；如果滑得太紧，就选更松的配合。盒子里的内壁在盖子下面也会被降低。勾选 <strong class="ui">“卡扣凸点”</strong>，盖子末端下面的一个小凸点会咔嗒一声越过降低的那面壁，盖子就不会自己滑出来；<strong class="ui">“凸点高度”</strong> 是它伸到壁顶以下的深度。在 <strong class="ui">“把手”</strong> 中，<strong class="ui">“指槽”</strong> 会在盖子顶面靠近这一端横刻四道细槽，方便拇指推动，<strong class="ui">“拉片”</strong> 则在那里加一个拉片。槽和缺口会作为孔与盒子组合在一起：取消组合，盒子就恢复原样。磁铁和铰链不能与滑盖一起使用。</p>
+<p>想让盖子沉到边沿以下，就设置 <strong class="ui">“盖子上方的边框”</strong>（起始为 0）。盖子和它的槽会相应地降低，壁在它们上方保持完整高度，像边框一样围着盖子。这时盖子滑入的那面壁也不再降低：它保持完整高度，只在盖子经过的地方开一道缝，盖子末端填满这道缝，与外侧齐平。缝在盖子上方留出与两侧相同的间隙（<strong class="ui">“每侧间隙”</strong>），勾选 <strong class="ui">“卡扣凸点”</strong> 时再加上凸点的高度，这样拉出盖子时它能在凸点上方略微向上弯；缝上方至少要留 1 毫米壁，更低的边框会被拒绝，并给出所需的边框（间隙 0.2 毫米时为 1.2 毫米）。盒子仍然立着打印：只有缝的顶部是悬空打印的，是一段横跨盖子宽度的短而平的桥接，大多数打印机不用支撑就能打好。这时拇指防滑槽就在那面壁的正后方，拉片从缝里伸出来。</p>
+</section><section class="guide-part"><h2 id="a-cable-channel-through-a-body">穿过实体的线缆通道</h2>
+<p><strong class="ui">“线缆通道”</strong> 会为线缆或 LED 引线在实体中开出一条圆形通道，从它进入的位置一直到它出来的位置，并自己找路。选中实体，点击 <strong class="ui">“线缆通道”</strong>，然后在实体上点击线缆进入的位置（<strong class="ui">“入口”</strong>）和出来的位置（<strong class="ui">“出口”</strong>）。路径在两端都垂直于表面笔直进出，能直则直，必须拐弯时才拐弯，弯曲从不比 <strong class="ui">“最小弯曲”</strong> 更急，并尽量远离外表面，从不比 <strong class="ui">“最小壁厚”</strong> 更近。线缆能穿过约为其直径五倍的弯；<strong class="ui">“直径”</strong> 是通道本身的直径。</p>
+<p>面板打开期间，实体呈透明显示，可以看到里面的通道，两端各有一个标记。面板会显示通道长度、最急的弯和最薄的壁；如果某个弯或壁不得不比要求的更小，就会用红色显示；这时把 <strong class="ui">“最小弯曲”</strong> 调小，或换一个入口或出口会有帮助。<strong class="ui">“重新设置”</strong> 可以移动一端。<strong class="ui">“生成通道”</strong> 会切出通道：它成为作为挖空的 <strong class="ui">“弯管”</strong>，与实体编组，因此实体保持精确，取消编组后还可以修改这根管。弯管最多有十一个弯；需要更多弯的路径会要求另选入口或出口。</p>
+</section><section class="guide-part"><h2 id="offsetting-bodies">偏移实体</h2>
+<p>实体的每个面都可以向外或向内移动相同的距离。配合、盖子或卡扣连接需要的正是这个：四周留出 0.1 到 0.3 mm 的间隙，而各个特征留在原位，这是缩放做不到的。</p>
+<ol><li>选择一个实体并点击 <strong class="ui">“偏移”</strong>，或在实体上点右键后在菜单中选择。</li><li>选择 <strong class="ui">“放大”</strong> 或 <strong class="ui">“缩小”</strong>，并设置 <strong class="ui">“距离”</strong>。</li><li><strong class="ui">“外角”</strong> 决定外角：圆角让偏移后的曲面在外角保持圆滑，尖角让各面延伸直到相交。</li><li>勾选 <strong class="ui">“保留原件，并把偏移后的实体作为孔添加”</strong> 可保持零件不变，并把放大后的实体作为已经是孔的副本。把这个孔和配合件编组，它就切出你选定的间隙。</li><li>点击 <strong class="ui">“偏移”</strong>。</li></ol>
+<p>如果内核无法把文字的字母作为实体偏移——某些字体中的 A、B、M、N、W 或 9——就改为通过其轮廓偏移：文字获得按该距离 <strong class="ui">“加宽（多色打印底座）”</strong> 的填充（收缩时则更窄），顶部和底部也增长同样多。它仍是可以继续编辑的文字。这适用于字母实心且没有圆角的文字；已经有填充模式的文字仍会像以前一样被拒绝。</p>
+<p>只想让轮廓变大或变小时，勾选 <strong class="ui">“仅侧面：平的顶面和底面保持原高度”</strong>：侧面按距离移动，每个平的顶面和底面保持原高度。标牌四周多出一圈边，底座变宽，实体不会变高。阶梯状的实体每一级都保持自己的高度。通过轮廓偏移的文本此时也保持原高度。</p>
+<p>不勾选时偏移的是实体本身。它会变成固定的精确实体，就像倒角之后：窗口顶部的列表可以撤回偏移，<strong class="ui">“编辑”</strong> 会用原来的距离重新打开工具。只有精确的 CAD 实体可以偏移 - 长方体、圆柱体和其他形状、它们的组、导入的 STEP 零件。只是三角网格的实体，如许多 STL 导入，往往不行。对实体来说过大的距离，例如缩小到超过最薄的壁，会被拒绝。</p>
+</section><section class="guide-part"><h2 id="deleting-faces">删除面</h2>
+<p>挡路的圆角、位置不对的孔、不再需要的凸台：<strong class="ui">“删除面”</strong> 能把它从实体上去掉，而无需重建实体。</p>
+<ol><li>选中实体并点击 <strong class="ui">“删除面”</strong>，或右键点击实体并从菜单中选择。</li><li>点击要删除对象的每一个面：圆角的面、孔的壁面、凸台的侧面和顶面。选中的面会亮起；再点一次可取消。窗口会统计面的数量。</li><li>点击 <strong class="ui">“删除”</strong> 或按 <kbd>Delete</kbd>。<kbd>Esc</kbd> 关闭工具，不做任何更改。</li></ol>
+<p>被删面周围的面会延伸，直到补上缺口。顶部边做了倒圆的长方体会恢复锋利的边，孔被填上，凸台消失。实体保持精确，因此还能再做圆角和倒角，STEP 导出也会保留真实的曲面。<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> 一步撤销删除。它也会与圆角、倒角一起列在 <strong class="ui">“撤销边特征”</strong> 下，在那里可用 <strong class="ui">“撤销”</strong> 撤销；它没有 <strong class="ui">“编辑”</strong>。对分组而言，结果是一个实体，与边处理相同。</p>
+<p>选中要删除对象的每一个面，而且只选这些面。如果周围的面无法补上缺口，layerling 会提示，且不做任何更改：例如长方体的一个主侧面，没有能顶替它的相邻面。只删除凹槽的底面，会让它变成通透的孔，因为凹槽的壁会一直延伸到另一侧。</p>
+<p><strong class="ui">“删除面”</strong> 需要精确的面：它适用于以 STEP 导入的零件和 layerling 的形状。凡是 layerling 以网格保存的都没有精确面：导入的 STL、OBJ 或 3MF，分割、包裹或简化过的实体，或者非常精细的形状，例如很长的文字。能导入 STEP 时就导入 STEP。对精细的导入零件，少数几个面也可能超出 CAD 内核的处理能力：45 秒后删除会被中止，且不做任何更改。如果实体在边处理之后调整了尺寸，同时保留了边的尺寸，那么在新尺寸下它没有精确的面，直到撤销这次尺寸调整。</p>
+<p>用 <strong class="ui">“转为精确实体”</strong> 转为精确实体的导入网格，在文件三角形有缺陷的地方，可能会在位于同一平面的面之间留下发丝般细的面，使一个侧面变成无法单独删除的细条。这样的细面窄得无法点中；若它接触某个所选面，并继续通向该所选面所在平面内的另一个面，就会连同与它相连、同样接触该所选面所在平面内某个面的细面一起随该所选面删除，窗口会把它们计为一并删除的面。</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/zh-cn/solids-and-holes.html"><small>上一章</small>实体与孔</a><a class="next" href="/api/desktop/layerling/ui/zh-cn/sketches.html"><small>下一章</small>草图：从轮廓到实体</a></div>
+      </main>
+    </div>
+    <footer class="note">本指南随程序一同完善。如有缺漏或错误，请到 <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">讨论区反馈</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=zh-cn" rel="noopener">支持项目</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">讨论区</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">在 GitHub 上了解更多</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">发行说明 v1.154.1</a></div><p class="trademark">Tinkercad 是 Autodesk, Inc. 的商标。layerling 是一个独立项目，与 Autodesk 无关联，也未获其认可或赞助。</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="返回编辑器";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="打开编辑器";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

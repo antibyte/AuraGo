@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Skitser: fra omrids til form - layerling brugervejledning</title>
+    <meta name="description" content="Tegn et fladt omrids, rund eller fas dets hjørner, og træk eller spin det til en form.">
+    <link rel="canonical" href="https://layerling.com/vejledning/sketches.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/sketches.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/sketches.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/sketches.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/skizzen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/sketches.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/sketches.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/sketches.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/sketches.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/schetsen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/sketches.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/skice.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/sketches.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/sketches.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/sketches.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/sketches.html">
+    <meta property="og:title" content="Skitser: fra omrids til form - layerling brugervejledning">
+    <meta property="og:description" content="Tegn et fladt omrids, rund eller fas dets hjørner, og træk eller spin det til en form.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/vejledning/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Brugervejledning</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/vejledning/search-index.json" data-nothing="Intet fundet." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Søg i vejledningen" aria-label="Søg i vejledningen" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Sprog">Dansk</summary><ul><li><a href="/api/desktop/layerling/ui/guide/sketches.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/sketches.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/sketches.html" hreflang="da" lang="da" aria-current="true">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/sketches.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/sketches.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/sketches.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/sketches.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/sketches.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/sketches.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/sketches.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/skice.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/sketches.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/sketches.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/sketches.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/sketches.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/sketches.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/sketches.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Åbn editoren</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Editoren er allerede åben i en anden fane – skift bare til den.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Kapitler"><h2>Kapitler</h2><p class="print-link"><a href="/api/desktop/layerling/ui/vejledning/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Hele vejledningen, til udskrivning</span></a></p><ol><li><a href="/api/desktop/layerling/ui/vejledning/getting-started.html">Kom godt i gang</a></li><li><a href="/api/desktop/layerling/ui/vejledning/view-and-workplane.html">Visning og arbejdsplan</a></li><li><a href="/api/desktop/layerling/ui/vejledning/shapes.html">Placering og justering af former</a></li><li><a href="/api/desktop/layerling/ui/vejledning/select-and-arrange.html">Valg og arrangering</a></li><li><a href="/api/desktop/layerling/ui/vejledning/solids-and-holes.html">Solider og huller</a></li><li><a href="/api/desktop/layerling/ui/vejledning/edges-and-hollowing.html">Bryd kanter og hul former</a></li><li><a href="/api/desktop/layerling/ui/vejledning/sketches.html" aria-current="page">Skitser: fra omrids til form</a></li><li><a href="/api/desktop/layerling/ui/vejledning/text.html">Tekst og buede bogstaver</a></li><li><a href="/api/desktop/layerling/ui/vejledning/threads-and-mechanics.html">Gevind, tandhjul og andre dele</a></li><li><a href="/api/desktop/layerling/ui/vejledning/measuring-and-notes.html">Måling og noter</a></li><li><a href="/api/desktop/layerling/ui/vejledning/printing.html">Forberedelse til 3D-print</a></li><li><a href="/api/desktop/layerling/ui/vejledning/files-and-saving.html">Filer, lagring og deling</a></li><li><a href="/api/desktop/layerling/ui/vejledning/shortcuts.html">Tastaturgenveje</a></li><li><a href="/api/desktop/layerling/ui/vejledning/ai-with-mcp.html">Byg med en AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/vejledning/offline-and-install.html">Installér som app, arbejd offline og vær selv vært</a></li><li><a href="/api/desktop/layerling/ui/vejledning/videos.html">Videoer om layerling</a></li><li><a href="/api/desktop/layerling/ui/vejledning/tablet-and-touch.html">Tablet og touch</a></li></ol></nav>
+      <main>
+<h1>Skitser: fra omrids til form</h1>
+<p class="lead">Tegn et fladt omrids, rund eller fas dets hjørner, og træk eller spin det til en form.</p>
+<div class="toc"><b>På denne side</b><ul><li><a href="#start-en-skitse">Start en skitse</a></li><li><a href="#tegning">Tegning</a></li><li><a href="#linjer-med-tal">Linjer med tal</a></li><li><a href="#krum-en-lige-side">Krum en lige side</a></li><li><a href="#l-se-og-taste-vinkler">Læse og taste vinkler</a></li><li><a href="#runding-eller-fasing-af-hj-rner">Runding eller fasing af hjørner</a></li><li><a href="#spejling">Spejling</a></li><li><a href="#konstruktionslinjer">Konstruktionslinjer</a></li><li><a href="#lav-en-form-af-det">Lav en form af det</a></li><li><a href="#tr-k-omridset-langs-en-sti">Træk omridset langs en sti</a></li><li><a href="#byg-som-en-streg">Byg som en streg</a></li><li><a href="#fyld-og-silhuet">Fyld og silhuet</a></li><li><a href="#skra-v-gge-til-stempler">Skrå vægge, til stempler</a></li><li><a href="#et-billede-som-skabelon">Et billede som skabelon</a></li><li><a href="#taster-i-skitsetilstand">Taster i skitsetilstand</a></li></ul></div>
+<p>Ikke alt kan sættes sammen af basiske former. For dele med deres eget omrids, såsom et beslag, en tandprofil eller en vase, tegner du først <strong>omridset</strong> og laver så en form af det. Det er det skitsetilstand er til.</p>
+<section class="guide-part"><h2 id="start-en-skitse"><span class="heading-alias" id="starting-a-sketch"></span>Start en skitse</h2>
+<p>Øverst skifter du fra <strong class="ui">“3D-editor”</strong> til <strong class="ui">“Skitse”</strong>. Klik på <strong class="ui">“Skitse til 3D”</strong> i båndet og vælg hvad omridset skal blive: De tre knapper står side om side i <strong class="ui">“Opret”</strong>-gruppen.</p>
+<ul><li><strong><strong class="ui">“Ekstrudér”</strong>:</strong> Omridset trækkes opad, som en småkageudstikker.</li><li><strong><strong class="ui">“Revolver”</strong>:</strong> Omridset spindes omkring en akse, som på en drejebænk. Det giver vaser, krus, kegler og alt andet rundt.</li><li><strong><strong class="ui">“Sweep-skitse”</strong>:</strong> Omridset trækkes langs en sti: en kabelkanal der går i et hjørne, et rør, en afskærmning omkring en rem, en ring omkring en sekskant. Se Træk omridset langs en sti nedenfor.</li></ul>
+<p>Editoren viser så et ark med et gitter. Det er din tegneflade.</p>
+<p>Skitsen ligger på arbejdsplanet. Vil du tegne på en flade af et legeme, fx et omrids der skal begynde højere op, lægger du først arbejdsplanet på den flade med <kbd>W</kbd> (se <a href="/api/desktop/layerling/ui/vejledning/view-and-workplane.html">Visning og arbejdsplan</a>) og starter så skitsen.</p>
+</section><section class="guide-part"><h2 id="tegning"><span class="heading-alias" id="drawing"></span><span class="heading-alias" id="drawing-tools"></span><span class="heading-alias" id="shapes"></span><span class="heading-alias" id="select-and-change"></span><span class="heading-alias" id="clipboard-and-history"></span><span class="heading-alias" id="notes"></span><span class="heading-alias" id="view-and-dimensions"></span>Tegning</h2>
+<p>Båndet i skitsetilstand er delt i områder:</p>
+<ul><li><strong>Tegn:</strong> <strong class="ui">“Linje”</strong> laver lige sektioner: klik punkter ét efter ét; at holde <kbd>Shift</kbd> snapper den nye linje i 15°-trin, vandret og lodret inkluderet. Den nye linjes længde og vinkel vises ved markøren. Du kan også taste hvor lang den skal være, se <a href="#linjer-med-tal">Linjer med tal</a>. Ethvert punkt, du klikker, lander på det gitter, du snapper til under <strong class="ui">“Snap til gitter”</strong>. Med <kbd>Shift</kbd> holdt kommer 15°-trinnet først: længden går stadig i gittertrin, men enden kan ligge mellem gitterlinjerne. <strong class="ui">“Bue”</strong> tegner en ægte cirkelbue gennem tre punkter: klik dens to ender først, så et tredje punkt buen løber gennem; indtil det tredje klik følger en forhåndsvisning markøren, og beskeden nævner radius. En ende der klikkes på et eksisterende punkt følger med, så en bue kan lukke et omrids. <kbd>Esc</kbd> kaster de klikkede punkter væk og går tilbage til <strong class="ui">“Vælg”</strong>. Bagefter er buen almindelig geometri lavet af punkter og kurver: flyt, skær eller slet den som enhver anden linje. <strong class="ui">“Bezier-kurve”</strong> formes med sine håndtag: klik et punkt og træk i den retning linjen skal fortsætte, som med pen-værktøjet i Illustrator eller Inkscape. Jo længere du trækker, jo mere bøjer den; strækket til det nye punkt bøjer med mens du trækker, så du ser hvad du får. At trække mens du placerer et punkt bøjer kurven; kommer du fra Tinkercad og bare vil klikke punkter, så tag <strong class="ui">“Glat kurve”</strong>. Det første stykke bøjer kun ved sin begyndelse, hvis du også trækker i det første punkt. Lige klikket går linjen lige ud fra det punkt; vil du bøje den senere, vælger du punktet med <strong class="ui">“Vælg”</strong> og trækker i dets håndtag. <strong class="ui">“Glat kurve”</strong> lægger en flydende sti gennem de punkter du klikker. I de to ender af en åben linje går kurven lige mod næste punkt, så det første og det sidste stykke bøjer mindre end de andre. Vil du bøje et mere, vælger du dets endepunkt med <strong class="ui">“Vælg”</strong> og trækker i dets håndtag. I et lukket omrids bøjer hvert punkt ens. For at lukke omridset, klik det første punkt igen til sidst. Du afslutter rækken af punkter uden at lukke omridset med et højreklik uden at flytte musen eller med et dobbeltklik på det sidste punkt.</li><li><strong><strong class="ui">“Frihånd”</strong>:</strong> tegn med pen, finger eller mus som på papir. Når du løfter den, bliver linjen til almindelige punkter: et hjørne, hvor den drejede skarpt, bløde punkter imellem, kun så mange som formen kræver, så hvert kan trækkes bagefter. Zoom ind for fine detaljer: jo tættere du ser, jo nøjere følger linjen din hånd. En linje, der ender, hvor den begyndte, lukkes til en kontur, der kan blive et legeme; en åben forbliver en linje, til <strong class="ui">“Streg”</strong> eller som sti at feje langs. Den starter også på linjer og på et skabelonbillede, så et billede kan tegnes op i hånden. Et strøg, der begynder eller ender ved en åben ende, fortsætter den linje, så en form kan tegnes i flere strøg. Strøget holder sig ikke til gitteret, så det følger din hånd. Et punkt, du trækker bagefter, snapper dog til det, medmindre <strong class="ui">“Snap til gitter”</strong> er slået fra.</li><li><strong>Former:</strong> <strong class="ui">“Tilføj skitseform”</strong> tilbyder færdige omrids: <strong class="ui">“Rektangel”</strong>, <strong class="ui">“Cirkel”</strong>, <strong class="ui">“Oval”</strong>, <strong class="ui">“Halvcirkel”</strong>, <strong class="ui">“Tærtestykke”</strong>, <strong class="ui">“Boltecirkel”</strong> (en skive med huller), <strong class="ui">“Trekant”</strong>, <strong class="ui">“Hexagon”</strong>, en <strong class="ui">“Polygon”</strong> og en <strong class="ui">“Stjerne”</strong>. Klik én for at lægge den ved skitsens nulpunkt, eller træk den fra menuen hen hvor du vil have den. Nederst i menuen sætter <strong class="ui">“Sider / spidser”</strong> antallet af sider på polygonen og antal spidser på stjernen, og <strong class="ui">“Stjernens indre størrelse”</strong> hvor dybt stjernens dale når ind mod midten (10 til 90 procent af den ydre radius); begge gælder for den næste form du tilføjer. Ligesom enhver skitseform er de almindelige hjørnepunkter bagefter, så du kan flytte, runde eller fase dem én ad gangen. Rektanglet starter med den bredde og dybde, der er sat for kassen under <strong class="ui">“Formstandarder”</strong> i indstillingerne, cirklen og ellipsen med cylinderens bredde der; uden egen standard, og for de andre former, er de 20 mm.</li><li><strong>Overlap:</strong> Skub to lukkede omrids over hinanden og de bliver to former, som flettes i 3D-editoren; overlap er ikke et hul. Et hul kommer kun fra et omrids der ligger helt inden i et andet. At flytte samler ikke linjerne hvor de krydser, så du kan trække formerne fra hinanden igen. Tegner du en linje hen over andre, lægger layerling et punkt ved hvert kryds.</li><li><strong>Valg:</strong> <strong class="ui">“Vælg”</strong> flytter punkter og linjer. Et klik inden i et lukket omrids vælger hele omridset, så du kan trække eller ændre størrelse på det med det samme; inden i et hul vælger det hullet. Rammen omkring markeringen har otte håndtag: hjørnerne ændrer bredde og højde sammen, mens du holder <kbd>Shift</kbd> bevares proportionerne. Dem på siderne ændrer kun én retning. <strong class="ui">“Bevar proportioner”</strong> i den bjælke der dukker op holder proportionerne uden <kbd>Shift</kbd>: hjørnerne og siderne strækker så begge veje, og en indtastet bredde eller højde ændrer den anden også. layerling husker indstillingen. <strong class="ui">“Lås”</strong> ved siden af den låser det valgte omrids, som en låst form i 3D-editoren (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> gør det samme): det kan ikke længere flyttes, ændres i størrelse, drejes eller ændres, dets linjer bliver blegere og dets punkter grå, og rammens håndtag bliver grå og reagerer ikke længere. Mens det er valgt, låser et klik på hængelåsen i dets hjørne det op. Linjer må stadig starte ved dets hjørner. <strong class="ui">“Lås op”</strong> eller <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> igen frigiver det. De buede pile ved rammens hjørner drejer hele markeringen omkring dens midte: tallet over markøren viser vinklen, og med <kbd>Shift</kbd> holdt drejer den i 15°-trin. Mens du drejer, vises en ring: med markøren inden for den snapper drejningen i trin på 22,5°, uden for går den i hele grader, uanset gitteret. <kbd>R</kbd> drejer et helt lukket omrids 45° pr. tryk. Klik på bredde- eller højde-pillen for at taste en ny størrelse, også som en sum (&quot;60+12,5&quot;) eller i procent (&quot;150%&quot;). Felterne X og Y i bjælken over skitsen viser, hvor midten af markeringen ligger, i mm fra skitsens origo; skriv en værdi, så flytter den præcis derhen, fx et hul 12 mm fra midten. Y tæller opad, som i 3D-editoren. Med <kbd>Shift</kbd> holdt tilføjer et klik på et punkt eller en linje det til markeringen eller tager det væk igen, så du kan vælge flere og flytte dem sammen. Træk en boks over tom plads for at vælge alt i den. Er to eller flere omrids valgt, justerer bjælken dem også: venstre, centrum og højre, og top, centrum og bund, på rammen omkring alle. Hvert omrids flytter sig som en helhed og beholder sin form; centreret i begge retninger bliver to cirkler til en ring. Et låst omrids bliver hvor det er, og de andre justeres efter det. En linje kan også trækkes (den flytter med dens to ender, eller hele markeringen hvis den er del af en). Piletasterne flytter markeringen med ét gittertrin, <kbd>Shift</kbd> med dem med et større, og <kbd>Shift</kbd> holdt mens du trækker holder flytningen på én akse. <strong class="ui">“Tilføj eller fjern punkter”</strong>: et klik på en sektion tilføjer et punkt, et klik på et punkt fjerner det. Der er også <strong class="ui">“Slet”</strong> (et klik på et punkt eller en linje fjerner det, et vindue trukket over flere fjerner alt i det, og med en markering sletter knappen markeringen) og indsættelse af et skabelonbillede (<strong class="ui">“Tilføj billede”</strong>). Når du fjerner et punkt, samler layerling dets to naboer, så omridset forbliver lukket. For at lukke en åben flade, for eksempel efter at du har slettet en side af en sekskant, trækker du den ene åbne ende hen på den anden: den snapper derhen, og de to bliver til ét punkt, så omridset er lukket igen. Ved et kryds, som der hvor en linje skærer en cirkel, samles de sider der løber lige videre: bue med bue, linje med linje, og cirklen bliver rund. Vil du kun af med en del af en cirkel, et rundet hjørne for eksempel, klikker du lige på den del af buen mellem to punkter med radieren; resten bliver.</li><li><strong>Udklipsholder:</strong> <strong class="ui">“Kopiér”</strong>, <strong class="ui">“Indsæt”</strong>, <strong class="ui">“Duplikér”</strong> og <strong class="ui">“Slet”</strong> virker på de valgte punkter, linjer og billeder, som i 3D-editoren; <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span> klipper. Indsat og duplikeret geometri lander ved siden af originalen med 10 mm mellemrum, på en fri plads hvor den ikke rører nogen eksisterende linje, så den aldrig bliver samlet med det der allerede er der. Den forbliver valgt, så du kan trække den direkte på plads.</li><li><strong>Historik:</strong> <strong class="ui">“Fortryd”</strong> og <strong class="ui">“Gendan”</strong>.</li><li><strong><strong class="ui">“Skitsevisningskontroller”</strong>:</strong> <strong class="ui">“Note”</strong> (eller <kbd>N</kbd>) sætter en note på skitsen, som i 3D-editoren: det næste klik placerer den, hvor som helst, også på en linje. Træk i nålen for at flytte den; et klik på nålen folder kortet sammen. En skitses noter hører til dens form: i 3D-visningen sidder de oven på en form lavet med <strong class="ui">“Ekstrudér”</strong> eller <strong class="ui">“Sweep-skitse”</strong> og på den tegnede profil af en form lavet med <strong class="ui">“Revolver”</strong>, og de flytter sig med den. Åbner du skitsen igen, viser den alle formens noter, også dem der er sat i 3D. <strong class="ui">“Fortryd”</strong> tager en note tilbage ligesom en linje, og <strong class="ui">“Annullér”</strong> kasserer det, der er ændret i noterne. Mere i kapitlet Måling og noter.</li><li><strong>Visning:</strong> Panorér med midterste museknap eller med <kbd>Shift</kbd> eller <kbd>Ctrl</kbd> plus højre museknap, som i 3D-editoren. Når intet er markeret, flytter <kbd>Ctrl</kbd> og piletasterne den også: en tiendedel af billedet pr. tryk, halvdelen med <kbd>Shift</kbd> oveni; skitsen flytter sig den vej, pilene peger. <kbd>Home</kbd> tilpasser hele skitsen til visningen, <kbd>F</kbd> zoomer til markeringen (uden markering til hele skitsen), og <kbd>+</kbd> og <kbd>−</kbd> zoomer ind og ud, som i 3D-editoren. Uden markering skubber et dobbeltklik på et tomt sted visningen, så stedet kommer i midten, som i 3D-editoren; <strong class="ui">“Dobbeltklik på arbejdsplanet centrerer visningen der”</strong> i indstillingerne slår det fra. <strong class="ui">“Målebånd”</strong> på skitsebjælken måler afstanden mellem to punkter. Skitsen viser også dimensioner så snart du klikker noget: længden af en linje, eller for et punkt længden af de linjer der mødes der. <strong class="ui">“Vis mål”</strong> på skitsebjælken skjuler og viser disse dimensioner når de er i vejen, for eksempel mens man former kurver; målebåndet bliver ved med at virke. På en lige linje kan du klikke dimensionspilen og taste længden i millimeter; <kbd>Enter</kbd> anvender, <kbd>Esc</kbd> annullerer. Linjen beholder sin retning, dens startpunkt bliver hvor det er, og linjerne i den anden ende følger med. Med et slutpunkt valgt, flytter det. <span dir="ltr"><kbd>Alt</kbd>+<kbd>Enter</kbd></span> vokser linjen til begge sider omkring sin midte. På kurver viser pillen kun længden.</li></ul>
+<p>En form kommer kun fra et <strong>lukket</strong> omrids.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-outline.webp" alt="Et L-formet omrids. Ved det valgte hjørnepunkt, øverst til venstre, vises længderne af de to linjer i millimeter, og vinklen mellem dem i grader." width="1280" height="800" loading="lazy"><figcaption>Et L-formet omrids. Ved det valgte hjørnepunkt, øverst til venstre, vises længderne af de to linjer i millimeter, og vinklen mellem dem i grader.</figcaption></figure>
+<p>Tasterne <kbd>1</kbd> til <kbd>4</kbd> vælger tegneværktøjerne, i båndets rækkefølge: <strong class="ui">“Linje”</strong>, <strong class="ui">“Bezier-kurve”</strong>, <strong class="ui">“Glat kurve”</strong> og <strong class="ui">“Tilføj eller fjern punkter”</strong>. De virker så længe ingen linje tegnes; mens der tegnes en linje, er cifrene dens længde (se nedenfor). Med <strong class="ui">“Vælg”</strong>-værktøjet og linjer eller punkter valgt ændrer de samme taster dem i stedet: <kbd>1</kbd> gør linjer lige og punkter til hjørner, <kbd>2</kbd> gør linjer til kurver og <kbd>3</kbd> gør punkter glatte. Med intet valgt vælger de værktøjet som før. <kbd>5</kbd> vælger <strong class="ui">“Frihånd”</strong>.</p>
+</section><section class="guide-part"><h2 id="linjer-med-tal"><span class="heading-alias" id="lines-by-numbers"></span>Linjer med tal</h2>
+<p>Når du har sat det første punkt med <strong class="ui">“Linje”</strong> eller <strong class="ui">“Glat kurve”</strong>, tast bare et tal: to felter åbner ved siden af linjen, <strong class="ui">“Længde”</strong> i millimeter og <strong class="ui">“Vinkel”</strong> i grader. <kbd>&lt;</kbd> eller <kbd>Tab</kbd> flytter til vinklen, så &quot;50&lt;30&quot; giver en linje på 50 mm ved 30°, som i AutoCAD. <kbd>Enter</kbd> sætter punktet, og du kan taste den næste linje med det samme; <kbd>Esc</kbd> lukker felterne uden at afslutte linjekæden.</p>
+<p>Vinklen tæller mod uret fra højre: 0° til højre, 90° op, 180° til venstre, 270° ned. Lad den stå tom og linjen følger markøren, så du kun angiver længden og viser retningen med musen. Summer som &quot;40+12,5&quot; virker i begge felter. Hvis punktet ville lande uden for pladen, siger feltet det og venter på en anden værdi.</p>
+</section><section class="guide-part"><h2 id="krum-en-lige-side"><span class="heading-alias" id="curving-a-straight-side"></span>Krum en lige side</h2>
+<p>Vælg en lige linje og klik på <strong class="ui">“Krum linje”</strong> i den bjælke der dukker op: siden buer ud til en kurve, som i Tinkercad, og viser sine to håndtag. Træk dem for at forme kurven; jo længere ud et håndtag står, jo stærkere bøjningen. Under markøren bliver et håndtag orange, og det fanger også et klik lige ved siden af, så et skabelonbillede nedenunder ikke flyttes ved et uheld. <strong class="ui">“Ret linje”</strong> gør siden lige igen. Et punkt du vælger kan gøres rundt med <strong class="ui">“Glat kurve”</strong>: det får sine egne håndtag og linjerne ved siden af bliver kurver. Med tre eller flere punkter valgt lægger <strong class="ui">“Kurve gennem punkter”</strong> i bjælken én glat kurve fra det første af dem til det sidste, gennem hvert punkt imellem, sådan som værktøjet <strong class="ui">“Glat kurve”</strong> tegner en; linjerne uden for de to ender bliver som de er. I andre programmer hedder det &quot;Fit curve&quot; eller &quot;Fit point spline&quot;. Forskellen: <strong class="ui">“Krum linje”</strong> bøjer hver valgt side for sig og beholder hjørnerne imellem dem, til en bue på én side; <strong class="ui">“Kurve gennem punkter”</strong> lægger én kurve gennem punkterne uden hjørner, til at glatte en takket, aftegnet kant. Klik på et håndtag og det lyser op: piletasterne flytter det så ét gittertrin, med <kbd>Shift</kbd> et større trin, så du kan sætte en kurve præcist.</p>
+<p>Værdier kan også tastes. Et markeret punkt viser <strong class="ui">“X”</strong> og <strong class="ui">“Y”</strong> i bjælken: hvor det ligger, i mm fra skitsens origo, med Y talt opad. Klik på et håndtag, og bjælken viser i stedet <strong class="ui">“Håndtag X”</strong> og <strong class="ui">“Håndtag Y”</strong>: hvor håndtaget ligger fra sit eget punkt. Ved et glat punkt drejer det modsatte håndtag med. Giv det tilsvarende håndtag på den anden side samme Y og X med modsat fortegn, så bliver kurven præcist spejlet; <strong class="ui">“Spejl”</strong> spejler en hel halvdel på én gang.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-curve.webp" alt="L-sidens nederste side bøjet til en kurve, med sine to håndtag i enderne." width="1280" height="800" loading="lazy"><figcaption>L-sidens nederste side bøjet til en kurve, med sine to håndtag i enderne.</figcaption></figure>
+</section><section class="guide-part"><h2 id="l-se-og-taste-vinkler"><span class="heading-alias" id="reading-and-typing-angles"></span>Læse og taste vinkler</h2>
+<p>Klik et hjørnepunkt hvor to <strong>lige linjer</strong> mødes: ved siden af længderne viser layerling <strong>vinklen</strong> mellem dem i grader, med en lille bue. På et lukket omrids er det vinklen inden i formen, så en bule læses over 180°. Klik værdien og tast en ny vinkel. En af de to linjer drejer så om hjørnet og bevarer sin længde, og den anden bliver hvor den er. Linjen der drejer er tegnet stiplet; <kbd>Tab</kbd> skifter til den anden, <kbd>Enter</kbd> anvender og <kbd>Esc</kbd> annullerer. Hvad der hænger i den yderste ende af den drejede linje følger med.</p>
+<p>Et låst punkt bliver, hvor det er, og en indtastet værdi tager hensyn til det: en længde flytter linjens frie ende, og en vinkel drejer den linje, hvis yderste ende er fri. Også et enkelt punkt kan låses: vælg det og tryk <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span>. Sådan gør du et omrids nøjagtigt hjørne for hjørne: lås et hjørne, skriv længden og vinklen på den næste linje, lås dens ende og fortsæt.</p>
+<p>At flytte et punkt ændrer tre vinkler: ved punktet selv og ved de to nabohjørner i enderne af dets linjer. Så layerling viser også dem, og hver kan klikkes og tastes. Sådan sætter du for eksempel det nederste venstre hjørne til 75,5° mens det øverste venstre punkt, som flytter for det, er valgt. Du kan beregne her også, f.eks. &quot;90-14,5&quot;.</p>
+<p>Et hjørne viser ingen vinkel hvor en kurve møder det, eller hvor mere end to linjer mødes. <strong class="ui">“Vis mål”</strong> på skitsebjælken skjuler vinklen sammen med længderne.</p>
+</section><section class="guide-part"><h2 id="runding-eller-fasing-af-hj-rner"><span class="heading-alias" id="rounding-or-chamfering-corners"></span>Runding eller fasing af hjørner</h2>
+<p>Klik et hjørnepunkt og vælg <strong class="ui">“Rund hjørne”</strong> eller <strong class="ui">“Fas hjørne”</strong>. Et lille felt dukker op for <strong class="ui">“Radius”</strong> eller <strong class="ui">“Afstand”</strong>. Indtast størrelsen og bekræft med fluebenet. Det virker for hjørner mellem to lige linjer.</p>
+<p>Flere hjørner på én gang virker også: vælg dem med <kbd>Shift</kbd> og et klik hver, eller træk en ramme omkring dem, og vælg <strong class="ui">“Rund hjørne”</strong> eller <strong class="ui">“Fas hjørne”</strong> fra den bjælke der dukker op. Alle får den samme radius eller afstand. Hvor to valgte hjørner deler en side, tager hver højst 45 % af den, så et rektangel rundet hele vejen rundt bliver ens ved hvert hjørne. Punkter der ikke er et hjørne mellem to lige linjer udelades, og beskeden siger hvor mange. En ramme omkring en hel form, eller et klik inden i den, vælger dens hjørner og dens linjer sammen, og bjælken tilbyder så <strong class="ui">“Krum linje”</strong> og <strong class="ui">“Ret linje”</strong> for alle de valgte linjer ved siden af hjørneværktøjerne.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-fillet.webp" alt="Hjørnet øverst til venstre er rundet med 12 mm radius." width="1280" height="800" loading="lazy"><figcaption>Hjørnet øverst til venstre er rundet med 12 mm radius.</figcaption></figure>
+</section><section class="guide-part"><h2 id="spejling"><span class="heading-alias" id="mirroring"></span>Spejling</h2>
+<p>Markér punkter og linjer (klik, <kbd>Shift</kbd> og klik, eller træk en ramme om dem), og klik på <strong class="ui">“Spejl”</strong> i bjælken. Vælg så aksen: <strong class="ui">“Venstre-højre”</strong> spejler om den lodrette akse gennem midten af pladen, <strong class="ui">“Top-bund”</strong> om den vandrette, og <strong class="ui">“Om en linje”</strong> om en ret linje i skitsen, som du klikker på bagefter. Kopien lander på den anden side, og originalen bliver; intet er knyttet sammen, så du kan ændre hver for sig. Punkter på aksen deles, så et halvt omrids, hvis ender ligger på aksen, bliver til ét lukket omrids: tegn halvdelen af en vinkelbeslag, markér den, spejl den og lav legemet. En hjælpelinje er en god akse. <kbd>Esc</kbd> annullerer.</p>
+</section><section class="guide-part"><h2 id="konstruktionslinjer"><span class="heading-alias" id="construction-lines"></span>Konstruktionslinjer</h2>
+<p>En konstruktionslinje hjælper dig med at placere punkter uden at blive del af formen. Den tegnes stiplet og tæller aldrig med i omridset: du kan trække den så langt ud over formen du vil, og formen vokser ikke.</p>
+<ul><li>Slå <strong class="ui">“Konstruktionslinje”</strong> til i <strong class="ui">“Tegn”</strong>-gruppen. Nye linjer, også dem tastet efter mål, er så konstruktionslinjer. Knap skifter tilbage til normale linjer.</li><li>En linje du allerede har tegnet bliver til en konstruktionslinje når du klikker den og vælger <strong class="ui">“Konstruktion”</strong>. <strong class="ui">“Gør til en linje”</strong> gør den til en normal linje igen.</li><li>Nye punkter snapper til hvor en konstruktionslinje krydser en anden linje, en blå ring viser det, og til enderne af konstruktionslinjen. Sådan sætter du et hjørne på en midte, i en bestemt afstand fra en kant eller på et kryds, uden at beregne.</li><li>Nye punkter snapper også til midten af enhver lige linje i skitsen, til centrum af enhver cirkel og afrundet hjørne, og til midterne af siderne på en form der vises underved (#624). Et punkt der trækkes, ignorerer midten af sine egne linjer.</li><li>En markering, du trækker, griber fat med sin midte (#1236): midten af en cirkel eller et rektangel lander på enderne, hjørnerne og midterne af de andre linjer, på cirklers centre, hvor hjælpelinjer krydser, og på hjørnerne af et legeme nedenunder; en blå ring viser hvor. En form, du trækker ind fra <strong class="ui">“Tilføj skitseform”</strong>, lander også med sin midte på disse punkter. Hold <kbd>Alt</kbd> nede for kun at følge gitteret.</li><li><strong class="ui">“Linje fra midten”</strong> i <strong class="ui">“Tegn”</strong>-gruppen tegner en linje fra dens midte: klik først på midten, så på enden, og linjen løber lige langt til den anden side. Midten bliver et punkt for sig selv. Klik på knappen igen for at tegne normale linjer.</li><li>En konstruktionslinje skærer ikke omridset over hvor den krydser det. Ved revolvering kan den ligge til højre for aksen også.</li></ul>
+</section><section class="guide-part"><h2 id="lav-en-form-af-det"><span class="heading-alias" id="making-a-body-from-it"></span>Lav en form af det</h2>
+<p>Klik på <strong class="ui">“Afslut skitse”</strong>. Omridset står som en form på arbejdsplanet. I dens indstillinger ændrer du højden, farven og alt andet som med enhver anden form. Når du ændrer størrelse, bygger layerling den igen fra skitsen et øjeblik senere, og skitsen vokser med den. Så forbliver den en eksakt form der tager fas og rund, og næste gang du redigerer den har skitsen den størrelse formen har.</p>
+<p>Ligger arbejdsplanet på siden af en form, tegner du den måde du ser på den side: op i skitsen er også op på den færdige form. Det svage omrids af formen i skitsevisningen viser hvor den står. Hvis arbejdsplanet skærer gennem en form, viser skitsevisningen omridset af det snit i stedet, så en hul form vises som en ring og du kan justere skitsen med dens vægge. Et punkt du sætter eller trækker tæt på et hjørne af disse omrids snapper præcis på det; en lille blå ring viser det. Sådan tager du kanter af andre former med i skitsen, selv når arbejdsplanet ikke ligger præcis på dem. For at spore rundt om eksisterende arbejde slår du <strong class="ui">“Vis delene set igennem: alle deres kanter på skitseplanet”</strong> til (lagknappen i visningsknapperne til venstre): alle kanter på formerne tegnes så på skitseplanet, tynde og svage, som om du kiggede gennem dem, uanset hvilken højde de ligger på. Et plan der står lodret, sat på en frontflade for eksempel, viser forsiden på denne måde. Valget gemmes i browseren.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-result.webp" alt="Omridset er blevet til en form. Hjørnet er rundet." width="1280" height="800" loading="lazy"><figcaption>Omridset er blevet til en form. Hjørnet er rundet.</figcaption></figure>
+<p>Med <strong class="ui">“Redigér skitse”</strong> kan du vende tilbage til skitsen når som helst for at ændre den. Et dobbeltklik på formen gør det samme, som i Tinkercad (en låst form forbliver lukket); <strong class="ui">“Dobbeltklik åbner skitsen”</strong> i indstillingerne slår det fra. Kantbehandlinger du allerede har lavet på formen går dog tabt, fordi kanterne skabes på ny. Et legeme, du har drejet eller flyttet i 3D-editoren, åbner der, hvor det står på pladen, drejet som du ser det der og på pladens gitter; kun et vippet eller spejlet legeme åbner i sin egen ramme.</p>
+<p>En skitse med flere omrids giver ét legeme, og omrids, der overlapper, smelter sammen i det. Skal hvert omrids stå for sig, så vælg legemet og klik på <strong class="ui">“Adskil dele”</strong>: hvert ydre omrids bliver et legeme for sig med de huller, der ligger i det, og beholder legemets højde, farve og plads. Hver del har sin egen skitse at redigere, med hjælpelinjerne, så du kan hæve eller sænke delene én ad gangen og bagefter samle eller trække dem fra hinanden. Kantbehandlinger forhindrer det, ligesom et legeme, der er strakt bagefter: det deles så som et mesh.</p>
+<p><strong>En anden slags legeme fra samme skitse:</strong> mærket øverst i skitsen siger, hvad den bliver til: <strong class="ui">“Ekstruderingsskitse”</strong>, <strong class="ui">“Revolvér skitse”</strong> eller <strong class="ui">“Sweep-skitse”</strong>. Klik på det og vælg en anden, også mens du redigerer et eksisterende legeme: en importeret SVG, der kommer ind ekstruderet, bliver til en vase eller en knop, når du skifter den til <strong class="ui">“Revolvér skitse”</strong>. En kontur, der går over aksen, flyttes til venstre, til dens højre kant ligger på aksen; <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> fortryder flytningen. Når du afslutter, træder det nye legeme i det gamles sted med samme navn og farve og foden i samme højde. Kantbehandlinger forsvinder, som ved enhver ændring af en skitse.</p>
+<section class="guide-part"><h3 id="revolvering"><span class="heading-alias" id="revolving"></span>Revolvering</h3>
+<p>Ved revolvering tegner du den halve tværsnit <strong>til venstre for aksen</strong> der vises i skitsen. Ved siden af ser du en 3D-forhåndsvisning af revolveringen. Den viser straks hvordan formen vil se ud. Du kan dreje, flytte og zoome den med musen; den lille knap i dens øverste højre hjørne, eller et dobbeltklik på den, bringer den første visning tilbage. Omridset skal være lukket. Du kan også bygge en åben linje som en streg, se nedenfor. Til sidst klik på <strong class="ui">“Afslut revolvering”</strong>. De andre legemer i designet vises forfra, i samme visning som profilen, med aksen i midten: tegn profilen ved siden af dem eller over dem. Legemet står, hvor du har tegnet det, og den vandrette linje gennem midten af skitsen er jorden: en profil over den giver et legeme, der står højere, og dens laveste punkt er legemets fod. For en større radius flytter du profilen længere fra aksen, eventuelt forbi kanten af pladen: pladen vokser med skitsen, dens gitter følger med når du slipper, og minusknappen zoomer ud indtil alt passer.</p>
+<p>En revolvet form er en eksakt form, ligesom en ekstruderet: den tager fas og rund, og du kan hule den ud, til et krus eller en vase. En form revolveret med en ældre layerling er et mesh; åbn <strong class="ui">“Redigér skitse”</strong> og afslut den igen for at gøre den eksakt. En profil der når hen over aksen kan ikke bygges eksakt og bliver til et mesh, som før.</p>
+<p><strong>Glattere runde flader: <strong class="ui">“Glathed”</strong>.</strong> Et eksakt drejet legeme deles i små flade facetter til visning, eksport og print, og på en stor krukke kan de ses på printet. Vælg legemet og sæt <strong class="ui">“Glathed”</strong> i egenskabspanelet til <strong class="ui">“Fin”</strong> eller <strong class="ui">“Meget fin”</strong>: de runde flader deles finere, mod flere trekanter og et langsommere design. En helix eller en net-drejning har <strong class="ui">“Sider”</strong> til dette i stedet.</p>
+<p><strong>Én sammenhængende streng: <strong class="ui">“Deling”</strong>.</strong> En revolve gør omridset til lukkede ringe. Vælg den revolverede form og giv den i egenskabspanelet en <strong class="ui">“Deling”</strong> over 0, den højde den stiger pr. omgang, så vikler omridset sig op som en skruelinje: én sammenhængende streng som filament på en spole eller en fjeder. <strong class="ui">“Sweep”</strong> bliver så til <strong class="ui">“Omdrejninger”</strong>, op til 200; et negativt tal vikler venstre om. Omgange, der ligger tættere end omridset er højt, smelter sammen til én form, så en massiv kerne med fin stigning virker også. En skruelinje bygges som et mesh, så rund, fas og udhuling virker ikke på den; hold <strong class="ui">“Sider”</strong> lavt ved mange omgange. En stigning på 0 giver ringe igen.</p>
+</section></section><section class="guide-part"><h2 id="tr-k-omridset-langs-en-sti"><span class="heading-alias" id="sweeping-along-a-path"></span>Træk omridset langs en sti</h2>
+<p><strong class="ui">“Sweep-skitse”</strong> trækker et omrids langs en sti: en kabelkanal der går i et hjørne, et rør, en afskærmning omkring en rem, en ring omkring en sekskant. Den sidder sammen med <strong class="ui">“Ekstrudér”</strong> og <strong class="ui">“Revolver”</strong> i <strong class="ui">“Opret”</strong>-gruppen.</p>
+<p>Du tegner to ting på det samme ark:</p>
+<ul><li><strong>Tværsnittet</strong> som et lukket omrids, som sædvanlig. Tegn det som du ville se det, når du ser langs stien fra dens start: på tværs af stien er skitsens venstre og højre, op er op på den færdige form. Et hult tværsnit, en kanal eller et rør, er et omrids med et andet indeni. Som udgangspunkt ligger tværsnittet centreret på stien. Menuen ved siden af mærket øverst lader dig lægge dets venstre eller højre kant på stien i stedet (<strong class="ui">“På stien: venstre kant”</strong>, <strong class="ui">“På stien: højre kant”</strong>, set når man ser langs stien), så et skinne kan sidde på den ene side af linjen eller følge kanten af en del. Formen står på skitseplanet med tværsnittets laveste punkt.</li></ul>
+<ul><li><strong>Stien</strong> som en <strong class="ui">“Konstruktionslinje”</strong>: slå den til og tegn linjer eller kurver, én kæde, åben eller lukket (en lukket kæde giver en ring). Stien ligger fladt i skitseplanet.</li></ul>
+<p>Tegn tværsnittet tæt på den ende af stien hvor den skal begynde; stien starter ved den ende der ligger tættest på. Klik så på <strong class="ui">“Afslut sweep”</strong>. Et hjørne af lige stykker bliver en skråsting, en kurve bliver jævn, og tværsnittet står lodret hele vejen. Formen er eksakt, ligesom en ekstruderet: rund, fas og STEP-eksporten virker på den. Mangler et lukket omrids eller en sti, eller er der flere adskilte stier, siger layerling det. Med <strong class="ui">“Redigér skitse”</strong> kan du vende tilbage til skitsen og ændre tværsnittet eller stien.</p>
+</section><section class="guide-part"><h2 id="byg-som-en-streg"><span class="heading-alias" id="building-as-a-stroke"></span>Byg som en streg</h2>
+<p>Normalt bliver arealet inden for et lukket omrids til formen. Med <strong class="ui">“Streg”</strong> i <strong class="ui">“Afslut”</strong>-sektionen bygger du selve linjen i stedet, med en bredde du sætter. Kryds <strong class="ui">“Byg som en streg”</strong> af i stregvinduet; skitsen viser straks hvad der kommer ud.</p>
+<ul><li>Et <strong>lukket omrids</strong> bliver til en ramme. <strong class="ui">“Position”</strong> siger hvor væggen ligger: <strong class="ui">“Centreret”</strong> på den tegnede linje, <strong class="ui">“Indvendig”</strong> inden i den eller <strong class="ui">“Udvendig”</strong> uden på den. Udvendig er handy til en tolerance: tegn omridset af et hul, en svalehale for eksempel, og giv det 0,2 mm streg udenpå for at få det mellemrum printet har brug for.</li><li>En <strong>åben linje</strong> bliver til en stribe, centreret på linjen. <strong class="ui">“Ender”</strong> sætter hvordan dens ender ser ud: <strong class="ui">“Flade”</strong>, <strong class="ui">“Firkantede”</strong> (længere med halv bredde) eller <strong class="ui">“Rundede”</strong>.</li><li><strong class="ui">“Hjørner”</strong> gælder for begge: <strong class="ui">“Skarpe”</strong>, <strong class="ui">“Rundede”</strong> eller <strong class="ui">“Fas”</strong>.</li></ul>
+<p>Skitsen beholder den tegnede linje. Åbn den igen og du fortsætter med at ændre linje og streg; fjern krydset og arealet bygges igen. Kurver brydes i korte lige stykker til det. En revolvering har ingen streg.</p>
+<p>I en revolvering er stregen en tynd væg: tegn væggen af en vase eller et krus som <strong>én åben linje</strong> til venstre for aksen, kryds <strong class="ui">“Streg”</strong> og sæt bredden, så drejer revolveringen båndet. Det der når hen over aksen, skæres af ved den.</p>
+</section><section class="guide-part"><h2 id="fyld-og-silhuet"><span class="heading-alias" id="fill-and-silhouette"></span>Fyld og silhuet</h2>
+<p>Du kan sætte stregen uden at åbne skitsen også: i egenskaberne for en skitseform, vælg <strong class="ui">“Område”</strong>, <strong class="ui">“Streg udvendig”</strong>, <strong class="ui">“Streg indvendig”</strong> eller <strong class="ui">“Streg centreret”</strong> under <strong class="ui">“Fyld”</strong>, med <strong class="ui">“Linjebredde”</strong> og <strong class="ui">“Hjørner”</strong>. Formen bygges igen med det samme, hvor den står. Disse matcher Tinkercads fyld-tilstande for SVG-import: standard, ydre linje og indre linje. <strong class="ui">“Bredere”</strong> bevarer arealet fyldt og vokser det med linjebredden hele vejen rundt, med skarpe, rundede eller fasede hjørner: et basislag under en logo til flerfarvet print, som stregen udvendigt alene kun ville give som en ring. <strong class="ui">“Smalere”</strong> gør det modsatte: arealet forbliver fyldt, og dets kant trækkes ind med stregtykkelsen hele vejen rundt, huller indbefaltet (de vokser). Brug begge på kopier af én skitse til en pasning: hullet i sin tegnede størrelse, delen der går igennem det <strong class="ui">“Smalere”</strong> med 0,5 mm, eller en væg inde i en form der er skåret ud af samme omrids. En bredde større end omridset tillader efterlader intet. I skitsens stregvindue står de samme to valg under <strong class="ui">“Position”</strong>. Med en streg udvendig, indvendig eller centreret gør <strong class="ui">“Skærekant”</strong> toppen af væggen skarp: toppen løber ind til denne bredde med en 45° affasning på begge sider, som på en småkageudstikker. 0 efterlader toppen flad; skærekanten bevares når du ændrer linjebredden.</p>
+<p><strong class="ui">“Silhuet (ingen huller)”</strong> udelader hvert omrids der ligger inden i et andet: huller og hvad der ligger i dem. Kun det ydre omrids bevares. Sammen med <strong class="ui">“Streg udvendig”</strong> laver det en småkageudstikker: importér en SVG to gange, én med silhuetten som areal til basen og én med silhuetten og 1 til 2 mm streg udenpå som væggen. Kontakten er også i <strong class="ui">“Streg”</strong>-vinduet i skitsetilstand.</p>
+<p>Fas og rund på kanterne forsvinder når formen bygges igen, som når skitsen redigeres.</p>
+</section><section class="guide-part"><h2 id="skra-v-gge-til-stempler"><span class="heading-alias" id="slanted-walls-for-stamps"></span>Skrå vægge, til stempler</h2>
+<p>En ekstruderet skitse har lodrette vægge. Et stempel, en prægeform eller en dor ønsker skrå, udvendig og indvendig, med samme vægtykkelse hele vejen. Layerling har ingen draft-vinkel til en ekstrudering, men for almindelige omrids får <strong class="ui">“Spids”</strong> dig derhen. En måde der virker:</p>
+<ol><li>Tegn omridset med det hul det har brug for og lav en form af det. Duplikér formen (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span>).</li><li>På den første form, slå <strong class="ui">“Silhuet (ingen huller)”</strong> til, så hullet fyldes, og giv den en bredere bund end top med <strong class="ui">“Spids”</strong>.</li><li>På kopien, åbn dens skitse igen og slet det ydre omrids, så kun omridset af hullet er tilbage. Afslut skitsen, skift formen til <strong class="ui">“Hul”</strong> og giv den en smallere bund end top med <strong class="ui">“Spids”</strong>.</li><li>Flyt hullet ind i den første form, hvor hullet var, og gruppér de to.</li></ol>
+<p>Væggene hælder nu udvendig og indvendig. <strong class="ui">“Spids”</strong> skalerer hele omridset, så det er eksakt for almindelige former, hvor du kan vælge størrelserne så væggene løber parallelt, og kun en tilnærmelse for fine detaljer som bogstaver.</p>
+</section><section class="guide-part"><h2 id="et-billede-som-skabelon"><span class="heading-alias" id="a-picture-as-template"></span>Et billede som skabelon</h2>
+<p>Med <strong class="ui">“Tilføj billede”</strong> lægger du et foto eller en tegning under skitsen og spor den. Du kan sætte dens størrelse, gennemsigtighed og position. Når billedet sidder rigtigt, lås det med <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> så du ikke flytter det ved et uheld mens du tegner. Et låst billede er ude af vejen: klik går igennem det, så du kan vælge linjer og punkter oven på det og trække en ramme over dem. Et klik på hængelåsen i dets hjørne låser det op; <kbd>Alt</kbd>+klik vælger det uden at låse det op. Dækker dets indstillinger i højre kant billedet, så træk dem væk i deres titellinje; et dobbeltklik på den docker dem igen.</p>
+<p>Under <strong class="ui">“Juster”</strong> justerer du et foto der ikke blev taget lige:</p>
+<ul><li><strong><strong class="ui">“Rotation”</strong>:</strong> Drej billedet omkring dets midte, med de buede pile ved dets hjørner eller som et tal i grader. Med <kbd>Shift</kbd> snapper pilene i 15°-trin. Inden for ringen, der vises under drejningen, snapper de i trin på 22,5°, uden for i hele grader.</li><li><strong><strong class="ui">“Til X = 0”</strong></strong> og <strong><strong class="ui">“Til Y = 0”</strong>:</strong> lægger billedets midte på X = 0 eller Y = 0. For en revolvering er X = 0 aksen, så billedet ligger så symmetrisk omkring den.</li><li><strong><strong class="ui">“Kalibrér”</strong>:</strong> Knappen sidder øverst, lige under forhåndsvisningen. Klik to punkter i billedet hvis afstand du kender, enderne af en lineal eller en kendt diameter, og tast den virkelige afstand. Billedet skaleres jævnt så den afstand er rigtig; det første punkt bliver hvor det var.</li><li><strong><strong class="ui">“Beskær”</strong>:</strong> Håndtagene på rammen beskærer nu billedet i stedet for at skalere det; hvad der klippes væk forbliver gemt og kommer tilbage med <strong class="ui">“Vis hele billedet”</strong> eller når et håndtag trækkes ud igen.</li></ul>
+<p>Alle fire rører kun referencen, aldrig skitsen.</p>
+<p><strong><strong class="ui">“Optegn”</strong></strong> i billedets indstillinger sætter punkterne for dig: det optegner omridset af formen på billedet – en silhuet, et logo, et ord – og viser det i rødt over billedet, firkantede punkter for hjørner, runde for glatte punkter. <strong class="ui">“Mørk form”</strong> eller <strong class="ui">“Lys form”</strong> vælger, hvilken del af billedet der er formen, <strong class="ui">“Tærskel”</strong>, hvor mørkt går over i lyst, <strong class="ui">“Punkter”</strong>, hvor mange punkter omridsene får tilsammen (færre giver blødere kurver, flere følger billedet nøjere), <strong class="ui">“Hjørne fra”</strong>, fra hvilket knæk et punkt er et hjørne, <strong class="ui">“Udelad pletter op til”</strong>, op til hvilken størrelse pletter udelades, og <strong class="ui">“Behold huller”</strong> beholder midten af et A eller O. <strong class="ui">“Anvend”</strong> lægger omridsene ind i skitsen præcis der, hvor billedet ligger, i dets størrelse, drejning og beskæring, og markerer dem: det er almindelige punkter, der kan flyttes, bøjes eller fjernes, og <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> fjerner dem i ét trin. Det virker bedst med tydelig kontrast; frilæg først et foto med en urolig baggrund. Hvad der falder væk – uden om omridsene, i hullerne, hvad der er skåret væk – dækker forhåndsvisningen med pladens farve, så man kun ser det af billedet, der bliver tilbage. Omrids, der ligger så tæt, at grove kurver ville krydse hinanden, får selv flere punkter; kortet siger det så. Til en kant uden for eller inden for omridset giver du skitselegemet en kontur uden for eller inden for linjerne, eller du forskyder det færdige legeme.</p>
+<p>Til et foto – fx et legetøjstog på et hvidt bord – vælger du under <strong class="ui">“Form”</strong> <strong><strong class="ui">“Genstand”</strong></strong>: baggrunden er farven ved billedets kant, og alt, der skiller sig ud fra den, bliver ét omrids, uanset farver; <strong class="ui">“Tærskel”</strong> bestemmer så, hvor tydeligt. Et farverigt billede på en jævn baggrund starter sådan. <strong class="ui">“Vælg flader”</strong> giver flere omrids: klik på en flade i billedet, fx et vindue, så får fladen med samme farve omkring stedet et omrids (<strong class="ui">“Farvetolerance”</strong> bestemmer, hvor ens). Huller og valgte flader står under <strong class="ui">“Huller og flader”</strong>; peger du på en, fremhæves den i forhåndsvisningen, ✕ fjerner den, og med <strong class="ui">“Skær ud”</strong> slået fra tegnes den som hjælpelinje i stedet for et hul. En flade, der når ud til billedets kant, er baggrunden og tages ikke med. Hvad ingen tærskel og ingen farve kan skelne – en skygge lige så mørk som hjulene over den – fjerner <strong class="ui">“Skær væk”</strong>: klik hjørner rundt om den (et klik på det første hjørne, et dobbeltklik eller <kbd>Enter</kbd> lukker den), og omridset følger snittet; på listen står det som „Snit 1“.</p>
+<p>Træet ved siden af et hus, en figur foran en urolig baggrund – hvor ingen farve skiller formen fra resten, fanger <strong><strong class="ui">“Magnetisk lasso”</strong></strong> den: klik groft langs dens kant, og mellem to klik følger linjen selv kanten, også rundt i buer; mens du bevæger dig, viser forhåndsvisningen allerede, hvor den vil løbe. Et klik på det første punkt, et dobbeltklik eller <kbd>Enter</kbd> lukker den, <kbd>Esc</kbd> kasserer den. På listen står den som „Lasso 1“ med valget <strong class="ui">“Tag med”</strong> (fladen kommer med i formen) eller <strong class="ui">“Skær væk”</strong> (den tages væk); hvert snit har samme valg. Under <strong class="ui">“Form”</strong> gør <strong><strong class="ui">“Kun lasso”</strong></strong> kun det, du fanger på den måde, til formen – intet andet af billedet.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/trace-house.webp" alt="Et tegnet hus optegnet som objekt, tærsklen sænket for den lyse væg: den magnetiske lasso har skåret træet væk, og de otte ruder er valgt som huller." width="1280" height="800" loading="lazy"><figcaption>Et tegnet hus optegnet som objekt, tærsklen sænket for den lyse væg: den magnetiske lasso har skåret træet væk, og de otte ruder er valgt som huller.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/trace-house-body.webp" alt="Huset som legeme: uden træet, vinduerne skåret igennem." width="1280" height="800" loading="lazy"><figcaption>Huset som legeme: uden træet, vinduerne skåret igennem.</figcaption></figure>
+</section><section class="guide-part"><h2 id="taster-i-skitsetilstand"><span class="heading-alias" id="keys-in-sketch-mode"></span>Taster i skitsetilstand</h2>
+<div class="table-scroll"><table><thead><tr><th>Taste</th><th>Virkning</th></tr></thead><tbody><tr><td><kbd>Esc</kbd></td><td>læg noteværktøjet fra dig; ellers læg værktøjet fra dig (tilbage til <strong class="ui">“Vælg”</strong>), ryd derefter markeringen</td></tr><tr><td><kbd>Delete</kbd></td><td>slet det valgte element</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>C</kbd></span></td><td>kopier markeringen</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span></td><td>klip markeringen</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>V</kbd></span></td><td>indsæt</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span></td><td>duplikér markeringen</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span></td><td>fortryd</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span></td><td>vælg alle punkter og linjer</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>I</kbd></span></td><td><strong class="ui">“Tilføj billede”</strong></td></tr><tr><td><kbd>Shift</kbd></td><td>mens du tegner: snap linjen i 15°-trin; mens du trækker: hold flytningen på én akse</td></tr><tr><td>ciffer, <kbd>&lt;</kbd>, <kbd>Tab</kbd>, <kbd>Enter</kbd></td><td>mens du tegner: tast og sæt længden og vinklen på den næste linje</td></tr><tr><td><kbd>R</kbd></td><td>drej den lukkede skitse 45°</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span></td><td>lås eller lås op for skabelonbilledet, eller det valgte omrids</td></tr><tr><td><kbd>N</kbd></td><td>sæt en note: det næste klik placerer den på skitsen</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span></td><td>vis eller skjul noterne</td></tr></tbody></table></div>
+<aside class="tip"><p><strong>Tip:</strong> Tegn så få punkter som muligt. Et omrids med få velplacerede punkter giver en glattere form end en virvar af mange.</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/vejledning/edges-and-hollowing.html"><small>Forrige kapitel</small>Bryd kanter og hul former</a><a class="next" href="/api/desktop/layerling/ui/vejledning/text.html"><small>Næste kapitel</small>Tekst og buede bogstaver</a></div>
+      </main>
+    </div>
+    <footer class="note">Denne vejledning vokser sammen med programmet. Hvis noget mangler eller er forkert, så fortæl os i <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">diskussioner</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=da" rel="noopener">Støt projektet</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Diskussioner</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mere på GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Udgivelsesnoter v1.154.1</a></div><p class="trademark">Tinkercad er et varemærke tilhørende Autodesk, Inc. layerling er et uafhængigt projekt og er ikke tilknyttet, anbefalet eller sponsoreret af Autodesk.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Tilbage til editoren";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Åbn editoren";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

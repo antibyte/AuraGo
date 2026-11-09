@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="hu">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Tömör testek és lyukak - layerling útmutató</title>
+    <meta name="description" content="Hogyan lesznek egyszerű alakzatokból furatok, hornyok és zsebek, és hogyan módosíthatsz később egy csoportot.">
+    <link rel="canonical" href="https://layerling.com/utmutato/solids-and-holes.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/solids-and-holes.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/solids-and-holes.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/solids-and-holes.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/koerper-und-aussparungen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/solids-and-holes.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/solids-and-holes.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/solids-and-holes.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/solids-and-holes.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/lichamen-en-gaten.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/solids-and-holes.html">
+    <link rel="alternate" hreflang="pt-BR" href="https://layerling.com/guia/solids-and-holes.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/telesa-in-luknje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/solids-and-holes.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/solids-and-holes.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/solids-and-holes.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/solids-and-holes.html">
+    <meta property="og:title" content="Tömör testek és lyukak - layerling útmutató">
+    <meta property="og:description" content="Hogyan lesznek egyszerű alakzatokból furatok, hornyok és zsebek, és hogyan módosíthatsz később egy csoportot.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/utmutato/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Útmutató</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/utmutato/search-index.json" data-nothing="Nincs találat." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Keresés az útmutatóban" aria-label="Keresés az útmutatóban" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Nyelv">Magyar</summary><ul><li><a href="/api/desktop/layerling/ui/guide/solids-and-holes.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/solids-and-holes.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/solids-and-holes.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/solids-and-holes.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/solids-and-holes.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/solids-and-holes.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/solids-and-holes.html" hreflang="hu" lang="hu" aria-current="true">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/solids-and-holes.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/solids-and-holes.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/solids-and-holes.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/telesa-in-luknje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/solids-and-holes.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/solids-and-holes.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/solids-and-holes.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/solids-and-holes.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/solids-and-holes.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/solids-and-holes.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Szerkesztő megnyitása</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>A szerkesztő már nyitva van egy másik lapon – egyszerűen válts át oda.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Fejezetek"><h2>Fejezetek</h2><p class="print-link"><a href="/api/desktop/layerling/ui/utmutato/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>A teljes útmutató nyomtatáshoz</span></a></p><ol><li><a href="/api/desktop/layerling/ui/utmutato/getting-started.html">Első lépések</a></li><li><a href="/api/desktop/layerling/ui/utmutato/view-and-workplane.html">Nézet és munkasík</a></li><li><a href="/api/desktop/layerling/ui/utmutato/shapes.html">Alakzatok elhelyezése és beállítása</a></li><li><a href="/api/desktop/layerling/ui/utmutato/select-and-arrange.html">Kijelölés és elrendezés</a></li><li><a href="/api/desktop/layerling/ui/utmutato/solids-and-holes.html" aria-current="page">Tömör testek és lyukak</a></li><li><a href="/api/desktop/layerling/ui/utmutato/edges-and-hollowing.html">Élek letörése és testek kiüregelése</a></li><li><a href="/api/desktop/layerling/ui/utmutato/sketches.html">Vázlatok: a körvonaltól a testig</a></li><li><a href="/api/desktop/layerling/ui/utmutato/text.html">Szöveg és íves feliratok</a></li><li><a href="/api/desktop/layerling/ui/utmutato/threads-and-mechanics.html">Menetek, fogaskerekek és más alkatrészek</a></li><li><a href="/api/desktop/layerling/ui/utmutato/measuring-and-notes.html">Mérés és jegyzetek</a></li><li><a href="/api/desktop/layerling/ui/utmutato/printing.html">Előkészítés 3D nyomtatásra</a></li><li><a href="/api/desktop/layerling/ui/utmutato/files-and-saving.html">Fájlok, mentés és megosztás</a></li><li><a href="/api/desktop/layerling/ui/utmutato/shortcuts.html">Billentyűparancsok</a></li><li><a href="/api/desktop/layerling/ui/utmutato/ai-with-mcp.html">Építés MI-vel (MCP)</a></li><li><a href="/api/desktop/layerling/ui/utmutato/offline-and-install.html">Telepítés alkalmazásként, offline munka és saját üzemeltetés</a></li><li><a href="/api/desktop/layerling/ui/utmutato/videos.html">Videók a layerlingről</a></li><li><a href="/api/desktop/layerling/ui/utmutato/tablet-and-touch.html">Tablet and touch</a></li></ol></nav>
+      <main>
+<h1>Tömör testek és lyukak</h1>
+<p class="lead">Hogyan lesznek egyszerű alakzatokból furatok, hornyok és zsebek, és hogyan módosíthatsz később egy csoportot.</p>
+<div class="toc"><b>Ezen az oldalon</b><ul><li><a href="#toemoer-vagy-lyuk">Tömör vagy lyuk</a></li><li><a href="#csoportositas">Csoportosítás</a></li><li><a href="#koetegbe-fogas">Kötegbe fogás</a></li><li><a href="#metszet">Metszet</a></li><li><a href="#egy-test-kivagasa-egy-masikbol">Egy test kivágása egy másikból</a></li><li><a href="#koervonal-atuetese-egy-testen">Körvonal átütése egy testen</a></li><li><a href="#csoport-szerkesztese">Csoport szerkesztése</a></li><li><a href="#kettevagas">Kettévágás</a></li><li><a href="#reszek-szetvalasztasa">Részek szétválasztása</a></li></ul></div>
+<p>Ez a layerling legfontosabb gondolata, és gyorsan megtanulható: <strong>Minden alakzat vagy tömör test, vagy lyuk.</strong> A tömör test megmarad. A lyuk szerszám, amely anyagot vesz el.</p>
+<section class="guide-part"><h2 id="toemoer-vagy-lyuk"><span class="heading-alias" id="solid-or-hole"></span>Tömör vagy lyuk</h2>
+<p>Jelölj ki egy alakzatot, és kattints a beállításaiban a <strong class="ui">„Tömör”</strong> vagy a <strong class="ui">„Lyuk”</strong> gombra. A billentyűzet gyorsabb: a <kbd>H</kbd> lyukká teszi a kijelölést, az <kbd>S</kbd> újra tömörré. Mindkettő ott van abban a menüben is, amely egy testen jobb gombbal kattintva nyílik meg. A lyuk áttetszőként jelenik meg, hogy lásd, hol ül. A <kbd>T</kbd> átlátszóvá tesz egy testet, mondjuk hogy belenézz egy házba; egy második lenyomás újra átlátszatlanná teszi. Az egész kijelölésen működik: ha bármelyik test már átlátszó, mind átlátszatlan lesz, különben mind átlátszó.</p>
+<p>Amíg semmi sincs csoportosítva, egy lyukkal nem történik semmi. Csak ott fekszik, és mutatja, hol fog később eltűnni valami.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hole-before.webp" alt="A henger lyuk. Kilóg a kocka tetejéből, hogy teljesen átvágja." width="1280" height="800" loading="lazy"><figcaption>A henger lyuk. Kilóg a kocka tetejéből, hogy teljesen átvágja.</figcaption></figure>
+</section><section class="guide-part"><h2 id="csoportositas"><span class="heading-alias" id="grouping"></span>Csoportosítás</h2>
+<p>Jelölj ki tömör testeket és lyuk(ak)at, és kattints a <strong class="ui">„Csoportosítás”</strong> gombra (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>G</kbd></span>). Most a lyukak eltávolítják az anyagot azokból a tömör testekből, amelyekhez hozzáérnek. Ami marad, az egyetlen új alakzat.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hole-after.webp" alt="Az eredmény: egy kocka furattal." width="1280" height="800" loading="lazy"><figcaption>Az eredmény: egy kocka furattal.</figcaption></figure>
+<p>Így kapsz:</p>
+<ul><li><strong>Furatokat:</strong> egy henger lyukként egy testen át.</li><li><strong>Hornyokat:</strong> egy hosszúkás doboz lyukként a szélénél.</li><li><strong>Zsebeket:</strong> egy lyuk, amely nem megy át teljesen.</li><li><strong>Meneteket egy alkatrészben:</strong> egy menetes furat lyukként, lásd a <a href="/api/desktop/layerling/ui/utmutato/threads-and-mechanics.html">Menetek és mechanika</a> fejezetet.</li></ul>
+<p>Ha több tömör test van a csoportban, egyesülnek. Két egymáshoz érő tömör testből egyetlen alkatrész lesz.</p>
+<p>Nagy hálóknál, például egy több százezer háromszögből álló importált STL-nél a vágás néhány másodpercig tart. A layerling ilyenkor a háttérben dolgozik, és a(z) „<strong class="ui">„Calculating… you can keep working”</strong>” feliratot mutatja; közben forgathatod a nézetet és használhatod a felületet. Ha közben megváltoztatod a jelenetet, az eredmény elvész, és a layerling ezt jelzi. Ugyanez érvényes a(z) <strong class="ui">„Kettévágás”</strong> eszközre.</p>
+<p>Egy csoportot úgy kezelhetsz, mint egy alakzatot: mozgathatod, forgathatod, színezheted, újra csoportosíthatod. A <strong class="ui">„Csoportbontás”</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span>) feloldja, és visszakapod az egyes részeket.</p>
+<section class="guide-part"><h3 id="csoport-lyukka-tetele"><span class="heading-alias" id="making-a-group-a-hole"></span>Csoport lyukká tétele</h3>
+<p>Egy egész csoport is lehet tömör vagy lyuk. Egy egyszerű szabály érvényes:</p>
+<ul><li>Ha a csoport csak tömör testekből (vagy csak lyukakból) áll, egészként váltod át, és a részei vele mennek.</li><li>Ha mindkettőt tartalmazza, mondjuk egy furatos kockát, minden rész megtartja a saját állapotát. Az egész csoport ilyenkor szerszám lesz, de a furat furat marad.</li></ul>
+</section><section class="guide-part"><h3 id="csoport-atmeretezese-a-lyukak-es-kis-reszek-megmaradnak"><span class="heading-alias" id="resizing-a-group-keeping-holes-and-small-parts"></span>Csoport átméretezése: a lyukak és kis részek megmaradnak</h3>
+<p>Ha egy csoportot hosszabbra, szélesebbre vagy magasabbra veszel, a részei vele együtt nyúlnak, mintha gumira rajzolták volna őket: egy lap kerek lyukai oválisak lesznek és befelé csúsznak. Hogy olyanok maradjanak, amilyenek, a csoport beállításaiban a <strong class="ui">„Átméretezéskor”</strong> alatt válaszd a <strong class="ui">„Lyukak és kis részek megtartása”</strong> lehetőséget; e választás nélkül a <strong class="ui">„Mindent megnyújt”</strong> érvényes, mint eddig minden csoportnál. Ettől kezdve a csoport minden átméretezéskor - a fogantyúkkal, a méretmezőkben vagy a <strong class="ui">„Méretezés százalékban”</strong> eszközzel - egyetlen szabály szerint épül újra a részeiből, minden irányban külön:</p>
+<ul><li>Az a rész, amely majdnem az egész csoporton végignyúlik, kilenctizedén vagy annál többön, vele együtt nő vagy zsugorodik, és megtartja a távolságát mindkét oldaltól: maga a lap, egy fal vagy egy doboz belseje, amelynek falai ugyanolyan vastagok maradnak.</li><li>Minden más rész megtartja a saját méretét és a távolságát a közelebbi oldaltól. A középen álló rész középen marad.</li></ul>
+<p>Egy lap, amelyben minden saroktól 5 mm-re van egy lyuk és középen egy horony, 40 mm-rel meghosszabbítva tehát kerek lyukakat tart meg a sarkoktól 5 mm-re, és a horony középen marad. Nincs mögötte kényszermegoldó, és semmit sem kell részenként beállítani: minden részre ugyanaz a szabály érvényes, így előre tudod, mi fog történni. Egy elforgatott rész azzal a dobozzal számít, amelyet a csoportban elfoglal, és elforgatva marad; a csoporton belüli csoport egy résznek számít. Amíg egy fogantyút húzol, a csoport egészében nyúlik; amikor elengeded, újraépül, ugyanabban a visszavonási lépésben. Ha a csoport kisebb lesz annál, amire egy résznek a távolságával együtt szüksége van, az a rész a korábbiakhoz hasonlóan vele együtt zsugorodik, és egy üzenet szól róla. A tükrözött, elvékonyított vagy csavart csoport, valamint a saját lekerekítéssel, élletöréssel vagy textúrával rendelkező csoport mindig mindent megnyújt. Ha egy már megnyújtott csoporthoz választod ezt a beállítást, a részei azonnal újra elrendeződnek.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/group-keep-parts.webp" alt="Egy lap, amelyben minden saroktól 5 mm-re van egy lyuk és középen egy horony, a „Lyukak és kis részek megtartása” beállítással 40 mm-rel meghosszabbítva: a lyukak még mindig kerekek és 5 mm-re vannak a sarkoktól, a horony még mindig középen van." width="1280" height="800" loading="lazy"><figcaption>Egy lap, amelyben minden saroktól 5 mm-re van egy lyuk és középen egy horony, a „Lyukak és kis részek megtartása” beállítással 40 mm-rel meghosszabbítva: a lyukak még mindig kerekek és 5 mm-re vannak a sarkoktól, a horony még mindig középen van.</figcaption></figure>
+</section></section><section class="guide-part"><h2 id="koetegbe-fogas"><span class="heading-alias" id="bundling"></span>Kötegbe fogás</h2>
+<p>Néha a részeknek csak együtt kell maradniuk anélkül, hogy eggyé válnának – mondjuk egy fehér logónak egy fekete lapon, többszínű nyomtatáshoz. Erre való a <strong class="ui">„Köteg”</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>B</kbd></span>), mint a Tinkercadben. Egy köteg úgy mozog, fordul és méreteződik, mint egy alakzat, de semmi sem egyesül:</p>
+<ul><li>Minden rész megtartja a színét, és tömör test vagy lyuk marad. A köteg beállításaiban ugyanazok a kártyák vannak, mint egy csoportnál: <strong class="ui">„Tömör”</strong> és <strong class="ui">„Lyuk”</strong> az egész kötegre (a részek színe megmarad), <strong class="ui">„Átlátszó”</strong> (<kbd>T</kbd>) és <strong class="ui">„Többszínű”</strong> (<span dir="ltr"><kbd>Shift</kbd>+<kbd>M</kbd></span>); kikapcsolt többszínűséggel a köteg egy színben jelenik meg és exportálódik. A(z) <strong class="ui">„Részek szétválasztása”</strong> szétszedi a köteget, ahogy a <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span> is.</li><li>A lyukak nem vágnak semmit.</li><li>STL-, 3MF- vagy OBJ-exportban minden rész önálló test; 3MF-ben és OBJ-ben a színével együtt.</li></ul>
+<p>A <strong class="ui">„Csoportbontás”</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span>) újra szétszedi a köteget, az <kbd>E</kbd> pedig szerkesztésre nyitja meg, mint egy csoportot. Az élletörés, a lekerekítés és a kiüregelés nem működik kötegen, mert az nem egyetlen test: ehhez csoportosítsd, vagy dolgozz a részein egyenként. Ha a kötegben lévő lyuknak mégis vágnia kellene, csoportosítsd a köteget (Ctrl+G).</p>
+</section><section class="guide-part"><h2 id="metszet"><span class="heading-alias" id="intersection"></span>Metszet</h2>
+<p>A <strong class="ui">„Logikai metszet”</strong> csak azt tartja meg, ami két vagy több testben közös. Tegyél egymásra két átfedő alakzatot, jelöld ki mindkettőt, és kattints rá. Így egy hengerből és egy dobozból olyan darab lesz, amelynek egyik oldala kerek, a másik egyenes. Egy csoport úgy számít, ahogy kinéz, a lyukakkal együtt. Ha egy lyuk is ki van jelölve, az marad meg, ami minden tömör testben és minden lyukban közös. Ha az alakzatoknak nincs közös részük, semmi sem változik, és egy üzenet ezt jelzi. Az első kattintás alkalmazás előtt megmutatja a közös részt: a kijelölt alakzatok áttetszővé válnak, a közös részük pedig zölden rajzolódik. Jelöld ki és mozgasd az alakzatokat egyenként, és a zöld rész követi őket; a <strong class="ui">„Logikai metszet”</strong> második kattintásra alkalmazza, az <kbd>Esc</kbd> bezárja az előnézetet. Az előnézethez túl sok háromszögből álló alakzatok, például nagy importált hálók, már az első kattintásra elkészülnek.</p>
+<p>A(z) <strong class="ui">„Burok”</strong> a kijelölt alakzatokat egyetlen konvex testbe burkolja, mintha zsugorfóliába csomagolnád őket: a legkisebb horpadás nélküli testbe, amely mindet magában foglalja. Egy hengeren ülő félgömbből lépcső nélküli kupola lesz, négy sarokhengerből lekerekített sarkú doboz, két gömbből kapszula. A kijelölésben lévő lyukak utána vágódnak ki a burokból. A részek benne maradnak: a(z) <strong class="ui">„Csoport szerkesztése”</strong> csoportként nyitja meg a burkot, egy rész ottani mozgatása és a bezárás pedig újraépíti. A burok háló, ezért a kerek alakzatokon lapok látszanak, és az él-eszközök úgy dolgoznak rajta, mint bármely hálón. Ha csak lyukak vannak kijelölve, a burok maga is lyuk: két hengeres lyuk hosszlyukat vág. A burok kitölt mindent, ami a részeiben üreges: egy csövet, egy <strong class="ui">„Kiüregelés”</strong> eszközzel kiüregelt hengert, egy lyukaival csoportosított részt. Kapcsold be a Tulajdonságoknál a <strong class="ui">„A részek lyukainak megtartása”</strong> lehetőséget, hogy nyitva maradjanak: ekkor a burok csak a részek közötti teret tölti ki, és egy rész oldalán lévő bemélyedés is megmarad.</p>
+<p>A(z) <strong class="ui">„Cookie cutter”</strong> sütiszaggatót készít a kijelölésből: vékony falat a körvonal körül, 15 mm magasan, és egy 2 mm-es lapos peremet a tövénél, így a szaggató a peremen áll, és a hüvelykujjnak van mit nyomnia. Jelölj ki egy importált SVG-t vagy egy vázlattestet, és a saját körvonala lesz felhasználva. Egy fekvő szöveg a betűi saját görbéit adja. Bármely más alakzat, egy épített, egy importált háló vagy több rész azt adja, amin áll: a körvonalat, amelyet a munkasík átvág rajta, ezért előbb tedd a munkasíkra. Az egymásba lógó részek egy közös körvonalat adnak, mintha csoportosítva lennének; az egymástól különálló részek mind saját szaggatót kapnak ugyanabban a kötegben. A körvonal balról jobbra tükröződik: a szaggató a peremén állva nyomtatódik, és vágáshoz megfordítod, így egy szöveg vagy logó helyes irányban kerül a tésztára. A fal teteje 0,4 mm széles vágóélbe fut. A körvonalban lévő lyukak, egy e vagy egy a belseje, saját falakat kapnak, így ezek is kivágódnak a sütiből. Ezek a köteg önálló testei, <strong class="ui">„Inner walls”</strong>: ha egy szöveget vagy mintát csak benyomnál a tésztába kivágás helyett, tedd őket alacsonyabbá a Tulajdonságok alatt. 15 mm-es fallal és 5 mm vastag tésztával a 12 mm-es belső falak 2 mm mélyen nyomnak. A külső falnál alacsonyabb belső falak teteje vágóél helyett lapos: csak nyomnak, egy él pedig vékony hegyeket hagyna, amelyek letörnek, és barázdákat, amelyekben megreked a tészta. Ha élt szeretnél, add meg nekik a Tulajdonságok alatt. Két híd a peremnél, azon az oldalon, amelyet a kezed nyom, minden belső falat a körülötte lévő falhoz köt, körben elosztva, 4 mm szélesen és 3 mm magasan. Minden híd teljes szélességével a falakon áll, egy körvonal mentén futó oldal közepén, és sosem keresztben egy másik darabon. Az egymás melletti darabok, például egy név betűi, egymáshoz is kapcsolódnak, a legközelebbiek először, így a hidak hálóként futnak végig rajtuk, és egy szó közepén lévő betű is meg van tartva. Az eszközre kattintva kis ablak nyílik: ott a hidak helyett a(z) <strong class="ui">„Plate”</strong> lehetőséget választhatod, amely a nyomott oldalon kitölti az egész körvonalat, stabilabb és jobban tapad a tárgyasztalhoz, de már nem engedi hátulról kinyomni a tésztát. A(z) <strong class="ui">„Fillets”</strong> kis 45°-os lejtőket tesz oda, ahol a falak a peremen, a hidakon vagy a lapon állnak, hogy a vékony részek, például az i pontja, ne törjenek le; ezek a köteg önálló testei. Ott állítod azt is, mennyivel alacsonyabbak a belső falak, és tükröződjön-e a körvonal; az értékek megmaradnak a következő szaggatóhoz. A magasságukat a Tulajdonságok alatt változtasd, mint a peremét. A szaggató a kijelölést vázlattestek kötegével váltja fel, a(z) <strong class="ui">„Csoport szerkesztése”</strong> megnyitja. A fal, a belső falak és a perem a vázlat kitöltési módjai, egy vonal a sziluetten kívül: mindegyik vastagságát, magasságát vagy színét a Tulajdonságok alatt változtasd, és ott a fal <strong class="ui">„Cutting Edge”</strong> értékét is (0 a lapos tetőhöz). Ahol egy szűk ív nem hagy helyet a két oldali letörésnek, a fal csak kívül lesz letörve, ugyanarra az élre. Ahol egy körvonal egyáltalán nem törhető le - éles csúcsú logó, egy test háromszögeiből kivágott körvonal -, az él helyette 0,1 mm-es finom lépcsőkből épül, amelyeket egy 0,2 mm-es nyomtatási réteg nem különböztet meg a lejtőtől; az ilyen fal háromszögháló, nem pontos test. Ha a körvonalat úgy tartanád meg, ahogy rajzoltad, tükrözd vissza a szaggatót a(z) <strong class="ui">„Tükrözés”</strong>, <strong class="ui">„bal–jobb”</strong> eszközzel. Egy PNG- vagy JPG-kép is működik: importáláskor vázlattestté rajzolódik át, és a szaggató azt követi.</p>
+<p>A(z) <strong class="ui">„Átmenet vázlatok között”</strong> két vázlattestet vagy importált SVG-t egy testté köt össze: az alsó körvonala lent, a felsőé fent, köztük egyenes falakkal. Így lesz belőle tölcsér, négyzetből körbe vezető átmeneti darab vagy felfelé keskenyedő keret. Tedd a két testet egymás fölé oda, ahová valók, tetszés szerint eltolva és elforgatva, jelöld ki mindkettőt, és kattints az eszközre. A loft az alsó test aljától a felső tetejéig ér.</p>
+</section><section class="guide-part"><h2 id="egy-test-kivagasa-egy-masikbol"><span class="heading-alias" id="cutting-one-body-out-of-another"></span>Egy test kivágása egy másikból</h2>
+<p>Az egymásba illeszkedő alkatrészeknél, például tengely egy hüvelyben vagy csavar egy házban, megcsinálod az egyik alkatrészt, és kivágod a másikból. Jelöld ki a két testet, és kattints a <strong class="ui">„Cut out”</strong> gombra a <strong class="ui">„Egyesítés”</strong> területen, vagy kattints jobb gombbal, és válaszd ott. Az ablak megnevezi az alkatrészt, amely marad, és a testet, amely az üreget kapja; a layerling a kisebbet veszi alkatrésznek, a <strong class="ui">„Swap the two”</strong> megfordítja. A <strong class="ui">„Clearance”</strong> az üreget minden oldalon ennyivel teszi nagyobbá az alkatrésznél: a 0 pontosan illeszkedik, a 0,2 mm szokásos hézag nyomtatott illesztéshez. Az <strong class="ui">„Cut out”</strong> kivágja az alkatrész másolatát a másik testből, magát az alkatrészt pedig ott hagyja, ahol van. Az eredmény egy csoport: az <strong class="ui">„Csoportbontás”</strong> újra szétszedi a vágást. A hézaghoz az alkatrésznek pontos testnek kell lennie, mint az <strong class="ui">„Eltolás”</strong> eszköznél, amelyet ehhez használ.</p>
+</section><section class="guide-part"><h2 id="koervonal-atuetese-egy-testen"><span class="heading-alias" id="punching-an-outline-through-a-body"></span>Körvonal átütése egy testen</h2>
+<p>Ha egy test körvonalát egyenesen át akarod vágni egy másikon, először a lyukasztót jelöld ki, aztán a lyukasztandó testet, és kattints a(z) <strong class="ui">„Punch”</strong> gombra a(z) <strong class="ui">„Egyesítés”</strong> területen, vagy válaszd jobb kattintással. A kettőnek nem kell érintkeznie: a lyukasztó bárhol állhat a test előtt, csak a körvonala számít a választott irányból (<strong class="ui">„Direction”</strong>) nézve. Egy lemez fölé tartott teáskanna így teáskanna alakú nyílást hagy. A layerling azzal a tengellyel kezd, amely mentén a lyukasztó a legtávolabb áll a testtől; X balról jobbra, Y elölről hátra, Z felfelé mutat. A(z) <strong class="ui">„Swap the two”</strong> felcseréli a szerepeket, a(z) <strong class="ui">„Clearance”</strong> pedig minden oldalon nagyobbá teszi a nyílást, 0,2 mm egy nyomtatott alkatrésznek, amelynek át kell férnie. A(z) <strong class="ui">„Punch”</strong> a nyílást pontos, lyukra állított vázlattestként csoportosítja a testtel, így a(z) <strong class="ui">„Csoportbontás”</strong> ismét kiveszi; a lyukasztó a helyén marad. Mozgasd vagy forgasd el, és üss át újra egy másik nyíláshoz.</p>
+</section><section class="guide-part"><h2 id="csoport-szerkesztese"><span class="heading-alias" id="editing-a-group"></span>Csoport szerkesztése</h2>
+<p>Ha egy furat túl kicsire sikerült, nem kell feloldanod a csoportot és újraépítened. Jelöld ki a csoportot, és kattints a beállításaiban a <strong class="ui">„Csoport szerkesztése”</strong> gombra, az objektumlistában a mappa ikonra, vagy nyomd meg az <kbd>E</kbd> billentyűt. A csoportra dupla kattintás ugyanezt teszi, mint a Tinkercadben, kötegen is; ha ezt nem szeretnéd, kapcsold ki a beállításokban a <strong class="ui">„Dupla kattintás megnyit egy csoportot vagy köteget”</strong> kapcsolót. Egy rész csak akkor kezd mozogni, ha a mutatót néhány pixellel elhúztad, így egy remegős kattintás vagy dupla kattintás nem mozdítja el. A részek most külön fekszenek, és bármelyik eszközzel módosíthatod őket: nagyobbíthatsz egy lyukat, elmozdíthatsz egy testet, hozzáadhatsz egy lyukat.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/open-group.webp" alt="A szerkesztés alatt álló csoport: alul a sávon a Mégse és a Kész, az objektumlista pedig a részeket mutatja." width="1280" height="800" loading="lazy"><figcaption>A szerkesztés alatt álló csoport: alul a sávon a Mégse és a Kész, az objektumlista pedig a részeket mutatja.</figcaption></figure>
+<p>A kép alján egy sáv jelenik meg. A <strong class="ui">„Kész”</strong> újraépíti a csoportot a nevével, a színével és a tömör vagy lyuk állapotával együtt. A <strong class="ui">„Mégse”</strong> érintetlenül visszaállítja.</p>
+<p>Ha az egyik rész maga is csoport, ugyanígy szerkesztheted, és így tovább, olyan mélyen, amilyen mély a terved. A sáv mutatja, hol vagy, például „Konzol › Csavarcsonk”. A <strong class="ui">„Kész”</strong> és a <strong class="ui">„Mégse”</strong> mindig a legbelső csoportot fejezi be, és egy szinttel kijjebb visz. Amíg egy csoporton belül vagy, csak a részei közötti csoportok szerkeszthetők; egy másik szerkesztéséhez előbb fejezd be.</p>
+<p>A <strong class="ui">„Csoportbontás”</strong> paranccsal ellentétben, amely végleg szétszedi a csoportot, a szerkesztés megtartja a csoportot: a neve és a beállításai megmaradnak, és a <strong class="ui">„Mégse”</strong> gombbal mindig visszaléphetsz.</p>
+<p>Egy megjegyzés: az <strong>egész</strong> csoportra tett lekerekítések és élletörések az újraépítéskor elvesznek. A sáv ezt jelzi is.</p>
+</section><section class="guide-part"><h2 id="kettevagas"><span class="heading-alias" id="splitting"></span>Kettévágás</h2>
+<p>A <strong class="ui">„Módosítás”</strong> területen lévő <strong class="ui">„Kettévágás”</strong> egy síkkal kettévágja a kijelölést – mondjuk egy alkatrészt, amely túl nagy a tárgyasztalhoz, vagy amelynek a belsejét látni szeretnéd. Jelölj ki egy vagy több tömör testet vagy lyukat, és kattints rá. Egy áttetsző sík pontosan mutatja, hová kerül a vágás; semmi sem változik, amíg nem alkalmazod.</p>
+<ul><li><strong class="ui">„Sík iránya”</strong>: az <strong>X</strong> függőleges vágást ad bal és jobb között, az <strong>Y</strong> elöl és hátul között, a <strong>Z</strong> vízszintes vágást felül és alul között. A tengelyek ugyanúgy vannak elnevezve, mint a Helyzet kártyán, a Z felfelé mutat; a sík a Z-n indul.</li><li><strong class="ui">„Igazítás a munkasíkhoz”</strong>: a <strong class="ui">„Párhuzamos”</strong> a munkasíkkal párhuzamosan fekteti a síkot, a <strong class="ui">„X-re keresztben”</strong> és a <strong class="ui">„Y-ra keresztben”</strong> merőlegesen állítja rá, keresztben az X vagy Y irányára. Ha a munkasík origója átmegy a kijelölésen, a sík rajta halad át, különben a közepén. Így a <kbd>W</kbd> billentyűvel egy ferde lapra teszed a munkasíkot, és pontosan ott vágsz, a forgatócsúszkák állítása nélkül.</li><li><strong class="ui">„Sík helyzete”</strong>: ahol a sík átmegy, csúszkával vagy begépelve. Középen indul. A síkon lévő nyílhegyet is húzhatod; a sík a nyíl mentén 0,1 mm-es lépésekben mozog.</li><li>A helyzet melletti <strong class="ui">„Lap kiválasztása”</strong> gomb egy lapra fekteti a síkot: kattints rá, majd kattints a lapra. Az irány, mindkét elforgatás és a helyzet ehhez igazodik. Kiválasztás közben a mutató alatt egy kék sík mutatja, melyik lapot fogja venni. Egy ki nem jelölt test lapja is működik, hogy a vágást hozzá igazítsd, de a sík a kijelölésen belül marad. Az <kbd>Esc</kbd> leállítja a kiválasztást, és a síkot ott hagyja, ahol volt.</li><li>Az alatta lévő két forgatócsúszka a másik két tengely körül forgatja a síkot, mindkét irányban legfeljebb 180°-kal, ferde vágáshoz. Kombinálhatók.</li></ul>
+<p>A <strong class="ui">„Modell kettévágása”</strong> vagy az <kbd>Enter</kbd> elvégzi a vágást, az <kbd>Esc</kbd> megszakítja (lapválasztás közben az első <kbd>Esc</kbd> csak a kiválasztást állítja le). Minden objektumból, amelyen a sík átmegy, két zárt test lesz, az oldaluk szerint elnevezve, például „Doboz (Z+)” és „Doboz (Z-)”; azok az objektumok, amelyeket nem metsz, változatlanok maradnak. Egy lyukból két lyuk lesz, a kiüregelt test pedig megtartja az üregét. Mindkét fél a helyén marad – nyomtatáshoz fektesd mindegyiket a vágott lapjára a <strong class="ui">„Lapra fektetés”</strong> paranccsal.</p>
+<p>A(z) <strong class="ui">„Connectors”</strong> újra egymáshoz igazítják a feleket, ahogy a PrusaSlicer, az OrcaSlicer és a Bambu Studio vágóeszközei teszik. A(z) <strong class="ui">„None”</strong> beállítással, ez az alapértelmezés, a vágás a fent leírtak szerint történik. A(z) <strong class="ui">„Dowels”</strong> mindkét félbe furatot készít, és külön csapokat, amelyek mindkettőbe beleillenek: a csapok harmadik testként jelennek meg, a felek mellett állva azok alján, hogy velük együtt nyomtasd őket – állva a rétegekben kerekre jönnek ki, mint a furataik, és éppen ezt méri az illesztési próba. A(z) <strong class="ui">„Plugs”</strong> kerek csapokat állít arra a félre, amelynek a neve mínuszra végződik, a hozzájuk való furatokat pedig a másik félbe készíti. Az összekötők merőlegesen mennek be a síkra, akárhogyan is van elforgatva, mindegyik a saját átmérőjével és 1,2 mm anyaggal a vágott lap minden széléig, kettő közülük pedig ennek kétszeresére egymástól. A vágott lap minden különálló darabja saját összekötőket kap, egyenletesen elosztva rajta: a(z) <strong class="ui">„Per cut face (0 = automatic)”</strong> megadja, hányat, a 0 pedig a darab méretére bízza, legalább kettőt. Az a darab, amely egyhez is túl kicsi, egyet sem kap, és ahol egy fél vékonyabb, mint amilyen mély a furata, ott az összekötő elmarad; a panel ezt még a vágás előtt jelzi, a síkon fehér gyűrűk mutatják, hová kerülnek. Ha egy sem fér el, az alkatrészek nélkülük válnak ketté, és az állapotsor ezt jelzi.</p>
+<ul><li>A(z) <strong class="ui">„Diameter”</strong> a csapok átmérője, kezdetben 5 mm.</li><li>A(z) <strong class="ui">„Depth into each half”</strong> megadja, milyen mélyen megy be minden furat a saját felébe. Egy laza csap ennek kétszerese mínusz 0,6 mm hosszú, egy álló csap pedig 0,3 mm-rel rövidebb a furatánál, így sosem ülnek a furat alján, és a felek teljesen összezárnak. A csapok végein kis letörés van, minden furat szájánál is, hogy egy szétlapult első réteg ne szűkítse.</li><li>A(z) <strong class="ui">„Dowels on a breakaway base”</strong> a(z) <strong class="ui">„Dowels”</strong> esetén a laza csapokat egy közös, az asztalon maradó lapra állítja, olyan nyomtatókhoz, amelyek mozgó asztala meglengeti az álló csapokat. Minden csap a lap egy foglalatában lévő kis bütykön áll; nyomtatás után mindegyiket hajlítgasd, amíg le nem törik, ahogy az illesztési próba csapját is.</li><li>A(z) <strong class="ui">„Clearance per side”</strong> a csap és a furata közötti hely. Ha a nyomtatód hézagát megmérted az illesztési próbával (a nyomtatásról szóló fejezetben), ebből indul, különben 0,2 mm-ről.</li></ul>
+<p>A(z) <strong class="ui">„Dovetail”</strong> ragasztó nélkül tartja össze a feleket, mint az OrcaSlicer fecskefarkas vágása: egy léc, amely a vágott laptól távolodva szélesedik, azon a félen áll, amelynek a neve mínuszra végződik, és egyenesen fut át a vágott lapon, széltől szélig; a másik fél megkapja a hozzá illő hornyot, mindkét végén nyitva. A feleket oldalról, a léc mentén told egymásba; ezután a vágásra merőlegesen már nem húzhatók szét. A lécek a vágott lap hosszában futnak, és ha egy test több darabban metszi a síkot, mindegyiken egy irányba futnak, hogy egy fél egyetlen mozdulattal rácsúsztatható legyen. A(z) <strong class="ui">„Per cut face (0 = automatic)”</strong> a lécek száma egymás mellett minden darabon; a 0 a darab szélességére bízza, hat lécszélességenként egyet, legalább egyet. Széles teteje mellett a léc megtartja saját szélességének felét és még 1,2 mm anyagot a vágott lap széléig, két léc pedig ennek kétszeresét egymástól. Az a darab, amely egy léchez túl keskeny vagy a léc irányában túl rövid, nem kap egyet sem, és a léc elmarad ott, ahol a másik fél vékonyabb, mint amilyen mély a horonya. A síkon fehér körvonalak mutatják, hová kerülnek: a kitöltött sáv a léc talpa, a körülötte futó vonal a széles teteje.</p>
+<ul><li>A(z) <strong class="ui">„Width at the cut face”</strong> a léc szélessége ott, ahol kilép a vágott lapból, kezdetben 6 mm.</li><li>A(z) <strong class="ui">„Depth into the other half”</strong> megadja, milyen messze áll ki a vágott lapból a másik félbe, kezdetben 4 mm. A horony 0,3 mm-rel mélyebb, hogy a felek teljesen összezárjanak.</li><li>A(z) <strong class="ui">„Flank angle”</strong> megadja, mennyire dől kifelé minden oldal a vágott lapra merőlegeshez képest, 5° és 30° között, kezdetben 15°. Minél nagyobb, annál szélesebb a léc teteje, és annál erősebben tart.</li><li>A(z) <strong class="ui">„Direction (0 = lengthwise)”</strong>: a 0 hosszában fekteti a léceket, a 90 keresztben a vágott lapon, a köztes szög pedig ennyivel elfordítja őket.</li><li>A(z) <strong class="ui">„Clearance per side”</strong> a hely mindkét oldalon a léc és a horonya között, az illesztési próbából, mint a csapoknál. A léc végei körben le vannak törve, hogy megtalálja a hornyot, és a horony szájánál is van letörés.</li></ul>
+<p>Nyomtatáshoz a horonyos felet fektesd a vágott lapjára, a lécest pedig fordítva nyomtasd, a vágott lappal felfelé: így a léc oldalai csak a szögükkel dőlnek kifelé, ami támasz nélkül nyomtatható.</p>
+<p>A lyukak összekötők nélkül válnak ketté.</p>
+<p>A felek egyszerű hálók: az olyan beállítások, mint egy henger oldalszáma vagy egy szöveg betűi, elvesznek, ezért ezeket előbb állítsd be. A <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> egy lépésben visszahozza az eredetit. Zárolt és elrejtett objektumok nem vághatók ketté.</p>
+</section><section class="guide-part"><h2 id="reszek-szetvalasztasa"><span class="heading-alias" id="separating-parts"></span>Részek szétválasztása</h2>
+<p>Ha egy alakzat több különálló darabból áll, például egyes betűkből álló szöveg, a <strong class="ui">„Részek szétválasztása”</strong> önálló alakzatokra bontja. A tétel a formán jobb gombbal megnyitott menüben is megtalálható.</p>
+<aside class="tip"><p><strong>Tipp:</strong> A lyukakat mindig építsd kicsit hosszabbra, mint az alkatrész, amelyen át kell menniük. Ha a lyuk pontosan a lappal egy síkban végződik, néha egy leheletvékony hártya marad. Egy milliméter túlnyúlás biztosra megy.</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/utmutato/select-and-arrange.html"><small>Előző fejezet</small>Kijelölés és elrendezés</a><a class="next" href="/api/desktop/layerling/ui/utmutato/edges-and-hollowing.html"><small>Következő fejezet</small>Élek letörése és testek kiüregelése</a></div>
+      </main>
+    </div>
+    <footer class="note">Ez az útmutató a programmal együtt bővül. Ha valami hiányzik vagy nem stimmel, szólj a <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">beszélgetésekben</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=hu" rel="noopener">A projekt támogatása</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Beszélgetések</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Bővebben a GitHubon</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Kiadási megjegyzések – v1.154.1</a></div><p class="trademark">A Tinkercad az Autodesk, Inc. védjegye. A layerling független projekt, nem kapcsolódik az Autodeskhez, és az Autodesk nem támogatja vagy szponzorálja.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Vissza a szerkesztőhöz";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Szerkesztő megnyitása";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

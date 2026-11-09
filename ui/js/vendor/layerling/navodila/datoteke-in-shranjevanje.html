@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="sl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Datoteke, shranjevanje in deljenje - layerling navodila</title>
+    <meta name="description" content="Kje ležijo tvoji načrti, kako jih varnostno shraniš, katere oblike layerling uvozi in izvozi in kaj je mogoče na skupnem strežniku.">
+    <link rel="canonical" href="https://layerling.com/navodila/datoteke-in-shranjevanje.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/files-and-saving.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/files-and-saving.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/files-and-saving.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/dateien-und-speichern.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/files-and-saving.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/files-and-saving.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/files-and-saving.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/files-and-saving.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/bestanden-en-opslaan.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/files-and-saving.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/datoteke-in-shranjevanje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/files-and-saving.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/files-and-saving.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/files-and-saving.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/files-and-saving.html">
+    <meta property="og:title" content="Datoteke, shranjevanje in deljenje - layerling navodila">
+    <meta property="og:description" content="Kje ležijo tvoji načrti, kako jih varnostno shraniš, katere oblike layerling uvozi in izvozi in kaj je mogoče na skupnem strežniku.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/navodila/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Navodila</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/navodila/search-index.json" data-nothing="Nič ni najdeno." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Išči po navodilih" aria-label="Išči po navodilih" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Jezik">Slovenščina</summary><ul><li><a href="/api/desktop/layerling/ui/guide/files-and-saving.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/files-and-saving.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/files-and-saving.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/files-and-saving.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/files-and-saving.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/files-and-saving.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/files-and-saving.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/files-and-saving.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/files-and-saving.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/files-and-saving.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/datoteke-in-shranjevanje.html" hreflang="sl" lang="sl" aria-current="true">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/files-and-saving.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/files-and-saving.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/files-and-saving.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/files-and-saving.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/files-and-saving.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/files-and-saving.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">V urejevalnik</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Urejevalnik je že odprt v drugem zavihku – preprosto preklopi nanj.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Poglavja"><h2>Poglavja</h2><p class="print-link"><a href="/api/desktop/layerling/ui/navodila/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Celotna navodila za tiskanje</span></a></p><ol><li><a href="/api/desktop/layerling/ui/navodila/prvi-koraki.html">Prvi koraki</a></li><li><a href="/api/desktop/layerling/ui/navodila/pogled-in-delovna-ravnina.html">Pogled in delovna ravnina</a></li><li><a href="/api/desktop/layerling/ui/navodila/oblike.html">Postavljanje in nastavljanje oblik</a></li><li><a href="/api/desktop/layerling/ui/navodila/izbiranje-in-razporejanje.html">Izbiranje in razporejanje</a></li><li><a href="/api/desktop/layerling/ui/navodila/telesa-in-luknje.html">Telesa in luknje</a></li><li><a href="/api/desktop/layerling/ui/navodila/robovi-in-izdolbljenje.html">Posnetje robov in izdolbljenje teles</a></li><li><a href="/api/desktop/layerling/ui/navodila/skice.html">Skice: od obrisa do telesa</a></li><li><a href="/api/desktop/layerling/ui/navodila/besedilo.html">Besedilo in ukrivljen napis</a></li><li><a href="/api/desktop/layerling/ui/navodila/navoji-in-mehanika.html">Navoji, zobniki in drugi sestavni deli</a></li><li><a href="/api/desktop/layerling/ui/navodila/merjenje-in-opombe.html">Merjenje in opombe</a></li><li><a href="/api/desktop/layerling/ui/navodila/tiskanje.html">Priprava za 3D-tisk</a></li><li><a href="/api/desktop/layerling/ui/navodila/datoteke-in-shranjevanje.html" aria-current="page">Datoteke, shranjevanje in deljenje</a></li><li><a href="/api/desktop/layerling/ui/navodila/bliznjice.html">Bližnjice na tipkovnici</a></li><li><a href="/api/desktop/layerling/ui/navodila/ai-z-mcp.html">Gradnja z umetno inteligenco (MCP)</a></li><li><a href="/api/desktop/layerling/ui/navodila/offline-in-namestitev.html">Namestitev kot aplikacije, delo brez interneta in lastno gostovanje</a></li><li><a href="/api/desktop/layerling/ui/navodila/videi.html">Videoposnetki o programu layerling</a></li><li><a href="/api/desktop/layerling/ui/navodila/tablica-in-dotik.html">Tablica in dotik</a></li></ol></nav>
+      <main>
+<h1>Datoteke, shranjevanje in deljenje</h1>
+<p class="lead">Kje ležijo tvoji načrti, kako jih varnostno shraniš, katere oblike layerling uvozi in izvozi in kaj je mogoče na skupnem strežniku.</p>
+<div class="toc"><b>Na tej strani</b><ul><li><a href="#kje-lezijo-tvoji-nacrti">Kje ležijo tvoji načrti</a></li><li><a href="#mape-za-tvoje-projekte">Mape za tvoje projekte</a></li><li><a href="#varnostno-kopiranje-in-deljenje">Varnostno kopiranje in deljenje</a></li><li><a href="#priloge">Priloge</a></li><li><a href="#izvoz">Izvoz</a></li><li><a href="#uvoz">Uvoz</a></li><li><a href="#poenostavitev-uvozene-mreze">Poenostavitev uvožene mreže</a></li><li><a href="#uvozeno-mrezo-naredi-natancno">Uvoženo mrežo naredi natančno</a></li><li><a href="#prijava-napake">Prijava napake</a></li><li><a href="#skupni-nacrti-na-strezniku">Skupni načrti na strežniku</a></li></ul></div>
+<section class="guide-part"><h2 id="kje-lezijo-tvoji-nacrti"><span class="heading-alias" id="where-your-designs-live"></span>Kje ležijo tvoji načrti</h2>
+<p>layerling vse shranjuje v brskalniku na tvojem računalniku. Računa ni in nič se ne nalaga na splet. Vsaka sprememba se shrani sama. Sličica predogleda na začetni strani kaže pogled, ki si ga imel nazadnje pred seboj, ko si se z <strong class="ui">„Domača stran“</strong> vrnil nazaj. Če layerling po nekaj dneh spet odpreš v istem brskalniku, je vse tam.</p>
+<p>Če se iz načrta, v katerem ni nič, vrneš na začetno stran, layerling vpraša, ali naj ostane. <strong class="ui">„Da“</strong> ali <kbd>Enter</kbd> ga obdrži, <strong class="ui">„Ne“</strong> ga odstrani, da se ne kopičijo prazni načrti. Pri načrtu v skupni mapi na strežniku <strong class="ui">„Ne“</strong> izbriše datoteko s strežnika, za vse, ki ga uporabljajo.</p>
+<p>To ima svojo slabo stran: kdor izbriše pomnilnik brskalnika ali preide na drug računalnik, izgubi načrte. <strong>Zato pomembna dela shrani v datoteko.</strong></p>
+</section><section class="guide-part"><h2 id="mape-za-tvoje-projekte"><span class="heading-alias" id="folders-for-your-designs"></span>Mape za tvoje projekte</h2>
+<p>Pri desetinah projektov en seznam ni dovolj. Na začetni strani <strong class="ui">„Nova mapa“</strong> ustvari mapo za projekte tega brskalnika; klik na mapo jo odpre. Mape lahko vsebujejo mape.</p>
+<ul><li><strong>V mapo:</strong> povleci projekt na mapo ali v meniju projekta izberi <strong class="ui">„Premakni v …“</strong>, ki ponudi vse mape. Nov projekt in datoteka, ki jo odpreš ali uvoziš, gre v mapo, ki je takrat odprta.</li><li><strong>Spet ven:</strong> prva ploščica v mapi, <code>..</code>, in vrstica pod zavihki vodita nazaj; nanju lahko povlečeš tudi projekt. Mapa, ki jo povlečeš na drugo mapo, gre vanjo.</li><li><strong>Preimenovanje in brisanje</strong> sta v meniju mape. Brisanje mape ne izbriše nobenega projekta: njena vsebina se pomakne za raven višje.</li><li><strong>Iskanje</strong> pregleda vse mape; najden projekt pokaže svojo mapo, klik nanjo pa jo odpre.</li></ul>
+<p><strong class="ui">„Prenesi vse“</strong> ohrani mape: projekti so v datoteki varnostne kopije v svojih mapah, obnovitev pa jih vrne tja. Mape tega brskalnika so ločene od map na strežniku. Predogledne slike kartic gredo tudi v datoteko, zato so po obnovitvi takoj nazaj.</p>
+</section><section class="guide-part"><h2 id="varnostno-kopiranje-in-deljenje"><span class="heading-alias" id="backing-up-and-passing-on"></span>Varnostno kopiranje in deljenje</h2>
+<p>Na začetni strani ima vsak načrt meni z možnostmi za preimenovanje, podvajanje in brisanje. Vrstica ob zavihkih ima na vsakem zavihku iste gumbe. Če želiš izbrisati več načrtov naenkrat, klikni <strong class="ui">„Izberi“</strong>: klik na kartico jo izbere (kljukica pokaže, kaj je izbrano), <strong class="ui">„Izberi vse“</strong> izbere vse načrte na seznamu, <strong class="ui">„Izbriši“</strong> pa vpraša enkrat za vse. <strong class="ui">„Končano“</strong> ali <kbd>Esc</kbd> zapusti izbiranje. Z <strong class="ui">„Prenesi vse“</strong> vse načrte odprtega zavihka naenkrat spakiraš v eno samo datoteko ZIP. <strong class="ui">„Obnovi varnostno kopijo“</strong> tik ob njem (je tudi na novem računalniku brez načrtov) jih vrne nazaj, tudi v drugem brskalniku ali na drugem računalniku; isto datoteko sprejme tudi <strong class="ui">„Odpri projekt ali uvozi geometrijo“</strong>. <strong class="ui">„Oblike po meri“</strong> tega brskalnika potujejo v isti datoteki, v mapi <code>Custom shapes</code>, glej <a href="/api/desktop/layerling/ui/navodila/oblike.html">Oblike</a>. Če obnoviš varnostno kopijo v brskalniku, ki nekatere od teh projektov že ima, se ti ne dodajo drugič; obvestilo pove, koliko jih je že bilo. Načrt, ki ga ni mogoče prebrati, se izpusti, obvestilo pa ga imenuje. Če se stran sredi varnostnega kopiranja znova naloži, običajno zato, ker je zelo velik načrt porabil ves pomnilnik, ki ga brskalnik dovoli, začetna stran potem pove, pri katerem načrtu se je ustavila: tega shrani posebej kot datoteko (glej spodaj) ali poenostavi njegove največje mreže, nato ponovno naredi varnostno kopijo. Nad načrti tega brskalnika te kratka vrstica opomni, da niso shranjeni nikjer drugje.</p>
+<p>Samo nekateri modeli: po <strong class="ui">„Izberi“</strong> <strong class="ui">„Varnostna kopija“</strong> zapakira samo izbrane modele v njihovih mapah v eno datoteko ZIP, <strong class="ui">„Varnostna kopija“</strong> v meniju mape pa zapakira to mapo z vsemi modeli in mapami v njej. Nobeden od njiju ne vzame lastnih oblik, <strong class="ui">„Obnovi varnostno kopijo“</strong> pa vrne oboje kot polno varnostno kopijo. To velja za modele tega brskalnika.</p>
+<p>Kam gre varnostna kopija: v Chromu in Edgu pogovorno okno za shranjevanje vpraša za mapo in ime ter si mapo zapomni za naslednjo kopijo. Tako gredo kopije naravnost v lastno mapo, na primer na disk v oblaku. Enako velja za <strong class="ui">„Varnostna kopija oblik po meri“</strong>. Drugi brskalniki shranijo datoteko v svojo mapo za prenose; katera mapa je to, se nastavi v nastavitvah brskalnika.</p>
+<p>Če se načrt odpira zelo počasi ali sploh ne, navadno zato, ker je njegova zgodovina korakov razveljavitve postala zelo velika, v njegovem meniju na začetni strani izberi <strong class="ui">„Odpri brez zgodovine“</strong>. layerling nato prebere samo trenutno stanje, za vedno izbriše vse prejšnje korake in odpre načrt; prej vpraša, ker tega ni mogoče razveljaviti. Če želiš korake obdržati, načrt najprej varnostno kopiraj z <strong class="ui">„Varnostna kopija“</strong>.</p>
+<p>Posamezen načrt shraniš v urejevalniku: <strong class="ui">„Izvozi“</strong>, nato izberi obliko <strong>LYL</strong> in klikni <strong class="ui">„Shrani projekt Layerling“</strong>. Datoteka LYL je lasten načrtovalski format programa layerling in vsebuje vse: oblike, skupine, skice, podatke CAD, uvožene vire in zgodovino, torej korake razveljavitve. Pri <strong class="ui">„Shranjena zgodovina dejanj“</strong> izbereš, koliko zadnjih korakov naj potuje zraven; privzeto je to, kar nastavitve (zobnik v orodni vrstici) pod <strong class="ui">„Zgodovina“</strong> hranijo. Zadnja postaja, <strong class="ui">„Brez“</strong>, shrani načrt samo s trenutnim stanjem – tako ga deliš brez korakov razveljavitve. Izvoz je kopija pod <strong class="ui">„Ime datoteke“</strong>, ki ga vpišeš; načrt v brskalniku obdrži svojo zgodovino. Starejše datoteke <code>.skf</code> iz prejšnjih različic je še vedno mogoče odpreti, shrani se potem kot <code>.lyl</code>.</p>
+<p><strong>Shranjevanje v lastno mapo (Chrome in Edge).</strong> Tam gumb odpre sistemsko okno za shranjevanje, tako da mapo in ime izbereš sam, obstoječo datoteko pa je mogoče nadomestiti. Potem <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>S</kbd></span> shrani načrt spet v isto datoteko, brez okna. Načrt, odprt iz datoteke <code>.lyl</code> z <strong class="ui">„Odpri projekt ali uvozi geometrijo“</strong> ali z gumbom za odpiranje v oknu za izvoz, se shrani tudi nazaj vanjo. Brskalnik te lahko enkrat vpraša za dovoljenje za spreminjanje datoteke. Po ponovnem nalaganju strani načrt pozabi svojo datoteko in naslednji <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>S</kbd></span> jo spet vpraša; okno se odpre v mapi, ki si jo uporabil nazadnje. Firefox in Safari strani ne dovolita pisati v datoteke na ta način. Tam se datoteka kot prej prenese v mapo Prenosi, <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>S</kbd></span> jo prenese znova; v Firefoxu je mogoče pod Nastavitve, Splošno, Prenosi določiti, da vsakič vpraša za mapo. Če datoteki tam daš drugo ime, projekt obdrži svoje, saj je različica ali datum v imenu datoteke pogosto namenoma; sporočilo po shranjevanju nato ponudi <strong class="ui">„Tudi projekt poimenuj tako“</strong>.</p>
+<p><strong>Ko okno za shranjevanje ne shrani ničesar.</strong> Če se okno zapre brez datoteke, sporočilo zgoraj to pove in ponudi <strong class="ui">„Raje prenesi“</strong>: zasnova gre takrat v mapo Prenosi, kot v Firefoxu. Brskalnik okno, zaprto s Prekliči, javi enako kot okno, ki ga ni mogel uporabiti, zato na računalniku, kjer okno za shranjevanje odpove v vsaki mapi, tako še naprej shranjuješ.</p>
+</section><section class="guide-part"><h2 id="priloge"><span class="heading-alias" id="attachments"></span>Priloge</h2>
+<p>Navodila, seznam delov, opombe, fotografija ali podatkovni list lahko ostanejo pri projektu kot datoteke. <strong class="ui">„Priloge“</strong> v vrstici <strong class="ui">„Datoteka“</strong>, sponka, odpre seznam; majhna pika na sponki pokaže, da jih projekt ima.</p>
+<ul><li><strong><strong class="ui">„Naloži prilogo“</strong>:</strong> Izberi eno ali več datotek: <code>.md</code> (Markdown) ali <code>.txt</code> kot navadno besedilo (UTF-8), slike <code>.png</code>, <code>.jpg</code>, <code>.jpeg</code> ali <code>.webp</code> ali dokumente <code>.pdf</code>. Datoteka se preveri po vsebini, zato je datoteka, ki ni to, kar pravi njeno ime, zavrnjena, drugih vrst, med njimi <code>.svg</code>, pa ni mogoče priložiti. Besedilna datoteka ima lahko največ 2 MB, slika 16 MB in PDF 32 MB; projekt sprejme do 32 datotek in skupaj 64 MB.</li><li><strong>Seznam:</strong> Puščica prenese datoteko, kakršna je bila naložena. Koš jo odstrani; vrstica prej še enkrat vpraša, odstranjene datoteke pa ni mogoče vrniti z razveljavitvijo, ker priloge niso del zgodovine razveljavitev.</li><li><strong>Branje datoteke:</strong> Oko v vrstici datoteke <code>.md</code> ali <code>.txt</code> jo odpre v oknu za branje, ne da bi jo prenesel. Markdown se prikaže oblikovan, z naslovi, seznami, potrditvenimi polji, tabelami in kodo; besedilna datoteka točno tako, kot je napisana. Delujejo le povezave na spletne strani in e-poštne naslove, odprejo pa se v novem zavihku. Slike, ki jih datoteka navaja, se ne naložijo: na njihovem mestu stoji njihov opis. Okno zapre Escape, križec ali klik poleg njega. Branje deluje tudi v pogledu zgodovine.</li><li><strong>Ogled slike:</strong> Oko v vrstici slike jo odpre v istem oknu, pomanjšano, če je velika. PDF nima očesa: prenesi ga in ga odpri v programu, s katerim bereš datoteke PDF.</li><li><strong>Ime, ki že obstaja:</strong> layerling vpraša, kaj naj se zgodi. <strong class="ui">„Zamenjaj“</strong> vstavi novo vsebino v datoteko s tem imenom, ki ohrani svoje mesto na seznamu. <strong class="ui">„Preimenuj“</strong> doda novo datoteko pod drugim imenom in predlaga prvo prosto, na primer <code>opombe 2.md</code>. Križec novo datoteko izpusti. Velike in male črke štejejo enako, ponovno nalaganje iste datoteke pa ne spremeni ničesar.</li></ul>
+<p>Priloge se shranijo s projektom kot vse drugo: v brskalniku, v datoteki LYL, v varnostni kopiji in v projektu na strežniku, kamor pridejo, takoj ko se katera doda ali odstrani. S <strong class="ui">„Vstavi v ta projekt“</strong> ali z lastno obliko ne gredo zraven, poročilo o napaki pa jih ne vsebuje. Projekt s prilogami se shrani kot novejša vrsta datoteke LYL: starejši layerling pove, da je ne more odpreti, namesto da bi datoteke izgubil. Projekt brez prilog se shrani povsem tako kot prej.</p>
+</section><section class="guide-part"><h2 id="izvoz"><span class="heading-alias" id="exporting"></span><span class="heading-alias" id="svg-for-a-laser-or-plotter"></span><span class="heading-alias" id="a-drawing-for-the-workshop"></span><span class="heading-alias" id="how-much-filament-does-it-take"></span>Izvoz</h2>
+<p>Klikni <strong class="ui">„Izvozi“</strong> ali pritisni <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>E</kbd></span>.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/export-panel.webp" alt="Okno za izvoz z oblikami STL, 3MF, OBJ, STEP, SVG, PNG, LYL in 2D." width="1280" height="800" loading="lazy"><figcaption>Okno za izvoz z oblikami STL, 3MF, OBJ, STEP, SVG, PNG, LYL in 2D.</figcaption></figure>
+<p>Zgoraj je ime datoteke, pod njim izbereš obliko. Če je kaj označeno, se izvozi samo izbor, sicer celoten načrt. Če izbor izpusti vidne dele, to jasno pove opomba v oknu, <strong class="ui">„Izberi vse“</strong> pa z enim klikom označi vse vidno. Ko je datoteka zapisana, se okno samo zapre; če izvoz ne uspe, ostane odprto s sporočilom.</p>
+<div class="table-scroll"><table><thead><tr><th>Oblika</th><th>Za kaj</th><th>Kaj moraš vedeti</th></tr></thead><tbody><tr><td><strong>STL</strong></td><td>Rezalnik in 3D-tisk</td><td>Mreža trikotnikov. Najpreprostejša in najbolj razširjena oblika. STL nima delov: telesa, ki se prekrivajo, se spojijo v eno mrežo. Če jih želiš ohraniti kot ločene dele, izvozi 3MF. V Chromu in Edgeu prvi izvoz STL vpraša, kam shraniti, poznejši izvozi STL tega načrta pa pišejo v to datoteko, dokler v polje z imenom datoteke ne vpišeš drugega imena ali ne pritisneš <strong class="ui">„Shrani kot …“</strong>.</td></tr><tr><td><strong>3MF</strong></td><td>Rezalnik z barvami</td><td>Vsako telo ostane svoj del z imenom in barvo. Kar se prekriva, se združi samo pri enaki barvi; če oblika tiči v drugobarvni, na primer logotip v plošči, prva zgrajena tam naredi prostor za kasnejšo. Primerno za PrusaSlicer, Bambu Studio, OrcaSlicer in Curo. Bambu Studio in OrcaSlicer ob odpiranju vprašata, kako naj se barve porazdelijo na tvoje filamente, in datoteko imenujeta »ne od Bambu« – to sporočilo je neškodljivo. OrcaSlicer in rezalniki, zgrajeni na njem, pa ne preberejo barve za vsako ploskev. Datoteka s telesom več barv, na primer posodo Gridfinity s črkami lastne barve ali skupino z vklopljeno možnostjo <strong class="ui">„Večbarvno“</strong>, ima zato vsako ploskev pobarvano še s filamentom njene barve, kot bi jo pobarvali v rezalniku: OrcaSlicer in PrusaSlicer 2.9 nato natisneta vsako barvo z njenim filamentom, PrusaSlicer do 15 barv, Bambu Studio 2.9 pa vzame filamente iz barvanja, namesto da bi vprašal.</td></tr><tr><td><strong>OBJ</strong></td><td>Modeliranje in izmenjava</td><td>Široko podprta oblika mreže. Barve so kot barve oglišč v isti datoteki, brez dodatne <code>.mtl</code>. Bambu Studio in OrcaSlicer jih preberta in kot pri 3MF vprašata po razporeditvi na filamente; drugi programi vidijo samo obliko. Prekrivajoča se telesa se kot pri 3MF združijo samo pri enaki barvi.</td></tr><tr><td><strong>STEP</strong></td><td>Polnovreden program CAD</td><td>Obdrži kvadre, valje, krogle in stožce kot natančno geometrijo, prav tako oblike iz obrisa (zvezda, srce, elipsa, cev, polkrogla, okrogla streha, zaobljen kvader, lastovičji rep, izvrtine in več), ukrivljeno cev, klin, piramido, paraboloid, ukrivljen stožec, navoje, vzmeti in zobnike, poleg tega zaokrožitve in posnetja. Prvi izvoz STEP v seji enkrat naloži jedro CAD (približno 22 MB).</td></tr><tr><td><strong>SVG</strong></td><td>Laserski rezalniki in ploterji</td><td>Čist tloris v milimetrih, z luknjami in ukrivljenimi obrisi. Pod <strong class="ui">„Pogled“</strong> zapiše <strong class="ui">„Odtis na delovni ravnini“</strong> samo obrise, s katerimi predmeti stojijo na delovni ravnini. <strong class="ui">„Vidni robovi od zgoraj“</strong> zapiše robove, vidne od zgoraj, kot črte, vsako telo v svoji barvi.</td></tr><tr><td><strong>DXF</strong></td><td>delavnica za lasersko rezanje</td><td>Isti tloris (<strong class="ui">„Silhueta od zgoraj“</strong> ali <strong class="ui">„Odtis na delovni ravnini“</strong>) kot en obris iz črt, pravih lokov in krogov - brez polilinij, zlepkov in krivulj iz kratkih ravnih kosov - na plasti 0 v beli barvi, DXF 2000 v milimetrih, ne zrcaljeno. Telesa, ki se dotikajo, dajo en obris, zato se nobena črta ne reže dvakrat. Delavnice želijo en del na datoteko: pred izvozom izberite del. Na laserskem rezalniku še ni preizkušeno: povratne informacije so dobrodošle.</td></tr><tr><td><strong>PNG</strong></td><td>Prispevki na forumih, tiskarski portali, povpraševanja</td><td>Slika pogleda, kakršen je ravno zdaj, v dvojni ločljivosti in brez ročic, okvirja izbora in mer. <strong class="ui">„Pokaži tiskalno ploščo“</strong> in <strong class="ui">„Prozorno ozadje“</strong> izbereš v oknu. Prej zavrti in zumiraj, dokler izrez ne ustreza; izbor tu ne igra vloge.</td></tr><tr><td><strong>LYL</strong></td><td>layerling sam</td><td>Urejljiv načrt z vsem, kar spada zraven.</td></tr><tr><td><strong>2D</strong></td><td>delavnica, stružnica in rezkalnik, dokumentacija</td><td>Risba v merilu 1:1 kot PDF ali SVG: pogled od spredaj, od zgoraj in z desne na listu ISO. Glej spodaj.</td></tr></tbody></table></div>
+<p><strong>Mostički za dele, ki bi izpadli (DXF in SVG).</strong> Ko laser ali risalnik reže ploščo z besedilom, izpade notranjost črk, kot so o, a in b. Odkljukaj <strong class="ui">„Mostički za dele, ki bi izpadli“</strong> v oknu za izvoz DXF ali SVG s pogledom od zgoraj in majhni mostički take dele držijo ob materialu okoli njih, kot pri šabloni: <strong class="ui">„Širina mostička“</strong> (0,5 do 3 mm) in <strong class="ui">„Mostički na del“</strong> (1 do 4) nastaviš zraven. Mostiček se nikoli ne dotakne drugega obrisa ali drugega mostička in nikoli ne pusti reže, preozke za rez; deli, ki bi se držali samo drug drugega, so tudi privezani na ploščo. Če del pri izbrani širini ne dobi mostička, sporočilo po izvozu pove koliko. Brez kljukice se nič ne spremeni.</p>
+<p><strong>STL v lastno mapo (Chrome in Edge).</strong> Tam prvi izvoz STL načrta odpre sistemsko pogovorno okno za shranjevanje, tako da mapo in ime izbereš sam in lahko nadomestiš obstoječo datoteko. Potem vsak izvoz STL načrta piše v isto datoteko brez pogovornega okna; okno za izvoz pokaže, v katero, <strong>Shrani kot …</strong> ob gumbu za izvoz pa izbere drugo. Pogovorno okno si zapomni lastno mapo, ločeno od mape za načrte, tako da datoteke za rezalnik lahko ostanejo pri rezalniku. Po ponovnem nalaganju strani načrt pozabi svojo datoteko STL in naslednji izvoz spet vpraša. Firefox in Safari datoteko prenesesta kot doslej. Če bi raje imel vsak STL kot navaden prenos, da brskalnik že uporabljeno ime oštevilči (<code>name (1).stl</code>, <code>name (2).stl</code>) kot Tinkercad, v nastavitvah pod <strong class="ui">„Videz“</strong> vklopi <strong class="ui">„Shrani STL kot prenos“</strong>.</p>
+<p><strong>STL v lastno mapo (Chrome in Edge).</strong> Tam prvi izvoz STL načrta odpre sistemsko okno za shranjevanje, tako da mapo in ime izbereš sam in lahko nadomestiš obstoječo datoteko. Potem vsak izvoz STL tega načrta zapiše v isto datoteko brez okna; okno za izvoz pokaže, katera je, <strong>Shrani kot …</strong> ob gumbu za izvoz pa izbere drugo. Okno si zapomni svojo mapo, ločeno od tiste za načrte, zato lahko datoteke za rezalnik ostanejo pri rezalniku. Po ponovnem nalaganju strani načrt pozabi svojo datoteko STL in naslednji izvoz spet vpraša. Firefox in Safari datoteko prenesejo kot prej.</p>
+<p>Luknjo, ki je nisi združil v skupino, izvoz odšteje od vsakega telesa, ki se je dotika, tako kot kaže pogled. Pred vsakim izvozom torej ni treba združevati. Pri izboru štejejo samo izbrane luknje. Samo za sebe luknje ni mogoče izvoziti; na to te opozori layerling.</p>
+<p>STEP vsebuje samo natančna telesa CAD. Uvožena mreža se za datoteko naredi natančna, kot to stori <strong class="ui">„Naredi natančno“</strong> (glej »Uvoženo mrežo naredi natančno« spodaj), zato lahko izvoz traja do minute; večinoma prostooblikovana mreža, kot je figura, ostane zunaj, prav tako vse drugo, česar ni mogoče natančno prikazati. Sporočilo po izvozu ta telesa imenuje po imenu in pove, zakaj. Za tiskalnik potem vzameš STL ali 3MF, ki prenesta vse.</p>
+<section class="guide-part"><h3 id="risba-za-delavnico">Risba za delavnico</h3>
+<p>Izberi obliko <strong>2D</strong> (ko miško zadržiš nad njo, piše Risba) in pod imenom datoteke PDF ali SVG. Če je kaj izbrano, se nariše samo izbor, sicer pa ves viden načrt; luknje, ki jih nisi združil v skupino, še vedno izrežejo dele, ki jih zadenejo.</p>
+<p>layerling nariše pogled od spredaj, od zgoraj in z desne v prvem kotu projekcije (desni pogled levo od sprednjega, zgornji pod njim) na najmanjšem listu ISO, ki zadošča, od A4 do A0, ali na večjem, če ga del potrebuje. Merilo je vedno 1:1. Vsak pogled ima svojo skupno širino in višino, robovi, ki jih ne vidiš, pa so črtkani. Okrogle izvrtine, ki tečejo vzporedno s smerjo pogleda, dobijo središčni križ in oznako (F1, T1, R1), tabela spodaj pa našteje njihov premer in položaj, merjen od spodnjega levega kota pogleda. Naslovni blok v spodnjem desnem kotu vsebuje ime, merilo, enote, datum in številko lista. Besede na listu sledijo jeziku vmesnika.</p>
+<p>Natisni pri 100 % ali »dejanski velikosti«, sicer dolžine ne bodo ustrezale. Risba ne naredi tega: navoji, globine, tolerance in poševne izvrtine niso kotirani, mere pa izhajajo iz modela kot mreže, zato so nazivne. Zelo podroben del (nad 100.000 trikotnikov) ali več kot 200 izvrtin se zavrne s sporočilom; takrat izberi manj predmetov.</p>
+<p>Projekcija temelji na risarskem delu programa Cadverix-3D avtorja WC3D.</p>
+</section><section class="guide-part"><h3 id="koliko-filamenta-to-potrebuje">Koliko filamenta to potrebuje?</h3>
+<p>Pri STL, 3MF, OBJ in STEP polje <strong class="ui">„Material“</strong> pokaže prostornino, težo in dolžino filamenta (1,75 mm) tistega, kar se izvaža. Šteje se kot v datoteki: samo vidna telesa, luknje odštete, prekrivanja samo enkrat. Desno izbereš filament – PLA, PETG, ABS, ASA, TPU ali PA (najlon) –, teža sledi njegovi gostoti. Prostornina je prostornina samega telesa. Teža in filament sta groba ocena za tisk s stenami in polnilom: pod naslovom nastaviš <strong class="ui">„Polnilo“</strong> (na začetku 15 %) in <strong class="ui">„Stene“</strong> (2), polje pa pove, kaj je štelo in koliko bi tehtal isti del kot poln. Pravo številko določajo nastavitve tvojega rezalnika, zato jo vzemi kot vodilo: dobro je za primerjavo načrtov in za to, ali kolut še zadošča. Pri 100 % polnila polje šteje del kot polnega, kar je zgornja meja. Polje izračuna svoje številke, ko pritisneš <strong class="ui">„Izračunaj“</strong>, tako da se okno za izvoz odpre takoj, tudi pri fino obrisanem modelu.</p>
+</section></section><section class="guide-part"><h2 id="uvoz"><span class="heading-alias" id="importing"></span>Uvoz</h2>
+<p>Prek <strong class="ui">„Uvozi“</strong> ali <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>I</kbd></span> v načrt prineseš tuje datoteke.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/import-panel.webp" alt="Okno za uvoz: odpri ali vstavi načrte in odloži geometrijo." width="1280" height="800" loading="lazy"><figcaption>Okno za uvoz: odpri ali vstavi načrte in odloži geometrijo.</figcaption></figure>
+<ul><li><strong><strong class="ui">„Odpri projekt Layerling“</strong>:</strong> Načrt programa layerling (<code>.lyl</code> ali starejši <code>.skf</code>) pride nazaj kot nov načrt.</li><li><strong><strong class="ui">„Vstavi v ta projekt“</strong>:</strong> Telesa načrta programa layerling pridejo zraven v odprtega. Praktično za osnovne oblike, ki jih potrebuješ znova in znova: zgradi jih enkrat, shrani in jih vsakič prinesi noter. Če eno ali več datotek <code>.lyl</code> spustiš na polje spodaj, se vstavijo na enak način. Njegove <a href="/api/desktop/layerling/ui/navodila/merjenje-in-opombe.html">opombe</a> pridejo zraven, zložene in oštevilčene naprej za tistimi, ki jih načrt že ima, prav tako njegove referenčne točke.</li><li><strong><strong class="ui">„Vstavi s strežnika“</strong>:</strong> Enako za projekt, shranjen na strežniku (prikaže se, če obstaja shramba na strežniku). Izberi mapo in klikni projekt; njegova telesa se dodajo odprtemu.</li><li><strong>DXF:</strong> DXF, kot ga pošlje delavnica za lasersko rezanje ali dobavitelj z obrisom dela, pride noter kot deli za nadaljnje delo: vsak sklenjen obris kot 4 mm visoko telo in vsaka luknja v njem kot samostojna luknja ob njem (okrogla kot valj), tako da luknjo v 3D-urejevalniku premaknete in ji spremenite velikost kot kateri koli drugi; za premik celega dela izberite vse. V milimetrih (datoteka v palcih se pretvori, datoteka brez enote se prebere v milimetrih), loki in krogi ostanejo pravi loki. Prebrane so črte, loki, krogi, elipse, polilinije, zlepki in bloki; besedilo, kote in šrafure so izpuščene, prav tako obrisi, ki se ne sklenejo - sporočilo pove, koliko. Debelino nastavite v lastnostih.</li><li><strong>Dodaj geometrijo:</strong> Datoteke STL, OBJ, 3MF, STEP, SVG, PNG ali JPG odloži v oknu ali klikni, da izbereš datoteko. Uvožene mreže lahko vrtiš, premikaš, režeš z luknjami in nato gradiš naprej. SVG pride kot skicirano telo, tudi tak iz sledilnika, kot je picsvg.com, ali Inkscapov »Trace Bitmap«: njegovi obrisi postanejo črte in krivulje skice, visoke 4 mm in od zgoraj berljive tako kot na risbi. V lastnostih nastaviš <strong class="ui">„Zapolnitev“</strong>, kot ploskev ali kot konturo zunaj, znotraj ali sredinsko, in z <strong class="ui">„Silhueta (brez lukenj)“</strong> odpadejo luknje, glej <a href="/api/desktop/layerling/ui/navodila/skice.html">Skice</a>, razdelek »Polnilo in silhueta«. Same točke spreminjaš v skicirnem načinu. Samo zelo zapleten SVG z več kot 2500 črtami in krivuljami pride kot trdna mreža. Slika PNG ali JPG se izsledi v obris in pride enako kot skicirano telo, široko 50 mm, ki ga lahko pozneje spremeniš: del slike, ki ni njeno ozadje, pri čemer je ozadje del, ki zavzame več robu slike. SVG, ki vsebuje samo eno sliko, se izsledi enako. Oblika, ki je ni mogoče sestaviti v telo, na primer obris, ki seka sam sebe ali se sam dotika v točki, je izpuščena, po uvozu pa layerling pove, koliko jih je bilo. Takrat pomaga, da v risalnem programu združiš prekrivajoče se dele, zapreš obrise in datoteko znova shraniš. Risbe, narejene na eni strani, na primer plasti enega dokumenta, izvožene kot ločene datoteke, se spet poravnajo, če pred uvozom v oknu za uvoz vklopiš <strong class="ui">„SVG: ohrani mesto na risalni strani“</strong>: vsaka obdrži svoje mesto na strani, sicer pa je vsaka centrirana sama na sebi. Tudi SVG, narisan v več barvah, pride kot eno telo za vsako barvo, vsako v svoji barvi in na svojem mestu; z več kot 12 barvami, kot jih ima obrisana slika, ostane eno telo. Barvni OBJ ali 3MF pride kot eno telo na barvo, vsa na svojem mestu drugo glede na drugo. Pri OBJ so barve ali v sami datoteki, kot pri OBJ iz programa layerling, ali v <code>.mtl</code> ob njej. Tega izbereš zraven, ali pa uvoziš kar celoten ZIP, tako kot ga Tinkercad izda za OBJ. 3MF nosi barve sam, pri projektu iz Bambu Studia, OrcaSlicerja ali PrusaSlicerja pa vsak del dobi barvo svojega filamenta. 3MF z več objekti, na primer projekt z enim objektom na tiskalno ploščo, pride kot eno telo na objekt; modifikatorji, negativni volumni in blokatorji podpor iz rezalnika ostanejo zunaj. Kar je bilo v rezalniku naslikano na ploskve, layerling ne bere.</li><li><strong>Iz Tinkercada:</strong> Izvoz STL ali OBJ iz Tinkercada pride kot geometrija, kot vsaka druga mreža; OBJ ohrani barve. Prave oblike prenese brezplačno orodje skupnosti: <a href="https://taylormadearmy.github.io/tinkercad-layerling-importer/" rel="noopener">Export to layerling</a> avtorja taylormadearmy, zaznamek, ki v brskalniku pretvori načrt iz Tinkercada v datoteko <code>.lyl</code>, ki jo tu odprete z <strong class="ui">„Odpri projekt Layerling“</strong>. Ni del layerlinga in ga sami še nismo preizkusili; avtor ga je preizkusil v Windows s Chromom.</li></ul>
+<p>Načrt, shranjen z <strong>novejšo različico programa layerling</strong>, lahko vsebuje stvari, ki jih tvoja različica še ne pozna, na primer novo obliko, novo nastavitev ali lastne pisave. Če ga layerling zato ne more odpreti, sporočilo navede obe različici. Če se odpre, v opombi piše, da novejše tu lahko izgleda drugače. V obeh primerih pomaga, da stran naložiš znova: layerling.com vedno dostavi najnovejšo različico. Nameščena aplikacija si jo prinese ob naslednjem zagonu, na lastnem strežniku posodobitev namestiš sam.</p>
+<p>Slike kot predlogo vstaviš v skicirnem načinu, glej <a href="/api/desktop/layerling/ui/navodila/skice.html">Skice</a>.</p>
+</section><section class="guide-part"><h2 id="poenostavitev-uvozene-mreze"><span class="heading-alias" id="simplifying-an-imported-mesh"></span>Poenostavitev uvožene mreže</h2>
+<p>Skenirana ali modelirana mreža ima pogosto bistveno več trikotnikov, kot jih njena oblika potrebuje, in vsakega se vleče zraven pri premikanju, rezanju in shranjevanju. <strong class="ui">„Poenostavi mrežo“</strong> v skupini Spreminjanje (ali v meniju z desnim klikom na telo) pokaže mrežo, kakršna je, ob tistem, kar od nje ostane pri izbranem deležu njenih trikotnikov; oba pogleda se vrtita in zumirata skupaj, z miškinimi gumbi delovne ravnine. Določiš, koliko naj ostane, kot odstotek ali kot število trikotnikov, in <strong class="ui">„Poenostavi“</strong> prevzame lažjo mrežo. Rezultat je preprosta mreža: pri rezultatu reza ali združitve odpadeta <strong class="ui">„Uredi skupino“</strong> in prvotni deli. Z vklopljenim <strong class="ui">„Ohrani robove in luknje“</strong>, kot je na začetku, ostanejo ostri robovi in robovi lukenj natanko tam, kjer so, ravne ploskve pa vseeno izgubijo večino trikotnikov; izklopljeno jih poenostavitev sme zaobliti za manjše število. Če se poenostavitev ustavi nad želenim številom, okno to pove in zakaj: z vklopljenim <strong class="ui">„Ohrani robove in luknje“</strong> telo iz ravnih ploskev in ostrih robov, na primer iz kvadrov in klinov, pogosto ne more izgubiti več.</p>
+<p>Rezanje, združevanje in preseki z uvoženo mrežo se izračunajo v tvojem brskalniku, zato nastavitve delovnega prostora omejujejo, koliko trikotnikov lahko taka mreža ima (<strong class="ui">„Reži uvožene mreže do“</strong>). Mreža čez mejo se ne obdela in sporočilo navede število njenih trikotnikov; mrežo najprej poenostavi ali mejo dvigni, če tvoj računalnik to zmore.</p>
+</section><section class="guide-part"><h2 id="uvozeno-mrezo-naredi-natancno"><span class="heading-alias" id="making-an-imported-mesh-exact"></span>Uvoženo mrežo naredi natančno</h2>
+<p>Datoteka STL, OBJ ali 3MF vsebuje le trikotnike, tudi če je bil del narisan v CAD z ravnimi ploskvami in okroglimi izvrtinami. <strong class="ui">„Naredi natančno“</strong> v skupini <strong class="ui">„Spreminjanje“</strong> (ali v meniju z desnim klikom na telesu) v teh trikotnikih poišče ravnine, valje, stožce, krogle in toruse, iz katerih so nastali, in iz njih znova zgradi telo kot natančno telo CAD: izvrtina postane en pravi valj z okroglim robom namesto stotih ozkih trakov. Nato <strong class="ui">„Zaokrožitev“</strong> in <strong class="ui">„Posnetje“</strong> sledita enemu čistemu robu, <strong class="ui">„Izbriši ploskev“</strong> odstrani celo zaokrožitev ali steno luknje, izvoz STEP pa nosi prave ploskve. Vrstica stanja pove, kaj je bilo najdeno, na primer »ravnine: 9, valji: 4«.</p>
+<p>Kar ne ustreza nobeni od teh ploskev, ostane kot majhne ravne fasetke, sporočilo pa pove, kolikšen del površine je to. Telo, ki je večinoma prostooblikovano, kot figura ali oblikovana skulptura, ostane mreža, prav tako mreža z luknjami ali stenami, ki se sekajo, saj se ne more skleniti v telo. Sprejme se do 400.000 trikotnikov, velika mreža pa lahko traja nekaj minut. Večjo mrežo spraviš pod to mejo s <strong class="ui">„Poenostavi mrežo“</strong> in vklopljenim <strong class="ui">„Ohrani robove in luknje“</strong>; sicer vzemi mrežo, kakršna je prišla, tako je rezultat najčistejši. En korak razveljavitve vrne mrežo.</p>
+<p>Pri majhni mreži z okroglimi ploskvami, do 4.000 trikotnikov, to orodja za robove naredijo sama: zaokrožitev roba takšne STL jo najprej na enak način znova zgradi.</p>
+</section><section class="guide-part"><h2 id="prijava-napake"><span class="heading-alias" id="reporting-a-bug"></span>Prijava napake</h2>
+<p>Če layerling naredi kaj nepričakovanega, shrani <strong class="ui">„Poročilo o napaki“</strong>: povezava je spodaj v nogi ob forumu. To je datoteka ZIP, ker GitHub in mnogi forumi zavračajo goli .lyl: v njej sta tvoj načrt kot .lyl in kratka besedilna datoteka z različico, brskalnikom, velikostjo zaslona, zadnjimi sporočili in nastalimi napakami. Začetna stran odpre ZIP kot varnostno kopijo, ali pa ga razpakiraš in odpreš .lyl. Osebnih podatkov v njej ni. Datoteko priloži svojemu prispevku na forumu ali pri GitHubu, potem je napako mogoče ponoviti natanko s tvojim načrtom.</p>
+<p>Če se layerling zaustavi z napako, se namesto prazne strani pokaže okno s sporočilom o napaki. V njem shraniš nazadnje v brskalniku shranjeno stanje načrta kot datoteko .lyl, se vrneš na pregled ali začneš nov načrt. Sporočilo o napaki iz okna in shranjena datoteka pomagata pri prijavi.</p>
+</section><section class="guide-part"><h2 id="skupni-nacrti-na-strezniku"><span class="heading-alias" id="shared-designs-on-a-server"></span>Skupni načrti na strežniku</h2>
+<p>Če layerling teče na lastnem računalniku ali spletnem strežniku, lahko ponudi skupno mapo, v kateri vsi uporabniki odlagajo načrte. Začetna stran potem pokaže načrte v dveh zavihkih, <strong class="ui">„Strežnik“</strong> za skupno mapo in enem za ta brskalnik, vsakem s številom načrtov; tisti z več načrti je prvi in odprt. Tam ustvarjaš mape, načrte premikaš z vlečenjem in iščeš po celotni mapi. Načrt, ki tam leži, se sam shrani nazaj tja. Načrt iz tega brskalnika pride na strežnik tako, da povlečeš njegovo kartico na zavihek <strong class="ui">„Strežnik“</strong> ali z <strong class="ui">„Daj na strežnik“</strong> v meniju kartice. Ko je odprt zavihek <strong class="ui">„Strežnik“</strong>, <strong class="ui">„Ustvari nov 3D projekt“</strong> in <strong class="ui">„Obnovi varnostno kopijo“</strong> postavita načrt v odprto mapo na strežniku, <strong class="ui">„Prenesi vse“</strong> pa spakira vse načrte strežnika z mapami in njegove lastne oblike v eno datoteko ZIP. Začetna stran prikaže načrt po imenu datoteke, zato preimenovanje načrta, na njegovi kartici ali na vrhu urejevalnika, preimenuje tudi datoteko na strežniku. Brisanje načrta ali mape ju odstrani za vedno, skupaj z delovno kopijo v tem brskalniku. Lastne oblike na strežniku ležijo tam v mapi <code>Custom shapes</code>, glej <a href="/api/desktop/layerling/ui/navodila/oblike.html">Oblike</a>.</p>
+<p>Dve stvari to pospešita: <strong class="ui">„Vse na strežnik“</strong> na začetni strani prestavi vse načrte tega brskalnika na strežnik naenkrat, s kljukico <strong class="ui">„Novi načrti na strežniku“</strong> pa se vsak nov načrt začne v mapi na strežniku in se tam shranjuje od prve spremembe naprej. Kljukica se ohrani v tem brskalniku. Načrt, ki ne more na strežnik – na primer ker je ime tam že zasedeno –, ostane v brskalniku, sporočilo pa pove, koliko jih je.</p>
+<p>Drugi izvozni formati (STL, 3MF, OBJ, STEP, SVG, PNG in risba) lahko gredo v isto mapo: v oknu za izvoz <strong class="ui">„Shrani na strežnik“</strong> zapiše datoteko ob tvoj načrt ali, pri načrtu, ki ni na strežniku, v mapo, ki jo imaš odprto na začetni strani. Program, ki si mapo deli, na primer rezalnik v Dockerju, jo lahko odpre od tam. Datoteka se ne pojavi na seznamu načrtov. Če je datoteka s tem imenom že tam, sporočilo to pove, ponoven pritisk gumba pa jo nadomesti.</p>
+<p>To ni hkratno urejanje: kdor odpre datoteko, dela na lastni kopiji. Če je medtem kdo drug datoteko spremenil, layerling prepiše zavrne.</p>
+<p>Na layerling.com ta funkcija ni vklopljena. Kako jo nastaviš na lastnem strežniku, piše v <a href="https://github.com/henmedia/layerling/blob/main/README.de.md#gemeinsame-entwürfe-im-netz" rel="noopener">README na GitHubu</a>.</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/navodila/tiskanje.html"><small>Prejšnje poglavje</small>Priprava za 3D-tisk</a><a class="next" href="/api/desktop/layerling/ui/navodila/bliznjice.html"><small>Naslednje poglavje</small>Bližnjice na tipkovnici</a></div>
+      </main>
+    </div>
+    <footer class="note">Ta navodila rastejo skupaj s programom. Če kaj manjka ali ne drži, sporoči v <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">razpravah</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=sl" rel="noopener">Podpri Layerling Desktop</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Razprave</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Več na GitHubu</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Opombe ob izdaji v1.154.1</a></div><p class="trademark">Tinkercad je blagovna znamka podjetja Autodesk, Inc. layerling je neodvisen projekt in ni povezan z Autodeskom, ga ne podpira in ga ne sponzorira.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Nazaj v urejevalnik";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="V urejevalnik";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

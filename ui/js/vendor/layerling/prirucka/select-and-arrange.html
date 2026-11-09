@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Výběr a uspořádání - Uživatelská příručka Layerlingu</title>
+    <meta name="description" content="Výběr objektů, seznam objektů, zarovnání, zrcadlení, otáčení, položení na plochu a pravidelné opakování.">
+    <link rel="canonical" href="https://layerling.com/prirucka/select-and-arrange.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/select-and-arrange.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/select-and-arrange.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/select-and-arrange.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/auswaehlen-und-anordnen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/select-and-arrange.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/select-and-arrange.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/select-and-arrange.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/select-and-arrange.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/selecteren-en-schikken.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/select-and-arrange.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/izbiranje-in-razporejanje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/select-and-arrange.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/select-and-arrange.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/select-and-arrange.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/select-and-arrange.html">
+    <meta property="og:title" content="Výběr a uspořádání - Uživatelská příručka Layerlingu">
+    <meta property="og:description" content="Výběr objektů, seznam objektů, zarovnání, zrcadlení, otáčení, položení na plochu a pravidelné opakování.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/prirucka/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Uživatelská příručka</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/prirucka/search-index.json" data-nothing="Nic nenalezeno." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Hledat v příručce" aria-label="Hledat v příručce" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Jazyk">Čeština</summary><ul><li><a href="/api/desktop/layerling/ui/guide/select-and-arrange.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/select-and-arrange.html" hreflang="cs" lang="cs" aria-current="true">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/select-and-arrange.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/select-and-arrange.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/select-and-arrange.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/select-and-arrange.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/select-and-arrange.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/select-and-arrange.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/select-and-arrange.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/select-and-arrange.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/izbiranje-in-razporejanje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/select-and-arrange.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/select-and-arrange.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/select-and-arrange.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/select-and-arrange.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/select-and-arrange.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/select-and-arrange.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Otevřít editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Editor už je otevřený v jiné kartě. Přepněte se do ní.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Kapitoly"><h2>Kapitoly</h2><p class="print-link"><a href="/api/desktop/layerling/ui/prirucka/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Vytisknout celou příručku</span></a></p><ol><li><a href="/api/desktop/layerling/ui/prirucka/getting-started.html">Začínáme</a></li><li><a href="/api/desktop/layerling/ui/prirucka/view-and-workplane.html">Pohled a pracovní rovina</a></li><li><a href="/api/desktop/layerling/ui/prirucka/shapes.html">Vkládání a úpravy tvarů</a></li><li><a href="/api/desktop/layerling/ui/prirucka/select-and-arrange.html" aria-current="page">Výběr a uspořádání</a></li><li><a href="/api/desktop/layerling/ui/prirucka/solids-and-holes.html">Tělesa a výřezy</a></li><li><a href="/api/desktop/layerling/ui/prirucka/edges-and-hollowing.html">Úpravy hran a vytváření dutin</a></li><li><a href="/api/desktop/layerling/ui/prirucka/sketches.html">Náčrty: od obrysu k tělesu</a></li><li><a href="/api/desktop/layerling/ui/prirucka/text.html">Text a nápisy po oblouku</a></li><li><a href="/api/desktop/layerling/ui/prirucka/threads-and-mechanics.html">Závity, ozubení a další mechanické díly</a></li><li><a href="/api/desktop/layerling/ui/prirucka/measuring-and-notes.html">Měření a poznámky</a></li><li><a href="/api/desktop/layerling/ui/prirucka/printing.html">Příprava pro 3D tisk</a></li><li><a href="/api/desktop/layerling/ui/prirucka/files-and-saving.html">Soubory, ukládání a sdílení</a></li><li><a href="/api/desktop/layerling/ui/prirucka/shortcuts.html">Klávesové zkratky</a></li><li><a href="/api/desktop/layerling/ui/prirucka/ai-with-mcp.html">Modelování s AI pomocí MCP</a></li><li><a href="/api/desktop/layerling/ui/prirucka/offline-and-install.html">Instalace, práce bez internetu a vlastní hosting</a></li><li><a href="/api/desktop/layerling/ui/prirucka/videos.html">Videa o Layerlingu</a></li><li><a href="/api/desktop/layerling/ui/prirucka/tablet-and-touch.html">Tablet a dotyk</a></li></ol></nav>
+      <main>
+<h1>Výběr a uspořádání</h1>
+<p class="lead">Výběr objektů, seznam objektů, zarovnání, zrcadlení, otáčení, položení na plochu a pravidelné opakování.</p>
+<div class="toc"><b>Na této stránce</b><ul><li><a href="#vyber">Výběr</a></li><li><a href="#seznam-objektu">Seznam objektů</a></li><li><a href="#zadani-polohy">Zadání polohy</a></li><li><a href="#odlozeni-dilu-vedle-podlozky">Odložení dílů vedle podložky</a></li><li><a href="#prichytavani-pri-presouvani">Přichytávání při přesouvání</a></li><li><a href="#zarovnani">Zarovnání</a></li><li><a href="#zrcadleni">Zrcadlení</a></li><li><a href="#otaceni-a-stred-otaceni">Otáčení a střed otáčení</a></li><li><a href="#polozeni-na-plochu">Položení na plochu</a></li><li><a href="#opakovani-v-rade-a-po-kruznici">Opakování v řadě a po kružnici</a></li><li><a href="#rastr-otvoru-na-plose">Rastr otvorů na ploše</a></li><li><a href="#vysunuti-plochy-ven-nebo-dovnitr">Vysunutí plochy ven nebo dovnitř</a></li><li><a href="#soucasna-zmena-vice-dilu">Současná změna více dílů</a></li><li><a href="#zmena-velikosti-o-procenta">Změna velikosti o procenta</a></li><li><a href="#zpet-a-znovu">Zpět a znovu</a></li><li><a href="#prohlizeni-historie">Prohlížení historie</a></li></ul></div>
+<section class="guide-part"><h2 id="vyber"><span class="heading-alias" id="selecting"></span>Výběr</h2>
+<p>Kliknutí vybere tvar, <kbd>Shift</kbd> přidává nebo odebírá další. Dokud držíte <kbd>Shift</kbd> a jsou vybrány dva nebo více tvarů, počítá je malé číslo pod ukazatelem myši. Kliknutí na prázdné místo a <kbd>Esc</kbd> výběr zruší. Tažením rámečku na prázdné pracovní ploše vyberete všechny dotčené tvary. Se <kbd>Shift</kbd> se dosud nevybrané přidají a vybrané odeberou. Chcete-li raději vybrat jeden díl ze shluku, zapněte v nastavení (oblast <strong class="ui">„Vzhled“</strong>) <strong class="ui">„Směr rámečku rozhoduje“</strong>: rámeček tažený doprava pak vezme jen to, co leží celé uvnitř, tažený doleva stále vše, čeho se dotkne, a jeho čára je čárkovaná. Podržením <kbd>Alt</kbd> při tažení rámeček pro toto jedno tažení obrátíte, například abyste vzali celá tělesa ze strany, kde by to směr nedovolil. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span> vybere všechna viditelná tělesa. Když táhneš těleso nebo úchyt rámečku, <kbd>Esc</kbd> akci zruší, dokud je tlačítko myši ještě stisknuté: vše se vrátí do původního stavu a do historie se nic nepřidá.</p>
+<p>Tvar za jiným tvarem, například výřez uvnitř tělesa, vyberete bez otáčení pohledu: klikněte na to místo pravým tlačítkem a zvolte <strong class="ui">„Vybrat jiný…“</strong>. Nabídka pak vypíše všechny tvary pod ukazatelem, zepředu dozadu. Ten, na kterém je ukazatel, se v pohledu obtáhne, i skrz tvary před ním; kliknutí ho vybere a se <kbd>Shift</kbd> ho přidá k výběru. Položka je tam vždy, když pod ukazatelem leží více než jeden tvar; na tabletu otevře stejnou nabídku dlouhé podržení.</p>
+<p>Překážející objekt skryjte pomocí <strong class="ui">„Skrýt vybrané“</strong>, <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>H</kbd></span>. V projektu zůstane, ale nebude viditelný ani zahrnutý v exportu. Exportní okno předem uvede počet skrytých dílů. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></span> všechny zobrazí. Proti nechtěným změnám chrání zámek nahoře v nastavení nebo <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span>. Zamčený tvar nelze přesouvat, měnit jeho rozměry, otáčet, přebarvovat ani mazat. Úchyty zešednou, u horní šipky se objeví zámek a editační nástroje se vypnou. Rozměry lze stále zjistit najetím na úchyt. Klávesa pro změnu ohlásí zamčený objekt. Obsahuje-li výběr zamčený tvar, nemění se ani ostatní části. Skrytí, přejmenování, kopírování a duplikování zůstávají dostupné. Chceš-li díl nechat, jak je, a přesto s ním stavět, zamkni jen jeho tvar: štítem vedle zámku, položkou <strong class="ui">„Zamknout tvar“</strong> v nabídce pravého tlačítka nebo <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd></span>. Dál se dá posouvat, otáčet, zvedat, zarovnávat, kopírovat a seskupovat s ostatními, ale velikost, nastavení a název zůstávají beze změny: úchyty velikosti zmizí, jejich pole zešednou a změna velikosti, zrcadlení, zrušení skupiny, nástroje hran a mazání se odmítnou. Kopie zámek zachová, stejně jako díl ve skupině: skupinu lze posouvat a znovu rozdělit, ale ne měnit její velikost. Štít tvar zase odemkne.</p>
+<p>Chcete-li pracovat na několika dílech hluboko uvnitř návrhu, vyberte je a zvolte <strong class="ui">„Skrýt ostatní“</strong> v nabídce pravého tlačítka nebo pod <strong class="ui">„Možnosti viditelnosti“</strong>: vše ostatní se skryje jedním krokem, takže <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> nebo <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></span> to vrátí. <strong class="ui">„Obrátit výběr“</strong> v nabídce pravého tlačítka vybere každý viditelný tvar, který vybraný nebyl, a vybrané pustí. Obojí najdete také ve vyhledávání příkazů (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>), kde jim můžete přiřadit i vlastní klávesu.</p>
+<p>Číslo na tlačítku skupiny <strong class="ui">„Viditelnost“</strong> říká, kolik tvarů je skrytých, a kliknutím na něj se všechny znovu zobrazí. Projekt otevřený se skrytými tvary to jednou oznámí zprávou s tlačítkem pro jejich zobrazení. Díl, který skryjete v otevřené skupině, zůstane skrytý i po jejím zavření tlačítkem <strong class="ui">„Hotovo“</strong>: skupina si ponechá svou velikost a ostatní díly zůstanou, jak jsou, při zarovnání se skrytý díl dál počítá a zobrazení všech skrytých tvarů se ho netýká. Pro zobrazení skupinu znovu otevřete.</p>
+</section><section class="guide-part"><h2 id="seznam-objektu"><span class="heading-alias" id="the-object-list"></span>Seznam objektů</h2>
+<p>U složitého modelu pomůže seznam všech tvarů: <strong class="ui">„Zobrazit seznam objektů“</strong> nebo <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd></span>. V tomto prohlížeči si pamatuje, zda jste jej nechali otevřený nebo zavřený, a toto nastavení platí pro všechny projekty.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/object-list.webp" alt="Seznam objektů: sloučený celek se dvěma částmi a vedle něj koule. Ikona složky otevře úpravu celku." width="1280" height="800" loading="lazy"><figcaption>Seznam objektů: sloučený celek se dvěma částmi a vedle něj koule. Ikona složky otevře úpravu celku.</figcaption></figure>
+<ul><li>Kliknutí vybere tvar, i uvnitř sloučení. <kbd>Shift</kbd> přidává a odebírá položky jako v pohledu. Šipky rozbalují a sbalují vnořené části.</li><li>Popisek rozlišuje <strong class="ui">„Plné těleso“</strong> a <strong class="ui">„Výřez“</strong>.</li><li>Pod názvem stojí, o jaký tvar jde. Těleso, které už není jednoduchým tvarem (zaoblené, vydutěné nebo importované), ukazuje <strong class="ui">„Přesné těleso“</strong>, když ho export STEP zapíše přesně, a <strong class="ui">„Polygonová síť“</strong>, když je jen z trojúhelníků a jde ven jako STL. Zúžení, náklon nebo zkroucení přidané až po zaoblení nebo vydutění ohne jen jeho síť, takže pak ukazuje <strong class="ui">„Polygonová síť“</strong>.</li><li>Zámek a oko ovládají zamknutí a skrytí jednotlivých částí.</li><li><strong class="ui">„Přejmenovat“</strong> přiřadí vlastní název. Stejně funguje tužka nahoře v nastavení vybraného tvaru. Smysluplné názvy usnadňují práci ve velkém projektu.</li><li>Tlačítko A–Z v záhlaví (<strong class="ui">„Seřadit pojmenované tvary A–Z“</strong>) seřadí pojmenované tvary abecedně, čísla počítá jako čísla (Díl 2 před Dílem 10). Tvary s výchozím názvem zůstanou pod nimi v pořadí přidání, nejnovější na konci, a díly ve skupinách se řadí stejně. Mění se jen seznam, nikdy projekt. Druhé kliknutí ukáže vše znovu v pořadí přidání a prohlížeč si volbu zapamatuje.</li><li>Úchyt na levé straně řádku (šest teček) přesune tvar v seznamu: přetáhněte jej nahoru nebo dolů, nebo na něj přejděte a stiskněte <kbd>↑</kbd> nebo <kbd>↓</kbd>. Tím se mění vlastní pořadí návrhu, ke kterému se seznam vrací bez řazení A–Z, a Zpět to vrátí. Při řazení A–Z nebo vyhledávání jsou úchyty skryté.</li><li>Chcete-li tvar vložit do skupiny, rozbalte skupinu šipkou a přetáhněte tvar za úchyt na díly skupiny; skupina dostane oranžový rámeček. Tvar zůstane, kde je, a ponechá si název, stejně jako skupina: skupina se s ním znovu sloučí, svazek ho jen přijme. Díly rozbalené skupiny mají vlastní úchyt: vytažený ze skupiny leží díl opět samostatně, na místě seznamu, kde ho pustíte, nebo ho pusťte na jinou rozbalenou skupinu a přesune se do ní. Skupina, které zůstane jediný díl, zanikne a zůstane po ní ten díl. Zpět vrátí každý z těchto kroků najednou. Během úprav skupiny to nejde.</li><li>Vyhledávání používá názvy i typy, například válec nebo výřez, a prochází libovolně vnořená sloučení. Nadřazené celky zůstanou v seznamu a rozbalí cestu k nalezeným částem. Celek nalezený vlastním názvem po rozbalení ukazuje všechny části.</li><li>Šipka vlevo v záhlaví sbalí seznam na záhlaví a znovu jej rozbalí.</li></ul>
+<p>Seznam je ukotvený vpravo od orientační krychle. Přetáhněte jej za záhlaví kamkoliv na plochu; může se zasunout pod krychli a lištu pohledu. Vrácení vedle krychle nebo dvojklik jej znovu ukotví. Poloha i sbalení se pamatují v tomto prohlížeči.</p>
+</section><section class="guide-part"><h2 id="zadani-polohy"><span class="heading-alias" id="typing-a-position"></span>Zadání polohy</h2>
+<p>Karta <strong class="ui">„Poloha“</strong> v panelu vlastností ukazuje, kde vybrané těleso stojí, a můžete ji zadat: <strong class="ui">„X“</strong> a <strong class="ui">„Y“</strong> jsou střed jeho ohraničení na podložce, se stejnými znaménky jako kóty v pohledu, a <strong class="ui">„Z (výška)“</strong> je výška jeho spodní strany. Přes <strong class="ui">„Měřeno od“</strong> nahoře na kartě přepnete na <strong class="ui">„Hrana“</strong>: X a Y pak ukazují levý a přední okraj tělesa, takže okraj položíte přesně na rozměr. Nastavení zůstane, dokud nepřepnete zpět na <strong class="ui">„Střed“</strong>. X míří doprava, Y dozadu a Z vzhůru, podle pravidla pravé ruky jako v Tinkercadu a CAD programech; směry ukazují šipky os na podložce. Hodnoty jsou v nastavených jednotkách a posuvníky sahají tak daleko jako tažení.</p>
+</section><section class="guide-part"><h2 id="odlozeni-dilu-vedle-podlozky"><span class="heading-alias" id="parking-parts-beside-the-plate"></span>Odložení dílů vedle podložky</h2>
+<p>Tvar lze odtáhnout za okraj, přibližně o jednu šířku podložky na každou stranu, a ponechat pro pozdější použití. Klávesové šipky jej přesunou i dále. Odložený díl stále patří do projektu a exportuje se. Pro vynechání jej skryjte nebo exportujte pouze výběr. S vybranou tiskárnou export upozorní na díly mimo podložku.</p>
+</section><section class="guide-part"><h2 id="prichytavani-pri-presouvani"><span class="heading-alias" id="snapping-while-moving"></span>Přichytávání při přesouvání</h2>
+<p>Při tažení po pracovní rovině se levý, pravý, přední a zadní okraj i střed přichytávají na odpovídající okraje či středy jiných tvarů. Růžová vodicí čára ukazuje místo přichycení. Bez zadávání čísel tak díly položíte těsně vedle sebe nebo je vystředíte. Funguje to i při vypnuté mřížce. Počítá se i střed pracovní roviny: růžové čáry ukážou, kdy tvar sedí uprostřed desky ve směru X, Y nebo v obou.</p>
+<p><kbd>Shift</kbd> během tažení omezí posun na osu X nebo Y podle toho, v kterém směru jste táhli více. Druhá souřadnice se zachová. Klávesu stiskněte nejlépe až po zahájení pohybu, protože Shift+klik na nevybraný tvar jej pouze přidá do výběru.</p>
+<p>Nebo táhněte za červenou či zelenou šipku nahoře na výběru: posouvá jen ve směru X nebo jen ve směru Y a tvar sleduje myš po této přímce i v pohledu z nízkého úhlu, kde volné tažení uteče daleko. Šipky se přichytávají jako při tažení, <kbd>Alt</kbd> přichytávání vypne a ujetou vzdálenost pak můžete kliknout a zadat přesně.</p>
+<p>Přidržíte-li <kbd>Alt</kbd> už před zahájením tažení, přesouváte kopii jako v Tinkercadu. Originál zůstane a kopie dopadne na místo uvolnění. Stisknutí <kbd>Alt</kbd> až během tažení pozastaví přichytávání k objektům, zůstane jen krok mřížky. I kopie se začne přichytávat po uvolnění <kbd>Alt</kbd> během pohybu. Trvale přichytávání vypnete přes <strong class="ui">„Přichytávat k tvarům“</strong> v nabídce mřížky vpravo dole nebo v nastavení. Zatím se týká jen posouvání po běžné pracovní rovině, nikoli zvedání a změny rozměrů.</p>
+</section><section class="guide-part"><h2 id="zarovnani"><span class="heading-alias" id="aligning"></span><span class="heading-alias" id="matching-sizes"></span><span class="heading-alias" id="equal-gaps"></span>Zarovnání</h2>
+<p>Vyberte nejméně dva tvary a zapněte <strong class="ui">„Zarovnat“</strong> (<kbd>L</kbd> nebo příkaz v místní nabídce). Kolem výběru se objeví body pro levý okraj, střed, pravý okraj, předek, střed, zadek a horní, střední či spodní výšku. Kliknutí přesune tvary na zvolenou úroveň. Pokud nejprve kliknete na jedno vybrané těleso, zůstane pevné a ostatní se zarovnají podle něj. Zamčené těleso se stane pevným základem automaticky. Krajní zarovnání používá ohraničující kvádr, ale střed trojúhelníku, pětiúhelníku nebo hvězdy je vlastním středem tvaru. Otvor tak bude uprostřed tvaru, nikoli jeho obálky.</p>
+<p>U šikmo natočeného tvaru, například o 45°, se jinak zarovnává podle obálky, nikoli jeho vlastních hran. Chcete-li použít jeho osy, položte nejprve na jeho plochu pracovní rovinu přes <strong class="ui">„Umístit pracovní rovinu“</strong>. Zarovnávací body pak používají osy této roviny jako v Tinkercadu. Pro návrat k osám podložky pracovní rovinu obnovte.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/align.webp" alt="Zarovnání zobrazuje cílové polohy jako body kolem výběru." width="1280" height="800" loading="lazy"><figcaption>Zarovnání zobrazuje cílové polohy jako body kolem výběru.</figcaption></figure>
+<p>Zkratka je <kbd>L</kbd>, <kbd>Esc</kbd> nástroj ukončí.</p>
+<section class="guide-part"><h3 id="stejne-mezery">Stejné mezery</h3>
+<p>Vedle prostředního bodu každé čáry stojí širší bod s čárkou na každé straně. Rozmístí tři nebo více tvarů v tomto směru tak, aby mezera mezi sousedními hranami byla všude stejná, ať je každý tvar jakkoli velký. První a poslední tvar zůstanou na místě, ty mezi nimi se posunou. Řada různě velkých otvorů tak dostane mezi sebou všude stejnou stěnu. Najeďte na bod a předem uvidíte, kam se tvary posunou; stavový řádek pak uvede mezeru.</p>
+<p>Je-li mezi vybranými tvary deska, která je v tomto směru delší než všechny ostatní, tvary se rozmístí na ní: mezera k jejím okrajům je stejná jako mezi tvary a jediný tvar přijde doprostřed. Tvary v několika řadách, jako zvířátka vkládací skládačky, se rozmístí řadu po řadě; tvary, jejichž kvádry se překrývají napříč směrem, tvoří jednu řadu. Kde tvary nestojí v čistých sloupcích, jako zvířátka zepředu dozadu, posouvají se tvary stojící vedle sebe místo toho jako celá řada.</p>
+<p>Bez desky nejdřív se stisknutým <kbd>Shift</kbd> klikněte na volné místo podložky: podložka je pak pevný tvar, stejné mezery rozmístí tvary po celé podložce se stejnou mezerou k jejím okrajům a ostatní body je zarovnají k jejím okrajům nebo středu. Další klik se <kbd>Shift</kbd> na volnou podložku ji uvolní. Klik do prázdna bez <kbd>Shift</kbd> zarovnání ukončí, stejně jako <kbd>L</kbd> a <kbd>Esc</kbd>.</p>
+<p>Podržte <kbd>Alt</kbd> a klikněte na bod, chcete-li mezeru zadat sami, třeba 5 mm: tvary se seřadí v této vzdálenosti, od prvního tvaru nebo od toho, na který jste klikli jako první; na desce přijde řada doprostřed. Zamčený tvar zůstane na místě, takže jeden mezi krajními tvary stejným mezerám zabrání.</p>
+</section></section><section class="guide-part"><h2 id="zrcadleni"><span class="heading-alias" id="mirroring"></span>Zrcadlení</h2>
+<p><strong class="ui">„Zrcadlit“</strong>, <kbd>M</kbd> nebo příkaz v místní nabídce, převrátí výběr podle roviny: <strong class="ui">„vlevo–vpravo“</strong>, <strong class="ui">„vpředu–vzadu“</strong> nebo <strong class="ui">„nahoře–dole“</strong>. Klikněte na odpovídající šipku osy. Pro souměrný díl stačí vytvořit polovinu, zkopírovat ji a kopii zrcadlit.</p>
+</section><section class="guide-part"><h2 id="otaceni-a-stred-otaceni"><span class="heading-alias" id="rotating-and-setting-the-pivot"></span>Otáčení a střed otáčení</h2>
+<p>Otáčejte obloukovými šipkami, čísly v nastavení nebo <kbd>R</kbd> po 45°. Tažení po kružnici přichytává po ryskách 22,5°, se <kbd>Shift</kbd> přidá jemnější rysky po 11,25°. Tažení mimo kružnici umožní kroky 1°, se <kbd>Shift</kbd> 45°. Výběr se běžně otáčí kolem svého středu. Pro jiný bod, například konec nakloněné trubky, použijte <strong class="ui">„Nastavit střed otáčení“</strong> a klikněte na plochu. Rovinná plocha poskytne svůj střed, například osu konce trubky. U sloučeného celku nebo skupiny se plocha táhne přes díly, které se stýkají, jako u jednoho tělesa, a střed otáčení se po jejich spojení posune doprostřed celé plochy, kromě sloučeného celku nebo skupiny s textem a skupiny s výřezem. Další použití nástroje vlastní střed zruší.</p>
+<p>Úhly se uchovávají s tělesem. <strong class="ui">„Otáčení“</strong> uvádí <strong class="ui">„Kolem X“</strong>, <strong class="ui">„Kolem Y“</strong> a <strong class="ui">„Kolem Z (výška)“</strong> podle stejné soustavy jako poloha, s Y po podložce a Z vzhůru. Zadání úhlu otočí těleso kolem středu či vlastního uloženého bodu. Úhly vybraného tělesa jsou vidět i pod ním; vypnete je přes <strong class="ui">„Zobrazit úhly natočených těles“</strong>.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/rotation-card.webp" alt="Těleso otočené kolem dvou os. Úhly se zobrazují pod ním a lze je zadat v pravém panelu." width="1280" height="800" loading="lazy"><figcaption>Těleso otočené kolem dvou os. Úhly se zobrazují pod ním a lze je zadat v pravém panelu.</figcaption></figure>
+<p>Při výběru <strong>jednoho tělesa</strong> patří střed otáčení jemu. Zachová se po výběru jiného objektu, pohybuje se, otáčí a škáluje s tělesem, ukládá se a obnovuje přes Zpět. V <strong class="ui">„Poloha“</strong> má vlastní X, Y, Z, které lze zadávat nebo krokovat. <strong class="ui">„Odstranit“</strong> jej odstraní. Červenou značku lze táhnout po povrchu a přichytávat k rohům, středům hran i hranám, například pro umístění čepu přesně v rohu. U více těles platí bod jen pro aktuální výběr a nový výběr jej zruší. Seskupíš-li je nebo svážeš, zůstane zachován: skupina ho převezme jako vlastní střed otáčení, s X, Y a Z v <strong class="ui">„Poloha“</strong>. Se stisknutým Shiftem se při tažení přichytí ke středu plochy pod ukazatelem - k ose kulaté plochy, středu rovné plochy nebo špičce kužele - a vidí přitom skrz průhledná tělesa.</p>
+</section><section class="guide-part"><h2 id="polozeni-na-plochu"><span class="heading-alias" id="laying-flat-on-a-face"></span>Položení na plochu</h2>
+<p>Vyberte díl, zapněte <strong class="ui">„Položit na plochu“</strong> a klikněte na plochu, která má směřovat dolů. Plocha pod ukazatelem se zvýrazňuje; pro kontrolu ostatních stran otočte pohled. Díl se natočí a položí touto plochou na pracovní rovinu.</p>
+<p>Pro přiložení dvou dílů vyberte pohyblivý díl, spusťte <strong class="ui">„Zarovnat plochy“</strong>, klikněte na jeho plochu a pak na plochu druhého. <strong class="ui">„Proti sobě“</strong> přiloží plochy proti sobě, <strong class="ui">„Do jedné roviny“</strong> je srovná do jedné roviny. <strong class="ui">„Mezera“</strong> ponechá mezeru, například pro vůli. <strong class="ui">„Zarovnat“</strong> otočí první díl nejkratší cestou do rovnoběžné orientace a přesune jej pouze kolmo k druhé ploše. Boční poloha se zachová. Pokud jsou plochy rovnoběžné, neotáčí se. Druhý díl zůstane na místě a jediný krok Zpět operaci vrátí.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/mate-faces.webp" alt="Okno zarovnání ploch: volba pohyblivého dílu, plochy druhého, režimu proti sobě nebo do roviny a případné mezery." width="1280" height="800" loading="lazy"><figcaption>Okno zarovnání ploch: volba pohyblivého dílu, plochy druhého, režimu proti sobě nebo do roviny a případné mezery.</figcaption></figure>
+<p><strong>Díry na jedné ose:</strong> <strong class="ui">„Stejná osa“</strong> místo toho zarovná kulaté plochy: díru nad díru, čep do díry, šroub do jeho průchozí díry. Vyberte to dřív, než kliknete na plochy. Pak klikněte na kulatý vnitřek díry (nebo vnější stranu čepu) na dílu, který se pohne, a na kulatou plochu druhého dílu; celá kulatá plocha se pod ukazatelem rozsvítí. <strong class="ui">„Zarovnat“</strong> otočí díl nejkratší cestou, až jsou obě osy rovnoběžné, a posune ho napříč na druhou osu. Podél osy zůstane, kde byl, takže čep si drží výšku; zasuňte ho potom. Funguje to i u importovaných sítí, pokud je díra tvořena ploškami kolem jedné osy.</p>
+<p><strong>Bod na bod:</strong> <strong class="ui">„Bod na bod“</strong> posune díl rovně, bez otočení, aby jeden z jeho bodů dosedl na bod jiného dílu. Na dílu, který se posouvá, klikněte na roh, místo na hraně, střed kulaté hrany nebo referenční bod, potom na bod, kam se má dostat; tečka ukazuje, který bod ukazatel právě zachytí. V části <strong class="ui">„Posunout podél“</strong> vypněte osy, podél kterých se posouvat nemá: jen s X a Y skončí bod přesně nad nebo pod druhým, jen se Z ve stejné výšce. Jedno Zpět to vrátí.</p>
+<p><strong>Otočení druhým a třetím párem:</strong> po <strong class="ui">„Zarovnat“</strong> zůstane panel otevřený pro druhý pár bodů. První bod zůstane, kde dosedl, označený modře, a <strong class="ui">„Otočit“</strong> otočí díl kolem něj, dokud přímka skrz jeho druhý bod neprochází bodem, který jste vybrali na druhém dílu - dvě hrany tak leží na jedné přímce, i když díly nejsou stejně dlouhé. Třetí pár otočí díl kolem přímky skrz oba modré body, dokud jeho třetí bod nesměřuje k vybranému třetímu bodu, takže sedí i plochy - jako zarovnání podle tří bodů v jiných CAD programech. <strong class="ui">„Hotovo“</strong> to ukončí v kterémkoli kroku; každý krok je jedno Zpět.</p>
+<p><strong>Přesný úhel mezi dvěma plochami:</strong> <strong class="ui">„Zarovnat plochy“</strong> plochy zarovná rovnoběžně. Samostatný nástroj pro úhel mezi nimi není, ale můžete postupovat takto: nejprve plochy spojte přes <strong class="ui">„Zarovnat plochy“</strong>, pak nastavte střed otáčení na společnou hranu pomocí <strong class="ui">„Nastavit střed otáčení“</strong> a kliknutí na hranu nebo roh. V kartě <strong class="ui">„Otáčení“</strong> zadejte požadovaný úhel, například 15° či 30°. Díl se otočí kolem tohoto středu. Osy karty odpovídají osám podložky, takže postup funguje pro hranu ve směru X, Y nebo Z.</p>
+<p><strong class="ui">„Položit na pracovní rovinu“</strong> (<kbd>D</kbd>) jednoduše položí výběr na pracovní rovinu, <strong class="ui">„Vystředit na pracovní rovině“</strong> jej vystředí.</p>
+<p><span dir="ltr"><kbd>Alt</kbd>+<kbd>D</kbd></span> položí více dílů jako jeden celek: všechny klesnou o stejnou vzdálenost, takže si zachovají výšky vůči sobě, kdežto <kbd>D</kbd> položí každý díl zvlášť.</p>
+<p><kbd>C</kbd> výběr zvedne, jako Cruise v Tinkercadu: sleduje ukazatel myši a lehne si na plochu jiného tělesa, nad kterou jste, i na šikmou. Kliknutí ho tam položí, <kbd>Esc</kbd> ho nechá, kde byl. Jeho spodek pak leží na ploše, zarovnaný s okraji plochy jako nový tvar; vlastní natočení kolem svislé osy si ponechá. Více dílů putuje spolu a zachová si rozestupy. Nad prázdnou podložkou <kbd>C</kbd> postaví nakloněný díl zpět svisle na pracovní rovinu. Podržíte-li při přenášení <kbd>Shift</kbd>, díl se místo toho zanoří do plochy: zůstane svislý, jeho vršek zarovnaný s plochou a těleso pod ní, takto se do tělesa dostane kuželové nebo válcové zahloubení; nový tvar z knihovny se se <kbd>Shift</kbd> umístí stejně. <span dir="ltr"><kbd>Shift</kbd>+<kbd>D</kbd></span> položí výběr na pracovní rovinu vrškem místo spodkem. Bez klávesnice má nabídka dlouhého podržení pro totéž <strong class="ui">„Položit na plochu“</strong>.</p>
+<p><kbd>C</kbd> zvedne výběr k ukazateli podobně jako Cruise v Tinkercadu. Kopíruje orientaci plochy pod ním, i šikmé. Kliknutí potvrdí umístění, <kbd>Esc</kbd> obnoví původní. Spodek dosedne na plochu, osy se srovnají s jejími hranami a vlastní natočení kolem svislé osy se zachová. Více dílů cestuje společně bez změny rozestupů. Nad prázdnou podložkou se nakloněný díl opět postaví kolmo na pracovní rovinu.</p>
+</section><section class="guide-part"><h2 id="opakovani-v-rade-a-po-kruznici"><span class="heading-alias" id="patterns-row-and-circle"></span>Opakování v řadě a po kružnici</h2>
+<p><strong class="ui">„Opakování“</strong> vytváří řady otvorů, roztečné kružnice šroubů a věnce zubů. Vyberte opakované tvary a spusťte nástroj.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/pattern-tool.webp" alt="Opakování po kružnici nejprve zobrazuje náhled kopií." width="1280" height="800" loading="lazy"><figcaption>Opakování po kružnici nejprve zobrazuje náhled kopií.</figcaption></figure>
+<ul><li><strong><strong class="ui">„Řada“</strong>:</strong> stejné rozestupy podél X, Y a Z přes <strong class="ui">„Rozteč X“</strong>, <strong class="ui">„Rozteč Y“</strong> a <strong class="ui">„Rozteč Z (výška)“</strong>. Jedna nenulová osa tvoří přímou řadu, více os šikmou řadu nebo schodiště. Záporný rozestup obrátí směr.</li><li><strong><strong class="ui">„Rozložit po tělese“</strong>:</strong> Pro díry podél desky, věšák na klíče nebo na oblečení. Polož první kus na těleso nebo do něj, zvol <strong class="ui">„Podél X“</strong> nebo <strong class="ui">„Podél Y“</strong> a nastav <strong class="ui">„Mezera k okraji“</strong>: originál se posune o tolik dovnitř od bližšího konce (od okraje k boku kusu) a poslední kopie si drží stejnou mezeru ke vzdálenému konci. Rozestup se pak řídí hodnotou <strong class="ui">„Počet včetně originálu“</strong>: pět děr nebo devět, vždy desku vyplní rovnoměrně.</li><li><strong><strong class="ui">„Mřížka“</strong>:</strong> pro otvory děrované desky nebo pole stejných dílů. <strong class="ui">„Sloupce podél X (s originálem)“</strong> a <strong class="ui">„Rozteč X“</strong> kladou sloupce vedle sebe, <strong class="ui">„Řady podél Y (s originálem)“</strong> a <strong class="ui">„Rozteč Y“</strong> řady zepředu dozadu. Jeden sloupec nebo jedna řada dá jedinou linii. Mřížka má nejvýše 100 dílů; nad tím se řady zkrátí a okno to oznámí.</li><li><strong><strong class="ui">„Kružnice“</strong>:</strong> rozmístění kolem středu s počtem <strong class="ui">„Počet včetně originálu“</strong> a úhlem <strong class="ui">„Celkový úhel“</strong>, pro celý obvod 360°. Můžete zapnout společné natáčení kopií. <strong class="ui">„Výškový posun na kopii“</strong> zvedá každou další kopii pro šroubovici, <strong class="ui">„Změna poloměru na kopii“</strong> mění poloměr pro rovinnou spirálu. Kombinací vznikne kuželová spirála. Spirála udělá nejvýš jeden závit: úhel nad 360° se počítá jako celý kruh a kopií je nejvýš 100.</li></ul>
+<p>Tip: nastavte nejprve <strong class="ui">„Nastavit střed otáčení“</strong> na plochu. Střed kružnice pak bude přesně tam.</p>
+<p>Díly si pak ponechají střed kruhu jako svůj otočný bod, i po sloučení. Tam patří jiný díl, například koule uprostřed tří nohou: střed ohraničení dílů není střed kruhu, protože tři nohy vyplní ohraničení, které je jedním směrem širší než druhým. Klikněte na díly pravým tlačítkem a zvolte <strong class="ui">„Označit střed otáčení“</strong> a střed dílu, který táhnete, se k němu přichytí.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/pattern-spiral.webp" alt="Kruhové opakování se stoupáním a změnou poloměru vytváří rozšiřující se prostorovou spirálu." width="1280" height="800" loading="lazy"><figcaption>Kruhové opakování se stoupáním a změnou poloměru vytváří rozšiřující se prostorovou spirálu.</figcaption></figure>
+<p>Kopie jsou nejprve pouze náhled. Vytvoří je až <strong class="ui">„Vytvořit“</strong>. Výřezy poté slučte s tělesem, do kterého mají řezat.</p>
+<p>Se zaškrtnutým <strong class="ui">„Seskupit kopie“</strong> sloučí <strong class="ui">„Vytvořit“</strong> originál a všechny kopie ve stejném kroku do jednoho objektu, jako by to udělalo <strong class="ui">„Sloučit“</strong>: kruh z 36 dílů je pak jeden díl, který můžete posunout, obarvit nebo jím řezat. Nad 5 dílů se políčko zaškrtne samo; jakmile ho sami zaškrtnete nebo zrušíte, zůstane, jak jste ho nastavili. <strong class="ui">„Rozdělit sloučení“</strong> díly vrátí. Pokud sloučení nevyjde, vzor přesto vznikne jako samostatné díly a zpráva řekne proč.</p>
+</section><section class="guide-part"><h2 id="rastr-otvoru-na-plose"><span class="heading-alias" id="hole-pattern-on-a-face"></span>Rastr otvorů na ploše</h2>
+<p><strong class="ui">„Rastr otvorů“</strong> rozmístí otvory po rovinné ploše krytu, mřížky reproduktoru, košíku nebo ventilace. Nemusíte vytvářet a opakovat jednotlivý výřez. Vyberte právě jedno těleso a spusťte <strong class="ui">„Rastr otvorů“</strong> v <strong class="ui">„Úpravy“</strong> vedle opakování, pravým tlačítkem nebo vyhledáváním <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</p>
+<ol><li>Klikněte na rovinnou plochu. Použije se celá souvislá rovinná oblast, nikoli jen trojúhelník pod ukazatelem. Funguje i kulatá stěna válce, trubky nebo díry, viz níže; jiná oblá plocha podporovaná není a nástroj vás vyzve k jinému výběru. U sloučeného celku nebo skupiny se plocha táhne přes díly, které se stýkají, jako u jednoho tělesa, u skupiny ale jen tehdy, když mezi díly není výřez. Díly se spojí krátce po otevření nástroje; do té doby se pod ukazatelem rozsvítí jen plocha jednoho dílu a kliknutí počká, až se díly spojí. U sloučeného celku nebo skupiny s textem se rozsvítí jen plocha jednoho dílu a díly spojí až kliknutí.</li><li>V okně nastavte, jak otvory vypadají a jak leží:</li></ol>
+<ul><li><strong><strong class="ui">„Tvar otvoru“</strong>:</strong> <strong class="ui">„Kruhový“</strong>, <strong class="ui">„Čtvercový“</strong>, <strong class="ui">„Obdélníkový“</strong>, <strong class="ui">„Šestiúhelníkový“</strong> nebo <strong class="ui">„Podlouhlý“</strong>.</li><li><strong>Rozměry:</strong> <strong class="ui">„Průměr (Ø)“</strong> kruhu, <strong class="ui">„Délka strany“</strong> čtverce, <strong class="ui">„Šířka“</strong> a <strong class="ui">„Výška“</strong> obdélníku či podlouhlého otvoru. Šestiúhelník používá <strong class="ui">„Průměr přes vrcholy (Ø)“</strong>.</li><li><strong><strong class="ui">„Úhel otvorů“</strong>:</strong> jen pro obdélníkové a podlouhlé otvory: otočí každý otvor v ploše o tolik stupňů, proti směru hodinových ručiček při pohledu na plochu, od -90 do 90. Řady zůstávají rovné; pokud by se otočené otvory přiblížily příliš, i šikmo, layerling zvětší rozteč i rozteč řad, aby mezi nimi zůstala stěna.</li><li><strong><strong class="ui">„Sklon skrz stěnu“</strong>:</strong> jen na rovných plochách, ne se zahloubením, kuželovým zahloubením ani vlastním tvarem: nakloní každý otvor skrz stěnu, od -60 do 60 stupňů. Na stojící stěně je při kladném sklonu vnitřní konec výš, takže déšť vyteče zpět ven. Velikost zůstává velikostí samotného otvoru, na ploše proto vypadá o něco delší; oba konce každého otvoru dodrží okraj. Výhled dovnitř sklon zakryje, jen když tloušťka stěny krát sin(úhel) je aspoň výška otvoru, na to tedy použijte nízké podlouhlé otvory nebo silnější stěnu.</li><li><strong><strong class="ui">„Vlastní tvar“</strong>:</strong> místo otvoru opakuje tvar ze scény: nýt, výstupek nebo žebro slzičkového plechu. Vyberete ho v <strong class="ui">„Tvar ze scény“</strong>. Jeho šířka a hloubka určují místo, které zabere; stojí na ploše svisle, jak byl vytvořen, bez vlastního natočení. Těleso se postaví na plochu a spojí se s ní, díra se vyřízne tak hluboko, jak je vysoká. Samotný tvar zůstane na svém místě.</li><li><strong><strong class="ui">„Druh otvoru“</strong>:</strong> jen u kulatých otvorů. <strong class="ui">„Prostý“</strong> je rovný otvor, <strong class="ui">„Válcové zahloubení“</strong> přidá zahloubení pro hlavu šroubu s válcovou hlavou, <strong class="ui">„Kuželové zahloubení“</strong> kužel 90° pro zápustný šroub. Velikost je pak <strong class="ui">„Průměr dříku“</strong>; <strong class="ui">„Průměr hlavy“</strong> a u válcového zahloubení <strong class="ui">„Hloubka zahloubení“</strong> nastaví hlavu. <strong class="ui">„Velikost šroubu“</strong> vše vyplní pro metrický šroub.</li><li><strong><strong class="ui">„Rozteč středů“</strong>:</strong> vzdálenost středů sousedních otvorů. Je-li menší, než otvory dovolí, zvýší ji layerling na nejmenší možnou hodnotu, aby mezi otvory zůstala stěna. U obdélníků a podlouhlých otvorů se počítá podél řady, zleva doprava.</li><li><strong><strong class="ui">„Rozestup řad“</strong>:</strong> jen u obdélníků a podlouhlých otvorů: vzdálenost od jedné řady k další. Úzké vysoké otvory tak stojí těsně vedle sebe, zatímco řady zůstanou od sebe. Otvor široký 2 mm a vysoký 14 mm potřebuje se stěnou 2 mm 4 mm podél řady a 16 mm od řady k řadě.</li><li><strong><strong class="ui">„Stěna mezi otvory“</strong>:</strong> stejný odstup vyjádřený jinak: stěna, která zůstane mezi dvěma sousedními otvory, tedy tloušťka stěny v tisku. Nastavíte-li ji, rozteč středů se přizpůsobí (u obdélníků a podlouhlých otvorů i rozteč řad), a naopak. U šestiúhelníků, obdélníků a podlouhlých otvorů měří layerling nejmenší vzdálenost mezi jejich hranami.</li><li><strong><strong class="ui">„Uspořádání“</strong>:</strong> <strong class="ui">„Pravoúhlé“</strong> tvoří řádky a sloupce, <strong class="ui">„Střídavé“</strong> posune každý druhý řádek o polovinu rozteče a přiblíží řádky tak, aby měly otvory stejně vzdálené sousedy. U šestiúhelníků vznikne voština.</li><li><strong><strong class="ui">„Po okraji“</strong>:</strong> místo toho věnec otvorů podél vnějšího okraje plochy, o <strong class="ui">„Vzdálenost od okraje plochy“</strong> dovnitř od něj - otvory pro šrouby kolem víka nebo desky. <strong class="ui">„Rozložit podle“</strong> <strong class="ui">„Rozestupu“</strong> drží přibližně rozestup, <strong class="ui">„Počtu“</strong> určí <strong class="ui">„Počet otvorů“</strong>; v obou případech se rozestup vyrovná, aby se věnec uzavřel bez mezery. <strong class="ui">„Otvor v každém rohu“</strong> (zpočátku zapnuto) dá otvor do každého rohu a každou stranu mezi nimi rozdělí rovnoměrně. Na kulaté ploše nebo bez zaškrtnutí jdou otvory rovnoměrně dokola od vrchu a <strong class="ui">„Začátek na okraji“</strong> posune celý věnec podél okraje.</li><li><strong><strong class="ui">„Vzdálenost od okraje plochy“</strong>:</strong> volná vzdálenost mezi otvory a okrajem plochy. Vzniknou jen otvory, které leží celé uvnitř plochy zmenšené o tento okraj; co by sahalo dál, se vynechá. Okraj platí i kolem otvorů v ploše.</li><li><strong><strong class="ui">„Hloubka“</strong>:</strong> výchozí <strong class="ui">„Skrz celé těleso“</strong> protne celou stěnu. S <strong class="ui">„Vlastní hloubka“</strong> zadáte hloubku v milimetrech, třeba pro zahloubení.</li></ul>
+<ol><li>Náhled se průběžně mění a okno uvádí počet otvorů. <strong class="ui">„Jiná plocha“</strong> zvolí jinou plochu a <kbd>Esc</kbd> nástroj zavře. Okno lze přesouvat za záhlaví.</li><li>Skutečné otvory vytvoří až <strong class="ui">„Vytvořit“</strong>.</li></ol>
+<p>Výřezy zůstávají běžnými tvary sloučenými s tělesem jako po <strong class="ui">„Sloučit“</strong>. <strong class="ui">„Rozdělit sloučení“</strong> je uvolní pro samostatný posun, změnu nebo smazání. Vše je jediný krok <strong class="ui">„Zpět“</strong>. Najednou lze vytvořit nejvýše 400 otvorů; při překročení zvětšete otvory nebo rozteč.</p>
+<p>Otvory přijme i kulatá stěna válce, trubky nebo díry: stojánek na tužky, stínidlo lampy, trubka s větráním. Klikněte místo rovné plochy na stěnu; pod ukazatelem se rozsvítí celá stěna. Každý otvor pak míří přímo k ose a řady obíhají stěnu. Na stěně, která jde dokola, má každá řada celý počet otvorů, vyrovnaný tak, aby se kruh uzavřel bez mezery a otvory nebyly blíž než rozteč; okno ukáže, kolik jich obíhá a jak daleko od sebe. Okraj platí k hornímu a dolnímu lemu a k otvorům ve stěně, na části stěny (třeba zaoblení) i k jejím bokům. <strong class="ui">„Skrz stěnu“</strong> prořízne jen stěnu, na kterou jste klikli, a druhou stranu trubky nechá celou; u plného válce jdou otvory až do jeho středu. Kliknete-li dovnitř díry, otvory vedou ven skrz její stěnu. <strong class="ui">„Po okraji“</strong> je pro rovné plochy a na stěně se nenabízí.</p>
+<p>AI může provést totéž přes <code>layerling_perforate_face</code>, viz <a href="/api/desktop/layerling/ui/prirucka/ai-with-mcp.html">Modelování s AI</a>.</p>
+</section><section class="guide-part"><h2 id="vysunuti-plochy-ven-nebo-dovnitr"><span class="heading-alias" id="pushing-a-face-out-or-in"></span>Vysunutí plochy ven nebo dovnitř</h2>
+<p>Pro zesílení stěny, vyvýšenou plošku nebo vyříznutou kapsu pracuje nástroj <strong class="ui">„Plocha“</strong> s jednou rovinnou plochou. Funguje i u importovaného STL, které nemá náčrt ke změně. Vyberte právě jedno těleso a spusťte <strong class="ui">„Plocha“</strong> v <strong class="ui">„Úpravy“</strong> vedle rastru otvorů, pravým tlačítkem nebo vyhledáváním <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</p>
+<ol><li>Klikněte na rovinnou plochu tělesa. Stejně jako u rastru otvorů se použije celá souvislá rovinná oblast; oblá plocha tu podporovaná není, ani kulatá stěna. U sloučeného celku nebo skupiny se plocha jako u rastru otvorů táhne přes díly, které se stýkají.</li><li>V okně:</li></ol>
+<ul><li><strong><strong class="ui">„Směr“</strong>:</strong> <strong class="ui">„Ven: přidat materiál“</strong> pro materiál na ploše, nebo <strong class="ui">„Dovnitř: vyříznout kapsu“</strong> pro kapsu vyříznutou do ní. Kapsa nejde hlouběji než těleso za plochou; u dutého tělesa může přesto dosáhnout do dutiny.</li><li><strong><strong class="ui">„Odsazení od okraje plochy“</strong>:</strong> jak daleko zůstane nový obrys uvnitř okraje plochy. Směrem ven se při 0 vezme celá plocha, tak se stěna zesílí. Otvory v ploše se zvětší o stejnou hodnotu.</li><li><strong><strong class="ui">„Poloměr rohů“</strong>:</strong> zaoblí každý roh obrysu, i vnitřní, takže ostrý hrot skončí obloukem. Zářez užší než dvojnásobek poloměru se uzavře a část plochy užší než dvojnásobek odsazení a poloměru dohromady odpadne.</li><li><strong><strong class="ui">„Hloubka“</strong>:</strong> jak daleko nový díl vystoupí z plochy, nebo jak hluboká bude kapsa.</li><li><strong><strong class="ui">„Jako samostatné těleso (neseskupené)“</strong>:</strong> se zapnutým přepínačem je nový díl (nebo výřez kapsy) samostatným tělesem vedle tělesa místo sloučení s ním, takže ho můžete hned zvětšit, posunout nebo jím řezat.</li></ul>
+<ol><li>Výsledek se hned zobrazí jako náhled a sleduje každou hodnotu. <strong class="ui">„Jiná plocha“</strong> vybere jinou plochu, <kbd>Esc</kbd> nástroj zavře.</li><li>Teprve <strong class="ui">„Vytvořit“</strong> díl vytvoří.</li></ol>
+<p>Nástroj přidá běžné těleso z náčrtu, sloučené s tělesem, pokud není zapnuto <strong class="ui">„Jako samostatné těleso (neseskupené)“</strong> (pak <strong class="ui">„Upravit sloučení“</strong> nemá co otevřít a díl je volný); nic se nezapéká. <strong class="ui">„Upravit sloučení“</strong> otevře sloučení a <strong class="ui">„Upravit náčrt“</strong> u nového dílu ukáže obrys, ze kterého vychází. Na horní nebo spodní ploše jednoduchého tělesa z náčrtu - jedna oblast, nesloučené, nezrcadlené, bez zúžení, zkroucení a naklonění, bez obrysového pásu, kroužku na klíče, zkosení či zaoblení - je to vlastní obrys tělesa, při stavbě odsazený dovnitř, takže jeho čáry a oblouky zůstanou přesné všude, kde je CAD jádro dokáže odsadit, pro nástroje hran a export STEP. Při pozdější změně velikosti si díl odsazení ponechá. Na každé jiné ploše, i u importované sítě, sleduje obrys trojúhelníky plochy a křivka se skládá z krátkých rovných úseků. Vše je jediný krok <strong class="ui">„Zpět“</strong>. Odsazení nebo poloměr později změníte tak, že krok vrátíte zpět a nástroj použijete znovu. Horní hranu potom zaoblíte nástrojem <strong class="ui">„Zaoblení“</strong> s volbou <strong class="ui">„Horní hrany“</strong> na sloučení jako posledním krokem: jako každá úprava hran sloučení z něj udělá jedno těleso.</p>
+<p>AI může provést totéž přes <code>layerling_push_face</code>, viz <a href="/api/desktop/layerling/ui/prirucka/ai-with-mcp.html">Modelování s AI</a>.</p>
+</section><section class="guide-part"><h2 id="soucasna-zmena-vice-dilu"><span class="heading-alias" id="changing-several-parts-at-once"></span>Současná změna více dílů</h2>
+<p>Při více vybraných dílech ukazuje pravý panel jejich počet a společné vlastnosti: <strong class="ui">„Plné těleso“</strong>, <strong class="ui">„Výřez“</strong>, barvu po kliknutí na <strong class="ui">„Plné těleso“</strong> a zámek. Smíšený výběr lze jedním kliknutím převést na všechna plná tělesa či výřezy. Obsahuje-li zamčený díl, dostupný zůstane jen zámek. Rozměry měníte úchyty, přes <strong class="ui">„Změnit rozměry procentem“</strong> nebo číslem u kóty. Kóta označuje celý výběr a mění všechny části i mezery jako tažení úchytu. Plné těleso a výřez přepíná i pravá nabídka nebo <kbd>S</kbd> a <kbd>H</kbd>.</p>
+</section><section class="guide-part"><h2 id="zmena-velikosti-o-procenta"><span class="heading-alias" id="scaling-by-percent"></span>Změna velikosti o procenta</h2>
+<p>Pro stejné zvětšení či zmenšení jednoho nebo více dílů použijte <strong class="ui">„Změnit rozměry procentem“</strong> v pravé nabídce nebo přes <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</p>
+<p><strong class="ui">„Nová velikost“</strong> zadává novou velikost v procentech původní. 120 % znamená zvětšení o pětinu, 50 % poloviční velikost. Všechny tři rozměry se mění stejně a zachovají proporce. Spodek zůstává na místě, takže se díl nezanoří do podložky.</p>
+<p>Pro více dílů zvolte:</p>
+<ul><li><strong><strong class="ui">„Společně“</strong>:</strong> růst kolem společného středu včetně mezer, jako jeden celek.</li><li><strong><strong class="ui">„Každý na místě“</strong>:</strong> každý díl roste na svém místě a rozestupy mezi středy zůstávají stejné.</li></ul>
+<p>Změnu provede až <strong class="ui">„Změnit rozměry“</strong> a jediný krok Zpět ji vrátí. Se zamčeným dílem ve výběru nástroj nelze otevřít.</p>
+</section><section class="guide-part"><h2 id="zpet-a-znovu"><span class="heading-alias" id="undoing"></span>Zpět a znovu</h2>
+<p><strong class="ui">„Zpět“</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span>) a <strong class="ui">„Znovu“</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span> nebo <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Y</kbd></span>) procházejí historii. Počet kroků ukládaných s projektem určuje <strong class="ui">„Historie“</strong>. Když najedete na jedno z obou tlačítek, jeho popisek pojmenuje krok, který vrátí nebo zopakuje, a u kroku s rozměrem i ten rozměr, například „Zaobleny hrany: Box (5 mm)“; hlášení po kroku říká totéž. Chcete-li se vrátit o více kroků najednou, použijte zobrazení historie níže. Zpráva, která hlásí právě provedený krok, třeba „Smazány 3 tvary“, má tlačítko Zpět, které vrátí právě tento krok.</p>
+</section><section class="guide-part"><h2 id="prohlizeni-historie"><span class="heading-alias" id="looking-back-the-history-view"></span>Prohlížení historie</h2>
+<p><strong class="ui">„Historie“</strong> vedle Zpět a Znovu umožní prohlížet starší stavy bez změny projektu. Pracovní plocha ukazuje minulou podobu a spodní posuvník prochází kroky. Současný stav je vpravo, předchozí vlevo; již vrácené kroky leží napravo od současného. Šipky procházejí stavy a <kbd>Esc</kbd> vrátí současnost. Kolečko myši nad posuvníkem dělá totéž, jeden stav na zoubek, nahoru ke staršímu; <kbd>Page Up</kbd> a <kbd>Page Down</kbd> skáčou o deset stavů, <kbd>Home</kbd> jde na nejstarší stav a <kbd>End</kbd> zpět na aktuální. Pohled můžete otáčet a přibližovat a klepnutím vybírat objekty k vrácení (viz níže), ale nic nelze měnit. Lištu lze přetáhnout za záhlaví a dvojklikem vrátit. Tlačítko se seznamem v záhlaví ukáže všechny kroky podle názvu v seznamu, nejnovější nahoře: kliknutí na krok přejde do tohoto stavu, stav, ve kterém návrh je, je označen <strong class="ui">„teď“</strong>, a vrácené kroky jsou šedé. Necháte-li seznam otevřený, bude otevřený i příště. Dvě tlačítka přehrávání pod posuvníkem přehrají historii jako film: to, které míří doprava, hraje dopředu od zobrazeného stavu, to, které míří doleva, dozadu, každý stav na okamžik, až do konce; nové stisknutí téhož tlačítka pozastaví a posuvník, kolečko, klávesy nebo seznam převezmou řízení. Spuštěné na konci své cesty začne znovu z druhého konce. <strong class="ui">„Rychlost“</strong> určuje, jak dlouho každý stav zůstane (pomalu, normálně nebo rychle), a pamatuje si to na příště. Nahrajte při přehrávání obrazovku a ukážete, jak díl vznikal.</p>
+<p>Ze staršího stavu můžete vytvořit <strong class="ui">„Nový projekt z tohoto stavu“</strong>. Nový projekt má původní název doplněný časem stavu; u starých dat bez času označení kopie. Obsahuje historii až do daného okamžiku, takže Zpět nadále funguje. <strong class="ui">„Exportovat tento stav“</strong> otevře běžný export tohoto stavu jako STL, 3MF, STEP, obrázek nebo LYL včetně příslušné historie.</p>
+<p>Do návrhu můžete vrátit i jednotlivé objekty. Klikněte na objekt v zobrazeném stavu - <kbd>Shift</kbd>+klik přidá další nebo jeden odebere, klik do prázdna nevybere nic - a zvolte <strong class="ui">„Vrátit do návrhu“</strong>. Pohled se zavře a kopie každého objektu přibude do současného návrhu přesně tak, jak byl v tomto stavu, a na místě, kde tehdy stál, vybraná, vedle všeho, co návrh obsahuje teď; nic jiného se nemění. Je to jeden krok, Zpět ho vrátí. Hodí se pro starší verzi dílu, který jste mezitím změnili nebo smazali. Skupina se vrátí celá; poznámky a referenční body objektu zůstanou. Jeho název nese čas daného stavu, například „Kvádr (12:32)“, aby se snadno odlišil od současné verze. Chcete-li vrátit díl ze skupiny, vyberte skupinu a zvolte <strong class="ui">„Otevřít skupinu“</strong> nebo stiskněte <kbd>E</kbd>, stejně jako v návrhu: její díly se rozloží tam, kam by je dala úprava skupiny, připravené k výběru, a lišta ukáže, ve které skupině jste. <strong class="ui">„Zpět ven“</strong> ji znovu zavře. Slouží jen k prohlížení - skupina, návrh i historie zůstanou beze změny.</p>
+<p><strong class="ui">„Smazat historii“</strong> vlevo dole po potvrzení trvale vymaže všechny minulé kroky. Zachová skutečný současný stav, nikoli právě prohlížený. Zpět už nemá kam přejít a později uložený soubor neobsahuje historii. Použijte pro nový začátek historie nebo sdílení bez minulosti. Nelze vrátit. Chcete-li sdílet soubor bez zásahu do vlastního projektu, zvolte při exportu <strong class="ui">„Žádná“</strong>.</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/prirucka/shapes.html"><small>Předchozí kapitola</small>Vkládání a úpravy tvarů</a><a class="next" href="/api/desktop/layerling/ui/prirucka/solids-and-holes.html"><small>Další kapitola</small>Tělesa a výřezy</a></div>
+      </main>
+    </div>
+    <footer class="note">Příručka se rozšiřuje spolu s aplikací. Pokud něco chybí nebo je nesprávně, napište do <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">diskuze</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=cs" rel="noopener">Podpořit projekt</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Diskuze</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Více na GitHubu</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Poznámky k vydání v1.154.1</a></div><p class="trademark">Tinkercad je ochranná známka společnosti Autodesk, Inc. Layerling je nezávislý projekt a není se společností Autodesk propojen, podporován ani sponzorován.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Zpět do editoru";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Otevřít editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Solider og huller - layerling brugervejledning</title>
+    <meta name="description" content="Hvordan enkle former bliver til boringer, slidser og lommer, og hvordan man ændrer en gruppe igen senere.">
+    <link rel="canonical" href="https://layerling.com/vejledning/solids-and-holes.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/solids-and-holes.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/solids-and-holes.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/solids-and-holes.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/koerper-und-aussparungen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/solids-and-holes.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/solids-and-holes.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/solids-and-holes.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/solids-and-holes.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/lichamen-en-gaten.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/solids-and-holes.html">
+    <link rel="alternate" hreflang="pt-BR" href="https://layerling.com/guia/solids-and-holes.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/telesa-in-luknje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/solids-and-holes.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/solids-and-holes.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/solids-and-holes.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/solids-and-holes.html">
+    <meta property="og:title" content="Solider og huller - layerling brugervejledning">
+    <meta property="og:description" content="Hvordan enkle former bliver til boringer, slidser og lommer, og hvordan man ændrer en gruppe igen senere.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/vejledning/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Brugervejledning</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/vejledning/search-index.json" data-nothing="Intet fundet." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Søg i vejledningen" aria-label="Søg i vejledningen" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Sprog">Dansk</summary><ul><li><a href="/api/desktop/layerling/ui/guide/solids-and-holes.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/solids-and-holes.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/solids-and-holes.html" hreflang="da" lang="da" aria-current="true">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/solids-and-holes.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/solids-and-holes.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/solids-and-holes.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/solids-and-holes.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/solids-and-holes.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/solids-and-holes.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/solids-and-holes.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/telesa-in-luknje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/solids-and-holes.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/solids-and-holes.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/solids-and-holes.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/solids-and-holes.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/solids-and-holes.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/solids-and-holes.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Åbn editoren</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Editoren er allerede åben i en anden fane – skift bare til den.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Kapitler"><h2>Kapitler</h2><p class="print-link"><a href="/api/desktop/layerling/ui/vejledning/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Hele vejledningen, til udskrivning</span></a></p><ol><li><a href="/api/desktop/layerling/ui/vejledning/getting-started.html">Kom godt i gang</a></li><li><a href="/api/desktop/layerling/ui/vejledning/view-and-workplane.html">Visning og arbejdsplan</a></li><li><a href="/api/desktop/layerling/ui/vejledning/shapes.html">Placering og justering af former</a></li><li><a href="/api/desktop/layerling/ui/vejledning/select-and-arrange.html">Valg og arrangering</a></li><li><a href="/api/desktop/layerling/ui/vejledning/solids-and-holes.html" aria-current="page">Solider og huller</a></li><li><a href="/api/desktop/layerling/ui/vejledning/edges-and-hollowing.html">Bryd kanter og hul former</a></li><li><a href="/api/desktop/layerling/ui/vejledning/sketches.html">Skitser: fra omrids til form</a></li><li><a href="/api/desktop/layerling/ui/vejledning/text.html">Tekst og buede bogstaver</a></li><li><a href="/api/desktop/layerling/ui/vejledning/threads-and-mechanics.html">Gevind, tandhjul og andre dele</a></li><li><a href="/api/desktop/layerling/ui/vejledning/measuring-and-notes.html">Måling og noter</a></li><li><a href="/api/desktop/layerling/ui/vejledning/printing.html">Forberedelse til 3D-print</a></li><li><a href="/api/desktop/layerling/ui/vejledning/files-and-saving.html">Filer, lagring og deling</a></li><li><a href="/api/desktop/layerling/ui/vejledning/shortcuts.html">Tastaturgenveje</a></li><li><a href="/api/desktop/layerling/ui/vejledning/ai-with-mcp.html">Byg med en AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/vejledning/offline-and-install.html">Installér som app, arbejd offline og vær selv vært</a></li><li><a href="/api/desktop/layerling/ui/vejledning/videos.html">Videoer om layerling</a></li><li><a href="/api/desktop/layerling/ui/vejledning/tablet-and-touch.html">Tablet og touch</a></li></ol></nav>
+      <main>
+<h1>Solider og huller</h1>
+<p class="lead">Hvordan enkle former bliver til boringer, slidser og lommer, og hvordan man ændrer en gruppe igen senere.</p>
+<div class="toc"><b>På denne side</b><ul><li><a href="#solid-eller-hul">Solid eller hul</a></li><li><a href="#gruppering">Gruppering</a></li><li><a href="#bundtning">Bundtning</a></li><li><a href="#f-lles">Fælles</a></li><li><a href="#sk-r-et-legeme-ud-af-et-andet">Skær et legeme ud af et andet</a></li><li><a href="#udstansning-af-et-omrids-gennem-et-legeme">Udstansning af et omrids gennem et legeme</a></li><li><a href="#redigering-af-en-gruppe">Redigering af en gruppe</a></li><li><a href="#deling">Deling</a></li><li><a href="#adskil-dele">Adskil dele</a></li></ul></div>
+<p>Dette er den vigtigste idé i layerling, og den læres hurtigt: <strong>Enhver form er enten en solid eller et hul.</strong> En solid bliver. Et hul er et værktøj der tager materiale væk.</p>
+<section class="guide-part"><h2 id="solid-eller-hul"><span class="heading-alias" id="solid-or-hole"></span>Solid eller hul</h2>
+<p>Vælg en form og klik på <strong class="ui">“Solid”</strong> eller <strong class="ui">“Hul”</strong> i dens indstillinger. Tastaturet er hurtigere: <kbd>H</kbd> gør markeringen til et hul, <kbd>S</kbd> gør den til en solid igen. Begge er også i menuen et højreklik på formen åbner. Et hul vises gennemsigtigt så du kan se hvor det sidder. <kbd>T</kbd> gør en form gennemsigtig, for eksempel for at kigge ind i et hus; endnu et tryk gør den uigennemsigtig igen. Det virker på hele markeringen: hvis nogen form allerede er gennemsigtig, bliver alle uigennemsigtige, ellers bliver alle gennemsigtige.</p>
+<p>Så længe intet er grupperet, sker der ikke noget med et hul. Det ligger bare der og viser hvor noget senere forsvinder.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hole-before.webp" alt="Cylinderen er et hul. Den stikker ud af toppen af kassen så den skærer hele vejen igennem." width="1280" height="800" loading="lazy"><figcaption>Cylinderen er et hul. Den stikker ud af toppen af kassen så den skærer hele vejen igennem.</figcaption></figure>
+</section><section class="guide-part"><h2 id="gruppering"><span class="heading-alias" id="grouping"></span>Gruppering</h2>
+<p>Vælg solider og hul(ler) og klik på <strong class="ui">“Gruppér”</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>G</kbd></span>). Nu fjerner hullerne materialet fra de solider de rører. Det der bliver tilbage er én enkelt ny form.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hole-after.webp" alt="Resultatet: en kasse med et borehul." width="1280" height="800" loading="lazy"><figcaption>Resultatet: en kasse med et borehul.</figcaption></figure>
+<p>Sådan får du:</p>
+<ul><li><strong>Boringer:</strong> en cylinder som et hul gennem en form.</li><li><strong>Slidser:</strong> en aflang kasse som et hul ved kanten.</li><li><strong>Lommer:</strong> et hul der ikke går hele vejen igennem.</li><li><strong>Gevind i en del:</strong> et gevindhul som et hul, se <a href="/api/desktop/layerling/ui/vejledning/threads-and-mechanics.html">Gevind og mekanik</a>.</li></ul>
+<p>Hvis der er flere solider i gruppen, samles de. To solider der rører hinanden bliver til én del.</p>
+<p>Med store meshes, som et importeret STL med hundredvis af tusinde trekanter, tager skæringen nogle få sekunder. layerling arbejder så i baggrunden og viser &quot;<strong class="ui">“Regner … du kan fortsætte med at arbejde”</strong>&quot;; imens kan du dreje visningen og bruge grænsefladen. Ændrer du scenen i den tid, kasseres resultatet, og layerling siger det. Det samme gælder <strong class="ui">“Del”</strong>.</p>
+<p>Du kan behandle en gruppe som en form: flytte, rotere, farve, gruppere igen. <strong class="ui">“Opdel gruppe”</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span>) opløser den og de enkelte dele er tilbage.</p>
+<section class="guide-part"><h3 id="g-re-en-gruppe-til-et-hul"><span class="heading-alias" id="making-a-group-a-hole"></span>Gøre en gruppe til et hul</h3>
+<p>En hel gruppe kan også være en solid eller et hul. En simpel regel gælder:</p>
+<ul><li>Hvis gruppen kun består af solider (eller kun af huller), skifter du den som helhed og dens dele følger med.</li><li>Hvis den indeholder begge, for eksempel en kasse med en boring, beholder hver del sin egen tilstand. Hele gruppen bliver så et værktøj, men boringen forbliver en boring.</li></ul>
+</section><section class="guide-part"><h3 id="ndre-st-rrelse-pa-en-gruppe-huller-og-sma-dele-bevares"><span class="heading-alias" id="resizing-a-group-keeping-holes-and-small-parts"></span>Ændre størrelse på en gruppe: huller og små dele bevares</h3>
+<p>Når en gruppe gøres længere, bredere eller højere, strækkes dens dele med, som var de tegnet på gummi: de runde huller i en plade bliver ovale og rykker indad. For at beholde dem, som de er, vælger du <strong class="ui">“Bevar huller og små dele”</strong> under <strong class="ui">“Ved ændring af størrelse”</strong> i gruppens indstillinger; uden det valg gælder <strong class="ui">“Stræk alt”</strong>, som hidtil for enhver gruppe. Derefter bygges gruppen, hver gang dens størrelse ændres - med håndtagene, i målfelterne eller med <strong class="ui">“Skalér med procent”</strong> - op igen af sine dele efter én regel, for hver retning for sig:</p>
+<ul><li>En del, der går hen over næsten hele gruppen, ni tiendedele eller mere, vokser eller skrumper med og beholder sin afstand til begge sider: selve pladen, en væg eller indersiden af en kasse, hvis vægge forbliver lige tykke.</li><li>Enhver anden del beholder sin egen størrelse og sin afstand til den nærmeste side. En del i midten bliver i midten.</li></ul>
+<p>En plade med et hul 5 mm fra hvert hjørne og en slids i midten, gjort 40 mm længere, beholder altså sine huller runde og 5 mm fra hjørnerne og slidsen i midten. Der er ingen løser bag, og du skal ikke indstille noget del for del: den samme regel gælder for alle dele, så du ved på forhånd, hvad der sker. En drejet del tæller med den kasse, den fylder i gruppen, og forbliver drejet; en gruppe i gruppen tæller som én del. Mens du trækker i et håndtag, strækkes gruppen som helhed; når du slipper, bygges den op igen, i samme fortryd-trin. Bliver gruppen mindre, end en del med sin afstand kræver, skrumper den del med som før, og en meddelelse siger det. En spejlet, tilspidset eller snoet gruppe og en med egne afrundinger, faser eller en overfladestruktur strækker altid alt. Vælger du indstillingen for en gruppe, der allerede er strakt, lægges dens dele ud igen med det samme.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/group-keep-parts.webp" alt="En plade med et hul 5 mm fra hvert hjørne og en slids i midten, gjort 40 mm længere med &quot;Bevar huller og små dele&quot;: hullerne er stadig runde og 5 mm fra hjørnerne, slidsen er stadig i midten." width="1280" height="800" loading="lazy"><figcaption>En plade med et hul 5 mm fra hvert hjørne og en slids i midten, gjort 40 mm længere med &quot;Bevar huller og små dele&quot;: hullerne er stadig runde og 5 mm fra hjørnerne, slidsen er stadig i midten.</figcaption></figure>
+</section></section><section class="guide-part"><h2 id="bundtning"><span class="heading-alias" id="bundling"></span>Bundtning</h2>
+<p>Nogle gange bør dele kun blive sammen uden at blive til én - et hvidt logo på en sort plade til et flerfarvet print for eksempel. Det er det <strong class="ui">“Bundt”</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>B</kbd></span>) er til, som i Tinkercad. Et bundt flytter, drejer og skalerer som en form, men intet flettes:</p>
+<ul><li>Hver del beholder sin farve og forbliver en solid eller et hul. Bundtets indstillinger har de samme kort som en gruppes: <strong class="ui">“Solid”</strong> og <strong class="ui">“Hul”</strong> for hele bundtet (de bevarer delenes farver), <strong class="ui">“Gennemsigtig”</strong> (<kbd>T</kbd>) og <strong class="ui">“Multifarve”</strong> (<span dir="ltr"><kbd>Shift</kbd>+<kbd>M</kbd></span>); med Multifarve slået fra vises og eksporteres bundtet i én farve. <strong class="ui">“Adskil dele”</strong> tager bundtet ad, som <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span> gør.</li><li>Huller skærer intet. Når du grupperer bundtet med andre dele, skærer dets huller de dele, men stadig ikke bundtets egne solider, som i Tinkercad. Så kan en tap med sit hul ved siden af for eksempel bruges igen og igen som et bundt.</li><li>I en STL-, 3MF- eller OBJ-eksport er hver del sin egen form; i 3MF og OBJ med sin farve.</li></ul>
+<p><strong class="ui">“Opdel gruppe”</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span>) skiller et bundt ad igen, <kbd>E</kbd> åbner det for redigering som en gruppe. Fas, rund og udhuling virker ikke på et bundt, fordi det ikke er én form: gruppér det til det, eller arbejd på dets dele én ad gangen. Skal et hul i bundtet alligevel skære bundtets egne solider, så skil bundtet ad og gruppér dets dele (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>G</kbd></span>).</p>
+</section><section class="guide-part"><h2 id="f-lles"><span class="heading-alias" id="intersection"></span>Fælles</h2>
+<p><strong class="ui">“Boolesk fælles”</strong> beholder kun hvad to eller flere former har til fælles. Læg to overlappende former oven på hinanden, vælg begge og klik det. Det gør en cylinder og en kasse til et stykke med én rund og én lige side. En gruppe tæller som den ser ud, huller inkluderet. Hvis et hul også er valgt, er det der bliver tilbage hvad alle soliderne deler med alle hullerne. Hvis formerne ikke har noget til fælles, ændres der intet, og en besked siger det. Første klik viser den fælles del, før den anvendes: de valgte former bliver gennemsigtige, og det de har til fælles tegnes i grønt. Vælg og flyt hver form for sig, så følger den grønne del med; et klik mere på <strong class="ui">“Boolesk fælles”</strong> anvender den, og <kbd>Esc</kbd> lukker forhåndsvisningen. Former med for mange trekanter til forhåndsvisningen, som store importerede meshes, skæres allerede ved første klik.</p>
+<p><strong class="ui">“Hylster”</strong> pakker de valgte former ind i ét konvekst legeme, som var de krympefolieret: det mindste legeme uden buler, der rummer dem alle. En halvkugle på en cylinder bliver en kuppel uden trin, fire cylindre i hjørnerne bliver en kasse med rundede hjørner, to kugler en kapsel. Huller i markeringen skæres ud af hylsteret bagefter. Delene bliver i hylsteret: <strong class="ui">“Redigér gruppe”</strong> åbner det som en gruppe, og flytter du en del derhen og lukker, bygges hylsteret igen. Hylsteret er et mesh, så runde former viser facetter, og kantværktøjerne virker på det som på ethvert mesh. Er der kun valgt huller, er hylsteret selv et hul: to cylinderhuller skærer et langhul. Et hylster udfylder alt, hvad der er hult i dets dele: et rør, en cylinder udhulet med <strong class="ui">“Hul”</strong>, en del grupperet med sine huller. Slå <strong class="ui">“Bevar delenes huller”</strong> til under Egenskaber for at holde dem åbne: så udfylder hylsteret kun rummet mellem delene, og en fordybning i siden af en del bliver også.</p>
+<p><strong class="ui">“Småkageudstikker”</strong> laver en småkageudstikker af markeringen: en tynd væg rundt om omridset, 15 mm høj, og en flad kant på 2 mm rundt om foden, så udstikkeren står på kanten, og din tommelfinger har noget at trykke mod. Vælg en importeret SVG eller en skitseform, så bruges dens eget omrids. En tekst der ligger fladt giver bogstavernes egne kurver. Enhver anden form, en bygget form, et importeret mesh eller flere dele, giver den det omrids den står på: det omrids som arbejdsplanet skærer gennem formen, så læg formen på arbejdsplanet først. Dele der overlapper giver ét omrids rundt om dem alle, som om de var grupperet; dele der ligger fra hinanden giver hver sin udstikker, i samme bundt. Omridset spejles venstre mod højre: udstikkeren printes stående på kanten og vendes om for at skære, så en tekst eller et logo kommer ud af dejen vendt rigtigt. Væggens top løber ind i en skærekant der er 0,4 mm bred. Huller i omridset, det indre af et e eller et a, får vægge af deres egen, så de skæres også ud af kagen. De er et legeme for sig selv i bundtet, <strong class="ui">“Indvendige vægge”</strong>: for at få en tekst eller et mønster blot presset ned i dejen i stedet for skåret ud, gør du dem lavere under Egenskaber. Med en væg på 15 mm og 5 mm tyk dej presser indvendige vægge på 12 mm 2 mm dybt. Indenvendige vægge lavere end den ydre væg har en flad top i stedet for skærekanten: de presser blot, og en skærekant ville efterlade tynde spidser der brækker af, og riller der holder fast på dejen. Du lægger den på under Egenskaber, hvis du vil have en. To broer ved kanten, på den side din hånd presser, holder hver indvendig væg fast til væggen rundt om den, spredt rundt om den, 4 mm brede og 3 mm høje. Hver bro står med hele sin bredde på væggene, midt i en side der løber langs omridset, og aldrig hen over en anden del. Dele side om side, som bogstaverne i et navn, bindes også sammen med hinanden, de nærmeste først, så broerne løber som et net gennem alle sammen, og et bogstav midt i et ord holdes også. Et klik på værktøjet åbner et lille vindue: der vælger du en <strong class="ui">“Plade”</strong> i stedet for broerne, som fylder hele omridset på den side du presser, er stabilere og klistrer bedre til pladen, men så kan du ikke skubbe dejen ud bagfra. <strong class="ui">“Afrunding”</strong> lægger små 45°-flader, hvor væggene står på kanten, broerne eller pladen, så tynde dele som prikken i et i ikke brækker af; de er et legeme for sig selv i bundtet. Der sætter du også, hvor meget lavere de indvendige vægge er, og om omridset spejles; værdierne bliver stående til den næste udstikker. Du ændrer deres højde under Egenskaber som kantens. Udstikkeren erstatter markeringen som et bundt af skitseformer, og <strong class="ui">“Redigér gruppe”</strong> åbner det. Væg, indvendige vægge og kant er skitsens fyldtilstande, en streg udvendig om silhuetten: du ændrer tykkelsen, højden eller farven af hver af dem under Egenskaber, og væggens <strong class="ui">“Skærekant”</strong> også der (0 giver en flad top). Hvor en skarp bøjning ikke efterlader plads til en affasning på begge sider, er væggen kun faset på ydersiden, til den samme kant. Hvor et omrids slet ikke kan faseres - et logo med skarpe spidser, et omrids skåret ud af en forms trekanter - bygges kanten i stfine trin på 0,1 mm i stedet, som et printlag på 0,2 mm ikke kan skelne fra hældningen; en sådan væg er et mesh af trekanter frem for et eksakt legeme. Vil du beholde omridset som det er tegnet, spejler du udstikkeren tilbage med <strong class="ui">“Spejl”</strong>, <strong class="ui">“venstre-højre”</strong>. Et billede i PNG eller JPG virker også: når det importeres, spores det til en skitseform, og udstikkeren følger den.</p>
+<p><strong class="ui">“Overgang mellem skitser”</strong> forbinder to skitseformer eller importerede SVG'er til ét legeme: forneden den nederstes omrids, foroven den øverstes, med lige vægge imellem. Det giver en tragt, et overgangsstykke fra firkant til rundt, eller en ramme der smalner mod toppen. Sæt de to legemer oven på hinanden der hvor de hører hjemme, forskudt og drejet som du vil, vælg begge og klik på værktøjet. Overgangen rækker fra bunden af det nederste legeme til toppen af det øverste.</p>
+<p>Hver af de to skal have præcis ét omrids. Har den et hul, en ring for eksempel, skal den anden have lige så mange, og hullerne loftes også: to ringe giver en hul væg. En skitse bygget som en streg (en streg udvendig, indvendig eller centreret under Egenskaber) tæller som sådan en ring. En importeret SVG kommer ind udfyldt; for at gøre den til en ring giver du den en streg under Egenskaber. Begge legemer skal ligge fladt; værktøjet nægter de vippede.</p>
+<p>Overgangen er et eksakt CAD-legeme; kantværktøjerne og STEP-eksporten tager den som ét. De to skitser bliver indeni i den: <strong class="ui">“Redigér gruppe”</strong> åbner dem som en gruppe, og flytter eller ændrer du en af dem derhen, eller redigerer du dens skitse, bygges overgangen igen når du lukker. <strong class="ui">“Opdel gruppe”</strong> frigiver de to skitser igen. For to rektangler, cirkler eller polygoner findes der også <strong class="ui">“Loft”</strong> blandt formerne, og enderne sætter du som tal.</p>
+</section><section class="guide-part"><h2 id="sk-r-et-legeme-ud-af-et-andet"><span class="heading-alias" id="cutting-one-body-out-of-another"></span>Skær et legeme ud af et andet</h2>
+<p>Til dele, der skal passe sammen, en aksel i en muffe eller en bolt i et hus, laver du den ene del og skærer den ud af den anden. Vælg de to legemer og klik på <strong class="ui">“Skær ud”</strong> i området <strong class="ui">“Kombinér”</strong>, eller højreklik og vælg det der. Vinduet nævner delen, der bliver, og legemet, der får hulrummet; layerling tager det mindste som delen, og <strong class="ui">“Byt om de to”</strong> vender det om. <strong class="ui">“Spillerum”</strong> gør hulrummet så meget større end delen hele vejen rundt: 0 passer præcist, 0,2 mm er et almindeligt spillerum til en printet pasning. <strong class="ui">“Skær ud”</strong> skærer en kopi af delen ud af det andet legeme og lader delen selv blive, hvor den er. Resultatet er en gruppe: <strong class="ui">“Opdel gruppe”</strong> tager snittet fra hinanden igen. Et spillerum kræver, at delen er et eksakt legeme, som ved værktøjet <strong class="ui">“Forskydning”</strong>, der bruges til det.</p>
+</section><section class="guide-part"><h2 id="udstansning-af-et-omrids-gennem-et-legeme"><span class="heading-alias" id="punching-an-outline-through-a-body"></span>Udstansning af et omrids gennem et legeme</h2>
+<p>For at skære omridset af et legeme lige gennem et andet vælger du først stemplet og derefter legemet, der skal udstanses, og klikker på <strong class="ui">“Udstans”</strong> i området <strong class="ui">“Kombinér”</strong>, eller vælger det efter et højreklik. De to behøver ikke at røre hinanden: stemplet kan stå hvor som helst foran legemet, og kun dets omrids set langs <strong class="ui">“Retning”</strong> tæller. En tekande holdt over en plade efterlader altså en åbning formet som en tekande. layerling begynder med den akse, langs hvilken stemplet står længst fra legemet; X går fra venstre mod højre, Y forfra og bagud, Z opad. <strong class="ui">“Byt de to”</strong> bytter rollerne, og <strong class="ui">“Spillerum”</strong> gør åbningen større hele vejen rundt, 0,2 mm for en printet del, der skal passere igennem. <strong class="ui">“Udstans”</strong> grupperer åbningen med legemet som et præcist skitselegeme sat til hul, så <strong class="ui">“Opdel gruppe”</strong> tager det ud igen; stemplet bliver, hvor det er. Flyt eller drej det og udstans igen for en anden åbning.</p>
+</section><section class="guide-part"><h2 id="redigering-af-en-gruppe"><span class="heading-alias" id="editing-a-group"></span>Redigering af en gruppe</h2>
+<p>Hvis en boring blev for lille, behøver du ikke opløse gruppen og bygge igen. Vælg gruppen og klik på <strong class="ui">“Redigér gruppe”</strong> i dens indstillinger, mappeikonet i objektlisten, eller tryk <kbd>E</kbd>. I objektlisten kan du også åbne gruppen med dens pil og klikke på en af dens dele: gruppen åbnes med den del markeret. Et dobbeltklik på gruppen gør det samme, som i Tinkercad, også på et bundt; vil du hellere ikke, så slå <strong class="ui">“Dobbeltklik åbner en gruppe eller et bundt”</strong> fra i indstillingerne. En del begynder først at flytte sig når markøren er trukket et par pixels, så et ustabilt klik eller dobbeltklik skubber ikke til den. Delene ligger nu hver for sig og du ændrer dem med alle værktøjer: gør et hul større, flyt en form, tilføj et hul.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/open-group.webp" alt="Gruppen der redigeres: bjælken i bunden har Annullér og Udført, og objektlisten viser delene." width="1280" height="800" loading="lazy"><figcaption>Gruppen der redigeres: bjælken i bunden har Annullér og Udført, og objektlisten viser delene.</figcaption></figure>
+<p>En bjælke dukker op i bunden af billedet. <strong class="ui">“Udført”</strong> genopbygger gruppen, med dens navn, dens farve og dens tilstand som solid eller hul. <strong class="ui">“Annullér”</strong> sætter den tilbage urørt.</p>
+<p>Hvis en af delene selv er en gruppe, kan du redigere den på samme måde, og så videre så dybt som dit design går. Bjælken viser hvor du er, for eksempel &quot;Beslag › Skruebøsning&quot;. <strong class="ui">“Udført”</strong> og <strong class="ui">“Annullér”</strong> afslutter altid den inderste gruppe og tager dig et niveau op. Mens du er inden i en gruppe, kan kun grupperne blandt dens dele redigeres; for at redigere en anden, afslut først.</p>
+<p>I modsætning til <strong class="ui">“Opdel gruppe”</strong>, der skiller en gruppe ad for evigt, bevarer redigering gruppen: dens navn og indstillinger bevares, og du kan altid gå tilbage med <strong class="ui">“Annullér”</strong>.</p>
+<p>En bemærkning: fas og rund du har lagt på <strong>hele</strong> gruppen mistes ved genopbygning. Bjælken fortæller dig det.</p>
+</section><section class="guide-part"><h2 id="deling"><span class="heading-alias" id="splitting"></span>Deling</h2>
+<p><strong class="ui">“Del”</strong> i <strong class="ui">“Modificér”</strong>-området skærer markeringen over i to med et plan - en del der er for stor til printlejet for eksempel, eller en du vil se indersiden af. Vælg en eller flere solider eller huller og klik det. Et gennemsigtigt plan viser præcis hvor snittet vil gå, og en hvid linje markerer det på formerne selv, der hvor planet møder dem; intet ændres før du anvender det.</p>
+<ul><li><strong class="ui">“Planorientering”</strong>: <strong>X</strong> laver et lodret snit mellem venstre og højre, <strong>Y</strong> mellem for og bag, <strong>Z</strong> et vandret snit mellem top og bund. Akserne er navngivet som på Positionskortet, med Z op; Z er der planet starter.</li><li><strong class="ui">“Tilpas til arbejdsplan”</strong>: <strong class="ui">“Parallel”</strong> lægger planet parallelt med arbejdsplanet, <strong class="ui">“På tværs af X”</strong> og <strong class="ui">“På tværs af Y”</strong> stiller det vinkelret på det, på tværs af dets X- eller Y-retning. Skærer arbejdsplanets origo markeringen, går planet gennem det, ellers gennem midten. Så lægger du arbejdsplanet på en skrå flade med <kbd>W</kbd> og skærer præcis der, uden at dreje på drejeskyderne.</li><li><strong class="ui">“Planposition”</strong>: hvor planet skærer, med skyderen eller tastet ind. Det starter i midten. Du kan også trække pilens hoved på planet; planet flytter sig langs pilen i 0,1 mm-trin.</li><li><strong class="ui">“Vælg flade”</strong>, knappen ved siden af positionen, lægger planet på en flade: klik den, klik så fladen. Orientering, begge rotationer og position sættes til at matche. Mens du vælger, viser et blåt plan under markøren den flade det vil tage. En flade på en form der ikke er valgt virker også, for at justere snittet med den, men planet bliver inden for markeringen. <kbd>Esc</kbd> stopper valget og lader planet stå hvor det var.</li><li>De to rotationsskydere nedenunder drejer planet om de to andre akser, op til 180° hver vej, for et skråt snit. De kan kombineres.</li></ul>
+<p><strong class="ui">“Anvend”</strong> eller <kbd>Enter</kbd> laver snittet, <kbd>Esc</kbd> annullerer (mens der vælges en flade, stopper den første <kbd>Esc</kbd> kun valget). Hvert objekt planet skærer bliver til to lukkede former, opkaldt efter deres side, for eksempel &quot;Kasse (Z+)&quot; og &quot;Kasse (Z-)&quot;; objekter det rammer ved siden af bliver som de er. Et hul bliver til to huller, og en udhulet form beholder sit hulrum. Begge halvdele bliver hvor de var - til printning, læg hver på sin snitflade med <strong class="ui">“Læg fladt på flade”</strong>.</p>
+<p><strong class="ui">“Samling”</strong> retter halvdelene ind igen, sådan som skæreværktøjerne i PrusaSlicer, OrcaSlicer og Bambu Studio gør. Med <strong class="ui">“Ingen”</strong>, standarden, deles der som beskrevet ovenfor. <strong class="ui">“Dyvler”</strong> laver et hul i hver halvdel og løse dyvler, der går ind i begge: dyvlerne kommer som et tredje legeme, stående ved siden af halvdelene på deres bund, og printes med dem – stående bliver de runde i lagene ligesom deres huller, og det er netop det, pasprøven måler. <strong class="ui">“Tappe”</strong> stiller runde tappe på den halvdel, hvis navn ender på minus, med hullerne til dem i den anden halvdel. Dyvler og tappe går vinkelret på planet ind, hvordan det end er drejet, hver med sin diameter og 1,2 mm materiale til hver kant af snitfladen, og to af dem dobbelt så langt fra hinanden. Hvert adskilt stykke af snitfladen får sine egne, jævnt fordelt over det: <strong class="ui">“Pr. snitflade (0 = automatisk)”</strong> siger hvor mange, og 0 overlader det til stykkets størrelse, mindst to. Et stykke, der er for lille til én, får ingen, og en dyvel eller tap udelades, hvor en halvdel er tyndere, end dens hul er dybt; panelet siger det, før du deler, og hvide ringe på planet viser, hvor de kommer. Passer der slet ingen, deles delene uden, og statuslinjen siger det.</p>
+<ul><li><strong class="ui">“Diameter”</strong> er dyvlernes og tappenes, til at begynde med 5 mm.</li><li><strong class="ui">“Dybde ind i hver halvdel”</strong> er, hvor langt hvert hul går ind i sin halvdel. En dyvel er dobbelt så lang minus 0,6 mm og en tap 0,3 mm kortere end sit hul, så de aldrig står på bunden af et hul og halvdelene lukker helt. Dyvler og tappe har en lille affasning i enderne, og hvert hul en ved sin åbning, så et udflydt første lag ikke gør det snævrere.</li><li><strong class="ui">“Dyvler på afbrækkelig sokkel”</strong> stiller ved <strong class="ui">“Dyvler”</strong> de løse stifter på én fælles plade, der holder fast på pladen, til printere, hvor den bevægelige plade får stående stifter til at vakle. Hver stift står på en lille knop i en fatning i pladen; efter print vipper du hver af dem, til den knækker af, ligesom pasningstestens stift.</li><li><strong class="ui">“Spillerum pr. side”</strong> er pladsen mellem en dyvel eller tap og dens hul. Når du har målt din printers spillerum med pasprøven (i kapitlet om print), starter det med det, ellers med 0,2 mm.</li></ul>
+<p><strong class="ui">“Svalehale”</strong> holder halvdelene sammen uden lim, som svalehalesnittet i OrcaSlicer: en liste, der bliver bredere væk fra snitfladen, står på den halvdel, hvis navn ender på minus, og løber lige hen over snitfladen fra kant til kant; den anden halvdel får den passende not, åben i begge ender. Skub halvdelene ind i hinanden fra siden, langs listen; derefter kan de ikke trækkes fra hinanden på tværs af snittet. Listerne løber på langs af snitfladen, og møder et legeme planet i flere stykker, løber de samme vej på dem alle, så en halvdel skubbes på i ét træk. <strong class="ui">“Pr. snitflade (0 = automatisk)”</strong> er antallet af lister side om side på hvert stykke; 0 overlader det til stykkets bredde, én for hver seks listebredder, mindst én. Ved siden af sin brede overside beholder en liste sin halve bredde og yderligere 1,2 mm materiale til snitfladens kant, og to lister dobbelt så meget fra hinanden. Et stykke, der er for smalt til en liste eller for kort på langs af den, får ingen, og en liste udelades, hvor den anden halvdel er tyndere, end dens not er dyb. Hvide omrids på planet viser, hvor de kommer: den udfyldte stribe er listens fod, linjen omkring den dens brede overside.</p>
+<ul><li><strong class="ui">“Bredde ved snitfladen”</strong> er listens bredde, hvor den kommer ud af snitfladen, til at begynde med 6 mm.</li><li><strong class="ui">“Dybde ind i den anden halvdel”</strong> er, hvor langt den rager ud af snitfladen ind i den anden halvdel, til at begynde med 4 mm. Noten er 0,3 mm dybere, så halvdelene lukker helt.</li><li><strong class="ui">“Flankevinkel”</strong> er, hvor meget hver flanke hælder udad i forhold til vinkelret på snitfladen, fra 5° til 30°, til at begynde med 15°. Jo større, jo bredere listens overside, og jo fastere holder den.</li><li><strong class="ui">“Retning (0 = på langs)”</strong>: 0 lægger listerne på langs, 90 på tværs af snitfladen, og en vinkel derimellem drejer dem så meget.</li><li><strong class="ui">“Spillerum pr. side”</strong> er pladsen på hver side mellem listen og dens not, fra din pasprøve som ved dyvlerne. Listens ender er affaset hele vejen rundt, så den finder noten, og noten har en affasning ved sin åbning.</li></ul>
+<p>Til printning lægger du halvdelen med noten på sin snitflade og printer halvdelen med listen omvendt, med snitfladen opad: så hælder listens flanker kun udad med deres vinkel, og det kan printes uden støtte.</p>
+<p>Former, der er huller, deles uden samling.</p>
+<p>Halvdelene er almindelige meshes: indstillinger som en cylinders sider eller en teksts bogstaver er væk, så sæt dem først. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> bringer originalen tilbage i ét skridt. Låste og skjulte objekter kan ikke deles.</p>
+<p>Et importeret mesh skal have en lukket overflade for at blive delt, grupperet eller skåret. Har det åbninger, som øjnene på en figur der er ladt åbne, eller en revne i et scan, lukker layerling dem først med et fladt låg og siger hvor mange den lukkede. Den lukker små åbninger og flade åbninger af enhver størrelse; en stor åbning hvis kant bøjer, overlader den til dig, og beskeden siger det. Luk den i det program modellen kommer fra, eller med et mesh-reparationsværktøj, og importer den igen.</p>
+</section><section class="guide-part"><h2 id="adskil-dele"><span class="heading-alias" id="separating-parts"></span>Adskil dele</h2>
+<p>Hvis en form består af flere separate stykker, for eksempel tekst lavet af enkelte bogstaver, splitter <strong class="ui">“Adskil dele”</strong> den i uafhængige former. Posten findes også i den menu du får ved at højreklikke på formen.</p>
+<aside class="tip"><p><strong>Tip:</strong> Lav altid huller lidt længere end den del de skal gå igennem. Hvis hullet ender præcis flugtende med fladen, bliver der nogle gange en tynd hinde tilbage. En millimeters overshoot sikrer.</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/vejledning/select-and-arrange.html"><small>Forrige kapitel</small>Valg og arrangering</a><a class="next" href="/api/desktop/layerling/ui/vejledning/edges-and-hollowing.html"><small>Næste kapitel</small>Bryd kanter og hul former</a></div>
+      </main>
+    </div>
+    <footer class="note">Denne vejledning vokser sammen med programmet. Hvis noget mangler eller er forkert, så fortæl os i <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">diskussioner</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=da" rel="noopener">Støt projektet</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Diskussioner</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mere på GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Udgivelsesnoter v1.154.1</a></div><p class="trademark">Tinkercad er et varemærke tilhørende Autodesk, Inc. layerling er et uafhængigt projekt og er ikke tilknyttet, anbefalet eller sponsoreret af Autodesk.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Tilbage til editoren";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Åbn editoren";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

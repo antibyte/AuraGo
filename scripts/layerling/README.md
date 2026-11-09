@@ -1,11 +1,11 @@
 # Layerling adapter build
 
-Upstream: https://github.com/henmedia/layerling, AGPL-3.0-only, version 1.71.0,
-commit `8704d5c99adfeb981be31bb5eddc9c17f75ab281`.
+Upstream: https://github.com/henmedia/layerling, AGPL-3.0-only, version 1.154.1,
+commit `bdf50b068f7b0475dece5307e1b2019aa10d5305` (tag `v1.154.1`).
 
-Download https://codeload.github.com/henmedia/layerling/zip/8704d5c99adfeb981be31bb5eddc9c17f75ab281
-as `disposable/_layerling/upstream-1.71.0.zip`. SHA-256:
-`53a613e5fa04e003d47d5aedf552595c8774a1c846984aa8cab0058358ed41d6`.
+Download https://codeload.github.com/henmedia/layerling/zip/bdf50b068f7b0475dece5307e1b2019aa10d5305
+as `disposable/_layerling/upstream-1.154.1.zip`. SHA-256:
+`be64e8f895bad8e5a2df961d3a345f7a576bbf550f0f749b10b943625b16f080`.
 Extract there, run `npm ci` in the extracted source, then from AuraGo run
 `node scripts/build-layerling-vendor.mjs`. Use exactly Node 24.21.0.
 `node scripts/build-layerling-vendor.mjs --check` verifies the shipped files.
@@ -22,8 +22,12 @@ for the supported operations and checked against their training fixtures.
 Patches are checked replacements in `build-layerling-vendor.mjs`: fixed
 `basePath`, deterministic build ID, two build workers, the standalone entry
 page and bridge, local font/guide/OCCT URLs, suppressed service worker and HTTP
-MCP effect, Desktop import/export callbacks, awaited mesh export completion,
-scoped static guide links and independent footer project links. The upstream worker verifier checks the fixed prefix. No runtime
+MCP effect, Desktop import/export callbacks, mesh export completion (returned
+where upstream still fires it, otherwise the awaited STL/3MF/OBJ path),
+scoped static guide links, independent footer project links and GitHub release
+notes. The local archive remains the corresponding source. The build also
+runs `scripts/build-japanese-typeface.mjs` and copies the Zen Maru Gothic
+OFL-1.1 notice next to the generated face. The upstream worker verifier checks the fixed prefix. No runtime
 dependency is loaded from a CDN. OCCT's Emscripten binding requires JavaScript
 `Function` constructors; `unsafe-eval` is restricted to this verified app's CSP.
 

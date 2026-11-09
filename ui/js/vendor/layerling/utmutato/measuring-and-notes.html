@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="hu">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Mérés és jegyzetek - layerling útmutató</title>
+    <meta name="description" content="Mérőszalag, vonalzó és derékszögvonalzó, távolságok az origótól, egy alkatrészhez rögzített jegyzetek és referenciapontok, amelyekhez a dolgok illeszkednek.">
+    <link rel="canonical" href="https://layerling.com/utmutato/measuring-and-notes.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/measuring-and-notes.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/measuring-and-notes.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/measuring-and-notes.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/messen-und-notizen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/measuring-and-notes.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/measuring-and-notes.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/measuring-and-notes.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/measuring-and-notes.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/meten-en-notities.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/measuring-and-notes.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/merjenje-in-opombe.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/measuring-and-notes.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/measuring-and-notes.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/measuring-and-notes.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/measuring-and-notes.html">
+    <meta property="og:title" content="Mérés és jegyzetek - layerling útmutató">
+    <meta property="og:description" content="Mérőszalag, vonalzó és derékszögvonalzó, távolságok az origótól, egy alkatrészhez rögzített jegyzetek és referenciapontok, amelyekhez a dolgok illeszkednek.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/utmutato/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Útmutató</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/utmutato/search-index.json" data-nothing="Nincs találat." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Keresés az útmutatóban" aria-label="Keresés az útmutatóban" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Nyelv">Magyar</summary><ul><li><a href="/api/desktop/layerling/ui/guide/measuring-and-notes.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/measuring-and-notes.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/measuring-and-notes.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/measuring-and-notes.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/measuring-and-notes.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/measuring-and-notes.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/measuring-and-notes.html" hreflang="hu" lang="hu" aria-current="true">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/measuring-and-notes.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/measuring-and-notes.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/measuring-and-notes.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/merjenje-in-opombe.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/measuring-and-notes.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/measuring-and-notes.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/measuring-and-notes.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/measuring-and-notes.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/measuring-and-notes.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/measuring-and-notes.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Szerkesztő megnyitása</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>A szerkesztő már nyitva van egy másik lapon – egyszerűen válts át oda.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Fejezetek"><h2>Fejezetek</h2><p class="print-link"><a href="/api/desktop/layerling/ui/utmutato/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>A teljes útmutató nyomtatáshoz</span></a></p><ol><li><a href="/api/desktop/layerling/ui/utmutato/getting-started.html">Első lépések</a></li><li><a href="/api/desktop/layerling/ui/utmutato/view-and-workplane.html">Nézet és munkasík</a></li><li><a href="/api/desktop/layerling/ui/utmutato/shapes.html">Alakzatok elhelyezése és beállítása</a></li><li><a href="/api/desktop/layerling/ui/utmutato/select-and-arrange.html">Kijelölés és elrendezés</a></li><li><a href="/api/desktop/layerling/ui/utmutato/solids-and-holes.html">Tömör testek és lyukak</a></li><li><a href="/api/desktop/layerling/ui/utmutato/edges-and-hollowing.html">Élek letörése és testek kiüregelése</a></li><li><a href="/api/desktop/layerling/ui/utmutato/sketches.html">Vázlatok: a körvonaltól a testig</a></li><li><a href="/api/desktop/layerling/ui/utmutato/text.html">Szöveg és íves feliratok</a></li><li><a href="/api/desktop/layerling/ui/utmutato/threads-and-mechanics.html">Menetek, fogaskerekek és más alkatrészek</a></li><li><a href="/api/desktop/layerling/ui/utmutato/measuring-and-notes.html" aria-current="page">Mérés és jegyzetek</a></li><li><a href="/api/desktop/layerling/ui/utmutato/printing.html">Előkészítés 3D nyomtatásra</a></li><li><a href="/api/desktop/layerling/ui/utmutato/files-and-saving.html">Fájlok, mentés és megosztás</a></li><li><a href="/api/desktop/layerling/ui/utmutato/shortcuts.html">Billentyűparancsok</a></li><li><a href="/api/desktop/layerling/ui/utmutato/ai-with-mcp.html">Építés MI-vel (MCP)</a></li><li><a href="/api/desktop/layerling/ui/utmutato/offline-and-install.html">Telepítés alkalmazásként, offline munka és saját üzemeltetés</a></li><li><a href="/api/desktop/layerling/ui/utmutato/videos.html">Videók a layerlingről</a></li><li><a href="/api/desktop/layerling/ui/utmutato/tablet-and-touch.html">Tablet and touch</a></li></ol></nav>
+      <main>
+<h1>Mérés és jegyzetek</h1>
+<p class="lead">Mérőszalag, vonalzó és derékszögvonalzó, távolságok az origótól, egy alkatrészhez rögzített jegyzetek és referenciapontok, amelyekhez a dolgok illeszkednek.</p>
+<div class="toc"><b>Ezen az oldalon</b><ul><li><a href="#a-meroszalag">A mérőszalag</a></li><li><a href="#a-vonalzo">A vonalzó</a></li><li><a href="#a-derekszoegvonalzo">A derékszögvonalzó</a></li><li><a href="#a-szoegmero">A szögmérő</a></li><li><a href="#tavolsagok-az-origotol-es-mozgatas-koezben">Távolságok az origótól és mozgatás közben</a></li><li><a href="#hezag-ellenorzese">Hézag ellenőrzése</a></li><li><a href="#jegyzetek">Jegyzetek</a></li><li><a href="#referenciapontok">Referenciapontok</a></li><li><a href="#mintakepek">Mintaképek</a></li></ul></div>
+<p>Egy alkatrész pontos megépítéséhez mérni kell. A layerlingben erre több eszköz van. Egyik sem kerül bele az exportba. A falvastagságot és az alkatrészen belüli réseket legjobb a <a href="/api/desktop/layerling/ui/utmutato/view-and-workplane.html">metszeti nézetben</a> mérni a <strong class="ui">„Mérés”</strong> eszközzel.</p>
+<section class="guide-part"><h2 id="a-meroszalag"><span class="heading-alias" id="the-tape-measure"></span>A mérőszalag</h2>
+<p>A mérőszalag a bal szélen lévő nézetsáv alsó végén van (<strong class="ui">„Mérőszalag”</strong>). Sarkok, élek és lapok közötti távolságokat mér. Rákattintva öt gomb nyílik meg. Ha eltakarják, amit mérnél, húzd őket a bal oldali fogónál fogva bárhová a munkasíkon; a fogóra dupla kattintás visszateszi őket:</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/tape-menu.webp" alt="A mérőszalag a gombjaival: mérés hozzáadása, mérési pontok mozgatása, mérés eltávolítása, teljes élek, minden mérés törlése." width="1280" height="800" loading="lazy"><figcaption>A mérőszalag a gombjaival: mérés hozzáadása, mérési pontok mozgatása, mérés eltávolítása, teljes élek, minden mérés törlése.</figcaption></figure>
+<ol><li><strong><strong class="ui">„Mérés hozzáadása”</strong>:</strong> Kattints egy pontra, húzd a következőig, és kattints rá. A távolság felirattal jelenik meg, előtte a tengelyekkel, amelyek mentén halad: X, Y vagy Z egyenesnél, XY, XZ vagy YZ egy síkon át, 3D mindhárom esetén. Vidd a mutatót a felirat fölé, és látod, mennyit nyúlik a mérés az egyes tengelyek mentén; egy pont fölött a koordinátáit. A második pont elhelyezése közben a tengelyek, a távolság és az egyes tengelyek menti kiterjedés a mutató mellett látszik. Az a mérés, amely nagyrészt egy másik test mögött van, halványabb lesz; ha a vonala vagy a felirata fölé viszed a mutatót, újra teljesen látszik. A sarkok és élek mellett egy pont a mutató alatti sík lap közepéhez és egy kerek él – például egy lyuk vagy egy henger pereme – középpontjához is illeszkedik: a felkínált középpontot egy kis kereszt jelöli egy körben; ha a mutató a közelébe ér, a pont odailleszkedik, és egy tipp megmondja, minek a középpontja (<strong class="ui">„Centre of face”</strong>, <strong class="ui">„Centre of hole”</strong> vagy <strong class="ui">„Centre of circle”</strong>).</li><li><strong><strong class="ui">„Mérési pontok mozgatása”</strong>:</strong> Fogd meg a pontokat, és mozgasd őket, a szám követi.</li><li><strong><strong class="ui">„Mérésrész törlése”</strong>:</strong> Utána kattints egy mérésre, hogy eltávolítsd.</li><li><strong><strong class="ui">„Teljes élek mérése”</strong>:</strong> Egy élre kattintva az egészet méri, például egy kör kerületét. Ha ez ki van kapcsolva, a kattintás ehelyett egy pontot tesz az élre, a második pont pedig bárhová kerülhet, így az átmérőt vagy bármilyen más távolságot mérheted. Az <kbd>Alt</kbd> egy kattintás erejéig megfordítja a kapcsolót. Körön az elsővel szemközti pont beugrik, amikor a mutató a közelébe ér, és a pontok a valódi körön ülnek, így az átmérő pontosan jön ki.</li><li><strong><strong class="ui">„Minden mérés törlése”</strong>:</strong> Egyszerre eltávolít minden mérést. Mivel ez nem vonható vissza, a layerling előbb rákérdez; ha nincs mérés, nincs mit tenni.</li><li><strong><strong class="ui">„A felezőpont megjelölése referenciapontként”</strong>:</strong> Minden mérés közepén egy kis kerek jel ül, az alsó fele kitöltve. <a href="#referenciapontok">Referenciapontot</a> tesz a mérés közepére: egy kerek élre, például egy lyuk peremére kattintva annak a körnek a középpontjába – importált hálón is, ahol semmi más nem jelöli egy lyuk közepét –, átmérőnél vagy bármilyen egyenes mérésnél pedig a felénél. Az az alakzat, amelyet ezután húzol, a középpontjával a ponthoz illeszkedik. Egy már meglévő pontot nem készít el kétszer. A mérőszalag úgy illeszkedik egy referenciaponthoz, mint egy sarokhoz, így egy kör középpontjától vagy egy vonal közepétől is mérhetsz: jelöld meg, majd kattints a pontra.</li><li><strong><strong class="ui">„Hossz beírása: a második pontnál lévő test a vonal mentén mozdul; negatív hossz az első ponton túlra viszi”</strong>:</strong> Ha egy egyenes mérés legalább egyik vége egy testen van, a száma rákattintható. Írj be új hosszt, és nyomd meg az <kbd>Enter</kbd> billentyűt: a második pontnál lévő test a mért vonal mentén addig mozdul, amíg a távolság pontosan ennyi nem lesz, mint a Tinkercad vonalzójánál. Ha csak az első pontnál lévő test van kijelölve, az mozdul. A mérési pontok a testen maradnak, így a mérés követi. Mérj sarokból, élről vagy egy lap vagy lyuk közepéből, hogy az alkatrészeket pontos távolságra tedd: egy lyuk közepétől egy henger tetejének közepéig mérve a henger középponttól középpontig mozdul. Negatív hossz ennyivel az első ponton túlra viszi, például 5 mm-rel egy doboz élén belülre. Egy <a href="#referenciapontok">referenciapont</a> egyik testhez sem tartozik, ezért két referenciapont között semmi sem mozdul. Ha a mérés két vagy három tengely mentén fut, a mezőben a hossz alatt mindegyikhez van még egy rovat (ΔX, ΔY, ΔZ – a távolságok, amelyek a számra mutatva megjelennek): írj oda, és a test csak az adott tengely mentén mozdul. A <kbd>Tab</kbd> rovatról rovatra lép, az <kbd>Esc</kbd> bezárja a mezőt anélkül, hogy bármi elmozdulna. Ha a számra mutatsz, látod, melyik test mozdul, vagy miért nem mozdulhat egyik sem: zárolva van, mindkét pont ugyanazon a testen van, vagy egyik sincs testen. Az utána megjelenő üzenet megmondja, mi mozdult és mennyit; egy visszavonás visszaállítja.</li></ol>
+<p>Az <kbd>Esc</kbd> kilép a mérés módból.</p>
+</section><section class="guide-part"><h2 id="a-vonalzo"><span class="heading-alias" id="the-ruler"></span>A vonalzó</h2>
+<p>A <strong class="ui">„Vonalzó”</strong> alakzatot az alakzattárból veszed elő. Tisztán mérőeszköz: egyik exportban sem jelenik meg, és nem csoportosítható és nem vágható. Minden testnél, amely hozzáér a vonalzóhoz vagy átfed vele, lebegő számként közvetlenül a nézetben mutatja a kiterjedést. Ezt a számot ott helyben megváltoztathatod, és a test követi. A lebegő plusz jel másolatot készít a mért alakzatról. A rányomott skála milliméterben van; ha az egységet hüvelykre kapcsolod (a jobb alsó kapcsoló), hüvelykben jelenik meg, minden tizenhatod hüvelykhez egy vonással és megszámozott egész hüvelykekkel.</p>
+</section><section class="guide-part"><h2 id="a-derekszoegvonalzo"><span class="heading-alias" id="the-framing-square"></span>A derékszögvonalzó</h2>
+<p>Néha derékszögben jobban mérsz. Kattints a nézetsávon a <strong class="ui">„Derékszögvonalzó elhelyezése”</strong> gombra, majd a munkasíkra. Oda egy derékszögvonalzó kerül két, egymásra merőleges szárral, osztásokkal, mint egy asztalos derékszögön. Ennek sincs saját teste. Ha egy test sarka közelébe kattintasz, a sarka pontosan oda illeszkedik. Ha szinte minden tervben szükséged van rá, kapcsold be a beállításokban a <strong class="ui">„Mérés”</strong> alatt a <strong class="ui">„Az új tervek derékszögvonalzóval induljanak az origóban”</strong> lehetőséget: ekkor minden új terv derékszögvonalzóval indul az origóban.</p>
+<p>A derékszögvonalzó a munkasíkon fekszik. Ha az egy test oldalán van, a derékszögvonalzó is azon az oldalon fekszik, lásd a <a href="/api/desktop/layerling/ui/utmutato/view-and-workplane.html">Nézet és munkasík</a> fejezetet. Így méretezel egy függőleges falon: tedd a munkasíkot a falra, helyezd a derékszögvonalzót a bal felső sarkára, és kattints a fogantyúra, amíg a szárak jobbra és lefelé nem mutatnak.</p>
+<ul><li><strong>A fogantyú húzása</strong> mozgatja.</li><li><strong>Egy rövid kattintás a fogantyúra</strong> 90°-kal elforgatja.</li><li><strong>A mellette lévő ×</strong> eltávolítja.</li><li><strong>A szár végén lévő kis kör húzásával</strong> a szár hosszabb vagy rövidebb lesz, egész milliméterenként. A fogantyú alatti legalsó gomb, a <strong class="ui">„A szárak olyan hosszúak, mint a nyomtatóasztal (a szár végét húzva változtathatod a hosszát)”</strong>, mindkét szárat olyan hosszúra állítja, amilyen széles és mély a beállításokban választott nyomtató asztala. A derékszög a terv mellett megőrzi a szárak hosszát, és az újra lerakott átveszi azt.</li><li><strong>A fogantyútól balra lévő kis gomb</strong> azt váltja, honnan mér: egy test külső oldalától (végpont, vonalas ikon) vagy a közepétől (középpont, célkereszt). Minden zöld szám mellett egy ugyanilyen kis kapcsoló van, amely csak azt a számot állítja: egy álló hengernél a két szárban a közepet, magasságban az alját, egy fekvőnél keresztben a közepet, hosszában az egyik végét. Ha mindhárom újra egyezik, a fogantyúnál lévő gomb a közös módot mutatja.</li></ul>
+<p>Ha testek állnak valamelyik szárnál, a derékszögvonalzó automatikusan mutatja a méreteiket. Ez csak az alaplapon működik, egy test oldalán nem. A derékszögvonalzó fogantyúja alatti nyilas gomb ezt kikapcsolja, így csak a kijelölt testek mutatják a méreteiket; a tervvel együtt mentődik.</p>
+<p>Ha kijelölsz egy testet, a derékszögvonalzó zölddel mutatja, milyen messze van a saroktól, mindkét szár mentén és magasságban. Egy zöld számra kattintva távolságot gépelhetsz be, és a test pontosan oda mozdul. Több kijelölt testnél ezek egynek számítanak: a vonalzó a közös körvonalukat méri, egy begépelt érték pedig együtt mozgatja őket anélkül, hogy az egymáshoz viszonyított helyzetük megváltozna.</p>
+<p>Középpontnál a zöld számok a test közepéig számolnak, magasságban is. Így egy gömböt a középpontjával pontosan 15 mm-re helyezel egy éltől, a sugár levonása nélkül. Egy falon egy lyukat így helyezel el balról 40, felülről 190 mm-re: jelöld ki a lyukat, válts középpontra, gépeld be a 40-et és a 190-et. A magasság ott a faltól kifelé számol.</p>
+<p>A mérőszalag és a derékszögvonalzó is a helyén marad, amíg vázlatot készítesz, és visszatér a 3D nézetbe. Egyik sem kerül az előzményekbe. A derékszögvonalzó a tervvel együtt mentődik, és a mérőszalag mérései is, a böngészőben és a .lyl fájlban: a terv megnyitásakor újra ott vannak. A mérőszalag gombjai közötti szem gomb elrejti az összes mérést, és újra megmutatja őket; az is mentődik, hogy el vannak-e rejtve, és mérés felvétele, mozgatása vagy törlése előtt újra megjelennek.</p>
+</section><section class="guide-part"><h2 id="a-szoegmero"><span class="heading-alias" id="the-protractor"></span>A szögmérő</h2>
+<p>Szöget a nézetsáv <strong class="ui">„Protractor”</strong> gombjával mérsz. Mellette gombsor nyílik, és amíg újra rá nem kattintasz a gombra, vagy meg nem nyomod az <kbd>Esc</kbd> billentyűt, a nézetbe kattintva a szögmérővel mérsz. A mérőszalaghoz hasonlóan a testek sarkaihoz és éleihez illeszkedik; a testek mellett pontot tesz a lapra.</p>
+<ul><li><strong class="ui">„Angle from three points”</strong>: először a szög csúcsára kattints, aztán mindkét szárán egy-egy pontra. Az utolsó pont elhelyezése közben a szög már látszik; a harmadik kattintás után megmarad, a szárak közti ívvel. Ez a csúcsnál lévő szög, 0° és 180° között.</li><li><strong class="ui">„Angle between two faces”</strong>: kattints két sík lapra. Mindegyiken egy rövid kék vonal mutatja, merre néz, a felirat pedig mindkét szöget megadja, amelyet a lapok bezárnak, a kisebbet elöl: egy 45°-os letörés a felső laphoz képest 45° · 135°, egy hasáb két oldala csak 90°. Egy ívelt lapnak nincs egyetlen iránya, ezért a szögmérő sík lapot kér.</li></ul>
+<p>Egy kész szög utáni következő kattintás újat kezd, a <strong class="ui">„Remove the angle”</strong> pedig eltávolítja. A szög követi a testeket, ha elmozdulnak vagy elfordulnak. Semmi sem mentődik belőle, és az előzményekbe sem kerül: eltűnik, amikor elteszed a szögmérőt.</p>
+</section><section class="guide-part"><h2 id="tavolsagok-az-origotol-es-mozgatas-koezben"><span class="heading-alias" id="distances-to-the-origin-and-while-moving"></span>Távolságok az origótól és mozgatás közben</h2>
+<p>A beállításokban a <strong class="ui">„Megjelenés”</strong> alatt két kapcsoló van az élő méretekhez:</p>
+<ul><li>A <strong class="ui">„Mozgatási méretek mutatása”</strong> húzás közben mutatja, mennyit mozdulsz. Ez a test feletti fekete nyíllal való emelésre is érvényes; az utat az elülső sarkánál mutatja. Elengedés után kattints egy ilyen számra, és írd be a pontos távolságot; a negatív érték lefelé visz.</li><li>Az <strong class="ui">„Origótól mért távolságok mutatása”</strong> a kijelölés távolságait mutatja a tárgyasztal origójától, több kijelölt testnél is.</li></ul>
+<p>A <strong class="ui">„Méretek mindig láthatók”</strong> beállítással a méretek állandóan láthatók maradnak. Ha egy test nem a munkasíkon áll, a fölötte lévő magassága is látszik; a számra kattintva újat írhatsz be. A <strong class="ui">„Dimension boxes in axis colours”</strong> beállítással minden mező a tengelye színét kapja, mint a fogantyúk: X piros, Y zöld, Z kék. Így egy kis alkatrésznél is egy pillantással látod, melyik szám melyik.</p>
+<p>Ha egy pillanatra zavarnak, nyomd meg a <kbd>Q</kbd> billentyűt: a kijelölés körüli méretek és távolságok eltűnnek, így jól látszik a mozgatott alkatrész. Újabb <kbd>Q</kbd> visszahozza őket. Az a fogantyú, amelyre mutatsz, így is megmutatja a méretét.</p>
+</section><section class="guide-part"><h2 id="hezag-ellenorzese"><span class="heading-alias" id="checking-clearance"></span>Hézag ellenőrzése</h2>
+<p>Azoknak az alkatrészeknek, amelyeknek nyomtatás után mozogniuk kell - egy flexi sárkány, egy egyben nyomtatott zsanér, egy doboz a fedelével, egy tengely a furatában -, hézag kell egymás között. Ha túl kicsi, összeragadnak; ha átfedik egymást, egy darabként nyomtatódnak ki. A <strong class="ui">„Check clearance”</strong> az <strong class="ui">„Átmenet vázlatok között”</strong> mellett ezt nyomtatás előtt ellenőrzi. A kijelölt objektumokat veszi, vagy ha nincs kijelölés, az összes láthatót (ugyanazokat, mint egy exportálás), és minden párt ellenőriz:</p>
+<ul><li><strong><strong class="ui">„Overlap”</strong></strong> (piros): a kettőnek közös térfogata van. Ez pirosan látszik a testek belsejében, amelyek átlátszóvá válnak, és a lista megadja a méretét.</li><li><strong><strong class="ui">„Touching”</strong></strong> (piros): összeérnek, és nyomtatáskor összeolvadnak.</li><li><strong><strong class="ui">„Too tight”</strong></strong> (narancs): a legkeskenyebb rés kisebb, mint a(z) <strong class="ui">„Minimum gap”</strong>.</li><li><strong><strong class="ui">„Fine”</strong></strong> (zöld): a legkeskenyebb rés legalább ilyen széles.</li></ul>
+<p>Minden sor megnevezi a két alkatrészt, résnél a szélességét és a helyét: <strong class="ui">„side by side”</strong> (ugyanabban a rétegben) vagy <strong class="ui">„between layers”</strong> (felette vagy alatta: ott a szeletelő csak egész rétegeket hagyhat szabadon, így egy rétegnél vékonyabb rés bezárul). Egy sorra kattintva a kamera odamegy, mindkét alkatrész körvonalat kap, és egy vonal a számmal jelöli a legszűkebb helyet. Az 5 mm-nél távolabbi párok nem szerepelnek a listában. A terv nem változik: az ellenőrzés semmit sem ment, és nincs mit visszavonni.</p>
+<p>A(z) <strong class="ui">„Minimum gap”</strong> kezdetben 0,3 mm; a 0,3 szoros, a 0,4 az egyben nyomtatásnál szokásos. Módosítása azonnal újrarendezi a listát új ellenőrzés nélkül, és a böngésző megjegyzi az értéket. A(z) <strong class="ui">„Check the separate parts of one object (print in place)”</strong> (kezdetben bekapcsolva) egy objektum különálló részeit is ellenőrzi egymással szemben: egy egyetlen STL-ként importált flexi sárkány vagy zsanér egy objektum, de a tagjai különálló részek. Ezek „Név · 2. rész” formában szerepelnek. Egy másik üregében lévő rész, például egy golyó egy kalitkában, külön résznek számít.</p>
+<p>Ha a tervet módosítod, miközben az ablak nyitva van, megjelenik a(z) <strong class="ui">„Changed – check again”</strong>; kattints rá vagy a(z) <strong class="ui">„Check again”</strong> gombra. Az <kbd>Esc</kbd> vagy a(z) <strong class="ui">„Close”</strong> bezárja az ablakot. A méretezés is megváltoztatja a réseket: egy 70 %-ra kicsinyített flexi modell hézagának csak 70 %-a marad meg, ezért méretezés után ellenőrizz újra.</p>
+<p>Az ellenőrzés azt a háromszöghálót méri, amelyet a szeletelő is megkap. Egy kerek tengely és a furata sokszög, a csúcsaik a körön vannak, így egy rés néhány századdal kisebbre jöhet ki a kerek méreteknél. A túl sok háromszögből álló pár <strong class="ui">„Not checked”</strong> jelöléssel szerepel. Egy MI ugyanezt az ellenőrzést végzi a <code>layerling_check_clearance</code> eszközzel.</p>
+</section><section class="guide-part"><h2 id="jegyzetek"><span class="heading-alias" id="notes"></span>Jegyzetek</h2>
+<p>Egy jegyzet azt rögzíti, amit a geometria nem mond el: „Ez a csavar 0,3 mm-rel túl szoros”, „a fedelet még ki kell nyomtatni”, „méret Pétertől”. A <strong class="ui">„Jegyzet”</strong> gombbal vagy az <kbd>N</kbd> billentyűvel helyezel el egyet.</p>
+<ul><li>Ha a jegyzetet <strong>egy testre</strong> teszed, vele együtt utazik.</li><li>Ha <strong>mellé</strong> teszed, a munkasíkon marad (<strong class="ui">„A munkasíkon”</strong>).</li><li>A <strong class="ui">„Leválasztás az objektumról”</strong> leválasztja a testről a hozzá csatolt jegyzetet.</li><li>A <strong class="ui">„For the AI”</strong> a jegyzetből kérést csinál egy MI-ügynöknek az MCP-hídon (lásd „MI az MCP-vel”): az ügynök a <code>layerling_list_notes</code> segítségével elolvassa, elvégzi a munkát, és ugyanabban a jegyzetben, a szöveged alatt válaszol. Saját jegyzeteket is tehet a modellre, hogy egy helyen kérdezzen vagy jelentsen valamit. Kérd meg az ügynököt, hogy figyelje a jegyzeteidet, és <code>layerling_wait_for_notes</code> segítségével várja őket: ezután csak a modellen dolgozol, és minden új kérést azonnal felvesz, amint bejelölöd a négyzetet, anélkül hogy visszamennél az ügynök ablakába.</li><li>A <strong class="ui">„Csoportosítás”</strong> a csatolt jegyzetet is beviszi a csoportba; a <strong class="ui">„Csoportbontás”</strong> az alatta lévő látható részhez adja tovább, akár egy belső csoporthoz is. Amíg egy csoport a <strong class="ui">„Csoport szerkesztése”</strong> gombbal nyitva van, a jegyzetei az alattuk lévő résszel együtt mozognak, és a <strong class="ui">„Kész”</strong> gombbal visszakerülnek a csoporthoz; a megszakítás visszaállítja őket az eredeti állapotukba.</li><li>Ha a testét törlöd, vagy már nincs alatta látható test, a jegyzet ott marad, ahol volt, a munkasíkon.</li><li>A tűt húzva a jegyzet elmozdul. Egy kattintás a tűre összecsukja a kártyát, csak a kis szám marad; egy újabb kattintás újra kinyitja. A szövegbe kattintva szerkesztheted.</li><li>Írás közben az <kbd>Enter</kbd> megtartja a szöveget, az <kbd>Esc</kbd> visszaállítja olyanra, amilyen az írás megkezdése előtt volt; a <span dir="ltr"><kbd>Shift</kbd>+<kbd>Enter</kbd></span> új sort kezd.</li><li><strong>Vázlatban</strong> is elhelyez egy jegyzetet a <strong class="ui">„Jegyzet”</strong> vagy az <kbd>N</kbd>, bárhol a vázlaton. A vázlat összes jegyzete a vázlat testéhez tartozik: a 3D nézetben rajta ülnek, a <strong class="ui">„Vázlat kihúzása”</strong> vagy <strong class="ui">„Sweep sketch”</strong> művelettel készült test tetején és a <strong class="ui">„Vázlat forgatása”</strong> művelettel készült test megrajzolt profilján, és vele együtt mozognak. Ha újra megnyitod a vázlatot, megmutatja a test jegyzeteit, a 3D-ben elhelyezetteket is. A vázlatban a <strong class="ui">„Vázlat: visszavonás”</strong> egy jegyzetet ugyanúgy visszavon, mint egy vonalat, a <strong class="ui">„Mégse”</strong> pedig elveti, amit a jegyzeteken módosítottál. A <span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span> itt is megjeleníti vagy elrejti a jegyzeteket.</li></ul>
+<p>A jegyzetek a tervben mentődnek, egyik exportban sem jelennek meg, és a <strong class="ui">„Jegyzetek és pontok mutatása”</strong> (a <strong class="ui">„Láthatósági beállítások”</strong> alatt, a szem ikon melletti nyílnál) kapcsolóval vagy a <span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span> billentyűkkel megjeleníthetők vagy elrejthetők.</p>
+</section><section class="guide-part"><h2 id="referenciapontok"><span class="heading-alias" id="reference-points"></span>Referenciapontok</h2>
+<p>A referenciapont egy puszta jel a térben, mint egy ceruzajel vagy egy kijelölő pont a műhelyben: egyik testhez sem tartozik, sosem nyomtatódik ki, és más dolgok illeszkednek hozzá. Kattints jobb gombbal egy testre, és válaszd az <strong class="ui">„A középpont megjelölése”</strong>, az <strong class="ui">„A sarkok megjelölése”</strong> vagy az <strong class="ui">„Az élfelezők megjelölése”</strong> lehetőséget: a pontok a test felső lapján jelennek meg (a teljes kijelölésén, ha többet jelöltél ki). <strong class="ui">„Ennek a lapnak a közepe jelölése”</strong> ehelyett annak a sík lapnak a közepére tesz egyet, amelyre jobb gombbal kattintottál, például egy oldalon vagy egy végén. Ha van forgáspont, a <strong class="ui">„Forgáspont jelölése”</strong> pontosan rá tesz egy pontot, így egy másik alkatrész közepe arra a pontra ugrik, amely körül a kijelölés forog.</p>
+<ul><li>Húzással mozgatsz egy pontot, vagy rákattintva megnézheted a koordinátáit, és újakat gépelhetsz be; a beállított mértékegységet használják. Minden kártya a címénél fogva elhúzható, ha eltakar valamit, önállóan: a többi a helyén marad, a címre dupla kattintás pedig visszateszi. Az utoljára megérintett kártya áll a többi előtt. Egy kártyán vagy a jobb gombos menüben a <strong>Mind törlése</strong> egyszerre minden pontot töröl. A <strong class="ui">„Törlés”</strong> eltávolítja.</li><li>A mérőszalag is meg tud jelölni egy pontot: az <strong class="ui">„A felezőpont megjelölése referenciapontként”</strong>, a mérés közepén ülő, félig kitöltött jel a közepére tesz egyet, például egy kerek lyuk középpontjába. És egy ponttól is mér: a szalag úgy illeszkedik a referenciapontokhoz, mint a sarkokhoz.</li><li>Amikor egy alakzatot húzol, az élei és a közepe úgy illeszkednek egy ponthoz, ahogy más alakzatokhoz (<strong class="ui">„Illesztés más alakzatokhoz mozgatás közben”</strong>). A derékszögvonalzó is illeszkedik a pontokhoz.</li><li>A pontok a tervben mentődnek, egyik exportban sem jelennek meg, és a jegyzetekkel együtt a <strong class="ui">„Jegyzetek és pontok mutatása”</strong> (<span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span>) kapcsolóval jeleníthetők meg vagy rejthetők el.</li><li>Egy MI a <code>layerling_add_reference_points</code>, a <code>layerling_list_reference_points</code> és a <code>layerling_remove_reference_points</code> paranccsal jelölheti meg, sorolhatja fel és távolíthatja el őket.</li></ul>
+</section><section class="guide-part"><h2 id="mintakepek"><span class="heading-alias" id="reference-images"></span>Mintaképek</h2>
+<p>A mintakép egy kép, amelyhez a részeket igazíthatod: tedd egy áramköri lap fotóját a doboza aljára, és pontosan rá helyezd a távtartókat, a furatokat és a csatlakozók kivágásait. Segédlet, nem test: sosem nyomtatódik ki, sosem exportálódik (STL, 3MF, OBJ, STEP, SVG), sosem lesz része csoportnak, kötegnek vagy vágásnak, és a nyomtatási becslés sem számol vele.</p>
+<ul><li>Nyisd meg az <strong class="ui">„Importálás”</strong> ablakot, és válaszd a <strong class="ui">„Mintakép”</strong> lehetőséget, majd egy PNG, JPG, WebP, GIF vagy BMP képet. A munkasíkra kerül - a tárgyasztalra vagy arra a felületre, amelyre a munkasíkot tetted -, a hosszabbik oldala 100 mm, félig átlátszó.</li><li>A fogantyúival úgy mozgatod, forgatod és méretezed, mint bármelyik alakzatot. Az előtte lévő testet választja ki először, így ha rajta dolgozol, nem a képet fogod meg véletlenül.</li><li>A beállításaiban az <strong class="ui">„Átlátszóság (%)”</strong> a teljesen láthatótól az alig látszóig halványítja.</li><li>A <strong class="ui">„Kalibrálás”</strong> a valódi méretére állítja, mint a vázlatban: kattints a képen két pontra, amelyek valódi távolságát ismered - például a lap két rögzítőfuratára -, és írd be ezt a távolságot a <strong class="ui">„Valódi távolság (mm)”</strong> mezőbe. A kép megtartja az arányait és a közepét.</li><li>A beállításai fejlécében lévő lakattal zárold, és a helyén marad: a kattintások átmennek rajta a tárgyasztalra. Feloldáshoz az objektumlistában válaszd ki újra.</li><li>A kép egyszer kerül a tervfájlba, akárhányszor másolod vagy vonod vissza. Egy nagy kép ennyivel nagyobbá teszi a fájlt; hozzáadáskor az üzenet megmondja a méretét.</li><li>Egy MI a <code>layerling_reference_image</code> segítségével ad hozzá, mozgat, kalibrál, halványít és zárol egyet. A <code>trace</code> a képet egy rajta álló vázlattestté rajzolja körbe, ahogy a vázlatban a <strong class="ui">„Körberajzolás”</strong>.</li></ul></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/utmutato/threads-and-mechanics.html"><small>Előző fejezet</small>Menetek, fogaskerekek és más alkatrészek</a><a class="next" href="/api/desktop/layerling/ui/utmutato/printing.html"><small>Következő fejezet</small>Előkészítés 3D nyomtatásra</a></div>
+      </main>
+    </div>
+    <footer class="note">Ez az útmutató a programmal együtt bővül. Ha valami hiányzik vagy nem stimmel, szólj a <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">beszélgetésekben</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=hu" rel="noopener">A projekt támogatása</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Beszélgetések</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Bővebben a GitHubon</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Kiadási megjegyzések – v1.154.1</a></div><p class="trademark">A Tinkercad az Autodesk, Inc. védjegye. A layerling független projekt, nem kapcsolódik az Autodeskhez, és az Autodesk nem támogatja vagy szponzorálja.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Vissza a szerkesztőhöz";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Szerkesztő megnyitása";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

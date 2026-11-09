@@ -1947,7 +1947,7 @@ Elektronik-Rechner aus demselben Katalog und mit denselben Formeln wie die Deskt
 | `tolerance`, `tempco`, `voltage`, `class` | string | Weitere Felder eines Codes, zum Beispiel `5%`, `50 ppm/K`, `63 V`, `X7R` (`encode`) |
 
 ### `layerling`
-Interaktives 3D-CAD im offenen Browser-Editor des Nutzers. Braucht einen authentifizierten Desktop-Chat-Kontext, die aktivierte Layerling-Integration, Desktop-Agent-Zugriff und `agent_access: read` oder `write` (Standard `off`). Workflow: `list_editors` mit exakter `editor_id` aus dem Fenster-Chat, dann `describe` für das Parameter-Schema von Layerling 1.57.0, dann die Operation. Kein Headless-CAD; nach Browser-Trennung laufen Befehle nicht automatisch nach. Details: Kapitel 8 und [layerling.md](../../layerling.md).
+Interaktives 3D-CAD im offenen Browser-Editor des Nutzers. Braucht einen authentifizierten Desktop-Chat-Kontext, die aktivierte Layerling-Integration, Desktop-Agent-Zugriff und `agent_access: read` oder `write` (Standard `off`). Workflow: `list_editors` mit exakter `editor_id` aus dem Fenster-Chat, dann `describe` für das Parameter-Schema von Layerling 1.154.1, dann die Operation. Kein Headless-CAD; nach Browser-Trennung laufen Befehle nicht automatisch nach. Details: Kapitel 8 und [layerling.md](../../layerling.md).
 
 ### `rtl_sdr`
 Steuert den RTL-SDR-Empfang: Status, Geräte, Abstimmung, Scans, Favoriten, Aufnahmen (FLAC), Zeitpläne und erneute Spracherkennung. Nur mit `rtl_sdr.enabled`; rein empfangsorientiert.

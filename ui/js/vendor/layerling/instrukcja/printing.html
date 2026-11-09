@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Przygotowanie do druku 3D - Instrukcja layerling</title>
+    <meta name="description" content="Wybór własnej drukarki, ostrzeżenie, gdy coś się nie mieści, i właściwe ułożenie części.">
+    <link rel="canonical" href="https://layerling.com/instrukcja/printing.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/printing.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/printing.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/printing.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/drucken.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/printing.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/printing.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/printing.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/printing.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/printen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/printing.html">
+    <link rel="alternate" hreflang="pt-BR" href="https://layerling.com/guia/printing.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/tiskanje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/printing.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/printing.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/printing.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/printing.html">
+    <meta property="og:title" content="Przygotowanie do druku 3D - Instrukcja layerling">
+    <meta property="og:description" content="Wybór własnej drukarki, ostrzeżenie, gdy coś się nie mieści, i właściwe ułożenie części.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/instrukcja/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Instrukcja</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/instrukcja/search-index.json" data-nothing="Nic nie znaleziono." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Szukaj w instrukcji" aria-label="Szukaj w instrukcji" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Język">Polski</summary><ul><li><a href="/api/desktop/layerling/ui/guide/printing.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/printing.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/printing.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/drucken.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/printing.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/printing.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/printing.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/printing.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/printen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/printing.html" hreflang="pl" lang="pl" aria-current="true">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/printing.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/printing.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/tiskanje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/printing.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/printing.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/printing.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/printing.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/printing.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/printing.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Otwórz edytor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Edytor jest już otwarty w innej karcie - po prostu do niej przejdź.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Rozdziały"><h2>Rozdziały</h2><p class="print-link"><a href="/api/desktop/layerling/ui/instrukcja/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Cała instrukcja do wydruku</span></a></p><ol><li><a href="/api/desktop/layerling/ui/instrukcja/getting-started.html">Pierwsze kroki</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/view-and-workplane.html">Widok i płaszczyzna robocza</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/shapes.html">Umieszczanie i dopasowywanie kształtów</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/select-and-arrange.html">Zaznaczanie i rozmieszczanie</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/solids-and-holes.html">Bryły i otwory</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/edges-and-hollowing.html">Łamanie krawędzi i drążenie brył</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/sketches.html">Szkice: od konturu do bryły</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/text.html">Tekst i napisy na łuku</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/threads-and-mechanics.html">Gwinty, koła zębate i inne części</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/measuring-and-notes.html">Pomiary i notatki</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/printing.html" aria-current="page">Przygotowanie do druku 3D</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/files-and-saving.html">Pliki, zapis i udostępnianie</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/shortcuts.html">Skróty klawiszowe</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/ai-with-mcp.html">Budowanie z AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/offline-and-install.html">Instalacja jako aplikacja, praca offline i własny serwer</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/videos.html">Filmy o layerling</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/tablet-and-touch.html">Tablet i dotyk</a></li></ol></nav>
+      <main>
+<h1>Przygotowanie do druku 3D</h1>
+<p class="lead">Wybór własnej drukarki, ostrzeżenie, gdy coś się nie mieści, i właściwe ułożenie części.</p>
+<div class="toc"><b>Na tej stronie</b><ul><li><a href="#wybor-drukarki">Wybór drukarki</a></li><li><a href="#gdy-cos-sie-nie-miesci">Gdy coś się nie mieści</a></li><li><a href="#wlasciwe-ulozenie-czesci">Właściwe ułożenie części</a></li><li><a href="#szukanie-nawisow">Szukanie nawisów</a></li><li><a href="#zebra-podporowe-dla-pochylonej-czesci">Żebra podporowe dla pochylonej części</a></li><li><a href="#grubosc-scianek-luz-i-fazki">Grubość ścianek, luz i fazki</a></li><li><a href="#luz-twojej-drukarki-test-pasowania">Luz twojej drukarki: test pasowania</a></li><li><a href="#sprawdzanie-wydruku">Sprawdzanie wydruku</a></li><li><a href="#gdy-wszystko-gotowe">Gdy wszystko gotowe</a></li></ul></div>
+<section class="guide-part"><h2 id="wybor-drukarki"><span class="heading-alias" id="choosing-your-printer"></span>Wybór drukarki</h2>
+<p>Otwórz ustawienia (koło zębate w wierszu tytułu, <strong class="ui">„Ustawienia obszaru roboczego”</strong>) i przejdź do sekcji <strong class="ui">„Płaszczyzna robocza”</strong>. W <strong class="ui">„Drukarka”</strong> wybierasz swoją drukarkę z listy ponad 230 popularnych modeli, między innymi Bambu Lab, Prusa, Creality, Anycubic, Elegoo i wielu innych.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/settings-workplane.webp" alt="Ustawienia płaszczyzny roboczej z wybraną drukarką. Stół i maksymalna wysokość wydruku pochodzą z profilu slicera." width="1280" height="800" loading="lazy"><figcaption>Ustawienia płaszczyzny roboczej z wybraną drukarką. Stół i maksymalna wysokość wydruku pochodzą z profilu slicera.</figcaption></figure>
+<p>Dzieją się trzy rzeczy:</p>
+<ul><li>Płaszczyzna robocza przyjmuje rozmiar stołu drukarki.</li><li>W narożniku płaszczyzny roboczej pojawiają się nazwa drukarki i jej przestrzeń robocza. Jeśli napis przeszkadza, wyłącz go przez <strong class="ui">„Opisy na stole”</strong> w sekcji <strong class="ui">„Płaszczyzna robocza”</strong>. Dotyczy to też nazwy projektu z przodu po lewej.</li><li>layerling <strong>ostrzega</strong>, gdy coś się nie mieści.</li></ul>
+<p>Profile drukarek pochodzą z OrcaSlicera, więc są takie same, jakie zna Twój slicer. Jeśli wolisz pracować bez drukarki, wybierz <strong class="ui">„Bez drukarki - dowolny rozmiar”</strong>. Rozmiar płaszczyzny roboczej możesz też ustawić ręcznie.</p>
+<p>Drukarki delta, takie jak FLSun, SeeMeCNC czy Anycubic Predator, drukują na okrągłym stole. Przy jednej z nich płaszczyzna robocza też jest okrągła i tak szeroka jak stół, a bryła jest za duża, gdy tylko wystaje poza krawędź. Okrągłą bryłę mierzy się po jej własnym obrysie, a nie po otaczającym ją prostopadłościanie, więc zmieści się nawet walec prawie tak szeroki jak stół.</p>
+</section><section class="guide-part"><h2 id="gdy-cos-sie-nie-miesci"><span class="heading-alias" id="when-something-does-not-fit"></span>Gdy coś się nie mieści</h2>
+<p>Bryła, która wystaje poza krawędź stołu, zostaje oznaczona. Komunikat mówi, które strony wystają i o ile. Tak samo jest, gdy część jest <strong>za wysoka</strong>: wysokość liczy się od najniższej bryły, tak jak slicer stawia model na stole.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/printer-overhang.webp" alt="Prostopadłościan jest szerszy niż stół Bambu Lab A1 mini. Komunikat na dole mówi, o ile." width="1280" height="800" loading="lazy"><figcaption>Prostopadłościan jest szerszy niż stół Bambu Lab A1 mini. Komunikat na dole mówi, o ile.</figcaption></figure>
+<p>Ostrzeżenie nie przeszkadza w dalszej pracy. To podpowiedź, żebyś nie dowiedział się dopiero w slicerze, że część jest za duża. Za dużą część często da się podzielić: przetnij ją na dwie przez <strong class="ui">„Podziel”</strong> i wydrukuj obie połowy osobno.</p>
+<p>Jeśli celowo odkładasz części obok płyty, kliknij mały krzyżyk w komunikacie. Ostrzeżenie zniknie wtedy dla dokładnie tych brył. Gdy któraś z nich znów się zmieści, a potem ją wysuniesz, albo gdy wystanie inna bryła, komunikat wróci. Ukryte bryły nigdy się nie liczą, więc ukrycie odłożonych części też działa.</p>
+</section><section class="guide-part"><h2 id="wlasciwe-ulozenie-czesci"><span class="heading-alias" id="laying-the-part-right"></span>Właściwe ułożenie części</h2>
+<p>To, jak część leży na stole, decyduje o jej wytrzymałości i wyglądzie. Pomagają dwa narzędzia z sekcji <strong class="ui">„Rozmieść”</strong>:</p>
+<ul><li><strong class="ui">„Połóż płasko na ścianie”</strong>: kliknij ścianę, a część położy się tą stroną w dół. Najlepszy kierunek druku jednym kliknięciem.</li><li><strong class="ui">„Opuść na płaszczyznę roboczą”</strong> (<kbd>D</kbd>): stawia część na płaszczyźnie roboczej, gdy unosi się gdzieś w powietrzu.</li></ul>
+<p>Kilka praktycznych zasad co do kierunku:</p>
+<ul><li>Duże płaskie ściany na dół. Najlepiej się trzymają.</li><li>Długie, obciążone części układaj tak, żeby warstwy nie biegły prostopadle do obciążenia. Warstwy to najsłabszy kierunek.</li><li>Unikaj nawisów bardziej stromych niż 45° albo daj im podpory w slicerze.</li></ul>
+</section><section class="guide-part"><h2 id="szukanie-nawisow"><span class="heading-alias" id="finding-overhangs"></span>Szukanie nawisów</h2>
+<p>W menu obok oka (<strong class="ui">„Widoczność”</strong>) pozycja <strong>Pokaż nawisy</strong> włącza nawisy. Każda ściana skierowana w dół bardziej stromo niż 45° jest wtedy kreskowana na czerwono i biało: tam drukarka potrzebowałaby podpór. To, co leży na stole, zostaje bez oznaczeń. Już podczas projektowania widzisz więc, czy kula, łuk albo poziomy otwór wydrukuje się bez podpór. Właśnie do tego służy <a href="/api/desktop/layerling/ui/instrukcja/threads-and-mechanics.html">otwór łezkowy</a>. Obróć część albo połóż ją na innej ścianie przez <strong class="ui">„Połóż płasko na ścianie”</strong>, a kreskowanie od razu podąży za zmianą.</p>
+<p>Z jak stromymi nawisami radzi sobie Twoja drukarka, ustawiasz w ustawieniach w sekcji <strong class="ui">„Wygląd”</strong>: od 30° (ostrożnie) do 70° (dla drukarek z dobrym chłodzeniem wydruku). Ściana opierająca się na innej bryle też jest oznaczana, bo layerling patrzy tylko na samą ścianę.</p>
+</section><section class="guide-part"><h2 id="zebra-podporowe-dla-pochylonej-czesci"><span class="heading-alias" id="support-ribs-for-a-tilted-part"></span>Żebra podporowe dla pochylonej części</h2>
+<p>Część drukowana pochylona na krawędzi, na przykład pod kątem 45°, często nie potrzebuje podpór: jej ściany są wystarczająco strome. Stoi jednak na wąskiej krawędzi i może się przewrócić. <strong class="ui">„Żebro podporowe”</strong> ją trzyma: pod jej dolną ścianą w małej odległości stoi cienkie żebro na owalnej stopie, a maleńkie mostki przytrzymują część. Najpierw obróć część na krawędź i postaw ją na stole.</p>
+<ol><li>Zaznacz część i kliknij <strong class="ui">„Żebro podporowe”</strong> w grupie <strong class="ui">„Modyfikuj”</strong> na wstążce, kliknij część prawym przyciskiem albo znajdź narzędzie przez <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</li><li>Kliknij dolną ścianę tam, gdzie ma stanąć żebro. Ściana musi być skierowana w dół, nachylona od 15° do 75° i sięgać do stołu; żebro biegnie od miejsca kliknięcia prosto w dół ściany. Jeśli dolna krawędź części jest zaokrąglona lub sfazowana, ściana może kończyć się do 3 mm nad stołem: kliknij płaską ścianę nad zaokrągleniem.</li><li>Ustaw <strong class="ui">„Dysza”</strong>, <strong class="ui">„Wysokość warstwy”</strong> i <strong class="ui">„Pierwsza warstwa”</strong> tak jak w slicerze. Żebro ma grubość dwóch ścieżek dyszy, szczelina do części pół ścieżki; każdy mostek ma szerokość jednej ścieżki i wysokość dokładnie jednej warstwy i leży na warstwie wydruku, więc slicer drukuje go jako jedną cienką ścieżkę, która czysto się odłamuje. <strong class="ui">„Wysokość żebra”</strong> określa, jak wysoko żebro sięga po ścianie (na początku do połowy), a <strong class="ui">„Mostki co”</strong>, jak daleko od siebie są mostki, w całych warstwach.</li><li>W <strong class="ui">„Więcej ustawień”</strong> grubość, szczelinę, szerokość mostków i grubość stopy można ustawić ręcznie (do tego czasu wynikają z dyszy i warstw), a także szerokość stopy i zaokrąglenia przy stopie i u góry.</li><li><strong class="ui">„Utwórz”</strong> dodaje żebro. Z <strong class="ui">„Zgrupuj z częścią”</strong> (na początku włączone) żebro i część są zgrupowane: poruszają się razem i trafiają do slicera jako dwie bryły obok siebie, w wydruku połączone mostkami.</li></ol>
+<p>Żebro jest bryłą siatkową: żeby je zmienić, usuń je i utwórz ponownie. Każde kliknięcie tworzy jedno żebro; po kolejne kliknij <strong class="ui">„Inna ściana”</strong> albo powtórz je przez <strong class="ui">„Szyk”</strong>. Żebro nie może nigdzie wchodzić w część, a część musi stać na stole - inaczej okno powie dlaczego. Ustawienia zostają w tej przeglądarce na następne żebro.</p>
+<p><strong class="ui">„Sprawdź luzy”</strong> i <strong class="ui">„Sprawdź wydruk”</strong> znają żebro: to, że jego mostki wchodzą w część, a żebro i mostki są cienkie i leżą na wysokości jednej warstwy nad szczeliną, jest zamierzone i nie jest zgłaszane. Żebro utworzone w layerling 1.148.0 nie ma jeszcze tego oznaczenia; utwórz je ponownie, a sprawdzenia je pominą.</p>
+</section><section class="guide-part"><h2 id="grubosc-scianek-luz-i-fazki"><span class="heading-alias" id="wall-thickness-clearance-and-chamfers"></span>Grubość ścianek, luz i fazki</h2>
+<ul><li>Ścianki powinny mieć szerokość co najmniej dwóch ścieżek, czyli 0,8 mm przy dyszy 0,4 mm. Solidne części potrzebują od 1,2 do 2 mm.</li><li>Tam, gdzie dwie części w siebie wchodzą, potrzebny jest luz: zwykle od 0,2 do 0,4 mm, zależnie od drukarki. Zanim wydrukujesz dużą część, zrób małą parę próbną.</li><li>Wiele osób lekko fazuje dolną krawędź, która leży na stole. Dzięki temu pierwsza warstwa się nie rozlewa („stopa słonia”).</li></ul>
+</section><section class="guide-part"><h2 id="luz-twojej-drukarki-test-pasowania"><span class="heading-alias" id="your-printer-s-play-the-fit-test"></span>Luz twojej drukarki: test pasowania</h2>
+<p>Każda drukarka drukuje otwory trochę mniejsze, a sworznie trochę grubsze, niż są narysowane, każda o własną wartość, więc luz potrzebny dwóm wydrukowanym częściom jest na początku zgadywaniem. Zmierz go raz: w ustawieniach w sekcji <strong class="ui">„Płaszczyzna robocza”</strong> przycisk <strong class="ui">„Utwórz test pasowania”</strong> kładzie na stole test pasowania. To płytka 60 × 20 × 4 mm z siedmioma otworami na jeden sworzeń 5 mm, każdy narysowany jako 5 mm plus dwa razy 0,05, 0,10, 0,15, 0,20, 0,25, 0,30 lub 0,40 mm, z wypukłą wartością obok, oraz sam sworzeń 5 mm, stojący obok płytki z małą fazką u góry. Składa się ze zwykłych kształtów, więc drukuje się razem z resztą stołu, bez podpór.</p>
+<p>Na drukarce, której stół jeździ w przód i w tył, wysoki, cienki sworzeń może się chwiać, odkleić albo wyjść falisty u podstawy, z brimem czy bez. Przed utworzeniem testu pasowania zaznacz <strong class="ui">„Sworzeń testowy na odłamywanej podstawie”</strong>: sworzeń stoi wtedy na małej płytce 10 mm, która trzyma się stołu. Nie dotyka ścianki gniazda, tylko stoi na małym występie w jego dnie; po wydruku zegnij go w tę i z powrotem, a się odłamie.</p>
+<p>Wydrukuj go tak, jak leży, a potem wsuwaj sworzeń fazką do przodu w otwory, zaczynając od najciaśniejszego. <strong>Najciaśniejszy otwór, w którym sworzeń jeszcze się obraca,</strong> wyznacza luz twojej drukarki. Wpisz jego liczbę w polu <strong class="ui">„Luz twojej drukarki”</strong> albo kliknij ją wśród wartości pod polem. Luz podaje się na stronę, w milimetrach, a przeglądarka pamięta go dla wszystkich projektów; puste pole oznacza, że nie zmierzono. Przy kilku drukarkach wybierz najpierw w <strong class="ui">„Drukarka”</strong> tę, na której drukujesz: każda drukarka ma własny luz, a nowe elementy zaczynają od luzu drukarki ustawionej dla projektu. Drukarka bez własnego luzu używa luzu ustawionego, gdy nie była wybrana żadna drukarka.</p>
+<p>Od tej pory nowe użycia zaczynają od luzu zamiast od wbudowanej wartości: <strong class="ui">„Szczelina na stronę”</strong> i <strong class="ui">„Luz sworznia (na stronę)”</strong> w narzędziu <strong class="ui">„Pokrywka”</strong>, luz nowego kształtu <strong class="ui">„Jaskółczy ogon”</strong> i <strong class="ui">„Zatrzask”</strong>, <strong class="ui">„Luz (XY)”</strong> nowej nakrętki lub otworu gwintowanego (podwójny luz, bo to miejsce na całej średnicy) oraz <strong class="ui">„Minimalna szczelina”</strong> w <strong class="ui">„Sprawdź luzy”</strong>. Tak samo <strong class="ui">„Luz na stronę”</strong> kołków, czopów i jaskółczych ogonów w <strong class="ui">„Podziel”</strong>. Dopóki takie pole ma tę wartość, napis „<strong class="ui">„Z twojego testu pasowania”</strong>” obok mówi, skąd pochodzi liczba. Zawias drukowany w jednym kawałku i przeguby narzędzia <strong class="ui">„Przeguby flexi”</strong> zachowują swoje 0,4 mm: drukowane w jednym kawałku, ich szczeliny muszą pozostać otwarte także między warstwami, a tego sworzeń wydrukowany osobno nie mierzy. Miejsce na wciśnięcie magnesu lub klucza Gridfinity oraz miejsce na kupione gniazdo lub płytkę także zachowują własne wartości. Bryły, które już są w projekcie, nigdy się nie zmieniają, podobnie jak projekt, który otwierasz.</p>
+</section><section class="guide-part"><h2 id="sprawdzanie-wydruku"><span class="heading-alias" id="checking-the-print"></span>Sprawdzanie wydruku</h2>
+<p><strong class="ui">„Sprawdź wydruk”</strong> obok <strong class="ui">„Sprawdź luzy”</strong> w grupie <strong class="ui">„Łączenie”</strong> przegląda zaznaczone obiekty, a gdy nic nie jest zaznaczone, wszystkie widoczne, i w jednym oknie mówi, co poszłoby źle przy drukowaniu. Każdy z pięciu wierszy jest zielony, gdy nic nie znalazł, i pomarańczowy z informacją co i gdzie, gdy coś znalazł:</p>
+<ul><li><strong><strong class="ui">„Cienkie ścianki”</strong></strong>: miejsca cieńsze niż dwie ścieżki dyszy - 0,8 mm przy dyszy 0,4 mm. Slicer pominie taką ściankę albo wydrukuje ją jako jedną słabą ścieżkę. U góry okna w polu <strong class="ui">„Dysza”</strong> wybierz swoją dyszę (od 0,2 do 0,8 jednym kliknięciem, każdą inną wpisz). Cienkie miejsca są malowane na bryłach na czerwono z jasną siatką, a wiersz podaje najcieńsze miejsce i ile powierzchni jest za cienkie. Miejsca poniżej 1 mm² i ostre krawędzie, jak krawędź klina, są pomijane.</li><li><strong><strong class="ui">„Części w powietrzu”</strong></strong>: bryła albo osobna część bryły, która nie dotyka ani płyty, ani innej części (z dokładnością do 0,05 mm). Drukowałaby się w powietrzu. Część leżąca na stojącej części jest w porządku.</li><li><strong><strong class="ui">„Mały styk z płytą”</strong></strong>: część na płycie, której pierwsza warstwa jest bardzo mała jak na jej wysokość, na przykład kula albo stożek na czubku. Może się oderwać podczas drukowania. Ostrzeżenie pojawia się poniżej 0,5 mm² podstawy, mierzonej 0,1 mm nad płytą, na każdy milimetr wysokości: kula zawsze jest poniżej, sześcian 10 mm ma 10.</li><li><strong><strong class="ui">„Nawisy”</strong></strong>: te same liczby co w <strong>Pokaż nawisy</strong>, z ustawionym tam kątem.</li><li><strong><strong class="ui">„Otwarta siatka”</strong></strong>: zaimportowana siatka z otwartymi krawędziami albo z krawędziami, które dzielą trzy lub więcej ścian. Slicer musi wtedy zgadywać, gdzie jest wnętrze.</li></ul>
+<figure><img src="/api/desktop/layerling/ui/guide/img/print-check.webp" alt="Tacka, której prawa ścianka ma tylko 0,6 mm: Sprawdź wydruk maluje ją na czerwono i podaje w oknie." width="1280" height="800" loading="lazy"><figcaption>Tacka, której prawa ścianka ma tylko 0,6 mm: Sprawdź wydruk maluje ją na czerwono i podaje w oknie.</figcaption></figure>
+<p><strong class="ui">„Pokaż”</strong> przy wierszu przenosi tam kamerę; zaznacza części w powietrzu, te z małym stykiem i otwarte siatki, a przy nawisach włącza <strong>Pokaż nawisy</strong>. Bryły, które się nakładają, są sprawdzane połączone, tak jak łączy je slicer. Jeśli zmienisz projekt, gdy okno jest otwarte, pojawi się <strong class="ui">„Zmieniono, sprawdź ponownie”</strong>; kliknij to albo <strong class="ui">„Sprawdź ponownie”</strong>. <kbd>Esc</kbd> zamyka okno. W projekcie nic się nie zmienia. AI wykonuje to samo sprawdzenie przez <code>layerling_check_print</code>.</p>
+</section><section class="guide-part"><h2 id="gdy-wszystko-gotowe"><span class="heading-alias" id="when-you-are-ready"></span>Gdy wszystko gotowe</h2>
+<p>Wybierz <strong class="ui">„Eksportuj”</strong>, a potem <strong>STL</strong> albo <strong>3MF</strong>. STL to najprostszy format. 3MF zachowuje nazwy i kolory poszczególnych brył, więc przydaje się, gdy drukujesz w kilku kolorach. Okno eksportu pokazuje też, ile gramów i metrów filamentu zużyłaby część wydrukowana jako pełna. Więcej w rozdziale <a href="/api/desktop/layerling/ui/instrukcja/files-and-saving.html">Pliki i zapis</a>.</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/instrukcja/measuring-and-notes.html"><small>Poprzedni rozdział</small>Pomiary i notatki</a><a class="next" href="/api/desktop/layerling/ui/instrukcja/files-and-saving.html"><small>Następny rozdział</small>Pliki, zapis i udostępnianie</a></div>
+      </main>
+    </div>
+    <footer class="note">Ta instrukcja rośnie razem z programem. Jeśli czegoś brakuje albo coś się nie zgadza, napisz w <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">dyskusjach</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=pl" rel="noopener">Wesprzyj projekt</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Dyskusje</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Więcej na GitHubie</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Informacje o wersji v1.154.1</a></div><p class="trademark">Tinkercad jest znakiem towarowym firmy Autodesk, Inc. layerling jest niezależnym projektem i nie jest powiązany z firmą Autodesk, ani przez nią wspierany czy sponsorowany.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Wróć do edytora";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Otwórz edytor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

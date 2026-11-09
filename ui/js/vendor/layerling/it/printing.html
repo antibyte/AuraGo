@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Preparare la stampa 3D - Guida utente di layerling</title>
+    <meta name="description" content="Scegliere la propria stampante, ricevere avvisi quando un pezzo non entra e orientarlo nel modo corretto.">
+    <link rel="canonical" href="https://layerling.com/it/printing.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/printing.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/printing.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/printing.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/drucken.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/printing.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/printing.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/printing.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/printing.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/printen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/printing.html">
+    <link rel="alternate" hreflang="pt-BR" href="https://layerling.com/guia/printing.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/tiskanje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/printing.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/printing.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/printing.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/printing.html">
+    <meta property="og:title" content="Preparare la stampa 3D - Guida utente di layerling">
+    <meta property="og:description" content="Scegliere la propria stampante, ricevere avvisi quando un pezzo non entra e orientarlo nel modo corretto.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/it/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Guida utente</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/it/search-index.json" data-nothing="Nessun risultato." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Cerca nella guida" aria-label="Cerca nella guida" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Lingua">Italiano</summary><ul><li><a href="/api/desktop/layerling/ui/guide/printing.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/printing.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/printing.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/drucken.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/printing.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/printing.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/printing.html" hreflang="it" lang="it" aria-current="true">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/printing.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/printen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/printing.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/printing.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/printing.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/tiskanje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/printing.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/printing.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/printing.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/printing.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/printing.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/printing.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Apri l'editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>L'editor è già aperto in un'altra scheda: passa semplicemente a quella.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Capitoli"><h2>Capitoli</h2><p class="print-link"><a href="/api/desktop/layerling/ui/it/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Guida completa da stampare</span></a></p><ol><li><a href="/api/desktop/layerling/ui/it/getting-started.html">Primi passi</a></li><li><a href="/api/desktop/layerling/ui/it/view-and-workplane.html">Vista e piano di lavoro</a></li><li><a href="/api/desktop/layerling/ui/it/shapes.html">Inserire e modificare le forme</a></li><li><a href="/api/desktop/layerling/ui/it/select-and-arrange.html">Selezionare e disporre</a></li><li><a href="/api/desktop/layerling/ui/it/solids-and-holes.html">Solidi e fori</a></li><li><a href="/api/desktop/layerling/ui/it/edges-and-hollowing.html">Smussare gli spigoli e svuotare i corpi</a></li><li><a href="/api/desktop/layerling/ui/it/sketches.html">Schizzi: dal contorno al corpo</a></li><li><a href="/api/desktop/layerling/ui/it/text.html">Testo e scritte curve</a></li><li><a href="/api/desktop/layerling/ui/it/threads-and-mechanics.html">Filettature, ingranaggi e altri componenti</a></li><li><a href="/api/desktop/layerling/ui/it/measuring-and-notes.html">Misurazioni e annotazioni</a></li><li><a href="/api/desktop/layerling/ui/it/printing.html" aria-current="page">Preparare la stampa 3D</a></li><li><a href="/api/desktop/layerling/ui/it/files-and-saving.html">File, salvataggio e condivisione</a></li><li><a href="/api/desktop/layerling/ui/it/shortcuts.html">Scorciatoie da tastiera</a></li><li><a href="/api/desktop/layerling/ui/it/ai-with-mcp.html">Progettare con un’IA (MCP)</a></li><li><a href="/api/desktop/layerling/ui/it/offline-and-install.html">Installare come app, lavorare offline e ospitare layerling</a></li><li><a href="/api/desktop/layerling/ui/it/videos.html">Video su layerling</a></li><li><a href="/api/desktop/layerling/ui/it/tablet-and-touch.html">Tablet e comandi touch</a></li></ol></nav>
+      <main>
+<h1>Preparare la stampa 3D</h1>
+<p class="lead">Scegliere la propria stampante, ricevere avvisi quando un pezzo non entra e orientarlo nel modo corretto.</p>
+<div class="toc"><b>In questa pagina</b><ul><li><a href="#scegliere-la-stampante">Scegliere la stampante</a></li><li><a href="#se-qualcosa-non-entra">Se qualcosa non entra</a></li><li><a href="#orientare-correttamente-il-pezzo">Orientare correttamente il pezzo</a></li><li><a href="#individuare-gli-sbalzi">Individuare gli sbalzi</a></li><li><a href="#nervature-di-supporto-per-un-pezzo-inclinato">Nervature di supporto per un pezzo inclinato</a></li><li><a href="#spessore-delle-pareti-gioco-e-smussi">Spessore delle pareti, gioco e smussi</a></li><li><a href="#il-gioco-della-tua-stampante-la-prova-di-accoppiamento">Il gioco della tua stampante: la prova di accoppiamento</a></li><li><a href="#controllare-la-stampa">Controllare la stampa</a></li><li><a href="#quando-il-pezzo-e-pronto">Quando il pezzo è pronto</a></li></ul></div>
+<section class="guide-part"><h2 id="scegliere-la-stampante"><span class="heading-alias" id="choosing-your-printer"></span>Scegliere la stampante</h2>
+<p>Apri le impostazioni con l’ingranaggio nella riga del titolo (<strong class="ui">«Impostazioni dell'area di lavoro»</strong>) e passa alla sezione <strong class="ui">«Piano di lavoro»</strong>. In <strong class="ui">«Stampante»</strong> scegli la tua stampante da un elenco di oltre 230 modelli comuni, tra cui Bambu Lab, Prusa, Creality, Anycubic, Elegoo e molti altri.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/settings-workplane.webp" alt="Le impostazioni del piano di lavoro con una stampante selezionata. Il piatto e l’altezza massima di stampa provengono dal profilo dello slicer." width="1280" height="800" loading="lazy"><figcaption>Le impostazioni del piano di lavoro con una stampante selezionata. Il piatto e l’altezza massima di stampa provengono dal profilo dello slicer.</figcaption></figure>
+<p>Succedono tre cose:</p>
+<ul><li>Il piano di lavoro assume le dimensioni del piatto di stampa.</li><li>In un angolo del piano di lavoro compaiono il nome della stampante e il suo volume di stampa. Se le scritte sono d’intralcio, disattivale con <strong class="ui">«Etichette del piano»</strong> nella sezione <strong class="ui">«Piano di lavoro»</strong>; puoi nascondere anche il nome del progetto, che appare davanti a sinistra.</li><li>layerling <strong>mostra un avviso</strong> se qualcosa non entra.</li></ul>
+<p>I profili delle stampanti provengono da OrcaSlicer, quindi sono gli stessi disponibili nel tuo slicer. Se preferisci lavorare senza una stampante selezionata, scegli <strong class="ui">«Nessuna stampante: dimensioni libere»</strong>. Puoi anche impostare manualmente le dimensioni del piano di lavoro.</p>
+<p>Le stampanti delta, come quelle di FLSun o SeeMeCNC o la Anycubic Predator, stampano su una piastra rotonda. Con una di queste anche il piano di lavoro è rotondo e largo quanto la piastra, e un corpo è troppo grande appena supera il bordo. Un corpo rotondo viene misurato sul proprio contorno e non sul riquadro che lo racchiude, quindi ci sta anche un cilindro largo quasi quanto la piastra.</p>
+</section><section class="guide-part"><h2 id="se-qualcosa-non-entra"><span class="heading-alias" id="when-something-does-not-fit"></span>Se qualcosa non entra</h2>
+<p>Un corpo che sporge oltre il bordo del piatto di stampa viene evidenziato. Un messaggio indica quali lati oltrepassa e di quanto. Lo stesso vale se il pezzo è <strong>troppo alto</strong>: l’altezza viene misurata a partire dal corpo più basso, proprio come quando lo slicer appoggia il modello sul piatto.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/printer-overhang.webp" alt="La scatola è più larga del piatto della Bambu Lab A1 mini. Il messaggio in basso indica di quanto lo supera." width="1280" height="800" loading="lazy"><figcaption>La scatola è più larga del piatto della Bambu Lab A1 mini. Il messaggio in basso indica di quanto lo supera.</figcaption></figure>
+<p>L’avviso non impedisce di continuare a lavorare. Serve a evitare che tu scopra solo nello slicer che il pezzo è troppo grande. Spesso puoi dividerlo: taglialo in due con <strong class="ui">«Dividi»</strong> e stampa le due metà separatamente.</p>
+<p>Se parcheggi intenzionalmente dei pezzi accanto al piatto, fai clic sulla piccola croce nel messaggio per ignorare l’avviso relativo proprio a quei corpi. L’avviso ricompare se uno dei pezzi rientra nel piatto e poi lo sposti di nuovo fuori, oppure se un altro corpo lo oltrepassa. I corpi nascosti non vengono conteggiati: puoi anche nascondere i pezzi parcheggiati.</p>
+</section><section class="guide-part"><h2 id="orientare-correttamente-il-pezzo"><span class="heading-alias" id="laying-the-part-right"></span>Orientare correttamente il pezzo</h2>
+<p>Il modo in cui un pezzo poggia sul piatto ne determina la resistenza e l’aspetto. Nel gruppo <strong class="ui">«Disponi»</strong> trovi due strumenti utili:</p>
+<ul><li><strong class="ui">«Appoggia una faccia sul piano»</strong>: fai clic su una faccia per appoggiarvi il pezzo. Un clic solo per scegliere l’orientamento di stampa migliore.</li><li><strong class="ui">«Appoggia sul piano di lavoro»</strong> (<kbd>D</kbd>): appoggia il pezzo sul piano di lavoro se è sospeso in aria.</li></ul>
+<p>Alcune regole pratiche per scegliere l’orientamento:</p>
+<ul><li>Appoggia sul piatto le facce piane più grandi: aderiscono meglio.</li><li>Orienta i pezzi lunghi sottoposti a carico in modo che gli strati non siano perpendicolari alla forza. La direzione degli strati è quella più debole.</li><li>Evita gli sbalzi più ripidi di 45° oppure aggiungi supporti nello slicer.</li></ul>
+</section><section class="guide-part"><h2 id="individuare-gli-sbalzi"><span class="heading-alias" id="finding-overhangs"></span>Individuare gli sbalzi</h2>
+<p>Nel menu accanto all’occhio (<strong class="ui">«Visibilità»</strong>), attiva <strong>Mostra sbalzi</strong> per visualizzarli. Le facce rivolte verso il basso con un’inclinazione superiore a 45° vengono tratteggiate in rosso e bianco: sono le zone in cui la stampante potrebbe aver bisogno di supporti. Le superfici appoggiate sul piatto restano senza tratteggio. Durante la progettazione puoi così verificare se una sfera, un arco o un foro orizzontale si stampa senza supporti; il <a href="/api/desktop/layerling/ui/it/threads-and-mechanics.html">foro teardrop</a> è pensato proprio per questo. Ruota il pezzo o appoggialo su un’altra faccia con <strong class="ui">«Appoggia una faccia sul piano»</strong>: il tratteggio si aggiorna subito.</p>
+<p>Nelle impostazioni, sotto <strong class="ui">«Aspetto»</strong>, imposta l’inclinazione massima gestita dalla tua stampante: da 30° (prudente) a 70° (per stampanti con un buon raffreddamento del pezzo). Anche una faccia appoggiata a un altro corpo viene segnalata: layerling considera solo la faccia in sé.</p>
+</section><section class="guide-part"><h2 id="nervature-di-supporto-per-un-pezzo-inclinato"><span class="heading-alias" id="support-ribs-for-a-tilted-part"></span>Nervature di supporto per un pezzo inclinato</h2>
+<p>Un pezzo stampato inclinato su uno spigolo, per esempio a 45°, spesso non ha bisogno di supporti: le sue facce sono abbastanza ripide. Però poggia su uno spigolo sottile e può cadere. La <strong class="ui">«Nervatura di supporto»</strong> lo regge: una nervatura sottile sta sotto la sua faccia inferiore a breve distanza, su un piede ovale, e piccoli ponti lo trattengono. Prima ruota il pezzo sul suo spigolo e appoggialo sul piano.</p>
+<ol><li>Seleziona il pezzo e fai clic su <strong class="ui">«Nervatura di supporto»</strong> nel gruppo <strong class="ui">«Modifica»</strong> della barra, fai clic destro sul pezzo oppure cercala con <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</li><li>Fai clic sulla faccia inferiore dove deve stare la nervatura. La faccia deve guardare in basso, essere inclinata tra 15° e 75° e scendere fino al piano; la nervatura scende dritta lungo la faccia dal punto del clic. Se lo spigolo inferiore del pezzo è arrotondato o smussato, la faccia può finire fino a 3 mm sopra il piano: fai clic sulla faccia piana sopra l'arrotondamento.</li><li>Imposta <strong class="ui">«Ugello»</strong>, <strong class="ui">«Altezza layer»</strong> e <strong class="ui">«Primo layer»</strong> come nel tuo slicer. La nervatura è spessa due linee dell'ugello, la distanza dal pezzo mezza linea; ogni ponte è largo una linea e alto esattamente un layer e poggia su un layer della stampa, così lo slicer lo stampa come una sola linea sottile che si stacca in modo pulito. <strong class="ui">«Altezza della nervatura»</strong> dice fin dove la nervatura sale lungo la faccia (a metà all'inizio), <strong class="ui">«Ponti ogni»</strong> quanto distano i ponti, in layer interi.</li><li>In <strong class="ui">«Altre impostazioni»</strong> si impostano a mano spessore, distanza, larghezza dei ponti e spessore del piede (fino ad allora seguono ugello e layer), oltre alla larghezza del piede e ai raccordi al piede e in alto.</li><li><strong class="ui">«Crea»</strong> aggiunge la nervatura. Con <strong class="ui">«Raggruppa con il pezzo»</strong> (attivo all'inizio) nervatura e pezzo sono raggruppati: si muovono insieme e arrivano nello slicer come due corpi affiancati, uniti dai ponti nella stampa.</li></ol>
+<p>La nervatura è un corpo mesh: per cambiarla, eliminala e rifalla. Ogni clic crea una nervatura; per altre fai clic su <strong class="ui">«Altra faccia»</strong> o ripetila con <strong class="ui">«Crea schema ripetuto»</strong>. La nervatura non deve entrare nel pezzo da nessuna parte e il pezzo deve poggiare sul piano, altrimenti la finestra dice perché. Le impostazioni restano in questo browser per la nervatura successiva.</p>
+<p><strong class="ui">«Controllo del gioco»</strong> e <strong class="ui">«Controlla la stampa»</strong> conoscono la nervatura: che i suoi ponti entrino nel pezzo e che nervatura e ponti siano sottili e attraversino la fessura all'altezza di uno strato è voluto e non viene segnalato. Una nervatura fatta con layerling 1.148.0 non porta ancora questo contrassegno; rifalla e i controlli la lasceranno fuori.</p>
+</section><section class="guide-part"><h2 id="spessore-delle-pareti-gioco-e-smussi"><span class="heading-alias" id="wall-thickness-clearance-and-chamfers"></span>Spessore delle pareti, gioco e smussi</h2>
+<ul><li>Le pareti dovrebbero essere larghe almeno due linee di estrusione: 0,8 mm con un ugello da 0,4 mm. Per pezzi robusti, servono da 1,2 a 2 mm.</li><li>Quando due parti devono incastrarsi, occorre lasciare del gioco: in genere da 0,2 a 0,4 mm, in base alla stampante. Prima di stampare il pezzo grande, prova un piccolo incastro di test.</li><li>Molti smussano leggermente il bordo inferiore appoggiato sul piatto. Questo limita l’allargamento del primo strato (il cosiddetto “piede d’elefante”).</li></ul>
+</section><section class="guide-part"><h2 id="il-gioco-della-tua-stampante-la-prova-di-accoppiamento"><span class="heading-alias" id="your-printer-s-play-the-fit-test"></span>Il gioco della tua stampante: la prova di accoppiamento</h2>
+<p>Ogni stampante stampa i fori un po' più piccoli e i perni un po' più spessi di come sono disegnati, ognuna di una misura sua, quindi il gioco che serve a due parti stampate all'inizio è una stima. Misuralo invece una volta: nelle impostazioni, in <strong class="ui">«Piano di lavoro»</strong>, <strong class="ui">«Crea prova di accoppiamento»</strong> mette una prova di accoppiamento sul piatto. È una piastrina di 60 × 20 × 4 mm con sette fori per un perno da 5 mm, ognuno disegnato da 5 mm più due volte 0,05, 0,10, 0,15, 0,20, 0,25, 0,30 o 0,40 mm, con il valore in rilievo accanto, e il perno da 5 mm stesso, in piedi accanto alla piastrina con un piccolo smusso in cima. È fatta di forme comuni, quindi si stampa con il resto del piatto, senza supporti.</p>
+<p>Su una stampante il cui piano si muove avanti e indietro, il perno alto e sottile può oscillare, staccarsi o venire ondulato alla base, con o senza brim. Spunta <strong class="ui">«Perno di prova su una base staccabile»</strong> prima di creare la prova di accoppiamento: il perno poggia allora su una piccola piastra di 10 mm che aderisce al piano. Non tocca la parete della sua sede ma poggia su un piccolo dente sul fondo; dopo la stampa, piegalo avanti e indietro e si stacca.</p>
+<p>Stampala così com'è, poi infila il perno, con lo smusso davanti, nei fori a partire dal più stretto. <strong>Il foro più stretto in cui il perno gira ancora</strong> dà il gioco della tua stampante. Scrivi il suo numero in <strong class="ui">«Gioco della tua stampante»</strong> oppure fai clic su di esso tra i valori sotto il campo. Il gioco è per lato, in millimetri, e il browser lo conserva per tutti i progetti; un campo vuoto significa non misurato. Con più stampanti, scegli prima in <strong class="ui">«Stampante»</strong> quella su cui stampi: ogni stampante conserva il proprio gioco, e i nuovi usi partono dal gioco della stampante impostata per il progetto. Una stampante senza gioco proprio usa quello impostato quando non era scelta nessuna stampante.</p>
+<p>Da quel momento i nuovi utilizzi partono dal gioco invece che dal valore predefinito: <strong class="ui">«Gioco per lato»</strong> e <strong class="ui">«Gioco del perno (per lato)»</strong> nello strumento <strong class="ui">«Coperchio»</strong>, il gioco di una nuova <strong class="ui">«Coda di rondine»</strong> e di un nuovo <strong class="ui">«Gancio a scatto»</strong>, <strong class="ui">«Gioco (XY)»</strong> di un nuovo dado o foro filettato – il doppio del gioco, perché è lo spazio su tutto il diametro – e <strong class="ui">«Distanza minima»</strong> in <strong class="ui">«Controlla il gioco»</strong>. Lo stesso vale per il <strong class="ui">«Gioco per lato»</strong> di spine, perni e code di rondine in <strong class="ui">«Dividi»</strong>. Finché un campo così mantiene quel valore, “<strong class="ui">«Dalla tua prova di accoppiamento»</strong>” accanto dice da dove viene il numero. Una cerniera stampata in un pezzo e le articolazioni dello strumento <strong class="ui">«Giunti flessibili»</strong> mantengono i loro 0,4 mm: stampate in un pezzo unico, le loro fessure devono restare aperte anche tra gli strati, e questo un perno stampato a parte non lo misura. Lo spazio per inserire a pressione un magnete o una chiave Gridfinity e lo spazio per una presa o una scheda acquistate mantengono anch'essi i propri valori. I corpi già presenti in un progetto non cambiano mai, e nemmeno un progetto che apri.</p>
+</section><section class="guide-part"><h2 id="controllare-la-stampa"><span class="heading-alias" id="checking-the-print"></span>Controllare la stampa</h2>
+<p><strong class="ui">«Controlla la stampa»</strong>, accanto a <strong class="ui">«Controlla il gioco»</strong> in <strong class="ui">«Combina»</strong>, esamina gli oggetti selezionati, o tutti quelli visibili se non è selezionato nulla, e dice in una finestra cosa andrebbe storto in stampa. Ognuna delle sue cinque righe è verde se non ha trovato nulla, e arancione con cosa e dove se ha trovato qualcosa:</p>
+<ul><li><strong><strong class="ui">«Pareti sottili»</strong></strong>: punti più sottili di due linee dell'ugello, cioè 0,8 mm con un ugello da 0,4 mm. Lo slicer tralascia una parete così o la stampa come un'unica linea debole. In alto nella finestra scegli il tuo ugello in <strong class="ui">«Ugello»</strong> (da 0,2 a 0,8 con un clic, qualsiasi altro nel campo). I punti sottili vengono dipinti di rosso con una griglia chiara sui corpi, e la riga indica il punto più sottile e quanta superficie è troppo sottile. I punti sotto 1 mm² e gli spigoli vivi, come quello di un cuneo, sono esclusi.</li><li><strong><strong class="ui">«Parti sospese»</strong></strong>: un corpo, o una parte separata di un corpo, che non tocca né il piatto né un'altra parte (entro 0,05 mm). Verrebbe stampato nel vuoto. Una parte appoggiata su una parte che sta in piedi va bene.</li><li><strong><strong class="ui">«Poco contatto con il piatto»</strong></strong>: una parte sul piatto il cui primo strato è molto piccolo per la sua altezza, come una sfera o un cono sulla punta. Può staccarsi durante la stampa. L'avviso compare sotto 0,5 mm² di appoggio, misurato 0,1 mm sopra il piatto, per ogni millimetro di altezza: una sfera è sempre sotto, un cubo di 10 mm ha 10.</li><li><strong><strong class="ui">«Sporgenze»</strong></strong>: gli stessi numeri di <strong>Mostra sbalzi</strong>, con l'angolo impostato lì.</li><li><strong><strong class="ui">«Mesh aperta»</strong></strong>: una mesh importata con spigoli aperti, o spigoli condivisi da tre o più facce. Lo slicer deve allora indovinare dov'è l'interno.</li></ul>
+<figure><img src="/api/desktop/layerling/ui/guide/img/print-check.webp" alt="Una vaschetta la cui parete destra è spessa solo 0,6 mm: Controlla la stampa la colora di rosso e la segnala nella finestra." width="1280" height="800" loading="lazy"><figcaption>Una vaschetta la cui parete destra è spessa solo 0,6 mm: Controlla la stampa la colora di rosso e la segnala nella finestra.</figcaption></figure>
+<p><strong class="ui">«Mostra»</strong> su una riga porta lì la telecamera; seleziona le parti sospese, quelle con poco appoggio e le mesh aperte, e per le sporgenze attiva <strong>Mostra sbalzi</strong>. I corpi che si sovrappongono vengono controllati uniti, come li unisce lo slicer. Se modifichi il progetto mentre la finestra è aperta, compare <strong class="ui">«Progetto modificato: controlla di nuovo»</strong>; fai clic lì o su <strong class="ui">«Controlla di nuovo»</strong>. <kbd>Esc</kbd> chiude la finestra. Il progetto non cambia. Un'IA fa lo stesso controllo con <code>layerling_check_print</code>.</p>
+</section><section class="guide-part"><h2 id="quando-il-pezzo-e-pronto"><span class="heading-alias" id="when-you-are-ready"></span>Quando il pezzo è pronto</h2>
+<p>Scegli <strong class="ui">«Esporta»</strong>, poi <strong>STL</strong> o <strong>3MF</strong>. STL è il formato più semplice. 3MF conserva i nomi e i colori dei singoli corpi, quindi è comodo per la stampa multicolore. La finestra di esportazione mostra anche quanti grammi e metri di filamento servirebbero per stampare il pezzo pieno. Altre informazioni in <a href="/api/desktop/layerling/ui/it/files-and-saving.html">File e salvataggio</a>.</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/it/measuring-and-notes.html"><small>Capitolo precedente</small>Misurazioni e annotazioni</a><a class="next" href="/api/desktop/layerling/ui/it/files-and-saving.html"><small>Capitolo successivo</small>File, salvataggio e condivisione</a></div>
+      </main>
+    </div>
+    <footer class="note">Questa guida cresce insieme al programma. Se manca qualcosa o trovi un errore, segnalalo nelle <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussioni</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=it" rel="noopener">Sostieni il progetto</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussioni</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Scopri di più su GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Note di rilascio v1.154.1</a></div><p class="trademark">Tinkercad è un marchio di Autodesk, Inc. Layerling è un progetto indipendente, non affiliato ad Autodesk né approvato o sponsorizzato da essa.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Torna all'editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Apri l'editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Vue et plan de travail - Manuel d'utilisation layerling</title>
+    <meta name="description" content="Déplacez-vous dans la scène, regardez droit devant et placez de nouvelles formes sur n'importe quelle surface de votre choix.">
+    <link rel="canonical" href="https://layerling.com/guide-fr/view-and-workplane.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/view-and-workplane.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/view-and-workplane.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/view-and-workplane.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/ansicht-und-arbeitsebene.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/view-and-workplane.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/view-and-workplane.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/view-and-workplane.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/view-and-workplane.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/weergave-en-werkvlak.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/view-and-workplane.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/pogled-in-delovna-ravnina.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/view-and-workplane.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/view-and-workplane.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/view-and-workplane.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/view-and-workplane.html">
+    <meta property="og:title" content="Vue et plan de travail - Manuel d'utilisation layerling">
+    <meta property="og:description" content="Déplacez-vous dans la scène, regardez droit devant et placez de nouvelles formes sur n'importe quelle surface de votre choix.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/guide-fr/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Manuel d'utilisation</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/guide-fr/search-index.json" data-nothing="Aucun résultat trouvé." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Rechercher dans le manuel" aria-label="Rechercher dans le manuel" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Langue">Français</summary><ul><li><a href="/api/desktop/layerling/ui/guide/view-and-workplane.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/view-and-workplane.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/view-and-workplane.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/view-and-workplane.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/view-and-workplane.html" hreflang="fr" lang="fr" aria-current="true">Français</a></li><li><a href="/api/desktop/layerling/ui/it/view-and-workplane.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/view-and-workplane.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/view-and-workplane.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/view-and-workplane.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/view-and-workplane.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/pogled-in-delovna-ravnina.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/view-and-workplane.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/view-and-workplane.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/view-and-workplane.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/view-and-workplane.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/view-and-workplane.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/view-and-workplane.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Ouvrir l'éditeur</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>L'éditeur est déjà ouvert dans un autre onglet - basculez simplement vers lui.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Chapitres"><h2>Chapitres</h2><p class="print-link"><a href="/api/desktop/layerling/ui/guide-fr/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Guide complet, à imprimer</span></a></p><ol><li><a href="/api/desktop/layerling/ui/guide-fr/getting-started.html">Premiers pas</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/view-and-workplane.html" aria-current="page">Vue et plan de travail</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/shapes.html">Placer et ajuster les formes</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/select-and-arrange.html">Choisir et organiser</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/solids-and-holes.html">Solides et trous</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/edges-and-hollowing.html">Casser les bords et creuser les corps</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/sketches.html">Esquisses : du contour au corps</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/text.html">Texte et lettres courbes</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/threads-and-mechanics.html">Filetages, engrenages et autres pièces</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/measuring-and-notes.html">Mesures et notes</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/printing.html">Préparation à l'impression 3D</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/files-and-saving.html">Fichiers, sauvegarde et partage</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/shortcuts.html">Raccourcis clavier</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/ai-with-mcp.html">Construire avec une IA (MCP)</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/offline-and-install.html">Installation en tant qu'application, travail hors ligne et auto-hébergement</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/videos.html">Vidéos sur layerling</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/tablet-and-touch.html">Tablette et tactile</a></li></ol></nav>
+      <main>
+<h1>Vue et plan de travail</h1>
+<p class="lead">Déplacez-vous dans la scène, regardez droit devant et placez de nouvelles formes sur n'importe quelle surface de votre choix.</p>
+<div class="toc"><b>Sur cette page</b><ul><li><a href="#se-deplacer">Se déplacer</a></li><li><a href="#regarder-a-l-interieur-la-vue-en-coupe">Regarder à l'intérieur : la vue en coupe</a></li><li><a href="#le-plan-de-travail">Le plan de travail</a></li><li><a href="#plateaux-d-impression">Plateaux d'impression</a></li><li><a href="#grille-et-capture">Grille et capture</a></li><li><a href="#quand-layerling-semble-lent">Quand layerling semble lent</a></li></ul></div>
+<section class="guide-part"><h2 id="se-deplacer"><span class="heading-alias" id="moving-around"></span>Se déplacer</h2>
+<p>Avec la souris :</p>
+<div class="table-scroll"><table><thead><tr><th>Que faites-vous</th><th>Que se passe-t-il</th></tr></thead><tbody><tr><td>faites glisser avec le bouton droit</td><td>faire pivoter la vue</td></tr><tr><td>cliquez sur le bouton droit</td><td>sur un corps, un menu avec les commandes les plus utilisées : dupliquer, percer ou solide, grouper, masquer, verrouiller, supprimer et plus encore ; sur un espace vide Coller et tout sélectionner</td></tr><tr><td>faites glisser avec le bouton du milieu</td><td>déplacer la vue</td></tr><tr><td>molette de la souris</td><td>zoomer et dézoomer</td></tr><tr><td>maintenez <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> et faites glisser avec le bouton gauche</td><td>déplace également la vue</td></tr><tr><td>double-clic sur un endroit vide du plan de travail ou à côté de la plaque</td><td>déplace la vue pour amener cet endroit au milieu ; la vue tourne ensuite autour de lui</td></tr></tbody></table></div>
+<p>La vitesse de zoom de la molette se règle avec <strong class="ui">« Vitesse de zoom »</strong> dans les paramètres, sous <strong class="ui">« Apparence »</strong> : un curseur de 1 à 14, réglé sur 5 au départ ; au-dessus de 10, seule la molette devient plus rapide.</p>
+<p><strong>Boutons de la souris comme dans votre trancheur.</strong> Si vous êtes habitué à Bambu Studio ou OrcaSlicer, réglez <strong class="ui">« Boutons de la souris »</strong> dans les réglages, sous <strong class="ui">« Apparence »</strong>, sur <strong class="ui">« Comme Bambu Studio et OrcaSlicer »</strong>. Un glissement gauche dans le vide fait alors tourner la vue, le bouton droit la décale comme le bouton du milieu, et Maj avec un glissement gauche trace le cadre de sélection. Un glissement sur un corps le déplace toujours, et un clic droit bref ouvre toujours le menu. Dans une esquisse, le bouton droit décale aussi la vue.</p>
+<p><strong>Souris 3D.</strong> Une SpaceMouse ou une autre souris 3D tourne, décale et zoome la vue 3D : poussez le capuchon vers l'avant pour zoomer, faites-le glisser pour décaler la vue, inclinez-le pour incliner la vue et tournez-le pour faire pivoter la vue. Dans les réglages, sous <strong class="ui">« Apparence »</strong>, cliquez sur <strong class="ui">« Connecter une souris 3D »</strong> et choisissez l'appareil dans la fenêtre que le navigateur ouvre ; il retient le choix, il ne faut donc le faire qu'une fois. Cela fonctionne dans Chrome et Edge, qui peuvent accéder à ces appareils ; Firefox et Safari ne le peuvent pas. Si une direction paraît à l'envers, cochez-la sous le bouton : décaler sur le côté, décaler vers le haut ou le bas, zoomer, incliner ou tourner.</p>
+<p>Sur une tablette ou un téléphone, deux doigts zooment (écartent et pincent) et déplacent la vue (glissent ensemble). Un doigt travaille sur le design, tout comme le bouton gauche de la souris. Pour faire pivoter avec un doigt, activez <strong class="ui">« Faire pivoter la vue avec un doigt »</strong> dans la barre de vue. Ce commutateur ne s'affiche que sur les appareils dotés d'un écran tactile.</p>
+<p>Une tablette graphique avec stylet se comporte comme une souris : la pointe est le bouton gauche, le bouton cylindrique du stylet celui de droite, pour tourner la vue et pour le menu. Les raccourcis clavier de la tablette peuvent être définis dans son pilote sur les [raccourcis clavier] de Layerling (chapter:shortcuts).</p>
+<section class="guide-part"><h3 id="le-cube-de-visualisation"><span class="heading-alias" id="the-view-cube"></span>Le cube de visualisation</h3>
+<p>Le cube en haut à gauche indique où vous regardez. Un clic sur l'un de ses côtés permet d'accéder à la vue droite du haut, du bas, de l'avant, de l'arrière, de la gauche ou de la droite. Un clic sur un coin du cube regarde le modèle en diagonale depuis ce coin, et un clic près d'un bord regarde depuis ce bord, entre deux côtés ; le spot s'allume lorsque le pointeur est dessus. Les touches numériques <kbd>1</kbd> à <kbd>6</kbd> donnent également les vues droites. Maintenez <kbd>Shift</kbd> avec eux et la vue effectue également un zoom sur la sélection, comme le fait <span dir="ltr"><kbd>Shift</kbd>+<kbd>F</kbd></span>.</p>
+<p>Faites glisser le cube pour inverser la vue, tout comme en le faisant glisser avec le bouton droit de la souris. Sans rien sélectionné, les touches fléchées font également pivoter la vue : 15° en appuyant, 90° avec <kbd>Shift</kbd>. Ils tournent le modèle dans la direction où ils pointent - <kbd>→</kbd> tourne son avant vers la droite, <kbd>↑</kbd> incline son avant vers le haut. Avec <kbd>Ctrl</kbd> enfoncée, les flèches font plutôt glisser la vue à travers l'écran : un dixième de l'image par appui, la moitié avec <kbd>Shift</kbd> en plus. Le modèle se déplace dans la direction où elles pointent. Si quelque chose est sélectionné, les flèches le déplacent ; cliquez d'abord sur un espace vide pour faire tourner la vue. Sur un écran tactile, cela fonctionne avec un seul doigt, sans activer <strong class="ui">« Faire pivoter la vue avec un doigt »</strong>.</p>
+</section><section class="guide-part"><h3 id="la-barre-de-vue"><span class="heading-alias" id="the-view-bar"></span>La barre de vue</h3>
+<p>Sur le bord gauche se trouve une barre étroite. Du haut :</p>
+<ul><li><strong class="ui">« Vue initiale »</strong> ramène toute la scène en vue. La touche est <kbd>Home</kbd> ; <kbd>F</kbd> le fait aussi quand rien n'est sélectionné.</li><li><strong class="ui">« Vue centrale sur la sélection »</strong> effectue un zoom sur la sélection (<kbd>F</kbd> ou <span dir="ltr"><kbd>Shift</kbd>+<kbd>F</kbd></span>).</li><li><strong class="ui">« Zoomer »</strong> et <strong class="ui">« Zoom arrière »</strong> zooment pas à pas, tout comme les touches <kbd>+</kbd> et <kbd>−</kbd>.</li><li><strong class="ui">« Vue orthographique »</strong> passe à une vue plate dans laquelle les bords parallèles restent parallèles. Pour mesurer et aligner les bords, c'est souvent plus confortable que la vue en perspective. <kbd>O</kbd> bascule d'avant en arrière et un deuxième clic revient.</li><li><strong class="ui">« Ouvrir une deuxième vue »</strong> ouvre une deuxième vue du design dans une fenêtre à part, décrite plus bas. Un second clic la ferme.</li><li><strong class="ui">« Afficher les barres de défilement »</strong> affiche une barre de défilement en bas de la vue et une autre le long de son bord droit. Faites glisser une barre pour déplacer la vue en douceur, cliquez sur une flèche à son extrémité pour la déplacer un peu (maintenez pour continuer), ou cliquez à côté de la barre pour avancer de presque toute la vue. Rien ne tourne et, contrairement aux touches fléchées, les barres fonctionnent même quand une pièce est sélectionnée - pratique de près, sur les petits détails. Un second clic les masque ; <strong class="ui">« Démarrer l'éditeur avec les barres de défilement »</strong> dans les réglages décide si un projet s'ouvre avec elles. Ce navigateur retient aussi le choix.</li><li><strong class="ui">« Masquer le plan de travail »</strong> (l'œil au-dessus d'une grille) cache la plaque avec sa grille, vous pouvez donc regarder le dessous d'un dessin par le bas. Seule la vue change : de nouvelles formes atterrissent toujours sur le plan de travail. Un deuxième clic l'affiche à nouveau.</li><li><strong class="ui">« Placer le plan de travail »</strong>, le mètre ruban et l'équerre d'encadrement sont des outils à part entière, abordés ci-dessous et dans [Mesures et notes] (chapter:measuring-and-notes).</li></ul>
+<p>La petite flèche tout en haut de la barre la cache si elle gêne.</p>
+<p>Un design s'ouvre comme vous l'avez laissé : l'angle, le zoom et la position de la vue sont conservés avec lui dans ce navigateur, de sorte que vous continuez là où vous vous êtes arrêté, même après être retourné à Home ou avoir fermé la page. Un fichier enregistré (.lyl) emporte la vue, elle s'y ouvre donc également ailleurs. La vue ne fait pas partie de l'historique d'annulation.</p>
+<p>Vous pouvez aussi garder quatre vues à vous dans chaque design. <span dir="ltr"><kbd>Shift</kbd>+<kbd>7</kbd></span>, <span dir="ltr"><kbd>Shift</kbd>+<kbd>8</kbd></span>, <span dir="ltr"><kbd>Shift</kbd>+<kbd>9</kbd></span> ou <span dir="ltr"><kbd>Shift</kbd>+<kbd>0</kbd></span> enregistre la vue exactement telle qu'elle est - angle, position, zoom, et vue plate ou en perspective - sous cette touche, et la touche seule (<kbd>7</kbd>, <kbd>8</kbd>, <kbd>9</kbd> ou <kbd>0</kbd>) la ramène. Un message en bas confirme l'enregistrement ; enregistrer à nouveau sous la même touche remplace la vue. Comme la vue ci-dessus, les vues enregistrées restent avec le design dans ce navigateur et voyagent dans un fichier enregistré (.lyl) ; elles ne font pas partie de l'historique d'annulation.</p>
+</section><section class="guide-part"><h3 id="une-deuxieme-vue-dans-sa-propre-fenetre"><span class="heading-alias" id="a-second-view-in-its-own-window"></span>Une deuxième vue dans sa propre fenêtre</h3>
+<p><strong class="ui">« Ouvrir une deuxième vue »</strong> ouvre une fenêtre qui montre le même design à travers sa propre caméra, pour le voir de deux côtés à la fois - de face, par exemple, pendant que vous travaillez par le dessus. Chaque modification faite dans l'éditeur y apparaît aussitôt ; le design ne se modifie que dans la fenêtre principale, et les poignées y restent aussi. Dans la deuxième fenêtre, la souris et le cube de vue tournent sa vue comme ici, de même que les touches : <kbd>1</kbd> à <kbd>6</kbd>, <kbd>F</kbd>, <kbd>Home</kbd>, <kbd>O</kbd>, <kbd>+</kbd> et <kbd>−</kbd>, les flèches pour tourner et <kbd>Ctrl</kbd> avec les flèches pour faire glisser. <kbd>F</kbd> y cadre ce qui est sélectionné dans l'éditeur. Les quatre vues enregistrées du design y fonctionnent aussi : <kbd>7</kbd>, <kbd>8</kbd>, <kbd>9</kbd> et <kbd>0</kbd> les ramènent, et <kbd>Shift</kbd> avec l'une de ces touches y enregistre la vue de cette fenêtre - pour les deux fenêtres. Sa propre barre de vue a <strong class="ui">« Vue initiale »</strong>, <strong class="ui">« Vue centrale sur la sélection »</strong>, <strong class="ui">« Zoomer »</strong>, <strong class="ui">« Zoom arrière »</strong>, <strong class="ui">« Vue orthographique »</strong> et <strong class="ui">« Masquer le plan de travail »</strong>, qui n'agissent que sur cette fenêtre. La fenêtre s'ouvre là où vous l'avez laissée, à la même taille, et se ferme avec l'éditeur. Sur les téléphones et les tablettes, le bouton n'apparaît pas.</p>
+</section></section><section class="guide-part"><h2 id="regarder-a-l-interieur-la-vue-en-coupe"><span class="heading-alias" id="looking-inside-the-section-view"></span>Regarder à l'intérieur : la vue en coupe</h2>
+<p><strong class="ui">« Vue en coupe »</strong>, le dernier bouton de la barre (l'outil de coupe), coupe la vue ouverte le long d'un plan afin que vous puissiez vérifier les murs, les cavités et les pièces qui s'emboîtent les unes dans les autres. Rien n'est coupé pour vrai : le design, ses fichiers et chaque export restent entiers. Là où le plan traverse un corps plein, la coupe est remplie de la couleur du corps, un peu plus foncée, et un évidement à l'intérieur reste vide, de sorte qu'on distingue le plein du creux ; la face remplie apparaît un instant après que le plan s'est arrêté. Sous <strong class="ui">« Face de coupe »</strong>, tu choisis l'aspect de la coupe : <strong class="ui">« Hachurée »</strong>, le réglage de départ, la hachure comme un plan, et un corps situé dans un autre est hachuré dans l'autre sens, pour que les deux se distinguent ; <strong class="ui">« Remplie »</strong> la remplit d'une seule couleur ; <strong class="ui">« Ouverte »</strong> la laisse ouverte, et tu vois l'intérieur de la peau du corps. Le choix vaut pour tous les dessins.</p>
+<ul><li>Choisissez l'axe sur lequel se situe le plan : X (largeur), Y (profondeur) ou Z (hauteur), comme dans les champs de position. L'avion commence au milieu de votre dessin.</li><li><strong class="ui">« Axes de »</strong> indique ce que suivent ces axes. <strong class="ui">« Modèle »</strong> prend les axes du modèle. <strong class="ui">« Plan de travail »</strong> prend ceux du plan de travail : Z coupe alors parallèlement à lui, X et Y perpendiculairement, et la position se compte depuis son origine. Avec le plan de travail sur une face inclinée, tu coupes ainsi parallèlement à cette face, et la coupe suit quand tu déplaces le plan de travail. <strong class="ui">« Vue »</strong> tourne le plan face à l'écran : il enlève ce qui se trouve devant, et le curseur le pousse plus loin dans le modèle dans le sens du regard, par exemple pour atteindre une pièce cachée et la sélectionner. Après avoir tourné la vue, clique à nouveau dessus et la coupe suit la nouvelle vue.</li><li><strong class="ui">« Grossier »</strong> déplace le plan sur tout le dessin, <strong class="ui">« Très bien »</strong> le déplace un peu de chaque côté de son emplacement, sur des dixièmes de millimètre. Vous pouvez également saisir le poste.</li><li>Le bouton à côté des axes montre l'autre côté de la coupe, <strong class="ui">« Centre »</strong> remet le plan au milieu, et <strong class="ui">« Afficher le plan de coupe »</strong> masque le plan bleu.</li><li>Vous pouvez cliquer et sélectionner ce que la coupe laisse ouverte, parois intérieures incluses.</li><li><strong class="ui">« Plan de travail ici »</strong> met le plan de travail sur la coupe. Il repose sur le plan de la coupe et fait face à l'extérieur du corps qui reste, comme le visage qu'une coupure laisse. Si vous passez ensuite à l'esquisse, elle commence exactement là et le contour pâle montre la coupe, que vous pouvez dessiner et sur laquelle vous pouvez vous accrocher. C'est ainsi que vous dessinez un couvercle qui s'adapte à la cavité que vous avez ouverte avec la section, par exemple. Le bouton à côté des axes choisit quel côté reste, et avec lui, dans quelle direction le plan de travail est orienté. Vous remettez le plan de travail sur la plaque de base comme d'habitude.</li><li><strong class="ui">« Esquisse depuis la coupe »</strong> commence une nouvelle esquisse directement sur la coupe, avec déjà les contours de la coupe comme lignes : un trou arrive comme un vrai cercle, un coin arrondi comme un arc. Modifiez-les, supprimez ce dont vous n'avez pas besoin, dessinez davantage et terminez : le corps sort de la coupe vers le côté retiré, si bien qu'une pièce qui doit s'ajuster à une autre, comme un couvercle, un insert ou un joint, part du contour même de cette pièce. Le bouton à côté des axes choisit ce côté. Comme pour le SVG, seuls les corps visibles comptent et les trous sont déjà soustraits.</li><li><strong class="ui">« Mesurer »</strong> mesure directement sur la coupe : le contour apparaît en bleu, et deux clics dessus donnent la distance, plus ses parties selon les deux axes du plan. Les deux points s'accrochent au contour, les coins en premier. Lorsque le deuxième clic atterrit n'importe où sur le mur opposé, il s'aligne sur le premier point - vous pouvez ainsi lire l'épaisseur du mur, les espaces et le dégagement sans viser exactement. Un troisième clic démarre la mesure suivante, <kbd>Esc</kbd> termine la mesure. Le déplacement de l'avion efface la mesure. Sur un contour rond, par exemple la coupe d'un cylindre ou d'un trou, une petite croix marque le centre, et le centre s'accroche aussi. Cliquez un point du cercle, puis approchez-vous du point opposé : le second clic tombe exactement en face, à travers le centre, et le nombre est précédé de Ø, c'est le diamètre. Du centre à un point du cercle, vous lisez R, le rayon.</li><li><strong class="ui">« Section au format SVG »</strong> enregistre les contours sur le plan de coupe au format SVG au 1:1, pour un laser, un traceur, un gabarit ou un joint. Une coupe en X est vue de droite, une coupe en Y de face, une coupe en Z de dessus. Comme lors de l'exportation, seuls les corps visibles entrent, les trous sont déjà supprimés et les corps de la même couleur sont réunis en un seul contour. Chaque couleur conserve son propre chemin sans remplissage, de sorte que le logiciel laser les sépare sous forme de calques.</li></ul>
+<p>Le X et <kbd>Esc</kbd> ferment la fenêtre d'outil ; si une mesure est en cours, <kbd>Esc</kbd> la termine d'abord. La coupe reste jusqu'à ce que vous la désactiviez avec <strong class="ui">« Rubrique active »</strong>, que vous cliquiez sur son bouton dans la barre pendant que la fenêtre est ouverte, ou que vous reveniez à l'aperçu des conceptions. Tant qu'elle est active, son bouton reste mis en évidence. Ce que vous placez du côté retiré par la coupe n'apparaît qu'une fois la coupe désactivée. Une tablette n'a pas de touche <kbd>Esc</kbd>, la fenêtre d'outil y a donc deux boutons de plus : <strong class="ui">« Retour »</strong> termine la mesure si elle est en cours et ferme sinon la fenêtre d'outil, et <strong class="ui">« Fermer »</strong> ferme la fenêtre d'outil en une étape. Un ordinateur ne les affiche pas.</p>
+<p>La fenêtre d'outil s'accroche à son bouton. S'il recouvre quelque chose, faites-le glisser par sa barre de titre n'importe où sur le plan de travail ; il y ouvrira la prochaine fois aussi. Double-cliquez sur la barre de titre ou déposez-la sur le bouton pour la remettre en place.</p>
+<p><kbd>Esc</kbd> ferme la fenêtre ; la coupe reste jusqu'à ce que vous l'éteigniez ou reveniez à l'aperçu du design. Lorsqu'il est allumé, son bouton reste en surbrillance. Tout ce que vous placez sur le côté coupé ne s'affiche qu'une fois que vous avez désactivé la coupure.</p>
+</section><section class="guide-part"><h2 id="le-plan-de-travail"><span class="heading-alias" id="the-workplane"></span>Le plan de travail</h2>
+<p>Les nouvelles formes s'alignent sur le plan de travail. Au début, c'est la plaque de base avec la grille. Mais vous pouvez le poser sur n'importe quelle surface, pour placer quelque chose sur un côté ou une face inclinée.</p>
+<ol><li>Appuyez sur <kbd>W</kbd> ou cliquez sur <strong class="ui">« Placer le plan de travail »</strong>.</li><li>Déplacez la souris sur une face d'un corps. Il s'allume.</li><li>Un clic y place le plan de travail. Tout ce que vous ajoutez repose désormais sur ce visage.</li></ol>
+<p>Cliquez plutôt sur la plaque vide et le plan de travail repose à plat à l'endroit sur lequel vous avez cliqué, sur la grille d'accrochage. De nouvelles formes et une esquisse terminée, également tournée, apparaissent alors là plutôt qu'au milieu de la planche. Alors que le plan de travail repose ainsi à plat sur la plaque, la plaque ne montre que son contour : deux grilles dans le même plan formeraient un motif scintillant.</p>
+<p>Sur une face, l'origine du plan de travail s'accroche autrement à la grille. Cliquez près d’un coin du visage et il se place exactement sur ce coin. Près d'un bord, il repose sur le bord et la grille s'aligne avec lui ; c’est ainsi que l’on choisit volontairement l’angle de la grille. Sans coin ni bord, la grille sur une face couchée est parallèle au corps, donc sur une boîte tournée, elle est tournée avec lui.</p>
+<p>Un clic à côté de la plaque ou <kbd>Esc</kbd> ramène le plan de travail à la plaque de base. <strong class="ui">« Plan de travail retour à la plaque de base »</strong> est encore plus rapide : le bouton avec la flèche vers le bas se trouve dans la barre de vue sous l'œil tandis que le plan de travail se trouve sur un visage. <span dir="ltr"><kbd>Shift</kbd>+<kbd>W</kbd></span> le place directement sur la face actuellement sélectionnée. <span dir="ltr"><kbd>Alt</kbd>+<kbd>W</kbd></span> le ramène sur la plaque de base à tout moment, qu'il y ait une sélection ou non. Si vous maintenez <kbd>Shift</kbd> tout en cliquant, le plan pointe dans l'autre sens.</p>
+<p>Lorsqu'un plan de travail repose sur une face, un œil apparaît à côté de <strong class="ui">« Placer le plan de travail »</strong>. Il masque le plan de travail sans le faire tomber, pour une vision claire du design : de nouvelles formes se posent toujours sur cette face, et la rotation tourne toujours autour d'elle. Un clic sur l'œil le montre à nouveau, tout comme la définition d'un nouveau plan de travail.</p>
+<p>Pour regarder le plan de travail de face, appuie sur <kbd>P</kbd> ou clique sur <strong class="ui">« Regarder le plan de travail de face »</strong> à côté de <strong class="ui">« Placer le plan de travail »</strong> dans la barre de vue. La vue tourne jusqu'à ce que tu voies le plan de face, du côté vers lequel poussent les nouvelles formes, avec son origine au milieu. Sur la plaque de base, c'est la vue de dessus.</p>
+</section><section class="guide-part"><h2 id="plateaux-d-impression"><span class="heading-alias" id="build-plates"></span>Plateaux d'impression</h2>
+<p>Quand un design contient plus qu'un plateau ne peut imprimer, une boîte avec son couvercle et ses inserts par exemple, il peut avoir plusieurs plateaux d'impression. Cliquez sur <strong class="ui">« Plateaux d'impression »</strong> dans le groupe <strong class="ui">« Organiser »</strong>, ou choisissez <strong class="ui">« Sur le plateau… »</strong> dans le menu du clic droit sur un corps. Une barre apparaît au pied de la vue, avec un bouton par plateau ; le nombre indique combien de corps s'y trouvent.</p>
+<ul><li>Chaque plateau est aussi grand que le plan de travail, et les plateaux sont côte à côte à droite du premier, à 20 mm l'un de l'autre. Un corps appartient au plateau sur lequel se trouve le milieu de son empreinte ; en le faisant glisser de l'autre côté, il passe sur l'autre plateau. Un design compte jusqu'à 12 plateaux.</li><li>Un clic sur un plateau dans la barre l'affiche, et les nouvelles formes et les fichiers importés s'y posent alors. <strong class="ui">« Afficher tous les plateaux »</strong> les affiche tous. Un double-clic sur un plateau, ou <strong class="ui">« Renommer le plateau »</strong>, lui donne un nom comme « Couvercle », écrit sur le plateau.</li><li><strong class="ui">« Déplacer le plateau à gauche »</strong> et <strong class="ui">« Déplacer le plateau à droite »</strong> changent l'ordre, les corps suivant leur plateau. <strong class="ui">« Retirer le plateau (ses corps passent sur le premier plateau) »</strong> retire le plateau actif ; ses corps passent sur le premier plateau au même endroit.</li><li><strong class="ui">« Répartir sur les plateaux »</strong> dispose les corps sélectionnés, ou tous, rangée par rangée sur les plateaux, les plus grands d'abord, à 5 mm l'un de l'autre, et ajoute des plateaux tant qu'il en faut. Un corps plus grand qu'un plateau reste en place.</li><li>Avec une imprimante choisie, chaque corps est contrôlé par rapport à son propre plateau, et la hauteur d'impression compte à partir du corps le plus bas de ce plateau. Un plateau avec un corps qui ne tient pas affiche son nombre en rouge.</li><li>Dans les propriétés, X compte à partir du milieu du plateau du corps.</li></ul>
+<p>La fenêtre d'export propose alors <strong class="ui">« Plateaux »</strong> : tous les plateaux dans un fichier, côte à côte comme dans le design ; un fichier par plateau, réunis dans un ZIP (STL, 3MF et OBJ) ; ou un seul plateau, placé à l'endroit du premier. Un trancheur ouvre chaque fichier comme un seul plateau ; pour imprimer les plateaux l'un après l'autre, prenez donc les fichiers par plateau. Déplacer des corps entre plateaux et les répartir peut être annulé ; ajouter, nommer, ordonner et retirer des plateaux est enregistré avec le design, mais pas annulé.</p>
+</section><section class="guide-part"><h2 id="grille-et-capture"><span class="heading-alias" id="grid-and-snapping"></span>Grille et capture</h2>
+<p>La grille montre la taille de la plaque. En bas à droite se trouve l'<strong>étape d'accrochage</strong> : déplacer et mettre à l'échelle l'accrochage par pas de cette taille, par exemple 1 mm. Réduisez-le pour un travail fin et plus grand pour un arrangement grossier. <strong class="ui">« Accrocher à la grille »</strong> dans le ruban déplace ensuite les formes sélectionnées sur le croisement de grille le plus proche. Lors du déplacement, les formes s'alignent également sur d'autres formes, voir [Sélection et organisation] (chapter:select-and-arrange). Un clic bref avec le bouton du milieu de la souris, sans bouger la souris, ouvre le menu des pas d'accrochage juste sous le pointeur, dans une esquisse aussi ; glisser en tenant le bouton du milieu déplace toujours la vue.</p>
+<aside class="tip"><p><strong>Conseil :</strong> Arrêtez de faire pivoter la vue lorsque vous assemblez exactement les pièces. Utilisez les touches numériques pour accéder à la vue droite de dessus ou de face et appuyez sur <kbd>O</kbd> pour l'affichage plat. Vous voyez alors immédiatement si les deux bords sont vraiment à égalité.</p></aside>
+<section class="guide-part"><h3 id="la-fenetre-des-reglages"><span class="heading-alias" id="the-settings-window"></span>La fenêtre des réglages</h3>
+<p>La roue dentée dans la ligne du titre (<strong class="ui">« Paramètres de l'espace de travail »</strong>) ouvre les réglages. À gauche se trouvent cinq zones : <strong class="ui">« Apparence »</strong>, <strong class="ui">« Mesure »</strong>, <strong class="ui">« Plan de travail »</strong>, <strong class="ui">« Valeurs par défaut de la forme »</strong> et <strong class="ui">« Histoire »</strong>. Une modification compte tout de suite. <strong class="ui">« Par défaut »</strong> en bas enregistre les réglages actuels comme réglages par défaut, afin qu'une nouvelle conception commence avec eux. Un fichier que vous ouvrez apporte ses propres réglages ; <strong class="ui">« Utiliser mon réglage par défaut »</strong> à côté applique à la conception ouverte vos couleurs, votre grille et le reste enregistrés, en gardant ses unités. Si vos réglages par défaut comportent une imprimante, cette imprimante arrive avec la taille de son plateau ; sans imprimante, la conception garde son plateau et son imprimante. <strong class="ui">« Fermer les paramètres »</strong> en haut à droite ferme la fenêtre. Cette partie passe les réglages en revue un par un.</p>
+<p><strong class="ui">« Exporter les réglages »</strong> enregistre les réglages de la fenêtre dans un fichier (layerling-settings-&lt;date&gt;.json) : les couleurs, la grille, les ombres, la caméra et les valeurs par défaut des formes, avec le thème, la taille de la barre d'outils, le coin du cube de vue, les couleurs des formes et le jeu de chaque imprimante. Sur un autre ordinateur, ou après une perte de données du navigateur, <strong class="ui">« Importer les réglages »</strong> relit le fichier : il devient votre valeur par défaut pour les nouveaux designs et s'applique au design ouvert comme <strong class="ui">« Utiliser mon réglage par défaut »</strong>. Vos propres touches des raccourcis clavier suivent aussi.</p>
+</section><section class="guide-part"><h3 id="apparence-theme-barre-d-outils-et-cube-de-vue"><span class="heading-alias" id="appearance-theme-toolbar-and-view-cube"></span>Apparence : thème, barre d'outils et cube de vue</h3>
+<p><strong class="ui">« Thème »</strong> définit la palette de couleurs de tout le programme : <strong class="ui">« Système »</strong> suit votre ordinateur, les autres sont <strong class="ui">« Lumière »</strong>, <strong class="ui">« Sombre »</strong> et <strong class="ui">« Graphite (neutre foncé) »</strong>. Vous pouvez aussi la changer en haut à droite de l'éditeur.</p>
+<p><strong class="ui">« Taille des commandes »</strong> sous <strong class="ui">« Apparence »</strong> rend les boutons du ruban en haut, son menu de forme, la barre de vue à gauche et le panneau des propriétés à droite plus petits ou plus grands : <strong class="ui">« Petit »</strong>, <strong class="ui">« Moyen »</strong> (comme toujours) ou <strong class="ui">« Grand »</strong>. Small laisse plus de place pour le plan de travail sur un ordinateur portable ; grand est plus facile à frapper sur un grand écran ou avec un doigt. Avec de gros boutons, les groupes du ruban passent sur une deuxième rangée lorsque la fenêtre est trop étroite pour eux. La taille se règle dans l'onglet <strong class="ui">« Ruban »</strong> des réglages ; elle est conservée dans ce navigateur et s'applique à chaque conception.</p>
+<p><strong class="ui">« Formes en couleur »</strong> met la couleur avec laquelle commence une nouvelle forme sur les images de la bibliothèque de formes (la couleur de son type, ou celle que vous avez enregistrée avec <strong class="ui">« Enregistrer par défaut »</strong>). Désactivez-le si vous préférez des images grises ; votre navigateur se souvient du choix.</p>
+<p><strong class="ui">« Position du cube d'orientation »</strong> sous <strong class="ui">« Apparence »</strong> place le cube d'orientation dans un autre coin de l'espace de travail : <strong class="ui">« En haut à gauche »</strong> (comme toujours), <strong class="ui">« En haut à droite »</strong>, <strong class="ui">« En bas à gauche »</strong> ou <strong class="ui">« En bas à droite »</strong>. Dans tout autre coin qu'en haut à gauche, la barre de vue remonte à la place libérée par le cube. En bas à droite, le cube se tient juste au-dessus de la commande <strong class="ui">« Grille d'accrochage »</strong>. Tant que les propriétés d'une forme sont ouvertes à droite, un cube placé à droite se décale à leur gauche. Le coin est conservé dans ce navigateur et s'applique à chaque conception. Dans une fenêtre étroite, comme sur un téléphone, le réglage est masqué et le cube reste en haut à gauche.</p>
+</section><section class="guide-part"><h3 id="apparence-boutons-du-ruban"><span class="heading-alias" id="appearance-buttons-in-the-ribbon"></span>Apparence : boutons du ruban</h3>
+<p><strong class="ui">« Boutons du ruban »</strong> retire du ruban les groupes et les boutons que vous n'utilisez jamais. Cliquez sur un groupe pour ouvrir sa liste : <strong class="ui">« Afficher ce groupe »</strong> retire tout le groupe, la coche à côté d'un bouton seulement ce bouton. <strong class="ui">« Tout afficher »</strong> remet tout. Un groupe sans bouton disparaît et les autres se resserrent, si bien qu'une plus grande partie du ruban tient sur une ligne.</p>
+<p>Ce que vous retirez ne manque que dans le ruban : la recherche de commandes (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>) le trouve toujours et sa touche le lance toujours. Les flèches à côté d'un groupe le montent ou le descendent dans la liste, donc le long du ruban ; <strong class="ui">« Rétablir l'ordre »</strong> rétablit l'ordre d'origine. Les flèches à côté d'un bouton le déplacent de la même façon dans son groupe ; dans <strong class="ui">« Modifier »</strong>, il reste dans sa section nommée. Le groupe Formes et l'Aide restent toujours, et Formes garde sa place après les deux premiers groupes. Ce navigateur retient le choix, qui entre aussi dans le fichier de <strong class="ui">« Exporter les réglages »</strong>. Il vaut pour l'éditeur 3D ; l'esquisse a sa propre barre.</p>
+</section><section class="guide-part"><h3 id="apparence-mode-rapide"><span class="heading-alias" id="appearance-fast-mode"></span>Apparence : mode rapide</h3>
+<p><strong class="ui">« Mode rapide »</strong> est fait pour les ordinateurs plus lents. Il désactive les ombres, les lignes de bord sur tous les corps et l'inertie de la caméra, et ne dessine la vue qu'à la résolution de l'écran. Vos propres réglages sont gardés pour plus tard, et les commutateurs qu'il remplace indiquent <strong class="ui">« Éteint en mode rapide »</strong> tant qu'il est actif. Ce qui aide d'autre sur un ordinateur lent figure plus bas sous « Quand layerling semble lent ».</p>
+</section><section class="guide-part"><h3 id="apparence-couleurs-de-la-zone-de-travail-et-de-l-esquisse"><span class="heading-alias" id="appearance-colours-of-the-work-area-and-the-sketch"></span>Apparence : couleurs de la zone de travail et de l'esquisse</h3>
+<p>Les couleurs de la zone de travail se règlent sous <strong class="ui">« Apparence »</strong> : <strong class="ui">« Fond de fenêtre (thème clair) »</strong> et <strong class="ui">« Plan de travail sous la grille (thème clair) »</strong> pour le thème clair (les thèmes sombres gardent les leurs), à côté de la couleur de la grille sous <strong class="ui">« Plan de travail »</strong>. Chaque couleur est un bouton qui montre la couleur. Un clic ouvre une petite fenêtre avec le champ de couleur, une rangée de couleurs toutes prêtes, un champ pour la valeur hexadécimale et une flèche qui remet la couleur de départ de layerling. <kbd>Enter</kbd> prend une valeur hexadécimale saisie, tout comme un clic en dehors de la fenêtre.</p>
+<p>La vue d'esquisse a ses propres couleurs : <strong class="ui">« Sketch : fond de fenêtre (thème clair) »</strong> pour la fenêtre autour de la feuille, <strong class="ui">« Sketch : zone sous la grille (thème clair) »</strong> pour la feuille sous la grille et <strong class="ui">« Sketch : couleur de la grille (thème clair) »</strong>, le tout pour le thème clair. <strong class="ui">« Esquisse comme une zone de travail »</strong> reprend les trois couleurs de la zone de travail en un clic.</p>
+<p><strong class="ui">« Look classique »</strong> règle la zone de travail comme la montre Tinkercad : fond blanc, une grille millimétrique bleu pâle avec une ligne plus foncée tous les centimètres, des lignes de bord noires, une lumière venant d'en haut avec des ombres douces. Chaque valeur peut encore être modifiée seule par la suite. Toutes commencent comme layerling a toujours été, et ce qui vous convient dépend de votre écran.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/settings-appearance.webp" alt="Les paramètres sous Apparence : couleurs d'arrière-plan et du plan de travail pour le thème de lumière et le commutateur pour les lignes de bord sur tous les corps." width="1280" height="800" loading="lazy"><figcaption>Les paramètres sous Apparence : couleurs d'arrière-plan et du plan de travail pour le thème de lumière et le commutateur pour les lignes de bord sur tous les corps.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/editor-dark.webp" alt="L'éditeur dans la palette de couleurs sombres. Vous définissez la palette de couleurs en haut à droite : Système, Clair, Foncé ou Graphite." width="1280" height="800" loading="lazy"><figcaption>L'éditeur dans la palette de couleurs sombres. Vous définissez la palette de couleurs en haut à droite : Système, Clair, Foncé ou Graphite.</figcaption></figure>
+</section><section class="guide-part"><h3 id="apparence-fleches-d-axes-et-lignes-de-bord"><span class="heading-alias" id="appearance-axis-arrows-and-edge-lines"></span>Apparence : flèches d'axes et lignes de bord</h3>
+<p><strong class="ui">« Flèches d'axe »</strong> (activé par défaut) dessine trois flèches dans le coin arrière gauche de la plaque : <strong>X</strong> en rouge vers la droite, <strong>Y</strong> en vert vers l'arrière et <strong>Z</strong> en bleu vers le haut, comme le comptent les champs de position. C'est la règle de droite que Tinkercad, les programmes de CAO et les slicers utilisent également. Avec le plan de travail sur une face, ils le suivent. Éteignez-les ici s'ils vous gênent.</p>
+<p><strong class="ui">« Lignes de bord sur tous les corps »</strong> dessine un contour sur chaque corps, dans la couleur de <strong class="ui">« Couleur de la ligne de bord »</strong> (noir au départ, comme dans Tinkercad) : cela aide lorsque des couleurs sombres se rejoignent. C'est désactivé par défaut, et les très grands maillages importés sont laissés de côté.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/edge-lines.webp" alt="Trois corps sombres avec des lignes de bord activées : les contours les séparent." width="1280" height="800" loading="lazy"><figcaption>Trois corps sombres avec des lignes de bord activées : les contours les séparent.</figcaption></figure>
+<p><strong class="ui">« Afficher les trous plus nettement »</strong> dessine les trous dans un gris plus sombre, moins transparents et entourés d'une ligne sombre. Cela aide quand un trou est difficile à trouver parmi des corps transparents. Contrairement aux lignes de bord, il reste actif en mode rapide.</p>
+</section><section class="guide-part"><h3 id="apparence-lumiere-et-ombres"><span class="heading-alias" id="appearance-light-and-shadows"></span>Apparence : lumière et ombres</h3>
+<p><strong class="ui">« Afficher les ombres »</strong> active ou désactive les ombres portées. Deux curseurs définissent la manière dont les corps sont éclairés. <strong class="ui">« Force de l'ombre »</strong> indique à quel point les ombres portées sont sombres, et <strong class="ui">« Contraste d'ombrage »</strong> déplace la lumière de la lumière ambiante uniforme vers la lumière principale : vers « punchy », les côtés ombrés deviennent plus sombres et les ombres ressortent davantage, vers « doux », tout devient plus plat. Tout en haut, le contraste devient très fort, si bien que les côtés ombrés et les ombres deviennent vraiment sombres. <strong class="ui">« Douceur des ombres »</strong> rend les bords des ombres doux au lieu de nets. <strong class="ui">« Direction de la lumière »</strong> fait tourner la lumière principale autour du plateau (0° depuis l'avant, 90° depuis la droite), et <strong class="ui">« Hauteur de la lumière »</strong> la soulève ; à 90°, elle se tient droit au-dessus du plateau comme dans Tinkercad, et les ombres tombent juste sous les corps. <strong class="ui">« Lumière douce »</strong> fait venir la plus grande partie de la lumière de l'endroit d'où vous regardez, en tournant avec la vue : aucune face ne reste sombre, et une face de couleur sombre tournée vers le haut n'est plus brûlée en blanc. La lumière principale reste un peu pour les ombres, et le curseur de contraste fonctionne toujours. Si un reflet clair se voit encore avec la lumière basse, montez <strong class="ui">« Hauteur de la lumière »</strong> à 90° : on dirait alors Tinkercad. <strong class="ui">« Réinitialiser la lumière et les ombres »</strong> remet tout en place.</p>
+</section><section class="guide-part"><h3 id="apparence-mesures-sur-le-plan-de-travail"><span class="heading-alias" id="appearance-measures-on-the-workplane"></span>Apparence : mesures sur le plan de travail</h3>
+<p><strong class="ui">« Afficher les dimensions du mouvement »</strong> montre de combien vous déplacez pendant le glissement, <strong class="ui">« Afficher les distances d'origine »</strong> les distances de la sélection à l'origine du plateau, aussi avec plusieurs corps sélectionnés. Avec <strong class="ui">« Dimensions toujours visibles »</strong>, ces mesures restent visibles en permanence, et pas seulement pendant le glissement. Tant qu'un corps tourné est sélectionné, ses angles s'affichent sous lui sur le plan de travail ; <strong class="ui">« Afficher les angles des corps tournés »</strong> désactive cela. Plus dans <a href="/api/desktop/layerling/ui/guide-fr/measuring-and-notes.html">Mesurer et annoter</a>.</p>
+</section><section class="guide-part"><h3 id="apparence-selectionner-et-deplacer"><span class="heading-alias" id="appearance-selecting-and-moving"></span>Apparence : sélectionner et déplacer</h3>
+<p><strong class="ui">« Sélectionner avant de déplacer »</strong> : un corps doit alors d'abord être sélectionné, et seul le glissement suivant le déplace. Cela aide quand des enfants ou des mains pressées touchent des corps, et sur un écran tactile.</p>
+<p><strong class="ui">« Le sens du cadre décide »</strong> : un cadre tiré vers la droite ne sélectionne que ce qui se trouve entièrement à l'intérieur, un cadre tiré vers la gauche tout ce qu'il touche (dessiné en pointillés), comme dans SketchUp.</p>
+<p><strong class="ui">« Un double-clic ouvre l'esquisse »</strong> décide si un double-clic sur une esquisse extrudée rouvre l'esquisse, comme dans Tinkercad, et <strong class="ui">« Un double-clic ouvre un groupe ou un bundle »</strong> si un double-clic sur un groupe ou un lot l'ouvre pour l'édition. <strong class="ui">« Un double-clic sur le plan de travail y centre la vue »</strong> décide si un double-clic sur le plan de travail vide déplace la vue vers cet endroit.</p>
+<p><strong class="ui">« Accrochez-vous à d'autres formes tout en vous déplaçant »</strong> laisse les bords et le centre d'une forme s'accrocher à d'autres formes pendant que vous la faites glisser ; le menu de la grille en bas à droite a le même commutateur. <strong class="ui">« Croisière lors de l'ajout de nouvelles formes »</strong> fait pendre une nouvelle forme au pointeur de la souris et la pose sur la face en dessous, comme Cruise dans Tinkercad ; désactivé, une nouvelle forme apparaît au milieu du plateau. Plus dans <a href="/api/desktop/layerling/ui/guide-fr/select-and-arrange.html">Sélectionner et disposer</a>.</p>
+</section><section class="guide-part"><h3 id="apparence-la-vue"><span class="heading-alias" id="appearance-the-view"></span>Apparence : la vue</h3>
+<p><strong class="ui">« Démarrer l'éditeur en vue perspective »</strong> : l'éditeur s'ouvre alors dans la vue en perspective, et non dans la vue plate.</p>
+<p><strong class="ui">« Démarrer l'éditeur avec les barres de défilement »</strong> : un projet s'ouvre alors avec les barres de défilement de la vue. Le réglage est enregistré avec le projet et avec <strong class="ui">« Par défaut »</strong>.</p>
+<p><strong class="ui">« Vue de départ »</strong> définit l'angle sous lequel s'ouvre une nouvelle conception et auquel revient <strong class="ui">« Vue initiale »</strong>. Tournez et zoomez la vue comme vous l'aimez, puis cliquez sur <strong class="ui">« Prendre la vue actuelle »</strong> ; <strong class="ui">« Standard »</strong> ramène la vue habituelle de l'avant droit. Cela vaut pour chaque conception de ce navigateur. Une conception que vous rouvrez s'ouvre toujours comme vous l'avez laissée.</p>
+<p><strong class="ui">« Vitesse de zoom »</strong> est un curseur de lent à rapide : la vitesse de zoom de la molette et du pavé tactile ; les boutons et les touches de zoom gardent leurs petits pas. <strong class="ui">« La caméra continue de tourner »</strong> : après avoir lâché la souris, la vue continue de tourner un instant et ralentit doucement. Désactivée, elle s'arrête aussitôt, comme dans Tinkercad et Fusion 360.</p>
+<p><strong class="ui">« Marquer les surplombs à partir de {angle}° »</strong> est l'angle à partir duquel une face compte comme un porte-à-faux quand vous activez Afficher les porte-à-faux dans le menu de visibilité : ces faces sont hachurées de rouge et de blanc. 30° est prudent, 70° compte sur un bon refroidissement de l'impression ; 45° est le départ habituel. Tant qu'ils sont affichés, une ligne sous la vue indique le porte-à-faux le plus raide et combien de cm² ont besoin de supports.</p>
+<p><strong class="ui">« Couper les maillages importés jusqu'à »</strong> limite le nombre de triangles qu'un maillage importé peut avoir quand vous le coupez, le fusionnez ou l'intersectez, car cela se calcule dans votre navigateur. Un maillage au-dessus de la limite n'est pas traité ; simplifiez d'abord le maillage, ou relevez la limite si votre ordinateur le supporte. Une limite plus haute peut figer l'éditeur quelques secondes.</p>
+</section><section class="guide-part"><h3 id="mesure-unites-echelle-et-pas-d-accrochage"><span class="heading-alias" id="measurement-units-scale-and-snap-steps"></span>Mesure : unités, échelle et pas d'accrochage</h3>
+<p>Sous <strong class="ui">« Mesure »</strong>, vous réglez <strong class="ui">« Unités »</strong>, l'unité dans laquelle les mesures s'affichent (<strong class="ui">« Échelle »</strong> : millimètres, centimètres ou mètres en métrique, pouces ou pieds en impérial), le nombre de décimales d'un nombre (<strong class="ui">« Précision »</strong>), le <strong class="ui">« Grille d'accrochage »</strong> auquel s'accrochent le déplacement et le redimensionnement, et vos propres pas d'accrochage sous <strong class="ui">« Grilles d'accrochage personnalisées »</strong>.</p>
+<p>Sous <strong class="ui">« Mesure »</strong> dans les paramètres, vous définissez <strong class="ui">« Unités »</strong>. Avec <strong class="ui">« Impérial »</strong>, layerling affiche chaque mesure en pouces, sur la forme, dans le panneau des propriétés, sur le ruban à mesurer et sur la règle. La grille d'accrochage propose alors des pas de 1/64 à 1 pouce, et la grille sur la plaque est dessinée en pouces (1/8 à 1 pouce, 1/4 de pouce par défaut) avec une ligne plus forte sur chaque pouce entier. Sous <strong class="ui">« Afficher les pouces comme »</strong>, vous choisissez si les pouces apparaissent sous forme de fractions comme dans Tinkercad (1 5/8, arrondi à 1/64 de pouce) ou sous forme de décimales (1,625) avec autant de décimales que défini sous <strong class="ui">« Précision »</strong>. Vous pouvez taper l'un ou l'autre, &quot;1 5/8&quot; inclus. Le plus rapide pour passer des millimètres aux pouces est le petit commutateur <strong>mm | in</strong> à côté de <strong class="ui">« Grille d'accrochage »</strong>, en bas de la fenêtre des propriétés : il change l'unité, la grille de la plaque et le pas d'accrochage comme les paramètres, pour cette conception.</p>
+<p>Sous <strong class="ui">« Grilles d'accrochage personnalisées »</strong>, au même endroit, vous ajoutez vos propres étapes d'accrochage : un nom et une taille en millimètres, par exemple &quot;Pin pitch 2,54 mm&quot; pour l'espacement des puces DIP, des embases à broches et des trous de carte perforée, ou &quot;MX Key Unit&quot; avec 19,05 mm pour l'espacement des touches du clavier. Le menu Snap Step propose ensuite cette mesure entière, divisée en deux et en quatre (1 ×, ½ × et ¼ ×), de sorte que les formes peuvent être déplacées d'un pas, d'un demi-pas ou d'un quart de pas. Les étapes personnalisées sont conservées avec la conception et accompagnent <strong class="ui">« Par défaut »</strong>. Si vous ne voulez que la mesure elle-même, décochez <strong class="ui">« Aussi la moitié et le quart »</strong> à côté ; le menu n'a alors que ce seul pas.</p>
+<p><strong class="ui">« Commencer les nouveaux designs avec un carré de charpente à l’origine »</strong> : chaque nouveau design de ce navigateur commence alors avec un carré de charpente à l’origine, voir <a href="/api/desktop/layerling/ui/guide-fr/measuring-and-notes.html">Mesures et notes</a>. Les designs existants restent tels quels, et un carré que vous retirez d’un design ne revient pas.</p>
+</section><section class="guide-part"><h3 id="plan-de-travail-plateau-et-imprimante"><span class="heading-alias" id="workplane-plate-and-printer"></span>Plan de travail : plateau et imprimante</h3>
+<p><strong class="ui">« Imprimante »</strong> dimensionne le plan de travail au plateau de votre imprimante et signale les corps qui le dépassent, voir <a href="/api/desktop/layerling/ui/guide-fr/printing.html">Impression</a>. <strong class="ui">« Étiquettes de plaque »</strong> écrit le nom de la conception sur le plateau, ainsi que le nom et le volume d'impression de l'imprimante quand une imprimante est choisie.</p>
+<p><strong class="ui">« Jeu de votre imprimante »</strong> est la place par côté dont une goupille imprimée a besoin pour tourner dans un trou imprimé sur votre imprimante. <strong class="ui">« Créer le test d'ajustement »</strong> pose sur le plateau le test d'ajustement qui le mesure ; les nouveaux couvercles, queues d'aronde, clips, écrous et la vérification du jeu partent alors de cette valeur, voir <a href="/api/desktop/layerling/ui/guide-fr/printing.html">Impression</a>. Il est gardé dans ce navigateur, pas dans le motif.</p>
+<p><strong class="ui">« Taille du plan de travail »</strong> donne au plateau une taille à vous, avec <strong class="ui">« Largeur »</strong> et <strong class="ui">« Longueur »</strong> en millimètres ou dans l'unité choisie. La grille passe toujours par l'origine, si bien que les lignes plus fortes se trouvent sur les axes, quelle que soit la mesure du plateau.</p>
+</section><section class="guide-part"><h3 id="plan-de-travail-grille"><span class="heading-alias" id="workplane-grid"></span>Plan de travail : grille</h3>
+<p><strong class="ui">« Afficher la grille »</strong> affiche ou masque la grille sur le plateau. <strong class="ui">« Taille du bloc de grille »</strong> règle l'espacement de ses lignes, et <strong class="ui">« Ligne de grille plus sombre tous les »</strong> si la ligne plus foncée vient tous les 5 ou tous les 10 pas de grille ; <strong class="ui">« Couleur de ligne plus foncée »</strong> donne à cette ligne une couleur à elle, que prennent aussi la croix centrale et le bord du plateau. <strong class="ui">« Couleur de la grille »</strong> est la couleur des lignes ordinaires.</p>
+<p>Chaque ligne de la grille s'élargit quand vous zoomez, comme dans Tinkercad, et reste visible quand vous dézoomez. Si c'est trop pour vous, désactivez <strong class="ui">« Les lignes de la grille s'agrandissent lors du zoom »</strong> et les lignes restent larges d'un pixel à chaque zoom, comme dans l'esquisse.</p>
+<p>Si la grille a disparu, par exemple parce qu'une couleur a été réglée sur celle du plateau, <strong class="ui">« Réinitialiser la grille »</strong> à la fin de la zone <strong class="ui">« Plan de travail »</strong> ramène sa visibilité, ses couleurs, son espacement et l'épaisseur de ses lignes au réglage standard, ici et dans les réglages par défaut enregistrés avec <strong class="ui">« Par défaut »</strong>.</p>
+</section><section class="guide-part"><h3 id="valeurs-par-defaut-des-formes"><span class="heading-alias" id="shape-defaults"></span>Valeurs par défaut des formes</h3>
+<p>Sous <strong class="ui">« Valeurs par défaut de la forme »</strong>, vous choisissez une forme avec <strong class="ui">« Forme »</strong> et réglez comment elle commence quand vous l'ajoutez : sa largeur, sa longueur et sa hauteur. <strong class="ui">« Utiliser les paramètres par défaut de l'application »</strong> ramène la forme à ce avec quoi l'application la fait commencer. Les formes qui ont leurs propres réglages les montrent sous <strong class="ui">« Détails de forme »</strong>. Les valeurs s'appliquent aux nouvelles formes, pas à celles déjà sur le plateau. <strong class="ui">« Limite de taille personnalisée »</strong> fixe un plafond à vous pour la taille que les poignées et les propriétés peuvent donner à cette forme ; laissé vide, les limites habituelles restent.</p>
+</section><section class="guide-part"><h3 id="historique-enregistre"><span class="heading-alias" id="saved-history"></span>Historique enregistré</h3>
+<p>Sous <strong class="ui">« Histoire »</strong>, le curseur <strong class="ui">« Historique enregistré »</strong> règle combien d'actions terminées restent disponibles pour Annuler après avoir enregistré ou rouvert une conception. Par défaut, c'est 100 actions par conception. Une limite plus basse supprime définitivement les anciennes étapes d'annulation de la conception.</p>
+</section></section><section class="guide-part"><h2 id="quand-layerling-semble-lent"><span class="heading-alias" id="when-layerling-feels-slow"></span>Quand layerling semble lent</h2>
+<p>layerling calcule et dessine tout dans votre navigateur. Sur un ordinateur plus ancien, doté d'une carte graphique faible ou sur plusieurs grands écrans, l'affichage peut donc sembler lent. Cela aide :</p>
+<ul><li><strong><strong class="ui">« Mode rapide »</strong></strong> sous <strong class="ui">« Apparence »</strong> désactive d'un coup tout ce qui coûte cher à la vue : les ombres, les lignes de contour sur tous les corps et l'inertie de la caméra. Il dessine également la vue uniquement à la résolution de l'écran, qui, sur les écrans haute résolution, représente jusqu'à quatre fois moins de pixels. Vos propres paramètres sont conservés et s'appliquent à nouveau dès que vous le désactivez.</li><li><strong>La caméra continue de tourner :</strong> Lorsque vous lâchez la souris après avoir tourné, la vue s'allume un instant et ralentit doucement. C'est exprès, pas de bégaiement. Si vous êtes habitué à Tinkercad ou Fusion 360, désactivez <strong class="ui">« La caméra continue de tourner »</strong> sous <strong class="ui">« Apparence »</strong> et la vue s'arrête immédiatement.</li><li><strong>Commutateurs simples :</strong> Sans mode rapide, vous pouvez également désactiver uniquement <strong class="ui">« Afficher les ombres »</strong> ou <strong class="ui">« Lignes de bord sur tous les corps »</strong>.</li><li><strong>Utilisez la carte graphique :</strong> Dans Chrome, ouvrez <code>chrome://gpu</code> (dans Edge <code>edge://gpu</code>). À côté de « WebGL », il devrait indiquer « Accélération matérielle ». S'il est indiqué « Logiciel uniquement », l'accélération matérielle est désactivée dans les paramètres du navigateur. Sous Windows, vous pouvez également choisir « Hautes performances » pour le navigateur sous Paramètres → Système → Affichage → Graphiques, afin qu'il utilise la vraie carte graphique et non la plus faible du processeur.</li><li><strong>Simplifiez les grands maillages importés :</strong> Un modèle de plusieurs centaines de milliers de triangles ralentit toute vue. Comment l'affiner se trouve dans le chapitre sur les fichiers, sous &quot;Simplifier un maillage importé&quot;.</li><li><strong>Fermez les autres onglets :</strong> Chaque onglet layerling ouvert et toutes les autres pages 3D partagent la même carte graphique.</li></ul></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/guide-fr/getting-started.html"><small>Chapitre précédent</small>Premiers pas</a><a class="next" href="/api/desktop/layerling/ui/guide-fr/shapes.html"><small>Chapitre suivant</small>Placer et ajuster les formes</a></div>
+      </main>
+    </div>
+    <footer class="note">Ce manuel grandit avec le programme. Si quelque chose manque ou est inexact, dites-le nous dans les <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussions</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=fr" rel="noopener">Soutenir le projet</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussions</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Le projet sur GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Notes de version v1.154.1</a></div><p class="trademark">Tinkercad est une marque commerciale d'Autodesk, Inc. Layerling est un projet indépendant et n'est pas affilié, approuvé ou sponsorisé par Autodesk.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Retour à l'éditeur";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Ouvrir l'éditeur";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

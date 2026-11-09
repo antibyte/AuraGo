@@ -9,7 +9,7 @@ It cannot start a headless editor or work after the browser disconnects.
    context, or ask the user to select an editor when several are eligible.
    Never choose the most recently active window. IDs expire with connections.
 2. Call `describe` with `arguments: "{\"operation\":\"create_shape\"}"` for the
-   operation's pinned Layerling 1.57.0 parameter schema. Pass these parameters as
+   operation's pinned Layerling 1.154.1 parameter schema. Pass these parameters as
    the JSON string `arguments`, and the editor ID separately as `editor_id`.
 3. Inspect with `get_scene` or `list_objects` before editing. Use real object IDs
    from that editor. Examples of editing operations are `create_shape`,

@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Visning og arbejdsplan - layerling brugervejledning</title>
+    <meta name="description" content="Bevæge dig rundt i scenen, kigge lige på, og placere nye former på enhver overflade du vil.">
+    <link rel="canonical" href="https://layerling.com/vejledning/view-and-workplane.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/view-and-workplane.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/view-and-workplane.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/view-and-workplane.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/ansicht-und-arbeitsebene.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/view-and-workplane.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/view-and-workplane.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/view-and-workplane.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/view-and-workplane.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/weergave-en-werkvlak.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/view-and-workplane.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/pogled-in-delovna-ravnina.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/view-and-workplane.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/view-and-workplane.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/view-and-workplane.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/view-and-workplane.html">
+    <meta property="og:title" content="Visning og arbejdsplan - layerling brugervejledning">
+    <meta property="og:description" content="Bevæge dig rundt i scenen, kigge lige på, og placere nye former på enhver overflade du vil.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/vejledning/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Brugervejledning</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/vejledning/search-index.json" data-nothing="Intet fundet." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Søg i vejledningen" aria-label="Søg i vejledningen" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Sprog">Dansk</summary><ul><li><a href="/api/desktop/layerling/ui/guide/view-and-workplane.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/view-and-workplane.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/view-and-workplane.html" hreflang="da" lang="da" aria-current="true">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/view-and-workplane.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/view-and-workplane.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/view-and-workplane.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/view-and-workplane.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/view-and-workplane.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/view-and-workplane.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/view-and-workplane.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/pogled-in-delovna-ravnina.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/view-and-workplane.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/view-and-workplane.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/view-and-workplane.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/view-and-workplane.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/view-and-workplane.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/view-and-workplane.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Åbn editoren</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Editoren er allerede åben i en anden fane – skift bare til den.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Kapitler"><h2>Kapitler</h2><p class="print-link"><a href="/api/desktop/layerling/ui/vejledning/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Hele vejledningen, til udskrivning</span></a></p><ol><li><a href="/api/desktop/layerling/ui/vejledning/getting-started.html">Kom godt i gang</a></li><li><a href="/api/desktop/layerling/ui/vejledning/view-and-workplane.html" aria-current="page">Visning og arbejdsplan</a></li><li><a href="/api/desktop/layerling/ui/vejledning/shapes.html">Placering og justering af former</a></li><li><a href="/api/desktop/layerling/ui/vejledning/select-and-arrange.html">Valg og arrangering</a></li><li><a href="/api/desktop/layerling/ui/vejledning/solids-and-holes.html">Solider og huller</a></li><li><a href="/api/desktop/layerling/ui/vejledning/edges-and-hollowing.html">Bryd kanter og hul former</a></li><li><a href="/api/desktop/layerling/ui/vejledning/sketches.html">Skitser: fra omrids til form</a></li><li><a href="/api/desktop/layerling/ui/vejledning/text.html">Tekst og buede bogstaver</a></li><li><a href="/api/desktop/layerling/ui/vejledning/threads-and-mechanics.html">Gevind, tandhjul og andre dele</a></li><li><a href="/api/desktop/layerling/ui/vejledning/measuring-and-notes.html">Måling og noter</a></li><li><a href="/api/desktop/layerling/ui/vejledning/printing.html">Forberedelse til 3D-print</a></li><li><a href="/api/desktop/layerling/ui/vejledning/files-and-saving.html">Filer, lagring og deling</a></li><li><a href="/api/desktop/layerling/ui/vejledning/shortcuts.html">Tastaturgenveje</a></li><li><a href="/api/desktop/layerling/ui/vejledning/ai-with-mcp.html">Byg med en AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/vejledning/offline-and-install.html">Installér som app, arbejd offline og vær selv vært</a></li><li><a href="/api/desktop/layerling/ui/vejledning/videos.html">Videoer om layerling</a></li><li><a href="/api/desktop/layerling/ui/vejledning/tablet-and-touch.html">Tablet og touch</a></li></ol></nav>
+      <main>
+<h1>Visning og arbejdsplan</h1>
+<p class="lead">Bevæge dig rundt i scenen, kigge lige på, og placere nye former på enhver overflade du vil.</p>
+<div class="toc"><b>På denne side</b><ul><li><a href="#bev-ge-dig-rundt">Bevæge dig rundt</a></li><li><a href="#kigge-indeni-snitvisningen">Kigge indeni: snitvisningen</a></li><li><a href="#arbejdsplanet">Arbejdsplanet</a></li><li><a href="#byggeplader">Byggeplader</a></li><li><a href="#gitter-og-snap">Gitter og snap</a></li><li><a href="#nar-layerling-f-les-langsom">Når layerling føles langsom</a></li></ul></div>
+<section class="guide-part"><h2 id="bev-ge-dig-rundt"><span class="heading-alias" id="moving-around"></span>Bevæge dig rundt</h2>
+<p>Med musen:</p>
+<div class="table-scroll"><table><thead><tr><th>Hvad du gør</th><th>Hvad der sker</th></tr></thead><tbody><tr><td>træk med højre knap</td><td>drej visningen</td></tr><tr><td>klik med højre knap</td><td>på en form, en menu med de mest brugte kommandoer: duplikér, hul eller solid, gruppér, skjul, lås, slet og mere; på tom plads Indsæt og Vælg alle</td></tr><tr><td>træk med midterste knap</td><td>flyt visningen</td></tr><tr><td>musehjul</td><td>zoom ind og ud</td></tr><tr><td>hold <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> og træk med venstre knap</td><td>flytter også visningen</td></tr><tr><td>dobbeltklik på et tomt sted på arbejdsplanet eller ved siden af pladen</td><td>flytter visningen, så stedet kommer i midten; visningen drejer derefter om det</td></tr></tbody></table></div>
+<p>På en MacBook-trackpad: hold <kbd>Cmd</kbd> nede, tryk og træk. På en Mac drejer du i stedet visningen ved at holde Control nede, som Control-klik er højreklik på Mac.</p>
+<p>Hvor hurtigt musehjulet zoomer sættes med <strong class="ui">“Zoomhastighed”</strong> i indstillingerne, under <strong class="ui">“Udseende”</strong>: en skyder fra 1 til 14, 5 til at begynde med. Den gælder kun musehjulet og trackpad'en: knapperne og tasterne <kbd>+</kbd> og <kbd>−</kbd> zoomer altid i de samme små trin. Et hak på et musehjul zoomer ens i alle browsere, en trackpad zoomer efter hvor langt du stryger.</p>
+<p><strong>Musknapper som i din slicer.</strong> I indstillingerne, under <strong class="ui">“Udseende”</strong>, sætter du <strong class="ui">“Musknapper”</strong>. Som standard er det <strong class="ui">“layerling (standard)”</strong>, hvor højreknappen drejer visningen, midterknappen flytter den, og et træk med venstreknap på tom plads tegner en markering. Er du vant til Bambu Studio eller OrcaSlicer, vælger du <strong class="ui">“Som Bambu Studio og OrcaSlicer”</strong>: et træk med venstreknap på tom plads drejer så visningen, højreknappen flytter den som midterknappen gør, og Shift med et træk med venstreknap tegner en markering. Et træk på en form flytter den stadig, og et kort højreklik åbner stadig menuen. I en skitse flytter højreknappen også visningen.</p>
+<p><strong>3D-mus.</strong> En SpaceMouse eller en anden 3D-mus drejer, flytter og zoomer i 3D-visningen: skub kuppelen væk for at zoome ind, glide den for at flytte visningen, vip den for at vippe visningen, og drej den for at dreje visningen rundt. I indstillingerne, under <strong class="ui">“Udseende”</strong>, klikker du på <strong class="ui">“Tilslut 3D-mus”</strong> og vælger enheden i det vindue, browseren åbner; den husker valget, så det skal bare gøres én gang. Det virker i Chrome og Edge, som kan nå sådanne enheder; Firefox og Safari kan ikke. Føles en retning forkert, så sæt kryds ved den under knappen: flyt til siderne, flyt op og ned, zoom, vip eller drej.</p>
+<p>På en tablet eller telefon zoomer to fingre (spred og knib) og flytter visningen (glid sammen). Én finger på tom plads drejer visningen, og et tryk dér rydder markeringen; på en form eller et håndtag arbejder den på designet, ligesom venstre museknap. For at dreje med én finger, slå <strong class="ui">“Drej visningen med én finger”</strong> til i visningsbjælken. Den kontakt vises kun på enheder med en berøringsskærm.</p>
+<p>En tegneplade med en pen opfører sig som en mus: spidsen er venstre knap, sideknappen på pennen er højre knap, til at dreje visningen og til menuen. Pladens genvejstaster kan sættes i dens driver til layerlings <a href="/api/desktop/layerling/ui/vejledning/shortcuts.html">tastaturgenveje</a>.</p>
+<p><strong>På en tablet: arbejd med en stylus, hvis du kan.</strong> Spidsen er langt finere end en fingertip og dækker ikke det, du sigter på, så små punkter, tynde linjer og håndtag i en skitse samt målepunkter og kanter rammes præcist, og længere arbejde er mindre trættende. layerling lader allerede en finger nå lidt længere ud til punkter, linjer, håndtag og kanter end en musepeger gør, men en stylus er stadig den mest præcise vej. Det gælder en pen, som tabletten kender som en pen (en S Pen, en Apple Pencil og lignende). En almindelig stylus med gummispids tæller som en finger for skærmen og er ikke finere end en.</p>
+<p>Der er ingen højre museknap på en tablet: hold en finger stille på en form eller på tom plads i et halvt sekund, så åbner den menu, som et højreklik åbner, med <strong>Vælg alle</strong> på tom plads. <strong>Vælg flere</strong> i samme menu erstatter Shift på en tablet: hvert tryk på en form lægger den så til markeringen eller tager den ud igen, indtil du trykker på tom plads eller trykker <kbd>Esc</kbd>; en finger på tom plads drejer stadig visningen. Håndtagene rundt om en valgt form kan du gribe med en finger lidt ved siden af dem.</p>
+<section class="guide-part"><h3 id="visningskuben"><span class="heading-alias" id="the-view-cube"></span>Visningskuben</h3>
+<p>Kuben øverst til venstre viser hvor du kigger. Et klik på en af dens sider springer til den lige visning fra top, bund, for, bag, venstre eller højre. Et klik på et hjørne af kuben kigger på modellen diagonalt fra det hjørne, og et klik nær en kant kigger fra den kant, mellem to sider; stedet lyser op mens markøren er på det. Taltasterne <kbd>1</kbd> til <kbd>6</kbd> giver også de lige visninger. Hold <kbd>Shift</kbd> med dem og visningen zoomer også til markeringen, ligesom <span dir="ltr"><kbd>Shift</kbd>+<kbd>F</kbd></span>.</p>
+<p>Træk i kuben for at dreje visningen rundt, ligesom at trække med højre museknap. Med intet valgt drejer piletasterne også visningen: 15° pr. tryk, 90° med <kbd>Shift</kbd>. De drejer modellen den vej de peger - <kbd>→</kbd> drejer dens forside til højre, <kbd>↑</kbd> vipper dens forside opad. Med <kbd>Ctrl</kbd> holdt nede flytter pilene i stedet visningen hen over skærmen: en tiendedel af billedet pr. tryk, halvdelen med <kbd>Shift</kbd> oveni. Modellen flytter sig den vej, de peger. Hvis noget er valgt, flytter pilene det; klik på tom plads først for at dreje visningen. På en berøringsskærm virker dette med én finger, uden at slå <strong class="ui">“Drej visningen med én finger”</strong> til.</p>
+</section><section class="guide-part"><h3 id="visningsbj-lken"><span class="heading-alias" id="the-view-bar"></span>Visningsbjælken</h3>
+<p>Ved venstre kant er en smal bjælke. Fra toppen:</p>
+<ul><li><strong class="ui">“Startvisning”</strong> bringer hele scenen tilbage i visningen. Tasten er <kbd>Home</kbd>; <kbd>F</kbd> gør det også, når intet er markeret.</li><li><strong class="ui">“Centrér visning på markeringen”</strong> zoomer til markeringen (<kbd>F</kbd> eller <span dir="ltr"><kbd>Shift</kbd>+<kbd>F</kbd></span>); med intet markeret bringer den hele scenen i visningen, som <kbd>F</kbd> gør.</li><li><strong class="ui">“Zoom ind”</strong> og <strong class="ui">“Zoom ud”</strong> zoomer skridt for skridt, ligesom tasterne <kbd>+</kbd> og <kbd>−</kbd>.</li><li><strong class="ui">“Ortofrafisk visning”</strong> skifter til en flad visning hvor parallelle kanter forbliver parallelle. Til måling og justering af kanter er det ofte mere behageligt end perspektivvisningen. <kbd>O</kbd> skifter frem og tilbage, og endnu et klik vender tilbage.</li><li><strong class="ui">“Åbn en anden visning”</strong> åbner en anden visning af designet i sit eget vindue, beskrevet nedenfor. Et klik mere lukker det.</li><li><strong class="ui">“Vis rullepaneler”</strong> viser et rullepanel langs bunden af visningen og et langs dens højre kant. Træk i et panel for at skubbe visningen jævnt, klik på en pil i enden for at flytte den en smule (hold for at fortsætte), eller klik ved siden af panelet for at flytte næsten en hel visning. Intet drejer, og i modsætning til piletasterne virker panelerne også, mens en del er valgt - praktisk tæt på små detaljer. Et klik mere skjuler dem; <strong class="ui">“Start editoren med rullebjælker”</strong> i indstillingerne afgør, om et design åbner med dem. Denne browser husker desuden valget.</li><li><strong class="ui">“Skjul arbejdsplan”</strong> (øjet over et gitter) skjuler pladen med sit gitter, så du kan se undersiden af et design nedefra. Kun visningen ændres: nye former lander stadig på arbejdsplanet. Endnu et klik viser den igen.</li><li><strong class="ui">“Placér arbejdsplan”</strong>, målebåndet og vinkelmåleren er deres egne værktøjer, dækket nedenfor og i <a href="/api/desktop/layerling/ui/vejledning/measuring-and-notes.html">Måling og noter</a>.</li></ul>
+<p>Den lille pil helt øverst på bjælken skjuler den hvis den er i vejen. Den samme knap kan trækkes, så bjælken flyttes rundt i editoren, også i en skitse; et dobbeltklik sætter den tilbage. 3D-forhåndsvisningen af en revolvering flyttes på samme måde med sin titel.</p>
+<p>Et design åbner som du forlod det: visningens vinkel, zoom og position gemmes med det i denne browser, så du fortsætter hvor du stoppede, også efter at have trykket Hjem eller lukket siden. En gemt fil (.lyl) tager visningen med sig, så den åbner i den andre steder også. Visningen er ikke del af fortryd-historikken.</p>
+<p>Du kan også gemme fire af dine egne visninger i hvert design. <span dir="ltr"><kbd>Shift</kbd>+<kbd>7</kbd></span>, <span dir="ltr"><kbd>Shift</kbd>+<kbd>8</kbd></span>, <span dir="ltr"><kbd>Shift</kbd>+<kbd>9</kbd></span> eller <span dir="ltr"><kbd>Shift</kbd>+<kbd>0</kbd></span> gemmer visningen præcis som den er - vinkel, position, zoom, og flad eller perspektiv - under den tast, og tasten alene (<kbd>7</kbd>, <kbd>8</kbd>, <kbd>9</kbd> eller <kbd>0</kbd>) henter den tilbage. En besked forneden bekræfter at den er gemt; gemmer du igen under samme tast, erstattes visningen. Ligesom visningen ovenfor bliver de gemte visninger hos designet i denne browser og følger med i en gemt fil (.lyl); de er ikke del af fortryd-historikken.</p>
+</section><section class="guide-part"><h3 id="en-anden-visning-i-sit-eget-vindue"><span class="heading-alias" id="a-second-view-in-its-own-window"></span>En anden visning i sit eget vindue</h3>
+<p><strong class="ui">“Åbn en anden visning”</strong> åbner et vindue, der viser det samme design gennem sit eget kamera, så du kan se det fra to sider på én gang - forfra, for eksempel, mens du arbejder ovenfra. Hver ændring, du laver i editoren, vises der med det samme; selve designet ændres kun i hovedvinduet, og håndtagene bliver også der. I det andet vindue drejer musen og visningsterningen dets visning som her, og det gør tasterne også: <kbd>1</kbd> til <kbd>6</kbd>, <kbd>F</kbd>, <kbd>Home</kbd>, <kbd>O</kbd>, <kbd>+</kbd> og <kbd>−</kbd>, piletasterne til at dreje og <kbd>Ctrl</kbd> med pilene til at skubbe. <kbd>F</kbd> zoomer der ind på det, der er valgt i editoren. Designets fire gemte visninger virker der også: <kbd>7</kbd>, <kbd>8</kbd>, <kbd>9</kbd> og <kbd>0</kbd> henter dem tilbage, og <kbd>Shift</kbd> med en af disse taster gemmer vinduets visning under den - for begge vinduer. Dets egen visningsbjælke har <strong class="ui">“Startvisning”</strong>, <strong class="ui">“Centrér visning på markeringen”</strong>, <strong class="ui">“Zoom ind”</strong>, <strong class="ui">“Zoom ud”</strong>, <strong class="ui">“Ortofrafisk visning”</strong> og <strong class="ui">“Skjul arbejdsplan”</strong>, og de virker kun på det vindue. Vinduet åbner, hvor du forlod det, i samme størrelse, og lukker sammen med editoren. På telefoner og tablets vises knappen ikke.</p>
+</section></section><section class="guide-part"><h2 id="kigge-indeni-snitvisningen"><span class="heading-alias" id="looking-inside-the-section-view"></span>Kigge indeni: snitvisningen</h2>
+<p><strong class="ui">“Snitvisning”</strong>, den sidste knap i bjælken (skæreværktøjet), skærer visningen op langs et plan så du kan tjekke vægge, hulrum og dele der passer ind i hinanden. Intet skæres for alvor: designet, dets filer og hver eksport forbliver hele. Hvor planet går gennem et legeme, er snittet fyldt med legemets farve, lidt mørkere, og et hul i det forbliver tomt, så du kan se fast fra hult; den fyldte flade dukker op et øjeblik efter, at planet står stille. Under <strong class="ui">“Snitflade”</strong> vælger du, hvordan snittet ser ud: <strong class="ui">“Skraveret”</strong>, standarden, skraverer det som en tegning, og et legeme inde i et andet er skraveret den anden vej, så de to skiller sig ud; <strong class="ui">“Udfyldt”</strong> udfylder det ensfarvet; <strong class="ui">“Åben”</strong> lader det være åbent, og du ser ind i legemets skal. Valget gælder for alle designs.</p>
+<ul><li>Vælg den akse planet står på tværs af: X (bredde), Y (dybde) eller Z (højde), som i positionsfelterne. Planet starter i midten af dit design.</li><li><strong class="ui">“Akser fra”</strong> bestemmer, hvad disse akser følger. <strong class="ui">“Design”</strong> bruger designets akser. <strong class="ui">“Arbejdsplan”</strong> bruger arbejdsplanets: Z skærer så parallelt med det, X og Y på tværs, og positionen tælles fra dets origo. Ligger arbejdsplanet på en skrå flade, skærer du altså parallelt med den flade, og snittet følger med, når du flytter arbejdsplanet. <strong class="ui">“Visning”</strong> vender planet mod skærmen: det fjerner det, der ligger foran, og med skyderen skubber du det dybere ind i designet i blikretningen, for eksempel for at nå en skjult del og klikke på den. Drejer du derefter visningen, klikker du på den igen, og snittet følger det nye blik.</li><li><strong class="ui">“Grov”</strong> flytter planet hen over hele designet, <strong class="ui">“Fin”</strong> flytter det lidt til hver side fra hvor det står, for tiendedele millimeter. Du kan også taste positionen.</li><li>Knappen ved siden af akserne viser den anden side af snittet, <strong class="ui">“Centrér”</strong> sætter planet tilbage i midten, og <strong class="ui">“Vis skæreplan”</strong> skjuler det blå plan.</li><li>Du kan klikke og vælge hvad snittet lægger åbent, indvendige vægge inkluderet.</li><li><strong class="ui">“Arbejdsplan her”</strong> lægger arbejdsplanet på snittet. Det ligger på snitplanet og vender ud af den form der bliver, ligesom den flade et snit efterlader. Hvis du så skifter til skitsen, starter den præcis dér, og det svage omrids viser snittet, som du kan tegne langs og snappe til. Det er sådan du skitserer et låg der passer til det hulrum du åbnede med snittet, for eksempel. Knappen ved siden af akserne vælger hvilken side der bliver, og dermed hvilken vej arbejdsplanet vender. Du lægger arbejdsplanet tilbage på grundpladen som sædvanligt.</li><li><strong class="ui">“Skitse fra snit”</strong> starter en ny skitse lige på snittet, hvor snittets omrids allerede ligger som linjer: et hul kommer ind som en ægte cirkel, et afrundet hjørne som en bue. Ret dem, slet det, du ikke skal bruge, tegn videre og afslut: formen vokser ud af snittet mod den side, der er skåret væk, så en del, der skal passe til en anden, som et låg, en indsats eller en pakning, starter med netop den dels omrids. Knappen ved siden af akserne vælger den side. Som ved SVG'en tæller kun synlige former, og huller er allerede trukket fra.</li><li><strong class="ui">“Mål”</strong> måler direkte på snittet: omridset vises i blåt, og to klik på det giver afstanden, plus dens dele langs planets to akser. Begge punkter snapper til omridset, hjørner først. Når det andet klik lander hvor som helst på den modsatte væg, snapper det vinkelret på det første punkt - så du aflæser vægtykkelse, mellemrum og frirum uden at sigte præcist. Et tredje klik starter den næste måling, <kbd>Esc</kbd> afslutter målingen. Flytter du planet ryddes målingen.</li><li>På et rundt omrids, som et snit gennem en cylinder eller et hul, markerer et lille kryds centrumet, og centrumet snapper også. Klik på et punkt på cirklen, og gå så tæt på det modsatte punkt: det andet klik lander lige over for centrumet, og tallet læses Ø, diameteren. Fra centrumet til et punkt på cirklen får du R, radiusen.</li><li><strong class="ui">“Snit som SVG”</strong> gemmer omridsene på skæreplanet som en SVG i 1:1, til en laser, en plotter, en skabelon eller en pakning. Et X-snit ses fra højre, et Y-snit forfra, et Z-snit oppefra. Som i eksporten kommer kun synlige former med, huller er allerede taget af, og former med samme farve samles til ét omrids. Hver farve forbliver sin egen sti uden fyld, så lasersoftware holder dem adskilt som lag.</li></ul>
+<p>Værktøjsvinduet hænger på sin knap. Hvis det dækker noget, så træk det i dets titellinje hvor som helst på arbejdsplanet; det åbner dér næste gang også. Dobbeltklik på titellinjen eller slip det ved knappen for at sætte det tilbage.</p>
+<p>X og <kbd>Esc</kbd> lukker vinduet; med en måling i gang afslutter <kbd>Esc</kbd> den først. Snittet bliver, indtil du slår det fra med <strong class="ui">“Snit aktivt”</strong> eller går tilbage til designoversigten. Mens det er tændt, er dens knap markeret. Alt hvad du placerer på den side der er skåret væk, vises først når du slår snittet fra. En tablet har ingen <kbd>Esc</kbd>, så der har vinduet to knapper mere: <strong class="ui">“Tilbage”</strong> afslutter målingen, hvis en kører, og lukker ellers vinduet, og <strong class="ui">“Luk”</strong> lukker vinduet i ét skridt. En computer viser dem ikke.</p>
+</section><section class="guide-part"><h2 id="arbejdsplanet"><span class="heading-alias" id="the-workplane"></span>Arbejdsplanet</h2>
+<p>Nye former justeres med arbejdsplanet. Til at starte med er det grundpladen med gitteret. Men du kan lægge det på enhver overflade, for at placere noget på en side eller en skrå flade.</p>
+<ol><li>Tryk <kbd>W</kbd> eller klik på <strong class="ui">“Placér arbejdsplan”</strong>.</li><li>Flyt musen over en flade på en form. Den lyser op.</li><li>Et klik lægger arbejdsplanet der. Alt hvad du tilføjer nu sidder på den flade.</li></ol>
+<p>Klik på den tomme plade i stedet, og arbejdsplanet ligger fladt på det sted du klikkede, på snapgitteret. Nye former og en færdig skitse, også en revolveret, vises så dér i stedet for i midten af pladen. Mens arbejdsplanet ligger fladt på pladen sådan, viser pladen kun sit omrids: to gitre i samme plan ville lave et flimrende mønster.</p>
+<p>På en flade snapper arbejdsplanets nulpunkt ellers til gitteret. Klik tæt på et hjørne af fladen og det sidder præcis på det hjørne. Tæt på en kant ligger det på kanten, og gitteret flugter med det; det er sådan du med vilje vælger gitterets vinkel. Uden et hjørne eller en kant løber gitteret på en liggende flade parallelt med formen, så på en vendt kasse er det vendt med den.</p>
+<p>Et klik ved siden af pladen eller <kbd>Esc</kbd> returnerer arbejdsplanet til grundpladen. Hurtigere er <strong class="ui">“Arbejdsplan tilbage på grundpladen”</strong>: knappen med pilen nedad sidder i visningsbjælken under øjet mens arbejdsplanet ligger på en flade. <span dir="ltr"><kbd>Shift</kbd>+<kbd>W</kbd></span> lægger det direkte på den aktuelt valgte flade. <span dir="ltr"><kbd>Alt</kbd>+<kbd>W</kbd></span> lægger det altid tilbage på grundpladen, uanset om noget er valgt. Holder du <kbd>Shift</kbd> mens du klikker, peger planet den anden vej.</p>
+<p>Mens et arbejdsplan ligger på en flade, dukker et øje op ved siden af <strong class="ui">“Placér arbejdsplan”</strong>. Det skjuler arbejdsplanet uden at droppe det, for et klart blik på designet: nye former lander stadig på den flade, og rotation drejer stadig omkring det. Et klik på øjet viser det igen, og det samme gør et nyt arbejdsplan. En kasses størrelseshåndtag følger også et arbejdsplan, der står på en af dens sider: hjørne- og sidehåndtagene ligger på den flade, og hvert af dem ændrer det mål af kassen, der løber langs det. Håndtaget midt på fladen ændrer målet på tværs.</p>
+<p>Vil du se lige ind på arbejdsplanet, så tryk <kbd>P</kbd> eller klik på <strong class="ui">“Se lige ind på arbejdsplanet”</strong> ved siden af <strong class="ui">“Placér arbejdsplan”</strong> i visningslinjen. Visningen drejer, til du ser planet lige forfra, fra den side nye former vokser mod, med dets nulpunkt i midten. På grundpladen er det visningen ovenfra.</p>
+</section><section class="guide-part"><h2 id="byggeplader"><span class="heading-alias" id="build-plates"></span>Byggeplader</h2>
+<p>Når et design rummer mere, end én plade kan printe, for eksempel en æske med låg og indsatser, kan det få flere byggeplader. Klik på <strong class="ui">“Byggeplader”</strong> i gruppen <strong class="ui">“Arrangér”</strong>, eller vælg <strong class="ui">“Til plade …”</strong> i menuen ved et højreklik på et legeme. Nederst i visningen kommer en linje med én knap pr. plade; tallet på den siger, hvor mange legemer der står på pladen.</p>
+<ul><li>Hver plade er lige så stor som arbejdsfladen, og pladerne ligger side om side til højre for den første, 20 mm fra hinanden. Et legeme hører til den plade, midten af dets grundflade står på, så trækker man det over, står det på den anden plade. Et design har op til 12 plader.</li><li>Et klik på en plade i linjen viser den, og nye former og importerede filer lander så på den. <strong class="ui">“Vis alle plader”</strong> viser dem alle. Et dobbeltklik på en plade eller <strong class="ui">“Omdøb plade”</strong> giver den et navn som &quot;Låg&quot;, der står skrevet på pladen.</li><li><strong class="ui">“Flyt pladen til venstre”</strong> og <strong class="ui">“Flyt pladen til højre”</strong> ændrer rækkefølgen, og legemerne følger med deres plade. <strong class="ui">“Fjern pladen (dens legemer kommer på den første plade)”</strong> fjerner den aktive plade; dens legemer kommer på den første plade samme sted.</li><li><strong class="ui">“Fordel på plader”</strong> lægger de markerede legemer, eller alle, ud række for række på pladerne, de største først, 5 mm fra hinanden, og tilføjer plader, så længe der er brug for dem. Et legeme, der er større end en plade, bliver stående.</li><li>Med en valgt printer kontrolleres hvert legeme mod sin egen plade, og byggehøjden regnes fra det laveste legeme på den plade. En plade med et legeme, der ikke passer, viser sit tal med rødt.</li><li>I egenskaberne regnes X fra midten af legemets egen plade.</li></ul>
+<p>Eksportvinduet tilbyder så <strong class="ui">“Plader”</strong>: alle plader i én fil, side om side som i designet; én fil pr. plade, samlet i en ZIP (STL, 3MF og OBJ); eller en enkelt plade, sat hvor den første plade er. En slicer åbner hver fil som én plade, så vil man printe pladerne efter hinanden, tager man filerne pr. plade. At flytte legemer mellem plader og fordele dem kan fortrydes; at tilføje, navngive, ordne og fjerne plader gemmes med designet, men fortrydes ikke.</p>
+</section><section class="guide-part"><h2 id="gitter-og-snap"><span class="heading-alias" id="grid-and-snapping"></span>Gitter og snap</h2>
+<p>Gitteret viser pladens størrelse. Nederst til højre er <strong>snap-trinnet</strong>: flytning og skalering snapper i trin af den størrelse, for eksempel 1 mm. Gør det mindre til fint arbejde og større til grov arrangering. <strong class="ui">“Snap til gitter”</strong> i båndet flytter de valgte former bagefter hen på det nærmeste gitterkryds. Mens der flyttes, snapper former også til andre former, se <a href="/api/desktop/layerling/ui/vejledning/select-and-arrange.html">Valg og arrangering</a>. Uden musen: <span dir="ltr"><kbd>Alt</kbd>+<kbd>1</kbd></span> til <span dir="ltr"><kbd>Alt</kbd>+<kbd>0</kbd></span> vælger den post i menuen med det nummer (<span dir="ltr"><kbd>Alt</kbd>+<kbd>1</kbd></span> slår snapping fra), og <kbd>,</kbd> og <kbd>.</kbd> gør trinnet ét trin finere eller grovere. Det virker i en skitse også. Et kort klik med den midterste museknap, uden at flytte musen, åbner menuen med snap-trin lige ved markøren, også i en skitse; træk med den midterste knap holdt nede flytter stadig visningen.</p>
+<aside class="tip"><p><strong>Tip:</strong> Stop med at dreje visningen når du sætter dele helt præcist sammen. Brug taltasterne til at gå til den lige visning fra top eller for og tryk <kbd>O</kbd> for den flade visning. Så ser du straks om to kanter virkelig flugter.</p></aside>
+<section class="guide-part"><h3 id="indstillingsvinduet"><span class="heading-alias" id="the-settings-window"></span>Indstillingsvinduet</h3>
+<p>Tandhjulet i titellinjen (<strong class="ui">“Arbejdsområdeindstillinger”</strong>) åbner indstillingerne. Til venstre er fem områder: <strong class="ui">“Udseende”</strong>, <strong class="ui">“Mål”</strong>, <strong class="ui">“Arbejdsplan”</strong>, <strong class="ui">“Formstandarder”</strong> og <strong class="ui">“Historik”</strong>. En ændring gælder med det samme. <strong class="ui">“Gør til standard”</strong> nederst gemmer de aktuelle indstillinger som standard, så et nyt design starter med dem. En fil du åbner bringer sine egne indstillinger med; <strong class="ui">“Brug min standard”</strong> ved siden af den lægger dine gemte farver, dit gitter og resten på det åbne design, mens enhederne bliver som de er. Står der en printer i din standard, kommer den med sin pladestørrelse; ellers beholder designet sin plade og sin printer. <strong class="ui">“Luk”</strong> øverst til højre lukker vinduet. Det her gennemgår indstillingerne én for én.</p>
+<p><strong class="ui">“Eksportér indstillinger”</strong> gemmer vinduets indstillinger i en fil (layerling-settings-&lt;dato&gt;.json): farver, gitter, skygger, kamera og standardværdier for former sammen med tema, værktøjslinjens størrelse, visningskubens hjørne, formfarver og hver printers slør. På en anden computer eller efter datatab i browseren læser <strong class="ui">“Importér indstillinger”</strong> filen igen: den bliver din standard for nye designs og lægges på det åbne design som <strong class="ui">“Brug min standard”</strong>. Dine egne taster fra tastaturgenvejene kommer også med.</p>
+</section><section class="guide-part"><h3 id="udseende-tema-v-rkt-jsbj-lke-og-visningskube"><span class="heading-alias" id="appearance-theme-toolbar-and-view-cube"></span>Udseende: tema, værktøjsbjælke og visningskube</h3>
+<p><strong class="ui">“Farveskema”</strong> sætter farveskemaet for hele programmet: <strong class="ui">“System”</strong> følger din computer, de andre er <strong class="ui">“Lys”</strong>, <strong class="ui">“Mørk”</strong> og <strong class="ui">“Grafit (neutral mørk)”</strong>. Du kan også ændre det øverst til højre i editoren.</p>
+<p><strong class="ui">“Størrelse på betjeningselementer”</strong> gør knapperne i båndet øverst, dets formmenu, visningsbjælken til venstre og egenskabspanelet til højre mindre eller større: <strong class="ui">“Lille”</strong>, <strong class="ui">“Mellem”</strong> (som det altid var) eller <strong class="ui">“Stor”</strong>. Små efterlader mere plads til arbejdsplanet på en bærbar; store er lettere at ramme på en stor skærm eller med en finger. Med store knapper går båndets grupper på en anden række når vinduet er for smalt til dem. Størrelsen står under fanen <strong class="ui">“Bånd”</strong> i indstillingerne, gemmes i denne browser og holder for hvert design.</p>
+<p><strong class="ui">“Former i farve”</strong> sætter den farve, en ny form starter med, på billederne i formbiblioteket (farven for sin art, eller den du gemte med <strong class="ui">“Gem som standard”</strong>). Slå det fra, hvis du foretrækker grå billeder; din browser husker valget.</p>
+<p><strong class="ui">“Placering af orienteringskuben”</strong> sætter visningskuben i et andet hjørne af arbejdsplanet: <strong class="ui">“Øverst til venstre”</strong> (som det altid var), <strong class="ui">“Øverst til højre”</strong>, <strong class="ui">“Nederst til venstre”</strong> eller <strong class="ui">“Nederst til højre”</strong>. I alle hjørner undtagen øverst til venstre rykker visningsbjælken op på den plads, kuben forlod. Nederst til højre står kuben lige over <strong class="ui">“Snap til gitter”</strong>-kontrollen. Mens en forms egenskaber er åbne til højre, viger en kube i højre side til venstre for dem. Hjørnet gemmes i denne browser og holder for hvert design. I et smalt vindue, som på en telefon, er indstillingen skjult, og kuben bliver øverst til venstre.</p>
+</section><section class="guide-part"><h3 id="udseende-knapper-i-bandet"><span class="heading-alias" id="appearance-buttons-in-the-ribbon"></span>Udseende: knapper i båndet</h3>
+<p><strong class="ui">“Knapper i båndet”</strong> tager de grupper og knapper ud af båndet, som du aldrig bruger. Klik på en gruppe for at åbne dens liste: <strong class="ui">“Vis denne gruppe”</strong> tager hele gruppen ud, fluebenet ved en knap kun den knap. <strong class="ui">“Vis alle”</strong> henter det hele tilbage. En gruppe uden knapper forsvinder, og de andre rykker op, så mere af båndet kan stå på én række.</p>
+<p>Det, du tager ud, mangler kun i båndet: kommandosøgningen (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>) finder det stadig, og dets tast kører det stadig. Pilene ved en gruppe flytter den op eller ned på listen og dermed langs båndet; <strong class="ui">“Nulstil rækkefølgen”</strong> bringer den oprindelige rækkefølge tilbage. Pilene ved en knap flytter den på samme måde inden for dens gruppe; i <strong class="ui">“Modificér”</strong> bliver den i sin navngivne sektion. Gruppen Former og Hjælp bliver altid, og Former beholder sin plads efter de to første grupper. Valget gemmes i denne browser og kommer med i filen fra <strong class="ui">“Eksportér indstillinger”</strong>. Det gælder 3D-editoren; skitsen har sin egen bjælke.</p>
+</section><section class="guide-part"><h3 id="udseende-hurtig-tilstand"><span class="heading-alias" id="appearance-fast-mode"></span>Udseende: hurtig tilstand</h3>
+<p><strong class="ui">“Hurtig tilstand”</strong> er til langsommere computere. Den slår skygger, kantlinjer på alle former og kameraets inerti fra og tegner kun visningen i skærmopløsning. Dine egne indstillinger gemmes til senere, og de kontakter den overskriver siger <strong class="ui">“Fra i hurtig tilstand”</strong>, mens den er slået til. Mere om hvad der hjælper på en langsom computer står under &quot;Når layerling føles langsom&quot; nedenfor.</p>
+</section><section class="guide-part"><h3 id="udseende-farver-i-arbejdsomradet-og-i-skitsen"><span class="heading-alias" id="appearance-colours-of-the-work-area-and-the-sketch"></span>Udseende: farver i arbejdsområdet og i skitsen</h3>
+<p>Arbejdsområdets farver sættes under <strong class="ui">“Udseende”</strong>: <strong class="ui">“Vinduesbaggrund (lys tema)”</strong> og <strong class="ui">“Arbejdsplan under gitteret (lys tema)”</strong> for det lyse tema (de mørke temaer beholder deres egne), ved siden af gitterfarven under <strong class="ui">“Arbejdsplan”</strong>. Hver farve er en knap, der viser farven. Et klik åbner et lille vindue med farvefeltet, en række færdige farver, et felt til hex-værdien og en pil, der sætter farven tilbage til den, layerling startede med. <kbd>Enter</kbd> tager en tastet hex-værdi, og det gør også et klik uden for vinduet.</p>
+<p>Skitsevisningen har sine egne farver: <strong class="ui">“Skitse: vinduesbaggrund (lys tema)”</strong> for vinduet omkring arket, <strong class="ui">“Skitse: område under gitteret (lys tema)”</strong> for arket under gitteret, og <strong class="ui">“Skitse: gitterfarve (lys tema)”</strong>, alle for det lyse tema. <strong class="ui">“Skitse som arbejdsområde”</strong> tager arbejdsområdets tre farver i ét klik.</p>
+<p><strong class="ui">“Klassisk udseende”</strong> sætter arbejdsområdet op som Tinkercad viser det: hvid bund, et lyseblåt millimetergitter med en mørkere linje hver centimeter, sorte kantlinjer, lys fra oven med bløde skygger. Hver værdi kan stadig ændres for sig bagefter. Alle starter som layerling altid har set ud, og hvad der passer dig afhænger af din skærm.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/settings-appearance.webp" alt="Indstillingerne under Udseende: baggrunds- og arbejdsplanfarver for det lyse tema, og kontakten for kantlinjer på alle former." width="1280" height="800" loading="lazy"><figcaption>Indstillingerne under Udseende: baggrunds- og arbejdsplanfarver for det lyse tema, og kontakten for kantlinjer på alle former.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/editor-dark.webp" alt="Editoren i det mørke farveskema. Du sætter farveskemaet øverst til højre: System, Lys, Mørk eller Grafit." width="1280" height="800" loading="lazy"><figcaption>Editoren i det mørke farveskema. Du sætter farveskemaet øverst til højre: System, Lys, Mørk eller Grafit.</figcaption></figure>
+</section><section class="guide-part"><h3 id="udseende-aksepile-og-kantlinjer"><span class="heading-alias" id="appearance-axis-arrows-and-edge-lines"></span>Udseende: aksepile og kantlinjer</h3>
+<p><strong class="ui">“Aksepile”</strong> (til som standard) tegner tre pile ved pladens bagerste venstre hjørne: <strong>X</strong> i rød til højre, <strong>Y</strong> i grøn bagud og <strong>Z</strong> i blå opad, den måde positionsfelterne tæller på. Det er højrehåndsreglen Tinkercad, CAD-programmer og slicerne også bruger. Med arbejdsplanet på en flade følger de den. Slå dem fra her hvis de er i vejen.</p>
+<p><strong class="ui">“Kantlinjer på alle former”</strong> tegner et omrids på hvert legeme, i farven <strong class="ui">“Kantlinjefarve”</strong> (sort til at begynde med, som i Tinkercad): det hjælper når mørke farver løber sammen. Det er fra som standard, og meget store importerede meshes udelades.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/edge-lines.webp" alt="Tre mørke former med kantlinjer slået til: omridsene holder dem adskilt." width="1280" height="800" loading="lazy"><figcaption>Tre mørke former med kantlinjer slået til: omridsene holder dem adskilt.</figcaption></figure>
+<p><strong class="ui">“Vis huller tydeligere”</strong> tegner huller i en mørkere grå, mindre gennemsigtige og med en mørk linje rundt om. Det hjælper, når et hul er svært at finde mellem gennemsigtige former. I modsætning til kantlinjerne forbliver det slået til i hurtig tilstand.</p>
+</section><section class="guide-part"><h3 id="udseende-lys-og-skygger"><span class="heading-alias" id="appearance-light-and-shadows"></span>Udseende: lys og skygger</h3>
+<p><strong class="ui">“Vis skygger”</strong> slår kasteskyggerne til og fra. To skyder sætter hvordan formerne belyses. <strong class="ui">“Skyggestyrke”</strong> siger hvor mørke kasteskyggerne er, og <strong class="ui">“Skyggekontrast”</strong> flytter lys fra det jævne omgivende lys til hovedlyset: mod &quot;kraftig&quot; bliver de skyggefulde sider mørkere og skyggerne viser mere, mod &quot;blød&quot; bliver alt fladere. I den øverste ende bliver kontrasten meget stærk, så skyggefulde sider og skygger bliver virkelig mørke. <strong class="ui">“Skyggeblødhed”</strong> gør skyggernes kanter bløde i stedet for skarpe. <strong class="ui">“Lysretning”</strong> drejer hovedlyset rundt om pladen (0° forfra, 90° fra højre), og <strong class="ui">“Lyshøjde”</strong> løfter det; ved 90° står det lige over pladen som i Tinkercad, og skyggerne falder lige under formerne. <strong class="ui">“Blødt lys”</strong> henter det meste af lyset fra den retning, du ser i, og det drejer sig med synet: ingen flade bliver mørk, og en mørk flade der vender opad brændes ikke længere ud til hvidt. Hovedlyset bliver lidt tilbage til skyggerne, og kontrastskyderen virker stadig. Hvis der stadig vises en lys refleks med lyset sat lavt, hæver du <strong class="ui">“Lyshøjde”</strong> til 90°: så ser det ud som i Tinkercad. <strong class="ui">“Nulstil lys og skygger”</strong> sætter alt tilbage.</p>
+</section><section class="guide-part"><h3 id="udseende-mal-pa-arbejdsplanet"><span class="heading-alias" id="appearance-measures-on-the-workplane"></span>Udseende: mål på arbejdsplanet</h3>
+<p><strong class="ui">“Vis flyttemål”</strong> viser hvor meget du flytter, mens du drager eller med piletasterne, <strong class="ui">“Vis afstande til nulpunktet”</strong> afstandene fra markeringen til pladens nulpunkt, også når flere legemer er valgt. Med <strong class="ui">“Mål altid synlige”</strong> forbliver målene synlige hele tiden, og ikke kun mens du drager. Mens en vendt legeme er valgt, vises dens vinkler under den på arbejdsplanet; <strong class="ui">“Vis vinkler på vendte former”</strong> slår det fra. Mere i <a href="/api/desktop/layerling/ui/vejledning/measuring-and-notes.html">Måling og noter</a>.</p>
+</section><section class="guide-part"><h3 id="udseende-markering-og-flytning"><span class="heading-alias" id="appearance-selecting-and-moving"></span>Udseende: markering og flytning</h3>
+<p><strong class="ui">“Vælg før du flytter”</strong>: et legeme skal så være markeret først, og først det næste træk flytter det. Det hjælper, når børn eller travle hænder rører ved legemer, og på en berøringsskærm.</p>
+<p><strong class="ui">“Rammens retning afgør”</strong>: en ramme, der trækkes til højre, markerer kun det, der ligger helt inden i den, en ramme, der trækkes til venstre, markerer alt, den rører (tegnet stiplet), som i SketchUp.</p>
+<p><strong class="ui">“Dobbeltklik åbner skitsen”</strong> afgør, om et dobbeltklik på en presset skitse åbner skitsen igen, som i Tinkercad, og <strong class="ui">“Dobbeltklik åbner en gruppe eller et bundt”</strong> om et dobbeltklik på en gruppe eller et bundt åbner det til redigering. <strong class="ui">“Dobbeltklik på arbejdsplanet centrerer visningen der”</strong> afgør, om et dobbeltklik på et tomt sted på arbejdsplanet flytter visningen derhen.</p>
+<p><strong class="ui">“Snap til andre former mens du flytter”</strong> lader kantene og centrum af en form snappe til andre former, mens du trækker den; gittermenuen nederst til højre har den samme kontakt. <strong class="ui">“Cruise når nye former tilføjes”</strong> får en ny form til at hænge ved musepegeren og lande på fladen under den, som Cruise i Tinkercad; slået fra dukker en ny form op i midten af pladen. Mere i <a href="/api/desktop/layerling/ui/vejledning/select-and-arrange.html">Valg og arrangering</a>.</p>
+</section><section class="guide-part"><h3 id="udseende-visningen"><span class="heading-alias" id="appearance-the-view"></span>Udseende: visningen</h3>
+<p><strong class="ui">“Start editoren i perspektivvisning”</strong>: editoren åbner så i perspektivvisning, ikke i den flade.</p>
+<p><strong class="ui">“Start editoren med rullebjælker”</strong>: et design åbner så med visningens rullepaneler. Indstillingen gemmes med designet og med <strong class="ui">“Gør til standard”</strong>.</p>
+<p><strong class="ui">“Startvisning”</strong> bestemmer den vinkel, et nyt design åbner i, og som <strong class="ui">“Startvisning”</strong> vender tilbage til. Drej og zoom visningen, som du kan lide den, og klik så <strong class="ui">“Brug aktuel visning”</strong>; <strong class="ui">“Standard”</strong> giver den sædvanlige visning forfra til højre igen. Det gælder alle designs i denne browser. Et design, du åbner igen, åbner stadig, som du forlod det.</p>
+<p><strong class="ui">“Zoomhastighed”</strong> er en skyder fra langsom til hurtig: hvor hurtigt hjulet og trackpad'en zoomer; zoomknapperne og tasterne beholder deres egne små trin. <strong class="ui">“Kameraet bliver ved med at dreje”</strong>: når du slipper musen, drejer visningen videre et øjeblik og falder blødt af. Slået fra stopper den med det samme, som i Tinkercad og Fusion 360.</p>
+<p><strong class="ui">“Markér overhæng fra {angle}°”</strong> er den vinkel, hvorfra en flade tæller som et overhæng, når du slår <strong>Vis overhæng</strong> til i menuen ved siden af øjet: de flader skraveres rødt og hvidt. 30° er det forsigtige valg, 70° regnes på god køling af printet; 45° er det sædvanlige startpunkt. Så længe de vises, siger en linje under visningen det stejleste overhæng og hvor mange cm² der skal have støtte.</p>
+<p><strong class="ui">“Skær importerede meshes op til”</strong> sætter en grænse for, hvor mange trekanter et importeret mesh må have, når du skærer det, samler det eller tager et snit i det, fordi det beregnes i din browser. Et mesh over grænsen behandles ikke; forenkler meshet først, eller hæv grænsen, hvis din computer kan klare det. En højere grænse kan få editoren til at hænge i nogle få sekunder.</p>
+</section><section class="guide-part"><h3 id="mal-enheder-skala-og-snap-trin"><span class="heading-alias" id="measurement-units-scale-and-snap-steps"></span>Mål: enheder, skala og snap-trin</h3>
+<p>Under <strong class="ui">“Mål”</strong> sætter du <strong class="ui">“Enheder”</strong>, den enhed mål vises i (<strong class="ui">“Skala”</strong>: millimeter, centimeter eller meter i det metriske system, tommer eller fod i det imperative), hvor mange decimaler et tal viser (<strong class="ui">“Præcision”</strong>), det <strong class="ui">“Snap-gitter”</strong>, som flytning og skalering snapper til, og dine egne snap-trin under <strong class="ui">“Brugerdefinerede snap-gitere”</strong>.</p>
+<p>Under <strong class="ui">“Mål”</strong> i indstillingerne sætter du <strong class="ui">“Enheder”</strong>. Med <strong class="ui">“Imperial”</strong> viser layerling hvert mål i tommer, på formen, i egenskabspanelet, på målebåndet og linealen. Snapgitteret tilbyder så trin fra 1/64 til 1 tomme, og gitteret på pladen tegnes i tommer (1/8 til 1 tomme, 1/4 tomme som standard) med en stærkere linje hver hele tomme. Under <strong class="ui">“Vis tommer som”</strong> vælger du om tommer vises som brøker som i Tinkercad (1 5/8, afrundet til 1/64 tomme) eller som decimaler (1.625) med så mange decimaler som sat under <strong class="ui">“Præcision”</strong>. Du kan taste begge dele, &quot;1 5/8&quot; inkluderet. Hurtigere skifter du mellem millimeter og tommer med den lille kontakt <strong>mm | in</strong> ved siden af <strong class="ui">“Snap til gitter”</strong> nederst i egenskabsvinduet: Den ændrer enheden, pladens gitter og fangtrinnet som indstillingerne, for dette design.</p>
+<p>Under <strong class="ui">“Brugerdefinerede snap-gitere”</strong> samme sted tilføjer du dine egne snap-trin: et navn og en størrelse i millimeter, for eksempel &quot;Pin pitch 2,54 mm&quot; for afstanden mellem DIP-chips, pin headers og perfboard-huller, eller &quot;MX Key Unit&quot; med 19,05 mm for afstanden mellem tastaturtaster. Snap-trinsmenuen tilbyder så det mål helt, halvt og kvart (1 ×, ½ × og ¼ ×), så former kan flyttes med en pitch, en halv pitch eller en kvart pitch. Vil du kun have målet selv, fjerner du flueben ved <strong class="ui">“Også halv og kvart”</strong> ved siden af det; menuen har så kun det ene trin. Brugerdefinerede trin gemmes med designet og følger med <strong class="ui">“Gør til standard”</strong>.</p>
+<p><strong class="ui">“Start nye designs med vinkelmåler i nulpunktet”</strong>: hvert nyt design i denne browser starter så med en vinkelmåler i nulpunktet, se <a href="/api/desktop/layerling/ui/vejledning/measuring-and-notes.html">Måling og noter</a>. Designs, du allerede har, forbliver som de er, og en vinkelmåler, du fjerner fra et design, forbliver væk.</p>
+</section><section class="guide-part"><h3 id="arbejdsplan-plade-og-printer"><span class="heading-alias" id="workplane-plate-and-printer"></span>Arbejdsplan: plade og printer</h3>
+<p><strong class="ui">“Printer”</strong> tilpasser arbejdsplanet til din printers byggeplade og markerer legemer der rækker ud over den, se <a href="/api/desktop/layerling/ui/vejledning/printing.html">Printning</a>. <strong class="ui">“Pladeetiketter”</strong> skriver designets navn på pladen, og printerens navn og byggevolumen når der er valgt en printer.</p>
+<p><strong class="ui">“Din printers spillerum”</strong> er den plads pr. side, en printet stift har brug for for at dreje i et printet hul på din printer. <strong class="ui">“Lav pasprøve”</strong> lægger pasprøven, der måler det, på pladen; nye låg, svalehaler, snaplåse, møtrikker og tjek af spillerum starter så med det, se <a href="/api/desktop/layerling/ui/vejledning/printing.html">Printning</a>. Det gemmes i denne browser, ikke i designet.</p>
+<p><strong class="ui">“Arbejdsplan-størrelse”</strong> giver pladen en størrelse af din egen, med <strong class="ui">“Bredde”</strong> og <strong class="ui">“Længde”</strong> i millimeter eller den enhed du valgte. Gitteret løber altid gennem nulpunktet, så de stærkere linjer ligger på akserne uanset pladens mål.</p>
+</section><section class="guide-part"><h3 id="arbejdsplan-gitter"><span class="heading-alias" id="workplane-grid"></span>Arbejdsplan: gitter</h3>
+<p><strong class="ui">“Vis gitter”</strong> viser eller skjuler gitteret på pladen. <strong class="ui">“Gitterblokstørrelse”</strong> sætter afstanden mellem dets linjer, og <strong class="ui">“Mørkere gitterlinje hver”</strong> om den mørkere linje kommer hver 5. eller hver 10. gittertrin; <strong class="ui">“Mørkere linjefarve”</strong> giver den linje sin egen farve, og centerkrydset og pladekanten tager den også. <strong class="ui">“Gitterfarve”</strong> er farven på de almindelige linjer.</p>
+<p>Hver linje i gitteret vokser i bredden når du zoomer ind, som i Tinkercad, og forbliver synlig når du zoomer ud. Hvis det er for meget for dig, så slå <strong class="ui">“Gitterlinjer vokser ved zoom”</strong> fra, og linjerne forbliver en pixel brede ved hvert zoom, som i skitsen.</p>
+<p>Er gitteret forsvundet, for eksempel fordi en farve blev sat til pladens farve, bringer <strong class="ui">“Nulstil gitter”</strong> i slutningen af området <strong class="ui">“Arbejdsplan”</strong> synlighed, farver, afstand og stregtykkelse tilbage til standard, her og i den standard, der er gemt med <strong class="ui">“Gør til standard”</strong>.</p>
+</section><section class="guide-part"><h3 id="formstandarder"><span class="heading-alias" id="shape-defaults"></span>Formstandarder</h3>
+<p>Under <strong class="ui">“Formstandarder”</strong> vælger du en form med <strong class="ui">“Form”</strong> og sætter, hvordan den starter, når du tilføjer den: dens bredde, længde og højde. <strong class="ui">“Brug app-standarder”</strong> fører formen tilbage til den, appen starter den med. Former med egne indstillinger viser dem under <strong class="ui">“Formdetaljer”</strong>. Værdierne gælder nye former, ikke dem der allerede er på pladen. <strong class="ui">“Brugerdefineret størrelsesgrænse”</strong> sætter en grænse af din egen for, hvor store håndtagene og egenskaberne må gøre den form; står feltet tomt, bliver de sædvanlige grænser ved.</p>
+</section><section class="guide-part"><h3 id="gemt-historik"><span class="heading-alias" id="saved-history"></span>Gemt historik</h3>
+<p>Under <strong class="ui">“Historik”</strong> sætter skyderen <strong class="ui">“Gemt historik”</strong>, hvor mange afsluttede handlinger der forbliver tilgængelige for fortryd, efter du har gemt eller genåbnet et design. Standarden er 100 handlinger i et design. En lavere grænse fjerner permanent de ældre fortryd-trin i designet.</p>
+</section></section><section class="guide-part"><h2 id="nar-layerling-f-les-langsom"><span class="heading-alias" id="when-layerling-feels-slow"></span>Når layerling føles langsom</h2>
+<p>layerling beregner og tegner alt i din browser. På en ældre computer, med et svagt grafikkort eller på flere store skærme kan visningen derfor føles sløv. Det her hjælper:</p>
+<ul><li><strong><strong class="ui">“Hurtig tilstand”</strong></strong> under <strong class="ui">“Udseende”</strong> slår med det samme alt fra hvad visningen koster meget: skygger, kantlinjer på alle former og kameraets inerti. Den tegner også kun visningen ved skærmens egen opløsning, hvilket på højopløsningsskærme er op til fire gange færre pixels. Dine egne indstillinger gemmes og gælder igen så snart du slår det fra.</li><li><strong>Kameraet bliver ved med at dreje:</strong> Når du slipper musen efter at have drejet, fortsætter visningen et øjeblik og stopper blødt. Det er med vilje, ikke hakken. Hvis du er vant til Tinkercad eller Fusion 360, så slå <strong class="ui">“Kameraet bliver ved med at dreje”</strong> fra under <strong class="ui">“Udseende”</strong>, og visningen stopper med det samme.</li><li><strong>Enkelte kontakter:</strong> Uden hurtig tilstand kan du også bare slå <strong class="ui">“Vis skygger”</strong> eller <strong class="ui">“Kantlinjer på alle former”</strong> fra.</li><li><strong>Brug grafikkortet:</strong> I Chrome åbn <code>chrome://gpu</code> (i Edge <code>edge://gpu</code>). Ved siden af &quot;WebGL&quot; skal der stå &quot;Hardware accelerated&quot;. Hvis der står &quot;Software only&quot;, er hardwareacceleration slået fra i browserens indstillinger. På Windows kan du også vælge &quot;Høj ydeevne&quot; for browseren under Indstillinger → System → Skærm → Grafik, så den bruger det rigtige grafikkort og ikke det svagere i processoren.</li><li><strong>Forenkl store importerede meshes:</strong> En model med flere hundredtusind trekanter sænker enhver visning. Hvordan du tynder den ud er i kapitlet om filer, under &quot;Forenkling af et importeret mesh&quot;.</li><li><strong>Luk andre faner:</strong> Hver åben layerling-fane og hver anden 3D-side deler det samme grafikkort.</li></ul></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/vejledning/getting-started.html"><small>Forrige kapitel</small>Kom godt i gang</a><a class="next" href="/api/desktop/layerling/ui/vejledning/shapes.html"><small>Næste kapitel</small>Placering og justering af former</a></div>
+      </main>
+    </div>
+    <footer class="note">Denne vejledning vokser sammen med programmet. Hvis noget mangler eller er forkert, så fortæl os i <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">diskussioner</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=da" rel="noopener">Støt projektet</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Diskussioner</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mere på GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Udgivelsesnoter v1.154.1</a></div><p class="trademark">Tinkercad er et varemærke tilhørende Autodesk, Inc. layerling er et uafhængigt projekt og er ikke tilknyttet, anbefalet eller sponsoreret af Autodesk.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Tilbage til editoren";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Åbn editoren";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

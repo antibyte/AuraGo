@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>键盘快捷键 - layerling 用户指南</title>
+    <meta name="description" content="所有按键一览，直接取自程序，因此列表始终准确。">
+    <link rel="canonical" href="https://layerling.com/zh-cn/shortcuts.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/shortcuts.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/shortcuts.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/shortcuts.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/tastenkuerzel.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/shortcuts.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/shortcuts.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/shortcuts.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/shortcuts.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/sneltoetsen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/shortcuts.html">
+    <link rel="alternate" hreflang="pt-BR" href="https://layerling.com/guia/shortcuts.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/bliznjice.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/shortcuts.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/shortcuts.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/shortcuts.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/shortcuts.html">
+    <meta property="og:title" content="键盘快捷键 - layerling 用户指南">
+    <meta property="og:description" content="所有按键一览，直接取自程序，因此列表始终准确。">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/zh-cn/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">用户指南</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/zh-cn/search-index.json" data-nothing="未找到结果。" data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="搜索指南" aria-label="搜索指南" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="语言">简体中文</summary><ul><li><a href="/api/desktop/layerling/ui/guide/shortcuts.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/shortcuts.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/shortcuts.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/shortcuts.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/shortcuts.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/shortcuts.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/shortcuts.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/sneltoetsen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/shortcuts.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/shortcuts.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/shortcuts.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/bliznjice.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/shortcuts.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/shortcuts.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/shortcuts.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/shortcuts.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/shortcuts.html" hreflang="zh-CN" lang="zh-CN" aria-current="true">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/shortcuts.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">打开编辑器</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>编辑器已在另一个标签页中打开，请切换到那里。</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="章节"><h2>章节</h2><p class="print-link"><a href="/api/desktop/layerling/ui/zh-cn/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>打印完整指南</span></a></p><ol><li><a href="/api/desktop/layerling/ui/zh-cn/getting-started.html">快速上手</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/view-and-workplane.html">视图与工作平面</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/shapes.html">放置与调整形状</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/select-and-arrange.html">选择与排列</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/solids-and-holes.html">实体与孔</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/edges-and-hollowing.html">处理边与抽壳实体</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/sketches.html">草图：从轮廓到实体</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/text.html">文字与弧形文字</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/threads-and-mechanics.html">螺纹、齿轮和其他零件</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/measuring-and-notes.html">测量与备注</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/printing.html">为 3D 打印做准备</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/files-and-saving.html">文件、保存与分享</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/shortcuts.html" aria-current="page">键盘快捷键</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/ai-with-mcp.html">用 AI 搭建（MCP）</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/offline-and-install.html">安装为应用、离线使用与自托管</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/videos.html">关于 layerling 的视频</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/tablet-and-touch.html">平板与触控</a></li></ol></nav>
+      <main>
+<h1>键盘快捷键</h1>
+<p class="lead">所有按键一览，直接取自程序，因此列表始终准确。</p>
+<div class="toc"><b>本页内容</b><ul><li><a href="#command-search">命令搜索</a></li><li><a href="#your-own-keys">自定义按键</a></li><li><a href="#interactive-help">交互式帮助</a></li></ul></div>
+<p>只要工作平面获得焦点，快捷键就会生效。在输入框中输入时，它们不会触发。在 Mac 上，此处列出 <kbd>Ctrl</kbd> 的地方改为 <kbd>Cmd</kbd>。</p>
+<p>在编辑器中，<strong class="ui">“帮助”</strong> 区域里的 <strong class="ui">“键盘快捷键”</strong> 会以窗口形式打开同一份列表。窗口中的打印机按钮（<strong class="ui">“打印或保存为 PDF”</strong>）可单独打印这份列表，白底黑字，整份列表分三栏排在一张 A4 或 Letter 纸的一面上，便于随手查阅；浏览器的打印对话框也可以把它保存为 PDF。</p>
+<p>窗口顶部的输入框用于搜索列表：只保留说明、分组或按键中包含你输入的每个词的快捷键，例如输入 &quot;ctrl+z&quot; 就只剩下这些行。不区分大小写和重音符号；只输入一个字母或数字时，会找到该按键以及以它开头的单词。输入框末尾的 X 会清空内容；输入框为空时，整份列表会重新显示。打印机按钮打印的是窗口当前显示的内容，因此搜索后只会打印找到的快捷键。</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/shortcuts.webp" alt="编辑器中的键盘快捷键窗口。" width="1280" height="800" loading="lazy"><figcaption>编辑器中的键盘快捷键窗口。</figcaption></figure>
+<section class="guide-part"><h2 id="command-search">命令搜索</h2>
+<p>找不到某个工具？按 <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>，或点击 <strong class="ui">“帮助”</strong> 区域里的放大镜，然后输入你要找的内容：工具（“圆角”“镜像”）、形状（“圆柱体”）或命令（“导出”“撤销”）。用方向键移动，按 <kbd>Enter</kbd>，或点击相应条目。</p>
+<ul><li>搜索同时认识英文和德文写法，并忽略大小写和变音符号：“aushoehlen” 能找到 <strong class="ui">“抽壳”</strong>。</li><li>每条结果都会显示等效的按键，以及它所在的功能区区域，方便你记住它的位置。</li><li>置灰的条目目前无法执行，多半是因为没有选中任何东西。它们仍留在列表中，这样搜索依然能告诉你工具在哪里。</li></ul>
+<p>你正在阅读的这份指南也有搜索框，位于每一页的顶部：输入一两个词，它就会列出同时包含这些词的章节，并标出匹配的词。点击其中一条，或按 <kbd>Enter</kbd> 跳到第一条，即可直接前往。打开的页面会标出你的词出现的每一处，并滚动到该章节中的第一处；按 <kbd>Esc</kbd> 或点击标记即可清除。</p>
+<ul><li>形状的名称会把该形状添加到工作平面，就像在形状菜单中点击它一样。</li><li>搜索框为空时，搜索会把最近用过的命令列在顶部。</li><li>设计中的实体名称可以找到并选中该实体，在设计包含许多部件时很有用。实体只在你开始输入后才会出现。</li><li>你保存的自定义形状也能按名称找到，只要一输入，单击即可像在形状面板中一样把它放入设计。</li><li>它在草图模式下同样可用，支持草图工具。</li></ul>
+</section><section class="guide-part"><h2 id="your-own-keys">自定义按键</h2>
+<p>命令搜索中的任何命令都可以放到你自己的按键上：常用的工具、某个形状、<strong class="ui">“居中到工作平面”</strong> 或 <strong class="ui">“打开形状面板”</strong>。</p>
+<ol><li>打开 <strong class="ui">“键盘快捷键”</strong>，在窗口顶部的 <strong class="ui">“自定义按键”</strong> 下点击 <strong class="ui">“添加按键”</strong>。</li><li>输入命令的几个字母并点击它，或按 <kbd>Enter</kbd> 选择第一个。</li><li>按下想要的按键，可以单独按，也可以配合 <kbd>Ctrl</kbd>、<kbd>Alt</kbd> 或 <kbd>Shift</kbd>。字母、数字和 F1 到 F12 都可以用于命令。</li></ol>
+<p>编辑器已经使用的按键、浏览器保留给自己的按键（例如 <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>W</kbd></span>）或你已设定的按键都会被拒绝，窗口会说明它的用途。点击列表中的按键可以更改它，点击旁边的 X 可以移除它，点击 <strong class="ui">“移除我的所有按键”</strong> 可以重新开始。</p>
+<ul><li>按键运行命令的方式与命令搜索完全相同。如果命令此刻无法运行（通常是因为没有选中任何内容），状态栏会提示。</li><li>你的按键会显示在命令搜索中对应命令的旁边，也会出现在打印的列表上。</li><li>它们保存在这个浏览器中，和主题一样。草图工具的按键在草图模式下有效，3D 编辑器的按键在草图模式之外有效。</li><li>在字段中输入时，你的按键会像其他按键一样不起作用。</li></ul>
+</section><section class="guide-part"><h2 id="interactive-help">交互式帮助</h2>
+<p>找不到关于某个按钮或输入框的说明在哪？让程序带你过去。点击 <strong class="ui">“帮助”</strong> 区域里的问号，或按 <span dir="ltr"><kbd>Shift</kbd>+<kbd>F1</kbd></span>。指针会变成问号，它下面的任何内容都会被框出。</p>
+<ul><li>点击按钮、输入框、开关、控制柄、功能区的某个组或窗口的标题栏。它<strong>不会</strong>执行原本的功能。取而代之的是打开一个小窗口，其中包含该元素的名称、本指南中相关部分的简短摘要、最多还有两处提到它的位置，以及 <strong class="ui">“在指南中打开”</strong>。</li><li>帮助针对的是你指向的元素，而不是它周围的整个窗口。没有自己名称的元素会使用离它最近的有名元素；在窗口内部，则回退到该窗口的问号。</li><li><strong class="ui">“在指南中打开”</strong> 会在新标签页中打开指南的对应章节。该章节会以彩色框出，从标题一直到末尾，让你看清它的起止位置。</li><li>如果指南中没有关于该元素的内容，窗口会说明这一点，并提供 <strong class="ui">“搜索指南”</strong>。</li><li>按 <kbd>Esc</kbd> 或再次点击问号即可退出该模式。触摸屏上没有悬停：轻点元素会直接打开窗口。</li></ul>
+<p>与其他窗口一样，该窗口可通过标题栏移动。程序根据元素名称——按钮上的标签、输入框的名称——找到对应章节，因为本指南中的每个按钮都按程序里的叫法书写。它会用你当前使用的语言，在指南每页顶部搜索框所用的同一套搜索中查找，并且完全在你的浏览器中运行。</p>
+</section><section class="guide-part"><h2 id="shortcuts-group-selection">选择</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Esc</kbd></td><td>取消选择</td></tr><tr><td><kbd>Delete</kbd> 或 <kbd>Backspace</kbd></td><td>删除选中项</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span></td><td>选中所有可见形状</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>单击</kbd></span></td><td>加入或移出选中项</td></tr><tr><td><kbd>右键单击</kbd></td><td>选中项的常用命令菜单</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="shortcuts-group-clipboard">剪贴板</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>C</kbd></span></td><td>复制</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span></td><td>剪切</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>V</kbd></span></td><td>粘贴</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span></td><td>创建副本</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="shortcuts-group-history">历史记录</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span></td><td>撤销</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span> 或 <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Y</kbd></span></td><td>重做</td></tr><tr><td><kbd>← / →</kbd> 或 <kbd>Wheel</kbd></td><td>在历史记录视图中：上一个或下一个状态</td></tr><tr><td><kbd>PgUp / PgDn</kbd></td><td>在历史记录视图中：向前或向后十个状态</td></tr><tr><td><kbd>Home / End</kbd></td><td>在历史记录视图中：最早的状态或当前状态</td></tr><tr><td><kbd>Esc</kbd></td><td>在历史记录视图中：回到当前状态</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="shortcuts-group-file">文件</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>I</kbd></span></td><td>打开或关闭导入对话框</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>E</kbd></span></td><td>打开或关闭导出对话框</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>S</kbd></span></td><td>将设计保存到其文件</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="shortcuts-group-organise">分组与可见性</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>G</kbd></span></td><td>分组</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>B</kbd></span></td><td>捆绑（连在一起但不合并）</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span></td><td>取消分组或取消捆绑</td></tr><tr><td><kbd>E</kbd></td><td>编辑选中的分组</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span></td><td>锁定或解锁选中项</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd></span></td><td>仅锁定或解锁形状：零件仍可移动、旋转和组合</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>H</kbd></span></td><td>隐藏选中项</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></span></td><td>显示所有隐藏项</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span></td><td>显示或隐藏便签和参考点</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd></span></td><td>显示或隐藏对象列表</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="shortcuts-group-shape">调整选中项形状</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>H</kbd></td><td>将选中项变为孔</td></tr><tr><td><kbd>S</kbd></td><td>将选中项变回实体</td></tr><tr><td><kbd>T</kbd></td><td>让选中项透明，或恢复不透明</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>M</kbd></span></td><td>为选中的分组启用多色：每个部件用各自的颜色，或全部使用同一颜色</td></tr><tr><td><kbd>M</kbd></td><td>镜像模式</td></tr><tr><td><kbd>B</kbd></td><td>用于选中实体的圆角工具（再按一次：关闭）</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>B</kbd></span></td><td>用于选中实体的倒角工具（再按一次：关闭）</td></tr><tr><td><kbd>L</kbd></td><td>对齐模式</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>单击</kbd></span></td><td>在对齐圆点上：统一尺寸而不是移动</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>单击</kbd></span></td><td>在等间距点上：输入间距</td></tr><tr><td><kbd>D</kbd></td><td>把选中项放到工作平面上</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>D</kbd></span></td><td>把选中项作为整体放到工作平面上，各部件之间的高度保持不变</td></tr><tr><td><kbd>C</kbd></td><td>拾起选中项并放到某个面上（类似 Tinkercad 的 Cruise）</td></tr><tr><td><kbd>N</kbd></td><td>放置备注</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="shortcuts-group-transform">移动与旋转</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>← / → / ↑ / ↓</kbd></td><td>按当前视图方向移动一个网格步距</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>移动五个网格步距</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>移动五分之一个网格步距</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>↑ / ↓</kbd></span></td><td>升高或降低选中项</td></tr><tr><td><kbd>R</kbd></td><td>旋转 45°</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>R</kbd></span></td><td>旋转 22.5°</td></tr><tr><td><kbd>Shift</kbd></td><td>拖动时按住：仅沿 X 或 Y 移动</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>拖动</kbd></span></td><td>拖动副本，原对象保持不动</td></tr><tr><td><kbd>Alt</kbd></td><td>拖动时按下：暂停吸附到其他形状</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>Enter</kbd></span></td><td>在形状旁输入尺寸时：以中心为基准扩大，而不是从对边扩展</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="shortcuts-group-view">视图与工作平面</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>1 – 6</kbd></td><td>六个标准视图</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>1 – 6</kbd></span></td><td>标准视图，并缩放到选中项</td></tr><tr><td><kbd>7 / 8 / 9 / 0</kbd></td><td>转到该键保存的视图</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>7 / 8 / 9 / 0</kbd></span></td><td>为此设计保存视图——转动、平移和缩放</td></tr><tr><td><kbd>← / → / ↑ / ↓</kbd></td><td>未选中任何对象时，转动视图 15°</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>未选中任何对象时，转动视图 90°</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>未选中任何对象时，平移视图</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>未选中任何对象时，进一步平移视图</td></tr><tr><td><kbd>Home</kbd></td><td>让整个场景适应视图</td></tr><tr><td><kbd>F</kbd> 或 <span dir="ltr"><kbd>Shift</kbd>+<kbd>F</kbd></span></td><td>缩放到选中项</td></tr><tr><td><kbd>O</kbd></td><td>正交或透视</td></tr><tr><td><kbd>Q</kbd></td><td>隐藏或显示所选对象周围的尺寸和距离</td></tr><tr><td><kbd>+</kbd> 或 <kbd>−</kbd></td><td>放大或缩小</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>1 – 0</kbd></span></td><td>选择吸附步长：菜单中该编号的项</td></tr><tr><td><kbd>,</kbd> 或 <kbd>.</kbd></td><td>吸附网格细一级或粗一级</td></tr><tr><td><kbd>中键单击</kbd></td><td>在指针处打开吸附网格菜单</td></tr><tr><td><kbd>W</kbd></td><td>放置工作平面</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>W</kbd></span></td><td>将其放到选中的面上</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>W</kbd></span></td><td>放回底板</td></tr><tr><td><kbd>P</kbd></td><td>正对工作平面</td></tr><tr><td><kbd>Shift</kbd></td><td>放置时按住可反向</td></tr><tr><td><kbd>Esc</kbd></td><td>退出工作平面或卷尺模式</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="shortcuts-group-help">帮助</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span></td><td>打开命令搜索</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>F1</kbd></span></td><td>开启或关闭交互式帮助</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="shortcuts-group-sketch">草图模式</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span></td><td>打开命令搜索</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>F1</kbd></span></td><td>开启或关闭交互式帮助</td></tr><tr><td><kbd>Esc</kbd></td><td>放下工具（回到“选择”），然后清除选择</td></tr><tr><td><kbd>Delete</kbd> 或 <kbd>Backspace</kbd></td><td>删除选中的元素</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>C</kbd></span></td><td>复制</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span></td><td>剪切</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>V</kbd></span></td><td>粘贴</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span></td><td>创建副本</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span></td><td>撤销</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span> 或 <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Y</kbd></span></td><td>重做</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span></td><td>选中所有点和线</td></tr><tr><td><kbd>R</kbd></td><td>将闭合草图旋转 45°</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span></td><td>锁定或解锁选中的轮廓或参考图</td></tr><tr><td><kbd>N</kbd></td><td>放置备注</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span></td><td>显示或隐藏便签和参考点</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>未选中任何对象时，平移视图</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>未选中任何对象时，进一步平移视图</td></tr><tr><td><kbd>Home</kbd></td><td>让整个草图适应视图</td></tr><tr><td><kbd>F</kbd> 或 <span dir="ltr"><kbd>Shift</kbd>+<kbd>F</kbd></span></td><td>在草图中缩放到选中项</td></tr><tr><td><kbd>+</kbd> 或 <kbd>−</kbd></td><td>放大或缩小草图</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>1 – 0</kbd></span></td><td>选择吸附步长：菜单中该编号的项</td></tr><tr><td><kbd>,</kbd> 或 <kbd>.</kbd></td><td>吸附网格细一级或粗一级</td></tr><tr><td><kbd>中键单击</kbd></td><td>在指针处打开吸附网格菜单</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>Enter</kbd></span></td><td>在直线的长度输入框中：向两侧扩展</td></tr><tr><td><kbd>← / → / ↑ / ↓</kbd> 或 <span dir="ltr"><kbd>Shift</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>将选中的点、线或图像移动一个网格步距（Shift：更大步距，Alt：五分之一步距）</td></tr><tr><td><kbd>← / → / ↑ / ↓</kbd> 或 <span dir="ltr"><kbd>Shift</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>将点中的曲线控制柄移动一个网格步距（Shift：更大步距，Alt：五分之一步距）</td></tr><tr><td><kbd>1</kbd> 或 <kbd>2</kbd> 或 <kbd>3</kbd> 或 <kbd>4</kbd> 或 <kbd>5</kbd></td><td>选择绘制工具：1 直线，2 贝塞尔曲线，3 平滑曲线，4 添加或移除点，5 手绘（未在绘制直线时）</td></tr><tr><td><kbd>Shift</kbd></td><td>绘制时：按 15° 步距吸附新直线</td></tr><tr><td><kbd>Shift</kbd></td><td>拖动时：让移动只沿一个轴</td></tr><tr><td><kbd>0-9</kbd> 或 <kbd>&lt;</kbd> 或 <kbd>Tab</kbd> 或 <kbd>Enter</kbd></td><td>绘制时：输入长度，按“&lt;”或 Tab 输入角度，Enter 确定该点</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="shortcuts-group-edgemodifier">倒角与圆角</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Enter</kbd></td><td>应用预览</td></tr><tr><td><kbd>Esc</kbd></td><td>放弃预览</td></tr></tbody></table></div></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/zh-cn/files-and-saving.html"><small>上一章</small>文件、保存与分享</a><a class="next" href="/api/desktop/layerling/ui/zh-cn/ai-with-mcp.html"><small>下一章</small>用 AI 搭建（MCP）</a></div>
+      </main>
+    </div>
+    <footer class="note">本指南随程序一同完善。如有缺漏或错误，请到 <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">讨论区反馈</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=zh-cn" rel="noopener">支持项目</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">讨论区</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">在 GitHub 上了解更多</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">发行说明 v1.154.1</a></div><p class="trademark">Tinkercad 是 Autodesk, Inc. 的商标。layerling 是一个独立项目，与 Autodesk 无关联，也未获其认可或赞助。</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="返回编辑器";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="打开编辑器";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

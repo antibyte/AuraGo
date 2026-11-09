@@ -2603,7 +2603,7 @@ Details: the [System World deep dive](../../system-world-2.md).
 - Saving checks the version read when opening (conflict: Replace / Save a copy / Cancel); unsaved edits keep a browser-local recovery draft.
 - **Agent access defaults to Off**, independently of the activation switch: **Read** permits inspection and previews, **Read and write** additionally model edits and Desktop file writes. Desktop agent access and readonly remain upper bounds.
 - Version 1 needs an open browser editor — no headless CAD, no collaborative simultaneous editing, no direct printer control.
-- Upstream is Layerling **1.57.0** (AGPL-3.0-only); the editor's source links provide the corresponding source archive.
+- Upstream is Layerling **1.154.1** (AGPL-3.0-only); the editor's source links provide the corresponding source archive.
 
 Details: the [Layerling deep dive](../../layerling.md).
 

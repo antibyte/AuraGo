@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>用 AI 建模（MCP） - layerling 使用者指南</title>
+    <meta name="description" content="Gemini、Claude 或 Codex 等 AI 助手如何在已開啟的編輯器中建立與修改形狀、把形狀群組起來，並為檢視畫面拍照。">
+    <link rel="canonical" href="https://layerling.com/zh-tw/ai-with-mcp.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/ai-with-mcp.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/ai-with-mcp.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/ai-with-mcp.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/ki-mit-mcp.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/ai-with-mcp.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/ai-with-mcp.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/ai-with-mcp.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/ai-with-mcp.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/ai-met-mcp.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/ai-with-mcp.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/ai-z-mcp.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/ai-with-mcp.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/ai-with-mcp.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/ai-with-mcp.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/ai-with-mcp.html">
+    <meta property="og:title" content="用 AI 建模（MCP） - layerling 使用者指南">
+    <meta property="og:description" content="Gemini、Claude 或 Codex 等 AI 助手如何在已開啟的編輯器中建立與修改形狀、把形狀群組起來，並為檢視畫面拍照。">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/zh-tw/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">使用者指南</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/zh-tw/search-index.json" data-nothing="找不到結果。" data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="搜尋指南" aria-label="搜尋指南" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="語言">繁體中文</summary><ul><li><a href="/api/desktop/layerling/ui/guide/ai-with-mcp.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/ai-with-mcp.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/ai-with-mcp.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ki-mit-mcp.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/ai-with-mcp.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/ai-with-mcp.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/ai-with-mcp.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/ai-with-mcp.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/ai-met-mcp.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/ai-with-mcp.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/ai-with-mcp.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/ai-with-mcp.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/ai-z-mcp.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/ai-with-mcp.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/ai-with-mcp.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/ai-with-mcp.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/ai-with-mcp.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/ai-with-mcp.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/ai-with-mcp.html" hreflang="zh-TW" lang="zh-TW" aria-current="true">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">開啟編輯器</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>編輯器已在另一個分頁中開啟，請切換到那裡。</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="章節"><h2>章節</h2><p class="print-link"><a href="/api/desktop/layerling/ui/zh-tw/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>列印完整指南</span></a></p><ol><li><a href="/api/desktop/layerling/ui/zh-tw/getting-started.html">快速上手</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/view-and-workplane.html">檢視與工作平面</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/shapes.html">放置與調整形狀</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/select-and-arrange.html">選取與排列</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/solids-and-holes.html">實體與孔</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/edges-and-hollowing.html">邊的修整與實體抽殼</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/sketches.html">草圖：從輪廓到實體</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/text.html">文字與弧形文字</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/threads-and-mechanics.html">螺紋、齒輪與其他零件</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/measuring-and-notes.html">量測與備註</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/printing.html">為 3D 列印做準備</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/files-and-saving.html">檔案、儲存與分享</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/shortcuts.html">鍵盤快速鍵</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/ai-with-mcp.html" aria-current="page">用 AI 建模（MCP）</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/offline-and-install.html">安裝為應用程式、離線使用與自架</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/videos.html">關於 layerling 的影片</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/tablet-and-touch.html">平板與觸控</a></li></ol></nav>
+      <main>
+<h1>用 AI 建模（MCP）</h1>
+<p class="lead">Gemini、Claude 或 Codex 等 AI 助手如何在已開啟的編輯器中建立與修改形狀、把形狀群組起來，並為檢視畫面拍照。</p>
+<div class="toc"><b>本頁內容</b><ul><li><a href="#step-by-step-for-beginners">新手逐步指南</a></li><li><a href="#setting-up">設定</a></li><li><a href="#nas">NAS 或伺服器上的副本</a></li><li><a href="#ai">AI 能做什麼</a></li><li><a href="#an-example">範例</a></li></ul></div>
+<p>layerling 內建 MCP 伺服器。MCP 是一種標準，讓 AI 助手能使用其他程式中的工具。透過它，Gemini、Claude 或 Codex 等 AI 用戶端能看到已開啟的編輯器分頁並在其中工作：建立形狀、修改尺寸、群組、切割、為邊做圓角、讀取場景，以及為檢視畫面拍照。你描述零件，AI 負責建立，你在旁邊觀看，隨時都能接手。</p>
+<p>AI 用戶端與編輯器之間的橋接<strong>在你自己的電腦上本機執行</strong>。但請留意：AI 讀取的內容，也就是場景與檢視畫面圖片，會像其他任何輸入一樣，傳送到你的 AI 用戶端供應商。</p>
+<aside class="tip"><p><strong>重要：</strong> MCP 橋接只存在於你在自己電腦上啟動的開發伺服器。在 layerling.com 以及採用靜態主機代管的安裝中，它是關閉的。自行架設的副本（例如 NAS 上的 Docker 映像檔）可以用存取權杖開啟；參見下文「NAS 或伺服器上的副本」。</p></aside>
+<section class="guide-part"><h2 id="step-by-step-for-beginners">新手逐步指南</h2>
+<p>你不需要懂任何程式設計。</p>
+<p><strong>最簡單的方法：</strong>把專案網址 <code>https://github.com/henmedia/layerling</code> 交給你喜歡的 AI，並請它：「在我的電腦上設定好 layerling，讓我能透過它的 MCP 伺服器和你一起建立 3D 模型。」它會自己下載並安裝所有東西，完成後告訴你。這需要一個能在你電腦上工作的 AI，例如 Claude 應用程式的 Code 分頁、Codex、Antigravity 或 Gemini CLI。瀏覽器裡的聊天做不到，因為它無法在你的電腦上安裝任何東西。</p>
+<p><strong>或者自己動手，在 Windows 上使用 Claude 應用程式，分五步：</strong></p>
+<p><strong>1. 安裝 layerling。</strong>開啟開始功能表，輸入 <code>PowerShell</code>，然後開啟 Windows PowerShell。複製下面這一行，在視窗中按右鍵貼上，然後按 Enter：</p>
+<pre><code>irm https://raw.githubusercontent.com/henmedia/layerling/main/scripts/windows-quickstart.ps1 | iex</code></pre>
+<p>它會安裝 layerling 所需的一切，把 layerling 下載到你使用者資料夾中的 <code>layerling</code> 資料夾（<code>C:\Users\&lt;你的使用者名稱&gt;\layerling</code>），並在瀏覽器中開啟。第一次需要幾分鐘。</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/ai-quickstart-powershell.webp" alt="已貼上這一行的 Windows PowerShell。按 Enter 就開始了。" width="1280" height="385" loading="lazy"><figcaption>已貼上這一行的 Windows PowerShell。按 Enter 就開始了。</figcaption></figure>
+<p><strong>2. 讓 layerling 保持執行。</strong>只要 PowerShell 視窗開著，layerling 就在執行，而 AI 只能在它執行時建立模型。下次改為按兩下桌面上的「Start layerling」。</p>
+<p><strong>3. 安裝 Claude 應用程式。</strong>安裝 Windows 版 Claude 應用程式並登入。下一步用到的 Code 分頁屬於 Claude 的付費方案。</p>
+<p><strong>4. 在 Code 分頁中開啟 layerling 資料夾。</strong>在 Claude 應用程式上方切換到 Code，選擇你使用者資料夾中的 <code>layerling</code> 資料夾作為工作資料夾。layerling 已內建 Claude 找到其工具所需的一切。如果 Claude 詢問是否可以使用此資料夾的 MCP 伺服器「layerling」，請允許。</p>
+<p><strong>5. 告訴 Claude 要建立什麼。</strong>例如：「使用 layerling 工具，幫我建立一個直徑 60 mm、高 40 mm、壁厚 2.5 mm 的圓盒。」如果沒有開啟編輯器，Claude 會在你的瀏覽器中開啟一個，在其中一步步建立盒子，並拍圖檢查自己的工作。你在一旁觀看，隨時可以自己修改任何內容。</p>
+<p><strong>在 Mac 上</strong>步驟相同，只有以下不同。第 1 步：開啟「終端機」App（按 Cmd+空白鍵，輸入 <code>Terminal</code>，按 Enter），貼上下面這一行並按 Enter：</p>
+<pre><code>curl -fsSL https://raw.githubusercontent.com/henmedia/layerling/main/scripts/mac-quickstart.sh | sh</code></pre>
+<p>如果缺少 Git 或 Node.js，它會告訴你需要安裝什麼（macOS 會在視窗中提供 Git，Node.js 可從 nodejs.org 下載安裝程式）；裝好後再執行同一行。第 2 步：桌面上的捷徑同樣叫「Start layerling」。第 3 步：安裝適用於 Mac 的 Claude App。</p>
+<aside class="tip"><p><strong>提示：</strong>如果有什麼不正常，把你看到的情況告訴 Claude。它能讀取錯誤，通常會自己修復。如果編輯器裡沒有任何動靜，先檢查 layerling 是否仍在執行（第 2 步）。</p></aside>
+</section><section class="guide-part"><h2 id="setting-up">設定</h2>
+<ol><li>從 <a href="https://github.com/henmedia/layerling" rel="noopener">GitHub</a> 取得 layerling，並在專案資料夾中以 <code>npm run dev</code> 啟動。必須安裝 Node.js。在 Windows 上，README 中的快速開始指令會幫你處理。</li><li>開啟一個編輯器分頁，例如 <code>http://127.0.0.1:3000/?editor=1</code>。也可以交給 AI：沒有編輯器開啟時，第一個需要編輯器的工具會啟動瀏覽器並開啟編輯器，然後等待它連線。這對你自己電腦上的 layerling 有效；NAS 或伺服器上的副本則需要你自行開啟編輯器。若要關閉這個行為，請為 MCP 伺服器設定 <code>LAYERLING_MCP_OPEN_EDITOR=0</code>。</li><li>把你的 AI 用戶端連線到 MCP 伺服器。用戶端會自行以 <code>node scripts/layerling-mcp-server.mjs</code> 啟動它。</li></ol>
+<section class="guide-part"><h3 id="claude-code">Claude Code</h3>
+<p>無需安裝：專案自帶 <code>.mcp.json</code> 來註冊伺服器，以及 <code>.claude/skills/layerling-mcp-skill</code> 下的技能。在 Claude Code 中開啟 layerling 資料夾，然後這樣提問，例如：「用 layerling MCP 工具列出我開啟的編輯器，並檢查場景。」</p>
+</section><section class="guide-part"><h3 id="claude-desktop">Claude Desktop</h3>
+<p>Claude Desktop 不會讀取專案檔案。要在它自己的設定中加入伺服器。可拿專案中的 <code>docs/mcp/claude-desktop-config.example.json</code> 當範本，把指令碼路徑換成你電腦上的絕對路徑，然後重新啟動 Claude Desktop。</p>
+</section><section class="guide-part"><h3 id="codex">Codex</h3>
+<p>把 <code>docs/skills/layerling-mcp-skill</code> 的技能複製到 Codex 的技能資料夾，參考 <code>docs/mcp/codex-config.example.toml</code> 把伺服器寫進 Codex 設定，然後重新啟動 Codex。</p>
+</section><section class="guide-part"><h3 id="gemini-antigravity">Gemini &amp; Antigravity</h3>
+<p>Antigravity 會自動找到 <code>.agents/skills/layerling-mcp-skill</code> 中的工作區技能。使用 Gemini CLI 時，把 <code>docs/skills/layerling-mcp-skill</code> 的技能複製到全域技能資料夾（<code>~/.gemini/skills/</code>），參考 <code>docs/mcp/gemini-config.example.json</code> 把伺服器加入設定，然後重新啟動用戶端。</p>
+<p>各用戶端的詳細說明見 <a href="https://github.com/henmedia/layerling/blob/main/README.md#layerling-mcp-skill" rel="noopener">GitHub 上的 README</a>。</p>
+</section></section><section class="guide-part"><h2 id="nas"><span class="heading-alias" id="a-copy-on-a-nas-or-server"></span>NAS 或伺服器上的副本</h2>
+<p>自行架設的副本可以讓 AI 用戶端透過網路驅動它已開啟的編輯器。這項功能預設關閉，因為能驅動橋接的人就能讀取並修改已開啟的設計。在伺服器上，把 <code>LAYERLING_MCP_REMOTE</code> 設為 <code>true</code>，並把 <code>LAYERLING_MCP_TOKEN</code> 設為至少 16 個字元的密鑰（Docker 映像檔寫在 compose 檔案的 <code>environment:</code> 下；不需重新建置）。開啟該副本的一個編輯器分頁並保持開啟，然後把位址與同一個權杖交給 MCP 用戶端：<code>LAYERLING_URL=http://nas:3000</code> 和 <code>LAYERLING_MCP_TOKEN=&lt;the token&gt;</code>。</p>
+<p>只有持有權杖的用戶端才能列出或驅動編輯器。編輯器頁面本身不需要權杖，但只有在僅限自家網路使用的位址或名稱下才會被認可（IP 位址、不含點的名稱，或以 <code>.local</code> 或 <code>.lan</code> 結尾的名稱）；若經過反向代理使用真實網域名稱，要寫進 <code>LAYERLING_MCP_ALLOWED_HOSTS</code>。請在可信任的網路上使用，跨出該網路時改用 HTTPS。詳情見 README。</p>
+</section><section class="guide-part"><h2 id="ai"><span class="heading-alias" id="what-the-ai-can-do"></span>AI 能做什麼</h2>
+<p>AI 使用的是與你相同的功能，走的也是你在編輯器中操作時的同一條路徑。layerling 新增的功能會立刻有對應的 MCP 動作。工具如下：</p>
+<div class="table-scroll"><table><thead><tr><th>工具</th><th>作用</th></tr></thead><tbody><tr><td><code>layerling_list_editors</code></td><td>列出已開啟的編輯器分頁</td></tr><tr><td><code>layerling_rename_project</code></td><td>為專案命名，和專案名稱旁邊的鉛筆一樣</td></tr><tr><td><code>layerling_open_editor</code></td><td>在你的預設瀏覽器中開啟新的編輯器分頁，並等待它連線（僅限你自己的電腦）</td></tr><tr><td><code>layerling_read_scene</code></td><td>讀取場景、選取範圍、單位，以及所有物件的精確尺寸</td></tr><tr><td><code>layerling_list_objects</code></td><td>列出所有物件及其尺寸、位置、旋轉與 id</td></tr><tr><td><code>layerling_select_objects</code></td><td>選取物件</td></tr><tr><td><code>layerling_hide_others</code></td><td>隱藏選取或指定物件以外的所有內容，只佔一步復原</td></tr><tr><td><code>layerling_delete_objects</code></td><td>刪除物件</td></tr><tr><td><code>layerling_move_object</code></td><td>把物件移到物件清單中的另一個位置</td></tr><tr><td><code>layerling_create_shape</code></td><td>建立形狀：方塊、圓柱、文字（也能彎曲）、螺紋、齒輪、草圖實體，以及其他所有形狀</td></tr><tr><td><code>layerling_import_file</code></td><td>像匯入視窗一樣匯入檔案：彩色 OBJ 或 3MF 會依顏色各成一個實體，含多個物件的 3MF 則依物件各成一個實體</td></tr><tr><td><code>layerling_add_font</code></td><td>為文字新增自訂字型，支援 TrueType、OpenType 或 WOFF 檔案；字型會留在瀏覽器中，設計只保留用到的字母</td></tr><tr><td><code>layerling_list_fonts</code></td><td>列出內建字型與自訂字型，含 id 與名稱</td></tr><tr><td><code>layerling_import_mesh</code></td><td>把三角網格帶入設計</td></tr><tr><td><code>layerling_update_object</code></td><td>修改尺寸、位置、顏色、名稱、實體或孔，以及構成該形狀的其他所有設定，包括文字的字母邊緣</td></tr><tr><td><code>layerling_align_objects</code></td><td>讓物件彼此對齊</td></tr><tr><td><code>layerling_scale_objects</code></td><td>依百分比縮放物件，可一起縮放，或各自在原位縮放</td></tr><tr><td><code>layerling_lay_flat</code></td><td>讓物件以某個面平放在平台上</td></tr><tr><td><code>layerling_place_on_face</code></td><td>把物件放到另一個物件的面上，斜面也可以，就像 C 鍵</td></tr><tr><td><code>layerling_perforate_face</code></td><td>在平面上或繞圓柱、圓管、孔的側壁切出孔陣列；孔仍會以孔的形式與實體群組在一起</td></tr><tr><td><code>layerling_sweep_sketch</code></td><td>沿著由點構成的路徑，把矩形或圓形斷面掃掠成一個精確實體；封閉路徑會形成圓環</td></tr><tr><td><code>layerling_push_face</code></td><td>把平面推出，或在其中挖出凹槽，可設定距邊緣的內縮與轉角半徑；新零件是與實體群組在一起的草圖實體</td></tr><tr><td><code>layerling_paint</code></td><td>為多色列印給實體的部分表面上自己的顏色（上色）：把面填色到銳利邊緣、圓斑，或在平面檢視中畫的套索；橡皮擦、全部清除；隨實體儲存，並在 3MF 中寫成已上色的面</td></tr><tr><td><code>layerling_support_rib</code></td><td>在以一條稜邊傾斜列印的零件下表面下方立一條薄支撐肋，帶一層高的連接橋（支撐肋）</td></tr><tr><td><code>layerling_stencil_bridges</code></td><td>用與板組合在一起、寬度和高度可設的連接橋固定文字穿透的板中會掉出的部分（模板連接橋）</td></tr><tr><td><code>layerling_mate_faces</code></td><td>把一個物件的面貼到另一個物件的面，可面對面或齊平</td></tr><tr><td><code>layerling_open_group</code></td><td>開啟群組，以便逐一修改其中的部件，開啟中的群組內還能再開啟群組</td></tr><tr><td><code>layerling_close_group</code></td><td>再次關閉群組（「完成」）或取消</td></tr><tr><td><code>layerling_add_to_group</code></td><td>不開啟群組就把單獨的物件放進群組</td></tr><tr><td><code>layerling_take_out_of_group</code></td><td>不開啟群組就從群組取出一個零件</td></tr><tr><td><code>layerling_group_objects</code></td><td>群組物件</td></tr><tr><td><code>layerling_ungroup_objects</code></td><td>取消群組</td></tr><tr><td><code>layerling_boolean_cut</code></td><td>用孔切割實體</td></tr><tr><td><code>layerling_intersect_objects</code></td><td>只保留物件共同的部分（交集）</td></tr><tr><td><code>layerling_hull_objects</code></td><td>把物件包成一個凸體，就像用收縮膜包住一樣（凸包）</td></tr><tr><td><code>layerling_cookie_cutter</code></td><td>makes a cookie cutter from the objects: a wall and a rim round the outline (Cookie cutter)</td></tr><tr><td><code>layerling_flexi_joints</code></td><td>cuts a flat body into links with joints printed in place that swing to the sides (Flexi joints)</td></tr><tr><td><code>layerling_make_lid</code></td><td>makes a lid for a body open at the top: pushed in, over the top or flat, with the fit you choose and magnets if you like (Lid)</td></tr><tr><td><code>layerling_make_cable_channel</code></td><td>runs a round channel for a cable through a body from an entry to an exit, finding the way itself with gentle bends (Cable channel)</td></tr><tr><td><code>layerling_loft_sketches</code></td><td>joins two sketch bodies into a loft from one outline to the other (Loft sketches)</td></tr><tr><td><code>layerling_separate_parts</code></td><td>把形狀分離成各自的鬆散部件；草圖實體則依輪廓拆成每個輪廓一個實體</td></tr><tr><td><code>layerling_split_objects</code></td><td>用平面把實體或孔切成兩半</td></tr><tr><td><code>layerling_list_edges</code></td><td>列出一個物件真實的 CAD 邊</td></tr><tr><td><code>layerling_apply_edge_treatment</code></td><td>對選定的邊倒角或圓角</td></tr><tr><td><code>layerling_hollow_object</code></td><td>以均勻壁厚抽殼實體</td></tr><tr><td><code>layerling_cut_out</code></td><td>從一個實體中挖出另一個實體使兩者配合：零件保留，依間隙放大的副本從另一個實體中減去</td></tr><tr><td><code>layerling_punch</code></td><td>沿 x、y 或 z 把一個實體的輪廓筆直沖穿另一個實體；沖頭保留，且不必接觸它</td></tr><tr><td><code>layerling_offset_object</code></td><td>移動實體的所有面以得到配合間隙：放大或縮小實體，或把放大的副本作為孔加入，或只移動側面</td></tr><tr><td><code>layerling_list_faces</code></td><td>列出精確實體的面</td></tr><tr><td><code>layerling_delete_faces</code></td><td>刪除面並補平缺口</td></tr><tr><td><code>layerling_array_objects</code></td><td>以直線、網格排列或環繞圓周複製</td></tr><tr><td><code>layerling_bundle_objects</code></td><td>像 Ctrl+B 一樣綁定物件：它們一起移動、保留各自的顏色與類型，匯出時分開輸出</td></tr><tr><td><code>layerling_layer_text</code></td><td>把文字變成多色列印用的分層堆疊（字母、較寬的外框、無孔底板），或再次重建這樣的堆疊，可加入鑰匙圈孔、設定每層轉角，以及圓角或倒角的字母邊緣；給出名稱清單時，每個名稱做一個名牌</td></tr><tr><td><code>layerling_text_block</code></td><td>產生文字區塊：一段文字成為多行中的第一行，每行都是上一行下方的獨立文字，靠左、置中或靠右對齊，每行大小相同或更小</td></tr><tr><td><code>layerling_layer_icon</code></td><td>把 SVG 圖示（檔案中的文字，或擠出後的草圖實體）變成多色列印用的分層圖示牌——圖示、較寬的外框、無孔底板——或以新的寬度或層數重建；給出數量時，用副本鋪滿平台</td></tr><tr><td><code>layerling_create_qr_code</code></td><td>從文字或網址產生 QR Code，就像形狀庫中的 <strong class="ui">「QR Code」</strong>——可只留 QR Code 本身、在平台上凸起或雕刻，並設定糾錯等級、寬度、高度與靜區，也能指定做成孔；模組小於 0.8 mm 時會提出警告</td></tr><tr><td><code>layerling_create_sbc_board</code></td><td>放置按實際尺寸的 SBC 主機板，就像形狀庫中的 <strong class="ui">「SBC 主機板」</strong>——Raspberry Pi 5、4、3 B+、Zero 2 W 或 BIGTREETECH Pi，帶孔和接頭，可設定邊緣接頭的間隙與位置，也可作為孔來切割外殼</td></tr><tr><td><code>layerling_reference_image</code></td><td>像 <strong class="ui">「參考圖片」</strong> 一樣從圖片新增參考圖片，或移動、旋轉、校準（圖片上的兩個點及其實際距離）、淡化或鎖定參考圖片——這是一種永遠不會被匯出或列印的輔助參考；<code>trace</code> 將其暗部或亮部變為立在其上的草圖實體</td></tr><tr><td><code>layerling_measure_section</code></td><td>在兩點之間的剖切平面上量測，兩點會吸附到輪廓——壁厚、間隙、配合</td></tr><tr><td><code>layerling_show_overhangs</code></td><td>開啟或關閉懸垂剖面線、設定角度，並回報每個實體需要支撐的面積</td></tr><tr><td><code>layerling_estimate_print</code></td><td>估算選取範圍或整個設計的體積、重量與線材用量：以實心實體計算，也像匯出視窗那樣以壁厚與填充做粗略估計</td></tr><tr><td><code>layerling_check_clearance</code></td><td>列印前檢查哪些零件重疊、接觸或間距小於最小間隙，也檢查同一物件中彼此分離的零件</td></tr><tr><td><code>layerling_printer_play</code></td><td>讀取、設定或清除印表機間隙（設定中的<strong class="ui">「印表機間隙」</strong>），並放置用來測量它的配合測試件</td></tr><tr><td><code>layerling_check_print</code></td><td>列印前檢查會出什麼問題：對噴嘴來說過薄的壁、懸空的零件、與平台接觸過少、懸垂和開放網格</td></tr><tr><td><code>layerling_add_reference_points</code></td><td>標記參考點——可落在物件的中心、角落或邊中點，也可指定精確位置——形狀會吸附到這些點</td></tr><tr><td><code>layerling_list_reference_points</code></td><td>列出參考點及其 id 與位置</td></tr><tr><td><code>layerling_remove_reference_points</code></td><td>依 id 刪除參考點，或全部刪除</td></tr><tr><td><code>layerling_list_notes</code></td><td>讀取使用者的備註，包括文字、每則所附著的實體，以及它是否是給 AI 的請求</td></tr><tr><td><code>layerling_wait_for_notes</code></td><td>等待你在註記上勾選 <strong class="ui">「交給 AI」</strong>，並立即轉交該請求</td></tr><tr><td><code>layerling_add_note</code></td><td>在模型上放一則備註，附著在物件上或自由放在工作板上</td></tr><tr><td><code>layerling_update_note</code></td><td>修改一則備註或回覆它；回覆會關閉請求</td></tr><tr><td><code>layerling_remove_notes</code></td><td>依 id 刪除備註</td></tr><tr><td><code>layerling_inspect_errors</code></td><td>顯示最後一則訊息與最後一個錯誤，以及本次工作階段的訊息與錯誤</td></tr><tr><td><code>layerling_wrap_around_cylinder</code></td><td>把平放的實體（例如 SVG 或文字）包覆到圓柱上，可向外，或向內作為雕刻</td></tr><tr><td><code>layerling_texture_surface</code></td><td>為實體加上表面紋理：凹槽、滾花、蜂巢或凸點，用於止滑或美觀，之後仍可修改或移除</td></tr><tr><td><code>layerling_simplify_mesh</code></td><td>減少匯入網格的三角面數量，可縮減到某個百分比，或指定三角面數</td></tr><tr><td><code>layerling_make_exact</code></td><td>將匯入網格轉為精確的 CAD 實體：平面、圓柱面、圓錐面、球面和圓環面成為真正的面，邊能乾淨地倒圓角，STEP 也會帶上它們</td></tr><tr><td><code>layerling_save_custom_shape</code></td><td>把實體儲存為自訂形狀，可儲存在伺服器或瀏覽器，之後插入其他設計</td></tr><tr><td><code>layerling_list_custom_shapes</code></td><td>列出伺服器與瀏覽器中的自訂形狀</td></tr><tr><td><code>layerling_insert_custom_shape</code></td><td>把自訂形狀插入開啟中的設計，可指定 x/z 位置</td></tr><tr><td><code>layerling_delete_custom_shape</code></td><td>移除自訂形狀；已插入的實體會保留</td></tr><tr><td><code>layerling_show_workplane</code></td><td>隱藏或顯示帶格線的平台，例如為了拍攝底面（只影響檢視）</td></tr><tr><td><code>layerling_set_section_view</code></td><td>沿平面剖開檢視以查看內部（只影響檢視，不會真的切開任何東西）</td></tr><tr><td><code>layerling_measurements</code></td><td>顯示或隱藏捲尺的量測，並列出它們及其長度，並像 <kbd>Q</kbd> 一樣隱藏或顯示所選物件周圍的尺寸，並可為其中一個量測輸入長度，像點擊其數字一樣移動其一端的物體</td></tr><tr><td><code>layerling_measure_angle</code></td><td>像量角器一樣量測角度：三點的頂點處或兩個平面之間，並在檢視中顯示</td></tr><tr><td><code>layerling_saved_view</code></td><td>把目前檢視儲存到按鍵 7、8、9 或 0，之後可回到該檢視，就像 Shift+按鍵與單按該鍵（只影響檢視）；也可設定新設計的起始視圖</td></tr><tr><td><code>layerling_build_plates</code></td><td>列出、新增、命名、排序和移除列印板，把物件移到某個列印板並分配到各列印板上，如同列印板列</td></tr><tr><td><code>layerling_clear_history</code></td><td>永久刪除所有復原步驟，就像歷史記錄檢視的「刪除歷史記錄」按鈕；需要 <code>confirm: true</code></td></tr><tr><td><code>layerling_set_history_view</code></td><td>回看專案較早的狀態，就像歷史記錄檢視（實際設計不受影響；會修改設計的工具會等到它關閉）</td></tr><tr><td><code>layerling_restore_from_history</code></td><td>把物件（也包括群組內的部件）從較早的狀態以副本帶回設計，就像歷史記錄檢視的「帶入設計」——復原時一步就能撤回</td></tr><tr><td><code>layerling_export_section_svg</code></td><td>以 1:1 的 SVG 回傳剖切平面上的輪廓，所用實體與匯出時相同</td></tr><tr><td><code>layerling_sketch_from_section</code></td><td>用剖切平面上的輪廓建立一個位於切口上的草圖：在編輯器中開啟以便修改，或立即建構為指定高度的實體</td></tr><tr><td><code>layerling_export_drawing</code></td><td>製作「2D」匯出的工程圖：在 ISO 圖紙上以 1:1 繪出三個視圖，標註整體尺寸並附圓孔表格，可輸出 SVG 文字或 PDF</td></tr><tr><td><code>layerling_export_mesh</code></td><td>寫出匯出視窗的檔案，可為 STL、3MF、OBJ、SVG（俯視、底面輪廓或可見邊）或用於雷射切割的 DXF，所用實體相同；可寫到這台電腦上的路徑，或以 base64 回傳</td></tr><tr><td><code>layerling_save_project</code></td><td>把整個可編輯設計儲存成 .lyl 檔，寫到執行 MCP 伺服器的那台電腦上的路徑，不會跳出對話方塊；既有檔案只有在指定 <code>overwrite</code> 時才會被取代，寫入時會先經過暫存檔，而編輯器中 Ctrl+S 的目標維持不變</td></tr><tr><td><code>layerling_list_attachments</code></td><td>列出附加到設計的檔案（名稱、類型、大小），與「Attachments」面板顯示的一致</td></tr><tr><td><code>layerling_get_attachment</code></td><td>讀取一個附件，以 base64 傳回其位元組，與面板中的「Download」相同</td></tr><tr><td><code>layerling_add_attachment</code></td><td>附加一個以 base64 提供的檔案，並經過面板的檢查；已附加的同名檔案只有在 <code>replace</code> 時才會被覆寫</td></tr><tr><td><code>layerling_rename_attachment</code></td><td>為附件改名；內容不變</td></tr><tr><td><code>layerling_remove_attachment</code></td><td>永久移除一個附件；需要 <code>confirm: true</code></td></tr><tr><td><code>layerling_set_workplane</code></td><td>把工作平面放到實體的某個面，或放回底板，並可隱藏或顯示</td></tr><tr><td><code>layerling_capture_image</code></td><td>擷取檢視畫面：前視、上視、側視、從角落斜看等</td></tr></tbody></table></div>
+<p>這樣 AI 就能自我檢查：建立東西、拍張圖片、看一看再改進。</p>
+</section><section class="guide-part"><h2 id="an-example">範例</h2>
+<p>你說：「幫我做一個直徑 60 mm、高 40 mm、壁厚 2.5 mm、頂部開口的圓盒，再加一個平的蓋子，上面用弧形排列寫出『Tea』。」AI 會建立圓柱、把其中一個抽殼、把彎曲的文字放到蓋子上，最後拍幾張圖片看看合不合。</p>
+<aside class="tip"><p><strong>提示：</strong> 給 AI 具體的尺寸，並告訴它零件的用途（「12 mm 圓桿的固定座，適用 Bambu Lab A1」）。這樣它做的決定會更合理。也看著它建立：你隨時都能自己接手，因為用的是同一個編輯器。</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/zh-tw/shortcuts.html"><small>上一章</small>鍵盤快速鍵</a><a class="next" href="/api/desktop/layerling/ui/zh-tw/offline-and-install.html"><small>下一章</small>安裝為應用程式、離線使用與自架</a></div>
+      </main>
+    </div>
+    <footer class="note">本指南隨程式一同完善。如有缺漏或錯誤，請到 <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">討論區告訴我們</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=zh-tw" rel="noopener">支援專案</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">討論區</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">在 GitHub 上了解更多</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">版本說明 v1.154.1</a></div><p class="trademark">Tinkercad 是 Autodesk, Inc. 的商標。layerling 是獨立專案，與 Autodesk 無關聯，也未獲其認可或贊助。</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="返回編輯器";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="開啟編輯器";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Måling og noter - layerling brugervejledning</title>
+    <meta name="description" content="Målebånd, lineal og vinkelmåler, afstande til nulpunktet, noter der følger med en del, og referencepunkter som ting snapper til.">
+    <link rel="canonical" href="https://layerling.com/vejledning/measuring-and-notes.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/measuring-and-notes.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/measuring-and-notes.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/measuring-and-notes.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/messen-und-notizen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/measuring-and-notes.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/measuring-and-notes.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/measuring-and-notes.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/measuring-and-notes.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/meten-en-notities.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/measuring-and-notes.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/merjenje-in-opombe.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/measuring-and-notes.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/measuring-and-notes.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/measuring-and-notes.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/measuring-and-notes.html">
+    <meta property="og:title" content="Måling og noter - layerling brugervejledning">
+    <meta property="og:description" content="Målebånd, lineal og vinkelmåler, afstande til nulpunktet, noter der følger med en del, og referencepunkter som ting snapper til.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/vejledning/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Brugervejledning</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/vejledning/search-index.json" data-nothing="Intet fundet." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Søg i vejledningen" aria-label="Søg i vejledningen" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Sprog">Dansk</summary><ul><li><a href="/api/desktop/layerling/ui/guide/measuring-and-notes.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/measuring-and-notes.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/measuring-and-notes.html" hreflang="da" lang="da" aria-current="true">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/measuring-and-notes.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/measuring-and-notes.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/measuring-and-notes.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/measuring-and-notes.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/measuring-and-notes.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/measuring-and-notes.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/measuring-and-notes.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/merjenje-in-opombe.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/measuring-and-notes.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/measuring-and-notes.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/measuring-and-notes.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/measuring-and-notes.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/measuring-and-notes.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/measuring-and-notes.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Åbn editoren</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Editoren er allerede åben i en anden fane – skift bare til den.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Kapitler"><h2>Kapitler</h2><p class="print-link"><a href="/api/desktop/layerling/ui/vejledning/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Hele vejledningen, til udskrivning</span></a></p><ol><li><a href="/api/desktop/layerling/ui/vejledning/getting-started.html">Kom godt i gang</a></li><li><a href="/api/desktop/layerling/ui/vejledning/view-and-workplane.html">Visning og arbejdsplan</a></li><li><a href="/api/desktop/layerling/ui/vejledning/shapes.html">Placering og justering af former</a></li><li><a href="/api/desktop/layerling/ui/vejledning/select-and-arrange.html">Valg og arrangering</a></li><li><a href="/api/desktop/layerling/ui/vejledning/solids-and-holes.html">Solider og huller</a></li><li><a href="/api/desktop/layerling/ui/vejledning/edges-and-hollowing.html">Bryd kanter og hul former</a></li><li><a href="/api/desktop/layerling/ui/vejledning/sketches.html">Skitser: fra omrids til form</a></li><li><a href="/api/desktop/layerling/ui/vejledning/text.html">Tekst og buede bogstaver</a></li><li><a href="/api/desktop/layerling/ui/vejledning/threads-and-mechanics.html">Gevind, tandhjul og andre dele</a></li><li><a href="/api/desktop/layerling/ui/vejledning/measuring-and-notes.html" aria-current="page">Måling og noter</a></li><li><a href="/api/desktop/layerling/ui/vejledning/printing.html">Forberedelse til 3D-print</a></li><li><a href="/api/desktop/layerling/ui/vejledning/files-and-saving.html">Filer, lagring og deling</a></li><li><a href="/api/desktop/layerling/ui/vejledning/shortcuts.html">Tastaturgenveje</a></li><li><a href="/api/desktop/layerling/ui/vejledning/ai-with-mcp.html">Byg med en AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/vejledning/offline-and-install.html">Installér som app, arbejd offline og vær selv vært</a></li><li><a href="/api/desktop/layerling/ui/vejledning/videos.html">Videoer om layerling</a></li><li><a href="/api/desktop/layerling/ui/vejledning/tablet-and-touch.html">Tablet og touch</a></li></ol></nav>
+      <main>
+<h1>Måling og noter</h1>
+<p class="lead">Målebånd, lineal og vinkelmåler, afstande til nulpunktet, noter der følger med en del, og referencepunkter som ting snapper til.</p>
+<div class="toc"><b>På denne side</b><ul><li><a href="#malebandet">Målebåndet</a></li><li><a href="#linealen">Linealen</a></li><li><a href="#vinkelmaleren">Vinkelmåleren</a></li><li><a href="#gradskiven">Gradskiven</a></li><li><a href="#afstande-til-nulpunktet-og-under-flytning">Afstande til nulpunktet og under flytning</a></li><li><a href="#tjek-spillerum">Tjek spillerum</a></li><li><a href="#noter">Noter</a></li><li><a href="#referencepunkter">Referencepunkter</a></li><li><a href="#referencebilleder">Referencebilleder</a></li></ul></div>
+<p>For at bygge en del præcist skal man måle. layerling har flere værktøjer til det. Ingen af dem ender i en eksport. Vægtykkelse og mellemrum inden i en del måles bedst i <a href="/api/desktop/layerling/ui/vejledning/view-and-workplane.html">snitvisningen</a> med <strong class="ui">“Mål”</strong>.</p>
+<section class="guide-part"><h2 id="malebandet"><span class="heading-alias" id="the-tape-measure"></span>Målebåndet</h2>
+<p>Målebåndet sidder for neden i visningsbjælken ved venstre kant (<strong class="ui">“Målebånd”</strong>). Det måler afstande mellem hjørner, kanter og flader. Et klik på den åbner fem knapper. Dækker de det du vil måle, så træk dem i grebet til venstre, et hvilket som helst sted på arbejdsplanet; et dobbeltklik på grebet sætter dem tilbage:</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/tape-menu.webp" alt="Målebåndet med dets knapper: tilføj mål, flyt målepunkter, fjern mål, hele kanter, slet alle mål." width="1280" height="800" loading="lazy"><figcaption>Målebåndet med dets knapper: tilføj mål, flyt målepunkter, fjern mål, hele kanter, slet alle mål.</figcaption></figure>
+<ol><li><strong><strong class="ui">“Tilføj mål”</strong>:</strong> Klik et punkt, træk til det næste og klik det. Afstanden er mærket, med de akser den løber langs foran: X, Y eller Z for en lige, XY, XZ eller YZ på tværs af et plan, 3D for alle tre. Hold markøren over etiketten for at se, hvor langt målet rækker langs hver akse, og over et punkt for at se dets koordinater. Mens du sætter det andet punkt, vises akserne, afstanden og rækkevidden langs hver akse ved siden af markøren. Et mål, der for det meste ligger bag et andet legeme, bliver blegt; holder du markøren over dets linje eller etiket, vises det fuldt igen. Ud over hjørner og kanter snapper et punkt også til midten af den plane flade under markøren og til centrum af en rund kant, såsom kanten af et hul eller en cylinder: et lille kryds i en cirkel viser det tilbudte centrum; når markøren kommer tæt på, snapper punktet dertil, og et tip siger, hvad det er midten af (<strong class="ui">“Fladens midte”</strong>, <strong class="ui">“Hullets midte”</strong> eller <strong class="ui">“Cirklens midtpunkt”</strong>). På en modsat kant eller flade snapper det andet punkt ind i en ret vinkel til det første, når markøren kommer nær – eller hvor som helst på den kant eller flade, mens du holder <kbd>Shift</kbd>. Langs den samme flade eller på arbejdsplanet holder <kbd>Shift</kbd> målet lige langs hovedaksen.</li><li><strong><strong class="ui">“Flyt målepunkter”</strong>:</strong> Tag fat i punkterne og flyt dem, tallet følger med.</li><li><strong><strong class="ui">“Slet måledel”</strong>:</strong> Klik bagefter et mål for at fjerne det. Mens <strong><strong class="ui">“Tilføj mål”</strong></strong> er aktiv, sletter et klik på et målepunkt eller en mållinje, mens du holder <kbd>Shift</kbd> eller <kbd>Ctrl</kbd> (<kbd>Cmd</kbd> på en Mac), straks målet uden at skifte tilstand.</li><li><strong><strong class="ui">“Mål hele kanter”</strong>:</strong> Et klik på en kant måler hele den. En rund kant siger sin diameter (Ø), for eksempel kanten af et hul eller en cylinder, og en buet kant sin radius (R); peg på tallet for at se længden langs kanten. Med denne slået fra sætter et klik et punkt på kanten i stedet, og det andet punkt kan være hvor som helst, så du kan måle diameteren eller enhver anden afstand. <kbd>Alt</kbd> bytter om for ét klik. På en cirkel snapper punktet overfor til når markøren kommer nær, og punkterne sidder på den sande cirkel, så diameteren kommer nøjagtig ud.</li><li><strong><strong class="ui">“Slet alle mål”</strong>:</strong> Fjerner hvert mål på én gang. Da det ikke kan fortrydes, spørger layerling først; uden mål er der intet at gøre.</li><li><strong><strong class="ui">“Markér midten som referencepunkt”</strong>:</strong> Midt på hvert mål sidder et lille rundt mærke med den nederste halvdel udfyldt. Den sætter et <a href="#referencepunkter">referencepunkt</a> midt i målet: efter et klik på en rund kant, såsom kanten af et hul, i midten af den cirkel - også på et importeret mesh, hvor intet andet markerer midten af et hul - og for en diameter eller et hvilket som helst lige mål halvvejs langs det. En form du trækker snapper så til punktet med sit centrum. Et punkt der allerede er der laves ikke to gange.</li><li><strong><strong class="ui">“Skriv en længde: legemet ved det andet punkt flyttes langs linjen; en negativ længde flytter det forbi det første punkt”</strong>:</strong> Når mindst én ende af en lige måling sidder på et legeme, kan tallet klikkes. Skriv en ny længde og tryk <kbd>Enter</kbd>: legemet ved det andet punkt flyttes langs den målte linje, til afstanden er præcis den, som med linealen i Tinkercad. Er kun legemet ved det første punkt valgt, flyttes det i stedet. Målepunkterne bliver på legemet, så målingen følger med. Mål fra et hjørne, en kant eller midten af en flade eller et hul for at placere dele i en præcis afstand: fra midten af et hul til midten af toppen af en cylinder flyttes cylinderen fra midte til midte. En negativ længde flytter det så langt forbi det første punkt, for eksempel 5 mm inden for kanten af en kasse. Et <a href="#referencepunkter">referencepunkt</a> hører ikke til noget legeme, så mellem to referencepunkter flytter intet sig. Går målingen langs to eller tre akser, har feltet under længden også en boks til hver af dem (ΔX, ΔY, ΔZ, de afstande der vises, når du peger på tallet): skriv der i stedet, så flyttes legemet kun langs den akse. <kbd>Tab</kbd> springer fra boks til boks, <kbd>Esc</kbd> lukker feltet uden at flytte noget. Peger du på tallet, står der, hvilket legeme der flyttes, eller hvorfor intet kan: det er låst, begge punkter ligger på samme legeme, eller ingen af dem ligger på et legeme. Beskeden bagefter siger, hvad der blev flyttet og hvor langt; én fortryd tager det tilbage. Målebåndet snapper til et referencepunkt som til et hjørne, så du kan måle fra centrum af en cirkel eller fra midten af en linje: markér punktet, og klik så på det.</li></ol>
+<p><kbd>Esc</kbd> forlader måletilstand.</p>
+</section><section class="guide-part"><h2 id="linealen"><span class="heading-alias" id="the-ruler"></span>Linealen</h2>
+<p>Du henter <strong class="ui">“Lineal”</strong> fra formbiblioteket. Den er rent et måleværktøj: den optræder i ingen eksport og kan hverken grupperes eller skæres. For hver form der rører eller overlapper linealen viser den udstrækningen som et flydende tal lige i visningen. Du kan ændre det tal der, og formen følger med. Rejs linealen op eller vip den, så måler den i sin egen retning: står den oprejst ved siden af en form, viser den formens højde. Det flydende plus-symbol laver en kopi af den målte form; det er der, mens linealen ligger ned. Dens påtrykte skala er i millimeter langs den ene lange kant, med tierne nummereret, og i tommer langs den anden, med en streg for hver sekstendedel tomme og de hele tommer nummereret. Skalaen for den enhed, du arbejder i (kontakten nederst til højre), løber langs den øverste kant; en lineal smallere end 15 mm har kun den ene.</p>
+</section><section class="guide-part"><h2 id="vinkelmaleren"><span class="heading-alias" id="the-framing-square"></span>Vinkelmåleren</h2>
+<p>Nogle gange måler man bedre i en ret vinkel. Klik på <strong class="ui">“Placér vinkelmåler”</strong> i visningsbjælken og derefter på arbejdsplanet. En vinkelmåler med to arme i en ret vinkel, med takker som en vinkelhage, placeres der. Den har heller ingen egen form. Klik tæt på et hjørne af en form, og dens hjørne snapper præcis der. Designet beholder vinkelmåleren, hvor du satte den, også i en gemt LYL-fil: når du åbner designet igen, er den det samme sted, drejet den samme vej og måler fra de samme punkter, indtil du fjerner den. Har du brug for den i næsten hvert design, så slå <strong class="ui">“Start nye designs med vinkelmåler i nulpunktet”</strong> til under <strong class="ui">“Mål”</strong> i indstillingerne: så starter hvert nyt design med en vinkelmåler i nulpunktet.</p>
+<p>Vinkelmåleren ligger på arbejdsplanet. Ligger det på siden af en form, ligger vinkelmåleren også på den side, se <a href="/api/desktop/layerling/ui/vejledning/view-and-workplane.html">Visning og arbejdsplan</a>. Sådan målsætter du på en lodret væg: læg arbejdsplanet på væggen, placér måleren i dens øverste venstre hjørne og klik håndtaget indtil armene peger til højre og ned.</p>
+<ul><li><strong>At trække håndtaget</strong> flytter den.</li><li><strong>Et kort klik på håndtaget</strong> drejer den 90°.</li><li><strong>×</strong> ved siden af fjerner den.</li><li><strong>Træk i den lille cirkel for enden af en arm</strong> for at gøre armen længere eller kortere, i hele millimeter. Den nederste knap under håndtaget, <strong class="ui">“Arme lige så lange som printpladen (træk i enden af en arm for at ændre dens længde)”</strong>, gør begge arme lige så lange, som printpladen på printeren fra indstillingerne er bred og dyb. Vinklen gemmer armenes længder med designet, og en vinkel, der sættes igen, overtager dem.</li><li><strong>Den lille knap til venstre for håndtaget</strong> skifter hvad der måles fra: ydersiden af en form (endepunkt, et ikon med streger) eller dens midte (midtpunkt, et sigtekorn). En lille kontakt af samme slags sidder ved siden af hvert grønt tal og sætter kun det tal: for en stående cylinder er det midten i de to arme og bunden i højden, for en liggende midten på tværs og en ende i længden. Når alle tre igen er enige, viser knappen ved håndtaget den fælles tilstand.</li></ul>
+<p>Står der former ved en af armene, viser vinkelmåleren automatisk deres dimensioner, valgt eller ikke: former inden i vinkelmåleren, ved siden af en arm eller på tværs af den. En form uden for den, bag hjørnet eller ved siden af en arm udefra, får ingen. Det virker kun på grundpladen, ikke på siden af en form. Knappen med pilen under vinkelmålerens håndtag slår det fra, så kun de valgte former viser deres mål; den gemmes med designet.</p>
+<p>Når du vælger en form, viser vinkelmåleren med grønt hvor langt den er fra hjørnet, langs begge arme og i højden. Klik et grønt tal for at taste en afstand, og formen flytter sig præcis derhen. Med flere former valgt tæller de som én: måleren måler deres fælles omrids, og en tastet værdi flytter dem alle sammen uden at ændre deres position i forhold til hinanden.</p>
+<p>De grønne tals hjælpelinjer løber langs det plan, vinkelmåleren ligger i, frem til punktet under eller ved siden af formen; højden har sin egen pil. Hvert tals kontakt sidder i tallets ramme. Armene og takkerne er linjer i rummet: en form foran dem skjuler dem, som en rigtig vinkelhage ville blive skjult. Det lille øje under håndtaget skifter det: med øjet gennemstreget skjuler former måleren (det er udgangspunktet); med øjet åbent bliver måleren liggende over alt. Tallene på armene falmer, hvor en form står foran dem.</p>
+<p>Med midtpunktet tæller de grønne tal til formens midte, også i højden. Sådan placerer du en kugle med dens centrum præcis 15 mm fra en kant, uden at trække radius fra. På en væg placerer du et hul 40 mm fra venstre og 190 mm fra toppen sådan: vælg hullet, skift til midtpunkt, tast 40 og 190. Højden der tæller udad fra væggen.</p>
+<p>Både målebåndet og vinkelmåleren bliver hvor de er mens du skitser og kommer tilbage til 3D-visningen. Ingen af dem er i historikken. Vinkelmåleren gemmes med designet, og det samme gør målebåndets målinger, i browseren og i .lyl-filen: de er der igen, når du åbner designet. Øjeknappen blandt målebåndets knapper skjuler alle målinger og viser dem igen; om de er skjult, gemmes også, og hvis du sætter, flytter eller sletter en måling, vises de først.</p>
+</section><section class="guide-part"><h2 id="gradskiven"><span class="heading-alias" id="the-protractor"></span>Gradskiven</h2>
+<p>Klik på <strong class="ui">“Gradskive”</strong> i visningsbjælken for at måle en vinkel. Ved siden af åbner en række knapper, og indtil du klikker på knappen igen eller trykker <kbd>Esc</kbd>, måler et klik i visningen med gradskiven. Ligesom målebåndet fanger den hjørner og kanter på former; ved siden af formerne sætter den et punkt på pladen.</p>
+<ul><li><strong class="ui">“Vinkel ud fra tre punkter”</strong>: klik først på vinklens hjørne, derefter på et punkt på hvert ben. Mens du sætter det sidste punkt, vises vinklen allerede; efter det tredje klik bliver den stående med en bue mellem benene. Det er vinklen i hjørnet, fra 0° til 180°.</li><li><strong class="ui">“Vinkel mellem to flader”</strong>: klik på to plane flader. En kort blå streg på hver viser, hvilken vej fladen vender, og mærkaten angiver begge vinkler, fladerne danner, den mindste først: en 45°-affasning mod toppen giver 45° · 135°, to sider af en kasse kun 90°. En krum flade har ikke én retning, så gradskiven beder om en plan flade.</li></ul>
+<p>Det næste klik efter en færdig vinkel starter en ny, og <strong class="ui">“Fjern vinklen”</strong> fjerner den. Vinklen følger formerne, når de flyttes eller drejes. Intet af den gemmes eller kommer i historikken: den er væk, når du lægger gradskiven fra dig.</p>
+</section><section class="guide-part"><h2 id="afstande-til-nulpunktet-og-under-flytning"><span class="heading-alias" id="distances-to-the-origin-and-while-moving"></span>Afstande til nulpunktet og under flytning</h2>
+<p>Under <strong class="ui">“Udseende”</strong> i indstillingerne er der to kontakter for levende dimensioner:</p>
+<ul><li><strong class="ui">“Vis flyttemål”</strong> viser hvor meget du flytter mens du trækker. Det gælder også, når du løfter med den sorte pil over et legeme; vejen måles op langs dets forreste hjørne. Piletasterne viser også vejen: tastetrykkene tæller sammen, indtil du markerer noget andet eller drager, og <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>↑</kbd></span> og <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>↓</kbd></span> viser vejen op eller ned. Når du har sluppet, klikker du på sådan et tal og skriver den nøjagtige afstand; minus går ned.</li><li><strong class="ui">“Vis afstande til nulpunktet”</strong> viser afstandene fra markeringen til pladens nulpunkt, også med flere valgte former.</li></ul>
+<p>Med <strong class="ui">“Mål altid synlige”</strong> bliver dimensionerne permanent synlige. Et legeme, der ikke står på arbejdsplanet, viser også sin højde over det; klik på tallet for at skrive en ny. Med <strong class="ui">“Målfelter i aksefarver”</strong> får hvert felt farven på sin akse, ligesom håndtagene: rød for X, grøn for Y og blå for Z. Så ser du også på en lille del med det samme, hvilket tal der er hvilket.</p>
+<p>Står de i vejen et øjeblik, så tryk <kbd>Q</kbd>: målene og afstandene omkring markeringen forsvinder, så en del du flytter er nem at se. <kbd>Q</kbd> igen henter dem tilbage. Et håndtag du peger på viser stadig sit mål.</p>
+</section><section class="guide-part"><h2 id="tjek-spillerum"><span class="heading-alias" id="checking-clearance"></span>Tjek spillerum</h2>
+<p>Dele, der skal kunne bevæge sig efter print - en flexi-drage, et hængsel printet i ét stykke, en æske med låg, en aksel i sit hul - skal have afstand til hinanden. Er den for lille, hænger de sammen; overlapper de, printes de som ét stykke. <strong class="ui">“Tjek spillerum”</strong> ved siden af <strong class="ui">“Overgang mellem skitser”</strong> tjekker det, før du printer. Det tager de valgte objekter eller, når intet er valgt, alle synlige (de samme som en eksport tager) og tjekker hvert par:</p>
+<ul><li><strong><strong class="ui">“Overlap”</strong></strong> (rød): de to deler et rumfang. Det vises rødt inde i legemerne, som bliver gennemsigtige, og listen angiver dets størrelse.</li><li><strong><strong class="ui">“Rører hinanden”</strong></strong> (rød): de rører hinanden og smelter sammen ved print.</li><li><strong><strong class="ui">“For stramt”</strong></strong> (orange): den smalleste afstand er mindre end <strong class="ui">“Mindste spillerum”</strong>.</li><li><strong><strong class="ui">“I orden”</strong></strong> (grøn): den smalleste afstand er mindst så bred.</li></ul>
+<p>Hver linje nævner de to dele og, ved en spalte, dens bredde og hvor den ligger: <strong class="ui">“side om side”</strong> (i samme lag) eller <strong class="ui">“mellem lagene”</strong> (over eller under: der kan sliceren kun lade hele lag stå frie, så en spalte tyndere end ét lag lukker). Klik på en linje: kameraet kører derhen, begge dele får en kontur, og en linje med tallet markerer det smalleste sted. Par, der ligger mere end 5 mm fra hinanden, vises ikke. Intet i designet ændres: tjekket gemmer intet og efterlader intet at fortryde.</p>
+<p><strong class="ui">“Mindste spillerum”</strong> starter ved 0,3 mm; 0,3 er stramt, 0,4 almindeligt ved print-in-place. Ændres det, sorteres listen straks igen uden nyt tjek, og browseren husker værdien. <strong class="ui">“Tjek de adskilte dele af ét objekt (print-in-place)”</strong> (slået til fra start) tjekker også de adskilte dele af ét objekt mod hinanden: en flexi-drage eller et hængsel importeret som én STL er ét objekt, men leddene er adskilte dele. De står i listen som &quot;Navn · Del 2&quot;. En del i et hulrum i en anden, en kugle i et bur, er en del for sig.</p>
+<p>Ændrer du designet, mens vinduet er åbent, viser det <strong class="ui">“Ændret – tjek igen”</strong>; klik på det eller på <strong class="ui">“Tjek igen”</strong>. <kbd>Esc</kbd> eller <strong class="ui">“Luk”</strong> lukker vinduet. Også skalering ændrer afstandene: en flexi-model skaleret til 70 % beholder kun 70 % af sit spillerum, så tjek igen efter skalering.</p>
+<p>Tjekket måler det trekantsnet, som sliceren også får. En rund aksel og dens hul er polygoner med hjørnerne på cirklen, så en spalte kan blive nogle få hundrededele mindre end de runde mål. Et par med for mange trekanter står som <strong class="ui">“Ikke tjekket”</strong> i listen. En AI kører samme tjek med <code>layerling_check_clearance</code>.</p>
+</section><section class="guide-part"><h2 id="noter"><span class="heading-alias" id="notes"></span>Noter</h2>
+<p>En note registrerer hvad geometrien ikke siger: &quot;Denne skrue er 0,3 mm for stram&quot;, &quot;print låget endnu&quot;, &quot;mål fra Peter&quot;. Placér en med <strong class="ui">“Note”</strong> eller <kbd>N</kbd>-tasten.</p>
+<ul><li>Hvis du placerer noten <strong>på en form</strong>, følger den med den.</li><li>Hvis du placerer den <strong>ved siden af</strong>, bliver den på arbejdsplanet (<strong class="ui">“På arbejdsplanet”</strong>).</li><li><strong class="ui">“Frigør fra objektet”</strong> frigør en vedhæftet note fra formen.</li><li><strong class="ui">“Til AI'en”</strong> gør en note til en opgave til en AI-agent på MCP-broen (se „AI med MCP“): Agenten læser den med <code>layerling_list_notes</code>, udfører arbejdet og svarer i samme note, under din tekst. Den kan også sætte egne noter på modellen for at spørge om eller melde noget et bestemt sted. Bed agenten holde øje med dine noter, så venter den på dem med <code>layerling_wait_for_notes</code>: du arbejder så kun på modellen, og hver ny opgave bliver taget op, så snart du sætter fluebenet, uden at gå tilbage til agentens vindue.</li><li><strong class="ui">“Gruppér”</strong> tager en vedhæftet note med ind i gruppen; <strong class="ui">“Opdel gruppe”</strong> giver den videre til den synlige del under den, også en gruppe indeni. Mens en gruppe er åben med <strong class="ui">“Redigér gruppe”</strong>, følger dens noter med den del, de sidder på, og går tilbage til gruppen med <strong class="ui">“Udført”</strong>; annullering sætter dem tilbage, som de var.</li><li>Hvis dens form slettes, eller der ikke længere er en synlig form under den, bliver noten stående, hvor den var, på arbejdsplanet.</li><li>Træk i nålen flytter noten. Et klik på nålen folder kortet sammen, så kun det lille tal bliver stående, og et klik mere åbner det igen. Et klik i teksten redigerer den.</li><li>Mens du skriver, bevarer <kbd>Enter</kbd> teksten og <kbd>Esc</kbd> sætter den tilbage til hvordan den var før du begyndte; <span dir="ltr"><kbd>Shift</kbd>+<kbd>Enter</kbd></span> starter en ny linje.</li><li><strong>I en skitse</strong> sætter <strong class="ui">“Note”</strong> eller <kbd>N</kbd> også en note, hvor som helst på skitsen. Alle en skitses noter hører til dens form: i 3D-visningen sidder de på den, oven på en form lavet med <strong class="ui">“Ekstrudér”</strong> eller <strong class="ui">“Sweep-skitse”</strong> og på den tegnede profil af en form lavet med <strong class="ui">“Revolver”</strong>, og de flytter sig med den. Når du åbner skitsen igen, viser den formens noter, også dem der er sat i 3D. I skitsen tager <strong class="ui">“Fortryd”</strong> en note tilbage ligesom en linje, og <strong class="ui">“Annullér”</strong> kasserer det, du har ændret i noterne. <span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span> viser eller skjuler noterne også her.</li></ul>
+<p>Noter gemmes i designet, optræder i ingen eksport og kan vises eller skjules med <strong class="ui">“Vis noter og punkter”</strong> (under <strong class="ui">“Visningsmuligheder”</strong>, pilen ved siden af øje-ikonet) eller med <span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span>.</p>
+</section><section class="guide-part"><h2 id="referencepunkter"><span class="heading-alias" id="reference-points"></span>Referencepunkter</h2>
+<p>Et referencepunkt er et bart mærke i rummet, som en blyantsmarkering eller et layout-punkt i et værksted: det hører til ingen form, printes aldrig, og andre ting snapper til det. Højreklik en form og vælg <strong class="ui">“Markér centrum”</strong>, <strong class="ui">“Markér hjørnerne”</strong> eller <strong class="ui">“Markér kantmidtpunkterne”</strong>: punkterne dukker op på formens øverste flade (af hele markeringen, hvis du valgte flere). <strong class="ui">“Markér midten af denne flade”</strong> sætter i stedet ét i midten af den flade du højreklikkede på, for eksempel på en side eller en ende. Er der sat et drejepunkt, sætter <strong class="ui">“Markér drejepunktet”</strong> et punkt præcis på det, så midten af en anden del fanges i det punkt, markeringen drejer om.</p>
+<ul><li>Træk et punkt for at flytte det: det snapper til hjørnerne, til midterne af legemernes kanter og flader, til deres rigtige hjørner og til andre punkter; hold <kbd>Alt</kbd> nede, så bliver det frit. Eller klik det for at se dets koordinater og taste nye; de bruger den enhed du har sat. Kortet kan trækkes væk i dets titellinje hvis det dækker noget, og et dobbeltklik på titellinjen sætter det tilbage. <strong class="ui">“Slet”</strong> fjerner det. Hvert kort kan trækkes væk alene, så de andre kort bliver hvor de er. Det kort du rørte sidst ligger foran de andre. <strong>Slet alle</strong> i et kort, eller <strong>Slet alle referencepunkter</strong> i højreklikmenuen (på en form eller på et tomt sted i 3D-visningen), sletter alle punkter på én gang.</li><li>Målebåndet kan også markere et punkt: <strong class="ui">“Markér midten som referencepunkt”</strong>, det halvt udfyldte mærke midt på et mål, sætter et i dets midte, for eksempel i midten af et rundt hul. Og det måler fra et punkt: båndet snapper til referencepunkter som til hjørner.</li><li>Når du trækker en form, snapper dens kanter og dens centrum til et punkt, ligesom de snapper til andre former (<strong class="ui">“Snap til andre former mens du flytter”</strong>). Vinkelmåleren snapper også til punkter.</li><li>Punkter gemmes i designet, optræder i ingen eksport og vises eller skjules sammen med noterne af <strong class="ui">“Vis noter og punkter”</strong> (<span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span>).</li><li>En AI kan markere, liste og fjerne dem med <code>layerling_add_reference_points</code>, <code>layerling_list_reference_points</code> og <code>layerling_remove_reference_points</code>.</li></ul>
+</section><section class="guide-part"><h2 id="referencebilleder"><span class="heading-alias" id="reference-images"></span>Referencebilleder</h2>
+<p>Et referencebillede er et billede at rette dele ind efter: læg et foto af et printkort i bunden af dets kasse, og placer afstandsstykker, huller og udskæringer til stik lige oven på det. Det er en hjælpelinje, ikke en form: det bliver aldrig printet eller eksporteret (STL, 3MF, OBJ, STEP, SVG), aldrig en del af en gruppe, en samling eller et snit, og printestimatet tæller det ikke med.</p>
+<ul><li>Åbn <strong class="ui">“Importér”</strong> og vælg <strong class="ui">“Referencebillede”</strong>, derefter et PNG-, JPG-, WebP-, GIF- eller BMP-billede. Det lægges på arbejdsplanet - på pladen eller på den flade, du satte arbejdsplanet på - med den længste side 100 mm, halvt gennemsigtigt.</li><li>Flyt, drej og skaler det med håndtagene som enhver form. En form foran det vælges først, så arbejde oven på det griber ikke billedet.</li><li><strong class="ui">“Gennemsigtighed (%)”</strong> i dets indstillinger falmer det fra helt dækkende til næsten usynligt.</li><li><strong class="ui">“Kalibrer”</strong> giver det dets rigtige størrelse, som i skitsen: klik på to punkter på billedet, hvis virkelige afstand du kender - f.eks. to monteringshuller på printkortet - og skriv afstanden i <strong class="ui">“Virkelig afstand (mm)”</strong>. Billedet beholder sine proportioner og sin midte.</li><li>Lås det med låsen i overskriften af dets indstillinger, så bliver det liggende: klik går så igennem det til pladen. Vælg det i objektlisten for at låse det op.</li><li>Billedet gemmes kun én gang i designfilen, uanset hvor ofte det kopieres eller fortrydes. Et stort billede gør filen tilsvarende større; beskeden, når du tilføjer det, siger hvor stort det er.</li><li>En AI tilføjer, flytter, kalibrerer, falmer og låser et med <code>layerling_reference_image</code>. Med <code>trace</code> optegner den billedet til et skitselegeme, der står på det, som <strong class="ui">“Optegn”</strong> i skitsen.</li></ul></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/vejledning/threads-and-mechanics.html"><small>Forrige kapitel</small>Gevind, tandhjul og andre dele</a><a class="next" href="/api/desktop/layerling/ui/vejledning/printing.html"><small>Næste kapitel</small>Forberedelse til 3D-print</a></div>
+      </main>
+    </div>
+    <footer class="note">Denne vejledning vokser sammen med programmet. Hvis noget mangler eller er forkert, så fortæl os i <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">diskussioner</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=da" rel="noopener">Støt projektet</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Diskussioner</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mere på GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Udgivelsesnoter v1.154.1</a></div><p class="trademark">Tinkercad er et varemærke tilhørende Autodesk, Inc. layerling er et uafhængigt projekt og er ikke tilknyttet, anbefalet eller sponsoreret af Autodesk.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Tilbage til editoren";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Åbn editoren";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

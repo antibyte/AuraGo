@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Schizzi: dal contorno al corpo - Guida utente di layerling</title>
+    <meta name="description" content="Disegnare un contorno piatto, arrotondarne o smussarne gli angoli e trasformarlo in un corpo estrudendolo o ruotandolo.">
+    <link rel="canonical" href="https://layerling.com/it/sketches.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/sketches.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/sketches.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/sketches.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/skizzen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/sketches.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/sketches.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/sketches.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/sketches.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/schetsen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/sketches.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/skice.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/sketches.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/sketches.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/sketches.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/sketches.html">
+    <meta property="og:title" content="Schizzi: dal contorno al corpo - Guida utente di layerling">
+    <meta property="og:description" content="Disegnare un contorno piatto, arrotondarne o smussarne gli angoli e trasformarlo in un corpo estrudendolo o ruotandolo.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/it/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Guida utente</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/it/search-index.json" data-nothing="Nessun risultato." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Cerca nella guida" aria-label="Cerca nella guida" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Lingua">Italiano</summary><ul><li><a href="/api/desktop/layerling/ui/guide/sketches.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/sketches.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/sketches.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/sketches.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/sketches.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/sketches.html" hreflang="it" lang="it" aria-current="true">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/sketches.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/sketches.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/sketches.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/sketches.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/skice.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/sketches.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/sketches.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/sketches.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/sketches.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/sketches.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/sketches.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Apri l'editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>L'editor è già aperto in un'altra scheda: passa semplicemente a quella.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Capitoli"><h2>Capitoli</h2><p class="print-link"><a href="/api/desktop/layerling/ui/it/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Guida completa da stampare</span></a></p><ol><li><a href="/api/desktop/layerling/ui/it/getting-started.html">Primi passi</a></li><li><a href="/api/desktop/layerling/ui/it/view-and-workplane.html">Vista e piano di lavoro</a></li><li><a href="/api/desktop/layerling/ui/it/shapes.html">Inserire e modificare le forme</a></li><li><a href="/api/desktop/layerling/ui/it/select-and-arrange.html">Selezionare e disporre</a></li><li><a href="/api/desktop/layerling/ui/it/solids-and-holes.html">Solidi e fori</a></li><li><a href="/api/desktop/layerling/ui/it/edges-and-hollowing.html">Smussare gli spigoli e svuotare i corpi</a></li><li><a href="/api/desktop/layerling/ui/it/sketches.html" aria-current="page">Schizzi: dal contorno al corpo</a></li><li><a href="/api/desktop/layerling/ui/it/text.html">Testo e scritte curve</a></li><li><a href="/api/desktop/layerling/ui/it/threads-and-mechanics.html">Filettature, ingranaggi e altri componenti</a></li><li><a href="/api/desktop/layerling/ui/it/measuring-and-notes.html">Misurazioni e annotazioni</a></li><li><a href="/api/desktop/layerling/ui/it/printing.html">Preparare la stampa 3D</a></li><li><a href="/api/desktop/layerling/ui/it/files-and-saving.html">File, salvataggio e condivisione</a></li><li><a href="/api/desktop/layerling/ui/it/shortcuts.html">Scorciatoie da tastiera</a></li><li><a href="/api/desktop/layerling/ui/it/ai-with-mcp.html">Progettare con un’IA (MCP)</a></li><li><a href="/api/desktop/layerling/ui/it/offline-and-install.html">Installare come app, lavorare offline e ospitare layerling</a></li><li><a href="/api/desktop/layerling/ui/it/videos.html">Video su layerling</a></li><li><a href="/api/desktop/layerling/ui/it/tablet-and-touch.html">Tablet e comandi touch</a></li></ol></nav>
+      <main>
+<h1>Schizzi: dal contorno al corpo</h1>
+<p class="lead">Disegnare un contorno piatto, arrotondarne o smussarne gli angoli e trasformarlo in un corpo estrudendolo o ruotandolo.</p>
+<div class="toc"><b>In questa pagina</b><ul><li><a href="#iniziare-uno-schizzo">Iniziare uno schizzo</a></li><li><a href="#disegnare">Disegnare</a></li><li><a href="#disegnare-linee-con-valori-numerici">Disegnare linee con valori numerici</a></li><li><a href="#curvare-un-lato-rettilineo">Curvare un lato rettilineo</a></li><li><a href="#leggere-e-impostare-gli-angoli">Leggere e impostare gli angoli</a></li><li><a href="#arrotondare-o-smussare-gli-angoli">Arrotondare o smussare gli angoli</a></li><li><a href="#specchiare">Specchiare</a></li><li><a href="#linee-di-costruzione">Linee di costruzione</a></li><li><a href="#trasformare-lo-schizzo-in-un-corpo">Trasformare lo schizzo in un corpo</a></li><li><a href="#estrudere-lungo-un-percorso">Estrudere lungo un percorso</a></li><li><a href="#creare-un-corpo-dalla-traccia">Creare un corpo dalla traccia</a></li><li><a href="#riempimento-e-sagoma">Riempimento e sagoma</a></li><li><a href="#pareti-inclinate-per-stampi">Pareti inclinate per stampi</a></li><li><a href="#usare-un-immagine-come-modello">Usare un’immagine come modello</a></li><li><a href="#tasti-in-modalita-schizzo">Tasti in modalità Schizzo</a></li></ul></div>
+<p>Non tutto si può costruire combinando forme di base. Per creare pezzi con un contorno personalizzato, come una staffa, il profilo di un dente o un vaso, prima si disegna il <strong>contorno</strong> e poi lo si trasforma in un corpo. A questo serve la modalità Schizzo.</p>
+<section class="guide-part"><h2 id="iniziare-uno-schizzo"><span class="heading-alias" id="starting-a-sketch"></span>Iniziare uno schizzo</h2>
+<p>In alto, passa da <strong class="ui">«Editor 3D»</strong> a <strong class="ui">«Schizzo»</strong>. Nel gruppo <strong class="ui">«Crea»</strong> della barra multifunzione trovi affiancati tre pulsanti, uno per ciascun tipo di corpo che puoi ottenere dal contorno:</p>
+<ul><li><strong><strong class="ui">«Estrudi schizzo»</strong>:</strong> il contorno viene estruso verso l’alto, come con un tagliabiscotti.</li><li><strong><strong class="ui">«Ruota schizzo»</strong>:</strong> il contorno ruota attorno a un asse, come su un tornio. Puoi creare vasi, tazze, coni e qualsiasi forma rotonda.</li><li><strong><strong class="ui">«Estrusione lungo un percorso»</strong>:</strong> il contorno segue un percorso, per esempio per creare una canalina che gira un angolo, un condotto o un anello attorno a una forma. Vedi <a href="#estrudere-lungo-un-percorso">Estrudere lungo un percorso</a> qui sotto.</li></ul>
+<p>L’editor mostra un foglio con una griglia: è la superficie su cui disegnare.</p>
+</section><section class="guide-part"><h2 id="disegnare"><span class="heading-alias" id="drawing"></span><span class="heading-alias" id="drawing-tools"></span><span class="heading-alias" id="shapes"></span><span class="heading-alias" id="select-and-change"></span><span class="heading-alias" id="clipboard-and-history"></span><span class="heading-alias" id="notes"></span><span class="heading-alias" id="view-and-dimensions"></span>Disegnare</h2>
+<p>In modalità Schizzo, la barra multifunzione è divisa in sezioni:</p>
+<ul><li><strong>Disegno:</strong> <strong class="ui">«Linea»</strong> crea segmenti rettilinei. Fai clic sui punti uno dopo l’altro; tenendo premuto <kbd>Shift</kbd>, la nuova linea si aggancia a incrementi di 15°, comprese le direzioni orizzontale e verticale. La lunghezza e l’angolo della nuova linea sono mostrati vicino al puntatore. Puoi anche digitare la lunghezza desiderata: vedi <a href="#disegnare-linee-con-valori-numerici">Disegnare linee con valori numerici</a>. <strong class="ui">«Arco»</strong> disegna un vero arco circolare attraverso tre punti: fai clic prima sulle due estremità, poi sul punto attraverso cui deve passare l’arco. Fino al terzo clic, un’anteprima segue il puntatore e un messaggio indica il raggio. Se fai clic su un punto esistente, l’estremità vi si unisce e puoi chiudere il contorno con un arco. <kbd>Esc</kbd> elimina i punti già inseriti e torna a <strong class="ui">«Seleziona»</strong>. Dopo la creazione, l’arco è geometria normale composta da punti e curve: puoi spostarlo, tagliarlo o cancellarlo come qualsiasi altra linea. <strong class="ui">«Curva di Bézier»</strong> si modella con le maniglie: fai clic su un punto e trascina nella direzione in cui la linea deve proseguire, come con lo strumento Penna di Illustrator o Inkscape. Più trascini, più la curva si piega. Anche il tratto verso il punto successivo si incurva mentre trascini, così vedi subito il risultato. Se trascinare mentre posizioni un punto ti risulta scomodo, per esempio se arrivi da Tinkercad e vuoi semplicemente fare clic sui punti, scegli <strong class="ui">«Curva uniforme»</strong>. <strong class="ui">«Curva uniforme»</strong> crea un percorso morbido attraverso i punti su cui fai clic. Per chiudere il contorno, alla fine fai clic di nuovo sul primo punto. Per terminare la serie di segmenti senza chiudere il contorno, fai clic destro senza spostare il puntatore oppure fai doppio clic sull’ultimo punto.</li><li><strong><strong class="ui">«Mano libera»</strong>:</strong> disegna con la penna, un dito o il mouse, come sulla carta. Quando lo sollevi, la linea diventa punti normali: un angolo dove ha svoltato bruscamente, punti morbidi in mezzo, solo quanti ne servono alla forma, così ognuno si può trascinare dopo. Ingrandisci per i dettagli fini: più guardi da vicino, più la linea segue fedelmente la tua mano. Una linea che finisce dove è iniziata si chiude in un contorno che può diventare un corpo; una aperta resta una linea, per <strong class="ui">«Tratto»</strong> o come percorso di sweep. Si può iniziare anche su linee e su un'immagine modello, così un'immagine si ricalca a mano. Un tratto che inizia o finisce su un'estremità aperta prosegue quella linea, così una forma si può disegnare in più tratti.</li><li><strong>Forme:</strong> <strong class="ui">«Aggiungi forma allo schizzo»</strong> propone contorni già pronti: <strong class="ui">«Rettangolo»</strong>, <strong class="ui">«Cerchio»</strong>, <strong class="ui">«Ellisse»</strong>, <strong class="ui">«Semicerchio»</strong>, <strong class="ui">«Spicchio»</strong>, <strong class="ui">«Circonferenza per bulloni»</strong> (un disco con fori), <strong class="ui">«Triangolo»</strong>, <strong class="ui">«Esagono»</strong>, <strong class="ui">«Poligono»</strong> e <strong class="ui">«Stella»</strong>. Fai clic su una forma per inserirla all’origine dello schizzo oppure trascinala dal menu nella posizione desiderata. In fondo al menu, <strong class="ui">«Lati / punte»</strong> imposta il numero di lati del poligono e di punte della stella; <strong class="ui">«Dimensione interna della stella»</strong> determina quanto le rientranze della stella si avvicinano al centro (dal 10 al 90% del raggio esterno). Entrambi i valori si applicano alla forma successiva che aggiungi. Come tutte le forme dello schizzo, in seguito sono composte da normali punti d’angolo, che puoi spostare, arrotondare o smussare singolarmente. Il rettangolo parte con la larghezza e la profondità impostate per il parallelepipedo in <strong class="ui">«Valori predefiniti delle forme»</strong> nelle impostazioni, il cerchio e l'ellisse con la larghezza del cilindro; senza un valore proprio, e per le altre forme, misurano 20 mm.</li><li><strong>Sovrapposizioni:</strong> se sovrapponi due contorni chiusi, restano due corpi separati che si uniranno nell’editor 3D; la sovrapposizione non crea un foro. Un foro si ottiene solo quando un contorno è interamente contenuto in un altro. Spostare i contorni non unisce le linee nei punti in cui si incrociano, quindi puoi separarli di nuovo. Se invece disegni una linea che attraversa altre linee, layerling inserisce un punto a ogni intersezione.</li><li><strong>Selezione:</strong> <strong class="ui">«Seleziona»</strong> sposta punti e linee. Facendo clic all’interno di un contorno chiuso selezioni tutto il contorno, così puoi trascinarlo o ridimensionarlo subito; all’interno di un foro selezioni il foro. Il riquadro della selezione ha otto maniglie: quelle agli angoli modificano insieme larghezza e altezza, mantenendo le proporzioni mentre tieni premuto <kbd>Shift</kbd>. Quelle sui lati modificano una sola dimensione. <strong class="ui">«Mantieni le proporzioni»</strong> nella barra che appare mantiene le proporzioni senza <kbd>Shift</kbd>: angoli e lati ridimensionano allora allo stesso modo in entrambe le direzioni e, digitando una larghezza o un’altezza, cambia anche l’altra misura. layerling ricorda questa impostazione. <strong class="ui">«Blocca»</strong> accanto blocca il contorno selezionato, come un corpo bloccato nell’editor 3D (anche <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> esegue lo stesso comando): non puoi più spostarlo, ridimensionarlo, ruotarlo o modificarlo; le linee diventano più chiare e i punti grigi, e le maniglie del riquadro diventano grigie e non rispondono più. Finché è selezionato, un clic sul lucchetto nel suo angolo lo sblocca. Puoi comunque iniziare una linea dai suoi angoli. <strong class="ui">«Sblocca»</strong> o un altro <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> sbloccano il contorno. Le frecce curve oltre gli angoli del riquadro ruotano l’intera selezione attorno al proprio centro: il valore sopra il puntatore mostra l’angolo; tenendo premuto <kbd>Shift</kbd>, la rotazione procede a scatti di 15°. Mentre ruoti compare un anello: con il puntatore all'interno la rotazione scatta a incrementi di 22,5°, all'esterno procede a gradi interi, indipendentemente dalla griglia. <kbd>R</kbd> ruota un intero contorno chiuso di 45° a ogni pressione. Fai clic sull’indicatore della larghezza o dell’altezza per digitare una nuova misura, anche come somma (“60+12.5”) o percentuale (“150%”). I campi X e Y nella barra sopra lo schizzo mostrano dove si trova il centro della selezione, in mm dall'origine dello schizzo; digita un valore e si sposta esattamente lì, per esempio un foro a 12 mm dal centro. Y cresce verso l'alto, come nell'editor 3D. Tenendo premuto <kbd>Shift</kbd>, un clic su un punto o una linea lo aggiunge alla selezione o lo rimuove, così puoi selezionarne diversi e spostarli insieme. Trascina un riquadro nello spazio vuoto per selezionare tutto ciò che contiene. Puoi trascinare anche una linea: si sposta usando le sue due estremità oppure, se fa parte di una selezione, si sposta l’intera selezione. I tasti freccia spostano la selezione di un passo della griglia; con <kbd>Shift</kbd> lo spostamento è più ampio. Tenendo premuto <kbd>Shift</kbd> mentre trascini, il movimento resta vincolato a un asse. <strong class="ui">«Aggiungi o rimuovi punti»</strong> aggiunge un punto facendo clic su un segmento e ne rimuove uno facendo clic sul punto. Sono inoltre disponibili <strong class="ui">«Cancella»</strong> (fai clic su un punto o una linea per cancellarlo; trascina un riquadro su più elementi per cancellare tutto ciò che contiene; se ci sono elementi selezionati, il pulsante cancella la selezione) e l’inserimento di un’immagine di riferimento con <strong class="ui">«Aggiungi immagine»</strong>. Quando elimini un punto, layerling unisce i due punti vicini, mantenendo chiuso il contorno. Per chiudere una fessura, per esempio dopo aver cancellato un lato di un esagono, trascina un’estremità aperta sull’altra: si agganciano e diventano un unico punto, chiudendo di nuovo il contorno. Nel punto in cui una linea taglia un cerchio, i tratti che proseguono diritti vengono uniti: arco con arco, linea con linea, e il cerchio resta rotondo. Per cancellare solo un tratto di cerchio, per esempio per creare un angolo arrotondato, fai clic esattamente sull’arco tra due punti con la gomma; il resto rimane.</li><li><strong>Appunti:</strong> <strong class="ui">«Copia»</strong>, <strong class="ui">«Incolla»</strong>, <strong class="ui">«Duplica»</strong> e <strong class="ui">«Elimina»</strong> agiscono sui punti, sulle linee e sulle immagini selezionate, come nell’editor 3D; <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span> taglia. Gli elementi incollati o duplicati vengono posizionati accanto all’originale, con uno spazio di 10 mm, nel primo punto libero in cui non toccano linee esistenti: non si uniranno mai agli elementi già presenti. Restano selezionati, così puoi trascinarli subito nella posizione corretta.</li><li><strong>Cronologia:</strong> <strong class="ui">«Annulla nello schizzo»</strong> e <strong class="ui">«Ripristina nello schizzo»</strong>.</li><li><strong><strong class="ui">«Controlli della vista dello schizzo»</strong>:</strong> <strong class="ui">«Nota»</strong> (o <kbd>N</kbd>) inserisce una nota nello schizzo, come nell’editor 3D: il clic successivo la posiziona, ovunque, anche su una linea. Trascina il fermaglio per spostarla; un clic sul fermaglio comprime la scheda. Le note di uno schizzo appartengono al suo corpo: nella vista 3D stanno sopra un corpo creato con <strong class="ui">«Estrudi schizzo»</strong> o <strong class="ui">«Estrusione lungo un percorso»</strong> e sul profilo disegnato di uno creato con <strong class="ui">«Ruota schizzo»</strong>, e si spostano con lui. Riaprendo lo schizzo compaiono tutte le note del corpo, comprese quelle inserite in 3D. <strong class="ui">«Annulla nello schizzo»</strong> annulla una nota come una linea e <strong class="ui">«Annulla»</strong> scarta ciò che è cambiato nelle note. Maggiori dettagli nel capitolo Misurazioni e annotazioni.</li><li><strong>Vista:</strong> sposta la vista con il tasto centrale del mouse oppure con <kbd>Shift</kbd> o <kbd>Ctrl</kbd> insieme al tasto destro, come nell’editor 3D. <kbd>Home</kbd> mostra l’intero schizzo; <kbd>F</kbd> ingrandisce la selezione oppure, se non c’è una selezione, tutto lo schizzo; <kbd>+</kbd> e <kbd>−</kbd> ingrandiscono e rimpiccioliscono la vista, come nell’editor 3D. Se non c’è una selezione, un doppio clic su un punto vuoto sposta la vista in modo che quel punto vada al centro, come nell’editor 3D; <strong class="ui">«Il doppio clic sul piano di lavoro centra lì la vista»</strong> nelle impostazioni lo disattiva. <strong class="ui">«Metro a nastro»</strong> nella barra degli strumenti dello schizzo misura la distanza tra due punti. Anche lo schizzo mostra le misure appena fai clic su un elemento: la lunghezza di una linea oppure, per un punto, la lunghezza delle linee che vi si incontrano. Il pulsante <strong class="ui">«Mostra le misurazioni»</strong> nella barra degli strumenti dello schizzo nasconde o mostra queste misure se sono d’intralcio, per esempio mentre modelli le curve; il metro a nastro continua a funzionare. Su una linea retta puoi fare clic sull’etichetta della misura e digitare la lunghezza in millimetri; <kbd>Enter</kbd> la applica e <kbd>Esc</kbd> annulla. La linea mantiene la propria direzione, il punto iniziale resta fermo e si spostano le linee all’altra estremità. Se selezioni un punto finale, si sposta quello. <span dir="ltr"><kbd>Alt</kbd>+<kbd>Enter</kbd></span> allunga la linea in entrambe le direzioni attorno al suo centro. Sulle curve, l’etichetta mostra solo la lunghezza.</li></ul>
+<p>Un corpo può essere creato solo da un contorno <strong>chiuso</strong>.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-outline.webp" alt="Un contorno a forma di L. Nel punto d’angolo selezionato in alto a sinistra sono indicate in millimetri le lunghezze delle due linee e, in gradi, l’angolo tra loro." width="1280" height="800" loading="lazy"><figcaption>Un contorno a forma di L. Nel punto d’angolo selezionato in alto a sinistra sono indicate in millimetri le lunghezze delle due linee e, in gradi, l’angolo tra loro.</figcaption></figure>
+<p>I tasti da <kbd>1</kbd> a <kbd>4</kbd> selezionano gli strumenti di disegno nell’ordine in cui compaiono nella barra: <strong class="ui">«Linea»</strong>, <strong class="ui">«Curva di Bézier»</strong>, <strong class="ui">«Curva uniforme»</strong> e <strong class="ui">«Aggiungi o rimuovi punti»</strong>. Funzionano finché non stai disegnando una linea; durante il disegno, le cifre indicano la lunghezza (vedi sotto). <kbd>5</kbd> seleziona <strong class="ui">«Mano libera»</strong>.</p>
+</section><section class="guide-part"><h2 id="disegnare-linee-con-valori-numerici"><span class="heading-alias" id="lines-by-numbers"></span>Disegnare linee con valori numerici</h2>
+<p>Dopo aver impostato il primo punto con <strong class="ui">«Linea»</strong> o <strong class="ui">«Curva uniforme»</strong>, digita un numero: accanto alla linea si aprono due campi, <strong class="ui">«Lunghezza»</strong> in millimetri e <strong class="ui">«Angolo»</strong> in gradi. <kbd>&lt;</kbd> o <kbd>Tab</kbd> sposta il cursore sul campo dell’angolo: per esempio, “50&lt;30” crea una linea lunga 50 mm con un angolo di 30°, come in AutoCAD. <kbd>Enter</kbd> fissa il punto e puoi digitare subito la misura della linea successiva; <kbd>Esc</kbd> chiude i campi senza terminare la serie di linee.</p>
+<p>L’angolo si misura in senso antiorario a partire da destra: 0° verso destra, 90° verso l’alto, 180° verso sinistra e 270° verso il basso. Se lasci vuoto il campo dell’angolo, la linea segue il puntatore: inserisci soltanto la lunghezza e indica la direzione con il mouse. Le somme, come “40+12.5”, funzionano in entrambi i campi. Se il punto finirebbe fuori dalla piastra, il campo te lo segnala e resta in attesa di un altro valore.</p>
+</section><section class="guide-part"><h2 id="curvare-un-lato-rettilineo"><span class="heading-alias" id="curving-a-straight-side"></span>Curvare un lato rettilineo</h2>
+<p>Seleziona una linea retta e fai clic su <strong class="ui">«Curva la linea»</strong> nella barra che appare: il lato si incurva verso l’esterno, come in Tinkercad, e mostra due maniglie. Trascinale per modellare la curva; più sono lontane, più la curva è pronunciata. Sotto il puntatore una maniglia diventa arancione e accoglie anche un clic appena accanto, così un'immagine di riferimento sotto non si sposta per sbaglio. <strong class="ui">«Raddrizza la linea»</strong> rende di nuovo rettilineo il lato. Puoi arrotondare un punto selezionandolo e scegliendo <strong class="ui">«Curva uniforme»</strong>: il punto riceve le proprie maniglie e le linee adiacenti diventano curve. Con tre o più punti selezionati, <strong class="ui">«Curva per punti»</strong> nella barra traccia un’unica curva uniforme dal primo all’ultimo, passando per ogni punto intermedio, come la disegna lo strumento <strong class="ui">«Curva uniforme»</strong>; le linee oltre le due estremità restano come sono. In altri programmi si chiama “Fit curve” o “Fit point spline”. La differenza: <strong class="ui">«Curva la linea»</strong> incurva ogni lato selezionato per conto suo e mantiene gli angoli tra i lati, per un arco su un lato; <strong class="ui">«Curva per punti»</strong> fa passare un’unica curva per i punti senza lasciare angoli, per levigare un bordo frastagliato ricalcato. Fai clic su una maniglia per selezionarla; poi i tasti freccia la spostano di un passo della griglia, oppure di un passo più ampio con <kbd>Shift</kbd>, permettendoti di impostare la curva con precisione.</p>
+<p>I valori si possono anche digitare. Un punto selezionato mostra <strong class="ui">«X»</strong> e <strong class="ui">«Y»</strong> nella barra: dove si trova, in mm dall'origine dello schizzo, con Y che cresce verso l'alto. Fai clic su una maniglia e la barra mostra invece <strong class="ui">«Maniglia X»</strong> e <strong class="ui">«Maniglia Y»</strong>: dove si trova la maniglia rispetto al suo punto. Su un punto morbido la maniglia opposta ruota insieme. Dai alla maniglia corrispondente sull'altro lato la stessa Y e la X con il segno opposto, e la curva viene esattamente speculare; <strong class="ui">«Specchia»</strong> specchia un'intera metà in una volta.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-curve.webp" alt="Il lato inferiore del contorno a L è stato curvato e le due maniglie sono visibili alle estremità." width="1280" height="800" loading="lazy"><figcaption>Il lato inferiore del contorno a L è stato curvato e le due maniglie sono visibili alle estremità.</figcaption></figure>
+</section><section class="guide-part"><h2 id="leggere-e-impostare-gli-angoli"><span class="heading-alias" id="reading-and-typing-angles"></span>Leggere e impostare gli angoli</h2>
+<p>Fai clic su un punto d’angolo in cui si incontrano <strong>due linee rette</strong>: accanto alle lunghezze, layerling mostra l’<strong>angolo</strong> tra loro in gradi, indicato da un piccolo arco. Su un contorno chiuso viene mostrato l’angolo interno, quindi un rientro ha un valore superiore a 180°. Fai clic sul valore e digita l’angolo desiderato. Una delle due linee ruota attorno all’angolo mantenendo la propria lunghezza; l’altra resta dov’è. La linea che ruoterà è tratteggiata. <kbd>Tab</kbd> passa all’altra linea, <kbd>Enter</kbd> applica il valore e <kbd>Esc</kbd> annulla. Gli elementi collegati all’estremità opposta della linea ruotata si spostano insieme a essa.</p>
+<p>Un punto bloccato resta dov'è e un valore digitato ne tiene conto: una lunghezza sposta l'estremità libera della linea, un angolo ruota la linea la cui estremità opposta è libera. Si può bloccare anche un singolo punto: selezionalo e premi <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span>. Così puoi rendere esatto un contorno un angolo dopo l'altro: blocca un angolo, digita lunghezza e angolo della linea successiva, blocca la sua estremità e prosegui.</p>
+<p>Spostando un punto cambiano tre angoli: quello nel punto stesso e quelli nei due angoli vicini, alle estremità opposte delle linee che vi arrivano. Per questo layerling mostra anche questi due angoli, che puoi selezionare e modificare. Puoi così impostare, per esempio, l’angolo in basso a sinistra su 75,5° mentre è selezionato il punto in alto a sinistra che si sposterà. Anche qui puoi eseguire calcoli, per esempio “90-14.5”.</p>
+<p>Un angolo non viene mostrato se in quel punto si incontra una curva o se si uniscono più di due linee. Il pulsante <strong class="ui">«Mostra le misurazioni»</strong> nella barra degli strumenti dello schizzo nasconde gli angoli insieme alle lunghezze.</p>
+</section><section class="guide-part"><h2 id="arrotondare-o-smussare-gli-angoli"><span class="heading-alias" id="rounding-or-chamfering-corners"></span>Arrotondare o smussare gli angoli</h2>
+<p>Fai clic su un punto d’angolo e scegli <strong class="ui">«Arrotonda l'angolo»</strong> oppure <strong class="ui">«Smussa l'angolo»</strong>. Compare un piccolo campo per impostare <strong class="ui">«Raggio di arrotondamento»</strong> o <strong class="ui">«Distanza»</strong>. Inserisci la misura e confermala con il segno di spunta. Lo strumento funziona sugli angoli formati da due linee rette.</p>
+<p>Puoi modificare più angoli insieme: selezionali tenendo premuto <kbd>Shift</kbd> e facendo clic su ciascuno, oppure racchiudili in un riquadro, quindi scegli <strong class="ui">«Arrotonda l'angolo»</strong> o <strong class="ui">«Smussa l'angolo»</strong> dalla barra che appare. Tutti ricevono lo stesso raggio o la stessa distanza. Se due angoli selezionati condividono un lato, ciascuno può occupare al massimo il 45% di quel lato: un rettangolo arrotondato su tutti i lati risulterà quindi uniforme. I punti che non sono angoli tra due linee rette vengono esclusi e un messaggio indica quanti. Un riquadro attorno a un’intera forma, o un clic al suo interno, seleziona insieme angoli e linee; la barra propone allora <strong class="ui">«Curva la linea»</strong> e <strong class="ui">«Raddrizza la linea»</strong> per tutte le linee selezionate, accanto agli strumenti per gli angoli.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-fillet.webp" alt="L’angolo in alto a sinistra è arrotondato con un raggio di 12 mm." width="1280" height="800" loading="lazy"><figcaption>L’angolo in alto a sinistra è arrotondato con un raggio di 12 mm.</figcaption></figure>
+</section><section class="guide-part"><h2 id="specchiare"><span class="heading-alias" id="mirroring"></span>Specchiare</h2>
+<p>Seleziona punti e linee, facendo clic, tenendo premuto <kbd>Shift</kbd> mentre fai clic oppure trascinando un riquadro attorno agli elementi. Poi fai clic su <strong class="ui">«Specchia»</strong> nella barra e scegli l’asse: <strong class="ui">«Sinistra-destra»</strong> riflette rispetto all’asse verticale al centro della piastra; <strong class="ui">«Alto-basso»</strong> rispetto all’asse orizzontale; <strong class="ui">«Rispetto a una linea»</strong> rispetto a una linea retta dello schizzo che selezioni con un clic. La copia viene aggiunta dall’altro lato e l’originale resta dov’è; non sono collegati, quindi puoi modificarli separatamente. I punti che si trovano sull’asse vengono condivisi: se le estremità di un contorno a metà coincidono con l’asse, il contorno risultante si chiude. Puoi quindi disegnare metà di una staffa, selezionarla, specchiarla e creare il corpo. Una linea di costruzione è un buon asse. <kbd>Esc</kbd> annulla.</p>
+</section><section class="guide-part"><h2 id="linee-di-costruzione"><span class="heading-alias" id="construction-lines"></span>Linee di costruzione</h2>
+<p>Una linea di costruzione ti aiuta a posizionare i punti senza entrare a far parte del corpo. È tratteggiata e non viene mai considerata parte del contorno: puoi prolungarla quanto vuoi oltre la forma senza che il corpo si allarghi.</p>
+<ul><li>Attiva <strong class="ui">«Linea di costruzione»</strong> nel gruppo <strong class="ui">«Disegna»</strong>. Da quel momento, le nuove linee, comprese quelle inserite con valori numerici, diventano linee di costruzione. Premi di nuovo il pulsante per tornare alle linee normali.</li><li>Per trasformare una linea già disegnata in una linea di costruzione, selezionala e scegli <strong class="ui">«Trasforma in linea di costruzione»</strong>. <strong class="ui">«Trasforma in linea normale»</strong> la riconverte in una linea normale.</li><li>I nuovi punti si agganciano ai punti in cui la linea di costruzione incrocia un’altra linea, indicati da un cerchio blu, e alle sue estremità. Così puoi posizionare un angolo a metà di una linea, a distanza fissa da uno spigolo o su un’intersezione, senza fare calcoli.</li><li>I nuovi punti si agganciano anche al punto medio di ogni linea retta dello schizzo, al centro di ogni cerchio e angolo arrotondato e ai punti medi dei lati di un corpo visualizzato sotto lo schizzo (#624). Un punto che stai trascinando ignora il punto medio delle proprie linee.</li><li>Una selezione che trascini si aggancia con il suo centro (#1236): il centro di un cerchio o di un rettangolo si posa sulle estremità, sugli angoli e sui punti medi delle altre linee, sui centri dei cerchi, dove si incrociano le linee di costruzione e sugli angoli di un corpo sottostante; un anello blu mostra dove. Anche una forma trascinata da <strong class="ui">«Aggiungi forma allo schizzo»</strong> si posa con il suo centro su questi punti. Tieni premuto <kbd>Alt</kbd> per restare solo sulla griglia.</li><li><strong class="ui">«Linea dal centro»</strong> nel gruppo <strong class="ui">«Disegna»</strong> disegna una linea a partire dal suo punto medio: fai clic prima sul centro e poi sull’estremità; la linea si estende per la stessa lunghezza anche dall’altro lato. Il centro diventa un punto vero e proprio. Fai di nuovo clic sul pulsante per tornare a disegnare linee normali.</li><li>Una linea di costruzione non divide il contorno nei punti in cui lo attraversa. Durante una rotazione può anche trovarsi a destra dell’asse.</li></ul>
+</section><section class="guide-part"><h2 id="trasformare-lo-schizzo-in-un-corpo"><span class="heading-alias" id="making-a-body-from-it"></span>Trasformare lo schizzo in un corpo</h2>
+<p>Fai clic su <strong class="ui">«Termina schizzo»</strong>. Il contorno diventa un corpo appoggiato al piano di lavoro. Nelle sue impostazioni puoi modificare altezza, colore e tutto il resto, come per qualsiasi altra forma. Quando lo ridimensioni, dopo un istante layerling lo ricrea a partire dallo schizzo, che si ridimensiona insieme al corpo. In questo modo resta una geometria esatta, su cui puoi applicare smussi e raccordi; se in seguito riapri lo schizzo, avrà le dimensioni correnti del corpo.</p>
+<p>Se il piano di lavoro è appoggiato sul lato di un corpo, disegni guardando quel lato: anche sul corpo finale, la parte superiore dello schizzo sarà rivolta verso l’alto. Il contorno tenue del corpo nella vista Schizzo ne mostra la posizione. Se invece il piano di lavoro attraversa un corpo, la vista Schizzo mostra il contorno del taglio: per esempio, un corpo cavo appare come un anello e puoi allineare lo schizzo alle sue pareti. I punti posizionati o trascinati vicino a un angolo di questi contorni si agganciano esattamente a esso; un piccolo cerchio blu indica l’aggancio. Così puoi includere nello schizzo gli spigoli di altri corpi anche quando il piano di lavoro non vi coincide esattamente. Per ricalcare un oggetto esistente, attiva <strong class="ui">«Mostra i bordi delle parti visibili attraverso il piano dello schizzo»</strong> (il pulsante con i livelli tra i comandi della vista a sinistra): tutti gli spigoli dei corpi vengono disegnati sul piano dello schizzo, sottili e tenui, come visti in trasparenza, a qualsiasi altezza si trovino. Un piano verticale, per esempio appoggiato a una faccia anteriore, mostra così la vista frontale. La scelta viene ricordata dal browser.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-result.webp" alt="Il contorno è diventato un corpo. L’angolo è arrotondato." width="1280" height="800" loading="lazy"><figcaption>Il contorno è diventato un corpo. L’angolo è arrotondato.</figcaption></figure>
+<p>Con <strong class="ui">«Modifica schizzo»</strong> puoi tornare allo schizzo in qualsiasi momento per modificarlo. Anche un doppio clic sul corpo lo apre, come in Tinkercad (un corpo bloccato resta chiuso); <strong class="ui">«Il doppio clic apre lo schizzo»</strong> nelle impostazioni disattiva questa funzione. Tuttavia, gli smussi e i raccordi già applicati al corpo vengono persi, perché i suoi spigoli sono creati di nuovo. Un corpo che hai ruotato o spostato nell'editor 3D si apre dove si trova sul piano, ruotato come lo vedi lì e sulla griglia del piano; solo un corpo inclinato o specchiato si apre nel proprio riferimento.</p>
+<p>Uno schizzo con più contorni crea un solo corpo e i contorni sovrapposti vengono uniti. Per ottenere un corpo separato per ciascun contorno, seleziona il corpo e fai clic su <strong class="ui">«Separa le parti»</strong>: ogni contorno esterno diventa un corpo autonomo insieme ai fori che contiene e mantiene altezza, colore e posizione del corpo originale. Ogni parte ha uno schizzo modificabile, complete delle linee di costruzione; puoi quindi alzarle o abbassarle singolarmente e poi unirle o sottrarle. I trattamenti degli spigoli impediscono questa operazione, così come un corpo già allungato: in quel caso viene separato come mesh.</p>
+<p><strong>Creare un altro tipo di corpo dallo stesso schizzo:</strong> l’etichetta in cima allo schizzo indica il risultato, <strong class="ui">«Schizzo da estrudere»</strong>, <strong class="ui">«Schizzo di rivoluzione»</strong> o <strong class="ui">«Schizzo con estrusione lungo percorso»</strong>. Fai clic sull’etichetta e scegli un’altra modalità, anche mentre modifichi un corpo esistente. Per esempio, un SVG importato, che inizialmente viene estruso, diventa un vaso o una manopola se lo converti in <strong class="ui">«Schizzo di rivoluzione»</strong>. Se un contorno oltrepassa l’asse, viene spostato a sinistra finché il suo bordo destro coincide con l’asse: così la sezione di metà di un SVG ruota attorno al proprio lato rettilineo. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> annulla lo spostamento. Quando completi l’operazione, il nuovo corpo sostituisce quello precedente mantenendone nome, colore e altezza della base. Come per qualsiasi modifica allo schizzo, i trattamenti degli spigoli vengono rimossi.</p>
+<section class="guide-part"><h3 id="ruotare-un-profilo"><span class="heading-alias" id="revolving"></span>Ruotare un profilo</h3>
+<p>Per creare un corpo mediante rotazione, disegna <strong>la metà della sezione trasversale a sinistra dell’asse</strong> visualizzato nello schizzo. Accanto compare un’anteprima 3D della rotazione, che mostra subito l’aspetto del corpo. Il contorno deve essere chiuso, oppure puoi creare una linea aperta da usare come traccia, come descritto più sotto. Al termine, fai clic su <strong class="ui">«Termina rivoluzione»</strong>. Gli altri corpi del progetto sono mostrati frontalmente, nella stessa vista del profilo e con l’asse al centro: puoi disegnare il profilo accanto o sopra di loro. Il corpo viene posizionato dove l’hai disegnato e la linea orizzontale al centro dello schizzo rappresenta il pavimento: un profilo disegnato sopra di essa crea un corpo più alto, il cui punto più basso è la base.</p>
+<p>Un corpo ottenuto con una rotazione è una geometria esatta, come quello estruso: puoi applicare smussi e raccordi e svuotarlo per creare una tazza o un vaso. Un corpo ruotato con una versione precedente di layerling è una mesh; apri <strong class="ui">«Modifica schizzo»</strong> e completa di nuovo lo schizzo per renderlo esatto. Come in precedenza, un profilo che attraversa l’asse non può essere creato come geometria esatta e diventa una mesh.</p>
+<p><strong>Facce rotonde più lisce: <strong class="ui">«Finezza»</strong>.</strong> Un corpo di rivoluzione esatto è diviso in piccole sfaccettature piane per la vista, l'esportazione e la stampa, e su un vaso grande possono vedersi nella stampa. Seleziona il corpo e imposta <strong class="ui">«Finezza»</strong> nel pannello proprietà su <strong class="ui">«Fine»</strong> o <strong class="ui">«Molto fine»</strong>: le facce rotonde sono divise più finemente, al prezzo di più triangoli e un progetto più lento. Un'elica o una rivoluzione a mesh ha invece <strong class="ui">«Lati»</strong>.</p>
+<p><strong>Un unico filamento continuo: <strong class="ui">«Passo»</strong>.</strong> Una rotazione trasforma il contorno in anelli chiusi. Seleziona il corpo ottenuto e imposta <strong class="ui">«Passo»</strong> nel pannello delle proprietà su un valore maggiore di 0: indica di quanto sale a ogni giro e trasforma il profilo in un’elica continua, come il filamento su una bobina o una molla. <strong class="ui">«Angolo di rotazione»</strong> diventa <strong class="ui">«Giri»</strong> e permette di impostare fino a 200 giri; un numero negativo crea una spirale sinistrorsa. Se i giri sono più ravvicinati dell’altezza del profilo, si fondono in un unico corpo: puoi usare anche un nucleo pieno con passo fine. L’elica è una mesh, quindi smussi, raccordi e svuotamento non sono disponibili; se crei molti giri, mantieni basso <strong class="ui">«Lati»</strong>. Impostando il passo su 0 tornano gli anelli.</p>
+</section></section><section class="guide-part"><h2 id="estrudere-lungo-un-percorso"><span class="heading-alias" id="sweeping-along-a-path"></span>Estrudere lungo un percorso</h2>
+<p><strong class="ui">«Estrusione lungo un percorso»</strong> estrude un contorno lungo un percorso, per esempio una canalina che gira un angolo, un condotto, una protezione attorno a una cinghia o un anello intorno a un esagono. Lo trovi accanto a <strong class="ui">«Estrudi schizzo»</strong> e <strong class="ui">«Ruota schizzo»</strong> nel gruppo <strong class="ui">«Crea»</strong>.</p>
+<ul><li><strong>La sezione</strong> come contorno chiuso, come al solito. Disegnala come la vedresti guardando lungo il percorso dal suo inizio: trasversale al percorso è la sinistra e la destra dello schizzo, l'alto è l'alto del corpo finito. Una sezione cava, un canale o un tubo, è un contorno con un altro al suo interno. Per impostazione predefinita la sezione è centrata sul percorso. Il menu accanto al contrassegno della modalità in alto permette invece di mettere sul percorso il suo bordo sinistro o destro (<strong class="ui">«Sul percorso: bordo sinistro»</strong>, <strong class="ui">«Sul percorso: bordo destro»</strong>, visti guardando lungo il percorso), così una guida può stare da un lato della linea o seguire il bordo di un pezzo. Il corpo poggia sul piano dello schizzo con il punto più basso della sezione.</li></ul>
+<p>Disegna due elementi sullo stesso foglio:</p>
+<ul><li><strong>La sezione trasversale</strong>, come al solito sotto forma di contorno chiuso. Disegnala come apparirebbe guardando lungo il percorso, dal suo punto iniziale: la direzione trasversale corrisponde alla sinistra e alla destra dello schizzo, mentre la parte superiore resta in alto sul corpo finale. Una sezione cava, una canalina o un tubo si disegna con un contorno e un altro al suo interno. La sezione è centrata sul percorso e il punto più basso del corpo poggia sul piano dello schizzo.</li><li><strong>Il percorso</strong>, come <strong class="ui">«Linea di costruzione»</strong>: attivalo e disegna una linea o una curva continua, aperta o chiusa (una linea chiusa crea un anello). Il percorso resta piatto sul piano dello schizzo.</li></ul>
+<p>Disegna la sezione vicino all’estremità del percorso da cui deve iniziare: il percorso partirà dall’estremità a essa più vicina. Poi fai clic su <strong class="ui">«Termina l'estrusione lungo percorso»</strong>. Un angolo tra segmenti rettilinei diventa un taglio a mitra, mentre una curva resta uniforme e la sezione rimane verticale per tutto il percorso. Il corpo è una geometria esatta, come quello estruso: puoi applicare raccordi, smussi ed esportarlo in STEP. Se manca un contorno chiuso o un percorso, oppure se ci sono più percorsi separati, layerling te lo segnala. Con <strong class="ui">«Modifica schizzo»</strong> puoi riaprire lo schizzo e modificare la sezione o il percorso.</p>
+</section><section class="guide-part"><h2 id="creare-un-corpo-dalla-traccia"><span class="heading-alias" id="building-as-a-stroke"></span>Creare un corpo dalla traccia</h2>
+<p>Normalmente, il corpo occupa l’area all’interno di un contorno chiuso. Con <strong class="ui">«Tratto»</strong> nella sezione <strong class="ui">«Termina»</strong>, puoi invece trasformare la linea stessa in un corpo con la larghezza desiderata. Attiva <strong class="ui">«Crea come tratto»</strong> nella finestra della traccia: lo schizzo mostra subito il risultato.</p>
+<ul><li>Un <strong>contorno chiuso</strong> diventa una cornice. <strong class="ui">«Posizione»</strong> stabilisce dove si trova la parete: <strong class="ui">«Centrato»</strong> lungo la linea disegnata, <strong class="ui">«Interno»</strong> all’interno oppure <strong class="ui">«Esterno»</strong> all’esterno. L’opzione esterna è utile per aggiungere una tolleranza: disegna il contorno di un foro, per esempio una coda di rondine, e applica una traccia esterna di 0,2 mm per creare il gioco necessario alla stampa.</li><li>Una <strong>linea aperta</strong> diventa una striscia centrata sulla linea. <strong class="ui">«Estremità»</strong> determina la forma delle estremità: <strong class="ui">«Piatte»</strong>, <strong class="ui">«Quadrate»</strong> (più lunga di metà della larghezza) o <strong class="ui">«Arrotondate»</strong>.</li><li><strong class="ui">«Angoli»</strong> si applica a entrambe le forme: <strong class="ui">«A punta»</strong>, <strong class="ui">«Arrotondati»</strong> o <strong class="ui">«Smussati»</strong>.</li></ul>
+<p>Lo schizzo conserva la linea disegnata. Riaprendolo puoi continuare a modificare la linea e la traccia; disattivando l’opzione, il corpo viene ricreato usando di nuovo l’area. Per generare la traccia, le curve vengono suddivise in brevi segmenti rettilinei.</p>
+<p>Durante una rotazione, la traccia diventa una parete sottile: disegna <strong>una sola linea aperta</strong> a sinistra dell’asse per creare la parete di un vaso o di una tazza, attiva <strong class="ui">«Tratto»</strong> e imposta la larghezza; la rotazione farà girare quella striscia. La parte che attraversa l’asse viene tagliata lungo l’asse stesso.</p>
+</section><section class="guide-part"><h2 id="riempimento-e-sagoma"><span class="heading-alias" id="fill-and-silhouette"></span>Riempimento e sagoma</h2>
+<p>Puoi impostare la traccia anche senza aprire lo schizzo: nelle proprietà di un corpo creato da uno schizzo scegli <strong class="ui">«Area»</strong>, <strong class="ui">«Contorno esterno»</strong>, <strong class="ui">«Contorno interno»</strong> o <strong class="ui">«Contorno centrato»</strong> sotto <strong class="ui">«Riempimento»</strong>, con <strong class="ui">«Spessore della linea»</strong> e <strong class="ui">«Angoli»</strong>. Il corpo viene ricreato subito nella posizione corrente. Queste opzioni corrispondono alle modalità di riempimento dell’importazione SVG di Tinkercad: predefinita, contorno esterno e contorno interno. <strong class="ui">«Allarga»</strong> mantiene l’area piena e la estende in ogni direzione della larghezza della traccia, con angoli vivi, arrotondati o smussati. È utile per creare una base sotto un logo multicolore, risultato che con la sola traccia esterna sarebbe soltanto un anello. <strong class="ui">«Più stretto»</strong> fa l’opposto: l’area resta piena e il bordo si sposta verso l’interno della larghezza della traccia, compresi i fori, che si allargano. Puoi applicare entrambe le opzioni a copie dello stesso schizzo per creare un accoppiamento: il foro mantiene la dimensione disegnata, mentre la parte che lo attraversa viene rimpicciolita di 0,5 mm con <strong class="ui">«Più stretto»</strong>; oppure puoi creare una parete interna a una forma ricavata dallo stesso contorno. Se la larghezza supera lo spazio disponibile nel contorno, non rimane alcuna area. Nella finestra della traccia dello schizzo, le stesse due opzioni si trovano sotto <strong class="ui">«Posizione»</strong>. Con una linea esterna, interna o centrata, <strong class="ui">«Bordo di taglio»</strong> rende la parete affilata in cima: la sua sommità si restringe a quella larghezza con uno smusso a 45° su entrambi i lati, come in un tagliabiscotti. 0 lascia la cima piatta; il tagliente resta quando cambi la larghezza della linea.</p>
+<p><strong class="ui">«Silhouette (senza fori)»</strong> esclude tutti i contorni interamente contenuti in un altro, quindi i fori e tutto ciò che si trova al loro interno. Rimane solo il contorno esterno. Insieme a <strong class="ui">«Contorno esterno»</strong>, permette di creare un tagliabiscotti: importa due volte lo stesso SVG, una con la sagoma come area per la base e l’altra con la sagoma e una traccia esterna da 1 a 2 mm per le pareti. L’interruttore è disponibile anche nella finestra <strong class="ui">«Tratto»</strong> in modalità Schizzo.</p>
+<p>Quando il corpo viene ricreato, i raccordi e gli smussi applicati agli spigoli vengono rimossi, come quando modifichi lo schizzo.</p>
+</section><section class="guide-part"><h2 id="pareti-inclinate-per-stampi"><span class="heading-alias" id="slanted-walls-for-stamps"></span>Pareti inclinate per stampi</h2>
+<p>Un corpo estruso da uno schizzo ha pareti verticali. Per uno stampo, una matrice per goffratura o un punzone servono invece pareti inclinate, sia all’esterno sia all’interno, e uno spessore uniforme. layerling non offre un angolo di sformo per l’estrusione, ma puoi ottenere questo risultato con <strong class="ui">«Rastremazione»</strong> su contorni semplici. Ecco un metodo:</p>
+<ol><li>Disegna il contorno e il foro necessario, quindi crea un corpo. Duplicalo con <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span>.</li><li>Sul primo corpo, attiva <strong class="ui">«Silhouette (senza fori)»</strong> per riempire il foro e usa <strong class="ui">«Rastremazione»</strong> per rendere la base più larga della sommità.</li><li>Sulla copia, riapri lo schizzo ed elimina il contorno esterno, lasciando solo quello del foro. Completa lo schizzo, imposta il corpo come <strong class="ui">«Foro»</strong> e usa <strong class="ui">«Rastremazione»</strong> per renderne la base più stretta della sommità.</li><li>Sposta il foro dentro il primo corpo, al posto del foro originale, e raggruppa i due corpi.</li></ol>
+<p>Le pareti saranno inclinate sia all’esterno sia all’interno. La rastremazione ridimensiona l’intero contorno: il metodo è esatto per forme semplici, per cui puoi impostare dimensioni che mantengano parallele le pareti, ma è solo approssimativo per i dettagli fini, come le lettere.</p>
+</section><section class="guide-part"><h2 id="usare-un-immagine-come-modello"><span class="heading-alias" id="a-picture-as-template"></span>Usare un’immagine come modello</h2>
+<p>Con <strong class="ui">«Aggiungi immagine»</strong> puoi inserire una foto o un disegno sotto lo schizzo e ricalcarlo. Puoi modificarne dimensioni, opacità e posizione. Quando l’immagine è nella posizione giusta, bloccarla con <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> evita di spostarla per sbaglio mentre disegni. Un’immagine bloccata non intralcia: i clic la attraversano, così puoi selezionare punti e linee sovrapposti e trascinare un riquadro attorno a essi. Un clic sul lucchetto nel suo angolo la sblocca; un clic tenendo premuto <kbd>Alt</kbd> la seleziona senza sbloccarla. Se le impostazioni sul bordo destro coprono l’immagine, spostale trascinando la barra del titolo; un doppio clic le riancora.</p>
+<p>In <strong class="ui">«Allinea»</strong> puoi correggere l’orientamento di una foto non scattata frontalmente:</p>
+<ul><li><strong><strong class="ui">«Rotazione»</strong>:</strong> ruota l’immagine attorno al suo centro usando le frecce curve oltre i suoi angoli oppure inserendo un valore in gradi. Con <kbd>Shift</kbd> le frecce si agganciano a incrementi di 15°. Dentro l'anello che compare durante la rotazione si agganciano a incrementi di 22,5°, all'esterno a gradi interi.</li><li><strong><strong class="ui">«Porta a X = 0»</strong></strong> e <strong><strong class="ui">«Porta a Y = 0»</strong>:</strong> posizionano il centro dell’immagine su X = 0 o Y = 0. Per una rotazione, X = 0 è l’asse e l’immagine risulta simmetrica rispetto a esso.</li><li><strong><strong class="ui">«Calibra»</strong>:</strong> il pulsante è in alto, subito sotto l’anteprima; fai clic su due punti dell’immagine la cui distanza reale è nota, per esempio le estremità di un righello o un diametro noto, e inserisci la misura. L’immagine viene ridimensionata in modo uniforme per corrispondere alla distanza reale; il primo punto resta fermo.</li><li><strong><strong class="ui">«Ritaglia»</strong>:</strong> le maniglie del riquadro ritagliano l’immagine invece di ridimensionarla. La parte tagliata resta memorizzata e ricompare con <strong class="ui">«Mostra l'immagine intera»</strong> oppure trascinando di nuovo una maniglia verso l’esterno.</li></ul>
+<p>Tutte e quattro le opzioni modificano solo l’immagine di riferimento, non lo schizzo.</p>
+<p><strong><strong class="ui">«Ricalca»</strong></strong>, nelle impostazioni dell'immagine, mette i punti al posto tuo: traccia il contorno della forma nell'immagine – una sagoma, un logo, una parola – e lo mostra in rosso sopra di essa, con punti quadrati per gli angoli e tondi per i punti morbidi. <strong class="ui">«Forma scura»</strong> o <strong class="ui">«Forma chiara»</strong> sceglie quale parte dell'immagine è la forma, <strong class="ui">«Soglia»</strong> dove lo scuro diventa chiaro, <strong class="ui">«Punti»</strong> quanti punti ricevono in tutto i contorni (meno danno curve più morbide, di più seguono l'immagine più da vicino), <strong class="ui">«Angolo da»</strong> da quale svolta un punto è un angolo, <strong class="ui">«Escludi macchie fino a»</strong> quanto piccola è una macchiolina che si tralascia, e <strong class="ui">«Mantieni i fori»</strong> conserva il centro di una A o di una O. <strong class="ui">«Applica»</strong> mette i contorni nello schizzo esattamente dove sta l'immagine, con la sua dimensione, rotazione e ritaglio, e li seleziona: sono punti normali da spostare, curvare o togliere, e <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> li toglie in un passo. Funziona meglio con un contrasto netto; ritaglia prima una foto con uno sfondo affollato. Ciò che cade – intorno ai contorni, nei fori, ciò che viene tagliato via – l'anteprima lo copre col colore del piano, così dell'immagine si vede solo ciò che resta. I contorni così vicini che curve larghe si incrocerebbero ricevono da soli più punti; la scheda lo dice. Per un bordo fuori o dentro il contorno, dai al corpo dello schizzo un tratto fuori o dentro le sue linee, oppure scosta il corpo finito.</p>
+<p>Per una foto – un giocattolo su un tavolo bianco, per esempio – scegli <strong><strong class="ui">«Oggetto»</strong></strong> sotto <strong class="ui">«Forma»</strong>: lo sfondo è il colore al bordo dell'immagine, e tutto ciò che se ne distingue diventa un solo contorno, qualunque siano i suoi colori; <strong class="ui">«Soglia»</strong> stabilisce allora quanto chiaramente deve distinguersi. Un'immagine colorata su uno sfondo uniforme parte così. <strong class="ui">«Seleziona aree»</strong> contorna altro: fai clic su una zona dell'immagine, una finestra per esempio, e viene contornata la macchia di colore simile intorno al punto (<strong class="ui">«Tolleranza colore»</strong> stabilisce quanto simile). Fori e zone cliccate sono elencati sotto <strong class="ui">«Fori e aree»</strong>; puntandone uno lo si vede nell'anteprima, ✕ lo toglie, e con <strong class="ui">«Ritaglia»</strong> spento viene disegnato come linea di costruzione invece che come foro. Una zona che tocca il bordo dell'immagine è lo sfondo e non viene presa. Ciò che nessuna soglia e nessun colore distinguono – un'ombra scura quanto le ruote sopra di essa – lo toglie <strong class="ui">«Ritaglia»</strong>: fai clic sugli angoli intorno (un clic sul primo angolo, un doppio clic o <kbd>Enter</kbd> lo chiude), e il contorno segue il taglio; è elencato come “Taglio 1”.</p>
+<p>L'albero accanto a una casa, una figura davanti a uno sfondo affollato – dove nessun colore separa la forma dal resto, il <strong><strong class="ui">«Lazo magnetico»</strong></strong> la cattura: fai clic più o meno lungo il suo bordo, e tra due clic la linea segue il bordo da sola, anche nelle curve; mentre muovi il puntatore, l'anteprima mostra già dove passerà. Un clic sul primo punto, un doppio clic o <kbd>Enter</kbd> lo chiude, <kbd>Esc</kbd> lo scarta. È elencato come “Lazo 1”, con la scelta <strong class="ui">«Includi»</strong> (la zona si aggiunge alla forma) o <strong class="ui">«Ritaglia»</strong> (viene tolta); ogni taglio ha la stessa scelta. Sotto <strong class="ui">«Forma»</strong>, <strong><strong class="ui">«Solo lazo»</strong></strong> fa la forma solo di ciò che catturi così – nient'altro dell'immagine.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/trace-house.webp" alt="Una casa disegnata ricalcata come oggetto, con la soglia abbassata per la sua parete chiara: il lazo magnetico ha tagliato via l'albero, e gli otto vetri delle finestre sono scelti come fori." width="1280" height="800" loading="lazy"><figcaption>Una casa disegnata ricalcata come oggetto, con la soglia abbassata per la sua parete chiara: il lazo magnetico ha tagliato via l'albero, e gli otto vetri delle finestre sono scelti come fori.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/trace-house-body.webp" alt="La casa come corpo: senza l'albero, con le finestre passanti." width="1280" height="800" loading="lazy"><figcaption>La casa come corpo: senza l'albero, con le finestre passanti.</figcaption></figure>
+</section><section class="guide-part"><h2 id="tasti-in-modalita-schizzo"><span class="heading-alias" id="keys-in-sketch-mode"></span>Tasti in modalità Schizzo</h2>
+<div class="table-scroll"><table><thead><tr><th>Tasto</th><th>Effetto</th></tr></thead><tbody><tr><td><kbd>Esc</kbd></td><td>disattiva lo strumento nota; altrimenti disattiva lo strumento (torna a <strong class="ui">«Seleziona»</strong>), poi deseleziona tutto</td></tr><tr><td><kbd>Delete</kbd></td><td>elimina l’elemento selezionato</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>C</kbd></span></td><td>copia la selezione</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span></td><td>taglia la selezione</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>V</kbd></span></td><td>incolla</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span></td><td>duplica la selezione</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span></td><td>annulla</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span></td><td>seleziona tutti i punti e le linee</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>I</kbd></span></td><td><strong class="ui">«Aggiungi immagine»</strong></td></tr><tr><td><kbd>Shift</kbd></td><td>durante il disegno: aggancia la linea a incrementi di 15°; durante il trascinamento: vincola il movimento a un asse</td></tr><tr><td>cifra, <kbd>&lt;</kbd>, <kbd>Tab</kbd>, <kbd>Enter</kbd></td><td>durante il disegno: inserisce e conferma lunghezza e angolo della linea successiva</td></tr><tr><td><kbd>R</kbd></td><td>ruota lo schizzo chiuso di 45°</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span></td><td>blocca o sblocca il contorno selezionato o l’immagine di riferimento</td></tr><tr><td><kbd>N</kbd></td><td>inserisci una nota: il clic successivo la mette nello schizzo</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span></td><td>mostra o nascondi le note</td></tr></tbody></table></div>
+<aside class="tip"><p><strong>Suggerimento:</strong> usa meno punti possibile. Un contorno con pochi punti posizionati bene produce un corpo più liscio di un contorno intricato con moltissimi punti.</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/it/edges-and-hollowing.html"><small>Capitolo precedente</small>Smussare gli spigoli e svuotare i corpi</a><a class="next" href="/api/desktop/layerling/ui/it/text.html"><small>Capitolo successivo</small>Testo e scritte curve</a></div>
+      </main>
+    </div>
+    <footer class="note">Questa guida cresce insieme al programma. Se manca qualcosa o trovi un errore, segnalalo nelle <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussioni</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=it" rel="noopener">Sostieni il progetto</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussioni</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Scopri di più su GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Note di rilascio v1.154.1</a></div><p class="trademark">Tinkercad è un marchio di Autodesk, Inc. Layerling è un progetto indipendente, non affiliato ad Autodesk né approvato o sponsorizzato da essa.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Torna all'editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Apri l'editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

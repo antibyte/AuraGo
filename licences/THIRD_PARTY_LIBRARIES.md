@@ -22,18 +22,22 @@ Inventory of external libraries, runtimes, fonts, icons, and other third-party a
 
 The German compact listing and the license texts that must travel with a redistribution are in [`licences/UEBERSICHT.md`](UEBERSICHT.md).
 
-Layerling 1.71.0 (commit `8704d5c99adfeb981be31bb5eddc9c17f75ab281`) is an optional
-AGPL-3.0-only browser CAD application, vendored in `ui/js/vendor/layerling`.
+Layerling 1.154.1 (commit `bdf50b068f7b0475dece5307e1b2019aa10d5305`, tag `v1.154.1`)
+is an optional AGPL-3.0-only browser CAD application, vendored in `ui/js/vendor/layerling`.
 Its license and complete corresponding source archive (including AuraGo's
 adapter and build instructions) are shipped as `LICENSE.txt` and `source.zip`.
-The running editor exposes both downloads. See `scripts/layerling/README.md`
-and [Layerling upstream](https://github.com/henmedia/layerling) for provenance.
+The running editor exposes both downloads. The Japanese fallback face is generated
+from Zen Maru Gothic (SIL OFL-1.1); `OFL.txt` is shipped beside those files.
+See `scripts/layerling/README.md` and [Layerling upstream](https://github.com/henmedia/layerling).
 
-NASSCAD v4.7.0-desktop (commit `279da7c0f0ca28dfae19c11c8be231f326dfda4f`)
-is bundled with its CC BY-NC 4.0 license and upstream additional permissions.
-Its third-party components retain their own licenses. The complete notices,
-original/adapted checksums and local adaptation script are recorded in
-`internal/desktop/bundled_apps/nasscad/` and `scripts/vendor-nasscad.mjs`.
+NASSCAD 4.7.0 (commit `ba7cc40362c75c74165af5d6732d810cceda86cc`, after tag
+`v4.7.0-agpl`) is bundled under AGPL-3.0-only for NassLab's own code.
+Personal and commercial use of the application is allowed; models and exports
+remain the user's. A modified copy offered over a network needs its corresponding
+source, which this repository contains (`scripts/vendor-nasscad.mjs` and
+`internal/desktop/bundled_apps/nasscad/`). Third-party components keep the
+licenses in the bundled `THIRD-PARTY.md`. Original and adapted checksums are in
+`provenance.json`.
 
 - **AuraGo project license:** [MIT](../LICENSE) for the source code; distributed binaries are GPL-3.0 combined works because the WhatsApp channel links GPL-3.0 code (see §9)
 - **Reviewed:** 2026-10-31

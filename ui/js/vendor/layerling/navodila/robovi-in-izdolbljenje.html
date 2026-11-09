@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="sl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Posnetje robov in izdolbljenje teles - layerling navodila</title>
+    <meta name="description" content="Posnetje in zaokrožitev na izbranih robovih, stene enake debeline za škatle, kozarce in ohišja.">
+    <link rel="canonical" href="https://layerling.com/navodila/robovi-in-izdolbljenje.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/kanten-und-aushoehlen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/randen-en-uithollen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/robovi-in-izdolbljenje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/edges-and-hollowing.html">
+    <meta property="og:title" content="Posnetje robov in izdolbljenje teles - layerling navodila">
+    <meta property="og:description" content="Posnetje in zaokrožitev na izbranih robovih, stene enake debeline za škatle, kozarce in ohišja.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/navodila/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Navodila</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/navodila/search-index.json" data-nothing="Nič ni najdeno." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Išči po navodilih" aria-label="Išči po navodilih" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Jezik">Slovenščina</summary><ul><li><a href="/api/desktop/layerling/ui/guide/edges-and-hollowing.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/edges-and-hollowing.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/edges-and-hollowing.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/edges-and-hollowing.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/edges-and-hollowing.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/edges-and-hollowing.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/edges-and-hollowing.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/randen-en-uithollen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/edges-and-hollowing.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/edges-and-hollowing.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/edges-and-hollowing.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/robovi-in-izdolbljenje.html" hreflang="sl" lang="sl" aria-current="true">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/edges-and-hollowing.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/edges-and-hollowing.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/edges-and-hollowing.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/edges-and-hollowing.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/edges-and-hollowing.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/edges-and-hollowing.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">V urejevalnik</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Urejevalnik je že odprt v drugem zavihku – preprosto preklopi nanj.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Poglavja"><h2>Poglavja</h2><p class="print-link"><a href="/api/desktop/layerling/ui/navodila/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Celotna navodila za tiskanje</span></a></p><ol><li><a href="/api/desktop/layerling/ui/navodila/prvi-koraki.html">Prvi koraki</a></li><li><a href="/api/desktop/layerling/ui/navodila/pogled-in-delovna-ravnina.html">Pogled in delovna ravnina</a></li><li><a href="/api/desktop/layerling/ui/navodila/oblike.html">Postavljanje in nastavljanje oblik</a></li><li><a href="/api/desktop/layerling/ui/navodila/izbiranje-in-razporejanje.html">Izbiranje in razporejanje</a></li><li><a href="/api/desktop/layerling/ui/navodila/telesa-in-luknje.html">Telesa in luknje</a></li><li><a href="/api/desktop/layerling/ui/navodila/robovi-in-izdolbljenje.html" aria-current="page">Posnetje robov in izdolbljenje teles</a></li><li><a href="/api/desktop/layerling/ui/navodila/skice.html">Skice: od obrisa do telesa</a></li><li><a href="/api/desktop/layerling/ui/navodila/besedilo.html">Besedilo in ukrivljen napis</a></li><li><a href="/api/desktop/layerling/ui/navodila/navoji-in-mehanika.html">Navoji, zobniki in drugi sestavni deli</a></li><li><a href="/api/desktop/layerling/ui/navodila/merjenje-in-opombe.html">Merjenje in opombe</a></li><li><a href="/api/desktop/layerling/ui/navodila/tiskanje.html">Priprava za 3D-tisk</a></li><li><a href="/api/desktop/layerling/ui/navodila/datoteke-in-shranjevanje.html">Datoteke, shranjevanje in deljenje</a></li><li><a href="/api/desktop/layerling/ui/navodila/bliznjice.html">Bližnjice na tipkovnici</a></li><li><a href="/api/desktop/layerling/ui/navodila/ai-z-mcp.html">Gradnja z umetno inteligenco (MCP)</a></li><li><a href="/api/desktop/layerling/ui/navodila/offline-in-namestitev.html">Namestitev kot aplikacije, delo brez interneta in lastno gostovanje</a></li><li><a href="/api/desktop/layerling/ui/navodila/videi.html">Videoposnetki o programu layerling</a></li><li><a href="/api/desktop/layerling/ui/navodila/tablica-in-dotik.html">Tablica in dotik</a></li></ol></nav>
+      <main>
+<h1>Posnetje robov in izdolbljenje teles</h1>
+<p class="lead">Posnetje in zaokrožitev na izbranih robovih, stene enake debeline za škatle, kozarce in ohišja.</p>
+<div class="toc"><b>Na tej strani</b><ul><li><a href="#posnetje-in-zaokrozitev-robov">Posnetje in zaokrožitev robov</a></li><li><a href="#izdolbljenje-teles">Izdolbljenje teles</a></li><li><a href="#pokrov-za-odprto-telo">Pokrov za odprto telo</a></li><li><a href="#kabelski-kanal-skozi-telo">Kabelski kanal skozi telo</a></li><li><a href="#odmik-teles">Odmik teles</a></li><li><a href="#brisanje-ploskev">Brisanje ploskev</a></li></ul></div>
+<section class="guide-part"><h2 id="posnetje-in-zaokrozitev-robov"><span class="heading-alias" id="chamfering-and-filleting-edges"></span>Posnetje in zaokrožitev robov</h2>
+<p>Ostri robovi na natisnjenem delu redko dobro izgledajo in tudi niso posebno stabilni. S <strong>posnetjem</strong> rob odrežeš poševno, z <strong>zaokrožitvijo</strong> ga zaobliš. Oboje deluje na robovih, ki jih klikneš.</p>
+<ol><li>Izberi telo (ali skupino).</li><li>V orodni vrstici klikni <strong class="ui">„Zaokrožitev“</strong> ali <strong class="ui">„Posnetje“</strong>, pritisni <kbd>B</kbd> za zaokrožitev ali <span dir="ltr"><kbd>Shift</kbd>+<kbd>B</kbd></span> za posnetje, ali klikni z desnim gumbom na telo in izberi v meniju.</li><li>Robovi telesa se poudarijo. Klikni tiste, ki naj bodo prizadeti. Še en klik jih spet odvzame. S <kbd>Shift</kbd> dodaš posamezen rob ali ga odvzameš.</li><li>Nastavi mero in potrdi z <strong class="ui">„Uporabi“</strong> ali <kbd>Enter</kbd>. Nato okno ostane odprto na novem telesu z isto velikostjo, tako da lahko takoj sledi naslednje zaobljenje ali posnetje; zapre ga <strong class="ui">„Končano“</strong>, <kbd>Esc</kbd> ali križec. S <kbd>Shift</kbd> ali <kbd>Ctrl</kbd> klik na <strong class="ui">„Zgornji robovi“</strong>, <strong class="ui">„Spodnji robovi“</strong>, <strong class="ui">„Navpični robovi“</strong> ali <strong class="ui">„Vodoravni robovi“</strong> doda te robove izbranim, namesto da bi jih zamenjal.</li></ol>
+<figure><img src="/api/desktop/layerling/ui/guide/img/fillet-preview.webp" alt="Orodje »Zaokroži robove«: vsi ostri robovi so izbrani, na sliki je predogled s polmerom 4 mm." width="1280" height="800" loading="lazy"><figcaption>Orodje »Zaokroži robove«: vsi ostri robovi so izbrani, na sliki je predogled s polmerom 4 mm.</figcaption></figure>
+<p>Okno je zgoraj desno. Če zakriva robove, ki jih želiš klikniti, ga povlečeš stran za naslovno vrstico; tam se odpre tudi naslednjič, in enako velja za <strong class="ui">„Izdolbi“</strong> in <strong class="ui">„Polje“</strong>. Dvoklik na naslovno vrstico ga vrne nazaj.</p>
+<p>Če pri odprtem oknu izbereš obliko iz seznama oblik, se okno zapre, ne da bi karkoli uporabilo, kliknjeni robovi pa so pozabljeni. Klik potem odloži novo obliko namesto izbire robov.</p>
+<p>V oknu najdeš:</p>
+<ul><li><strong class="ui">„Vsi ostri robovi“</strong> izbere vse robove naenkrat, <strong class="ui">„Počisti“</strong> izprazni izbor.</li><li><strong><strong class="ui">„Polmer“</strong></strong> pri zaokrožitvi. Pri posnetju nastaviš <strong class="ui">„Razdalja“</strong> ali <strong class="ui">„Kot“</strong>.</li><li><strong class="ui">„Spremenljiv polmer“</strong> (samo zaokrožitev) pusti polmeru, da se spreminja vzdolž enega roba: majhen na enem koncu, večji na drugem, enakomerno vmes, kot tam, kjer ravna stena sreča poševno. Klikni en rob, nato nastavi <strong class="ui">„Polmer na začetku“</strong> in <strong class="ui">„Polmer na koncu“</strong>. Kateri konec je začetek, sledi iz tega, kako je bil rob zgrajen; če večji polmer pride na napačen konec, ga <strong class="ui">„Zamenjaj konca“</strong> obrne. Deluje na enem robu naenkrat, zato več robov zaokroži enega za drugim. <strong class="ui">„Uredi“</strong> vrne obe vrednosti.</li><li><strong class="ui">„Vbočeno (izrez)“</strong> (samo zaokrožitev) zaokrožitev obrne: namesto da rob zaobli, iz njega izreže žleb v obliki četrtine kroga, kot izrezani vogali škatle. Žleb je valj izbranega <strong class="ui">„Polmer“</strong>, ki leži vzdolž roba, zato deluje pri vsakem kotu med ploskvama, a samo na ravnih robovih in ne skupaj z <strong class="ui">„Spremenljiv polmer“</strong>. <strong class="ui">„Uredi“</strong> ga vrne.</li><li><strong class="ui">„Prag ostrega roba“</strong> določa, kateri robovi sploh veljajo za ostre. Vrednost 25° obravnava kot rob samo izrazite pregibe in pusti ploske prehode pri miru.</li><li><strong class="ui">„Zgornji robovi“</strong> izbere samo robove čisto na vrhu telesa. To je hitra pot za modelček za piškote: obris v skici zgradiš kot konturo, nato posneš zgornje robove. Kako strmo je posnetje, nastaviš z <strong class="ui">„Kot“</strong>; daljše kot je stena debela, ne more postati.</li><li><strong class="ui">„Spodnji robovi“</strong> izbere samo robove čisto na dnu telesa, nasprotje gumba <strong class="ui">„Zgornji robovi“</strong>. Tako hitro zaobliš ali posnameš samo vznožje dela.</li><li><strong class="ui">„Posnetje z zaokrožitvijo“</strong>, izbran na vrhu okna posnetja ob <strong class="ui">„Posnetje“</strong>, naredi natisljivo stopo dela: posnetje pri plošči, ki se tangentno steče v zaokrožitev proti steni, tako da prve plasti ne potrebujejo podpor, rob pa vseeno konča mehko. <strong class="ui">„Razdalja“</strong> je višina, ki jo stopa zavzame, <strong class="ui">„Kot“</strong> (15° do 75°) strmina posnetja pri plošči. Robove izberete z <strong class="ui">„Spodnji robovi“</strong>.</li><li><strong class="ui">„Samo vidni robovi“</strong> skrije robove, ki ležijo za telesom, gledano od tam, kjer gledaš. Privzeto se vsak rob vidi skozi telo, kar je pri zahtevnem delu zmedeno; ko je stikalo vklopljeno, vidiš in lahko klikneš samo robove, obrnjene proti tebi. Za druge zasukaj pogled. Rob, narisan rdeče (glej spodaj), se vedno pokaže.</li><li><strong class="ui">„Izberi tangentne verige“</strong>: Klik potem izbere tudi robove, ki mehko prehajajo drug v drugega, na primer vse robove okoli ploskve z zaobljenimi vogali. Stikalo določa samo, kaj klik izbere: jedro CAD posnetje ali zaokrožitev vedno nadaljuje na takih gladko povezanih robovih. Tabla ti potem pove, na koliko dodatnih robovih se to zgodi.</li><li><strong class="ui">„Ohrani velikost roba pri spreminjanju velikosti“</strong> ohrani posnetje ali zaokrožitev tako veliko, kot sta, tudi če telo pozneje povečaš.</li><li><strong class="ui">„Kakovost predogleda“</strong> (<strong class="ui">„Osnutek“</strong>, <strong class="ui">„Standardno“</strong> ali <strong class="ui">„Fino“</strong>) določa, kako fino se izračuna predogled. Pri zahtevnih delih je <strong class="ui">„Osnutek“</strong> hitrejši.</li><li>Okno si v tem brskalniku zapomni svoje nastavitve, za posnetje, zaokrožitev in posnetje z zaokrožitvijo vsakega posebej: velikost, kot, prag, kakovost predogleda in stikala ostanejo, kot si jih pustil, po <strong class="ui">„Uporabi“</strong>, po razveljavitvi in ob naslednjem odprtju orodja. Velikost, ki je telo ne prenese, se umakne velikosti, izračunani iz telesa. Na novo začne le <strong class="ui">„Izberi tangentne verige“</strong>: vklopljeno ob prvem posnetju ali zaokrožitvi telesa, nato izklopljeno.</li></ul>
+<p>Medtem ko vrtiš mero, layerling predogled preračuna. To lahko traja trenutek. Lahko nastavljaš naprej, izračuna se vedno nazadnje izbrana vrednost.</p>
+<p>Če je mera prevelika za rob, layerling to pove in predlaga manjšo vrednost. Običajno zadostuje vzeti en do dva milimetra manj. Na ostrih kotih potrebuje zaokrožitev več prostora, kot bi domnevali po polmeru. Na majhnem zaslonu se okno samo pomakne navzdol, da je sporočilo v vidnem polju.</p>
+<p>Če izbor, ki je deloval, odpove, ko klikneš še en rob, ta rob postane rdeč in se nariše širše: to je rob, ki ga pri tej meri ni mogoče obdelati skupaj z drugimi. Klikni ga znova, da ga odstraniš, ali pa zmanjšaj mero. Če med prikazanim sporočilom klikneš še več robov, prvi ostane rdeč. Kadar ni prejšnjega izbora, ki bi deloval – pri prvem kliku ali pri meri, ki si jo ravnokar povečal – rdeči postanejo robovi, ki odpovedo že sami, ali vsi, če gre le za njihovo kombinacijo. Kjer pa se izbrani robovi stikajo v ostrem notranjem vogalu, kot dva diska oblaka, zaokrožitev pri nobeni velikosti nima prostora: layerling tedaj te vogale najprej zaokroži z enako ali manjšo velikostjo, sporočilo pa pove, koliko in s koliko (pri posnetju jih posname).</p>
+<p>Zaobljenje vzdolž ukrivljenega roba ima še eno mejo. Kjer se rob navzven telesa ukrivi tesneje od polmera, na primer na konici kapljice iz skice ali iz SVG, zaobljenje zavoju ne more slediti. layerling takrat pove, kako tesen je najtesnejši zavoj, in robove s tem zavojem nariše rdeče. Izberi manjši polmer ali nariši zavoj bolj zaobljeno. Oster vogal ni tak zavoj: v njem se srečata dva robova in vsak se zaobli posebej. Zato zaobli zgornje robove, preden zaobliš vogal z majhnim polmerom: zaobljen vogal bi bil za zgornji rob tesen zavoj.</p>
+<p>Preden obupa, layerling poskusi še enkrat s kratkimi robovi na koncih izbranih, dolgimi največ dvakratno velikost. Tak rob je tam, kjer se prejšnje posnetje konča na steni, ki je še ostra: kratek poševen rob v vogalu, in dokler ostane oster, vogala ni mogoče obdelati. Če to pomaga, so ti robovi nato prav tako izbrani in sporočilo pove, koliko jih je bilo dodanih.</p>
+<p>Rob pod kazalcem je prav tako narisan širše, da vidiš, kateri se bo izbral s klikom.</p>
+<p>Tudi luknja sprejme <strong class="ui">„Posnetje“</strong> in <strong class="ui">„Zaokrožitev“</strong>, prav tako <strong class="ui">„Izdolbi“</strong>, <strong class="ui">„Odmik“</strong> in <strong class="ui">„Izbriši ploskev“</strong>: ostane luknja in reže s svojo novo obliko. Če zaobliš štiri navpične robove luknje v obliki kvadra, dobiš žep z zaobljenimi notranjimi vogali, luknja, povečana z <strong class="ui">„Odmik“</strong>, pa reže s toliko več zračnosti. Rob, kjer luknja sreča del, raje obdelaj na končani skupini: ta rob pripada njej.</p>
+<section class="guide-part"><h3 id="preklic-obdelave-robov"><span class="heading-alias" id="taking-an-edge-treatment-back"></span>Preklic obdelave robov</h3>
+<p>Obdelano telo lahko kadarkoli obdelaš še enkrat. Izberi ga znova in odpri orodje - zaokrožitev, posnetje ali izdolbljenje vsi pokažejo seznam: Pod <strong class="ui">„Razveljavi obdelavo robov“</strong> piše, kaj je že na njem. <strong class="ui">„Razveljavi“</strong> prekliče posamezno obdelavo. Pozor: če so nad njo novejše obdelave, gredo z njo, okno pa pove, koliko jih je.</p>
+<p>Ob posnetju, zaokrožitvi ali izdolbljenju je poleg tega <strong class="ui">„Uredi“</strong>. Obdelavo prekliče enako, a orodje takoj spet odpre z istimi robovi in staro vrednostjo. Spremeniš vrednost in jo uporabiš znova: tako iz zaokrožitve 3 mm nastane ta 5 mm, ne da bi ti bilo treba robove znova klikati. Če so nad njo novejše obdelave, gredo tudi tu zraven. To velja za obdelave robov, ki jih narediš od zdaj; pri starejših stoji samo preklic, pri posameznih delih skupine prav tako.</p>
+<p>Pri skupini, na primer valju z izvrtino, obdelani rob spada k dokončanemu telesu, ne k posameznemu delu. Zato iz skupine pri tem nastane eno samo telo. <strong class="ui">„Razdruži“</strong> kljub temu deluje: najprej razveljavi obdelave robov in nato skupino razdruži, v enem koraku, ki ga <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> razveljavi. Če obdelavo prekličeš, kot je opisano zgoraj, je skupina z vsemi deli spet tu. Najlažje je robove obdelati šele čisto na koncu. To velja tudi za navoje: orodje za robove vzame navoj kot natančno telo, blok z navojno izvrtino torej dobi svoje zaokrožitve skupaj z navojem v njem. Ugotavljanje robov navoja traja dlje kot pri preprosti obliki, nekaj sekund pri M6 in približno pol minute pri cevnem navoju G1/2.</p>
+<aside class="tip"><p><strong>Dobro je vedeti:</strong> layerling pri zaokrožitvah in posnetjih računa z resnično geometrijo CAD, ne samo z mrežo trikotnikov. Zato zaokrožen rob ostane zaokrožen tudi v izvozu STEP.</p></aside>
+<p>Del, uvožen kot STEP, prav tako obdrži svojo geometrijo CAD: posnetja, zaokrožitve in izdolbljenje delujejo na telesu iz datoteke, ne glede na to, kako fino je del narisan na zaslonu. STL, OBJ in 3MF prinesejo samo trikotnike, fino narisan del pa je lahko za obdelavo robov preveč gost. Če del obstaja tudi kot STEP, raje uvozi tega. <strong class="ui">„Naredi natančno“</strong> tak del najprej spremeni v natančno telo s pravimi ravninami in valji, glej <a href="/api/desktop/layerling/ui/navodila/datoteke-in-shranjevanje.html">Datoteke, shranjevanje in deljenje</a>, »Uvoženo mrežo naredi natančno«.</p>
+</section></section><section class="guide-part"><h2 id="izdolbljenje-teles"><span class="heading-alias" id="hollowing-bodies"></span>Izdolbljenje teles</h2>
+<p>Škatle, kozarci, ohišja in pokrovi imajo skupno eno stvar: znotraj so prazni, s stenami enake debeline. Natanko to naredi <strong class="ui">„Izdolbi“</strong>.</p>
+<ol><li>Izberi telo in klikni <strong class="ui">„Izdolbi“</strong>, ali klikni z desnim gumbom na telo in izberi v meniju.</li><li>Nastavi <strong class="ui">„Debelina stene“</strong>.</li><li>Pod <strong class="ui">„Odprte strani“</strong> vklopi strani, ki ostanejo odprte: <strong class="ui">„Zgoraj“</strong>, <strong class="ui">„Spodaj“</strong>, <strong class="ui">„Spredaj“</strong>, <strong class="ui">„Zadaj“</strong>, <strong class="ui">„Levo“</strong> ali <strong class="ui">„Desno“</strong>, poljubno veliko – <strong class="ui">„Spredaj“</strong> sama da jašek za predal, <strong class="ui">„Levo“</strong> in <strong class="ui">„Desno“</strong> predor. Če ni vklopljena nobena stran, telo ostane povsod zaprto, z votlino v sredini. <strong class="ui">„Zaprto (votlina znotraj)“</strong> izklopi vse strani z enim klikom. <strong class="ui">„Zgoraj“</strong> je ob odprtju okna že vklopljen; klik nanj zgornjo stran spet zapre. Telo, zaprto z vseh strani, je od zunaj videti nespremenjeno: votlino pokaže prerez.</li><li>Odloči, ali naj bodo <strong class="ui">„Notranji robovi“</strong> <strong class="ui">„Zaobljeni“</strong> ali <strong class="ui">„Ostri“</strong>.</li><li>Klikni <strong class="ui">„Izdolbi“</strong>.</li></ol>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-panel.webp" alt="Okno Izdolbi z debelino stene, stikalom za vsako stran, ki ostane odprta, in notranjimi robovi." width="1280" height="800" loading="lazy"><figcaption>Okno Izdolbi z debelino stene, stikalom za vsako stran, ki ostane odprta, in notranjimi robovi.</figcaption></figure>
+<p>Stene rastejo navznoter. Zunaj ostane vse, kot je.</p>
+<p><strong class="ui">„Notranji robovi“</strong> štejejo samo tam, kjer se notranje stene razmaknejo: pri stopnici v telesu ali okoli odprtine. Vogali votline preproste škatle so z obema nastavitvama vedno ostri. Za zaobljeno notranjost najprej zaobli zunanje robove telesa (glej zgoraj), nato ga izdolbi: notranjost sledi z radijem, zmanjšanim za debelino stene. Če zaobljene notranjosti ni mogoče zgraditi, kar se lahko zgodi pri obrisu iz zelo veliko kratkih ravnih koščkov, na primer pri izrisani sliki, layerling zgradi isto izdolbeno telo z ostrimi notranjimi vogali.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-result.webp" alt="Rezultat: lupina s steno 3 mm, zgoraj odprta." width="1280" height="800" loading="lazy"><figcaption>Rezultat: lupina s steno 3 mm, zgoraj odprta.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-sides.webp" alt="Isti kvader, odprt samo na sprednji strani: reža za predal." width="1280" height="800" loading="lazy"><figcaption>Isti kvader, odprt samo na sprednji strani: reža za predal.</figcaption></figure>
+<p>Za vsako odprto stran telo potrebuje čisto na zunaj na tej strani ravno ploskev. Krogel in prostih oblik zato na ta način ni mogoče izdolbiti. Če je stena predebela za telo, layerling to javi in prosi za tanjšo. Tak primer je zaobljena škatla, ki ima zaobljene tudi zgornje in spodnje robove: njena stena mora biti jasno tanjša od tega zaobljenja, ali pa zaobljenje prej nastavi na 0.</p>
+<p>Izdolbiš lahko tudi telo z žepom, na primer kvader z luknjo, ki ne gre skozi do konca in je narejen z združitvijo škatle z dvignjeno luknjo, in sicer z odprtim vrhom: izdolbejo se tudi stene okoli žepa, tako da med zunanjo steno in žepom ostane obroč votline, zgoraj odprt, pod dnom žepa pa tanka votlina.</p>
+<p><strong>Telesa, ki se končajo v konici,</strong> na primer stožec ali zasukan trikotnik, zgoraj nimajo ravne ploskve, ki bi ostala odprta. Tudi povsem zaprta votlina tam ne gre, ker se konice ne da odmakniti navznoter: tudi pri 1 mm stene dobiš sporočilo, da stene ne smejo biti tako debele. Steno raje nariši v profil, preden ga zasukaš: podvoji obris, kopijo enakomerno pomanjšaj, postavi jo v sredino velikega obrisa in z njo izreži velikega, nato zasukaj celoto (poglavje Skice, razdelek Vrtenje). Razdalja med obema obrisoma je debelina stene.</p>
+<p>Če pozneje spremeniš velikost izdolbenega telesa, ga layerling takoj znova izdolbe v novi velikosti. Stena ostane tako debela, kot si jo izbral, tudi pri okroglih telesih. Valj, ki ga pri tem v eno smer povlečeš bolj kot v drugo, postane elipsa.</p>
+<aside class="tip"><p><strong>Namig:</strong> Pri šobi 0,4 mm je dobro izhodišče debelina stene od 1,2 do 2 mm: dovolj tanka, da prihraniš material, dovolj debela za stabilen del.</p></aside>
+</section><section class="guide-part"><h2 id="pokrov-za-odprto-telo"><span class="heading-alias" id="a-lid-for-an-open-body"></span>Pokrov za odprto telo</h2>
+<p><strong class="ui">„Pokrov“</strong> naredi pokrov za telo, ki je zgoraj odprto: škatlo, ki si jo izdolbel z odprto zgornjo stranjo, lonček, pladenj. Izberi telo in klikni <strong class="ui">„Pokrov“</strong>. V oknu izbereš vrsto:</p>
+<ul><li><strong class="ui">„Vstavljen“</strong>: plošča, velika kot telo, pod njo ustnica, ki seže v odprtino.</li><li><strong class="ui">„Poveznjen“</strong>: plošča, za steno širša od telesa, pod njo rob, ki objame zunanjost.</li><li><strong class="ui">„Z obeh strani“</strong>: plošča, za steno širša od telesa, pod njo oboje: ustnica v odprtino in rob okoli zunanjosti. Stena telesa sedi med njima v utoru, kot pri posodi za živila.</li><li><strong class="ui">„Raven“</strong>: samo plošča, za polaganje ali lepljenje.</li><li><strong class="ui">„Privit“</strong>: pokrov, ki se privije kot pri kozarcu, za okroglo telo; več spodaj.</li><li><strong class="ui">„Uvit“</strong>: plošča s čepom z navojem, ki se uvije v odprtino okroglega telesa; več spodaj.</li><li><strong class="ui">„Bajonetni“</strong>: vrtljivo zapiralo za okroglo telo, pokrov, ki se natakne čez zatiče in zasuka; več spodaj.</li><li><strong class="ui">„Drsni“</strong>: plošča, ki se v škatlo potisne skozi eno steno, kot pokrov lesenega peresnika; več o tem spodaj.</li></ul>
+<p>Nato nastaviš <strong class="ui">„Debelina pokrova“</strong>, <strong class="ui">„Ujem“</strong> (<strong class="ui">„Reža na stran“</strong> med pokrovom in telesom: 0,1 mm tesen, 0,2 mm običajen, 0,3 mm ohlapen ali katera koli vrednost do 1 mm) ter kako globoko seže ustnica ali rob in kako debela je njuna stena. Klikni <strong class="ui">„Naredi pokrov“</strong>: pokrov leži poleg telesa, obrnjen s ploščo navzdol, zato se natisne brez podpor. Telo ostane, kakršno je. Pokrov sledi vsakemu obrisu, okroglemu ali oglatemu, ker je vzet s telesa samega tik pod njegovim robom. Telo brez odprtine zgoraj dobi samo raven pokrov; za druge vrste ga najprej izdolbi z odprto zgornjo stranjo.</p>
+<aside class="tip"><p><strong>Namig:</strong> Kako tesno sede pokrov, je odvisno od tiskalnika. Najprej natisni majhno škatlo s pokrovom; če je pretesen, izberi naslednji ohlapnejši ujem.</p></aside>
+<p>Ko vklopiš <strong class="ui">„Magneti v kotih“</strong>, pokrov držijo štirje okrogli magneti namesto tesnega ujema. Izberi <strong class="ui">„Magnet“</strong> (6 × 2, 8 × 3 ali 10 × 3 mm) ali sam nastavi <strong class="ui">„Premer magneta“</strong> in <strong class="ui">„Višina magneta“</strong>, poleg tega pa še <strong class="ui">„Zračnost okoli magneta“</strong>: 0,1 mm, da magnete vtisneš, 0,2 do 0,3 mm, da jih zalepiš. Layerling izreže žep v vsak kot roba telesa in nasproti še enega v ploščo pokrova, malo globlje od magneta, da nikoli ne štrli ven. Kjer je stena za žep pretanka, kot od dna do roba zapolni steber, ustnica pokrova pa gre okoli njega. Telo se združi s svojimi žepi in stebri: ko skupino razdružiš, ga imaš spet takšnega, kot je bilo. Plošča mora biti debela vsaj za višino magneta in še 0,8 mm; ko magnete vklopiš, se tako odebeli.</p>
+<p>Ko vklopiš <strong class="ui">„Tečaj“</strong>, se pokrov odpira okoli zatiča vzdolž ravne strani telesa: zadnje ali tiste, ki jo izbereš pri <strong class="ui">„Stran tečaja“</strong> (kot v začetnem pogledu, kjer je zadnja stran obrnjena stran od tebe). Tam se izmenjujejo členki, zunanji na telesu in tisti vmes na pokrovu, z <strong class="ui">„Zračnost v tečaju“</strong> vmes, skozi vse pa gre luknja za zatič: pri <strong class="ui">„Premer zatiča“</strong> 1,75 mm je zatič kos filamenta; vklopi <strong class="ui">„Natisni tudi zatič“</strong> za debelejšega, natisnjenega posebej. V delu tečaja na telesu zatič sedi tesno, zato vtisnjen kos filamenta ostane na mestu, v delu pokrova pa se vrti: <strong class="ui">„Zračnost zatiča (na vsaki strani)“</strong> je njegov prostor tam na vsaki strani, na začetku 0,2 mm; povečaj ga, če se pokrov vrti težko. Natisnjen zatič ima v delu na telesu 0,15 mm na vsaki strani, ker pride iz tiskalnika v polni debelini: tam še vedno sedi tesno, a ga je mogoče vtisniti. Členki telesa stojijo na 45-stopinjskem naklonu, zato se telo tiska pokončno brez podpor; členki pokrova so poravnani z njegovo zgornjo stranjo, zato se še vedno tiska obrnjen. <strong class="ui">„Členki (0 = samodejno)“</strong> na 0 da približno en členek na 10 mm. Tečaj gre z vstavljenim ali ploščatim pokrovom; rob okoli bi ob odpiranju zadel zadnjo steno. Na okrogli strani, pri posodi ali cevi, tečaj teče tam, kjer se stena od njegove črte odmakne največ za polmer členka, členki telesa pa stojijo na majhnem bloku, ki sega do stene. <strong class="ui">„Luknje za zatič v obliki kapljice (pri tisku se ne povesijo)“</strong> (sprva vklopljeno) da luknjam za zatič zgoraj konico v smeri tiska vsakega dela, da se ne povesijo; natisnjen zatič leži na majhni ploski strani. Pod <strong class="ui">„Vrsta tečaja“</strong> postavi <strong class="ui">„Poravnan“</strong> členke v steno namesto za njo: škatla ohrani svoje mere, vsak del ima izreze okoli členkov drugega, pokrov pa se odpre do približno 140°. <strong class="ui">„Vrtilni zatiči“</strong> naredi pokrov, ki leži na majhnem robu v odprtini in se vrti na dveh zatičih skozi stranski steni, do približno 95°; tudi tu škatla ohrani svoje mere. Oboje potrebuje ravno stran in gre brez magnetov.</p>
+<p>Pri tečaju <strong class="ui">„Poravnan“</strong> vklopi <strong class="ui">„Končni zamaški“</strong> in luknja za zatič se zapre na obeh koncih: zatič ostane skrit in ne more zdrsniti ven. Zadnji 4 mm luknje so takrat na vsakem koncu kvadratni, postavljeni na vogal, da imajo tudi oni zgoraj konico in se pri tisku ne povesijo, in ravno dovolj veliki, da gre zatič skozi: najprej potisni zatič, nato v vsak konec vtisni zamašek. Kvadratna zamaška se ne moreta zavrteti in sedita enako tesno kot zatič v telesu; vsak je odrezan poravnano z zunanjostjo škatle, tudi na zaobljenih vogalih (pri taki škatli tečaj teče do vogalov, z zamaški ali brez njih). Ležita poleg pokrova, na ravni strani. Zatič je zaradi njiju krajši, vrstica stanja pa pove, kako dolg.</p>
+<aside class="tip"><p><strong>Namig:</strong> Najprej vtisni magnete v telo. Nato na vsakega postavi še en magnet, ki se nanj sam obrne prav, in nanje pritisni pokrov (s kapljico lepila v žepih, če so ohlapni): tako gre vsak magnet v pokrov nasproti svojemu paru in se privlačita.</p></aside>
+<p>Ko vklopiš <strong class="ui">„Zaskočne izbokline“</strong>, se pokrov zaskoči: majhne okrogle izbokline na zunanji strani njegove ustnice (pri poveznjenem pokrovu na notranji strani roba) zaskočijo v jamice, ki jih Layerling na istih mestih izreže v steno telesa, po ena na sredini vsake ravne strani od 12 mm naprej, po dve na strani, daljši od 80 mm, štiri okrog okrogle odprtine in nobene na strani tečaja. <strong class="ui">„Višina izboklin“</strong> pove, kako globoko vsaka izboklina seže v steno, na začetku 0,4 mm: manj za majhno škatlo ali togo ustnico, več za trdnejši zaskok. Pod <strong class="ui">„Ročaj“</strong> da <strong class="ui">„Jeziček“</strong> plošči jeziček, debel kot plošča, ki sega 6 mm čez njen sprednji rob (ali rob nasproti tečaja), tako da se pokrov še vedno tiska obrnjen, <strong class="ui">„Vdolbina za prst“</strong> pa tik pod robom pokrova izreže vdolbino za prst v sprednjo steno telesa in vedno pusti 0,8 mm stene; nobeno od obojega ne gre z vrtljivim pokrovom, izbokline pa tudi ne z ravnim.</p>
+<p>Ko izbereš <strong class="ui">„Privit“</strong>, se pokrov privije kot pri kozarcu: telo dobi navoj zunaj na svojem vrhu, pokrov pa enak navoj v svojem robu. Za to potrebuješ okroglo telo, na primer valj, cev ali okroglo posodo, izdolbeno z odprto zgornjo stranjo, s steno debeline vsaj 0,8 mm; škatla ali oval se zavrne. Zaokrožen ali posnet rob, kot ga ima posoda, zavrtena iz črte z okroglimi konci, lahko ostane, kakršen je, pri tem pokrovu in pri <strong class="ui">„Bajonetni“</strong> spodaj: navoj ali zatiči gredo na ravno steno pod zaokrožitvijo, pokrov pa seže čezenj. Navoj se doda na zunanjo stran stene, namesto da bi se vanjo vrezal, zato tudi tanka stena ohrani trdnost, in se s telesom združi v skupino: ko skupino razdružiš, imaš telo spet takšno, kot je bilo. <strong class="ui">„Korak navoja“</strong> pove, za koliko se navoj dvigne v enem obratu, sprva 3 mm kot pri kozarcu; navoj je globok tri desetine tega (največ 1,5 mm), njegovi boki so nagnjeni za 45°, zato se telo natisne pokonci, pokrov pa na svoji plošči, oba brez podpor. <strong class="ui">„Obrati“</strong> povedo, kolikokrat gre navoj naokoli, skupaj s korakom pa, kako daleč navzdol seže rob pokrova. <strong class="ui">„Reža na stran“</strong> je prostor v navoju na vsaki strani, merjen v polmeru kot pri matici; če se pokrov težko vrti, vzemi ohlapnejši ujem. Pokrov zapreš z vrtenjem v smeri urinega kazalca. Pokrov in navoj sta iz trikotnikov, magneti, tečaj, zaskočne izbokline in ročaj pa z navojnim pokrovom ne gredo.</p>
+<p>Pod <strong class="ui">„Navoj“</strong> lahko namesto možnosti <strong class="ui">„Po meri“</strong> izbereš navoj standardne steklenice ali kozarca: PCO 1881 je 28-mm vrat večine steklenic za vodo in brezalkoholne pijače, PCO 1810 starejši z višjim navojem, GL 45 navoj laboratorijskih steklenic (DIN 168), Mason 70 in Mason 86 pa običajno in široko ustje kozarcev Mason. Pokrov se tedaj naredi po standardu in se prilega taki steklenici ali kozarcu iz trgovine; korak in to, kako daleč seže pokrov navzdol, določa standard, <strong class="ui">„Reža na stran“</strong> pa je prostor okoli njegovega navoja. Navoj vratu dobi telo le, če je na vrhu prav ta vrat: okroglo in široko kot vrat pod navojem, kar ti pove okno (pri PCO 1881 24,94 mm); tedaj se nanj prilega tudi kupljen pokrov. Vsako drugo telo ostane, kakršno je, in naredi se le pokrov; to ti pove vrstica stanja. Za pokrov za steklenico, ki jo imaš, izberi valj, približno tako širok kot njen vrat, klikni <strong class="ui">„Pokrov“</strong> ter izberi <strong class="ui">„Privit“</strong> in navoj steklenice. Boki standardnega navoja so strmejši od 45° navoja po meri, zato spodnja stran navoja na telesu in navoji v pokrovu pri tisku bolj previsevajo; globoki so le okoli milimeter, a najprej natisni en pokrov in poglej, kako se tvoj tiskalnik znajde. Risba navoja kozarcev Mason ni objavljena, mere so izmerjene na kozarcih: pokrov poskusi na svojem kozarcu.</p>
+<p>Še preden klikneš <strong class="ui">„Naredi pokrov“</strong>, okno izmeri vrh telesa in pove, ali je ta vrat: kako širok je, kako širok mora biti vrat pod navojem in ali telo dobi navoj ali se naredi le pokrov. Če ni, telo pa je pokončen valj, cev ali izdolben valj, ga <strong class="ui">„Prilagodi telo vratu“</strong> naredi širokega kot vrat, na sredini tega, kar velja (pri Mason 70 65,85 mm), in mu ohrani višino; izdolbeno telo obdrži stene enako debele, kot so bile. <strong class="ui">„Naredi pokrov“</strong> mu nato da navoj vratu, ena razveljavitev pa prilagoditev vzame nazaj. Pri vsakem drugem telesu, na primer skupini ali uvoženi mreži, ti okno pove, kako širok naj bo njegov vrh.</p>
+<p>Ko izbereš <strong class="ui">„Uvit“</strong>, gre navoj obratno, na primer za lonček za pisala, ki naj ostane zunaj gladek: telo dobi navoj v svoji odprtini, kot matica, pokrov pa je plošča, velika kot telo, s čepom pod njo, ki ima enak navoj in se uvije, dokler plošča ne nalega na rob. Telo in njegova odprtina morata biti okrogla z istim središčem, na primer valj, cev ali okrogla posoda, izdolbena z odprto zgornjo stranjo, s steno debeline vsaj 0,8 mm; škatla, oval ali oglata odprtina se zavrne, prav tako odprtina, ki je za čep preozka ali premalo globoka. Tudi tu se navoj doda na steno, namesto da bi se vanjo vrezal: stena ohrani trdnost, zunaj ostane vse, kot je bilo, odprtina pa se na vrhu zoži le za globino navoja. <strong class="ui">„Korak navoja“</strong>, <strong class="ui">„Obrati“</strong> in <strong class="ui">„Reža na stran“</strong> delujejo kot pri navojnem pokrovu; korak in obrati povedo tudi, kako daleč navzdol seže čep. Čep je votel, obroč s steno (<strong class="ui">„Stena čepa“</strong>) sprva 1,6 mm (vsaj 0,8 mm), in ostane poln, kjer odprtina ne pusti prostora za luknjo. Telo se natisne pokonci, pokrov pa na svoji plošči s čepom navzgor, oba brez podpor. Pokrov zapreš z vrtenjem v smeri urinega kazalca. Kot pri navojnem pokrovu sta pokrov in navoj iz trikotnikov, magneti, tečaj, zaskočne izbokline in ročaj pa z njim ne gredo.</p>
+<p>Ko izbereš <strong class="ui">„Bajonetni“</strong>, se pokrov zaklene z zasukom kot žarnica v grlu, na primer da povežeš dele svetilke ali zapreš okroglo dozo: telo dobi zatiče, ki štrlijo zunaj na njegovem vrhu (<strong class="ui">„Zatiči“</strong>: sprva trije, od dva do štiri), pokrov pa za vsakega utor v obliki črke L v svojem robu. Postavi pokrov z utori nad zatiče, ga potisni navzdol in zasukaj v smeri urinega kazalca, da zaskoči, za 40° pri treh zatičih (za 45° pri dveh, za 30° pri štirih): pod vsakim zatičem nato leži polica pokrova in ga drži, prislon pa konča zasuk. V polju <strong class="ui">„Kot zasuka (0 = samodejno)“</strong> zasuk nastaviš sam, do četrt obrata (90°), na primer za pokrov z dvema zatičema, ki se zapre z zasukom za 90°; pri 0 je to zasuk, ki ga dajo zatiči. Utor vsakega zatiča, njegov zasuk in prislon pred naslednjim utorom morajo iti okoli telesa: pri več zatičih ali na majhnem telesu se kot, ki ne gre, prilagodi tistemu, kar gre, in vrstica stanja to pove. Dva zatiča dosežeta 90° na vseh telesih razen najmanjših; štirje se na telesu s premerom od 40 do 80 mm zasučejo največ za približno 65°. Tako kot navojni pokrov potrebuje okroglo telo s steno debeline vsaj 0,8 mm, zatiči pa se s telesom združijo v skupino. Njihova velikost sledi premeru: iz stene štrlijo za štiridesetino premera (od 1,2 do 2,5 mm); njihova spodnja stran in polica sta nagnjeni za 45°, zato se telo natisne pokončno, pokrov pa na svoji plošči, oba brez podpor. <strong class="ui">„Globina roba“</strong> pove, kako daleč navzdol seže pokrov, sprva 8 mm; pod zatiči vodi pokrov ob steni. <strong class="ui">„Reža na stran“</strong> je prostor okoli zatičev in ob steni ter se začne z zračnostjo tvojega tiskalnika, ko jo izmeriš; <strong class="ui">„Reža po višini“</strong> je prostor nad polico, torej koliko se lahko zaklenjeni pokrov dvigne, sprva 0,3 mm. <strong class="ui">„Višina zaskočke“</strong> pove, kako daleč majhno rebro za vsakim zaklenjenim zatičem sega na njegovo pot: zatič zaskoči čezenj, zato se pokrov ne zavrti nazaj sam od sebe. Vzemi manj, če se pokrov vrti pretrdo, 0 za nobenega. Odpreš ga tako, da ga zasukaš nazaj in dvigneš. Pokrov in zatiči so iz trikotnikov, magneti, tečaj, zaskočne izbokline in ročaj pa ne gredo z bajonetnim pokrovom.</p>
+<p>Ko pri navojnem ali bajonetnem pokrovu vklopiš <strong class="ui">„Privez“</strong>, ostane odprt pokrov pri telesu kot pri plastenki za pijačo. Privez je en del, ki leži ravno poleg pokrova: dva odprta obročka, povezana s trakom. Večji obroček se od spodaj zaskoči na pokrov in sedi pod ovratnikom na vrhu pokrova, kjer ga drži rebro. Manjši objame telo tik pod pokrovom, na rebru, ki ga telo tam dobi, navoj ali zatiči nad njim pa ga držijo: malo ga razpri in ga potisni čeznje ali od spodaj čez rebro. Oba obročka se prosto vrtita, zato se pokrov še vedno odpira in zapira z vrtenjem, trak pa je dovolj dolg, da odprt pokrov visi ob vratu. Privez natisni iz PETG ali TPU; iz PLA zdrži le nekaj upogibov. Rebra so nagnjena za 45°, zato se pokrov in telo še vedno natisneta brez podpor, obročka pa ohranita režo (<strong class="ui">„Reža na stran“</strong>) do tistega, na čemer se vrtita. Privez potrebuje nekaj milimetrov telesa pod pokrovom, okroglega in enako širokega kot na vrhu, in rob pokrova, globok približno 4 mm; če tega ni, orodje to pove.</p>
+<p>Navojni in bajonetni pokrov imata lahko preklopni pokrovček kot steklenica šampona ali kečapa: označi <strong class="ui">„Preklopni pokrovček“</strong> in plošča pokrova dobi na sredini okroglo odprtino (<strong class="ui">„Odprtina“</strong>: njen premer, sprva 8 mm), v njej pa pokrovček, poravnan z vrhom, ki jo zapira. Pokrov ostane na mestu, odpiraš le pokrovček. Pokrov se tiska na svoji plošči, zato bi pokrovček, preklopljen s strani, ležal narobe, z zamaškom proti podlagi. Zato se pokrovček natisne kar v odprtini, z režo (<strong class="ui">„Reža na stran“</strong>) okoli, in je sam zamašek: njegov rob se tik pod vrhom zoži pod 45°, tako da leži na plošči in ga ni mogoče potisniti noter, spredaj pa zaskočka seže pod rob odprtine, tako da se zapre s klikom. Na njegovi ravni zadnji strani ga s ploščo povezuje trak, debel 0,4 mm in dolg 3 mm, ki leži na podlagi in se upogiba kot tečaj, zato se pokrovček nikoli ne izgubi; pod trakom se pokrovček in plošča nagibata drug proti drugemu v obliki črke V. Nič ni nagnjeno za več kot 45°, in pokrov se natisne v enem kosu brez podpor. Za odpiranje vtakni noht v utor čez pokrovček in ga dvigni; za zapiranje ga pritisni, dokler ne klikne. Preklopni pokrovček natisni iz PETG ali PP: iz PLA se trak po nekaj upogibih zlomi. Plošča mora biti debela vsaj 1,8 mm (pri reži 0,2 mm), odprtina s tečajem pa mora iti v odprtino telesa; prevelika odprtina je zavrnjena, z navedbo največje, ki gre.</p>
+<p>Navojni in bajonetni pokrovčki imajo lahko zaobljen ali posnet zgornji rob: pod <strong class="ui">„Zgornji rob“</strong> izberite <strong class="ui">„Zaobljen“</strong> ali <strong class="ui">„Posnet“</strong> in nastavite <strong class="ui">„Velikost roba“</strong>, najprej 1 mm, največ toliko, kolikor je plošča debela. Rob nastane s pokrovčkom, saj sta pozneje pokrovček in navoj ena mreža z veliko preveč trikotniki za orodje za robove. Pokrovček se tiska obrnjen, zato ta rob leži na podlagi: posnetje se natisne čisto, in zaobljenje 1 ali 2 mm tudi.</p>
+<p>Izberi <strong class="ui">„Drsni“</strong> za pokrov, ki se potisne noter kot pri lesenem peresniku: plošča v odprtini, zgoraj poravnana z robom, katere robovi tečejo v utorih treh sten. Četrta stena, ki jo izbereš pod <strong class="ui">„Stran za vstavljanje“</strong> (na začetku sprednja, kot v začetnem pogledu), se tam, kjer gre pokrov skozi, zniža do spodnje strani pokrova, tako da pokrov zdrsne čeznjo noter, njegov konec pa zapolni izrez, poravnan z zunanjo stranjo stene. Pokrov dobi tudi škatla, ki na delovni ravnini stoji zasukano: izbrana stena je tedaj tista, ki je najbolj obrnjena na to stran. Za to potrebuješ škatlo z navpičnimi ravnimi stenami, lahko tudi z zaobljenimi vogali; okroglo telo je zavrnjeno. Utori so tako globoki, kot dopušča <strong class="ui">„Debelina pokrova“</strong>, malo manj kot 1 mm pri 2 mm debelem pokrovu in do 1,5 mm pri debelejšem, za seboj pa vedno pustijo 0,8 mm stene; zgoraj so poševni pod 45°, zato se škatla natisne pokonci, pokrov pa na svoji zgornji strani, oboje brez podpor. Če so stene ali pokrov pretanki za utore, okno pove, kako debeli morajo biti. <strong class="ui">„Reža na stran“</strong> je zračnost pokrova v utorih na vsaki strani; če drsi težko, izberi bolj ohlapno prileganje. Notranje stene škatle se pod pokrovom prav tako znižajo. Ko vklopiš <strong class="ui">„Zaskočne izbokline“</strong>, majhna izboklina pod koncem pokrova zaskoči za znižano steno, da pokrov ne zdrsne ven sam od sebe; <strong class="ui">„Višina izboklin“</strong> pove, kako globoko seže pod vrh stene. Pod <strong class="ui">„Ročaj“</strong> da <strong class="ui">„Vdolbina za prst“</strong> pokrovu blizu tega konca štiri žlebičke prečno čez zgornjo stran za palec, <strong class="ui">„Jeziček“</strong> pa tam jeziček. Utori in izrez so s škatlo združeni kot luknja: razdruži jo in škatlo imaš spet takšno, kot je bila. Magneti in tečaj ne gredo z drsnim pokrovom.</p>
+<p>Če želiš pokrov pogrezniti pod rob, nastavi <strong class="ui">„Okvir nad pokrovom“</strong> (na začetku 0). Pokrov in njegovi utori so tedaj toliko nižje, stene nad njimi pa ohranijo polno višino, kot okvir okoli pokrova. Tudi stena, skozi katero pokrov zdrsne noter, tedaj ni znižana: ohrani polno višino, kjer gre pokrov skozi, pa ima prorez, ki ga konec pokrova zapolni, poravnan z zunanjo stranjo. Nad pokrovom pusti prorez enako režo kot ob straneh (<strong class="ui">„Reža na stran“</strong>), z <strong class="ui">„Zaskočne izbokline“</strong> pa še višino izbokline, da se pokrov pri izvleku lahko malo upogne navzgor čeznjo; nad njim mora ostati vsaj 1 mm stene, nižji okvir pa je zavrnjen s potrebno višino (1,2 mm pri reži 0,2 mm). Škatla se še vedno natisne pokonci: le zgornja stran proreza se natisne v zraku, kot kratek, raven most čez širino pokrova, ki ga večina tiskalnikov zmore brez podpor. Žlebički za palec so tedaj tik za to steno, jeziček pa gleda iz proreza.</p>
+</section><section class="guide-part"><h2 id="kabelski-kanal-skozi-telo"><span class="heading-alias" id="a-cable-channel-through-a-body"></span>Kabelski kanal skozi telo</h2>
+<p><strong class="ui">„Kabelski kanal“</strong> napelje okrogel prehod skozi telo za kabel ali žico LED, od mesta, kjer vstopi, do mesta, kjer izstopi, in sam najde pot. Izberi telo in klikni <strong class="ui">„Kabelski kanal“</strong>, nato klikni na telo, kjer kabel vstopi (<strong class="ui">„Vhod“</strong>), in kjer izstopi (<strong class="ui">„Izhod“</strong>). Pot se začne in konča naravnost, pravokotno na površino, gre naravnost, kjer gre, in se ukrivi, kjer mora, nikoli ožje od <strong class="ui">„Najmanjši lok“</strong>, in ostane čim dlje od zunanje površine, nikoli bliže od <strong class="ui">„Najmanjša stena“</strong>. Kabel se da potisniti skozi lok s polmerom približno petkratnika njegovega premera; <strong class="ui">„Premer“</strong> je premer kanala.</p>
+<p>Dokler je plošča odprta, vidiš skozi telo, s kanalom v njem in oznako na vsakem koncu. Plošča pove, kako dolg je kanal, kako ozek je najožji lok in kako tanka najtanjša stena, z rdečo, ko sta morala biti lok ali stena manjša od želenih; takrat pomaga manjša vrednost pri <strong class="ui">„Najmanjši lok“</strong> ali drug vhod ali izhod. <strong class="ui">„Nastavi znova“</strong> premakne konec. <strong class="ui">„Ustvari kanal“</strong> izreže kanal: postane <strong class="ui">„Ukrivljena cev“</strong> kot luknja, združena s telesom, ki tako ostane natančno, in po razdružitvi lahko cev še spremeniš. Ukrivljena cev ima največ enajst lokov; pot, ki jih potrebuje več, zahteva drug vhod ali izhod.</p>
+</section><section class="guide-part"><h2 id="odmik-teles"><span class="heading-alias" id="offsetting-bodies"></span>Odmik teles</h2>
+<p>Vsako ploskev telesa lahko premakneš za isto razdaljo navzven ali navznoter. To potrebuje nasedanje, pokrov ali zaskočni spoj: reža 0,1 do 0,3 mm naokrog, medtem ko značilnosti ostanejo na mestu, česar spreminjanje merila ne zmore.</p>
+<ol><li>Izberi eno telo in klikni <strong class="ui">„Odmik“</strong> ali z desno tipko klikni telo in ga izberi tam.</li><li>Izberi <strong class="ui">„Povečaj“</strong> ali <strong class="ui">„Zmanjšaj“</strong> in nastavi <strong class="ui">„Razdalja“</strong>.</li><li><strong class="ui">„Zunanji vogali“</strong> določajo zunanje vogale: zaobljeno obdrži odmaknjeno površino okroglo, ostro pusti ploskvam, da tečejo naprej, dokler se ne srečajo.</li><li>Obkljukaj <strong class="ui">„Obdrži izvirnik in dodaj odmaknjeno telo kot luknjo“</strong>, da del ostane, kakršen je, povečano telo pa dobiš kot kopijo, ki je že luknja. To luknjo združi v skupino s protikosom in izreže natanko zračnost, ki si jo izbral.</li><li>Klikni <strong class="ui">„Odmakni“</strong>.</li></ol>
+<p>Označi <strong class="ui">„Samo ob straneh: ravne zgornje in spodnje ploskve ostanejo na svoji višini“</strong>, ko naj se poveča ali zmanjša le obris: stranice se premaknejo za razdaljo, vsaka ravna zgornja in spodnja ploskev pa ostane na svoji višini. Tabla dobi rob naokoli, podstavek postane širši, telo pa ne postane višje. Pri stopničastem telesu vsaka stopnica obdrži svojo višino. Tudi besedilo, ki se odmakne prek svojih obrisov, takrat obdrži svojo višino.</p>
+<p>Brez kljukice se odmakne samo telo. Postane fiksno natančno telo, kot po posnetju: seznam na vrhu okna odmik vzame nazaj, <strong class="ui">„Uredi“</strong> pa orodje znova odpre s staro razdaljo. Odmakniti je mogoče le natančna telesa CAD - kvadre, valje in druge oblike, njihove skupine, uvožene dele STEP. Telo, ki je samo trikotniška mreža, kot mnogi uvozi STL, pogosto ne gre. Razdalja, ki je za telo prevelika, na primer zmanjšanje čez najtanjšo steno, se zavrne.</p>
+<p>Besedilo, katerega črk jedro ne more odmakniti kot telo - v nekaterih pisavah A, B, M, N, W ali 9 -, se namesto tega odmakne prek svojih obrisov: dobi polnilo <strong class="ui">„Širše (podlaga za večbarvni tisk)“</strong> za to razdaljo (ožje, ko se krči) in za toliko zraste zgoraj in spodaj. Ostane besedilo, ki ga lahko še naprej urejaš. To deluje za besedilo s polnimi črkami brez zaokroževanja; besedilo, ki že ima način polnila, se zavrne kot doslej.</p>
+</section><section class="guide-part"><h2 id="brisanje-ploskev"><span class="heading-alias" id="deleting-faces"></span>Brisanje ploskev</h2>
+<p>Zaokrožitev, ki moti, luknja na napačnem mestu, izboklina, ki je ne potrebuješ več: <strong class="ui">„Izbriši ploskev“</strong> jih spet odstrani s telesa, ne da bi ga moral graditi na novo.</p>
+<ol><li>Izberi telo in klikni <strong class="ui">„Izbriši ploskev“</strong>, ali klikni z desnim gumbom na telo in izberi v meniju.</li><li>Klikni vsako ploskev tistega, kar naj izgine: ploskve zaobljenega roba, steno luknje, stranico in vrh izbokline. Izbrana ploskev zasveti; ob ponovnem kliku jo spet odstraniš iz izbire. Okno šteje ploskve.</li><li>Klikni <strong class="ui">„Izbriši“</strong> ali pritisni <kbd>Del</kbd>. <kbd>Esc</kbd> zapre orodje, ne da bi kaj spremenil.</li></ol>
+<p>Okoliške ploskve rastejo, dokler se vrzel ne zapre. Kvader z zaobljenimi zgornjimi robovi dobi nazaj ostre robove, luknja se zapolni, izboklina izgine. Telo ostane natančno: lahko ga znova zaokrožiš in posnameš, izvoz STEP pa ohrani njegove prave ploskve. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> brisanje prekliče v enem koraku. Poleg tega je pod <strong class="ui">„Razveljavi obdelavo robov“</strong> tako kot zaokrožitve in posnetja, kjer ga prekliče <strong class="ui">„Razveljavi“</strong>; <strong class="ui">„Uredi“</strong> zanj ni. Pri skupini iz tega nastane eno samo telo, kot pri obdelavi robov.</p>
+<p>Izberi vse ploskve tistega, kar naj izgine, in samo te. Če okoliške ploskve vrzeli ne morejo zapreti, ti layerling to pove in nič se ne spremeni: glavna stranica kvadra na primer nima sosednje ploskve, ki bi stopila na njeno mesto. Če izbrišeš samo dno žepa, nastane luknja skoz in skoz, ker se stene žepa nadaljujejo do druge strani.</p>
+<p><strong class="ui">„Izbriši ploskev“</strong> potrebuje natančne ploskve: deluje na delih, uvoženih kot STEP, in na oblikah layerlinga. Kar layerling hrani kot mrežo, jih nima: uvožen STL, OBJ ali 3MF, razdeljeno, okoli valja ovito ali poenostavljeno telo ali zelo podrobna oblika, na primer dolgo besedilo. Če lahko, uvozi del kot STEP. Pri podrobnem uvoženem delu je lahko nekaj ploskev preveč za jedro CAD: po 45 sekundah se brisanje ustavi in nič se ne spremeni. Telo, ki mu je bila po obdelavi robov z ohranjeno velikostjo robov spremenjena velikost, v novi velikosti nima natančnih ploskev, dokler sprememba velikosti ni preklicana.</p>
+<p>Uvožena mreža, ki jo <strong class="ui">„Naredi natančno“</strong> spremeni v natančno telo, lahko tam, kjer so bili trikotniki datoteke slabi, obdrži lasno tanke ploskve med ploskvami v isti ravnini, tako da je ena stran sestavljena iz trakov, ki jih ni mogoče izbrisati posamično. Taka tanka ploskev, preozka za klik, gre z izbrano ploskvijo, kadar se je dotika in vodi naprej do druge ploskve v ravnini izbrane ploskve, skupaj s tankimi ploskvami, ki so povezane z njo in se tudi dotikajo ploskve v ravnini izbrane ploskve; okno jih šteje kot vzete zraven.</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/navodila/telesa-in-luknje.html"><small>Prejšnje poglavje</small>Telesa in luknje</a><a class="next" href="/api/desktop/layerling/ui/navodila/skice.html"><small>Naslednje poglavje</small>Skice: od obrisa do telesa</a></div>
+      </main>
+    </div>
+    <footer class="note">Ta navodila rastejo skupaj s programom. Če kaj manjka ali ne drži, sporoči v <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">razpravah</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=sl" rel="noopener">Podpri Layerling Desktop</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Razprave</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Več na GitHubu</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Opombe ob izdaji v1.154.1</a></div><p class="trademark">Tinkercad je blagovna znamka podjetja Autodesk, Inc. layerling je neodvisen projekt in ni povezan z Autodeskom, ga ne podpira in ga ne sponzorira.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Nazaj v urejevalnik";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="V urejevalnik";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

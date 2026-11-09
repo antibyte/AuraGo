@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>С чего начать - Руководство layerling</title>
+    <meta name="description" content="От пустого листа до первой детали для 3D-принтера за пять минут, без аккаунта и без установки.">
+    <link rel="canonical" href="https://layerling.com/ru/getting-started.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/getting-started.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/getting-started.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/getting-started.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/erste-schritte.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/getting-started.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/getting-started.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/getting-started.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/getting-started.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/aan-de-slag.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/getting-started.html">
+    <link rel="alternate" hreflang="pt-PT" href="https://layerling.com/guia-pt-pt/getting-started.html">
+    <link rel="alternate" hreflang="pt-BR" href="https://layerling.com/guia/getting-started.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/prvi-koraki.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/getting-started.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/getting-started.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/getting-started.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/getting-started.html">
+    <meta property="og:title" content="С чего начать - Руководство layerling">
+    <meta property="og:description" content="От пустого листа до первой детали для 3D-принтера за пять минут, без аккаунта и без установки.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/ru/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Руководство</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/ru/search-index.json" data-nothing="Ничего не найдено." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Поиск по руководству" aria-label="Поиск по руководству" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Язык">Русский</summary><ul><li><a href="/api/desktop/layerling/ui/guide/getting-started.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/getting-started.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/getting-started.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/erste-schritte.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/getting-started.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/getting-started.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/getting-started.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/getting-started.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/aan-de-slag.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/getting-started.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/getting-started.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/getting-started.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/prvi-koraki.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/getting-started.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/getting-started.html" hreflang="ru" lang="ru" aria-current="true">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/getting-started.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/getting-started.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/getting-started.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/getting-started.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Открыть редактор</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Редактор уже открыт в другой вкладке — просто переключитесь туда.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Главы"><h2>Главы</h2><p class="print-link"><a href="/api/desktop/layerling/ui/ru/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Всё руководство для печати</span></a></p><ol><li><a href="/api/desktop/layerling/ui/ru/getting-started.html" aria-current="page">С чего начать</a></li><li><a href="/api/desktop/layerling/ui/ru/view-and-workplane.html">Вид и рабочая плоскость</a></li><li><a href="/api/desktop/layerling/ui/ru/shapes.html">Размещение и настройка фигур</a></li><li><a href="/api/desktop/layerling/ui/ru/select-and-arrange.html">Выделение и упорядочивание</a></li><li><a href="/api/desktop/layerling/ui/ru/solids-and-holes.html">Тела и отверстия</a></li><li><a href="/api/desktop/layerling/ui/ru/edges-and-hollowing.html">Обработка кромок и выдолбливание тел</a></li><li><a href="/api/desktop/layerling/ui/ru/sketches.html">Эскизы: от контура к телу</a></li><li><a href="/api/desktop/layerling/ui/ru/text.html">Текст и надписи по дуге</a></li><li><a href="/api/desktop/layerling/ui/ru/threads-and-mechanics.html">Резьба, шестерни и другие детали</a></li><li><a href="/api/desktop/layerling/ui/ru/measuring-and-notes.html">Измерения и заметки</a></li><li><a href="/api/desktop/layerling/ui/ru/printing.html">Подготовка к 3D-печати</a></li><li><a href="/api/desktop/layerling/ui/ru/files-and-saving.html">Файлы, сохранение и обмен</a></li><li><a href="/api/desktop/layerling/ui/ru/shortcuts.html">Сочетания клавиш</a></li><li><a href="/api/desktop/layerling/ui/ru/ai-with-mcp.html">Создание с помощью ИИ (MCP)</a></li><li><a href="/api/desktop/layerling/ui/ru/offline-and-install.html">Установка как приложения, работа офлайн и свой сервер</a></li><li><a href="/api/desktop/layerling/ui/ru/videos.html">Видео о layerling</a></li><li><a href="/api/desktop/layerling/ui/ru/tablet-and-touch.html">Планшет и сенсорный экран</a></li></ol></nav>
+      <main>
+<h1>С чего начать</h1>
+<p class="lead">От пустого листа до первой детали для 3D-принтера за пять минут, без аккаунта и без установки.</p>
+<div class="toc"><b>На этой странице</b><ul><li><a href="#sozdanie-proekta">Создание проекта</a></li><li><a href="#redaktor-s-pervogo-vzglyada">Редактор с первого взгляда</a></li><li><a href="#knopki-vokrug-rabochey-oblasti">Кнопки вокруг рабочей области</a></li><li><a href="#vasha-pervaya-detal">Ваша первая деталь</a></li><li><a href="#novoe-s-vashego-poslednego-vizita">Новое с вашего последнего визита</a></li><li><a href="#ot-proekta-k-pechati">От проекта к печати</a></li></ul></div>
+<p>layerling - программа для проектирования под 3D-печать, которая работает прямо в браузере. Вы собираете деталь из простых фигур, вырезаете в ней отверстия, скругляете кромки и отправляете её в слайсер. Устанавливать ничего не нужно и регистрироваться тоже. Всё, что вы построите, остаётся на вашем компьютере.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/start-page.webp" alt="Стартовая страница layerling: «Создать новый 3D-проект» сверху, ниже ваши проекты и краткое руководство." width="1280" height="800" loading="lazy"><figcaption>Стартовая страница layerling: «Создать новый 3D-проект» сверху, ниже ваши проекты и краткое руководство.</figcaption></figure>
+<section class="guide-part"><h2 id="sozdanie-proekta"><span class="heading-alias" id="creating-a-design"></span>Создание проекта</h2>
+<p>Откройте layerling.com. На стартовой странице нажмите <strong class="ui">«Создать новый 3D-проект»</strong>. Редактор откроется с пустой рабочей плоскостью — сеткой, на которой всё обретает форму.</p>
+<p>Если у вас уже есть файл, с которым нужно продолжить, используйте <strong class="ui">«Открыть проект или импортировать геометрию»</strong>. Это работает и для проектов layerling (.lyl), и для файлов STL, OBJ, 3MF, STEP или SVG.</p>
+<p>Все ваши проекты потом появятся на стартовой странице с картинкой-превью. Они лежат в хранилище браузера и сохраняются автоматически после каждого изменения, поэтому кнопки сохранения нет. <strong>layerling не несёт ответственности за проекты, хранящиеся в браузере.</strong> Браузер может дать сбой, а его обновление может вызвать проблемы, поэтому время от времени делайте резервную копию проектов кнопкой <strong class="ui">«Создать резервную копию»</strong> на стартовой странице или сохраняйте их файлами. Резервная копия возвращается кнопкой <strong class="ui">«Восстановить из копии»</strong>. О том, как упаковать проекты в файл и передать их, читайте в разделе Файлы и сохранение. Если нужно напоминание, включите <strong class="ui">«Спрашивать перед закрытием вкладки»</strong> в настройках (шестерёнка на ленте): тогда браузер спросит, прежде чем закрыть или перезагрузить вкладку с открытым проектом.</p>
+</section><section class="guide-part"><h2 id="redaktor-s-pervogo-vzglyada"><span class="heading-alias" id="the-editor-at-a-glance"></span>Редактор с первого взгляда</h2>
+<figure><img src="/api/desktop/layerling/ui/ru/img/editor-areas.webp" alt="Редактор с подписанными областями: сверху панель инструментов, слева куб ориентации и под ним панель вида, рядом сообщение о состоянии и список объектов, справа свойства выбранной фигуры." width="1280" height="800" loading="lazy"><figcaption>Редактор с подписанными областями: сверху панель инструментов, слева куб ориентации и под ним панель вида, рядом сообщение о состоянии и список объектов, справа свойства выбранной фигуры.</figcaption></figure>
+<ul><li>Сверху находится <strong>лента</strong>. Она разделена по задачам: <strong class="ui">«Буфер обмена»</strong>, <strong class="ui">«История»</strong>, <strong class="ui">«Фигуры»</strong>, <strong class="ui">«Видимость»</strong>, <strong class="ui">«Объединение»</strong>, <strong class="ui">«Изменение»</strong>, <strong class="ui">«Расположение»</strong> и <strong class="ui">«Файл»</strong>; <strong class="ui">«Справка»</strong> стоит над ней, в строке заголовка, а домик рядом с вкладками ведёт обратно на стартовую страницу. Когда окно слишком узкое для всех групп, реже всего используемые сворачиваются в одну кнопку под своим названием, а под ней висит маленькая стрелка цвета группы: наведите на неё или коснитесь, и её инструменты раскроются ниже. Свёрнутая группа <strong class="ui">«История»</strong> — исключение: её кнопка — это сам <strong class="ui">«Отменить»</strong>, и только стрелка под ней открывает <strong class="ui">«Вернуть»</strong> и остальное. Булавка справа вверху, слева от лупы, наоборот, держит все группы раскрытыми. Наведите курсор на значок, чтобы увидеть его название, в том числе на серый; <strong class="ui">«Интерактивная справка»</strong> (вопросительный знак под <strong class="ui">«Справка»</strong> или Shift+F1) одним щелчком объясняет любой из них и ведёт в его раздел этого руководства. Где бы вы ни увидели маленький вопросительный знак — например, в настройках фигуры, в библиотеке фигур или в окнах инструментов, — он ведёт прямо в нужный раздел этого руководства. Группа <strong class="ui">«Изменение»</strong> разделена на четыре раздела, название каждого стоит над его инструментами: <strong class="ui">«Отражение и массив»</strong>, <strong class="ui">«Разделение и форма»</strong>, <strong class="ui">«Кромки и стенки»</strong> и <strong class="ui">«Поверхность»</strong>. Серый значок к тому же говорит, чего ему не хватает, например <strong class="ui">«Выделите одно тело»</strong> или <strong class="ui">«Выделение заблокировано: сначала разблокируйте его»</strong>. Не можете найти инструмент? Нажмите <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span> и введите его название; пустой проект напоминает об этом внизу вида.</li><li>В середине находится рабочая плоскость. Здесь вы ставите фигуры, придаёте им форму и видите результат.</li><li>Справа появляются свойства выбранной фигуры: цвет, размеры, положение и всё остальное, из чего состоит фигура. Вводить числа точнее, чем перетаскивать.</li><li>Слева расположена панель вида, а над ней — куб ориентации. С их помощью вы перемещаетесь по сцене; подробнее в разделе Вид и рабочая плоскость.</li><li>Рядом с панелью вида открывается список объектов (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>U</kbd></span>) со всеми фигурами проекта. Подробнее в разделе <a href="/api/desktop/layerling/ui/ru/select-and-arrange.html">Выделение и упорядочивание</a>.</li><li>Справа от куба ориентации появляется сообщение о состоянии, когда layerling хочет вам что-то сказать, например чего сейчас ждёт инструмент. Если сказать нечего, его нет.</li><li>Окна инструментов открываются над рабочей плоскостью, когда вы запускаете инструмент, например <strong class="ui">«Скругление»</strong>, <strong class="ui">«Массив»</strong> или <strong class="ui">«Оболочка»</strong>. Если окно что-то закрывает, отодвиньте его за заголовок.</li><li>В самом верху вы переключаетесь между <strong class="ui">«3D-редактор»</strong> и <strong class="ui">«Эскиз»</strong>, переименовываете проект и выбираете язык и цветовую схему.</li></ul>
+</section><section class="guide-part"><h2 id="knopki-vokrug-rabochey-oblasti"><span class="heading-alias" id="the-buttons-around-the-work-area"></span>Кнопки вокруг рабочей области</h2>
+<p>Наведите указатель на кнопку, чтобы увидеть её название. Если вы не уверены, что делает кнопка, нажмите в области <strong class="ui">«Справка»</strong> на <strong class="ui">«Интерактивная справка»</strong> (<span dir="ltr"><kbd>Shift</kbd>+<kbd>F1</kbd></span>), а затем на кнопку. Здесь собраны те, о которых спрашивают чаще всего.</p>
+<section class="guide-part"><h3 id="vstavit"><span class="heading-alias" id="paste"></span>Вставить</h3>
+<p><strong class="ui">«Вставить»</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>V</kbd></span>) добавляет в проект то, что вы скопировали с помощью <strong class="ui">«Копировать»</strong>. <strong class="ui">«Дублировать»</strong> копирует и вставляет за один шаг. При вставке каждая деталь ложится немного в стороне от того места, где была. Детали из другой программы могут оказаться далеко от стола; для них в настройках, в разделе <strong class="ui">«Внешний вид»</strong>, есть <strong class="ui">«Вставлять в центр и опускать»</strong>: тогда вставка ставит детали вместе в середину рабочей плоскости и опускает их на неё.</p>
+</section><section class="guide-part"><h3 id="udalit"><span class="heading-alias" id="delete"></span>Удалить</h3>
+<p><strong class="ui">«Удалить»</strong> (<kbd>Delete</kbd>) удаляет выбранные фигуры. <strong class="ui">«Отменить»</strong> возвращает их.</p>
+</section><section class="guide-part"><h3 id="razgruppirovat"><span class="heading-alias" id="ungroup"></span>Разгруппировать</h3>
+<p><strong class="ui">«Разгруппировать»</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span>) снова разбирает выбранную группу на фигуры, из которых она сделана.</p>
+</section><section class="guide-part"><h3 id="nastroyki-rabochey-oblasti"><span class="heading-alias" id="workspace-settings"></span>Настройки рабочей области</h3>
+<p><strong class="ui">«Настройки рабочей области»</strong> открывает настройки рабочей области: единицы, размер платформы, принтер, сетка, цвета, свет и другое. Подробнее в разделе <a href="/api/desktop/layerling/ui/ru/view-and-workplane.html">Вид и рабочая плоскость</a>.</p>
+</section><section class="guide-part"><h3 id="tema"><span class="heading-alias" id="theme"></span>Тема</h3>
+<p><strong class="ui">«Тема»</strong> в самом верху задаёт вид layerling: как в системе, светлый, тёмный или графитовый.</p>
+</section><section class="guide-part"><h3 id="pereimenovat-proekt"><span class="heading-alias" id="rename-design"></span>Переименовать проект</h3>
+<p><strong class="ui">«Переименовать проект»</strong>: карандаш рядом с названием в самом верху. Введите новое название и нажмите <kbd>Enter</kbd>.</p>
+</section><section class="guide-part"><h3 id="imya-proekta"><span class="heading-alias" id="design-name"></span>Имя проекта</h3>
+<p>Название проекта (<strong class="ui">«Имя проекта»</strong>) стоит в самом верху. Щёлкните по нему, введите текст, и <kbd>Enter</kbd> сохранит название.</p>
+</section><section class="guide-part"><h3 id="parametry-vidimosti"><span class="heading-alias" id="visibility-options"></span>Параметры видимости</h3>
+<p><strong class="ui">«Параметры видимости»</strong>, стрелка рядом со значком глаза, содержит то, что можно показать или скрыть: список объектов, всё скрытое, заметки и нависания при печати. Подробнее в разделе <a href="/api/desktop/layerling/ui/ru/select-and-arrange.html">Выбор и расстановка</a>.</p>
+</section><section class="guide-part"><h3 id="skryt-vydelennoe"><span class="heading-alias" id="hide-selected"></span>Скрыть выделенное</h3>
+<p><strong class="ui">«Скрыть выделенное»</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>H</kbd></span>) скрывает выбранные фигуры. Они остаются в проекте и в списке объектов; <strong class="ui">«Параметры видимости»</strong> показывает их снова.</p>
+</section><section class="guide-part"><h3 id="poisk-komand"><span class="heading-alias" id="search-commands"></span>Поиск команд</h3>
+<p><strong class="ui">«Поиск команд (Ctrl+K)»</strong>: введите то, что ищете, инструмент, фигуру или настройку, и нажмите на результат.</p>
+</section><section class="guide-part"><h3 id="skryt-upravlenie-kameroy"><span class="heading-alias" id="hide-the-view-bar"></span>Скрыть управление камерой</h3>
+<p><strong class="ui">«Скрыть панель вида»</strong> убирает элементы управления камерой слева и даёт рабочей области больше места; <strong class="ui">«Показать панель вида»</strong> возвращает их.</p>
+</section><section class="guide-part"><h3 id="setka-privyazki"><span class="heading-alias" id="snap-grid"></span>Сетка привязки</h3>
+<p><strong class="ui">«Сетка привязки»</strong> внизу свойств — это шаг, к которому привязываются перемещение и изменение размера. Рядом маленький переключатель <strong>mm | in</strong> меняет единицы. Подробнее в разделе <a href="/api/desktop/layerling/ui/ru/view-and-workplane.html">Вид и рабочая плоскость</a>.</p>
+</section><section class="guide-part"><h3 id="edinitsy-millimetry-ili-dyuymy"><span class="heading-alias" id="unit-millimetres-or-inches"></span>Единицы: миллиметры или дюймы</h3>
+<p>Переключатель <strong>mm | in</strong> рядом с <strong class="ui">«Сетка привязки»</strong> меняет единицы, сетку платформы и шаг привязки для этого проекта.</p>
+</section><section class="guide-part"><h3 id="nizhnyaya-stroka"><span class="heading-alias" id="the-footer"></span>Нижняя строка</h3>
+<p>Внизу окна: <strong class="ui">«Поддержать проект»</strong> ведёт на страницу, где можно поддержать проект; <strong class="ui">«Руководство пользователя»</strong> открывает это руководство; <strong class="ui">«Обсуждения»</strong> ведёт туда, где задают вопросы, предлагают идеи и сообщают об ошибках (обсуждения на GitHub, на немецком — форум drucktipps3d); <strong class="ui">«Сообщить об ошибке»</strong> создаёт ZIP для отчёта об ошибке; <strong class="ui">«Подробнее на GitHub»</strong> ведёт к проекту на GitHub, а номер версии открывает примечания к выпуску. Ссылки на выходные данные и политику конфиденциальности принадлежат тому, кто запускает используемую вами копию layerling.</p>
+</section></section><section class="guide-part"><h2 id="vasha-pervaya-detal"><span class="heading-alias" id="your-first-part"></span>Ваша первая деталь</h2>
+<p>Для примера построим куб с отверстием.</p>
+<ol><li>Нажмите <strong class="ui">«Добавить фигуру»</strong> на панели инструментов и выберите <strong class="ui">«Куб»</strong>. Фигура повиснет на указателе мыши. Щелчок по рабочей плоскости ставит её на место.</li><li>Справа задайте размеры, например 40 мм в длину, 40 мм в ширину и 20 мм в высоту.</li><li>Таким же образом поставьте <strong class="ui">«Цилиндр»</strong> посередине: 14 мм в диаметре и 30 мм в высоту. Он должен быть выше куба, чтобы пройти насквозь.</li><li>Выделите цилиндр и нажмите <strong class="ui">«Отверстие»</strong> справа. Он станет прозрачным: тело превратилось в инструмент, который убирает материал.</li><li>Выделите обе фигуры и нажмите <strong class="ui">«Сгруппировать»</strong>. Теперь в кубе есть отверстие.</li></ol>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hole-before.webp" alt="Цилиндр — отверстие, он торчит из верхней грани куба." width="1280" height="800" loading="lazy"><figcaption>Цилиндр — отверстие, он торчит из верхней грани куба.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hole-after.webp" alt="После группировки в кубе появилось отверстие." width="1280" height="800" loading="lazy"><figcaption>После группировки в кубе появилось отверстие.</figcaption></figure>
+<p>Так делают отверстия, пазы и углубления. Подробно об этом в разделе Тела и отверстия.</p>
+</section><section class="guide-part"><h2 id="novoe-s-vashego-poslednego-vizita"><span class="heading-alias" id="new-since-your-last-visit"></span>Новое с вашего последнего визита</h2>
+<p>После обновления при следующем запуске layerling на стартовой странице появится карточка со списком изменений с момента вашего последнего визита: все версии с тех пор, начиная с самой новой. Если вы долго не заходили, прокрутите содержимое карточки вниз. Кнопка <strong class="ui">«Показать более ранние версии»</strong> под списком добавит также версии, выпущенные до вашего последнего визита. Закройте карточку через <strong class="ui">«Понятно»</strong>, и она не будет появляться до следующего обновления. Ссылка <strong class="ui">«Что нового?»</strong> в нижнем колонтитуле стартовой страницы в любой момент снова покажет последние изменения. Браузер запоминает последнюю просмотренную вами версию, и никакие ваши данные никуда не отправляются.</p>
+<p>В копии layerling, размещённой на вашем компьютере или сервере, в уведомлении «Доступно обновление» есть кнопка <strong class="ui">«Предпросмотр: что даёт обновление?»</strong>. Она показывает, что принесёт обновление, ещё до его установки. Список изменений загружается с GitHub только после нажатия этой кнопки.</p>
+</section><section class="guide-part"><h2 id="ot-proekta-k-pechati"><span class="heading-alias" id="from-design-to-print"></span>От проекта к печати</h2>
+<p>Когда деталь готова, нажмите <strong class="ui">«Экспорт»</strong>, выберите STL или 3MF и скачайте файл. Откройте его в слайсере, например Bambu Studio, PrusaSlicer, OrcaSlicer или Cura. Если вы выбрали свой принтер в настройках, во время работы видно, помещается ли деталь на стол печати. Подробнее в разделе Печать.</p>
+<aside class="tip"><p>Совет: Если вы пришли из Tinkercad, вы быстро освоитесь: стол, фигуры, тело и отверстие, группировка, выравнивание и отражение работают почти так же. Новое — это в основном фаска и скругление, оболочки, резьба и эскизы. Свои проекты из Tinkercad тоже можно перенести, см. <a href="/api/desktop/layerling/ui/ru/files-and-saving.html">Файлы, сохранение и обмен</a>.</p></aside></section>
+<div class="pager"><a class="next" href="/api/desktop/layerling/ui/ru/view-and-workplane.html"><small>Следующая глава</small>Вид и рабочая плоскость</a></div>
+      </main>
+    </div>
+    <footer class="note">Это руководство растёт вместе с программой. Если чего-то не хватает или что-то не так — напишите в <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">обсуждениях</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=ru" rel="noopener">Поддержать проект</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Обсуждения</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Подробнее на GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Заметки о выпуске v1.154.1</a></div><p class="trademark">Tinkercad — товарный знак Autodesk, Inc. layerling — независимый проект, не связанный с Autodesk, не одобренный и не спонсируемый ею.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Вернуться в редактор";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Открыть редактор";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

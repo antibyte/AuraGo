@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Texte et lettres courbes - Manuel d'utilisation layerling</title>
+    <meta name="description" content="Lettrage en relief ou gravé en sept caractères ou un de votre choix, et si vous le souhaitez en arc de cercle, comme sur une pièce de monnaie, un couvercle ou une bague.">
+    <link rel="canonical" href="https://layerling.com/guide-fr/text.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/text.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/text.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/text.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/text.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/text.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/text.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/text.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/text.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/tekst.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/text.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/besedilo.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/text.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/text.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/text.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/text.html">
+    <meta property="og:title" content="Texte et lettres courbes - Manuel d'utilisation layerling">
+    <meta property="og:description" content="Lettrage en relief ou gravé en sept caractères ou un de votre choix, et si vous le souhaitez en arc de cercle, comme sur une pièce de monnaie, un couvercle ou une bague.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/guide-fr/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Manuel d'utilisation</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/guide-fr/search-index.json" data-nothing="Aucun résultat trouvé." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Rechercher dans le manuel" aria-label="Rechercher dans le manuel" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Langue">Français</summary><ul><li><a href="/api/desktop/layerling/ui/guide/text.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/text.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/text.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/text.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/text.html" hreflang="fr" lang="fr" aria-current="true">Français</a></li><li><a href="/api/desktop/layerling/ui/it/text.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/text.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/text.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/text.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/text.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/besedilo.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/text.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/text.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/text.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/text.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/text.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/text.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Ouvrir l'éditeur</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>L'éditeur est déjà ouvert dans un autre onglet - basculez simplement vers lui.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Chapitres"><h2>Chapitres</h2><p class="print-link"><a href="/api/desktop/layerling/ui/guide-fr/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Guide complet, à imprimer</span></a></p><ol><li><a href="/api/desktop/layerling/ui/guide-fr/getting-started.html">Premiers pas</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/view-and-workplane.html">Vue et plan de travail</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/shapes.html">Placer et ajuster les formes</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/select-and-arrange.html">Choisir et organiser</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/solids-and-holes.html">Solides et trous</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/edges-and-hollowing.html">Casser les bords et creuser les corps</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/sketches.html">Esquisses : du contour au corps</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/text.html" aria-current="page">Texte et lettres courbes</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/threads-and-mechanics.html">Filetages, engrenages et autres pièces</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/measuring-and-notes.html">Mesures et notes</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/printing.html">Préparation à l'impression 3D</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/files-and-saving.html">Fichiers, sauvegarde et partage</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/shortcuts.html">Raccourcis clavier</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/ai-with-mcp.html">Construire avec une IA (MCP)</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/offline-and-install.html">Installation en tant qu'application, travail hors ligne et auto-hébergement</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/videos.html">Vidéos sur layerling</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/tablet-and-touch.html">Tablette et tactile</a></li></ol></nav>
+      <main>
+<h1>Texte et lettres courbes</h1>
+<p class="lead">Lettrage en relief ou gravé en sept caractères ou un de votre choix, et si vous le souhaitez en arc de cercle, comme sur une pièce de monnaie, un couvercle ou une bague.</p>
+<div class="toc"><b>Sur cette page</b><ul><li><a href="#ajout-de-texte">Ajout de texte</a></li><li><a href="#vos-propres-polices">Vos propres polices</a></li><li><a href="#en-relief-ou-grave">En relief ou gravé</a></li><li><a href="#pochoirs-des-ponts-pour-le-centre-des-lettres">Pochoirs : des ponts pour le centre des lettres</a></li><li><a href="#contour-silhouette-et-plus-large">Contour, silhouette et plus large</a></li><li><a href="#calques-et-balises-de-nom">Calques et balises de nom</a></li><li><a href="#badges-d-icone">Badges d'icône</a></li><li><a href="#codes-qr">Codes QR</a></li><li><a href="#texte-sur-un-arc-de-cercle">Texte sur un arc de cercle</a></li></ul></div>
+<section class="guide-part"><h2 id="ajout-de-texte"><span class="heading-alias" id="adding-text"></span>Ajout de texte</h2>
+<p>Choisissez <strong class="ui">« Texte »</strong> dans la bibliothèque de formes et placez-le. Dans le champ <strong class="ui">« Texte »</strong> à droite, saisissez ce qu'il doit dire. Les paramètres ci-dessous :</p>
+<ul><li><strong><strong class="ui">« Police »</strong> :</strong> Sept polices de caractères sont disponibles : Multilingue, Sans, Serif, Script, Monospace, Rounded et Pochoir (lettres constituées de lignes droites). Le nouveau texte commence en Sans. Des lettres accentuées telles que ä, ö, ü, é et le signe € figurent dans chaque police. Vos propres polices viennent en tête, voir <a href="#vos-propres-polices">Vos propres polices</a> ci-dessous.</li><li><strong><strong class="ui">« Format lettre »</strong> :</strong> Quelle est la taille des lettres, vues d'en haut ; <strong class="ui">« Hauteur »</strong> définit leur épaisseur.</li><li><strong><strong class="ui">« Hauteur »</strong> :</strong> Dans quelle mesure le lettrage se détache de la surface.</li><li><strong><strong class="ui">« Biseau »</strong> :</strong> Arrondit les bords des lettres pour qu'ils paraissent plus doux. Avec <strong class="ui">« Segments »</strong>, vous décidez du nombre d'étapes.</li><li><strong><strong class="ui">« Bord de la lettre »</strong> :</strong> arrondit ou chanfreine le bord supérieur des lettres, comme sur un porte-nom : <strong class="ui">« Aucun »</strong>, <strong class="ui">« Rond »</strong> ou <strong class="ui">« Chanfrein »</strong>, avec la <strong class="ui">« Taille du bord »</strong> (0,4 mm au départ, au plus aussi haute que le texte). Elle va plus loin que <strong class="ui">« Biseau »</strong>, mais seulement jusqu'à la largeur des traits : là où un trait est plus fin que le double de la taille, le bord se termine par un sommet plus étroit. Le dessous reste plat, on peut donc coller les lettres une à une ensuite. Tant qu'un bord est choisi, il remplace <strong class="ui">« Biseau »</strong>.</li><li><strong>Longueur :</strong> Un texte peut compter jusqu'à 250 caractères. Les lettres gardent leur taille et la ligne s'allonge autant qu'il le faut ; pour la raccourcir, réduisez les lettres. <strong class="ui">« Bord de la lettre »</strong> fonctionne sur un texte de 40 caractères au plus, car sur un texte plus long le calcul prendrait plusieurs minutes.</li><li><strong><strong class="ui">« Espacement des lettres (%) »</strong> :</strong> l'espace entre les lettres en plus de celui de la police, en pour cent de la taille des lettres : 0 le laisse tel que la police l'a fait, au-dessus les lettres s'écartent, en dessous (jusqu'à -50) elles se resserrent, ce dont une police à vous a souvent besoin. Les lettres gardent leur taille et la boîte suit la ligne, sur un texte droit comme courbe. L'espacement n'est pas appliqué à l'arabe et à l'hébreu, dont les lettres se lient.</li><li><strong>Taille :</strong> Vous définissez la longueur et la largeur de la ligne comme pour n'importe quelle forme. Faites glisser les poignées ou saisissez les dimensions.</li><li><strong><strong class="ui">« Étirer les lettres sur le cadre »</strong> :</strong> Désactivé au départ : les lettres gardent leurs proportions et restent au milieu du cadre, donc un cadre étiré plus large ou plus profond que le mot n'en a besoin reste plus grand que les lettres. Activez-le et les lettres sont étirées dans les deux directions pour remplir tout le cadre : une majuscule peut être rendue plus basse ou plus étroite, comme dans Tinkercad. Il s'applique au texte droit ; le texte courbe a sa propre taille de lettre.</li><li><strong><strong class="ui">« Crénage automatique »</strong> :</strong> rapproche les paires de lettres qui laissent trop d'espace entre elles, comme AY, AV, LT ou To, en mesurant la forme des lettres, dans toutes les polices, les tiennes aussi. Les nouveaux textes l'ont activé ; les textes créés avant l'ont désactivé, pour que rien ne bouge dans un design enregistré. Les lettres gardent leur taille et le cadre suit. Il fonctionne sur le texte droit et courbe, pas sur le texte vertical, l'arabe, l'hébreu ni le japonais.</li><li><strong><strong class="ui">« Lettres de haut en bas »</strong> :</strong> empile les lettres de haut en bas, chacune au milieu d'une ligne verticale, pour une enseigne sur un chambranle ou un nom le long d'un stylo. La boîte se met debout et les lettres gardent leur taille ; <strong class="ui">« Espacement des lettres (%) »</strong> règle l'écart entre elles. Sur un texte courbe, les lettres forment une colonne le long du côté gauche du cercle, chacune debout ; <strong class="ui">« Du côté droit »</strong> met la colonne du côté droit.</li></ul>
+<p>Le texte est d’abord un seul corps. Si vous souhaitez traiter les lettres individuellement, cliquez sur <strong class="ui">« Séparer les pièces »</strong>. Chaque lettre est alors une forme qui lui est propre.</p>
+<p><strong>Plusieurs lignes :</strong> Un texte tient sur une ligne. Pour un panneau ou une plaque de plusieurs lignes, ouvrez la carte <strong class="ui">« Bloc de texte »</strong> sous les paramètres : saisissez les lignes dans <strong class="ui">« Lignes »</strong>, choisissez <strong class="ui">« Alignement »</strong> (<strong class="ui">« Gauche »</strong>, <strong class="ui">« Centre »</strong> ou <strong class="ui">« Droite »</strong>), <strong class="ui">« Interligne »</strong> et <strong class="ui">« Ligne suivante (%) »</strong> - à 80 %, chaque ligne est plus petite d'un cinquième que celle du dessus. Le bouton fait de chaque ligne un texte à part sous celle du dessus, avec la police, la hauteur et le remplissage de ce texte ; la première prend la place de ce texte. Ensuite, chaque ligne peut avoir sa propre taille, police ou couleur.</p>
+<p>Les bords du texte peuvent également être chanfreinés ou arrondis, droits ou incurvés, voir [Casser les bords et creuser les corps] (chapter:edges-and-hollowing). Utilisez des petites tailles telles que 0,2 à 0,5 mm, car les traits des lettres sont étroits.</p>
+</section><section class="guide-part"><h2 id="vos-propres-polices"><span class="heading-alias" id="your-own-fonts"></span>Vos propres polices</h2>
+<p>Outre les sept polices intégrées, vous pouvez utiliser n'importe quelle police de votre choix : un fichier de police de votre ordinateur ou, dans Chrome et Edge, une police installée sur votre ordinateur. Choisissez <strong class="ui">« Vos propres polices… »</strong> en bas de <strong class="ui">« Police »</strong>. La fenêtre <strong class="ui">« Vos propres polices »</strong> s'ouvre.</p>
+<ul><li><strong><strong class="ui">« Choisissez un fichier de police… »</strong></strong> prend un fichier TrueType (<code>.ttf</code>), un fichier OpenType (<code>.otf</code>) ou un fichier WOFF (<code>.woff</code>). Vous pouvez également simplement faire glisser le fichier dans la fenêtre.</li><li><strong>Sous Windows</strong>, les polices installées se trouvent dans le dossier Polices (<code>C:\Windows\Fonts</code>). La boîte de dialogue de fichier du navigateur le cache. Ouvrez-le plutôt dans l'Explorateur et faites glisser la police dans la fenêtre <strong class="ui">« Vos propres polices »</strong>. Les polices installées pour vous seul résident dans <code>%LOCALAPPDATA%\Microsoft\Windows\Fonts</code>, que la boîte de dialogue de fichier affiche également. Sur un Mac, les polices résident dans <code>/Library/Fonts</code> et <code>~/Library/Fonts</code>.</li><li><strong><strong class="ui">« Police de l’ordinateur… »</strong></strong> répertorie les polices installées sur votre ordinateur. La première fois, le navigateur demande si layerling peut les lire. Le champ de recherche trouve rapidement une police, un clic la prend.</li></ul>
+<p>Si un texte est sélectionné, il obtient immédiatement la nouvelle police. Sinon la police apparaît sous <strong class="ui">« Police »</strong> dans le groupe <strong class="ui">« Vos propres polices »</strong>, et <strong class="ui">« Utiliser »</strong> dans la fenêtre la place sur les textes sélectionnés. Les polices de votre choix fonctionnent comme celles intégrées : le texte sur un arc de cercle, les chanfreins et les congés sur les bords et l'exportation STEP fonctionnent tous de la même manière. Les lettres qui manquent à une police sont tirées de Sans.</p>
+<section class="guide-part"><h3 id="arabe-et-hebreu"><span class="heading-alias" id="arabic-and-hebrew"></span>Arabe et hébreu</h3>
+<p>L'arabe, le persan, l'ourdou et l'hébreu s'écrivent de droite à gauche : la première lettre se trouve à droite, et dans un texte mixte tel que &quot;Nom عربي&quot;, seul le mot arabe va à l'envers, les chiffres restent comme d'habitude. Les lettres arabes rejoignent leurs voisines comme le demande l'écriture, et le lam-alef devient une ligature. Cela nécessite une police contenant ces lettres ; ceux intégrés ne le font pas. Ajoutez-en une propre, comme Arial, Tahoma ou Segoe UI sous Windows, ou une version gratuite comme Noto Naskh Arabic, Noto Sans Arabic ou Amiri. Les marques de voyelles figurent sur la lettre à laquelle elles appartiennent. Le texte sur un arc de cercle, le contour, la silhouette, les calques et les balises de nom fonctionnent comme avec tout autre texte.</p>
+</section><section class="guide-part"><h3 id="qu-est-ce-qui-fonctionne-dans-quel-navigateur"><span class="heading-alias" id="what-works-in-which-browser"></span>Qu'est-ce qui fonctionne dans quel navigateur</h3>
+<div class="table-scroll"><table><thead><tr><th>Navigateur</th><th>Choisissez un fichier de police</th><th>Police de l'ordinateur</th></tr></thead><tbody><tr><td>Chrome et Edge sur un ordinateur, l'application layerling installée également</td><td>oui</td><td>oui, après que le navigateur ait demandé</td></tr><tr><td>Firefox</td><td>oui</td><td>non</td></tr><tr><td>Safari sur Mac</td><td>oui</td><td>non</td></tr><tr><td>Tablette et téléphone</td><td>oui, à partir des fichiers de l'appareil</td><td>non</td></tr></tbody></table></div>
+<p>Les pages Web ne peuvent pas simplement lire les polices installées. Seuls Chrome et Edge en ont l'autorisation, et uniquement sur les pages sécurisées, sur <code>https</code> comme sur layerling.com. Lorsque layerling s'exécute sur <code>http</code>, par exemple sur votre propre serveur ou en tant qu'installation Docker sur votre réseau domestique, <strong class="ui">« Police de l’ordinateur… »</strong> est manquant ; faites ensuite glisser la police depuis l'Explorateur. Dans les autres navigateurs, vous choisissez le fichier de police dans le dossier des polices, avec le même résultat. Si vous avez refusé la question dans Chrome ou Edge, autorisez-la à nouveau dans les paramètres du site, derrière le cadenas à gauche de l'adresse.</p>
+<p>layerling ne peut pas lire les fichiers WOFF2 (il existe presque toujours une version TTF ou OTF), les collections de polices (<code>.ttc</code>, plusieurs polices dans un seul fichier) ou les polices emoji de couleur. À partir de très grandes polices, comme les polices chinoises, layerling prend les 8 000 premiers caractères. Une police variable est lue avec son réglage par défaut, généralement le poids normal.</p>
+<p>Certaines polices, scriptes et variables surtout, dessinent une lettre à partir de traits qui se chevauchent. layerling les fusionne en un seul contour net lors de la lecture de la police, de sorte que le corps reste imprimable. Ces lettres sont alors constituées de pièces droites très courtes au lieu de courbes ; ça ne se voit pas.</p>
+</section><section class="guide-part"><h3 id="ou-les-polices-sont-conservees"><span class="heading-alias" id="where-the-fonts-are-kept"></span>Où les polices sont conservées</h3>
+<p>Votre propre police reste <strong>dans ce navigateur sur cet ordinateur</strong>. Un autre navigateur ou un autre ordinateur ne le connaît pas jusqu'à ce que vous l'y ajoutiez également. La suppression des données du site du navigateur efface également les polices. Dans la fenêtre <strong class="ui">« Vos propres polices »</strong>, le bac supprime une police du navigateur. Vos créations n’y perdent rien, comme le montre la section suivante.</p>
+</section><section class="guide-part"><h3 id="transmettre-des-designs-avec-votre-propre-police"><span class="heading-alias" id="passing-on-designs-with-a-font-of-your-own"></span>Transmettre des designs avec votre propre police</h3>
+<p>Une conception ne stocke <strong>pas le fichier de police</strong>, uniquement les contours des lettres utilisées par ses textes, celles des étapes précédentes de l'historique incluses. Si un texte dit &quot;Bonjour&quot;, seuls H, e, l et o voyagent avec. Cela vaut pour toutes les manières dont un design est enregistré : dans le navigateur, sur votre propre serveur, sous forme de fichier <code>.lyl</code> et dans <strong class="ui">« Formes personnalisées »</strong>.</p>
+<p>Donc:</p>
+<ul><li><strong>Le design s'ouvre correctement n'importe où</strong>, également sur un ordinateur sans la police. Les textes se ressemblent et peuvent être déplacés, tournés, mis à l'échelle et arrondis.</li><li><strong>Les nouvelles lettres ont besoin de la police.</strong> Si quelqu'un sans la police tape une lettre que le dessin n'a pas apportée, layerling utilise Sans. Sous <strong class="ui">« Police »</strong>, la police est alors marquée <strong class="ui">« seulement les lettres du dessin »</strong>. L'ajout du fichier de police ramène chaque lettre.</li><li><strong>Les exportations contiennent uniquement la géométrie.</strong> STL, 3MF, OBJ, STEP et SVG contiennent des corps et des contours, pas de police.</li><li><strong>Les anciennes versions de layerling</strong> ne connaissent pas encore leurs propres polices et dessinent de tels textes en multilingue.</li></ul>
+<p><strong>Licences :</strong> Les polices sont protégées par le droit d'auteur et leur licence indique ce que vous pouvez en faire. Les contours des lettres intégrés sont ce que les fichiers PDF retirent d'une police, et la plupart des licences le permettent. Certaines polices commerciales interdisent cependant de transmettre même des lettres simples. Avant de transmettre ou de publier un design avec votre propre police, vérifiez la licence de la police. Les polices gratuites telles que celles de Google Fonts (pour la plupart sous licence SIL Open Font) peuvent être transmises sans souci. Pour une pièce imprimée ou un STL exporté, cela n'a pas d'importance : ils ne contiennent plus de police, seulement de la géométrie.</p>
+</section></section><section class="guide-part"><h2 id="en-relief-ou-grave"><span class="heading-alias" id="raised-or-engraved"></span>En relief ou gravé</h2>
+<ul><li><strong>Relevé :</strong> Placez le texte sur la surface et regroupez-le avec le corps. Cela se développe comme un soulagement.</li><li><strong>Gravé :</strong> Basculez le texte sur <strong class="ui">« Trou »</strong>, laissez-le pénétrer un peu dans la surface et regroupez-le avec le corps. Les lettres sont ensuite gravées.</li></ul>
+<p>Pour lettrage sur une face latérale, placez d'abord le plan de travail sur cette face, voir <a href="/api/desktop/layerling/ui/guide-fr/view-and-workplane.html">Vue et plan de travail</a>.</p>
+</section><section class="guide-part"><h2 id="pochoirs-des-ponts-pour-le-centre-des-lettres"><span class="heading-alias" id="stencils-bridges-for-the-middle-of-letters"></span>Pochoirs : des ponts pour le centre des lettres</h2>
+<p>Découpées à travers une plaque, les lettres comme O, A et B perdent leur centre : il reste libre dans la lettre et tombe. <strong class="ui">« Ponts de pochoir »</strong> le retient à la plaque par de petits ponts, comme sur un pochoir.</p>
+<ol><li>Basculez le texte sur <strong class="ui">« Trou »</strong>, faites-lui traverser la plaque et sélectionnez les deux, regroupés ou non.</li><li>Cliquez sur <strong class="ui">« Ponts de pochoir »</strong> dans le groupe <strong class="ui">« Modifier »</strong> du ruban, faites un clic droit sur la sélection ou trouvez-le avec <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>. Les ponts apparaissent en orange là où ils seront.</li><li>Réglez <strong class="ui">« Largeur des ponts »</strong> et <strong class="ui">« Ponts par partie »</strong>. <strong class="ui">« Hauteur des ponts »</strong> commence à l'épaisseur de la plaque ; des ponts plus bas se placent au ras du dessous, au milieu ou au ras du dessus de la plaque, selon <strong class="ui">« Position »</strong>. Sur un pochoir pour peinture en bombe, des ponts en haut laissent passer la peinture dessous.</li><li><strong class="ui">« Créer »</strong> regroupe les ponts avec la plaque.</li></ol>
+<p>Chaque pont est une boîte ordinaire : ouvrez le groupe pour en déplacer un, en supprimer un ou ajouter le vôtre. Si vous modifiez le texte plus tard, sélectionnez le groupe et cliquez à nouveau sur <strong class="ui">« Ponts de pochoir »</strong> ; de nouveaux ponts remplacent les anciens. Un texte seulement gravé, qui ne traverse pas, ne reçoit aucun pont, car rien ne tombe. Pour un laser ou un traceur, les exports DXF et SVG ajoutent les mêmes ponts, voir <a href="/api/desktop/layerling/ui/guide-fr/files-and-saving.html">Fichiers, sauvegarde et partage</a>.</p>
+</section><section class="guide-part"><h2 id="contour-silhouette-et-plus-large"><span class="heading-alias" id="outline-silhouette-and-wider"></span>Contour, silhouette et plus large</h2>
+<p>Un texte n'a pas besoin d'être construit sous forme de lettres remplies. <strong class="ui">« Remplir »</strong> dans les propriétés propose le même choix que Tinkercad :</p>
+<ul><li><strong><strong class="ui">« Rempli »</strong> :</strong> les lettres telles quelles.</li><li><strong><strong class="ui">« Aperçu »</strong> :</strong> une ligne le long du contour des lettres, moitié à l'intérieur et moitié à l'extérieur.</li><li><strong><strong class="ui">« Ligne extérieure »</strong> :</strong> une ligne autour de l'extérieur des lettres.</li><li><strong><strong class="ui">« Ligne intérieure »</strong> :</strong> une ligne à l'intérieur des lettres.</li></ul>
+<p>Une fois une ligne choisie, deux paramètres apparaissent juste sous la liste : <strong class="ui">« Largeur de ligne »</strong> définit l'épaisseur de la ligne, <strong class="ui">« Coins »</strong> la manière dont elle contourne les coins (<strong class="ui">« Rond »</strong>, <strong class="ui">« Biseau »</strong> ou <strong class="ui">« Pointu »</strong>). Les paramètres les plus rares se trouvent sous <strong class="ui">« Plus »</strong> : <strong class="ui">« Silhouette (pas de trous) »</strong> laisse de côté les trous en O, A ou e, et <strong class="ui">« Plus large (base pour une impression multicolore) »</strong> garde les lettres remplies et les rend plus épaisses de la largeur de la ligne tout autour ; les lettres qui se touchent grandissent en un seul morceau.</p>
+<p>Avec une ligne à l'extérieur, une ligne centrée ou &quot;Plus large&quot;, la case du texte s'agrandit, tandis que les lettres gardent leur taille. <strong class="ui">« Biseau »</strong> et <strong class="ui">« Segments »</strong> existent uniquement pour les lettres remplies.</p>
+</section><section class="guide-part"><h2 id="calques-et-balises-de-nom"><span class="heading-alias" id="layers-and-name-tags"></span>Calques et balises de nom</h2>
+<p>Une balise pour une impression multicolore est un texte en couches : les lettres en haut, en dessous le même texte un peu plus large dans une deuxième couleur, en bas une plaque sans trous dans une troisième. layerling le fait en un clic :</p>
+<ul><li><strong>Une nouvelle balise de nom :</strong> choisissez <strong class="ui">« Badge nominatif »</strong> dans la bibliothèque de formes et placez-la. Il est écrit « Nom » en lettres blanches sur un bord rouge et une plaque sombre.</li><li><strong>À partir d'un texte :</strong> sélectionnez le texte et cliquez sur <strong class="ui">« Créer des calques »</strong> en haut de ses paramètres.</li></ul>
+<p>Tous les paramètres du tag sont dans la fiche <strong class="ui">« Badge nominatif »</strong>, en haut des paramètres :</p>
+<ul><li><strong><strong class="ui">« Texte »</strong></strong> et <strong><strong class="ui">« Police »</strong></strong>, vos propres polices également. Le tag grandit avec les mots.</li><li><strong><strong class="ui">« Format lettre »</strong> :</strong> hauteur des lettres majuscules, en mm. Toutes les couches suivent et restent alignées.</li><li><strong><strong class="ui">« Lettres de haut en bas »</strong> :</strong> met l'étiquette debout avec les lettres l'une sous l'autre, toutes les couches avec.</li><li><strong><strong class="ui">« Calques »</strong> :</strong> une ligne par couche, de haut en bas. Chaque ligne a la couleur (cliquez sur le carré coloré), la largeur du calque par rapport aux lettres, sa hauteur et <strong class="ui">« Pas de trous »</strong>, qui remplit les trous des lettres telles que O et A. <strong class="ui">« Coins »</strong> définit la façon dont un calque plus large contourne les coins des lettres : <strong class="ui">« Rond »</strong>, <strong class="ui">« Biseau »</strong> ou <strong class="ui">« Pointu »</strong>. La rangée du haut représente les lettres elles-mêmes. <strong>+</strong> ajoute un calque en bas, <strong>–</strong> supprime le calque inférieur. Une balise comporte de deux à six couches.</li><li><strong><strong class="ui">« Trou pour porte-clés »</strong> :</strong> donne à la couche inférieure une languette droite avec une extrémité ronde et un trou pour un porte-clés ; la languette grandit avec le trou. Un trou de 3 mm, par défaut, crée une languette de 6,5 mm de large qui dépasse de 6,75 mm, le bord du trou étant à 2 mm du bord de la couche inférieure. Choisissez le <strong class="ui">« Diamètre du trou »</strong> et le <strong class="ui">« Côté »</strong> : <strong class="ui">« Gauche »</strong>, <strong class="ui">« À droite »</strong> ou <strong class="ui">« Haut »</strong>. <strong class="ui">« Libre »</strong> retire le trou de l'étiquette et pose à côté une <strong class="ui">« Languette porte-clés »</strong> à part, de la couleur et de la hauteur de la couche inférieure : une forme ordinaire que vous déplacez et tournez avec ses poignées là où l'étiquette en a besoin. Une fois en place, <strong class="ui">« Fixer à l'étiquette »</strong> dans ses propriétés en fait une partie de l'étiquette la plus proche, juste là où elle est : le trou traverse chaque couche qu'il atteint, l'oreille rejoint la couche inférieure, et les deux restent à ce coin des lettres quand les mots ou la taille changent. <strong class="ui">« Libre »</strong> ressort la languette là où elle était, pour la déplacer de nouveau. Le trou traverse chaque calque qu'il touche et l'onglet se déplace lorsque vous modifiez les mots, la taille des lettres ou la police. <strong class="ui">« Position le long du côté »</strong> déplace la languette vers le haut ou le bas le long de son côté (en haut : vers la gauche ou la droite), jusqu'à l'endroit où elle quitterait le côté ; 0 est le milieu. C'est utile quand le milieu du côté tombe sur un vide, comme à côté d'un J : place la languette là où la lettre dépasse.</li><li><strong><strong class="ui">« Bord de la lettre »</strong> :</strong> arrondit ou chanfreine le bord supérieur des lettres sur la couche supérieure, de la même manière qu'une étiquette imprimée est terminée : <strong class="ui">« Aucun »</strong>, <strong class="ui">« Rond »</strong> ou <strong class="ui">« Chanfrein »</strong>, avec le <strong class="ui">« Taille du bord »</strong> (0,4 mm pour commencer, au plus aussi haut que la couche). Cela fonctionne pour chaque police et chaque mot. Le bord fait partie du maillage des lettres, donc l'outil de bord prend un tel texte comme maillage, ce qui pour un texte aussi fin est lourd ; choisissez plutôt le bord ici.</li></ul>
+<p>Chaque changement apparaît en même temps. L'étiquette est un paquet : elle se déplace comme une seule et chaque couche reste un corps qui lui est propre dans sa propre couleur, comme un slicer en a besoin pour une impression multicolore. Pour arrondir ou biseauter les bords d'un calque, cliquez sur <strong class="ui">« Modifier le lot »</strong> et sélectionnez le calque, voir [Casser les bords et creuser des corps] (chapter:edges-and-hollowing).</p>
+<section class="guide-part"><h3 id="plusieurs-tags-de-nom-a-la-fois"><span class="heading-alias" id="many-name-tags-at-once"></span>Plusieurs tags de nom à la fois</h3>
+<p>Tapez les noms dans <strong class="ui">« Liste de noms »</strong>, un par ligne, jusqu'à cent. Le bouton ci-dessous indique le nombre de balises à créer, par exemple &quot;Créer 12 balises de nom&quot;. Chaque étiquette a les mêmes calques, la même taille de lettre et le même trou pour le porte-clés et est un objet à part entière ; ils sont disposés en rangées inférieures à la première, espacées de 5 mm. Un texte brut contient également la liste de noms, plus bas dans ses paramètres.</p>
+</section></section><section class="guide-part"><h2 id="badges-d-icone"><span class="heading-alias" id="icon-tags"></span>Badges d'icône</h2>
+<p>Une balise icône est la même balise avec une icône SVG au lieu de lettres : un cœur, un nuage, le logo d'un club. L'icône en haut, en dessous le même contour un peu plus large dans une seconde couleur, en bas une plaque sans trous.</p>
+<ul><li><strong>Une nouvelle balise icône :</strong> choisissez <strong class="ui">« Badge d'icône »</strong> dans la bibliothèque de formes. Une petite fenêtre s'ouvre : cliquez sur <strong class="ui">« Parcourir… »</strong>, choisissez un fichier SVG, vérifiez l'image, tapez le <strong class="ui">« Largeur (mm) »</strong> de l'icône et cliquez sur <strong class="ui">« D'accord »</strong>. L'étiquette se trouve au milieu de l'assiette, dans les mêmes couches qu'une nouvelle étiquette nominative.</li><li><strong>À partir d'un corps d'esquisse :</strong> un SVG importé ou une esquisse que vous avez dessinée a <strong class="ui">« Créer des calques »</strong> en haut de ses paramètres.</li></ul>
+<p>La carte <strong class="ui">« Badge d'icône »</strong> en haut des paramètres contient :</p>
+<ul><li><strong><strong class="ui">« Autre fichier… »</strong> :</strong> place l'icône d'un autre fichier (SVG, PNG ou JPG) sur la balise ; les couches et la largeur restent telles quelles.</li><li><strong><strong class="ui">« Largeur »</strong> :</strong> la largeur de l'icône en haut, en mm. Toutes les couches suivent et restent alignées.</li><li><strong><strong class="ui">« Calques »</strong> :</strong> les lignes comme sur une étiquette de nom - couleur, de combien plus large, <strong class="ui">« Coins »</strong>, hauteur et <strong class="ui">« Pas de trous »</strong>, <strong>+</strong> et <strong>–</strong>, deux à six couches. La rangée du haut est l'icône elle-même.</li><li><strong><strong class="ui">« Trou pour porte-clés »</strong> :</strong> comme sur une étiquette de nom : un trou pour porte-clés à travers chaque couche, avec une patte à extrémité arrondie sur la couche inférieure, au-delà de l'icône. <strong class="ui">« Diamètre du trou »</strong> et <strong class="ui">« Côté »</strong> déterminent sa taille et son emplacement. <strong class="ui">« Libre »</strong> donne une languette à part, comme sur une étiquette de nom. La patte est calculée pour épouser le contour de l'icône ; pour une icône très découpée, vérifiez où elle touche le plateau. <strong class="ui">« Position le long du côté »</strong> déplace la languette le long de son côté, comme sur l'étiquette de nom.</li><li><strong><strong class="ui">« Compter »</strong> :</strong> combien de balises vous souhaitez, de 1 à 100. <strong class="ui">« Autant que possible »</strong> le calcule à partir du plateau de l'imprimante choisie dans les paramètres, pour une plaque complète de petits logos. Le bouton en dessous les génère, espacés de 5 mm, répartis au milieu du plateau ; la première est la balise d'origine.</li></ul>
+<p>Le fichier SVG nécessite des contours fermés ; un dessin composé uniquement de lignes ouvertes ne peut pas former une balise. Un corps d'esquisse dont le remplissage est une ligne le conserve : la surface de cette ligne devient l'icône.</p>
+<p><strong>Une image (PNG ou JPG)</strong> est vectorisée en contour, et l'aperçu affiche ce contour. Sous <strong class="ui">« Tracé à partir de »</strong>, vous choisissez si c'est la partie <strong class="ui">« Partie sombre »</strong> ou <strong class="ui">« Partie claire »</strong> qui devient l'icône ; au départ, il s'agit de la partie qui n'est pas l'arrière-plan. Les pixels transparents ne font jamais partie de l'icône. Un fichier SVG ne contenant qu'une seule image (comme lorsqu'Inkscape enregistre un bitmap importé) est vectorisé de la même manière. Le contour suit les pixels, de sorte qu'une petite image aura des bords crénelés : les images de quelques centaines de pixels ou plus donnent les meilleurs résultats. <strong class="ui">« Autre fichier… »</strong> prend la partie d'une image qui ne constitue pas son arrière-plan.</p>
+</section><section class="guide-part"><h2 id="codes-qr"><span class="heading-alias" id="qr-codes"></span>Codes QR</h2>
+<p>Un code QR transforme un texte ou une adresse web en un motif que lit l'appareil photo d'un téléphone : un lien vers votre boutique sur une enseigne, le nom du Wi-Fi sur un sous-verre, un numéro de téléphone sur un porte-clés.</p>
+<p>Choisissez <strong class="ui">« Code QR »</strong> dans la bibliothèque de formes. Une fenêtre s'ouvre ; le curseur est déjà dans le champ de texte :</p>
+<ul><li><strong><strong class="ui">« Texte ou adresse »</strong> :</strong> ce que dit le code. Entrée crée le code, Maj+Entrée commence une nouvelle ligne. Sous le champ, vous voyez la place utilisée ; les lettres accentuées et autres caractères spéciaux prennent deux octets. Quand le texte est trop long, le champ le dit.</li><li><strong><strong class="ui">« Correction d'erreur »</strong> :</strong> L, M, Q ou H. Un niveau plus élevé reste lisible quand une partie du code est sale ou rayée (L environ 7 %, M 15 %, Q 25 %, H 30 %), mais demande plus de modules pour le même texte, chaque module devient donc plus petit. M est choisi au départ.</li><li><strong><strong class="ui">« Construire en »</strong> :</strong> <strong class="ui">« Code seul »</strong> construit le code seul, haut de 4 mm. <strong class="ui">« En relief sur plaque »</strong> le pose à 1 mm de haut sur une plaque blanche de 3 mm, en lot de deux couleurs, pour qu'une impression multicolore imprime le code foncé et la plaque claire. <strong class="ui">« Gravé »</strong> grave le code à 1 mm de profondeur dans la plaque.</li><li><strong><strong class="ui">« Taille par »</strong> :</strong> saisissez la <strong class="ui">« Largeur »</strong> du code entier (40 mm au départ) ou la taille d'un module ; l'autre valeur s'affiche dessous. Les modules de moins de 0,8 mm reçoivent un avertissement. C'est une règle empirique pour une buse de 0,4 mm, pas une garantie : imprimante, matériau, couleurs et téléphone jouent tous un rôle.</li><li><strong><strong class="ui">« Zone de silence (4 modules) »</strong> :</strong> les lecteurs ont besoin d'une marge vide de quatre modules autour du code. Sur une plaque, la marge fait partie de la plaque ; ne la désactivez que si la plaque repose sur une surface claire plus grande. Le code seul n'a pas de marge à lui : laissez la place libre autour.</li><li><strong>Hauteurs :</strong> la hauteur du code, ou sur une plaque la hauteur du code ou la profondeur de gravure, et l'épaisseur de la plaque.</li></ul>
+<p>L'aperçu montre le code tel qu'il sera construit. <strong class="ui">« OK »</strong> le place au milieu du plateau.</p>
+<p>Le code est un corps comme un autre : déplacez-le, tournez-le, redimensionnez-le (gardez la largeur et la profondeur égales, sinon le code est déformé), groupez-le, ou faites-en un trou et groupez-le dans une pièce à vous pour l'y graver. Le redimensionner redimensionne tout le code ; chaque module reste carré.</p>
+<p>La carte <strong class="ui">« Code QR »</strong> en haut de ses réglages contient le texte. Modifiez-le et cliquez sur <strong class="ui">« Recréer »</strong> : le code est reconstruit là où il est et aussi large qu'il l'est maintenant. Correction d'erreur, zone de silence et construction restent telles qu'elles ont été choisies ; pour d'autres choix, créez un nouveau code depuis la bibliothèque.</p>
+<p>Scannez le code avec votre téléphone avant de l'imprimer, puis encore une fois après. Le foncé sur clair se lit le mieux ; un code clair sur une plaque foncée n'est pas lu par tous les téléphones.</p>
+</section><section class="guide-part"><h2 id="texte-sur-un-arc-de-cercle"><span class="heading-alias" id="text-on-a-circular-arc"></span>Texte sur un arc de cercle</h2>
+<p>Le lettrage ne doit-il pas être droit mais suivre le bord d'une pièce de monnaie, d'un couvercle ou d'un anneau ? Pour cela il y a le paramètre <strong class="ui">« Sur l'arc »</strong>.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/curved-text.webp" alt="Le texte suit un cercle. Toutes les lettres se trouvent sur une ligne commune." width="1280" height="800" loading="lazy"><figcaption>Le texte suit un cercle. Toutes les lettres se trouvent sur une ligne commune.</figcaption></figure>
+<p>Une fois allumé, le texte parcourt le cercle. Toutes les lettres reposent sur la même ligne de base, aussi uniformément qu'avec un texte normal. Il existe cinq paramètres :</p>
+<ul><li><strong><strong class="ui">« Rayon de l'arc »</strong></strong> (5 à 500 mm) : Le rayon du cercle sur lequel s'étend la ligne de base des lettres. Les lettres restent à leur place ; seule leur courbure change.</li><li><strong><strong class="ui">« Largeur des lettres (%) »</strong></strong> (25 à 400 %) : La largeur de chaque lettre, en pour cent de sa propre largeur. Au-dessous de 100 les lettres s'affinent, au-dessus elles s'élargissent ; leur hauteur reste, et l'arc qu'elles occupent s'allonge ou se raccourcit avec elles. Par exemple pour une inscription haute et étroite sur une pièce. Sur un texte droit, <strong class="ui">« Étirer les lettres sur le cadre »</strong> le fait avec le cadre.</li><li><strong><strong class="ui">« Format lettre »</strong> :</strong> Quelle est la hauteur des lettres. Cela ne dépend plus de la largeur de la forme.</li><li><strong><strong class="ui">« En bas »</strong> :</strong> Déplace le texte du haut du cercle vers le bas. Les lettres pointent alors la tête vers le centre.</li><li><strong><strong class="ui">« À l'envers »</strong> :</strong> Retourne uniquement les lettres pour que vous puissiez les lire de l'autre côté. Le texte reste à sa place sur le cercle.</li></ul>
+<p><strong>Le centre du cercle est le centre de la forme.</strong> C'est pourquoi l'alignement fonctionne comme d'habitude : si vous centrez le texte avec un cylindre ou un anneau, il se trouve exactement concentrique par rapport à lui. Lorsque vous tirez sur une poignée, le rayon et la taille des lettres grandissent ensemble, de sorte que le lettrage n'est pas déformé.</p>
+<aside class="tip"><p><strong>Conseil :</strong> En haut du cercle, les lettres se trouvent en dehors de la ligne de base ; avec <strong class="ui">« En bas »</strong>, ils se tiennent à l'intérieur et se dirigent vers le centre. Pour que le lettrage tienne sur un disque, le rayon plus la taille des lettres doivent être inférieurs au rayon du disque.</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/guide-fr/sketches.html"><small>Chapitre précédent</small>Esquisses : du contour au corps</a><a class="next" href="/api/desktop/layerling/ui/guide-fr/threads-and-mechanics.html"><small>Chapitre suivant</small>Filetages, engrenages et autres pièces</a></div>
+      </main>
+    </div>
+    <footer class="note">Ce manuel grandit avec le programme. Si quelque chose manque ou est inexact, dites-le nous dans les <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussions</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=fr" rel="noopener">Soutenir le projet</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussions</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Le projet sur GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Notes de version v1.154.1</a></div><p class="trademark">Tinkercad est une marque commerciale d'Autodesk, Inc. Layerling est un projet indépendant et n'est pas affilié, approuvé ou sponsorisé par Autodesk.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Retour à l'éditeur";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Ouvrir l'éditeur";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

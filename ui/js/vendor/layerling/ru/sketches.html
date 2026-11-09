@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Эскизы: от контура к телу - Руководство layerling</title>
+    <meta name="description" content="Нарисуйте плоский контур, скруглите или обработайте фаской его углы и вытяните или поверните его в тело.">
+    <link rel="canonical" href="https://layerling.com/ru/sketches.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/sketches.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/sketches.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/sketches.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/skizzen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/sketches.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/sketches.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/sketches.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/sketches.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/schetsen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/sketches.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/skice.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/sketches.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/sketches.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/sketches.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/sketches.html">
+    <meta property="og:title" content="Эскизы: от контура к телу - Руководство layerling">
+    <meta property="og:description" content="Нарисуйте плоский контур, скруглите или обработайте фаской его углы и вытяните или поверните его в тело.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/ru/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Руководство</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/ru/search-index.json" data-nothing="Ничего не найдено." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Поиск по руководству" aria-label="Поиск по руководству" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Язык">Русский</summary><ul><li><a href="/api/desktop/layerling/ui/guide/sketches.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/sketches.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/sketches.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/sketches.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/sketches.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/sketches.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/sketches.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/sketches.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/sketches.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/sketches.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/skice.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/sketches.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/sketches.html" hreflang="ru" lang="ru" aria-current="true">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/sketches.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/sketches.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/sketches.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/sketches.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Открыть редактор</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Редактор уже открыт в другой вкладке — просто переключитесь туда.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Главы"><h2>Главы</h2><p class="print-link"><a href="/api/desktop/layerling/ui/ru/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Всё руководство для печати</span></a></p><ol><li><a href="/api/desktop/layerling/ui/ru/getting-started.html">С чего начать</a></li><li><a href="/api/desktop/layerling/ui/ru/view-and-workplane.html">Вид и рабочая плоскость</a></li><li><a href="/api/desktop/layerling/ui/ru/shapes.html">Размещение и настройка фигур</a></li><li><a href="/api/desktop/layerling/ui/ru/select-and-arrange.html">Выделение и упорядочивание</a></li><li><a href="/api/desktop/layerling/ui/ru/solids-and-holes.html">Тела и отверстия</a></li><li><a href="/api/desktop/layerling/ui/ru/edges-and-hollowing.html">Обработка кромок и выдолбливание тел</a></li><li><a href="/api/desktop/layerling/ui/ru/sketches.html" aria-current="page">Эскизы: от контура к телу</a></li><li><a href="/api/desktop/layerling/ui/ru/text.html">Текст и надписи по дуге</a></li><li><a href="/api/desktop/layerling/ui/ru/threads-and-mechanics.html">Резьба, шестерни и другие детали</a></li><li><a href="/api/desktop/layerling/ui/ru/measuring-and-notes.html">Измерения и заметки</a></li><li><a href="/api/desktop/layerling/ui/ru/printing.html">Подготовка к 3D-печати</a></li><li><a href="/api/desktop/layerling/ui/ru/files-and-saving.html">Файлы, сохранение и обмен</a></li><li><a href="/api/desktop/layerling/ui/ru/shortcuts.html">Сочетания клавиш</a></li><li><a href="/api/desktop/layerling/ui/ru/ai-with-mcp.html">Создание с помощью ИИ (MCP)</a></li><li><a href="/api/desktop/layerling/ui/ru/offline-and-install.html">Установка как приложения, работа офлайн и свой сервер</a></li><li><a href="/api/desktop/layerling/ui/ru/videos.html">Видео о layerling</a></li><li><a href="/api/desktop/layerling/ui/ru/tablet-and-touch.html">Планшет и сенсорный экран</a></li></ol></nav>
+      <main>
+<h1>Эскизы: от контура к телу</h1>
+<p class="lead">Нарисуйте плоский контур, скруглите или обработайте фаской его углы и вытяните или поверните его в тело.</p>
+<div class="toc"><b>На этой странице</b><ul><li><a href="#nachalo-eskiza">Начало эскиза</a></li><li><a href="#risovanie">Рисование</a></li><li><a href="#linii-po-chislam">Линии по числам</a></li><li><a href="#izgib-pryamoy-storony">Изгиб прямой стороны</a></li><li><a href="#chtenie-i-vvod-uglov">Чтение и ввод углов</a></li><li><a href="#skruglenie-i-faska-na-uglakh">Скругление и фаска на углах</a></li><li><a href="#zerkalnoe-otrazhenie">Зеркальное отражение</a></li><li><a href="#vspomogatelnye-linii">Вспомогательные линии</a></li><li><a href="#kak-sdelat-iz-nego-telo">Как сделать из него тело</a></li><li><a href="#protyagivanie-vdol-traektorii">Протягивание вдоль траектории</a></li><li><a href="#postroenie-obvodkoy">Построение обводкой</a></li><li><a href="#zalivka-i-siluet">Заливка и силуэт</a></li><li><a href="#naklonnye-stenki-dlya-shtampov">Наклонные стенки — для штампов</a></li><li><a href="#kartinka-kak-podlozhka">Картинка как подложка</a></li><li><a href="#klavishi-v-rezhime-eskiza">Клавиши в режиме эскиза</a></li></ul></div>
+<p>Не всё можно собрать из основных фигур. Для деталей с собственным контуром - кронштейна, профиля зуба или вазы - вы сначала рисуете <strong>контур</strong>, а затем делаете из него тело. Для этого и нужен режим эскиза.</p>
+<section class="guide-part"><h2 id="nachalo-eskiza"><span class="heading-alias" id="starting-a-sketch"></span>Начало эскиза</h2>
+<p>Вверху переключитесь с <strong class="ui">«3D-редактор»</strong> на <strong class="ui">«Эскиз»</strong>. В группе <strong class="ui">«Создание»</strong> на панели инструментов рядом стоят три кнопки для выбора того, чем должен стать контур:</p>
+<ul><li><strong class="ui">«Выдавить эскиз»</strong>: контур выдавливается вверх, как формочка для печенья.</li><li><strong class="ui">«Вращать эскиз»</strong>: контур вращается вокруг оси, как на токарном станке. Так получаются вазы, чашки, конусы и всё круглое.</li><li><strong class="ui">«Эскиз по траектории»</strong>: контур протягивается вдоль траектории: кабельный короб с поворотом, трубопровод, кольцо вокруг формы. См. ниже «Протягивание вдоль траектории».</li></ul>
+<p>После этого редактор показывает лист с сеткой. Это ваша поверхность для рисования.</p>
+</section><section class="guide-part"><h2 id="risovanie"><span class="heading-alias" id="drawing"></span><span class="heading-alias" id="drawing-tools"></span><span class="heading-alias" id="shapes"></span><span class="heading-alias" id="select-and-change"></span><span class="heading-alias" id="clipboard-and-history"></span><span class="heading-alias" id="notes"></span><span class="heading-alias" id="view-and-dimensions"></span>Рисование</h2>
+<p>Панель инструментов в режиме эскиза разделена на области:</p>
+<ul><li>Рисование: <strong class="ui">«Линия»</strong> строит прямые участки: щёлкайте точки одну за другой; с зажатым <kbd>Shift</kbd> новая линия привязывается с шагом 15°, включая горизонталь и вертикаль. Длина и угол новой линии видны у указателя. Длину можно и ввести, см. <a href="#linii-po-chislam">Линии по числам</a>. <strong class="ui">«Дуга»</strong> рисует настоящую дугу окружности по трём точкам: сначала щёлкните два её конца, затем третью точку, через которую проходит дуга; до третьего щелчка за указателем следует предпросмотр, а сообщение называет радиус. Конец, щёлкнутый по существующей точке, присоединяется к ней, так что дуга может замкнуть контур. <kbd>Esc</kbd> сбрасывает уже поставленные точки и возвращает к <strong class="ui">«Выбрать»</strong>. После этого дуга — обычная геометрия из точек и кривых: двигайте, режьте или стирайте её, как любую другую линию. <strong class="ui">«Кривая Безье»</strong> формируется ручками: щёлкните точку и тяните в направлении, куда должна идти линия, как пером в Illustrator или Inkscape. Чем дальше тянете, тем сильнее изгиб; участок до новой точки изгибается, пока вы тянете, так что вы видите результат. Перетаскивание при установке точки изгибает кривую; если вы пришли из Tinkercad и хотите просто щёлкать точки, берите <strong class="ui">«Гладкая кривая»</strong>. <strong class="ui">«Гладкая кривая»</strong> прокладывает плавный путь через щёлкнутые точки. Чтобы замкнуть контур, в конце снова щёлкните первую точку. Чтобы закончить цепочку линий, не замыкая контур, щёлкните правой кнопкой, не двигая указатель, или дважды щёлкните последнюю точку.</li><li><strong class="ui">«От руки»</strong>: рисуйте пером, пальцем или мышью, как на бумаге. Когда вы их поднимаете, линия превращается в обычные точки: угол там, где она резко повернула, гладкие точки между ними, ровно столько, сколько нужно форме, так что каждую потом можно перетащить. Для мелких деталей приблизьте вид: чем ближе вы смотрите, тем точнее линия следует за рукой. Линия, которая заканчивается там, где началась, замыкается в контур, из которого может получиться тело; открытая остаётся линией, для <strong class="ui">«Обводка»</strong> или как путь для протягивания. Начинать можно и на линиях, и на изображении-шаблоне, так что изображение можно обвести от руки. Штрих, который начинается или заканчивается на открытом конце, продолжает эту линию, так что форму можно нарисовать несколькими штрихами.</li><li>Фигуры: <strong class="ui">«Добавить фигуру эскиза»</strong> предлагает готовые контуры: <strong class="ui">«Прямоугольник»</strong>, <strong class="ui">«Круг»</strong>, <strong class="ui">«Овал»</strong>, <strong class="ui">«Полукруг»</strong>, <strong class="ui">«Сектор»</strong>, <strong class="ui">«Окружность под болты»</strong> (диск с отверстиями), <strong class="ui">«Треугольник»</strong>, <strong class="ui">«Шестиугольник»</strong>, <strong class="ui">«Многоугольник»</strong> и <strong class="ui">«Звезда»</strong>. Щелчок ставит фигуру в начало координат эскиза — или перетащите её из меню куда нужно. Внизу меню <strong class="ui">«Стороны / лучи»</strong> задаёт число сторон многоугольника и число вершин звезды, а <strong class="ui">«Внутренний размер звезды»</strong> — насколько глубоко впадины звезды заходят к середине (от 10 до 90 % внешнего радиуса); оба параметра действуют на следующую добавленную фигуру. Как и у любой фигуры эскиза, дальше это обычные угловые точки — их можно перемещать, скруглять и снимать фаску по одной. Прямоугольник начинается с ширины и глубины, заданных для куба в <strong class="ui">«Параметры фигур по умолчанию»</strong> в настройках, круг и эллипс — с ширины цилиндра там; без своего значения, а также остальные фигуры, имеют размер 20 мм.</li><li>Перекрытие: надвиньте два замкнутых контура друг на друга — они останутся двумя телами и сольются уже в 3D-редакторе; наложение не становится отверстием. Отверстие получается, только когда контур целиком лежит внутри другого. Перемещение не соединяет линии там, где они пересекаются, так что фигуры можно снова растащить. А вот если провести линию через другие, layerling поставит точку в каждом пересечении.</li><li>Выделение: <strong class="ui">«Выбрать»</strong> перемещает точки и линии. Щелчок внутри замкнутого контура выделяет весь контур, так что его можно сразу тянуть или масштабировать; внутри отверстия выбирается отверстие. У рамки вокруг выделения восемь маркеров: угловые меняют ширину и высоту вместе, сохраняя пропорции, пока зажат <kbd>Shift</kbd>. Боковые меняют только одно направление. <strong class="ui">«Сохранять пропорции»</strong> на появляющейся панели сохраняет пропорции без <kbd>Shift</kbd>: углы и стороны тянут тогда в обе стороны одинаково, а введённая ширина или высота меняет и другую. layerling запоминает переключатель. <strong class="ui">«Заблокировать»</strong> рядом блокирует выделенный контур, как заблокированное тело в 3D-редакторе (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> делает то же): его больше нельзя двигать, масштабировать, поворачивать или менять, его линии бледнеют, точки становятся серыми, а маркеры рамки сереют и больше не реагируют. Пока он выделен, замок в его углу разблокирует его щелчком. Линии по-прежнему могут начинаться в его углах. <strong class="ui">«Разблокировать»</strong> или снова <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> освобождает его. Изогнутые стрелки за углами рамки поворачивают всё выделение вокруг его середины: число над указателем показывает угол, а с зажатым <kbd>Shift</kbd> поворот идёт шагами по 15°. Во время поворота появляется кольцо: с указателем внутри него поворот привязывается к 22,5°, снаружи идёт целыми градусами, независимо от сетки. <kbd>R</kbd> поворачивает целый замкнутый контур на 45° при каждом нажатии. Щёлкните по ярлыку ширины или высоты, чтобы ввести новый размер, в том числе суммой («60+12.5») или в процентах («150%»). Поля X и Y на панели над эскизом показывают, где лежит середина выделения, в мм от начала координат эскиза; введите значение, чтобы перенести её туда, например для отверстия ровно в 12 мм от середины. Y считается вверх, как в 3D-редакторе. С зажатым <kbd>Shift</kbd> щелчок по точке или линии добавляет её к выделению или снова убирает, так что можно выбрать несколько и двигать их вместе. Протяните рамку по пустому месту, чтобы выделить всё внутри. Если выделено два контура или больше, панель их ещё и выравнивает: влево, по центру или вправо и вверх, по центру или вниз, по рамке вокруг всех. Каждый контур движется целиком и сохраняет форму; отцентрованные в обе стороны, два круга становятся кольцом. Заблокированный контур остаётся на месте, а остальные выравниваются по нему. Линию тоже можно тянуть (она движется за оба конца или всё выделение, если она его часть). Клавиши со стрелками двигают выделение на один шаг сетки, с <kbd>Shift</kbd> — на больший, а зажатый при перетаскивании <kbd>Shift</kbd> держит движение на одной оси. <strong class="ui">«Добавить или удалить точки»</strong>: щелчок по участку добавляет точку, щелчок по точке убирает её. Ещё есть <strong class="ui">«Стереть»</strong> (щелчок по точке или линии убирает её, рамка поверх нескольких убирает всё внутри, а при выделении кнопка стирает выделение) и вставка шаблонного изображения (<strong class="ui">«Добавить изображение»</strong>). Когда вы удаляете точку, layerling соединяет её двух соседей, чтобы контур остался замкнутым. Чтобы закрыть разрыв, например после стирания одной стороны шестиугольника, перетащите один открытый конец на другой: он прилипает, и два становятся одной точкой, так что контур снова замкнут. На пересечении, например там, где линия режет окружность, соединяются стороны, идущие прямо: дуга с дугой, линия с линией, и окружность остаётся круглой. Чтобы убрать только кусок окружности, например для скруглённого угла, щёлкните ластиком именно по этому куску дуги между двумя точками; остальное останется.</li><li>Буфер обмена: <strong class="ui">«Копировать»</strong>, <strong class="ui">«Вставить»</strong>, <strong class="ui">«Дублировать»</strong> и <strong class="ui">«Удалить»</strong> работают с выделенными точками, линиями и изображениями, как в 3D-редакторе; <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span> вырезает. Вставленная и продублированная геометрия оказывается рядом с оригиналом с зазором 10 мм, на свободном месте, где она не касается ни одной существующей линии, поэтому она никогда не соединяется с тем, что уже нарисовано. Она остаётся выделенной, так что её можно сразу перетащить на нужное место.</li><li>История: <strong class="ui">«Отмена в эскизе»</strong> и <strong class="ui">«Возврат в эскизе»</strong>.</li><li><strong><strong class="ui">«Управление видом эскиза»</strong>:</strong> <strong class="ui">«Заметка»</strong> (или <kbd>N</kbd>) ставит заметку на эскиз, как в 3D-редакторе: следующий щелчок помещает её в любое место, в том числе на линию. Перетащите булавку, чтобы переместить заметку; щелчок по булавке сворачивает карточку. Заметки эскиза принадлежат его телу: в 3D-виде они сидят сверху на теле, созданном через <strong class="ui">«Выдавить эскиз»</strong> или <strong class="ui">«Эскиз по траектории»</strong>, и на нарисованном профиле тела, созданного через <strong class="ui">«Вращать эскиз»</strong>, и перемещаются вместе с ним. При повторном открытии эскиз показывает все заметки тела, в том числе поставленные в 3D. <strong class="ui">«Отмена в эскизе»</strong> отменяет заметку так же, как линию, а <strong class="ui">«Отмена»</strong> отбрасывает изменения в заметках. Подробнее в главе «Измерения и заметки».</li><li>Вид: панорамируйте средней кнопкой мыши или <kbd>Shift</kbd> либо <kbd>Ctrl</kbd> вместе с правой кнопкой, как в 3D-редакторе. Если ничего не выделено, вид сдвигают и <kbd>Ctrl</kbd> со стрелками: на десятую часть изображения за нажатие, на половину — если зажат ещё и <kbd>Shift</kbd>; эскиз движется в ту сторону, куда указывают стрелки. <kbd>Home</kbd> вписывает весь эскиз в вид, <kbd>F</kbd> приближает выделение (без выделения — весь эскиз), а <kbd>+</kbd> и <kbd>−</kbd> приближают и отдаляют, как в 3D-редакторе. Если ничего не выделено, двойной щелчок по пустому месту сдвигает вид так, чтобы это место оказалось в центре, как в 3D-редакторе; <strong class="ui">«Двойной щелчок по рабочей плоскости центрирует там вид»</strong> в настройках это отключает. <strong class="ui">«Рулетка»</strong> на панели эскиза измеряет расстояние между двумя точками. Эскиз также показывает размеры, как только вы что-то выделяете: длину линии или, для точки, длины линий, которые в ней сходятся. Кнопка <strong class="ui">«Показывать размеры»</strong> на панели эскиза скрывает и снова показывает эти размеры, когда они мешают, — например, при правке кривых; рулетка продолжает работать. У прямой линии можно щёлкнуть по полю размера и ввести длину в миллиметрах; <kbd>Enter</kbd> применяет её, <kbd>Esc</kbd> отменяет. Линия сохраняет направление, её начальная точка остаётся на месте, а линии на другом конце следуют за ней. Если выделена конечная точка, двигается она. <span dir="ltr"><kbd>Alt</kbd>+<kbd>Enter</kbd></span> удлиняет линию в обе стороны от середины. На кривых поле показывает только длину.</li></ul>
+<p>Тело получается только из замкнутого контура.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-outline.webp" alt="Г-образный контур. У выделенной угловой точки слева вверху показаны длины двух линий в миллиметрах." width="1280" height="800" loading="lazy"><figcaption>Г-образный контур. У выделенной угловой точки слева вверху показаны длины двух линий в миллиметрах.</figcaption></figure>
+<p>Клавиши <kbd>1</kbd>–<kbd>4</kbd> выбирают инструменты рисования в порядке панели: <strong class="ui">«Линия»</strong>, <strong class="ui">«Кривая Безье»</strong>, <strong class="ui">«Гладкая кривая»</strong> и <strong class="ui">«Добавить или удалить точки»</strong>. Они работают, пока не рисуется линия; во время линии цифры задают её длину (см. ниже). <kbd>5</kbd> выбирает <strong class="ui">«От руки»</strong>.</p>
+</section><section class="guide-part"><h2 id="linii-po-chislam"><span class="heading-alias" id="lines-by-numbers"></span>Линии по числам</h2>
+<p>Поставив первую точку инструментом <strong class="ui">«Линия»</strong> или <strong class="ui">«Гладкая кривая»</strong>, просто начните вводить число: рядом с линией откроются два поля — <strong class="ui">«Длина»</strong> в миллиметрах и <strong class="ui">«Угол»</strong> в градусах. Клавиша <kbd>&lt;</kbd> или <kbd>Tab</kbd> переносит ввод на угол: запись «50&lt;30» даёт линию длиной 50 мм под углом 30°, как в AutoCAD. <kbd>Enter</kbd> ставит точку, и следующую линию можно вводить сразу; <kbd>Esc</kbd> закрывает поля, не прерывая цепочку линий.</p>
+<p>Угол отсчитывается против часовой стрелки от направления вправо: 0° — вправо, 90° — вверх, 180° — влево, 270° — вниз. Оставьте поле пустым — и линия следует за указателем: вы задаёте только длину, а направление показываете мышью. Суммы вроде «40+12.5» работают в обоих полях. Если точка попала бы за пределы стола печати, поле сообщит об этом и дождётся другого значения.</p>
+</section><section class="guide-part"><h2 id="izgib-pryamoy-storony"><span class="heading-alias" id="curving-a-straight-side"></span>Изгиб прямой стороны</h2>
+<p>Выделите прямую линию и нажмите <strong class="ui">«Изогнуть линию»</strong> в появившейся панели: сторона изогнётся дугой, как в Tinkercad, и покажет два маркера. Перетаскивайте их, придавая кривой форму: чем дальше отстоит маркер, тем сильнее изгиб. Под указателем маркер становится оранжевым и ловит также щелчок рядом с ним, чтобы изображение-шаблон под ним не сдвинулось случайно. <strong class="ui">«Выпрямить линию»</strong> снова делает сторону прямой. Выделенную точку можно скруглить командой <strong class="ui">«Гладкая кривая»</strong>: у неё появятся собственные маркеры, а соседние линии станут кривыми. Если выделено три точки или больше, <strong class="ui">«Кривая через точки»</strong> на панели проводит одну гладкую кривую от первой до последней через каждую точку между ними, так же как её рисует инструмент <strong class="ui">«Гладкая кривая»</strong>; линии за двумя концами остаются как были. В других программах это называется «Fit curve» или «Fit point spline». Разница: <strong class="ui">«Изогнуть линию»</strong> изгибает каждую выделенную сторону отдельно и сохраняет углы между ними — для дуги на одной стороне; <strong class="ui">«Кривая через точки»</strong> проводит через точки одну кривую без углов — чтобы сгладить зубчатый обведённый край. Щёлкните по маркеру, и он подсветится: клавиши со стрелками сдвигают его на один шаг сетки, с <kbd>Shift</kbd> — на больший шаг, так кривую можно настроить точно.</p>
+<p>Значения можно и ввести. Выбранная точка показывает на панели <strong class="ui">«X»</strong> и <strong class="ui">«Y»</strong>: где она находится, в мм от начала координат эскиза, Y отсчитывается вверх. Щёлкните по маркеру, и панель вместо этого покажет <strong class="ui">«Маркер X»</strong> и <strong class="ui">«Маркер Y»</strong>: где маркер находится относительно своей точки. У гладкой точки противоположный маркер поворачивается вместе с ним. Задайте соответствующему маркеру на другой стороне тот же Y и X с обратным знаком, и кривая выйдет точно зеркальной; <strong class="ui">«Зеркало»</strong> отражает целую половину сразу.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-curve.webp" alt="Нижняя сторона L-образного контура, изогнутая в дугу, с двумя маркерами на концах." width="1280" height="800" loading="lazy"><figcaption>Нижняя сторона L-образного контура, изогнутая в дугу, с двумя маркерами на концах.</figcaption></figure>
+</section><section class="guide-part"><h2 id="chtenie-i-vvod-uglov"><span class="heading-alias" id="reading-and-typing-angles"></span>Чтение и ввод углов</h2>
+<p>Щёлкните по угловой точке, в которой сходятся две прямые линии: рядом с длинами layerling покажет угол между ними в градусах — с маленькой дугой. У замкнутого контура это внутренний угол фигуры, поэтому у впадины он больше 180°. Щёлкните по значению и введите новый угол. Одна из двух линий тогда повернётся вокруг угловой точки, сохранив длину, а вторая останется на месте. Повёрнутая линия рисуется штриховой; <kbd>Tab</kbd> переключает на другую, <kbd>Enter</kbd> применяет, <kbd>Esc</kbd> отменяет. Всё, что висит на дальнем конце повёрнутой линии, уходит вместе с ней.</p>
+<p>Заблокированная точка остаётся на месте, и введённое значение с этим считается: длина двигает свободный конец линии, а угол поворачивает ту линию, дальний конец которой свободен. Заблокировать можно и одну точку: выделите её и нажмите <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span>. Так контур можно сделать точным угол за углом: заблокируйте угол, введите длину и угол следующей линии, заблокируйте её конец и продолжайте.</p>
+<p>Перемещение точки меняет три угла: в самой точке и в двух соседних углах на дальних концах её линий. Поэтому layerling показывает и те два — их тоже можно щёлкнуть и ввести. Так вы, скажем, задаёте нижнему левому углу 75,5°, пока выделена верхняя левая точка, которая для этого сдвигается. Здесь тоже работают вычисления, например «90-14.5».</p>
+<p>Угол не показывается там, где к точке подходит кривая или где сходятся больше двух линий. Кнопка <strong class="ui">«Показывать размеры»</strong> на панели эскиза скрывает угол вместе с длинами.</p>
+</section><section class="guide-part"><h2 id="skruglenie-i-faska-na-uglakh"><span class="heading-alias" id="rounding-or-chamfering-corners"></span>Скругление и фаска на углах</h2>
+<p>Щёлкните по угловой точке и выберите <strong class="ui">«Скруглить угол»</strong> или <strong class="ui">«Снять фаску с угла»</strong>. Появится небольшое поле для <strong class="ui">«Радиус»</strong> или <strong class="ui">«Расстояние»</strong>. Введите размер и подтвердите галочкой. Это работает для углов между двумя прямыми линиями.</p>
+<p>Сразу несколько углов тоже можно: выделите их с зажатым <kbd>Shift</kbd> и щелчками по каждому или обведите рамкой и выберите <strong class="ui">«Скруглить угол»</strong> или <strong class="ui">«Снять фаску с угла»</strong> в появившейся панели. Все они получат одинаковый радиус или расстояние. Если два выделенных угла делят одну сторону, каждый забирает от неё не больше 45 %, поэтому у прямоугольника, скруглённого по всему периметру, все углы выходят одинаковыми. Точки, которые не являются углом между двумя прямыми линиями, пропускаются, и сообщение сообщает, сколько их. Рамка вокруг целой фигуры или щелчок внутри неё выделяет её углы и линии вместе, и панель тогда предлагает для всех выделенных линий ещё и <strong class="ui">«Изогнуть линию»</strong> и <strong class="ui">«Выпрямить линию»</strong> — рядом с инструментами для углов.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-fillet.webp" alt="Угол слева вверху скруглён радиусом 12 мм." width="1280" height="800" loading="lazy"><figcaption>Угол слева вверху скруглён радиусом 12 мм.</figcaption></figure>
+</section><section class="guide-part"><h2 id="zerkalnoe-otrazhenie"><span class="heading-alias" id="mirroring"></span>Зеркальное отражение</h2>
+<p>Выделите точки и линии (щелчком, <kbd>Shift</kbd> и щелчком или рамкой вокруг них) и нажмите <strong class="ui">«Зеркало»</strong> в панели. Затем выберите ось: <strong class="ui">«Влево-вправо»</strong> отражает относительно вертикальной оси через середину плиты, <strong class="ui">«Вверх-вниз»</strong> относительно горизонтальной, а <strong class="ui">«Относительно линии»</strong> относительно прямой линии эскиза, по которой вы щёлкнете следом. Копия появится по другую сторону, оригинал останется; ничто не связано, так что менять можно каждый по отдельности. Точки на оси общие, поэтому половина контура с концами на оси превращается в замкнутый контур: нарисуйте половину уголка, выделите её, отразите и стройте тело. Хорошая ось получается из вспомогательной линии. <kbd>Esc</kbd> отменяет.</p>
+</section><section class="guide-part"><h2 id="vspomogatelnye-linii"><span class="heading-alias" id="construction-lines"></span>Вспомогательные линии</h2>
+<p>Вспомогательная линия помогает расставить точки, не становясь частью тела. Она рисуется штриховой и никогда не считается контуром: тяните её хоть далеко за пределы фигуры — тело от этого не вырастет.</p>
+<ul><li>Включите <strong class="ui">«Вспомогательная линия»</strong> в группе <strong class="ui">«Рисование»</strong> — и новые линии, в том числе заданные числами, станут вспомогательными. Кнопка переключает обратно на обычные линии.</li></ul>
+<ul><li>Уже нарисованная линия станет вспомогательной, если щёлкнуть по ней и выбрать <strong class="ui">«Вспомогательная»</strong>. <strong class="ui">«Сделать обычной линией»</strong> снова делает её обычной.</li><li><strong class="ui">«Линия от середины»</strong> в группе <strong class="ui">«Рисование»</strong> рисует линию от её середины: сначала щёлкните середину, затем конец, и линия идёт на ту же длину в другую сторону. Середина становится отдельной точкой. Щёлкните кнопку ещё раз, чтобы рисовать обычные линии.</li></ul>
+<ul><li>Новые точки прилипают к местам, где вспомогательная линия пересекает другую линию (это показывает синее кольцо), и к её концам. Так угол попадает на середину стороны, на заданное расстояние от края или на пересечение линий — без вычислений.</li></ul>
+<ul><li>Вспомогательная линия не разрезает контур там, где пересекает его. При вращении она может лежать и справа от оси.</li></ul>
+</section><section class="guide-part"><h2 id="kak-sdelat-iz-nego-telo"><span class="heading-alias" id="making-a-body-from-it"></span>Как сделать из него тело</h2>
+<p>Нажмите <strong class="ui">«Завершить эскиз»</strong>. Контур встанет телом на рабочую плоскость. В его настройках вы меняете высоту, цвет и всё остальное, как у любой другой фигуры. Когда вы меняете его размер, layerling через мгновение строит тело заново из эскиза, и эскиз растёт вместе с ним. Так оно остаётся точным телом, которое принимает фаски и скругления, а при следующем открытии эскиз уже того же размера, что и тело.</p>
+<p>Если рабочая плоскость лежит на боку тела, вы рисуете так, как смотрите на этот бок: верх в эскизе — верх и на готовом теле. Бледный контур тела в эскизе показывает, где оно стоит. Если рабочая плоскость проходит сквозь тело, вид эскиза показывает вместо тела контур сечения: полое тело выглядит кольцом, и эскиз можно выровнять по его стенкам. Точка, поставленная или перетаскиваемая рядом с углом таких контуров, точно прилипает к нему — маленькое синее кольцо это показывает. Так вы переносите в эскиз кромки других тел, даже когда рабочая плоскость лежит не точно на них. Чтобы обводить существующую работу, включите <strong class="ui">«Показывать детали насквозь: все их рёбра на плоскости эскиза»</strong> (кнопка слоёв среди кнопок вида слева): тогда все кромки тел рисуются на плоскости эскиза, тонко и бледно, как будто вы смотрите сквозь них, на какой бы высоте они ни лежали. Вертикальная плоскость, поставленная, например, на переднюю грань, показывает так вид спереди. Выбор сохраняется в браузере.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-result.webp" alt="Контур стал телом. Угол скруглён." width="1280" height="800" loading="lazy"><figcaption>Контур стал телом. Угол скруглён.</figcaption></figure>
+<p>Кнопкой <strong class="ui">«Изменить эскиз»</strong> вы в любой момент можете вернуться в эскиз и изменить его. Двойной щелчок по телу делает то же, как в Tinkercad (заблокированное тело остаётся закрытым); <strong class="ui">«Двойной щелчок открывает эскиз»</strong> в настройках это отключает. Правда, обработки кромок, уже сделанные на теле, при этом теряются, потому что кромки создаются заново. Тело, которое вы повернули или сдвинули в 3D-редакторе, открывается там, где оно стоит на столе, повёрнутым так, как вы видите его там, и на сетке стола; только наклонённое или отражённое тело открывается в собственной системе координат.</p>
+<p>Эскиз с несколькими контурами даёт одно тело, а перекрывающиеся контуры в нём сливаются. Чтобы каждый контур остался отдельным, выделите тело и нажмите <strong class="ui">«Разделить на части»</strong>: каждый внешний контур станет отдельным телом с отверстиями, которые лежат в нём, и сохранит высоту, цвет и место тела. У каждой части свой эскиз для правки, вместе со вспомогательными линиями, так что части можно поднимать или опускать по одной, а затем объединять или вычитать. Мешают этому обработки кромок, а также тело, растянутое после создания: тогда оно разделяется как сетка.</p>
+<p><strong>Другой вид тела из того же эскиза:</strong> значок вверху эскиза показывает, чем он станет: <strong class="ui">«Эскиз выдавливания»</strong>, <strong class="ui">«Эскиз вращения»</strong> или <strong class="ui">«Эскиз по траектории»</strong>. Нажмите на него и выберите другой, в том числе при редактировании существующего тела: импортированный SVG, который приходит выдавленным, становится вазой или ручкой, если переключить его на <strong class="ui">«Эскиз вращения»</strong>. Контур, заходящий за ось, сдвигается влево, пока его правый край не ляжет на ось; <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> отменяет сдвиг. При завершении новое тело встаёт на место старого, с его именем и цветом и основанием на той же высоте. Обработка кромок теряется, как при любом изменении эскиза.</p>
+<section class="guide-part"><h3 id="vrashchenie"><span class="heading-alias" id="revolving"></span>Вращение</h3>
+<p>При вращении вы рисуете половину поперечного сечения слева от оси, показанной в эскизе. Рядом видно 3D-предпросмотр вращения — он сразу показывает, каким будет тело. Контур должен быть замкнутым, либо постройте разомкнутую линию как обводку, см. ниже. В конце нажмите <strong class="ui">«Завершить вращение»</strong>. Остальные тела проекта показаны спереди, в том же виде, что и профиль, с осью посередине: рисуйте профиль рядом с ними или над ними. Тело стоит там, где вы его нарисовали, а горизонтальная линия посередине эскиза — это земля: профиль над ней даёт тело, стоящее выше, а его самая низкая точка — основание тела.</p>
+<p>Тело вращения — точное тело, как и выдавленное: оно принимает фаски и скругления, и из него можно создать оболочку — например, чашку или вазу. Тело, созданное вращением в старой версии layerling, — полигональная сетка: откройте <strong class="ui">«Изменить эскиз»</strong> и завершите эскиз заново, чтобы сделать его точным. Профиль, пересекающий ось, точно построить нельзя — он, как и раньше, становится сеткой.</p>
+<p><strong>Более гладкие круглые грани: <strong class="ui">«Гладкость»</strong>.</strong> Точное тело вращения для вида, экспорта и печати делится на маленькие плоские фасеты, и на большом горшке они могут быть видны на отпечатке. Выделите тело и установите <strong class="ui">«Гладкость»</strong> в панели свойств на <strong class="ui">«Высокая»</strong> или <strong class="ui">«Очень высокая»</strong>: круглые грани делятся мельче, ценой большего числа треугольников и более медленного проекта. У спирали или сеточного тела вращения для этого есть <strong class="ui">«Стороны»</strong>.</p>
+<p><strong>Одна непрерывная нить: <strong class="ui">«Шаг»</strong>.</strong> Вращение превращает контур в замкнутые кольца. Выберите тело вращения и задайте на панели свойств <strong class="ui">«Шаг»</strong> больше 0 — высоту подъёма за один оборот, и контур завьётся по спирали: одна непрерывная нить, как филамент на катушке или пружина. <strong class="ui">«Угол вращения»</strong> тогда становится <strong class="ui">«Витки»</strong>, до 200; отрицательное число даёт левую навивку. Витки, расположенные теснее высоты контура, сливаются в одно тело, так что сплошной сердечник с мелким шагом тоже работает. Спираль строится как сетка, поэтому скругление, фаска и оболочка к ней не применяются; при большом числе витков держите <strong class="ui">«Стороны»</strong> поменьше. Шаг 0 снова даёт кольца.</p>
+</section></section><section class="guide-part"><h2 id="protyagivanie-vdol-traektorii"><span class="heading-alias" id="sweeping-along-a-path"></span>Протягивание вдоль траектории</h2>
+<p><strong class="ui">«Эскиз по траектории»</strong> протягивает контур вдоль траектории: кабельный короб, который поворачивает за угол, трубопровод, защитный кожух вокруг ремня, кольцо вокруг шестиугольника. Кнопка стоит рядом с <strong class="ui">«Выдавить эскиз»</strong> и <strong class="ui">«Вращать эскиз»</strong> в группе <strong class="ui">«Создание»</strong>.</p>
+<ul><li>Сечение — как обычно, замкнутый контур. Рисуйте его так, как видели бы, глядя вдоль траектории от её начала: поперёк траектории — это левое и правое эскиза, верх — верх готового тела. Полое сечение, жёлоб или труба — контур с другим внутри. По умолчанию сечение центрировано на траектории. Меню рядом с бейджем режима вверху позволяет вместо этого поставить на траекторию его левый или правый край (<strong class="ui">«На траектории: левый край»</strong>, <strong class="ui">«На траектории: правый край»</strong>, если смотреть вдоль траектории), так что направляющая может стоять по одну сторону линии или следовать краю детали. Тело стоит на плоскости эскиза самой нижней точкой сечения.</li></ul>
+<p>Вы рисуете на одном листе две вещи:</p>
+<ul><li>Сечение — замкнутый контур, как обычно. Рисуйте его так, как вы увидели бы его, глядя вдоль траектории от её начала: поперёк траектории — это лево и право в эскизе, верх — это верх готового тела. Полое сечение, короб или труба — это контур с другим контуром внутри. Сечение стоит по центру траектории, а тело опирается самой нижней точкой сечения на плоскость эскиза.</li></ul>
+<ul><li>Траектория — <strong class="ui">«Вспомогательная линия»</strong>: включите её и рисуйте линии или кривые, одну цепочку, открытую или замкнутую (замкнутая цепочка даёт кольцо). Траектория лежит плашмя в плоскости эскиза.</li></ul>
+<p>Нарисуйте сечение у того конца траектории, откуда оно должно начинаться; траектория начинается с ближайшего к нему конца. Затем нажмите <strong class="ui">«Завершить протягивание»</strong>. Угол из прямых отрезков получается со стыком под углом, кривая остаётся гладкой, а сечение на всём пути остаётся вертикальным. Тело точное, как выдавленное: скругление, фаска и экспорт STEP работают. Если нет замкнутого контура или траектории, или траекторий несколько и они не связаны, layerling скажет об этом. Через <strong class="ui">«Изменить эскиз»</strong> вы возвращаетесь в эскиз и меняете сечение или траекторию.</p>
+</section><section class="guide-part"><h2 id="postroenie-obvodkoy"><span class="heading-alias" id="building-as-a-stroke"></span>Построение обводкой</h2>
+<p>Обычно телом становится область внутри замкнутого контура. С <strong class="ui">«Обводка»</strong> в разделе <strong class="ui">«Завершение»</strong> строится вместо неё сама линия — той ширины, которую вы зададите. Установите флажок <strong class="ui">«Строить как обводку»</strong> в окне линии — эскиз сразу покажет, что получится.</p>
+<ul><li>Замкнутый контур становится рамкой. <strong class="ui">«Положение»</strong> определяет, где лежит стенка: <strong class="ui">«По центру»</strong> — по начерченной линии, <strong class="ui">«Внутри»</strong> — внутри неё или <strong class="ui">«Снаружи»</strong> — снаружи. Выравнивание наружу удобно для допусков: начертите контур отверстия — например, ласточкин хвост — и задайте обводку 0,2 мм снаружи, чтобы получить зазор, который нужен при печати.</li><li>Разомкнутая линия становится полосой, центрированной на линии. <strong class="ui">«Концы»</strong> задаёт вид её концов: <strong class="ui">«Плоские»</strong>, <strong class="ui">«Квадратные»</strong> (длиннее на половину ширины) или <strong class="ui">«Скруглённые»</strong>.</li><li><strong class="ui">«Углы»</strong> применяется к обоим случаям: <strong class="ui">«Острые»</strong>, <strong class="ui">«Скруглённые»</strong> или <strong class="ui">«Фаска»</strong>.</li></ul>
+<p>Эскиз хранит начерченную линию. Откройте его снова — и продолжайте менять линию и обводку; снимите флажок, и область построится заново. Кривые для этого разбиваются на короткие прямые кусочки.</p>
+<p>При вращении обводка — это тонкая стенка: нарисуйте стенку вазы или стакана как <strong>одну разомкнутую линию</strong> слева от оси, включите <strong class="ui">«Обводка»</strong> и задайте ширину, и вращение превратит эту полосу в тело. Всё, что выходит за ось, обрезается по ней.</p>
+</section><section class="guide-part"><h2 id="zalivka-i-siluet"><span class="heading-alias" id="fill-and-silhouette"></span>Заливка и силуэт</h2>
+<p>Обводку можно задать и не открывая эскиз: в свойствах тела из эскиза выберите под <strong class="ui">«Заливка»</strong> вариант <strong class="ui">«Область»</strong>, <strong class="ui">«Обводка снаружи»</strong>, <strong class="ui">«Обводка внутри»</strong> или <strong class="ui">«Обводка по центру»</strong>, а вместе с ними <strong class="ui">«Толщина линии»</strong> и <strong class="ui">«Углы»</strong>. Тело сразу перестраивается там, где стоит. Эти режимы соответствуют режимам заливки при импорте SVG в Tinkercad: по умолчанию, внешняя линия и внутренняя линия. <strong class="ui">«Шире»</strong> сохраняет область заполненной и равномерно расширяет её на ширину линии по всему периметру — с острыми, скруглёнными или срезанными углами: так получается нижний слой под логотип для многоцветной печати; одна внешняя обводка дала бы тут только кольцо. <strong class="ui">«Уже»</strong> делает обратное: область остаётся заполненной, а её край со всех сторон сдвигается внутрь на ширину линии, включая отверстия (они растут). Используйте оба на копиях одного эскиза для посадки: отверстие в нарисованном размере, деталь, проходящая сквозь него, — <strong class="ui">«Уже»</strong> на 0,5 мм, или стенка внутри фигуры, вырезанной из того же контура. Ширина больше, чем позволяет контур, не оставляет ничего. В окне обводки эскиза те же два варианта стоят в <strong class="ui">«Положение»</strong>. С линией снаружи, внутри или по центру <strong class="ui">«Режущая кромка»</strong> делает стенку острой сверху: её верх сходится к этой ширине с фаской 45° с обеих сторон, как у формочки для печенья. 0 оставляет верх плоским; кромка сохраняется при изменении ширины линии.</p>
+<p><strong class="ui">«Силуэт (без отверстий)»</strong> отбрасывает каждый контур, лежащий внутри другого: отверстия и всё, что в них находится. Остаётся только внешний контур. Вместе с <strong class="ui">«Обводка снаружи»</strong> получается формочка для печенья: импортируйте SVG дважды — один раз с силуэтом как областью для основания, второй раз с силуэтом и обводкой 1–2 мм снаружи как стенкой. Тот же переключатель есть и в окне <strong class="ui">«Обводка»</strong> в режиме эскиза.</p>
+<p>Скругления и фаски на кромках пропадают при перестроении тела — как и при изменении эскиза.</p>
+</section><section class="guide-part"><h2 id="naklonnye-stenki-dlya-shtampov"><span class="heading-alias" id="slanted-walls-for-stamps"></span>Наклонные стенки — для штампов</h2>
+<p>У выдавленного эскиза стенки вертикальные. Штамп, клише для тиснения или вырубной пуансон требуют наклонных стенок — снаружи и внутри, — одинаковой толщины по всей высоте. Угла уклона для выдавливания в layerling нет, но для несложных контуров выручит <strong class="ui">«Сужение»</strong>. Один из рабочих способов:</p>
+<ol><li>Начертите контур вместе с нужным отверстием и сделайте из него тело. Продублируйте тело (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span>).</li></ol>
+<ol><li>На первом теле включите <strong class="ui">«Силуэт (без отверстий)»</strong>, чтобы отверстие заполнилось, и сделайте дно шире верха настройкой <strong class="ui">«Сужение»</strong>.</li></ol>
+<ol><li>На копии снова откройте эскиз и удалите внешний контур, чтобы остался только контур отверстия. Завершите эскиз, переключите тело в режим <strong class="ui">«Отверстие»</strong> и сделайте дно уже верха настройкой <strong class="ui">«Сужение»</strong>.</li></ol>
+<ol><li>Перетащите отверстие в первое тело, на место прежнего отверстия, и сгруппируйте оба.</li></ol>
+<p>Стенки теперь наклонены и снаружи, и внутри. Наклон масштабирует весь контур целиком, поэтому для простых фигур, где размеры можно подобрать так, чтобы стенки шли параллельно, это точно, а для мелких деталей вроде букв — лишь приближение.</p>
+</section><section class="guide-part"><h2 id="kartinka-kak-podlozhka"><span class="heading-alias" id="a-picture-as-template"></span>Картинка как подложка</h2>
+<p>Кнопкой <strong class="ui">«Добавить изображение»</strong> вы кладёте фото или рисунок под эскиз и обводите его. Можно задать размер, непрозрачность и положение. Когда картинка встанет правильно, заблокируйте её клавишами <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span>, чтобы случайно не сдвинуть во время рисования. Заблокированная картинка не мешает: щелчки проходят сквозь неё, так что поверх неё можно выбирать линии и точки и протягивать рамку. Щелчок по замку в её углу снимает блокировку; <kbd>Alt</kbd>+щелчок выделяет её, не разблокируя. Если её настройки у правого края закрывают картинку, оттащите их за заголовок; двойной щелчок по нему возвращает их на место.</p>
+<p>Под <strong class="ui">«Выровнять»</strong> можно выправить фото, снятое криво:</p>
+<ul><li><strong class="ui">«Поворот»</strong>: поверните снимок вокруг центра — изогнутыми стрелками у его углов или числом в градусах; с <kbd>Shift</kbd> стрелки прилипают с шагом 15°. Внутри кольца, которое появляется при повороте, они прилипают с шагом 22,5°, снаружи — на целые градусы.</li><li><strong class="ui">«К X = 0»</strong> и <strong class="ui">«К Y = 0»</strong>: ставят центр снимка на X = 0 или Y = 0. При вращении X = 0 — это ось, поэтому снимок лежит симметрично ей.</li><li><strong class="ui">«Калибровать»</strong>: кнопка находится вверху, сразу под превью; щёлкните в снимке две точки, расстояние между которыми известно, — концы линейки или известный диаметр — и введите настоящее расстояние. Снимок равномерно масштабируется так, чтобы это расстояние стало верным; первая точка остаётся на месте.</li><li><strong class="ui">«Обрезать»</strong>: маркеры рамки теперь обрезают снимок, а не масштабируют; срезанное сохраняется и возвращается кнопкой <strong class="ui">«Показать всё изображение»</strong> — или если снова потянуть маркер наружу.</li></ul>
+<p>Все четыре действуют только на подложку и никогда — на сам эскиз.</p>
+<p><strong><strong class="ui">«Обвести»</strong></strong> в настройках изображения расставит точки за тебя: обведёт контур формы на изображении — силуэт, логотип, слово — и покажет его красным поверх изображения, квадратные точки для углов, круглые для гладких точек. <strong class="ui">«Тёмная форма»</strong> или <strong class="ui">«Светлая форма»</strong> выбирает, какая часть изображения — форма, <strong class="ui">«Порог»</strong> — где тёмное переходит в светлое, <strong class="ui">«Точки»</strong> — сколько точек получат контуры вместе (меньше — плавнее кривые, больше — точнее по изображению), <strong class="ui">«Угол от»</strong> — с какого излома точка становится углом, <strong class="ui">«Пропускать пятна до»</strong> — до какого размера пятна отбрасываются, а <strong class="ui">«Сохранять отверстия»</strong> сохраняет середину буквы А или О. <strong class="ui">«Применить»</strong> кладёт контуры в эскиз ровно туда, где лежит изображение, в его размере, повороте и обрезке, и выделяет их: это обычные точки, их можно двигать, изгибать или удалять, а <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> убирает их за один шаг. Лучше всего получается при чётком контрасте; фото с пёстрым фоном сначала стоит вырезать. То, что отпадает, — вокруг контуров, в отверстиях, отрезанное — предпросмотр закрывает цветом стола, так что от изображения видно только то, что останется. Контуры, лежащие так близко, что грубые кривые пересеклись бы, сами получают больше точек; карточка об этом сообщает. Для кромки снаружи или внутри контура задайте телу эскиза обводку снаружи или внутри его линий или сместите готовое тело.</p>
+<p>Для фото — скажем, игрушки на белом столе — выбери в <strong class="ui">«Форма»</strong> вариант <strong><strong class="ui">«Предмет»</strong></strong>: фоном считается цвет на краю изображения, и всё, что от него отличается, становится одним контуром, каких бы цветов оно ни было; <strong class="ui">«Порог»</strong> задаёт, насколько чётко. Цветное изображение на ровном фоне так и начинается. <strong class="ui">«Выбрать области»</strong> обводит больше: щёлкни по области на изображении, например по окну, и область того же цвета вокруг точки будет обведена (<strong class="ui">«Допуск цвета»</strong> задаёт, насколько того же). Отверстия и выбранные области перечислены в <strong class="ui">«Отверстия и области»</strong>; наведи на одну — она выделится в предпросмотре, ✕ убирает её, а при выключенном <strong class="ui">«Вырезать»</strong> она рисуется вспомогательной линией вместо отверстия. Область, доходящая до края изображения, — это фон, она не берётся. То, что не разделить ни порогом, ни цветом, — тень, тёмную, как колёса над ней, — убирает <strong class="ui">«Отрезать»</strong>: щёлкни углы вокруг неё (щелчок по первому углу, двойной щелчок или <kbd>Enter</kbd> замыкает), и контур пойдёт по разрезу; в списке он значится как «Разрез 1».</p>
+<p>Дерево рядом с домом, фигура на пёстром фоне — где ни один цвет не отделяет форму от остального, её ловит <strong><strong class="ui">«Магнитное лассо»</strong></strong>: щёлкай примерно вдоль её края, и между двумя щелчками линия сама следует за краем, и по изгибам тоже; пока ты ведёшь мышь, предпросмотр уже показывает, где она пройдёт. Щелчок по первой точке, двойной щелчок или <kbd>Enter</kbd> замыкает её, <kbd>Esc</kbd> отбрасывает. В списке она значится как «Лассо 1» с выбором <strong class="ui">«Добавить»</strong> (область добавляется к форме) или <strong class="ui">«Отрезать»</strong> (она убирается); такой же выбор есть у каждого разреза. В <strong class="ui">«Форма»</strong> вариант <strong><strong class="ui">«Только лассо»</strong></strong> делает формой только то, что ты так поймаешь, — больше ничего из изображения.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/trace-house.webp" alt="Нарисованный дом, обведённый как объект, порог снижен для светлой стены: магнитное лассо вырезало дерево, восемь стёкол выбраны как отверстия." width="1280" height="800" loading="lazy"><figcaption>Нарисованный дом, обведённый как объект, порог снижен для светлой стены: магнитное лассо вырезало дерево, восемь стёкол выбраны как отверстия.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/trace-house-body.webp" alt="Дом как тело: без дерева, окна прорезаны насквозь." width="1280" height="800" loading="lazy"><figcaption>Дом как тело: без дерева, окна прорезаны насквозь.</figcaption></figure>
+</section><section class="guide-part"><h2 id="klavishi-v-rezhime-eskiza"><span class="heading-alias" id="keys-in-sketch-mode"></span>Клавиши в режиме эскиза</h2>
+<div class="table-scroll"><table><thead><tr><th>Клавиша</th><th>Действие</th></tr></thead><tbody><tr><td><kbd>Esc</kbd></td><td>отложить инструмент заметки; иначе отложить инструмент (вернуться к <strong class="ui">«Выбрать»</strong>), затем снять выделение</td></tr><tr><td><kbd>Delete</kbd></td><td>удалить выделенный элемент</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>C</kbd></span></td><td>скопировать выделение</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span></td><td>вырезать выделение</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>V</kbd></span></td><td>вставить</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span></td><td>продублировать выделение</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span></td><td>отменить</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span></td><td>выделить все точки и линии</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>I</kbd></span></td><td><strong class="ui">«Добавить изображение»</strong></td></tr><tr><td><kbd>Shift</kbd></td><td>при рисовании: прилипание линии с шагом 15°; при перетаскивании: движение по одной оси</td></tr><tr><td>цифра, <kbd>&lt;</kbd>, <kbd>Tab</kbd>, <kbd>Enter</kbd></td><td>при рисовании: ввод и установка длины и угла следующей линии</td></tr><tr><td><kbd>R</kbd></td><td>повернуть замкнутый эскиз на 45°</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span></td><td>заблокировать или разблокировать изображение-подложку</td></tr><tr><td><kbd>N</kbd></td><td>поставить заметку: следующий щелчок помещает её на эскиз</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span></td><td>показать или скрыть заметки</td></tr></tbody></table></div>
+<aside class="tip"><p>Совет: Рисуйте как можно меньше точек. Контур из нескольких удачно поставленных точек даёт более гладкое тело, чем путаница из многих.</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/ru/edges-and-hollowing.html"><small>Предыдущая глава</small>Обработка кромок и выдолбливание тел</a><a class="next" href="/api/desktop/layerling/ui/ru/text.html"><small>Следующая глава</small>Текст и надписи по дуге</a></div>
+      </main>
+    </div>
+    <footer class="note">Это руководство растёт вместе с программой. Если чего-то не хватает или что-то не так — напишите в <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">обсуждениях</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=ru" rel="noopener">Поддержать проект</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Обсуждения</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Подробнее на GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Заметки о выпуске v1.154.1</a></div><p class="trademark">Tinkercad — товарный знак Autodesk, Inc. layerling — независимый проект, не связанный с Autodesk, не одобренный и не спонсируемый ею.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Вернуться в редактор";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Открыть редактор";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

@@ -4,13 +4,25 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Text und gebogene Schrift - layerling Anleitung</title>
-    <meta name="description" content="Beschriftungen erhaben oder vertieft, mit sieben Schriftarten oder einer eigenen – und auf Wunsch entlang eines Kreisbogens, etwa auf einer Münze, einem Deckel oder einem Ring.">
+    <meta name="description" content="Beschriftungen erhaben oder vertieft, mit acht Schriftarten oder einer eigenen – und auf Wunsch entlang eines Kreisbogens, etwa auf einer Münze, einem Deckel oder einem Ring.">
     <link rel="canonical" href="https://layerling.com/anleitung/text.html">
     <link rel="alternate" hreflang="en" href="https://layerling.com/guide/text.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/text.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/text.html">
     <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/text.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/text.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/text.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/text.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/text.html">
     <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/tekst.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/text.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/besedilo.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/text.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/text.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/text.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/text.html">
     <meta property="og:title" content="Text und gebogene Schrift - layerling Anleitung">
-    <meta property="og:description" content="Beschriftungen erhaben oder vertieft, mit sieben Schriftarten oder einer eigenen – und auf Wunsch entlang eines Kreisbogens, etwa auf einer Münze, einem Deckel oder einem Ring.">
+    <meta property="og:description" content="Beschriftungen erhaben oder vertieft, mit acht Schriftarten oder einer eigenen – und auf Wunsch entlang eines Kreisbogens, etwa auf einer Münze, einem Deckel oder einem Ring.">
     <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
     <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
     <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
@@ -60,6 +72,7 @@ a { color: var(--accent); }
 .guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
 .guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
 .guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
 .editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
 .editor-elsewhere[hidden] { display: none; }
 .bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
@@ -89,26 +102,51 @@ li { margin-bottom: 4px; }
 strong.ui { font-weight: 700; white-space: nowrap; }
 kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
 code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
-pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
 pre code { padding: 0; background: none; }
 figure { margin: 22px 0; }
 figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
 figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
 aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
 aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
 .table-scroll { overflow-x: auto; margin: 0 0 16px; }
 table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
 table.keys { table-layout: fixed; }
 table.keys td:first-child { width: 42%; }
-th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
 th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
 .toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
 .toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
-.toc ul { margin: 0; padding-left: 18px; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
 .pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
 .pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
 .pager a small { display: block; color: var(--muted); font-size: 12px; }
-.pager a.next { margin-left: auto; text-align: right; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
 .cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
 .cards a:hover { border-color: var(--accent); }
@@ -131,113 +169,186 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
   .bar-inner { flex-wrap: wrap; }
   .guide-search { order: 5; flex: 1 1 100%; }
 }
-@media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
 </style>
   </head>
   <body>
     <header class="bar"><div class="bar-inner">
       <a class="brand" href="/api/desktop/layerling/ui/anleitung/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Anleitung</span></span></a>
       <form class="guide-search" id="guide-search" role="search" data-index="/anleitung/search-index.json" data-nothing="Nichts gefunden." data-umlauts="true"><input type="search" id="guide-search-input" name="q" placeholder="Anleitung durchsuchen" aria-label="Anleitung durchsuchen" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
-      <details class="lang-menu"><summary aria-label="Sprache">Deutsch</summary><ul><li><a href="/api/desktop/layerling/ui/guide/text.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html" hreflang="de" lang="de" aria-current="true">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html" hreflang="nl" lang="nl">Nederlands</a></li></ul></details>
+      <details class="lang-menu"><summary aria-label="Sprache">Deutsch</summary><ul><li><a href="/api/desktop/layerling/ui/guide/text.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/text.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/text.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html" hreflang="de" lang="de" aria-current="true">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/text.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/text.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/text.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/text.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/text.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/text.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/text.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/besedilo.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/text.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/text.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/text.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/text.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/text.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/text.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
       <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Zum Editor</a>
     </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Der Editor ist schon in einem anderen Tab offen - wechsle einfach dorthin.</p></header>
     <div class="shell">
-      <nav class="chapters" aria-label="Kapitel"><h2>Kapitel</h2><ol><li><a href="/api/desktop/layerling/ui/anleitung/erste-schritte.html">Erste Schritte</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html">Ansicht und Arbeitsebene</a></li><li><a href="/api/desktop/layerling/ui/anleitung/formen.html">Formen setzen und einstellen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html">Auswählen und Anordnen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html">Körper und Aussparungen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html">Kanten brechen und Körper aushöhlen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html">Skizzen: vom Umriss zum Körper</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html" aria-current="page">Text und gebogene Schrift</a></li><li><a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html">Gewinde, Zahnräder und andere Bauteile</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html">Messen und Notizen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/drucken.html">Für den 3D-Druck vorbereiten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html">Dateien, Speichern und Weitergeben</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html">Tastenkürzel</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ki-mit-mcp.html">Mit einer KI bauen (MCP)</a></li><li><a href="/api/desktop/layerling/ui/anleitung/offline-und-installieren.html">Als App installieren, ohne Internet arbeiten und selbst hosten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/videos.html">Videos über layerling</a></li></ol></nav>
+      <nav class="chapters" aria-label="Kapitel"><h2>Kapitel</h2><p class="print-link"><a href="/api/desktop/layerling/ui/anleitung/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Ganze Anleitung zum Drucken</span></a></p><ol><li><a href="/api/desktop/layerling/ui/anleitung/erste-schritte.html">Erste Schritte</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html">Ansicht und Arbeitsebene</a></li><li><a href="/api/desktop/layerling/ui/anleitung/formen.html">Formen setzen und einstellen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html">Auswählen und Anordnen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html">Körper und Aussparungen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html">Kanten brechen und Körper aushöhlen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html">Skizzen: vom Umriss zum Körper</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html" aria-current="page">Text und gebogene Schrift</a></li><li><a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html">Gewinde, Zahnräder und andere Bauteile</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html">Messen und Notizen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/drucken.html">Für den 3D-Druck vorbereiten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html">Dateien, Speichern und Weitergeben</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html">Tastenkürzel</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ki-mit-mcp.html">Mit einer KI bauen (MCP)</a></li><li><a href="/api/desktop/layerling/ui/anleitung/offline-und-installieren.html">Als App installieren, ohne Internet arbeiten und selbst hosten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/videos.html">Videos über layerling</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tablet-und-touch.html">Tablet und Touch</a></li></ol></nav>
       <main>
 <h1>Text und gebogene Schrift</h1>
-<p class="lead">Beschriftungen erhaben oder vertieft, mit sieben Schriftarten oder einer eigenen – und auf Wunsch entlang eines Kreisbogens, etwa auf einer Münze, einem Deckel oder einem Ring.</p>
-<div class="toc"><b>Auf dieser Seite</b><ul><li><a href="#text-hinzufuegen">Text hinzufügen</a></li><li><a href="#eigene-schriften">Eigene Schriften</a></li><li><a href="#erhaben-oder-vertieft">Erhaben oder vertieft</a></li><li><a href="#kontur-silhouette-und-breiter">Kontur, Silhouette und breiter</a></li><li><a href="#schichten-und-namensschilder">Schichten und Namensschilder</a></li><li><a href="#symbolschilder">Symbolschilder</a></li><li><a href="#text-auf-dem-kreisbogen">Text auf dem Kreisbogen</a></li></ul></div>
-<h2 id="text-hinzufuegen">Text hinzufügen</h2>
+<p class="lead">Beschriftungen erhaben oder vertieft, mit acht Schriftarten oder einer eigenen – und auf Wunsch entlang eines Kreisbogens, etwa auf einer Münze, einem Deckel oder einem Ring.</p>
+<div class="toc"><b>Auf dieser Seite</b><ul><li><a href="#text-hinzufuegen">Text hinzufügen</a></li><li><a href="#eigene-schriften">Eigene Schriften</a></li><li><a href="#erhaben-oder-vertieft">Erhaben oder vertieft</a></li><li><a href="#schablonen-stege-fuer-die-mitte-von-buchstaben">Schablonen: Stege für die Mitte von Buchstaben</a></li><li><a href="#kontur-silhouette-und-breiter">Kontur, Silhouette und breiter</a></li><li><a href="#schichten-und-namensschilder">Schichten und Namensschilder</a></li><li><a href="#symbolschilder">Symbolschilder</a></li><li><a href="#qr-codes">QR-Codes</a></li><li><a href="#text-auf-dem-kreisbogen">Text auf dem Kreisbogen</a></li></ul></div>
+<section class="guide-part"><h2 id="text-hinzufuegen"><span class="heading-alias" id="adding-text"></span>Text hinzufügen</h2>
 <p>Wähle in der Formenbibliothek <strong class="ui">„Text“</strong> und setze ihn ab. Im Feld <strong class="ui">„Text“</strong> rechts tippst du, was da stehen soll. Die Einstellungen darunter:</p>
-<ul><li><strong><strong class="ui">„Schriftart“</strong>:</strong> Sieben Schriftarten stehen bereit: Multilanguage, Sans, Serif, Script, Monospace, Rounded und Stencil (Buchstaben aus geraden Linien). Neuer Text beginnt in Sans. Umlaute, ß und € gibt es in jeder Schrift. Eigene Schriften kommen dazu, siehe <a href="#eigene-schriften">Eigene Schriften</a> weiter unten.</li><li><strong><strong class="ui">„Buchstabengröße“</strong>:</strong> Wie groß die Buchstaben sind, von oben gesehen; <strong class="ui">„Höhe“</strong> bestimmt, wie dick sie sind.</li><li><strong><strong class="ui">„Höhe“</strong>:</strong> Wie hoch die Schrift aus der Fläche ragt.</li><li><strong><strong class="ui">„Abschrägung“</strong>:</strong> Rundet die Buchstabenkanten ab, damit sie weicher wirken. Mit <strong class="ui">„Segmente“</strong> bestimmst du, in wie vielen Stufen.</li><li><strong>Größe:</strong> Länge und Breite der Zeile stellst du wie bei jeder Form ein. Zieh an den Griffen oder tippe die Maße ein.</li></ul>
+<ul><li><strong><strong class="ui">„Schriftart“</strong>:</strong> Acht Schriftarten stehen bereit: Multilanguage, Sans, Serif, Script, Monospace, Rounded, Stencil (Buchstaben aus geraden Linien) und Japanese (Zen Maru Gothic). Neuer Text beginnt in Sans. Umlaute, ß und € gibt es in jeder Schrift, ebenso Kana, die gebräuchlichen Kanji und viele seltene aus Namen wie 澤, 槇 und 檜: ein japanischer Name geht in jeder Schrift und auf einem Namensschild. Die japanischen Zeichen werden geholt, sobald ein Text sie zum ersten Mal braucht (die seltenen Kanji in einer zweiten Datei, nur wenn ein Text eines hat), darum zeigt so ein Text einen Moment lang Fragezeichen. Danach bleiben sie auf dem Computer, sodass Japanisch von da an auch ohne Internet geht. Eigene Schriften kommen dazu, siehe <a href="#eigene-schriften">Eigene Schriften</a> weiter unten.</li><li><strong><strong class="ui">„Buchstabengröße“</strong>:</strong> Wie groß die Buchstaben sind, von oben gesehen; <strong class="ui">„Höhe“</strong> bestimmt, wie dick sie sind.</li><li><strong><strong class="ui">„Höhe“</strong>:</strong> Wie hoch die Schrift aus der Fläche ragt.</li><li><strong><strong class="ui">„Abschrägung“</strong>:</strong> Rundet die Buchstabenkanten ab, damit sie weicher wirken. Mit <strong class="ui">„Segmente“</strong> bestimmst du, in wie vielen Stufen.</li><li><strong><strong class="ui">„Buchstabenkante“</strong>:</strong> rundet die obere Kante der Buchstaben ab oder setzt eine Fase an, wie bei einem Namensschild: <strong class="ui">„Keine“</strong>, <strong class="ui">„Rund“</strong> oder <strong class="ui">„Fase“</strong>, mit der <strong class="ui">„Größe der Kante“</strong> (zu Beginn 0,4 mm, höchstens so hoch wie der Text). Sie geht weiter als die <strong class="ui">„Abschrägung“</strong>, aber nur so weit, wie die Striche breit sind: wo ein Strich dünner ist als die doppelte Größe, endet die Kante in einer schmaleren Oberseite. Die Unterseite bleibt flach, einzelne Buchstaben lassen sich also nachher aufkleben. Solange eine Kante gewählt ist, ersetzt sie die <strong class="ui">„Abschrägung“</strong>.</li><li><strong>Länge:</strong> Ein Text fasst bis zu 250 Zeichen. Die Buchstaben behalten ihre Größe, und die Zeile wird so lang, wie sie sein muss; kürzer wird sie mit kleineren Buchstaben. Die <strong class="ui">„Buchstabenkante“</strong> gibt es bei Texten bis 40 Zeichen, weil sie bei längeren minutenlang rechnen würde.</li><li><strong>Größe:</strong> Länge und Breite der Zeile stellst du wie bei jeder Form ein. Zieh an den Griffen oder tippe die Maße ein.</li><li><strong><strong class="ui">„Zeichenabstand (%)“</strong>:</strong> Der Abstand zwischen den Buchstaben zusätzlich zu dem, den die Schrift hat, in Prozent der Buchstabengröße: 0 lässt ihn, wie die Schrift ihn gemacht hat, darüber stehen die Buchstaben weiter auseinander, darunter (bis -50) enger, was eine eigene Schrift oft braucht. Die Buchstaben behalten ihre Größe, der Rahmen folgt der Zeile, bei geradem wie bei gebogenem Text. Bei Arabisch und Hebräisch wirkt der Abstand nicht, weil ihre Buchstaben sich verbinden.</li><li><strong><strong class="ui">„Buchstaben auf den Rahmen strecken“</strong>:</strong> Zuerst aus: Die Buchstaben behalten ihre Proportionen und sitzen in der Mitte des Rahmens, ein Rahmen, der breiter oder tiefer gezogen ist, als das Wort braucht, bleibt also größer als die Buchstaben. Schaltest du es ein, werden die Buchstaben in beide Richtungen auf den ganzen Rahmen gestreckt: Ein Großbuchstabe lässt sich niedriger oder schmaler machen, wie in Tinkercad. Es gilt für gerade Schrift; gebogene Schrift hat ihre eigene Buchstabengröße.</li><li><strong><strong class="ui">„Automatisches Kerning“</strong>:</strong> Rückt Buchstabenpaare zusammen, zwischen denen zu viel Platz bleibt, etwa AY, AV, LT oder To, gemessen an den Formen der Buchstaben, in jeder Schrift, auch in eigenen. Neue Texte haben es eingeschaltet; Texte von vorher haben es aus, damit in gespeicherten Entwürfen nichts verrutscht. Die Buchstaben behalten ihre Größe, der Rahmen passt sich an. Es wirkt bei geradem und gebogenem Text, nicht bei senkrechtem Text, Arabisch, Hebräisch oder Japanisch.</li><li><strong><strong class="ui">„Buchstaben untereinander“</strong>:</strong> Stellt die Buchstaben von oben nach unten untereinander, jeden mittig auf einer senkrechten Linie, etwa für ein Schild am Türrahmen oder einen Namen längs auf einem Stift. Der Rahmen stellt sich hochkant, die Buchstaben behalten ihre Größe; <strong class="ui">„Zeichenabstand (%)“</strong> bestimmt den Abstand zwischen ihnen. Bei gebogenem Text laufen die Buchstaben als Spalte am linken Rand des Kreises entlang und bleiben aufrecht; <strong class="ui">„Auf der rechten Seite“</strong> legt die Spalte auf die rechte Seite.</li></ul>
 <p>Ein Text ist zunächst ein einzelner Körper. Willst du die Buchstaben einzeln behandeln, klicke auf <strong class="ui">„Teile trennen“</strong>. Dann ist jeder Buchstabe eine eigene Form.</p>
+<p><strong>Mehrere Zeilen:</strong> Ein Text hat eine Zeile. Für ein Schild oder eine Tafel mit mehreren Zeilen öffnest du unter den Einstellungen die Karte <strong class="ui">„Textblock“</strong>: Gib die Zeilen unter <strong class="ui">„Zeilen“</strong> ein, wähle <strong class="ui">„Ausrichtung“</strong> (<strong class="ui">„Links“</strong>, <strong class="ui">„Mitte“</strong> oder <strong class="ui">„Rechts“</strong>), <strong class="ui">„Zeilenabstand“</strong> und <strong class="ui">„Nächste Zeile (%)“</strong> - bei 80 % ist jede Zeile ein Fünftel kleiner als die darüber. Der Knopf macht jede Zeile zu einem eigenen Text unter der darüber, in Schrift, Höhe und Füllung dieses Textes; die erste nimmt den Platz dieses Textes ein. Danach kann jede Zeile eine eigene Größe, Schrift oder Farbe bekommen.</p>
 <p>Auch die Kanten einer Schrift lassen sich fasen oder verrunden, gerade oder gebogen, siehe <a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html">Kanten brechen und Körper aushöhlen</a>. Nimm dafür kleine Maße wie 0,2 bis 0,5 mm, denn die Striche der Buchstaben sind schmal.</p>
-<h2 id="eigene-schriften">Eigene Schriften</h2>
-<p>Neben den sieben mitgelieferten Schriften kannst du jede eigene Schrift nehmen: eine Schriftdatei von deinem Rechner oder, in Chrome und Edge, eine Schrift, die auf deinem Computer installiert ist. Wähle dazu unter <strong class="ui">„Schriftart“</strong> ganz unten <strong class="ui">„Eigene Schriften …“</strong>. Es öffnet sich das Fenster <strong class="ui">„Eigene Schriften“</strong>.</p>
+</section><section class="guide-part"><h2 id="eigene-schriften"><span class="heading-alias" id="your-own-fonts"></span>Eigene Schriften</h2>
+<p>Die Liste unter <strong class="ui">„Schriftart“</strong> zeigt jede Schrift in ihren eigenen Buchstaben, mit den Wörtern deines Textes, sodass du vor dem Wählen siehst, wie sie aussehen wird. Dasselbe gilt für die Schriften im Fenster darunter; die vom Rechner aufgelisteten Schriften zeigen ihren Namen in ihren eigenen Buchstaben. In der Liste gehen die Pfeiltasten und <kbd>Enter</kbd>, und ein Buchstabe springt zur nächsten Schrift, die damit beginnt.</p>
+<p>Neben den acht mitgelieferten Schriften kannst du jede eigene Schrift nehmen: eine Schriftdatei von deinem Rechner oder, in Chrome und Edge, eine Schrift, die auf deinem Computer installiert ist. Wähle dazu unter <strong class="ui">„Schriftart“</strong> ganz unten <strong class="ui">„Eigene Schriften …“</strong>. Es öffnet sich das Fenster <strong class="ui">„Eigene Schriften“</strong>.</p>
 <ul><li><strong><strong class="ui">„Schriftdatei wählen …“</strong></strong> nimmt eine TrueType-Datei (<code>.ttf</code>), eine OpenType-Datei (<code>.otf</code>) oder eine WOFF-Datei (<code>.woff</code>). Du kannst die Datei auch einfach in das Fenster ziehen.</li><li><strong>Unter Windows</strong> liegen die installierten Schriften im Ordner „Schriftarten“ (<code>C:\Windows\Fonts</code>). Den blendet der Dateidialog des Browsers aus. Öffne ihn stattdessen im Explorer und zieh die gewünschte Schrift in das Fenster <strong class="ui">„Eigene Schriften“</strong>. Schriften, die nur für dich installiert sind, liegen in <code>%LOCALAPPDATA%\Microsoft\Windows\Fonts</code>; diesen Ordner zeigt auch der Dateidialog. Am Mac liegen Schriften in <code>/Library/Fonts</code> und <code>~/Library/Fonts</code>.</li><li><strong><strong class="ui">„Schrift vom Computer …“</strong></strong> listet die Schriften, die auf deinem Computer installiert sind. Beim ersten Mal fragt der Browser, ob layerling sie lesen darf. Über das Suchfeld findest du eine Schrift schnell, ein Klick übernimmt sie.</li></ul>
 <p>Ist gerade ein Text ausgewählt, bekommt er die neue Schrift sofort. Sonst steht sie danach unter <strong class="ui">„Schriftart“</strong> in der Gruppe <strong class="ui">„Eigene Schriften“</strong>, und mit <strong class="ui">„Verwenden“</strong> im Fenster setzt du sie auf die ausgewählten Texte. Eigene Schriften verhalten sich wie die mitgelieferten: Text auf dem Kreisbogen, Fasen und Rundungen an den Kanten und der STEP-Export gehen genauso. Buchstaben, die eine Schrift nicht hat, nimmt layerling aus Sans.</p>
-<h3 id="arabisch-und-hebraeisch">Arabisch und Hebräisch</h3>
+<section class="guide-part"><h3 id="arabisch-und-hebraeisch"><span class="heading-alias" id="arabic-and-hebrew"></span>Arabisch und Hebräisch</h3>
 <p>Arabisch, Persisch, Urdu und Hebräisch schreibt layerling von rechts nach links: Der erste Buchstabe steht rechts, und in einem gemischten Text wie „Name عربي“ läuft nur das arabische Wort rückwärts, Ziffern bleiben wie gewohnt. Arabische Buchstaben verbinden sich dabei mit ihren Nachbarn, so wie die Schrift es vorsieht, und Lam-Alif wird zur Ligatur. Dafür braucht es eine Schrift, die diese Buchstaben hat; die mitgelieferten haben sie nicht. Füge eine eigene hinzu, etwa Arial, Tahoma oder Segoe UI unter Windows oder eine freie wie Noto Naskh Arabic, Noto Sans Arabic oder Amiri. Vokalzeichen stehen auf dem Buchstaben, zu dem sie gehören. Text auf dem Kreisbogen, Kontur, Silhouette, Schichten und Namensschilder gehen damit wie mit jedem anderen Text.</p>
-<h3 id="was-in-welchem-browser-geht">Was in welchem Browser geht</h3>
+</section><section class="guide-part"><h3 id="was-in-welchem-browser-geht"><span class="heading-alias" id="what-works-in-which-browser"></span>Was in welchem Browser geht</h3>
 <div class="table-scroll"><table><thead><tr><th>Browser</th><th>Schriftdatei wählen</th><th>Schrift vom Computer</th></tr></thead><tbody><tr><td>Chrome und Edge am Computer, auch die installierte layerling-App</td><td>ja</td><td>ja, nach einer Rückfrage des Browsers</td></tr><tr><td>Firefox</td><td>ja</td><td>nein</td></tr><tr><td>Safari am Mac</td><td>ja</td><td>nein</td></tr><tr><td>Tablet und Handy</td><td>ja, aus den Dateien des Geräts</td><td>nein</td></tr></tbody></table></div>
 <p>Webseiten dürfen die installierten Schriften nicht einfach lesen. Nur Chrome und Edge haben dafür eine eigene Erlaubnis, und auch die nur auf sicheren Seiten, also über <code>https</code> wie bei layerling.com. Läuft layerling über <code>http</code>, etwa auf einem eigenen Server oder als Docker-Installation im Heimnetz, fehlt <strong class="ui">„Schrift vom Computer …“</strong>; dann ziehst du die Schrift aus dem Explorer herüber. In den anderen Browsern wählst du die Schriftdatei aus dem Schriftenordner, das Ergebnis ist dasselbe. Hast du die Rückfrage in Chrome oder Edge abgelehnt, gibst du den Zugriff in den Einstellungen der Website wieder frei, über das Schloss links neben der Adresse.</p>
 <p>Nicht lesen kann layerling WOFF2-Dateien (dafür gibt es fast immer eine TTF- oder OTF-Fassung), Schriftsammlungen (<code>.ttc</code>, sie enthalten mehrere Schriften in einer Datei) und farbige Emoji-Schriften. Bei sehr großen Schriften, etwa für Chinesisch, nimmt layerling die ersten 8000 Zeichen. Bei variablen Schriften gilt die Grundeinstellung der Schrift, meist der normale Schnitt.</p>
 <p>Manche Schriften, vor allem Schreibschriften und variable Schriften, zeichnen einen Buchstaben aus Strichen, die sich überlappen. layerling vereinigt sie beim Einlesen zu einem sauberen Umriss, damit der Körper druckbar bleibt. Solche Buchstaben bestehen dann aus sehr kurzen geraden Stücken statt aus Kurven; zu sehen ist das nicht.</p>
-<h3 id="wo-die-schriften-bleiben">Wo die Schriften bleiben</h3>
+</section><section class="guide-part"><h3 id="wo-die-schriften-bleiben"><span class="heading-alias" id="where-the-fonts-are-kept"></span>Wo die Schriften bleiben</h3>
 <p>Eine eigene Schrift bleibt <strong>in diesem Browser auf diesem Computer</strong>. Ein anderer Browser oder ein anderer Rechner kennt sie nicht, bis du sie dort ebenfalls hinzufügst. Wer die Website-Daten des Browsers löscht, löscht auch die Schriften. Im Fenster <strong class="ui">„Eigene Schriften“</strong> entfernst du eine Schrift mit dem Papierkorb aus dem Browser. Deine Entwürfe verlieren dadurch nichts, wie der nächste Abschnitt zeigt.</p>
-<h3 id="entwuerfe-mit-eigener-schrift-weitergeben">Entwürfe mit eigener Schrift weitergeben</h3>
+</section><section class="guide-part"><h3 id="entwuerfe-mit-eigener-schrift-weitergeben"><span class="heading-alias" id="passing-on-designs-with-a-font-of-your-own"></span>Entwürfe mit eigener Schrift weitergeben</h3>
 <p>Ein Entwurf speichert <strong>nicht die Schriftdatei</strong>, sondern nur die Umrisse der Buchstaben, die seine Texte benutzen, auch die aus früheren Schritten im Verlauf. Steht in einem Text „Hallo“, reisen nur H, a, l und o mit. Das gilt für jede Art, wie ein Entwurf gespeichert wird: im Browser, auf dem eigenen Server, als <code>.lyl</code>-Datei und in <strong class="ui">„Eigene Formen“</strong>.</p>
 <p>Daraus folgt:</p>
 <ul><li><strong>Der Entwurf öffnet sich überall richtig</strong>, auch auf einem Rechner ohne die Schrift. Die Texte sehen genauso aus und lassen sich verschieben, drehen, skalieren und verrunden.</li><li><strong>Neue Buchstaben brauchen die Schrift.</strong> Tippt jemand ohne die Schrift einen Buchstaben, den der Entwurf nicht mitgebracht hat, zeichnet layerling ihn aus Sans. Unter <strong class="ui">„Schriftart“</strong> steht die Schrift dann mit dem Zusatz <strong class="ui">„nur die Buchstaben aus dem Entwurf“</strong>. Wer die Schriftdatei hinzufügt, bekommt wieder alle Buchstaben.</li><li><strong>Exporte enthalten nur Geometrie.</strong> STL, 3MF, OBJ, STEP und SVG enthalten Körper und Umrisse, keine Schrift.</li><li><strong>Ältere layerling-Versionen</strong> kennen eigene Schriften noch nicht und zeichnen solche Texte in Multilanguage.</li></ul>
 <p><strong>Lizenzen:</strong> Schriften sind urheberrechtlich geschützt, und ihre Lizenz regelt, was du damit tun darfst. Die eingebetteten Buchstabenumrisse sind dasselbe, was PDF-Dateien von einer Schrift mitnehmen, und das erlauben die meisten Lizenzen. Manche kaufbaren Schriften verbieten aber jede Weitergabe, auch einzelner Buchstaben. Bevor du einen Entwurf mit eigener Schrift weitergibst oder veröffentlichst, prüfe deshalb die Lizenz der Schrift. Freie Schriften wie die von Google Fonts (meist unter der SIL Open Font License) darfst du ohne Bedenken weitergeben. Für ein gedrucktes Teil oder eine exportierte STL spielt das keine Rolle: Die enthalten keine Schrift mehr, nur noch Geometrie.</p>
-<h2 id="erhaben-oder-vertieft">Erhaben oder vertieft</h2>
+</section></section><section class="guide-part"><h2 id="erhaben-oder-vertieft"><span class="heading-alias" id="raised-or-engraved"></span>Erhaben oder vertieft</h2>
 <ul><li><strong>Erhaben:</strong> Setze den Text auf die Fläche und gruppiere ihn mit dem Körper. Er wächst als Relief heraus.</li><li><strong>Vertieft:</strong> Schalte den Text auf <strong class="ui">„Aussparung“</strong>, lasse ihn ein Stück in die Fläche ragen und gruppiere ihn mit dem Körper. Die Buchstaben sind dann eingraviert.</li></ul>
 <p>Für Beschriftungen auf einer Seitenfläche legst du vorher die Arbeitsebene auf diese Fläche, siehe <a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html">Ansicht und Arbeitsebene</a>.</p>
-<h2 id="kontur-silhouette-und-breiter">Kontur, Silhouette und breiter</h2>
+</section><section class="guide-part"><h2 id="schablonen-stege-fuer-die-mitte-von-buchstaben"><span class="heading-alias" id="stencils-bridges-for-the-middle-of-letters"></span>Schablonen: Stege für die Mitte von Buchstaben</h2>
+<p>Durch eine Platte geschnitten, verlieren Buchstaben wie O, A und B ihre Mitte: Sie liegt lose im Buchstaben und fällt heraus. <strong class="ui">„Schablonenstege“</strong> hält sie mit kleinen Stegen an der Platte, wie bei einer Schablone.</p>
+<ol><li>Schalte den Text auf <strong class="ui">„Aussparung“</strong>, lass ihn durch die Platte reichen und wähle beides aus, gruppiert oder nicht.</li><li>Klicke im Menüband in der Gruppe <strong class="ui">„Anpassen“</strong> auf <strong class="ui">„Schablonenstege“</strong>, mach einen Rechtsklick auf die Auswahl oder finde es mit <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>. Die Stege erscheinen orange dort, wo sie hinkommen.</li><li>Stelle <strong class="ui">„Stegbreite“</strong> und <strong class="ui">„Stege pro Teil“</strong> ein. <strong class="ui">„Steghöhe“</strong> beginnt bei der Dicke der Platte; niedrigere Stege sitzen bündig unten, in der Mitte oder bündig oben, wie es <strong class="ui">„Lage“</strong> sagt. Bei einer Sprühschablone lassen Stege oben darunter Platz für die Farbe.</li><li><strong class="ui">„Erzeugen“</strong> gruppiert die Stege mit der Platte.</li></ol>
+<p>Jeder Steg ist ein gewöhnlicher Quader: Öffne die Gruppe, um einen zu verschieben, zu löschen oder einen eigenen dazuzulegen. Änderst du den Text später, wähle die Gruppe und klicke noch einmal auf <strong class="ui">„Schablonenstege“</strong>; neue Stege treten an die Stelle der alten. Ein Text, der nur eingraviert ist und nicht durchgeht, bekommt keine Stege, denn dort fällt nichts heraus. Für einen Laser oder Plotter setzen der DXF- und der SVG-Export dieselben Stege, siehe <a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html">Dateien, Speichern und Weitergeben</a>.</p>
+</section><section class="guide-part"><h2 id="kontur-silhouette-und-breiter"><span class="heading-alias" id="outline-silhouette-and-wider"></span>Kontur, Silhouette und breiter</h2>
 <p>Ein Text muss nicht als gefüllte Buchstaben gebaut werden. <strong class="ui">„Füllung“</strong> in den Eigenschaften bietet dieselbe Auswahl wie Tinkercad:</p>
 <ul><li><strong><strong class="ui">„Gefüllt“</strong>:</strong> die Buchstaben, wie sie sind.</li><li><strong><strong class="ui">„Kontur“</strong>:</strong> eine Linie entlang des Umrisses der Buchstaben, halb innen und halb außen.</li><li><strong><strong class="ui">„Außenlinie“</strong>:</strong> eine Linie außen um die Buchstaben.</li><li><strong><strong class="ui">„Innenlinie“</strong>:</strong> eine Linie innen in den Buchstaben.</li></ul>
 <p>Ist eine Linie gewählt, erscheinen direkt unter der Liste zwei Einstellungen: <strong class="ui">„Linienbreite“</strong> bestimmt, wie dick die Linie ist, <strong class="ui">„Ecken“</strong>, wie sie um die Ecken läuft (<strong class="ui">„Rund“</strong>, <strong class="ui">„Abgeschrägt“</strong> oder <strong class="ui">„Spitz“</strong>). Die selteneren Einstellungen stehen unter <strong class="ui">„Mehr“</strong>: <strong class="ui">„Silhouette (ohne Löcher)“</strong> lässt die Löcher in O, A oder e weg, und <strong class="ui">„Breiter (Unterlage für den Mehrfarbdruck)“</strong> lässt die Buchstaben gefüllt und macht sie rundum um die Linienbreite dicker; Buchstaben, die sich dabei berühren, wachsen zu einem Stück zusammen.</p>
 <p>Mit einer Linie außen, einer mittigen Linie oder „Breiter“ wächst der Kasten des Texts mit, die Buchstaben behalten ihre Größe. <strong class="ui">„Abschrägung“</strong> und <strong class="ui">„Segmente“</strong> gibt es nur für gefüllte Buchstaben.</p>
-<h2 id="schichten-und-namensschilder">Schichten und Namensschilder</h2>
+</section><section class="guide-part"><h2 id="schichten-und-namensschilder"><span class="heading-alias" id="layers-and-name-tags"></span>Schichten und Namensschilder</h2>
 <p>Ein Namensschild für den Mehrfarbdruck ist ein Text in Schichten: oben die Buchstaben, darunter derselbe Text etwas breiter in einer zweiten Farbe, zuunterst eine Platte ohne Löcher in einer dritten. layerling macht es mit einem Klick:</p>
 <ul><li><strong>Ein neues Namensschild:</strong> Wähle in der Formenbibliothek <strong class="ui">„Namensschild“</strong> und setze es ab. Darauf steht „Name“ in weißen Buchstaben auf einem roten Rand und einer dunklen Platte.</li><li><strong>Aus einem Text:</strong> Wähle den Text aus und klicke oben in seinen Einstellungen auf <strong class="ui">„In Schichten aufteilen“</strong>.</li></ul>
 <p>Alle Einstellungen des Schilds stehen in der Karte <strong class="ui">„Namensschild“</strong>, ganz oben in den Einstellungen:</p>
-<ul><li><strong><strong class="ui">„Text“</strong></strong> und <strong><strong class="ui">„Schriftart“</strong></strong>, auch eigene Schriften. Das Schild wächst mit den Wörtern.</li><li><strong><strong class="ui">„Buchstabengröße“</strong>:</strong> wie hoch die Großbuchstaben sind, in mm. Alle Schichten gehen mit und bleiben deckungsgleich.</li><li><strong><strong class="ui">„Schichten“</strong>:</strong> eine Zeile je Schicht, von oben nach unten. Jede Zeile hat die Farbe (klicke auf das farbige Feld), um wie viel die Schicht breiter ist als die Buchstaben, ihre Höhe und <strong class="ui">„Ohne Löcher“</strong>, das die Löcher in Buchstaben wie O und A füllt. <strong class="ui">„Ecken“</strong> bestimmt, wie eine breitere Schicht um die Ecken der Buchstaben läuft: <strong class="ui">„Rund“</strong>, <strong class="ui">„Schräg“</strong> oder <strong class="ui">„Spitz“</strong>. Die oberste Zeile sind die Buchstaben selbst. <strong>+</strong> fügt unten eine Schicht an, <strong>–</strong> nimmt die unterste weg. Ein Schild hat zwei bis sechs Schichten.</li><li><strong><strong class="ui">„Loch für den Schlüsselring“</strong>:</strong> gibt der untersten Schicht eine gerade Lasche mit rundem Ende und einem Loch für einen Schlüsselring; die Lasche wächst mit dem Loch. Ein Loch von 3 mm, die Vorgabe, ergibt eine 6,5 mm breite Lasche, die 6,75 mm übersteht; der Rand des Lochs liegt 2 mm vom Rand der untersten Schicht entfernt. Wähle den <strong class="ui">„Lochdurchmesser“</strong> und die <strong class="ui">„Seite“</strong>: <strong class="ui">„Links“</strong>, <strong class="ui">„Rechts“</strong> oder <strong class="ui">„Oben“</strong>. Das Loch geht durch jede Schicht, die es berührt, und die Lasche wandert mit, wenn du die Wörter, die Buchstabengröße oder die Schrift änderst.</li><li><strong><strong class="ui">„Buchstabenkante“</strong>:</strong> rundet oder schrägt die obere Kante der Buchstaben auf der obersten Schicht ab, so wie ein gedrucktes Schild vollendet wird: <strong class="ui">„Keine“</strong>, <strong class="ui">„Rund“</strong> oder <strong class="ui">„Fase“</strong>, mit der <strong class="ui">„Größe der Kante“</strong> (zuerst 0,4 mm, höchstens so hoch wie die Schicht). Das geht für jede Schrift und jedes Wort. Die Kante gehört zum Netz der Buchstaben; das Kantenwerkzeug nimmt einen solchen Text daher als Netz, was bei so feiner Schrift schwer ist - wähle die Kante lieber hier.</li></ul>
+<ul><li><strong><strong class="ui">„Text“</strong></strong> und <strong><strong class="ui">„Schriftart“</strong></strong>, auch eigene Schriften. Das Schild wächst mit den Wörtern.</li><li><strong><strong class="ui">„Buchstabengröße“</strong>:</strong> wie hoch die Großbuchstaben sind, in mm. Alle Schichten gehen mit und bleiben deckungsgleich.</li><li><strong><strong class="ui">„Buchstaben untereinander“</strong>:</strong> stellt das Schild hochkant, die Buchstaben untereinander, alle Schichten mit.</li><li><strong><strong class="ui">„Schichten“</strong>:</strong> eine Zeile je Schicht, von oben nach unten. Jede Zeile hat die Farbe (klicke auf das farbige Feld), um wie viel die Schicht breiter ist als die Buchstaben, ihre Höhe und <strong class="ui">„Ohne Löcher“</strong>, das die Löcher in Buchstaben wie O und A füllt. <strong class="ui">„Ecken“</strong> bestimmt, wie eine breitere Schicht um die Ecken der Buchstaben läuft: <strong class="ui">„Rund“</strong>, <strong class="ui">„Schräg“</strong> oder <strong class="ui">„Spitz“</strong>. Die oberste Zeile sind die Buchstaben selbst. <strong>+</strong> fügt unten eine Schicht an, <strong>–</strong> nimmt die unterste weg. Ein Schild hat zwei bis sechs Schichten.</li><li><strong><strong class="ui">„Loch für den Schlüsselring“</strong>:</strong> gibt der untersten Schicht eine gerade Lasche mit rundem Ende und einem Loch für einen Schlüsselring; die Lasche wächst mit dem Loch. Ein Loch von 3 mm, die Vorgabe, ergibt eine 6,5 mm breite Lasche, die 6,75 mm übersteht; der Rand des Lochs liegt 2 mm vom Rand der untersten Schicht entfernt. Wähle den <strong class="ui">„Lochdurchmesser“</strong> und die <strong class="ui">„Seite“</strong>: <strong class="ui">„Links“</strong>, <strong class="ui">„Rechts“</strong> oder <strong class="ui">„Oben“</strong>. <strong class="ui">„Frei“</strong> nimmt das Loch vom Schild und legt eine eigene <strong class="ui">„Lasche für den Schlüsselring“</strong> daneben, in Farbe und Höhe der untersten Schicht: eine ganz gewöhnliche Form, die du mit ihren Griffen verschiebst und drehst, wohin das Schild sie braucht. Sitzt sie, macht <strong class="ui">„Am Schild befestigen“</strong> in ihren Eigenschaften sie genau dort zum Teil des nächsten Schilds: Das Loch geht durch jede Schicht, die es erreicht, die Lasche gehört zur untersten Schicht, und beide bleiben an dieser Ecke der Buchstaben, wenn sich Wörter oder Größe ändern. <strong class="ui">„Frei“</strong> holt die Lasche wieder heraus, dort, wo sie war, um sie noch einmal zu verschieben. Das Loch geht durch jede Schicht, die es berührt, und die Lasche wandert mit, wenn du die Wörter, die Buchstabengröße oder die Schrift änderst. <strong class="ui">„Lage an der Seite“</strong> schiebt die Lasche an ihrer Seite nach oben oder unten (oben: nach links oder rechts), bis sie die Seite verlassen würde; 0 ist die Mitte. Das hilft, wenn die Mitte der Seite auf eine Lücke trifft, etwa neben einem J: Schiebe die Lasche dorthin, wo der Buchstabe hinausreicht.</li><li><strong><strong class="ui">„Buchstabenkante“</strong>:</strong> rundet oder schrägt die obere Kante der Buchstaben auf der obersten Schicht ab, so wie ein gedrucktes Schild vollendet wird: <strong class="ui">„Keine“</strong>, <strong class="ui">„Rund“</strong> oder <strong class="ui">„Fase“</strong>, mit der <strong class="ui">„Größe der Kante“</strong> (zuerst 0,4 mm, höchstens so hoch wie die Schicht). Das geht für jede Schrift und jedes Wort. Die Kante gehört zum Netz der Buchstaben; das Kantenwerkzeug nimmt einen solchen Text daher als Netz, was bei so feiner Schrift schwer ist - wähle die Kante lieber hier.</li></ul>
 <p>Jede Änderung siehst du sofort. Das Schild ist ein Bündel: Es bewegt sich als Ganzes, und jede Schicht bleibt ein eigener Körper in eigener Farbe, so wie der Slicer sie für den Mehrfarbdruck braucht. Um die Kanten einer Schicht abzurunden oder abzuschrägen, klicke auf <strong class="ui">„Bündel bearbeiten“</strong> und wähle die Schicht, siehe <a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html">Kanten brechen und Körper aushöhlen</a>.</p>
-<h3 id="viele-namensschilder-auf-einmal">Viele Namensschilder auf einmal</h3>
+<section class="guide-part"><h3 id="viele-namensschilder-auf-einmal"><span class="heading-alias" id="many-name-tags-at-once"></span>Viele Namensschilder auf einmal</h3>
 <p>Tippe die Namen in die <strong class="ui">„Namensliste“</strong>, einen je Zeile, bis zu hundert. Der Knopf darunter sagt, wie viele Schilder er macht, etwa „12 Namensschilder machen“. Jedes Schild bekommt dieselben Schichten, dieselbe Buchstabengröße und dasselbe Loch und ist ein eigenes Objekt; sie liegen in Reihen unter dem ersten, 5 mm auseinander. Auch ein einfacher Text hat die Namensliste, weiter unten in seinen Einstellungen.</p>
-<h2 id="symbolschilder">Symbolschilder</h2>
+</section></section><section class="guide-part"><h2 id="symbolschilder"><span class="heading-alias" id="icon-tags"></span>Symbolschilder</h2>
 <p>Ein Symbolschild ist dasselbe Schild mit einem SVG-Symbol statt Buchstaben: ein Herz, eine Wolke, das Logo eines Vereins. Oben das Symbol, darunter derselbe Umriss etwas breiter in einer zweiten Farbe, zuunterst eine Platte ohne Löcher.</p>
-<ul><li><strong>Ein neues Symbolschild:</strong> Wähle in der Formenbibliothek <strong class="ui">„Symbolschild“</strong>. Ein kleines Fenster öffnet sich: Klicke auf <strong class="ui">„Durchsuchen …“</strong>, wähle eine SVG-Datei, prüfe das Bild, tippe die <strong class="ui">„Breite (mm)“</strong> des Symbols ein und klicke auf <strong class="ui">„OK“</strong>. Das Schild steht in der Mitte der Platte, in denselben Schichten wie ein neues Namensschild.</li><li><strong>Aus einem Skizzenkörper:</strong> Eine importierte SVG oder eine selbst gezeichnete Skizze hat oben in ihren Einstellungen <strong class="ui">„In Schichten aufteilen“</strong>.</li></ul>
+<ul><li><strong>Ein neues Symbolschild:</strong> Wähle in der Formenbibliothek <strong class="ui">„Symbolschild“</strong>. Ein kleines Fenster öffnet sich: Klicke auf <strong class="ui">„Durchsuchen …“</strong>, wähle eine SVG-, PNG- oder JPG-Datei, prüfe das Bild, tippe die <strong class="ui">„Breite (mm)“</strong> des Symbols ein und klicke auf <strong class="ui">„OK“</strong>. Das Schild steht in der Mitte der Platte, in denselben Schichten wie ein neues Namensschild.</li><li><strong>Aus einem Skizzenkörper:</strong> Eine importierte SVG oder eine selbst gezeichnete Skizze hat oben in ihren Einstellungen <strong class="ui">„In Schichten aufteilen“</strong>.</li></ul>
 <p>Die Karte <strong class="ui">„Symbolschild“</strong> oben in den Einstellungen enthält:</p>
-<ul><li><strong><strong class="ui">„Andere SVG …“</strong>:</strong> setzt das Symbol einer anderen SVG auf das Schild; Schichten und Breite bleiben, wie sie sind.</li><li><strong><strong class="ui">„Breite“</strong>:</strong> wie breit das Symbol oben ist, in mm. Alle Schichten gehen mit und bleiben deckungsgleich.</li><li><strong><strong class="ui">„Schichten“</strong>:</strong> die Zeilen wie beim Namensschild - Farbe, um wie viel breiter, <strong class="ui">„Ecken“</strong>, Höhe und <strong class="ui">„Ohne Löcher“</strong>, <strong>+</strong> und <strong>–</strong>, zwei bis sechs Schichten. Die oberste Zeile ist das Symbol selbst.</li><li><strong><strong class="ui">„Anzahl“</strong>:</strong> wie viele Schilder du möchtest, 1 bis 100. <strong class="ui">„So viele wie passen“</strong> rechnet es aus der Platte des Druckers aus, der in den Einstellungen gewählt ist, für kleine Logos eine volle Platte. Der Knopf darunter erzeugt sie, 5 mm auseinander, in der Mitte der Platte verteilt; das erste ist das Schild selbst.</li></ul>
+<ul><li><strong><strong class="ui">„Andere Datei …“</strong>:</strong> setzt das Symbol einer anderen Datei (SVG, PNG oder JPG) auf das Schild; Schichten und Breite bleiben, wie sie sind.</li><li><strong><strong class="ui">„Breite“</strong>:</strong> wie breit das Symbol oben ist, in mm. Alle Schichten gehen mit und bleiben deckungsgleich.</li><li><strong><strong class="ui">„Schichten“</strong>:</strong> die Zeilen wie beim Namensschild - Farbe, um wie viel breiter, <strong class="ui">„Ecken“</strong>, Höhe und <strong class="ui">„Ohne Löcher“</strong>, <strong>+</strong> und <strong>–</strong>, zwei bis sechs Schichten. Die oberste Zeile ist das Symbol selbst.</li><li><strong><strong class="ui">„Loch für den Schlüsselring“</strong>:</strong> wie beim Namensschild: ein Loch für den Schlüsselring durch jede Schicht, mit einer Lasche mit rundem Ende an der untersten Schicht, außerhalb des Symbols. <strong class="ui">„Lochdurchmesser“</strong> und <strong class="ui">„Seite“</strong> bestimmen Größe und Seite; <strong class="ui">„Frei“</strong> gibt eine eigene Lasche, wie beim Namensschild. Die Lasche richtet sich nach dem Umriss des Symbols; bei einem sehr zerklüfteten Symbol prüfst du, wo sie auf die Platte trifft. <strong class="ui">„Lage an der Seite“</strong> schiebt die Lasche an ihrer Seite entlang, wie beim Namensschild.</li><li><strong><strong class="ui">„Anzahl“</strong>:</strong> wie viele Schilder du möchtest, 1 bis 100. <strong class="ui">„So viele wie passen“</strong> rechnet es aus der Platte des Druckers aus, der in den Einstellungen gewählt ist, für kleine Logos eine volle Platte. Der Knopf darunter erzeugt sie, 5 mm auseinander, in der Mitte der Platte verteilt; das erste ist das Schild selbst.</li></ul>
 <p>Die SVG braucht geschlossene Umrisse; eine Zeichnung nur aus offenen Linien wird kein Schild. Ein Skizzenkörper, dessen Füllung eine Linie ist, behält sie: Die Fläche dieser Linie ist das Symbol.</p>
-<h2 id="text-auf-dem-kreisbogen">Text auf dem Kreisbogen</h2>
+<p><strong>Ein Bild (PNG oder JPG)</strong> wird zu einem Umriss nachgezeichnet, und die Vorschau zeigt den Umriss. Unter <strong class="ui">„Nachgezeichnet aus“</strong> wählst du, ob der <strong class="ui">„Dunkler Teil“</strong> oder der <strong class="ui">„Heller Teil“</strong> das Symbol wird; zuerst ist es der Teil, der nicht der Hintergrund ist. Durchsichtige Pixel gehören nie zum Symbol. Eine SVG, die nur ein einziges Bild enthält, wie Inkscape eine importierte Bitmap speichert, wird genauso nachgezeichnet. Der Umriss folgt den Pixeln, ein kleines Bild gibt also einen rauen Rand: Bilder ab einigen hundert Pixeln eignen sich am besten. <strong class="ui">„Andere Datei …“</strong> nimmt von einem Bild den Teil, der nicht sein Hintergrund ist.</p>
+</section><section class="guide-part"><h2 id="qr-codes">QR-Codes</h2>
+<p>Ein QR-Code macht aus einem Text oder einer Webadresse ein Muster, das eine Handykamera liest: ein Link zu deinem Shop auf einem Schild, der WLAN-Name auf einem Untersetzer, eine Telefonnummer am Schlüsselanhänger.</p>
+<p>Wähle in der Formenbibliothek <strong class="ui">„QR-Code“</strong>. Ein Fenster öffnet sich; der Cursor steht schon im Textfeld:</p>
+<ul><li><strong><strong class="ui">„Text oder Adresse“</strong>:</strong> was der Code sagt. Eingabe erzeugt den Code, Umschalt+Eingabe beginnt eine neue Zeile. Unter dem Feld siehst du, wie viel vom Platz belegt ist; Umlaute und andere Sonderzeichen brauchen zwei Byte. Ist der Text zu lang, sagt das Feld es dir.</li><li><strong><strong class="ui">„Fehlerkorrektur“</strong>:</strong> L, M, Q oder H. Eine höhere Stufe wird noch gelesen, wenn ein Teil des Codes verschmutzt oder zerkratzt ist (L etwa 7 %, M 15 %, Q 25 %, H 30 %), braucht für denselben Text aber mehr Module, jedes Modul wird also kleiner. Zuerst ist M gewählt.</li><li><strong><strong class="ui">„Bauart“</strong>:</strong> <strong class="ui">„Nur Code“</strong> baut den Code allein, 4 mm hoch. <strong class="ui">„Erhaben auf Platte“</strong> setzt ihn 1 mm hoch auf eine weiße Platte von 3 mm, als Bündel aus zwei Farben, sodass ein Mehrfarbdruck den Code dunkel und die Platte hell druckt. <strong class="ui">„Graviert“</strong> schneidet den Code 1 mm tief in die Platte.</li><li><strong><strong class="ui">„Größe nach“</strong>:</strong> Tippe die <strong class="ui">„Breite“</strong> des ganzen Codes ein (zuerst 40 mm) oder die Größe eines Moduls; die andere Zahl steht darunter. Module unter 0,8 mm bekommen eine Warnung. Das ist eine Faustregel für eine 0,4-mm-Düse, keine Garantie: Drucker, Material, Farben und das Handy spielen alle mit.</li><li><strong><strong class="ui">„Ruhezone (4 Module)“</strong>:</strong> Scanner brauchen um den Code einen leeren Rand von vier Modulen. Auf einer Platte gehört der Rand zur Platte; schalte ihn nur ab, wenn die Platte auf einer größeren hellen Fläche sitzt. Der Code allein hat keinen eigenen Rand: Lass den Platz rundherum frei.</li><li><strong>Höhen:</strong> die Höhe des Codes, auf einer Platte die Codehöhe oder Gravurtiefe, und die Plattendicke.</li></ul>
+<p>Die Vorschau zeigt den Code, wie er gebaut wird. <strong class="ui">„OK“</strong> stellt ihn in die Mitte der Platte.</p>
+<p>Der Code ist ein Körper wie jeder andere: Verschiebe ihn, drehe ihn, skaliere ihn (Breite und Tiefe gleich lassen, sonst wird der Code verzerrt), gruppiere ihn, oder mach ihn zur Aussparung und gruppiere ihn in ein eigenes Teil, um ihn dort einzugravieren. Skalieren skaliert den ganzen Code; jedes Modul bleibt quadratisch.</p>
+<p>Die Karte <strong class="ui">„QR-Code“</strong> oben in seinen Einstellungen enthält den Text. Ändere ihn und klicke auf <strong class="ui">„Neu erzeugen“</strong>: Der Code wird dort neu gebaut, wo er steht, und so breit, wie er gerade ist. Fehlerkorrektur, Ruhezone und Bauart bleiben, wie sie gewählt wurden; für andere Einstellungen erzeuge einen neuen Code aus der Bibliothek.</p>
+<p>Scanne den Code vor dem Druck mit deinem Handy, und nach dem Druck noch einmal. Dunkel auf hell liest sich am besten; einen hellen Code auf dunkler Platte liest nicht jedes Handy.</p>
+</section><section class="guide-part"><h2 id="text-auf-dem-kreisbogen"><span class="heading-alias" id="text-on-a-circular-arc"></span>Text auf dem Kreisbogen</h2>
 <p>Soll die Beschriftung nicht gerade laufen, sondern dem Rand einer Münze, eines Deckels oder eines Rings folgen? Dafür gibt es die Einstellung <strong class="ui">„Auf Kreisbogen“</strong>.</p>
 <figure><img src="/api/desktop/layerling/ui/anleitung/img/curved-text.webp" alt="Ein Text folgt einem Kreis. Die Buchstaben stehen alle auf einer gemeinsamen Linie." width="1280" height="800" loading="lazy"><figcaption>Ein Text folgt einem Kreis. Die Buchstaben stehen alle auf einer gemeinsamen Linie.</figcaption></figure>
-<p>Sobald du sie einschaltest, läuft der Text am Kreis entlang. Alle Buchstaben stehen auf derselben Grundlinie, so gleichmäßig wie bei normalem Text. Dazu gibt es vier Einstellungen:</p>
-<ul><li><strong><strong class="ui">„Bogenradius“</strong></strong> (5 bis 500 mm): Der Radius des Kreises, auf dem die Grundlinie der Buchstaben läuft.</li><li><strong><strong class="ui">„Buchstabengröße“</strong>:</strong> Wie hoch die Buchstaben sind. Sie hängt nicht mehr an der Breite der Form.</li><li><strong><strong class="ui">„Unten am Kreis“</strong>:</strong> Schaltet den Text von der Oberseite des Kreises auf die Unterseite. Die Buchstaben zeigen dann mit dem Kopf zur Mitte.</li><li><strong><strong class="ui">„Auf den Kopf stellen“</strong>:</strong> Dreht nur die Buchstaben um, damit du sie von der anderen Seite lesen kannst. Der Text bleibt dabei an seiner Stelle auf dem Kreis.</li></ul>
+<p>Sobald du sie einschaltest, läuft der Text am Kreis entlang. Alle Buchstaben stehen auf derselben Grundlinie, so gleichmäßig wie bei normalem Text. Dazu gibt es fünf Einstellungen:</p>
+<ul><li><strong><strong class="ui">„Bogenradius“</strong></strong> (5 bis 500 mm): Der Radius des Kreises, auf dem die Grundlinie der Buchstaben läuft. Die Buchstaben bleiben dabei an ihrer Stelle, nur ihre Biegung ändert sich.</li><li><strong><strong class="ui">„Buchstabenbreite (%)“</strong></strong> (25 bis 400 %): Wie breit jeder Buchstabe gezeichnet wird, in Prozent seiner eigenen Breite. Unter 100 werden die Buchstaben schmaler, darüber breiter; ihre Höhe bleibt, und der Bogen, den sie einnehmen, wächst oder schrumpft mit. Etwa für eine hohe, schmale Schrift auf einer Münze. Bei gerader Schrift macht das <strong class="ui">„Buchstaben auf den Rahmen strecken“</strong> mit dem Rahmen.</li><li><strong><strong class="ui">„Buchstabengröße“</strong>:</strong> Wie hoch die Buchstaben sind. Sie hängt nicht mehr an der Breite der Form.</li><li><strong><strong class="ui">„Unten am Kreis“</strong>:</strong> Schaltet den Text von der Oberseite des Kreises auf die Unterseite. Die Buchstaben zeigen dann mit dem Kopf zur Mitte.</li><li><strong><strong class="ui">„Auf den Kopf stellen“</strong>:</strong> Dreht nur die Buchstaben um, damit du sie von der anderen Seite lesen kannst. Der Text bleibt dabei an seiner Stelle auf dem Kreis.</li></ul>
 <p><strong>Die Mitte des Kreises ist die Mitte der Form.</strong> Deshalb geht das Ausrichten wie gewohnt: Wenn du den Text mit einem Zylinder oder Ring mittig ausrichtest, sitzt er genau konzentrisch darauf. Ziehst du an einem Griff, wachsen Radius und Schriftgröße gemeinsam mit, sodass die Schrift nicht verzerrt wird.</p>
-<aside class="tip"><p><strong>Tipp:</strong> Oben am Kreis stehen die Buchstaben außerhalb der Grundlinie, mit <strong class="ui">„Unten am Kreis“</strong> innerhalb, mit den Köpfen zur Mitte. Damit die Schrift auf eine Scheibe passt, sollte der Radius plus die Schriftgröße kleiner sein als der Radius der Scheibe.</p></aside>
+<aside class="tip"><p><strong>Tipp:</strong> Oben am Kreis stehen die Buchstaben außerhalb der Grundlinie, mit <strong class="ui">„Unten am Kreis“</strong> innerhalb, mit den Köpfen zur Mitte. Damit die Schrift auf eine Scheibe passt, sollte der Radius plus die Schriftgröße kleiner sein als der Radius der Scheibe.</p></aside></section>
 <div class="pager"><a href="/api/desktop/layerling/ui/anleitung/skizzen.html"><small>Vorheriges Kapitel</small>Skizzen: vom Umriss zum Körper</a><a class="next" href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html"><small>Nächstes Kapitel</small>Gewinde, Zahnräder und andere Bauteile</a></div>
       </main>
     </div>
     <footer class="note">Diese Anleitung wächst mit dem Programm. Fehlt dir etwas oder stimmt etwas nicht, sag es im <a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a>.</footer>
-    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=de" rel="noopener">Projekt unterstützen</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mehr Informationen zum Projekt auf GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Versionshinweise v1.71.0</a></div><p class="trademark">Tinkercad ist eine Marke von Autodesk, Inc. layerling ist ein unabhängiges Projekt und steht in keiner Verbindung zu Autodesk, wird nicht von Autodesk unterstützt oder gesponsert.</p></footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=de" rel="noopener">Projekt unterstützen</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mehr Infos auf GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Versionshinweise v1.154.1</a></div><p class="trademark">Tinkercad ist eine Marke von Autodesk, Inc. layerling ist ein unabhängiges Projekt und steht in keiner Verbindung zu Autodesk, wird nicht von Autodesk unterstützt oder gesponsert.</p></footer>
     <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Zurück zum Editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Zum Editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
     <script>
-function guideFold(text){var out="";for(var i=0;i<text.length;i++){out+=text.charAt(i).toLowerCase().normalize("NFD").charAt(0);}return out;}
-function guideForms(word,umlauts){
-  var forms=[word];
-  if(umlauts){var plain=word.split("ae").join("a").split("oe").join("o").split("ue").join("u");if(plain!==word)forms.push(plain);}
-  if(word.indexOf("ss")>=0)forms.push(word.split("ss").join(String.fromCharCode(223)));
-  if(word.indexOf(String.fromCharCode(223))>=0)forms.push(word.split(String.fromCharCode(223)).join("ss"));
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
   return forms;
 }
-function guideFind(text,forms,from){
-  var best=null;
-  for(var i=0;i<forms.length;i++){var k=text.indexOf(forms[i],from);if(k>=0&&(!best||k<best.at))best={at:k,len:forms[i].length};}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
   return best;
 }
-function guidePrepare(entries){return entries.map(function(e){return {e:e,c:guideFold(e.c),h:guideFold(e.h),t:guideFold(e.t)};});}
-function guideTokens(query){return guideFold(query).split(" ").filter(function(w){return w.length>0;});}
-function guideSearch(prepared,query,limit,umlauts){
-  var tokens=guideTokens(query);if(!tokens.length)return [];
-  var forms=tokens.map(function(w){return guideForms(w,umlauts);}),phrase=guideForms(tokens.join(" "),umlauts),found=[];
-  prepared.forEach(function(p){
-    var score=0;
-    for(var i=0;i<tokens.length;i++){
-      var inH=guideFind(p.h,forms[i],0),inC=guideFind(p.c,forms[i],0),at=guideFind(p.t,forms[i],0);
-      if(!inH&&!inC&&!at)return;
-      if(inH)score+=10;
-      if(inC)score+=3;
-      if(at){score+=1;var n=0,k=at;while(k&&n<5){n++;k=guideFind(p.t,forms[i],k.at+k.len);}score+=n*0.3;}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
     }
-    if(tokens.length>1&&(guideFind(p.h,phrase,0)||guideFind(p.t,phrase,0)))score+=6;
-    found.push({entry:p.e,score:score,folded:p.t,forms:forms});
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
   });
-  found.sort(function(a,b){return b.score-a.score;});
-  return found.slice(0,limit||8);
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
 }
 
 function guideSnippet(hit){
@@ -255,20 +366,57 @@ function guideSnippet(hit){
   if(end<text.length)parts.push({text:" ...",mark:false});
   return parts;
 }
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
 (function(){
   var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
   var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
   function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
   function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
   function render(){
     if(!guideTokens(input.value).length){close();return;}
     if(!prepared){load().then(function(){if(prepared)render();});return;}
-    var hits=guideSearch(prepared,input.value,8,form.getAttribute("data-umlauts")==="true");
+    var hits=guideSearch(prepared,input.value,8,umlauts);
     box.textContent="";
     if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
     hits.forEach(function(hit){
       var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
-      link.href=hit.entry.u;
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
       title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
       guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
       link.appendChild(title);link.appendChild(line);box.appendChild(link);
@@ -281,7 +429,7 @@ function guideSnippet(hit){
     if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
     else if(e.key==="Escape"){input.value="";close();}
   });
-  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first)window.location.href=first.href;});
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
   box.addEventListener("keydown",function(e){
     var current=document.activeElement;
     if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}

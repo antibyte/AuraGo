@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Szkice: od konturu do bryły - Instrukcja layerling</title>
+    <meta name="description" content="Narysuj płaski kontur, zaokrąglij lub sfazuj jego narożniki i wyciągnij go albo obróć w bryłę.">
+    <link rel="canonical" href="https://layerling.com/instrukcja/sketches.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/sketches.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/sketches.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/sketches.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/skizzen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/sketches.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/sketches.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/sketches.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/sketches.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/schetsen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/sketches.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/skice.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/sketches.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/sketches.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/sketches.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/sketches.html">
+    <meta property="og:title" content="Szkice: od konturu do bryły - Instrukcja layerling">
+    <meta property="og:description" content="Narysuj płaski kontur, zaokrąglij lub sfazuj jego narożniki i wyciągnij go albo obróć w bryłę.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/instrukcja/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Instrukcja</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/instrukcja/search-index.json" data-nothing="Nic nie znaleziono." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Szukaj w instrukcji" aria-label="Szukaj w instrukcji" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Język">Polski</summary><ul><li><a href="/api/desktop/layerling/ui/guide/sketches.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/sketches.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/sketches.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/sketches.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/sketches.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/sketches.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/sketches.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/sketches.html" hreflang="pl" lang="pl" aria-current="true">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/sketches.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/sketches.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/skice.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/sketches.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/sketches.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/sketches.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/sketches.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/sketches.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/sketches.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Otwórz edytor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Edytor jest już otwarty w innej karcie - po prostu do niej przejdź.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Rozdziały"><h2>Rozdziały</h2><p class="print-link"><a href="/api/desktop/layerling/ui/instrukcja/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Cała instrukcja do wydruku</span></a></p><ol><li><a href="/api/desktop/layerling/ui/instrukcja/getting-started.html">Pierwsze kroki</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/view-and-workplane.html">Widok i płaszczyzna robocza</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/shapes.html">Umieszczanie i dopasowywanie kształtów</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/select-and-arrange.html">Zaznaczanie i rozmieszczanie</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/solids-and-holes.html">Bryły i otwory</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/edges-and-hollowing.html">Łamanie krawędzi i drążenie brył</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/sketches.html" aria-current="page">Szkice: od konturu do bryły</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/text.html">Tekst i napisy na łuku</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/threads-and-mechanics.html">Gwinty, koła zębate i inne części</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/measuring-and-notes.html">Pomiary i notatki</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/printing.html">Przygotowanie do druku 3D</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/files-and-saving.html">Pliki, zapis i udostępnianie</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/shortcuts.html">Skróty klawiszowe</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/ai-with-mcp.html">Budowanie z AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/offline-and-install.html">Instalacja jako aplikacja, praca offline i własny serwer</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/videos.html">Filmy o layerling</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/tablet-and-touch.html">Tablet i dotyk</a></li></ol></nav>
+      <main>
+<h1>Szkice: od konturu do bryły</h1>
+<p class="lead">Narysuj płaski kontur, zaokrąglij lub sfazuj jego narożniki i wyciągnij go albo obróć w bryłę.</p>
+<div class="toc"><b>Na tej stronie</b><ul><li><a href="#rozpoczynanie-szkicu">Rozpoczynanie szkicu</a></li><li><a href="#rysowanie">Rysowanie</a></li><li><a href="#linie-liczbami">Linie liczbami</a></li><li><a href="#wyginanie-prostego-boku">Wyginanie prostego boku</a></li><li><a href="#odczytywanie-i-wpisywanie-katow">Odczytywanie i wpisywanie kątów</a></li><li><a href="#zaokraglanie-lub-fazowanie-naroznikow">Zaokrąglanie lub fazowanie narożników</a></li><li><a href="#odbicie-lustrzane">Odbicie lustrzane</a></li><li><a href="#linie-konstrukcyjne">Linie konstrukcyjne</a></li><li><a href="#robienie-z-tego-bryly">Robienie z tego bryły</a></li><li><a href="#szkic-po-krzywych">Szkic po krzywych</a></li><li><a href="#budowanie-jako-obrys">Budowanie jako obrys</a></li><li><a href="#wypelnienie-i-sylwetka">Wypełnienie i sylwetka</a></li><li><a href="#skosne-scianki-do-stempli">Skośne ścianki do stempli</a></li><li><a href="#obraz-jako-wzorzec">Obraz jako wzorzec</a></li><li><a href="#klawisze-w-trybie-szkicu">Klawisze w trybie szkicu</a></li></ul></div>
+<p>Nie wszystko da się złożyć z kształtów podstawowych. Do części z własnym konturem, takich jak wspornik, profil zęba albo wazon, najpierw rysujesz <strong>kontur</strong>, a potem robisz z niego bryłę. Do tego służy tryb szkicu.</p>
+<section class="guide-part"><h2 id="rozpoczynanie-szkicu"><span class="heading-alias" id="starting-a-sketch"></span>Rozpoczynanie szkicu</h2>
+<p>Na górze przełącz z <strong class="ui">„Edytor 3D”</strong> na <strong class="ui">„Szkic”</strong>. W grupie <strong class="ui">„Utwórz”</strong> na wstążce stoją obok siebie trzy przyciski określające, czym ma się stać kontur:</p>
+<ul><li><strong><strong class="ui">„Wyciągnij szkic”</strong>:</strong> kontur zostaje wyciągnięty w górę, jak foremka do ciastek.</li><li><strong><strong class="ui">„Obróć szkic”</strong>:</strong> kontur zostaje obrócony wokół osi, jak na tokarce. Tak powstają wazony, kubki, stożki i wszystko, co okrągłe.</li><li><strong><strong class="ui">„Szkic po krzywych”</strong>:</strong> kontur zostaje poprowadzony wzdłuż ścieżki: kanał kablowy, który skręca za róg, rurka, pierścień wokół kształtu. Zobacz niżej część „Szkic po krzywych”.</li></ul>
+<p>Edytor pokazuje wtedy arkusz z siatką. To Twoja powierzchnia do rysowania.</p>
+<p>Szkic leży na płaszczyźnie roboczej. Aby rysować na ścianie bryły, na przykład gdy kontur ma zaczynać się wyżej, najpierw połóż płaszczyznę roboczą na tej ścianie klawiszem <kbd>W</kbd> (zobacz <a href="/api/desktop/layerling/ui/instrukcja/view-and-workplane.html">Widok i płaszczyzna robocza</a>), a potem zacznij szkic.</p>
+</section><section class="guide-part"><h2 id="rysowanie"><span class="heading-alias" id="drawing"></span>Rysowanie</h2>
+<p>Wstążka w trybie szkicu jest podzielona na sekcje. Niżej każde narzędzie ma własną kartę: co robisz, jeden krok w wierszu, a po strzałce, co się wtedy dzieje. Klawisz po prawej stronie karty wybiera narzędzie.</p>
+<section class="guide-part"><h3 id="narzedzia-rysowania"><span class="heading-alias" id="drawing-tools"></span>Narzędzia rysowania</h3>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-line.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">Linia</strong></span><span class="card-keys"><kbd>1</kbd></span></div><ul class="card-steps"><li class="step">Klikaj punkty jeden po drugim.</li><li class="step">Przytrzymaj <kbd>Shift</kbd>, aby nowa linia przyciągała się co 15°, także poziomo i pionowo.</li><li class="result">Długość i kąt nowej linii widać przy wskaźniku.</li><li class="step">Jak wpisać, jak długa ma być, opisuje część <a href="#linie-liczbami">Linie liczbami</a>.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-arc.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">Łuk</strong></span></div><ul class="card-steps"><li class="step">Kliknij dwa końce łuku.</li><li class="step">Kliknij trzeci punkt, przez który ma przechodzić łuk.</li><li class="result">Do trzeciego kliknięcia za wskaźnikiem podąża podgląd, a komunikat podaje promień.</li><li class="result">Koniec kliknięty na istniejącym punkcie łączy się z nim, więc łuk może zamknąć kontur.</li><li class="step"><kbd>Esc</kbd> porzuca kliknięte dotąd punkty i wraca do <strong class="ui">„Zaznacz”</strong>.</li><li class="tip">Narysowany łuk jest zwykłą geometrią z punktów i krzywych: przesuwasz go, tniesz i wymazujesz jak każdą inną linię.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-bezier-curve.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">Krzywa Béziera</strong></span><span class="card-keys"><kbd>2</kbd></span></div><ul class="card-steps"><li class="step">Kliknij punkt i przeciągnij w kierunku, w którym linia ma biec dalej, jak narzędziem pióra w Illustratorze albo Inkscape.</li><li class="result">Im dalej przeciągniesz, tym mocniej się wygina.</li><li class="result">Odcinek do nowego punktu wygina się w trakcie przeciągania, więc widzisz, co dostaniesz.</li><li class="tip">Przychodzisz z Tinkercada i chcesz tylko klikać punkty? Weź <strong class="ui">„Gładka krzywa”</strong>.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-smooth-curve.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">Gładka krzywa</strong></span><span class="card-keys"><kbd>3</kbd></span></div><ul class="card-steps"><li class="step">Klikaj punkty jeden po drugim.</li><li class="result">Przez klikane punkty prowadzi płynną ścieżkę.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">Zamykanie albo kończenie linii</span></div><ul class="card-steps"><li class="step">Aby zamknąć kontur, na końcu kliknij ponownie pierwszy punkt.</li><li class="step">Aby zakończyć ciąg linii bez zamykania konturu, kliknij prawym przyciskiem bez ruszania wskaźnikiem albo kliknij dwukrotnie ostatni punkt.</li><li class="result">Bryła powstaje tylko z <strong>zamkniętego</strong> konturu.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-freehand.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">Odręcznie</strong></span><span class="card-keys"><kbd>5</kbd></span></div><ul class="card-steps"><li class="step">Rysuj piórkiem, palcem albo myszą jak na papierze.</li><li class="result">Gdy je podniesiesz, linia zmieni się w zwykłe punkty: narożnik tam, gdzie ostro skręciła, gładkie punkty pomiędzy, tylko tyle, ile potrzebuje kształt, więc każdy da się potem przeciągnąć.</li><li class="step">Przybliż widok dla drobnych szczegółów: im bliżej patrzysz, tym wierniej linia podąża za ręką.</li><li class="result">Linia, która kończy się tam, gdzie się zaczęła, zamyka się w kontur, z którego może powstać bryła. Otwarta zostaje linią, dla <strong class="ui">„Obrys”</strong> albo jako ścieżka do przeciągania profilu.</li><li class="step">Zacznij na liniach albo na obrazie wzorcowym, aby odrysować obraz ręcznie.</li><li class="step">Zacznij albo zakończ pociągnięcie na otwartym końcu, aby przedłużyć tę linię, więc kształt można narysować kilkoma pociągnięciami.</li></ul></div>
+<aside class="tip"><p>Cyfry wybierają narzędzie, dopóki nie jest rysowana żadna linia. W trakcie rysowania są jej długością (zobacz niżej). Gdy aktywne jest <strong class="ui">„Zaznacz”</strong> i zaznaczone są linie lub punkty, te same klawisze je zmieniają: <kbd>1</kbd> prostuje linie i robi z punktów narożniki, <kbd>2</kbd> zamienia linie w krzywe, a <kbd>3</kbd> wygładza punkty. Gdy nic nie jest zaznaczone, wybierają narzędzie jak wcześniej.</p></aside>
+</section><section class="guide-part"><h3 id="ksztalty"><span class="heading-alias" id="shapes"></span>Kształty</h3>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title"><strong class="ui">Dodaj kształt szkicu</strong></span></div><ul class="card-steps"><li class="step">Wybierz gotowy kontur: <strong class="ui">„Prostokąt”</strong>, <strong class="ui">„Okrąg”</strong>, <strong class="ui">„Owal”</strong>, <strong class="ui">„Półokrąg”</strong>, <strong class="ui">„Wycinek koła”</strong>, <strong class="ui">„Okrąg otworów”</strong> (tarcza z otworami), <strong class="ui">„Trójkąt”</strong>, <strong class="ui">„Sześciokąt”</strong>, <strong class="ui">„Wielokąt”</strong> albo <strong class="ui">„Gwiazda”</strong>.</li><li class="step">Kliknij go, aby umieścić go w początku układu szkicu, albo przeciągnij go z menu tam, gdzie chcesz.</li><li class="step">Na dole menu <strong class="ui">„Boki / ramiona”</strong> ustawia liczbę boków wielokąta i ramion gwiazdy, a <strong class="ui">„Wymiar wewnętrzny gwiazdy”</strong> to, jak głęboko wcięcia gwiazdy sięgają do środka (od 10 do 90 procent promienia zewnętrznego).</li><li class="result">Oba dotyczą następnego dodanego kształtu.</li><li class="result">Jak każdy kształt szkicu, potem są to zwykłe punkty narożne, więc możesz je osobno przesuwać, zaokrąglać i fazować.</li><li class="tip">Prostokąt zaczyna od szerokości i głębokości ustawionych dla prostopadłościanu w <strong class="ui">„Domyślne kształtów”</strong> w ustawieniach, a koło i elipsa od szerokości walca. Bez własnej wartości, i przy pozostałych kształtach, mają 20 mm.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">Nakładające się kontury</span></div><ul class="card-steps"><li class="step">Przesuń dwa zamknięte kontury na siebie.</li><li class="result">Zostają dwiema bryłami, które w edytorze 3D się łączą. Część wspólna nie jest otworem.</li><li class="result">Przesuwanie nie łączy linii w miejscach przecięcia, więc kształty możesz znów rozsunąć.</li><li class="step">Jeśli natomiast narysujesz linię w poprzek innych, layerling postawi punkt na każdym przecięciu.</li><li class="tip">Otwór powstaje tylko z konturu leżącego w całości wewnątrz innego.</li></ul></div>
+</section><section class="guide-part"><h3 id="zaznaczanie-i-zmiany"><span class="heading-alias" id="select-and-change"></span>Zaznaczanie i zmiany</h3>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-select.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">Zaznacz</strong></span></div><ul class="card-steps"><li class="step">Kliknij punkt albo linię i przeciągnij, aby ją przesunąć.</li><li class="step">Kliknij wewnątrz zamkniętego konturu, aby zaznaczyć cały kontur. Wewnątrz otworu wybiera otwór.</li><li class="result">Od razu możesz go przeciągnąć albo zmienić jego rozmiar.</li><li class="step">Przytrzymaj <kbd>Shift</kbd> i kliknij, aby dodać punkt albo linię do zaznaczenia albo je z niego usunąć, więc możesz przesuwać kilka naraz.</li><li class="step">Przeciągnij ramkę po pustym miejscu, aby zaznaczyć wszystko w niej.</li><li class="step">Przeciągnij linię, aby przesunąć ją za oba końce, albo całe zaznaczenie, jeśli do niego należy.</li><li class="step">Klawisze strzałek przesuwają zaznaczenie o jeden krok siatki, z <kbd>Shift</kbd> o większy.</li><li class="step">Przytrzymaj <kbd>Shift</kbd> podczas przeciągania, aby ruch został na jednej osi.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">Ramka wokół zaznaczenia</span></div><ul class="card-steps"><li class="step">Przeciągnij uchwyt narożny, aby zmienić szerokość i wysokość razem. Przytrzymaj <kbd>Shift</kbd>, aby zachować proporcje.</li><li class="step">Przeciągnij uchwyt na boku, aby zmienić tylko jeden kierunek.</li><li class="step">Kliknij etykietę szerokości albo wysokości, aby wpisać nowy rozmiar, także jako sumę („60+12.5”) albo w procentach („150%”).</li><li class="step">Przeciągnij zakrzywione strzałki przy narożnikach, aby obrócić całe zaznaczenie wokół jego środka.</li><li class="result">Liczba nad wskaźnikiem pokazuje kąt, a z wciśniętym <kbd>Shift</kbd> obrót idzie co 15°.</li><li class="result">Podczas obracania pojawia się pierścień: ze wskaźnikiem wewnątrz obrót przyciąga się co 22,5°, na zewnątrz idzie o pełne stopnie, niezależnie od siatki.</li><li class="step"><kbd>R</kbd> obraca cały zamknięty kontur o 45° przy każdym naciśnięciu.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">Pasek nad szkicem</span></div><ul class="card-steps"><li class="step"><strong class="ui">„Zachowaj proporcje”</strong> zachowuje proporcje bez <kbd>Shift</kbd>: narożniki i boki rozciągają wtedy w obu kierunkach jednakowo, a wpisana szerokość albo wysokość zmienia też drugą.</li><li class="result">layerling zapamiętuje ten przełącznik.</li><li class="step">Pola X i Y pokazują, gdzie leży środek zaznaczenia, w mm od początku szkicu. Wpisz wartość, a zaznaczenie przesunie się dokładnie tam, na przykład otwór 12 mm od środka. Y rośnie w górę, jak w edytorze 3D.</li><li class="step">Gdy zaznaczone są dwa kontury lub więcej, pasek je wyrównuje: do lewej, do środka albo do prawej oraz do góry, do środka albo do dołu, względem ramki wokół nich wszystkich.</li><li class="result">Każdy kontur przesuwa się w całości i zachowuje kształt. Wyśrodkowane w obu kierunkach dwa okręgi tworzą pierścień.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">Blokowanie konturu</span><span class="card-keys"><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span></span></div><ul class="card-steps"><li class="step">Kliknij <strong class="ui">„Zablokuj”</strong> na pasku, aby zablokować zaznaczony kontur, jak zablokowaną bryłę w edytorze 3D.</li><li class="result">Nie da się go już przesunąć, zmienić jego rozmiaru, obrócić ani zmienić. Jego linie bledną, punkty szarzeją, a uchwyty ramki stają się szare i przestają reagować.</li><li class="result">Linie mogą nadal zaczynać się w jego narożnikach.</li><li class="result">Przy wyrównywaniu konturów zablokowany zostaje na miejscu, a pozostałe wyrównują się do niego.</li><li class="step">Aby go uwolnić, kliknij kłódkę w jego narożniku, gdy jest zaznaczony, albo kliknij <strong class="ui">„Odblokuj”</strong>.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-add-or-remove-points.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">Dodaj lub usuń punkty</strong></span><span class="card-keys"><kbd>4</kbd></span></div><ul class="card-steps"><li class="step">Kliknij odcinek, aby dodać punkt.</li><li class="step">Kliknij punkt, aby go usunąć.</li><li class="result">layerling łączy jego dwóch sąsiadów, więc kontur zostaje zamknięty.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-erase.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">Wymaż</strong></span></div><ul class="card-steps"><li class="step">Kliknij punkt albo linię, aby je usunąć.</li><li class="step">Przeciągnij okno nad kilkoma, aby usunąć wszystko w jego wnętrzu.</li><li class="step">Gdy coś jest zaznaczone, przycisk wymazuje zaznaczenie.</li><li class="step">Aby pozbyć się tylko kawałka okręgu, na przykład do zaokrąglonego narożnika, kliknij dokładnie ten kawałek łuku między dwoma punktami.</li><li class="result">Reszta zostaje.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">Zamykanie luki</span></div><ul class="card-steps"><li class="step">Przeciągnij jeden otwarty koniec na drugi, na przykład po wymazaniu jednego boku sześciokąta.</li><li class="result">Przyciąga się tam, a oba stają się jednym punktem, więc kontur znów jest zamknięty.</li><li class="result">Na przecięciu, na przykład tam, gdzie linia przecina okrąg, łączą się boki biegnące prosto dalej: łuk z łukiem, linia z linią, a okrąg zostaje okrągły.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-add-image.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">Dodaj obraz</strong></span></div><ul class="card-steps"><li class="step">Podłóż pod szkic obraz wzorcowy, aby go obrysować, zobacz <a href="#obraz-jako-wzorzec">Obraz jako wzorzec</a>.</li></ul></div>
+</section><section class="guide-part"><h3 id="schowek-i-historia"><span class="heading-alias" id="clipboard-and-history"></span>Schowek i historia</h3>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">Kopiowanie, wklejanie, duplikowanie, usuwanie</span></div><ul class="card-steps"><li class="step"><strong class="ui">„Kopiuj”</strong>, <strong class="ui">„Wklej”</strong>, <strong class="ui">„Duplikuj”</strong> i <strong class="ui">„Usuń”</strong> działają na zaznaczone punkty, linie i obrazy, jak w edytorze 3D. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span> wycina.</li><li class="result">Wklejona i zduplikowana geometria ląduje obok oryginału z odstępem 10 mm, w wolnym miejscu, w którym nie dotyka żadnej istniejącej linii, więc nigdy nie łączy się z tym, co już jest.</li><li class="result">Zostaje zaznaczona, więc możesz od razu przeciągnąć ją na miejsce.</li><li class="step"><strong class="ui">„Cofnij w szkicu”</strong> i <strong class="ui">„Ponów w szkicu”</strong> cofają krok i przywracają go.</li></ul></div>
+</section><section class="guide-part"><h3 id="notatki"><span class="heading-alias" id="notes"></span>Notatki</h3>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title"><strong class="ui">Notatka</strong></span><span class="card-keys"><kbd>N</kbd></span></div><ul class="card-steps"><li class="step">Kliknij <strong class="ui">„Notatka”</strong> w sekcji <strong class="ui">„Sterowanie widokiem szkicu”</strong>, a potem miejsce, w którym ma stanąć notatka: dowolne, także na linii.</li><li class="step">Przeciągnij pinezkę, aby ją przesunąć. Kliknięcie pinezki zwija kartę.</li><li class="result">Notatki szkicu należą do jego bryły: w widoku 3D siedzą na wierzchu bryły utworzonej przez <strong class="ui">„Wyciągnij szkic”</strong> lub <strong class="ui">„Szkic po krzywych”</strong> i na narysowanym profilu bryły utworzonej przez <strong class="ui">„Obróć szkic”</strong>, i przesuwają się razem z nią.</li><li class="result">Ponowne otwarcie szkicu pokazuje wszystkie notatki bryły, także te umieszczone w 3D.</li><li class="step"><strong class="ui">„Cofnij w szkicu”</strong> cofa notatkę tak jak linię, a <strong class="ui">„Anuluj”</strong> odrzuca zmiany w notatkach.</li><li class="tip">Więcej w rozdziale <a href="/api/desktop/layerling/ui/instrukcja/measuring-and-notes.html">Pomiary i notatki</a>.</li></ul></div>
+</section><section class="guide-part"><h3 id="widok-i-wymiary"><span class="heading-alias" id="view-and-dimensions"></span>Widok i wymiary</h3>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">Przesuwanie widoku</span></div><ul class="card-steps"><li class="step">Przesuwaj widok środkowym przyciskiem myszy albo <kbd>Shift</kbd> lub <kbd>Ctrl</kbd> z prawym przyciskiem myszy, jak w edytorze 3D.</li><li class="step">Gdy nic nie jest zaznaczone, przesuwa go też <kbd>Ctrl</kbd> ze strzałkami: o jedną dziesiątą widoku na naciśnięcie, o połowę z dodatkowym <kbd>Shift</kbd>. Szkic przesuwa się w stronę, w którą wskazują.</li><li class="step"><kbd>Home</kbd> mieści cały szkic w widoku, <kbd>F</kbd> przybliża do zaznaczenia (gdy nic nie jest zaznaczone, do całego szkicu), a <kbd>+</kbd> i <kbd>−</kbd> przybliżają i oddalają, jak w edytorze 3D.</li><li class="step">Gdy nic nie jest zaznaczone, kliknij dwukrotnie puste miejsce, aby przesunąć je na środek widoku.</li><li class="tip"><strong class="ui">„Dwuklik na płaszczyźnie roboczej wyśrodkowuje tam widok”</strong> w ustawieniach wyłącza dwuklik.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">Wymiary</span></div><ul class="card-steps"><li class="step">Kliknij linię albo punkt.</li><li class="result">Szkic pokazuje długość linii, a dla punktu długości linii, które się w nim spotykają.</li><li class="step"><strong class="ui">„Pokaż wymiary”</strong> na pasku narzędzi szkicu ukrywa i pokazuje te wymiary, gdy przeszkadzają, na przykład podczas kształtowania krzywych.</li><li class="step"><strong class="ui">„Zmierz”</strong> na pasku narzędzi szkicu mierzy odległość między dwoma punktami. Działa dalej, gdy wymiary są ukryte.</li></ul></div>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-outline.webp" alt="Kontur w kształcie litery L. Przy zaznaczonym punkcie narożnym, w lewym górnym rogu, widać długości obu linii w milimetrach i kąt między nimi w stopniach." width="1280" height="800" loading="lazy"><figcaption>Kontur w kształcie litery L. Przy zaznaczonym punkcie narożnym, w lewym górnym rogu, widać długości obu linii w milimetrach i kąt między nimi w stopniach.</figcaption></figure>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">Wpisywanie długości</span></div><ul class="card-steps"><li class="step">Kliknij etykietę wymiaru prostej linii i wpisz długość w milimetrach.</li><li class="step"><kbd>Enter</kbd> ją stosuje, <kbd>Esc</kbd> anuluje.</li><li class="result">Linia zachowuje kierunek, jej punkt początkowy zostaje na miejscu, a linie na drugim końcu podążają za nią. Gdy zaznaczony jest punkt końcowy, przesuwa się ten punkt.</li><li class="step"><span dir="ltr"><kbd>Alt</kbd>+<kbd>Enter</kbd></span> wydłuża zamiast tego linię w obie strony wokół jej środka.</li><li class="result">Na krzywych etykieta tylko pokazuje długość.</li></ul></div>
+</section></section><section class="guide-part"><h2 id="linie-liczbami"><span class="heading-alias" id="lines-by-numbers"></span>Linie liczbami</h2>
+<p>Gdy postawisz pierwszy punkt narzędziem <strong class="ui">„Linia”</strong> albo <strong class="ui">„Gładka krzywa”</strong>, po prostu wpisz liczbę: obok linii otworzą się dwa pola, <strong class="ui">„Długość”</strong> w milimetrach i <strong class="ui">„Kąt”</strong> w stopniach. <kbd>&lt;</kbd> albo <kbd>Tab</kbd> przechodzi do kąta, więc „50&lt;30” daje linię o długości 50 mm pod kątem 30°, jak w AutoCAD. <kbd>Enter</kbd> stawia punkt i od razu możesz wpisać następną linię. <kbd>Esc</kbd> zamyka pola, nie kończąc łańcucha linii.</p>
+<p>Kąt liczy się przeciwnie do ruchu wskazówek zegara od prawej: 0° w prawo, 90° w górę, 180° w lewo, 270° w dół. Zostaw go pustym, a linia podąży za wskaźnikiem, więc podajesz tylko długość, a kierunek pokazujesz myszą. Sumy takie jak „40+12.5” działają w obu polach. Jeśli punkt wypadłby poza płytą, pole o tym informuje i czeka na inną wartość.</p>
+</section><section class="guide-part"><h2 id="wyginanie-prostego-boku"><span class="heading-alias" id="curving-a-straight-side"></span>Wyginanie prostego boku</h2>
+<p>Zaznacz prostą linię i kliknij <strong class="ui">„Wygnij linię”</strong> na pasku, który się pojawi: bok wygina się w krzywą, jak w Tinkercadzie, i pokazuje swoje dwa uchwyty. Przeciągaj je, aby nadać krzywej kształt. Im dalej odsunięty uchwyt, tym mocniejsze wygięcie. Pod wskaźnikiem uchwyt robi się pomarańczowy i łapie też kliknięcie tuż obok, więc obraz wzorca pod nim nie przesunie się przez pomyłkę. <strong class="ui">„Linia prosta”</strong> prostuje bok z powrotem. Zaznaczony punkt możesz zaokrąglić przez <strong class="ui">„Gładka krzywa”</strong>: dostaje własne uchwyty, a sąsiednie linie stają się krzywymi. Gdy zaznaczysz trzy punkty lub więcej, <strong class="ui">„Krzywa przez punkty”</strong> na pasku prowadzi jedną gładką krzywą od pierwszego z nich do ostatniego, przez każdy punkt pomiędzy, tak jak rysuje ją narzędzie <strong class="ui">„Gładka krzywa”</strong>; linie za oboma końcami zostają bez zmian. W innych programach nazywa się to „Fit curve” lub „Fit point spline”. Różnica: <strong class="ui">„Wygnij linię”</strong> wygina każdy zaznaczony bok osobno i zostawia narożniki między nimi, na łuk na jednym boku; <strong class="ui">„Krzywa przez punkty”</strong> prowadzi przez punkty jedną krzywą bez narożników, do wygładzenia poszarpanej, odrysowanej krawędzi. Kliknij uchwyt, a się podświetli: klawisze strzałek przesuwają go wtedy o jeden krok siatki, z <kbd>Shift</kbd> o większy krok, więc krzywą ustawisz precyzyjnie.</p>
+<p>Wartości można też wpisać. Zaznaczony punkt pokazuje na pasku <strong class="ui">„X”</strong> i <strong class="ui">„Y”</strong>: gdzie leży, w mm od początku szkicu, Y liczone w górę. Kliknij uchwyt, a pasek pokaże zamiast tego <strong class="ui">„Uchwyt X”</strong> i <strong class="ui">„Uchwyt Y”</strong>: gdzie leży uchwyt względem swojego punktu. W gładkim punkcie przeciwny uchwyt obraca się razem z nim. Daj odpowiadającemu uchwytowi po drugiej stronie to samo Y i X z przeciwnym znakiem, a krzywa wyjdzie dokładnie lustrzana; <strong class="ui">„Odbij”</strong> odbija całą połowę naraz.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-curve.webp" alt="Dolny bok konturu w kształcie litery L wygięty w krzywą, z dwoma uchwytami na końcach." width="1280" height="800" loading="lazy"><figcaption>Dolny bok konturu w kształcie litery L wygięty w krzywą, z dwoma uchwytami na końcach.</figcaption></figure>
+</section><section class="guide-part"><h2 id="odczytywanie-i-wpisywanie-katow"><span class="heading-alias" id="reading-and-typing-angles"></span>Odczytywanie i wpisywanie kątów</h2>
+<p>Kliknij punkt narożny, w którym spotykają się <strong>dwie proste linie</strong>: obok długości layerling pokazuje <strong>kąt</strong> między nimi w stopniach, z małym łukiem. Na zamkniętym konturze to kąt wewnątrz kształtu, więc wcięcie ma ponad 180°. Kliknij wartość i wpisz nowy kąt. Jedna z dwóch linii obraca się wtedy wokół narożnika i zachowuje długość, a druga zostaje na miejscu. Obracana linia jest rysowana przerywaną kreską. <kbd>Tab</kbd> przełącza na drugą, <kbd>Enter</kbd> stosuje, a <kbd>Esc</kbd> anuluje. To, co wisi na dalszym końcu obracanej linii, obraca się razem z nią.</p>
+<p>Zablokowany punkt zostaje na miejscu, a wpisana wartość się do tego dostosowuje: długość przesuwa wolny koniec linii, a kąt obraca linię, której dalszy koniec jest wolny. Można też zablokować pojedynczy punkt: zaznacz go i naciśnij <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span>. Tak dokładnie ustawisz kontur narożnik po narożniku: zablokuj narożnik, wpisz długość i kąt następnej linii, zablokuj jej koniec i idź dalej.</p>
+<p>Przesunięcie punktu zmienia trzy kąty: przy samym punkcie i przy dwóch sąsiednich narożnikach na dalszych końcach jego linii. Dlatego layerling pokazuje także te dwa, a każdy można kliknąć i wpisać. Tak ustawisz na przykład lewy dolny narożnik na 75,5°, gdy zaznaczony jest lewy górny punkt, który się przy tym przesuwa. Tu też możesz liczyć, np. „90-14.5”.</p>
+<p>Narożnik nie pokazuje kąta tam, gdzie dochodzi do niego krzywa albo gdzie spotykają się więcej niż dwie linie. Przycisk <strong class="ui">„Pokaż wymiary”</strong> na pasku narzędzi szkicu ukrywa kąt razem z długościami.</p>
+</section><section class="guide-part"><h2 id="zaokraglanie-lub-fazowanie-naroznikow"><span class="heading-alias" id="rounding-or-chamfering-corners"></span>Zaokrąglanie lub fazowanie narożników</h2>
+<p>Kliknij punkt narożny i wybierz <strong class="ui">„Zaokrąglij narożnik”</strong> albo <strong class="ui">„Sfazuj narożnik”</strong>. Pojawi się małe pole na <strong class="ui">„Promień”</strong> albo <strong class="ui">„Odległość”</strong>. Wpisz rozmiar i potwierdź znaczkiem ptaszka. Działa to dla narożników między dwiema prostymi liniami.</p>
+<p>Kilka narożników naraz też działa: zaznacz je przez <kbd>Shift</kbd> i kliknięcie każdego albo obejmij je ramką i wybierz <strong class="ui">„Zaokrąglij narożnik”</strong> albo <strong class="ui">„Sfazuj narożnik”</strong> z paska, który się pojawi. Wszystkie dostaną ten sam promień albo odległość. Gdy dwa zaznaczone narożniki mają wspólny bok, każdy bierze najwyżej 45 % jego długości, więc prostokąt zaokrąglony dookoła wychodzi jednakowo w każdym narożniku. Punkty, które nie są narożnikiem między dwiema prostymi liniami, są pomijane, a komunikat mówi, ile ich jest. Ramka wokół całego kształtu albo kliknięcie w jego wnętrzu zaznacza jego narożniki i linie razem, a pasek oferuje wtedy obok narzędzi narożników także <strong class="ui">„Wygnij linię”</strong> i <strong class="ui">„Linia prosta”</strong> dla wszystkich zaznaczonych linii.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-fillet.webp" alt="Narożnik w lewym górnym rogu zaokrąglony promieniem 12 mm." width="1280" height="800" loading="lazy"><figcaption>Narożnik w lewym górnym rogu zaokrąglony promieniem 12 mm.</figcaption></figure>
+</section><section class="guide-part"><h2 id="odbicie-lustrzane"><span class="heading-alias" id="mirroring"></span>Odbicie lustrzane</h2>
+<p>Zaznacz punkty i linie (kliknięciem, <kbd>Shift</kbd> i kliknięciem albo ramką wokół nich) i kliknij <strong class="ui">„Odbij”</strong> na pasku. Potem wybierz oś: <strong class="ui">„Lewo-prawo”</strong> odbija względem pionowej osi przez środek płyty, <strong class="ui">„Góra-dół”</strong> względem poziomej, a <strong class="ui">„Względem linii”</strong> względem prostej linii szkicu, którą potem klikniesz. Kopia ląduje po drugiej stronie, a oryginał zostaje; nic nie jest powiązane, więc możesz zmieniać każdy osobno. Punkty leżące na osi są wspólne, więc połowa konturu, której końce leżą na osi, staje się konturem zamkniętym: narysuj połowę wspornika, zaznacz ją, odbij i zrób bryłę. Dobrą osią jest linia pomocnicza. <kbd>Esc</kbd> anuluje.</p>
+</section><section class="guide-part"><h2 id="linie-konstrukcyjne"><span class="heading-alias" id="construction-lines"></span>Linie konstrukcyjne</h2>
+<p>Linia konstrukcyjna pomaga stawiać punkty, nie stając się częścią bryły. Jest rysowana przerywaną kreską i nigdy nie liczy się jako kontur: możesz ją wyciągnąć dowolnie daleko poza kształt, a bryła nie urośnie.</p>
+<ul><li>Włącz <strong class="ui">„Linia konstrukcyjna”</strong> w grupie <strong class="ui">„Rysuj”</strong>. Nowe linie, także wpisywane liczbami, są wtedy liniami konstrukcyjnymi. Przycisk przełącza z powrotem na zwykłe linie.</li><li>Już narysowana linia staje się konstrukcyjna, gdy ją klikniesz i wybierzesz <strong class="ui">„Konstrukcyjna”</strong>. <strong class="ui">„Zmień w linię”</strong> zmienia ją z powrotem w zwykłą linię.</li><li>Nowe punkty przyciągają się do miejsc, w których linia konstrukcyjna przecina inną linię (pokazuje to niebieskie kółko), oraz do końców linii konstrukcyjnej. Tak postawisz narożnik na środku, w stałej odległości od krawędzi albo na przecięciu, bez liczenia.</li><li>Nowe punkty przyciągają się też do środka każdej prostej linii szkicu, do środka każdego okręgu i zaokrąglonego narożnika oraz do środków boków bryły pokazanej pod spodem. Przeciągany punkt pomija środek własnych linii.</li><li>Przeciągane zaznaczenie przyciąga się swoim środkiem: środek okręgu albo prostokąta trafia na końce, narożniki i środki innych linii, na środki okręgów, na przecięcia linii konstrukcyjnych i na narożniki bryły pod spodem, a niebieski pierścień pokazuje gdzie. Kształt przeciągnięty z <strong class="ui">„Dodaj kształt szkicu”</strong> też ląduje środkiem na tych punktach. Przytrzymaj <kbd>Alt</kbd>, aby trzymać się tylko siatki.</li><li><strong class="ui">„Linia od środka”</strong> w grupie <strong class="ui">„Rysuj”</strong> rysuje linię od jej środka: najpierw kliknij środek, potem koniec, a linia pobiegnie na tę samą długość w drugą stronę. Środek staje się osobnym punktem. Kliknij przycisk ponownie, aby rysować zwykłe linie.</li><li>Linia konstrukcyjna nie rozcina konturu tam, gdzie go przecina. Przy obracaniu może leżeć także na prawo od osi.</li></ul>
+</section><section class="guide-part"><h2 id="robienie-z-tego-bryly"><span class="heading-alias" id="making-a-body-from-it"></span>Robienie z tego bryły</h2>
+<p>Kliknij <strong class="ui">„Zakończ szkic”</strong>. Kontur stanie jako bryła na płaszczyźnie roboczej. W jej ustawieniach zmieniasz wysokość, kolor i wszystko inne, jak przy każdym innym kształcie. Gdy zmieniasz jej rozmiar, layerling po chwili buduje ją ponownie ze szkicu, a szkic rośnie razem z nią. Dzięki temu zostaje dokładną bryłą, która przyjmuje fazki i zaokrąglenia, a przy następnej edycji szkic ma taki rozmiar jak bryła.</p>
+<p>Jeśli płaszczyzna robocza leży na boku bryły, rysujesz tak, jak patrzysz na ten bok: góra w szkicu to także góra gotowej bryły. Blady kontur bryły w widoku szkicu pokazuje, gdzie ona stoi. Jeśli płaszczyzna robocza przecina bryłę, widok szkicu pokazuje zamiast tego kontur tego przekroju, więc wydrążona bryła wygląda jak pierścień, a szkic możesz wyrównać do jej ścianek. Punkt, który postawisz albo przeciągniesz blisko narożnika tych konturów, przyciąga się dokładnie do niego, co pokazuje małe niebieskie kółko. Tak przenosisz do szkicu krawędzie innych brył, nawet gdy płaszczyzna robocza nie leży dokładnie na nich. Aby obrysować istniejącą pracę, włącz <strong class="ui">„Pokaż części widoczne na wskroś: wszystkie ich krawędzie na płaszczyźnie szkicu”</strong> (przycisk warstw wśród przycisków widoku po lewej): wszystkie krawędzie brył są wtedy rysowane na płaszczyźnie szkicu, cienko i blado, jakbyś patrzył przez nie, niezależnie od wysokości, na której leżą. Płaszczyzna stojąca pionowo, na przykład położona na przedniej ścianie, pokazuje w ten sposób widok z przodu. Ten wybór zapamiętuje przeglądarka.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-result.webp" alt="Kontur stał się bryłą. Narożnik jest zaokrąglony." width="1280" height="800" loading="lazy"><figcaption>Kontur stał się bryłą. Narożnik jest zaokrąglony.</figcaption></figure>
+<p>Przez <strong class="ui">„Edytuj szkic”</strong> możesz w każdej chwili wrócić do szkicu, żeby go zmienić. Dwukrotne kliknięcie bryły robi to samo, jak w Tinkercadzie (zablokowana bryła zostaje zamknięta). <strong class="ui">„Dwuklik otwiera szkic”</strong> w ustawieniach to wyłącza. Obróbki krawędzi, które już zrobiłeś na bryle, przepadają jednak, bo krawędzie powstają od nowa. Bryła, którą obróciłeś lub przesunąłeś w edytorze 3D, otwiera się tam, gdzie stoi na płycie, obrócona tak, jak ją tam widzisz, i na siatce płyty; tylko pochylona lub odbita bryła otwiera się we własnym układzie.</p>
+<p>Szkic z kilkoma konturami daje jedną bryłę, a nakładające się kontury łączą się w niej. Aby każdy kontur był osobno, zaznacz bryłę i kliknij <strong class="ui">„Rozdziel części”</strong>: każdy zewnętrzny kontur staje się osobną bryłą z otworami, które w nim leżą, i zachowuje wysokość, kolor i miejsce bryły. Każda część ma własny szkic do edycji, razem z liniami pomocniczymi, więc możesz podnosić lub obniżać części pojedynczo, a potem je połączyć lub odjąć. Przeszkadzają w tym obróbki krawędzi, podobnie jak bryła rozciągnięta później: wtedy jest rozdzielana jak siatka.</p>
+<p><strong>Inny rodzaj bryły z tego samego szkicu:</strong> plakietka u góry szkicu mówi, czym on się stanie: <strong class="ui">„Szkic do wyciągnięcia”</strong>, <strong class="ui">„Obróć szkic”</strong> lub <strong class="ui">„Szkic po krzywych”</strong>. Kliknij ją i wybierz inny, także podczas edycji istniejącej bryły: zaimportowany SVG, który wchodzi wyciągnięty, po przełączeniu na <strong class="ui">„Obróć szkic”</strong> staje się wazonem lub gałką. Kontur sięgający za oś przesuwa się w lewo, aż jego prawa krawędź leży na osi; <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> cofa to przesunięcie. Po zakończeniu nowa bryła zajmuje miejsce starej, z jej nazwą i kolorem, ze stopą na tej samej wysokości. Obróbki krawędzi przepadają, jak przy każdej zmianie szkicu.</p>
+<section class="guide-part"><h3 id="obracanie-szkicu"><span class="heading-alias" id="revolving"></span>Obracanie szkicu</h3>
+<p>Przy obracaniu rysujesz połowę przekroju <strong>po lewej stronie osi</strong> pokazanej w szkicu. Obok widzisz podgląd 3D obrotu. Od razu pokazuje, jak będzie wyglądać bryła. Możesz go obracać, przesuwać i przybliżać myszą. Mały przycisk w jego prawym górnym rogu albo dwuklik na nim przywraca pierwszy widok. Kontur musi być zamknięty, albo budujesz otwartą linię jako obrys, zobacz niżej. Na koniec kliknij <strong class="ui">„Zakończ obrót”</strong>. Pozostałe bryły projektu są pokazane od przodu, w tym samym widoku co profil, z osią pośrodku: rysuj profil obok nich lub nad nimi. Bryła stoi tam, gdzie ją narysowałeś, a pozioma linia przez środek szkicu to podłoże: profil nad nią daje bryłę stojącą wyżej, a jego najniższy punkt to stopa bryły. Aby uzyskać większy promień, odsuń profil dalej od osi, w razie potrzeby poza krawędź płyty: płyta rośnie razem ze szkicem, jej siatka dopasowuje się po puszczeniu, a przycisk minus oddala widok, aż całość się zmieści.</p>
+<p>Bryła obrotowa jest dokładną bryłą, tak jak wyciągnięta: przyjmuje fazki i zaokrąglenia i można ją wydrążyć, na kubek albo wazon. Bryła obrócona starszą wersją layerling jest siatką. Otwórz <strong class="ui">„Edytuj szkic”</strong> i zakończ szkic ponownie, aby stała się dokładna. Profil, który sięga za oś, nie da się zbudować dokładnie i staje się siatką, jak dawniej.</p>
+<p><strong>Gładsze okrągłe ściany: <strong class="ui">„Gładkość”</strong>.</strong> Dokładna bryła obrotowa jest dzielona na małe płaskie fasetki do widoku, eksportu i druku, a na dużej donicy mogą być widoczne na wydruku. Zaznacz bryłę i ustaw <strong class="ui">„Gładkość”</strong> w panelu właściwości na <strong class="ui">„Wysoka”</strong> lub <strong class="ui">„Bardzo wysoka”</strong>: okrągłe ściany są dzielone drobniej, kosztem większej liczby trójkątów i wolniejszego projektu. Helisa lub obrót z siatki ma do tego <strong class="ui">„Boki”</strong>.</p>
+<p><strong>Jedno ciągłe pasmo: <strong class="ui">„Skok”</strong>.</strong> Obrót zamienia kontur w zamknięte pierścienie. Zaznacz bryłę obrotową i ustaw jej w panelu właściwości <strong class="ui">„Skok”</strong> większy od 0, czyli o ile wznosi się na jeden obrót, a kontur nawinie się w linię śrubową: jedno ciągłe pasmo, jak filament na szpuli albo sprężyna. <strong class="ui">„Rozpiętość kąta”</strong> zmienia się wtedy w <strong class="ui">„Zwoje”</strong>, do 200; liczba ujemna nawija w lewo. Zwoje leżące gęściej, niż wynosi wysokość konturu, zlewają się w jedną bryłę, więc pełny rdzeń z drobnym skokiem też działa. Linia śrubowa jest budowana jako siatka, więc zaokrąglenie, fazka i wydrążanie na niej nie działają; przy wielu zwojach trzymaj <strong class="ui">„Boki”</strong> nisko. Skok 0 daje znowu pierścienie.</p>
+</section></section><section class="guide-part"><h2 id="szkic-po-krzywych"><span class="heading-alias" id="sweeping-along-a-path"></span>Szkic po krzywych</h2>
+<p><strong class="ui">„Szkic po krzywych”</strong> prowadzi kontur wzdłuż ścieżki: kanał kablowy, który skręca za róg, rurka, osłona wokół paska, pierścień wokół sześciokąta. Stoi obok przycisków <strong class="ui">„Wyciągnij szkic”</strong> i <strong class="ui">„Obróć szkic”</strong> w grupie <strong class="ui">„Utwórz”</strong>.</p>
+<p>Na tym samym arkuszu rysujesz dwie rzeczy:</p>
+<ul><li><strong>Przekrój</strong> jako zamknięty kontur, jak zwykle. Narysuj go tak, jak widziałbyś go, patrząc wzdłuż ścieżki od jej początku: w poprzek ścieżki to lewo i prawo szkicu, a góra to góra gotowej bryły. Pusty w środku przekrój, kanał albo rura, to kontur z drugim konturem w środku. Domyślnie przekrój jest wyśrodkowany na ścieżce. Menu obok plakietki trybu na górze pozwala zamiast tego położyć na ścieżce jego lewą albo prawą krawędź (<strong class="ui">„Na ścieżce: lewa krawędź”</strong>, <strong class="ui">„Na ścieżce: prawa krawędź”</strong>, patrząc wzdłuż ścieżki), żeby szyna leżała po jednej stronie linii albo podążała za krawędzią części. Bryła stoi na płaszczyźnie szkicu najniższym punktem przekroju.</li></ul>
+<ul><li><strong>Ścieżkę</strong> jako <strong class="ui">„Linia konstrukcyjna”</strong>: włącz ją i narysuj linie albo krzywe, jeden łańcuch, otwarty lub zamknięty (zamknięty łańcuch daje pierścień). Ścieżka leży płasko w płaszczyźnie szkicu.</li></ul>
+<p>Narysuj przekrój blisko tego końca ścieżki, od którego ma się zaczynać. Ścieżka zaczyna się od końca, który leży najbliżej przekroju. Potem kliknij <strong class="ui">„Zakończ szkic po krzywych”</strong>. Narożnik z prostych odcinków staje się ścięciem na ukos, krzywa zostaje gładka, a przekrój przez całą drogę stoi pionowo. Bryła jest dokładna, tak jak wyciągnięta: działają na niej zaokrąglenie, fazowanie i eksport STEP. Jeśli brakuje zamkniętego konturu albo ścieżki albo jest kilka oddzielnych ścieżek, layerling o tym informuje. Przez <strong class="ui">„Edytuj szkic”</strong> możesz wrócić do szkicu i zmienić przekrój albo ścieżkę.</p>
+</section><section class="guide-part"><h2 id="budowanie-jako-obrys"><span class="heading-alias" id="building-as-a-stroke"></span>Budowanie jako obrys</h2>
+<p>Zwykle bryłą staje się powierzchnia wewnątrz zamkniętego konturu. Przez <strong class="ui">„Obrys”</strong> w sekcji <strong class="ui">„Zakończ”</strong> budujesz zamiast tego samą linię, o ustawionej szerokości. Zaznacz <strong class="ui">„Buduj jako obrys”</strong> w oknie obrysu, a szkic od razu pokaże, co powstanie.</p>
+<ul><li><strong>Zamknięty kontur</strong> staje się ramką. <strong class="ui">„Położenie”</strong> mówi, gdzie leży ścianka: <strong class="ui">„Na środku”</strong> na narysowanej linii, <strong class="ui">„Do wewnątrz”</strong> wewnątrz niej albo <strong class="ui">„Na zewnątrz”</strong> poza nią. Na zewnątrz przydaje się do tolerancji: narysuj kontur otworu, na przykład jaskółczego ogona, i daj mu obrys 0,2 mm na zewnątrz, aby uzyskać szczelinę potrzebną na wydruku.</li><li><strong>Otwarta linia</strong> staje się paskiem, wyśrodkowanym na linii. <strong class="ui">„Końce”</strong> ustawia wygląd jej końców: <strong class="ui">„Płaskie”</strong>, <strong class="ui">„Kwadratowe”</strong> (dłuższe o połowę szerokości) albo <strong class="ui">„Zaokrąglone”</strong>.</li><li><strong class="ui">„Narożniki”</strong> dotyczy obu: <strong class="ui">„Ostre”</strong>, <strong class="ui">„Zaokrąglone”</strong> albo <strong class="ui">„Ścięte”</strong>.</li></ul>
+<p>Szkic zachowuje narysowaną linię. Otwórz go ponownie, a dalej będziesz zmieniać linię i obrys. Odznacz pole, a znów zostanie zbudowana powierzchnia. Krzywe są do tego dzielone na krótkie proste odcinki.</p>
+<p>W obrocie obrys to cienka ścianka: narysuj ściankę wazonu albo kubka jako <strong>jedną otwartą linię</strong> po lewej stronie osi, zaznacz <strong class="ui">„Obrys”</strong> i ustaw szerokość, a obrót obróci ten pasek. To, co sięga za oś, zostaje na niej obcięte.</p>
+</section><section class="guide-part"><h2 id="wypelnienie-i-sylwetka"><span class="heading-alias" id="fill-and-silhouette"></span>Wypełnienie i sylwetka</h2>
+<p>Obrys możesz też ustawić bez otwierania szkicu: we właściwościach bryły ze szkicu wybierz w <strong class="ui">„Wypełnienie”</strong> <strong class="ui">„Powierzchnia”</strong>, <strong class="ui">„Obrys na zewnątrz”</strong>, <strong class="ui">„Obrys do wewnątrz”</strong> albo <strong class="ui">„Obrys na środku”</strong>, razem z <strong class="ui">„Szerokość linii”</strong> i <strong class="ui">„Narożniki”</strong>. Bryła jest od razu budowana ponownie tam, gdzie stoi. Odpowiada to trybom wypełnienia przy imporcie SVG w Tinkercadzie: domyślnemu, linii zewnętrznej i linii wewnętrznej. <strong class="ui">„Szerszy”</strong> zostawia powierzchnię wypełnioną i poszerza ją dookoła o szerokość linii, z ostrymi, zaokrąglonymi albo ściętymi narożnikami: to warstwa bazowa pod logo do druku wielokolorowego, którą sam obrys na zewnątrz dałby tylko jako pierścień. <strong class="ui">„Węższy”</strong> działa odwrotnie: powierzchnia zostaje wypełniona, a jej krawędź przesuwa się dookoła do środka o szerokość linii, także w otworach (które rosną). Użyj obu na kopiach jednego szkicu do pasowania: otwór w narysowanym rozmiarze, a część, która przez niego przechodzi, <strong class="ui">„Węższy”</strong> o 0,5 mm, albo ścianka wewnątrz kształtu wycięta z tego samego konturu. Szerokość większa, niż pozwala kontur, nie zostawia nic. W oknie obrysu szkicu te same dwie opcje są w <strong class="ui">„Położenie”</strong>. Przy linii na zewnątrz, do wewnątrz albo na środku <strong class="ui">„Ostrze”</strong> robi ściankę ostrą u góry: jej góra zwęża się do tej szerokości ze skosem 45° po obu stronach, jak w foremce do ciastek. 0 zostawia płaską górę. Ostrze zostaje, gdy zmienisz szerokość linii.</p>
+<p><strong class="ui">„Sylwetka (bez otworów)”</strong> pomija każdy kontur leżący wewnątrz innego: otwory i wszystko, co w nich leży. Zostaje tylko kontur zewnętrzny. Razem z <strong class="ui">„Obrys na zewnątrz”</strong> daje to foremkę do ciastek: zaimportuj SVG dwa razy, raz z sylwetką jako powierzchnią na podstawę, a raz z sylwetką i obrysem 1 do 2 mm na zewnątrz jako ściankę. Przełącznik jest też w oknie <strong class="ui">„Obrys”</strong> w trybie szkicu.</p>
+<p>Zaokrąglenia i fazki na krawędziach znikają, gdy bryła jest budowana ponownie, tak jak przy edycji szkicu.</p>
+</section><section class="guide-part"><h2 id="skosne-scianki-do-stempli"><span class="heading-alias" id="slanted-walls-for-stamps"></span>Skośne ścianki do stempli</h2>
+<p>Wyciągnięty szkic ma pionowe ścianki. Stempel, matryca do tłoczenia albo wykrojnik potrzebuje skośnych, na zewnątrz i wewnątrz, z tą samą grubością ścianki na całej wysokości. layerling nie ma kąta pochylenia dla wyciągnięcia, ale dla prostych konturów da się to osiągnąć przez <strong class="ui">„Zwężenie”</strong>. Jeden sposób, który działa:</p>
+<ol><li>Narysuj kontur z potrzebnym otworem i zrób z niego bryłę. Zduplikuj bryłę (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span>).</li><li>Na pierwszej bryle włącz <strong class="ui">„Sylwetka (bez otworów)”</strong>, żeby otwór został wypełniony, i nadaj jej przez <strong class="ui">„Zwężenie”</strong> szerszy dół niż górę.</li><li>Na kopii otwórz ponownie jej szkic i usuń kontur zewnętrzny, żeby został tylko kontur otworu. Zakończ szkic, przełącz bryłę na <strong class="ui">„Otwór”</strong> i nadaj jej przez <strong class="ui">„Zwężenie”</strong> węższy dół niż górę.</li><li>Przesuń otwór do pierwszej bryły, tam, gdzie był otwór, i zgrupuj obie.</li></ol>
+<p>Ścianki są teraz skośne na zewnątrz i wewnątrz. Zwężenie skaluje cały kontur, więc dla prostych kształtów, gdzie możesz dobrać rozmiary tak, żeby ścianki biegły równolegle, jest to dokładne, a dla drobnych szczegółów, takich jak napisy, tylko przybliżone.</p>
+</section><section class="guide-part"><h2 id="obraz-jako-wzorzec"><span class="heading-alias" id="a-picture-as-template"></span>Obraz jako wzorzec</h2>
+<p>Przez <strong class="ui">„Dodaj obraz”</strong> podkładasz pod szkic zdjęcie albo rysunek i obrysowujesz go, w dowolnej chwili, także przed pierwszą linią. Możesz ustawić jego rozmiar, przezroczystość i położenie. Gdy obraz leży dobrze, zablokuj go skrótem <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span>, żeby przypadkiem go nie przesunąć podczas rysowania. Zablokowany obraz nie przeszkadza: kliknięcia przechodzą przez niego, więc możesz wybierać linie i punkty na nim i przeciągać nad nimi ramkę. Kliknięcie kłódki w jego narożniku odblokowuje go; kliknięcie z <kbd>Alt</kbd> zaznacza go bez odblokowania. Jeśli jego ustawienia przy prawej krawędzi zasłaniają obraz, odsuń je za pasek tytułu. Dwukrotne kliknięcie paska je dokuje.</p>
+<p>W <strong class="ui">„Wyrównaj”</strong> wyrównujesz zdjęcie, które nie zostało zrobione na wprost:</p>
+<ul><li><strong><strong class="ui">„Obrót”</strong>:</strong> obróć obraz wokół jego środka zakrzywionymi strzałkami przy jego narożnikach albo liczbą w stopniach. Z <kbd>Shift</kbd> strzałki przyciągają się co 15°. Wewnątrz pierścienia, który pojawia się podczas obracania, przyciągają się co 22,5°, na zewnątrz o pełne stopnie.</li><li><strong><strong class="ui">„Do X = 0”</strong></strong> i <strong><strong class="ui">„Do Y = 0”</strong>:</strong> ustawiają środek obrazu na X = 0 albo Y = 0. Przy obracaniu X = 0 to oś, więc obraz leży wtedy symetrycznie względem niej.</li><li><strong><strong class="ui">„Kalibruj”</strong>:</strong> przycisk jest na górze, tuż pod podglądem; kliknij dwa punkty na obrazie, których odległość znasz, końce linijki albo znaną średnicę, i wpisz rzeczywistą odległość. Obraz zostaje równomiernie przeskalowany tak, żeby ta odległość się zgadzała. Pierwszy punkt zostaje na miejscu.</li><li><strong><strong class="ui">„Przytnij”</strong>:</strong> uchwyty na ramce przycinają teraz obraz zamiast go skalować. To, co odcięte, zostaje zachowane i wraca przez <strong class="ui">„Pokaż cały obraz”</strong> albo gdy uchwyt zostanie wyciągnięty z powrotem.</li></ul>
+<p>Wszystkie cztery dotyczą tylko wzorca, nigdy szkicu.</p>
+<p><strong><strong class="ui">„Obrysuj”</strong></strong> w ustawieniach obrazu stawia punkty za ciebie: obrysowuje kontur kształtu na obrazie (sylwetkę, logo, słowo) i pokazuje go na czerwono na obrazie, kwadratowe punkty dla narożników, okrągłe dla punktów gładkich. <strong class="ui">„Ciemny kształt”</strong> lub <strong class="ui">„Jasny kształt”</strong> wybiera, która część obrazu jest kształtem, <strong class="ui">„Próg”</strong>, gdzie ciemne przechodzi w jasne, <strong class="ui">„Punkty”</strong>, ile punktów dostają razem kontury (mniej daje gładsze krzywe, więcej dokładniej trzyma się obrazu), <strong class="ui">„Narożnik od”</strong>, od jakiego zakrętu punkt jest narożnikiem, <strong class="ui">„Pomiń drobinki do”</strong>, jak małe drobinki są pomijane, a <strong class="ui">„Zachowaj otwory”</strong> zachowuje środek litery A lub O. <strong class="ui">„Zastosuj”</strong> wstawia kontury do szkicu dokładnie tam, gdzie leży obraz, w jego rozmiarze, obrocie i przycięciu, i je zaznacza: to zwykłe punkty do przesuwania, wyginania lub usuwania, a <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> cofa je w jednym kroku. Najlepiej działa przy wyraźnym kontraście; zdjęcie z pstrokatym tłem najpierw wytnij. To, co odpada (wokół konturów, w otworach, to, co odcięte), podgląd zakrywa kolorem płyty, więc z obrazu widać tylko to, co zostaje. Kontury leżące tak blisko, że luźne krzywe by się przecięły, same dostają więcej punktów; karta to mówi. Aby uzyskać brzeg na zewnątrz lub wewnątrz konturu, nadaj bryle szkicu obrys na zewnątrz lub wewnątrz jej linii albo odsuń gotową bryłę.</p>
+<p>Do zdjęcia, na przykład zabawki na białym stole, wybierz <strong><strong class="ui">„Obiekt”</strong></strong> w <strong class="ui">„Kształt”</strong>: tło to kolor przy krawędzi obrazu, a wszystko, co się od niego odróżnia, staje się jednym konturem, niezależnie od kolorów; <strong class="ui">„Próg”</strong> ustala wtedy, jak wyraźnie musi się odróżniać. Kolorowy obraz na jednolitym tle zaczyna w ten sposób. <strong class="ui">„Wybierz obszary”</strong> obrysowuje więcej: kliknij obszar na obrazie, na przykład okno, a plama podobnego koloru wokół tego miejsca zostanie obrysowana (<strong class="ui">„Tolerancja koloru”</strong> ustala, jak podobnego). Otwory i kliknięte obszary są wymienione w <strong class="ui">„Otwory i obszary”</strong>; wskazanie jednego pokazuje go w podglądzie, ✕ go usuwa, a przy wyłączonym <strong class="ui">„Wytnij”</strong> jest rysowany jako linia konstrukcyjna zamiast otworu. Obszar sięgający krawędzi obrazu to tło i nie jest brany. To, czego żaden próg ani kolor nie odróżni, na przykład cień tak ciemny jak koła nad nim, usuwa <strong class="ui">„Odetnij”</strong>: klikaj narożniki wokół niego (kliknięcie pierwszego narożnika, dwuklik lub <kbd>Enter</kbd> zamyka), a kontur biegnie wzdłuż cięcia; na liście jest jako „Cięcie 1”.</p>
+<p>Drzewo obok domu, postać na pstrokatym tle: tam, gdzie żaden kolor nie odróżnia kształtu od reszty, łapie go <strong><strong class="ui">„Lasso magnetyczne”</strong></strong>: klikaj z grubsza wzdłuż jego krawędzi, a między dwoma kliknięciami linia sama podąża za krawędzią, także na zakrętach; gdy ruszasz wskaźnikiem, podgląd już pokazuje, którędy pobiegnie. Kliknięcie pierwszego punktu, dwuklik lub <kbd>Enter</kbd> zamyka, <kbd>Esc</kbd> odrzuca. Na liście jest jako „Lasso 1”, z wyborem <strong class="ui">„Dodaj”</strong> (obszar dołącza do kształtu) lub <strong class="ui">„Odetnij”</strong> (jest usuwany); każde cięcie ma ten sam wybór. W <strong class="ui">„Kształt”</strong> <strong><strong class="ui">„Tylko lasso”</strong></strong> robi kształt tylko z tego, co tak złapiesz, i nic więcej z obrazu.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/trace-house.webp" alt="Narysowany dom obrysowany jako obiekt, z progiem obniżonym dla jego jasnej ściany: lasso magnetyczne odcięło drzewo, a osiem szyb okiennych jest wybranych jako otwory." width="1280" height="800" loading="lazy"><figcaption>Narysowany dom obrysowany jako obiekt, z progiem obniżonym dla jego jasnej ściany: lasso magnetyczne odcięło drzewo, a osiem szyb okiennych jest wybranych jako otwory.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/trace-house-body.webp" alt="Dom jako bryła: bez drzewa, z wyciętymi oknami." width="1280" height="800" loading="lazy"><figcaption>Dom jako bryła: bez drzewa, z wyciętymi oknami.</figcaption></figure>
+</section><section class="guide-part"><h2 id="klawisze-w-trybie-szkicu"><span class="heading-alias" id="keys-in-sketch-mode"></span>Klawisze w trybie szkicu</h2>
+<div class="table-scroll"><table><thead><tr><th>Klawisz</th><th>Działanie</th></tr></thead><tbody><tr><td><kbd>Esc</kbd></td><td>odkłada narzędzie notatki; w przeciwnym razie odkłada narzędzie (powrót do <strong class="ui">„Zaznacz”</strong>), potem czyści zaznaczenie</td></tr><tr><td><kbd>Delete</kbd></td><td>usuwa zaznaczony element</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>C</kbd></span></td><td>kopiuje zaznaczenie</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span></td><td>wycina zaznaczenie</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>V</kbd></span></td><td>wkleja</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span></td><td>duplikuje zaznaczenie</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span></td><td>cofa</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span></td><td>zaznacza wszystkie punkty i linie</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>I</kbd></span></td><td><strong class="ui">„Dodaj obraz”</strong></td></tr><tr><td><kbd>Shift</kbd></td><td>podczas rysowania: przyciąga linię co 15°, podczas przeciągania: utrzymuje ruch na jednej osi</td></tr><tr><td>cyfra, <kbd>&lt;</kbd>, <kbd>Tab</kbd>, <kbd>Enter</kbd></td><td>podczas rysowania: wpisuje i ustawia długość i kąt następnej linii</td></tr><tr><td><kbd>R</kbd></td><td>obraca zamknięty szkic o 45°</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span></td><td>blokuje lub odblokowuje zaznaczony kontur albo obraz wzorcowy</td></tr><tr><td><kbd>N</kbd></td><td>umieszcza notatkę: następne kliknięcie stawia ją na szkicu</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span></td><td>pokazuje albo ukrywa notatki</td></tr></tbody></table></div>
+<aside class="tip"><p><strong>Wskazówka:</strong> rysuj tylko tyle punktów, ile trzeba. Kontur z kilku dobrze postawionych punktów daje gładszą bryłę niż plątanina wielu.</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/instrukcja/edges-and-hollowing.html"><small>Poprzedni rozdział</small>Łamanie krawędzi i drążenie brył</a><a class="next" href="/api/desktop/layerling/ui/instrukcja/text.html"><small>Następny rozdział</small>Tekst i napisy na łuku</a></div>
+      </main>
+    </div>
+    <footer class="note">Ta instrukcja rośnie razem z programem. Jeśli czegoś brakuje albo coś się nie zgadza, napisz w <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">dyskusjach</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=pl" rel="noopener">Wesprzyj projekt</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Dyskusje</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Więcej na GitHubie</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Informacje o wersji v1.154.1</a></div><p class="trademark">Tinkercad jest znakiem towarowym firmy Autodesk, Inc. layerling jest niezależnym projektem i nie jest powiązany z firmą Autodesk, ani przez nią wspierany czy sponsorowany.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Wróć do edytora";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Otwórz edytor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

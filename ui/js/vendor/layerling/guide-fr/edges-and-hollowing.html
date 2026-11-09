@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Casser les bords et creuser les corps - Manuel d'utilisation layerling</title>
+    <meta name="description" content="Chanfrein et congé sur bords choisis, parois d'égale épaisseur pour boîtes, coupelles et étuis.">
+    <link rel="canonical" href="https://layerling.com/guide-fr/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/kanten-und-aushoehlen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/randen-en-uithollen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/robovi-in-izdolbljenje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/edges-and-hollowing.html">
+    <meta property="og:title" content="Casser les bords et creuser les corps - Manuel d'utilisation layerling">
+    <meta property="og:description" content="Chanfrein et congé sur bords choisis, parois d'égale épaisseur pour boîtes, coupelles et étuis.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/guide-fr/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Manuel d'utilisation</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/guide-fr/search-index.json" data-nothing="Aucun résultat trouvé." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Rechercher dans le manuel" aria-label="Rechercher dans le manuel" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Langue">Français</summary><ul><li><a href="/api/desktop/layerling/ui/guide/edges-and-hollowing.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/edges-and-hollowing.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/edges-and-hollowing.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/edges-and-hollowing.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/edges-and-hollowing.html" hreflang="fr" lang="fr" aria-current="true">Français</a></li><li><a href="/api/desktop/layerling/ui/it/edges-and-hollowing.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/edges-and-hollowing.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/randen-en-uithollen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/edges-and-hollowing.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/edges-and-hollowing.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/edges-and-hollowing.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/robovi-in-izdolbljenje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/edges-and-hollowing.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/edges-and-hollowing.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/edges-and-hollowing.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/edges-and-hollowing.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/edges-and-hollowing.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/edges-and-hollowing.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Ouvrir l'éditeur</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>L'éditeur est déjà ouvert dans un autre onglet - basculez simplement vers lui.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Chapitres"><h2>Chapitres</h2><p class="print-link"><a href="/api/desktop/layerling/ui/guide-fr/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Guide complet, à imprimer</span></a></p><ol><li><a href="/api/desktop/layerling/ui/guide-fr/getting-started.html">Premiers pas</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/view-and-workplane.html">Vue et plan de travail</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/shapes.html">Placer et ajuster les formes</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/select-and-arrange.html">Choisir et organiser</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/solids-and-holes.html">Solides et trous</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/edges-and-hollowing.html" aria-current="page">Casser les bords et creuser les corps</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/sketches.html">Esquisses : du contour au corps</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/text.html">Texte et lettres courbes</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/threads-and-mechanics.html">Filetages, engrenages et autres pièces</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/measuring-and-notes.html">Mesures et notes</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/printing.html">Préparation à l'impression 3D</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/files-and-saving.html">Fichiers, sauvegarde et partage</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/shortcuts.html">Raccourcis clavier</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/ai-with-mcp.html">Construire avec une IA (MCP)</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/offline-and-install.html">Installation en tant qu'application, travail hors ligne et auto-hébergement</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/videos.html">Vidéos sur layerling</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/tablet-and-touch.html">Tablette et tactile</a></li></ol></nav>
+      <main>
+<h1>Casser les bords et creuser les corps</h1>
+<p class="lead">Chanfrein et congé sur bords choisis, parois d'égale épaisseur pour boîtes, coupelles et étuis.</p>
+<div class="toc"><b>Sur cette page</b><ul><li><a href="#chanfreinage-et-conges-des-bords">Chanfreinage et congés des bords</a></li><li><a href="#corps-creux">Corps creux</a></li><li><a href="#un-couvercle-pour-un-corps-ouvert">Un couvercle pour un corps ouvert</a></li><li><a href="#un-passage-de-cable-a-travers-un-corps">Un passage de câble à travers un corps</a></li><li><a href="#decaler-des-corps">Décaler des corps</a></li><li><a href="#supprimer-des-faces">Supprimer des faces</a></li></ul></div>
+<section class="guide-part"><h2 id="chanfreinage-et-conges-des-bords"><span class="heading-alias" id="chamfering-and-filleting-edges"></span>Chanfreinage et congés des bords</h2>
+<p>Les arêtes vives sont rarement belles sur une pièce imprimée, et elles ne sont pas non plus particulièrement résistantes. Un <strong>chanfrein</strong> coupe le bord en biais, un <strong>congé</strong> l'arrondit. Les deux agissent sur les bords sur lesquels vous cliquez.</p>
+<ol><li>Sélectionnez le corps (ou le groupe).</li><li>Cliquez sur <strong class="ui">« Congé »</strong> ou <strong class="ui">« Chanfrein »</strong> dans le ruban, appuyez sur <kbd>B</kbd> pour le congé ou sur <span dir="ltr"><kbd>Shift</kbd>+<kbd>B</kbd></span> pour le chanfrein, ou cliquez avec le bouton droit sur le corps et sélectionnez-le dans le menu.</li><li>Les bords du corps s'illuminent. Cliquez sur ceux qui devraient être concernés. Un autre clic retire à nouveau un avantage. Avec <kbd>Shift</kbd>, vous ajoutez ou supprimez une seule arête.</li><li>Définissez la taille et confirmez avec <strong class="ui">« Appliquer »</strong> ou <kbd>Enter</kbd>. Ensuite la fenêtre reste ouverte sur le nouveau corps avec la même taille, de sorte que l'arrondi ou le chanfrein suivant peut suivre aussitôt ; <strong class="ui">« Terminé »</strong>, <kbd>Échap</kbd> ou la croix la ferme. Avec <kbd>Maj</kbd> ou <kbd>Ctrl</kbd>, un clic sur <strong class="ui">« Bords supérieurs »</strong>, <strong class="ui">« Bords inférieurs »</strong>, <strong class="ui">« Bords verticaux »</strong> ou <strong class="ui">« Arêtes horizontales »</strong> ajoute ces arêtes à celles choisies au lieu de les remplacer.</li></ol>
+<figure><img src="/api/desktop/layerling/ui/guide/img/fillet-preview.webp" alt="L'outil &quot;Congé arêtes&quot; : toutes les arêtes vives sont sélectionnées, l'image montre l'aperçu avec un rayon de 4 mm." width="1280" height="800" loading="lazy"><figcaption>L'outil &quot;Congé arêtes&quot; : toutes les arêtes vives sont sélectionnées, l'image montre l'aperçu avec un rayon de 4 mm.</figcaption></figure>
+<p>La fenêtre d'outil se trouve en haut à droite. S'il recouvre les bords sur lesquels vous souhaitez cliquer, faites-le glisser par sa barre de titre ; il s'y ouvrira également la prochaine fois, tout comme <strong class="ui">« Creux »</strong> et <strong class="ui">« Modèle »</strong>. Double-cliquez sur la barre de titre pour la remettre.</p>
+<p>Choisir une forme dans la liste des formes alors que la fenêtre d'outil est ouverte la ferme sans rien appliquer et les bords sur lesquels vous avez cliqué sont oubliés. Le clic place ensuite la nouvelle forme au lieu de sélectionner les bords.</p>
+<p>Dans la fenêtre d'outil vous trouvez :</p>
+<ul><li><strong class="ui">« Tous les bords tranchants »</strong> sélectionne chaque arête à la fois, <strong class="ui">« Effacer »</strong> vide la sélection.</li><li><strong><strong class="ui">« Rayon »</strong></strong> pour le congé. Pour le chanfrein, vous définissez <strong class="ui">« Distance »</strong> ou <strong class="ui">« Angle »</strong>.</li><li><strong class="ui">« Rayon variable »</strong> (congé seulement) fait varier le rayon le long d'une arête : petit à un bout, plus grand à l'autre, régulièrement entre les deux, comme là où une paroi droite rencontre une paroi inclinée. Cliquez sur une seule arête, puis réglez <strong class="ui">« Rayon au début »</strong> et <strong class="ui">« Rayon à la fin »</strong>. Le bout qui compte comme début découle de la façon dont l'arête a été construite ; si le plus grand rayon arrive au mauvais bout, <strong class="ui">« Inverser les extrémités »</strong> l'inverse. Cela fonctionne sur une arête à la fois, arrondissez donc plusieurs arêtes l'une après l'autre. <strong class="ui">« Modifier »</strong> ramène les deux valeurs.</li><li><strong class="ui">« Concave (évider) »</strong> (congé seulement) retourne le congé : au lieu d'arrondir l'arête, il y creuse une gorge en quart de cercle, comme les coins entaillés d'une boîte. La gorge est un cylindre du <strong class="ui">« Rayon »</strong> choisi couché le long de l'arête, elle fonctionne donc pour n'importe quel angle entre les faces, mais seulement sur des arêtes droites, et pas avec <strong class="ui">« Rayon variable »</strong>. <strong class="ui">« Modifier »</strong> la ramène.</li><li><strong class="ui">« Seuil à arête vive »</strong> décide quels bords sont considérés comme nets. Une valeur de 25° traite uniquement les plis nets comme des bords et laisse les transitions plates seules.</li><li><strong class="ui">« Bords supérieurs »</strong> sélectionne uniquement les bords tout en haut du corps. C'est la méthode rapide pour un emporte-pièce : tracez le contour d'une esquisse sous forme d'un trait, puis chanfreinez les bords supérieurs. <strong class="ui">« Angle »</strong> définit la pente du chanfrein ; il ne peut pas aller plus loin que l'épaisseur du mur.</li><li><strong class="ui">« Bords inférieurs »</strong> ne sélectionne que les bords tout en bas du corps, le pendant de <strong class="ui">« Bords supérieurs »</strong>. C'est le moyen rapide d'arrondir ou de chanfreiner seulement le pied d'une pièce.</li><li><strong class="ui">« Chanfrein-congé »</strong>, choisi en haut de la fenêtre du chanfrein à côté de <strong class="ui">« Chanfrein »</strong>, crée le pied imprimable d'une pièce : un chanfrein sur le plateau qui se fond tangentiellement dans un congé vers la paroi, de sorte que les premières couches n'ont pas besoin de support et que le bord finit tout de même en douceur. <strong class="ui">« Distance »</strong> est la hauteur que prend le pied, <strong class="ui">« Angle »</strong> (15° à 75°) la pente du chanfrein au plateau. Choisissez les bords avec <strong class="ui">« Bords inférieurs »</strong>.</li><li><strong class="ui">« Seuls les bords visibles »</strong> masque les bords qui se trouvent derrière le corps d'où vous regardez. Par défaut, chaque bord apparaît à travers le corps, ce qui prête à confusion sur une partie occupée ; avec l'interrupteur allumé, vous voyez et pouvez cliquer uniquement les bords face à vous. Tournez la vue pour atteindre les autres. Un bord dessiné en rouge (voir ci-dessous) apparaît toujours.</li><li><strong class="ui">« Un clic sélectionne également les bords qui continuent en douceur »</strong> : un clic sélectionne alors également les arêtes qui s'enchaînent doucement les unes dans les autres, par exemple toutes les arêtes autour d'une face aux coins arrondis. Le commutateur décide uniquement ce qu'un clic sélectionne : le noyau de CAO comporte toujours un chanfrein ou un congé le long de ces bords continus et fluides. La fenêtre vous indique le nombre d'arêtes supplémentaires qui se produisent.</li><li><strong class="ui">« Conserver la taille des bords lors du redimensionnement »</strong> conserve le chanfrein ou le congé aussi grand qu'il est, même si vous mettez le corps à l'échelle ultérieurement.</li><li><strong class="ui">« Qualité de l'aperçu »</strong> (<strong class="ui">« Brouillon »</strong>, <strong class="ui">« Norme »</strong> ou <strong class="ui">« Très bien »</strong>) décide de la précision avec laquelle l'aperçu est calculé. Pour les pièces difficiles, <strong class="ui">« Brouillon »</strong> est plus rapide.</li><li>La fenêtre garde ses réglages dans ce navigateur, un jeu pour le chanfrein, un pour le congé et un pour le chanfrein avec congé : taille, angle, seuil, qualité de l'aperçu et interrupteurs restent comme vous les avez laissés après <strong class="ui">« Appliquer »</strong>, après une annulation et à la prochaine ouverture de l'outil. Une taille que le corps ne peut pas prendre cède la place à celle calculée d'après le corps. Seul <strong class="ui">« Un clic sélectionne également les bords qui continuent en douceur »</strong> repart de zéro : activé pour le premier chanfrein ou congé d'un corps, désactivé ensuite.</li></ul>
+<p>Pendant que vous ajustez la taille, layerling recalcule l'aperçu. Cela peut prendre un moment. Vous pouvez continuer à vous adapter ; la dernière valeur que vous avez choisie est celle qui est calculée.</p>
+<p>Si la taille est trop grande pour le bord, layerling l'indique et suggère une valeur plus petite. Souvent, un ou deux millimètres de moins suffisent. Aux angles vifs, un congé a besoin de plus d’espace que son rayon ne le suggère. Sur un petit écran, la fenêtre défile toute seule pour que le message soit visible.</p>
+<p>Lorsqu'une sélection qui a fonctionné échoue après avoir cliqué sur un bord supplémentaire, ce bord devient rouge et s'élargit : c'est celui qui ne peut pas être traité avec les autres à cette taille. Cliquez à nouveau dessus pour le retirer ou réduisez la taille. Si vous cliquez sur plusieurs bords pendant que le message est affiché, le premier reste rouge. Lorsqu'aucune sélection antérieure n'a fonctionné - au tout premier clic ou à une taille que vous venez d'augmenter - les bords qui échouent même d'eux-mêmes deviennent rouges, ou tous s'il ne s'agit que de leur combinaison. Et là où les arêtes choisies se rejoignent en un coin intérieur pointu, comme deux disques d'un nuage, un congé n'a de place à aucune taille : layerling arrondit alors d'abord ces coins, à la même taille ou à une plus petite, et le message dit combien et de combien (un chanfrein les chanfreine).</p>
+<p>Un congé le long d'un bord courbe a encore une limite. Là où le bord tourne vers l'extérieur du corps plus serré que le rayon, comme à la pointe d'une goutte dessinée dans une esquisse ou importée en SVG, l'arrondi ne peut pas suivre le virage. layerling indique alors le rayon du virage le plus serré et dessine en rouge les bords qui l'ont. Choisissez un rayon plus petit ou dessinez le virage plus arrondi. Un coin vif n'est pas un tel virage : deux bords s'y rencontrent, et chacun est arrondi séparément. Arrondissez donc les bords du dessus avant d'arrondir un coin avec un petit rayon : le coin arrondi serait un virage serré pour le dessus.</p>
+<p>Avant d'abandonner, layerling essaie encore une fois en ajoutant les bords courts aux extrémités de ceux choisis, jusqu'à deux fois la taille. On en trouve là où un chanfrein précédent se termine sur une paroi encore vive : un court bord oblique dans le coin, et le coin ne peut pas être traité tant qu'il reste vif. Si cela aide, ces bords sont ensuite choisis aussi, et un message indique combien ont été ajoutés.</p>
+<p>Le bord sous le pointeur est également plus large, afin que vous puissiez voir lequel un clic sélectionnera.</p>
+<p>Un perçage accepte aussi <strong class="ui">« Chanfrein »</strong> et <strong class="ui">« Congé »</strong>, de même que <strong class="ui">« Creux »</strong>, <strong class="ui">« Décalage »</strong> et <strong class="ui">« Supprimer une face »</strong> : il reste un perçage et découpe avec sa nouvelle forme. Arrondir les quatre arêtes verticales d'un perçage en boîte donne une poche aux coins intérieurs arrondis, et un perçage agrandi avec <strong class="ui">« Décalage »</strong> découpe avec autant de jeu en plus. Pour casser l'arête là où un perçage rencontre la pièce, traitez plutôt le groupe terminé : cette arête lui appartient.</p>
+<section class="guide-part"><h3 id="reprendre-un-traitement-de-pointe"><span class="heading-alias" id="taking-an-edge-treatment-back"></span>Reprendre un traitement de pointe</h3>
+<p>Un corps traité peut toujours être traité à nouveau. Sélectionnez-le à nouveau et ouvrez l'outil - Congé, Chanfrein ou Creux, chacun affiche la liste : sous <strong class="ui">« Annuler une entité de bord »</strong> vous voyez ce qu'il y a déjà dessus. <strong class="ui">« Annuler »</strong> reprend un seul traitement. Remarque : si des traitements plus récents se trouvent au-dessus, ils vont avec et la fenêtre vous indique combien.</p>
+<p>A côté d'un chanfrein, d'un congé ou d'un évidement, il y a aussi <strong class="ui">« Modifier »</strong>. Il reprend le traitement de la même manière, mais ouvre à nouveau l'outil immédiatement avec les mêmes bords et l'ancienne valeur. Vous modifiez la valeur et l'appliquez à nouveau : un congé de 3 mm devient un congé de 5 mm sans cliquer à nouveau sur les bords. Si des traitements plus récents se trouvent au-dessus, ils l’accompagnent également ici. Cela vaut pour les traitements de bords que vous effectuerez désormais ; les plus âgés proposent uniquement la reprise, tout comme les parties individuelles d'un groupe.</p>
+<p>Sur un groupe, par exemple un cylindre percé d'un trou, le bord traité appartient au corps fini et non à l'une de ses parties. Le groupe devient donc un seul corps. <strong class="ui">« Dissocier »</strong> fonctionne quand même : il reprend d'abord les traitements des arêtes, puis dissocie le groupe, en une seule étape que <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> annule. Reprenez le traitement comme décrit ci-dessus et le groupe revient avec toutes ses parties. Le moyen le plus simple consiste à traiter les bords en dernier. Cela vaut également pour les filetages : l'outil de bord prend un filetage comme corps exact, de sorte qu'un bloc avec un trou taraudé obtient ses bords arrondis avec le filetage en place. L'élaboration des bords d'un filetage prend plus de temps que pour une forme simple, quelques secondes pour un filetage M6 et environ une demi-minute pour un filetage de tuyau G1/2.</p>
+<aside class="tip"><p><strong>Bon à savoir :</strong> layerling fonctionne avec une véritable géométrie CAO pour les congés et les chanfreins, et pas seulement avec un maillage triangulaire. C'est pourquoi un bord arrondi reste un bord arrondi dans l'exportation STEP.</p></aside>
+<p>Une pièce importée en STEP conserve également sa géométrie CAO : chanfreins, congés et travaux d'évidement sur le corps à partir du fichier, quelle que soit la finesse avec laquelle la pièce est dessinée à l'écran. STL, OBJ et 3MF n'apportent que des triangles, et une pièce finement dessinée peut être trop dense pour l'outil de bord. Si une pièce est également disponible en STEP, importez-la. <strong class="ui">« Rendre exact »</strong> transforme d'abord une telle pièce en corps exact avec de vrais plans et cylindres, voir <a href="/api/desktop/layerling/ui/guide-fr/files-and-saving.html">Fichiers, sauvegarde et partage</a>, &quot;Rendre exact un maillage importé&quot;.</p>
+</section></section><section class="guide-part"><h2 id="corps-creux"><span class="heading-alias" id="hollowing-bodies"></span>Corps creux</h2>
+<p>Boîtes, tasses, étuis et couvercles ont un point commun : ils sont vides à l'intérieur, avec des parois d'égale épaisseur. C'est exactement ce que fait <strong class="ui">« Creux »</strong>.</p>
+<ol><li>Sélectionnez le corps et cliquez sur <strong class="ui">« Creux »</strong>, ou cliquez avec le bouton droit sur le corps et sélectionnez-le dans le menu.</li><li>Définissez <strong class="ui">« Épaisseur de paroi »</strong>.</li><li>Sous <strong class="ui">« Côtés ouverts »</strong>, activez les côtés qui restent ouverts : <strong class="ui">« Haut »</strong>, <strong class="ui">« En bas »</strong>, <strong class="ui">« Avant »</strong>, <strong class="ui">« Retour »</strong>, <strong class="ui">« Gauche »</strong> ou <strong class="ui">« À droite »</strong>, autant que vous le souhaitez - <strong class="ui">« Avant »</strong> fait à lui seul un emplacement pour un tiroir, <strong class="ui">« Gauche »</strong> et <strong class="ui">« À droite »</strong> un tunnel. Sans aucun côté allumé, le corps reste fermé sur tout son pourtour, avec une cavité au milieu. <strong class="ui">« Fermé (cavité intérieure) »</strong> désactive tous les côtés en un clic. <strong class="ui">« Haut »</strong> est déjà activé à l'ouverture de la fenêtre ; un clic dessus referme le dessus. Un corps fermé de tous côtés semble inchangé de l'extérieur : la vue en coupe montre la cavité.</li><li>Décidez si <strong class="ui">« Bords intérieurs »</strong> doit être <strong class="ui">« Arrondi »</strong> ou <strong class="ui">« Pointu »</strong>.</li><li>Cliquez sur <strong class="ui">« Creux »</strong>.</li></ol>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-panel.webp" alt="La fenêtre Creuser avec l'épaisseur de la paroi, un interrupteur pour chaque côté qui reste ouvert et les bords intérieurs." width="1280" height="800" loading="lazy"><figcaption>La fenêtre Creuser avec l'épaisseur de la paroi, un interrupteur pour chaque côté qui reste ouvert et les bords intérieurs.</figcaption></figure>
+<p>Les murs grandissent vers l’intérieur. L’extérieur reste tel quel.</p>
+<p>Le <strong class="ui">« Bords intérieurs »</strong> n'a d'importance que là où les parois intérieures s'écartent - à un niveau du corps ou autour d'une ouverture. Les coins de la cavité d'une boîte ordinaire sont toujours pointus, avec les deux réglages. Pour un intérieur arrondi, arrondissez d'abord les bords extérieurs du corps (voir ci-dessus), puis creusez-le : l'intérieur suit avec le rayon moins l'épaisseur de paroi. Si l'intérieur arrondi ne peut pas être construit, ce qui peut arriver avec un contour composé de très nombreuses pièces droites courtes telles qu'un dessin tracé, layerling construit à la place le même corps creux avec des coins intérieurs pointus.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-result.webp" alt="Le résultat : une coque avec une paroi de 3 mm, ouverte en haut." width="1280" height="800" loading="lazy"><figcaption>Le résultat : une coque avec une paroi de 3 mm, ouverte en haut.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-sides.webp" alt="La même boîte avec seulement la face avant ouverte : un emplacement pour un tiroir." width="1280" height="800" loading="lazy"><figcaption>La même boîte avec seulement la face avant ouverte : un emplacement pour un tiroir.</figcaption></figure>
+<p>Pour chaque côté ouvert, le corps a besoin d’une face plate tout au bord de ce côté. Les sphères et les formes libres ne peuvent donc pas être creusées de cette façon. Si le mur est trop épais pour le corps, layerling vous le signale et en demande un plus fin. Une boîte arrondie dont les bords supérieur et inférieur sont aussi arrondis en est un exemple : son mur doit être nettement plus fin que cet arrondi, ou mettez d'abord l'arrondi à 0.</p>
+<p>Un corps avec une poche - un bloc avec un trou qui ne traverse pas complètement, réalisé en regroupant une boîte avec un trou surélevé - peut également être creusé, avec le dessus ouvert : les parois autour de la poche sont également creusées, de sorte qu'un anneau de cavité reste entre la paroi extérieure et la poche, ouvert en haut, et une fine cavité se trouve sous le fond de la poche.</p>
+<p><strong>Les corps qui se terminent par un point</strong>, comme un cône ou un triangle de révolution, n'ont pas de face plate sur le dessus qui pourrait rester ouverte. Là non plus, une cavité entièrement fermée ne fonctionne pas, car un point ne peut pas être décalé vers l'intérieur : même avec un mur de 1 mm, vous obtenez le message que les murs ne peuvent pas être aussi épais. Dessinez plutôt le mur dans le profil avant de procéder à la révolution : dupliquez le contour, réduisez la copie de manière uniforme, placez-la au milieu du grand contour et coupez le grand avec, puis faites pivoter le tout (chapitre Esquisses, section Révolution). La distance entre les deux contours correspond à l’épaisseur de la paroi.</p>
+<p>Si vous redimensionnez un corps évidé ultérieurement, layerling le creuse immédiatement à nouveau à la nouvelle taille. Le mur reste aussi épais que vous l'avez choisi, corps ronds inclus. Un cylindre que vous tirez plus loin dans un sens que dans l’autre devient une ellipse.</p>
+<aside class="tip"><p><strong>Astuce :</strong> Avec une buse de 0,4 mm, 1,2 à 2 mm de paroi est un bon début : suffisamment fin pour économiser de la matière, suffisamment épais pour une pièce solide.</p></aside>
+</section><section class="guide-part"><h2 id="un-couvercle-pour-un-corps-ouvert"><span class="heading-alias" id="a-lid-for-an-open-body"></span>Un couvercle pour un corps ouvert</h2>
+<p><strong class="ui">« Couvercle »</strong> crée le couvercle d'un corps ouvert en haut : une boîte évidée avec le dessus ouvert, un pot, un plateau. Sélectionne le corps et clique sur <strong class="ui">« Couvercle »</strong>. Dans la fenêtre, tu choisis le type :</p>
+<ul><li><strong class="ui">« Emboîté »</strong> : une plaque aussi grande que le corps avec en dessous une lèvre qui entre dans l'ouverture.</li><li><strong class="ui">« Par-dessus »</strong> : une plaque plus large que le corps d'une paroi avec en dessous un rebord qui passe par-dessus l'extérieur.</li><li><strong class="ui">« Des deux côtés »</strong> : une plaque plus large que le corps d'une paroi avec les deux : une lèvre dans l'ouverture et un rebord par-dessus l'extérieur. La paroi du corps se loge entre les deux dans une rainure, comme sur une boîte alimentaire.</li><li><strong class="ui">« Plat »</strong> : seulement la plaque, à poser ou à coller.</li><li><strong class="ui">« Vissé »</strong> : un couvercle qui se visse comme celui d'un bocal, pour un corps rond ; plus de détails plus bas.</li><li><strong class="ui">« Vissé dedans »</strong> : une plaque avec un bouchon fileté qui se visse dans l'ouverture d'un corps rond ; plus de détails plus bas.</li><li><strong class="ui">« À baïonnette »</strong> : une fermeture tournante pour un corps rond, un couvercle qu'on enfonce sur des ergots puis qu'on tourne ; plus de détails plus bas.</li><li><strong class="ui">« Coulissant »</strong> : une plaque qui entre en coulissant dans une boîte par une paroi, comme le couvercle d'une trousse en bois ; plus de détails plus bas.</li></ul>
+<p>Ensuite tu règles l'<strong class="ui">« Épaisseur du couvercle »</strong>, l'<strong class="ui">« Ajustement »</strong> (le <strong class="ui">« Jeu par côté »</strong> entre couvercle et corps : 0,1 mm serré, 0,2 mm normal, 0,3 mm lâche, ou toute valeur jusqu'à 1 mm) et jusqu'où descend la lèvre ou le rebord et l'épaisseur de sa paroi. Clique sur <strong class="ui">« Créer le couvercle »</strong> : le couvercle est posé à côté du corps, retourné, plaque en bas, et s'imprime ainsi sans supports. Le corps reste tel quel. Le couvercle suit n'importe quel contour, rond ou anguleux, car il est pris sur le corps lui-même juste sous son bord. Un corps sans ouverture en haut n'obtient qu'un couvercle plat ; pour les autres, évide-le d'abord avec le dessus ouvert.</p>
+<aside class="tip"><p><strong>Astuce :</strong> Le serrage d'un couvercle dépend de l'imprimante. Imprime d'abord une petite boîte avec son couvercle ; s'il est trop serré, prends l'ajustement suivant, plus lâche.</p></aside>
+<p>Coche <strong class="ui">« Aimants dans les coins »</strong> et quatre aimants ronds tiennent le couvercle au lieu d'un ajustement serré. Choisis un <strong class="ui">« Aimant »</strong> (6 × 2, 8 × 3 ou 10 × 3 mm) ou règle toi-même le <strong class="ui">« Diamètre de l'aimant »</strong> et la <strong class="ui">« Hauteur de l'aimant »</strong>, ainsi que le <strong class="ui">« Jeu autour de l'aimant »</strong> : 0,1 mm pour insérer les aimants en force, 0,2 à 0,3 mm pour les coller. Layerling creuse une cavité dans chaque coin du bord du corps et une autre en face dans la plaque du couvercle, un peu plus profonde que l'aimant, pour qu'il ne dépasse jamais. Là où la paroi est trop fine pour une cavité, un pilier remplit le coin du fond jusqu'au bord, et la lèvre du couvercle le contourne. Le corps est groupé avec ses cavités et ses piliers : dégroupe-le et tu le retrouves tel qu'il était. La plaque doit faire au moins la hauteur de l'aimant plus 0,8 mm ; activer les aimants lui donne cette épaisseur.</p>
+<p>Coche <strong class="ui">« Charnière »</strong> et le couvercle s'ouvre autour d'un axe le long d'un côté droit du corps : l'arrière, ou le côté choisi sous <strong class="ui">« Côté de la charnière »</strong> (comme dans la vue de départ, où l'arrière est à l'opposé de toi). Des nœuds y alternent, ceux des extrémités sur le corps et ceux d'entre eux sur le couvercle, séparés par <strong class="ui">« Jeu de la charnière »</strong>, et un trou pour l'axe les traverse tous : avec un <strong class="ui">« Diamètre de l'axe »</strong> de 1,75 mm, un bout de filament sert d'axe ; coche <strong class="ui">« Imprimer aussi l'axe »</strong> pour en avoir un plus épais imprimé à part. Dans la partie de la charnière qui appartient au corps, l'axe est serré, si bien qu'un bout de filament enfoncé reste en place ; il tourne dans celle du couvercle : <strong class="ui">« Jeu de la goupille (par côté) »</strong> y est sa place de chaque côté, 0,2 mm au départ ; donne-lui plus si le couvercle tourne difficilement. Un axe imprimé a 0,15 mm de chaque côté dans la partie du corps, car il sort à sa pleine largeur : il y reste serré, mais on peut l'enfoncer. Les nœuds du corps reposent sur une pente de 45°, le corps s'imprime donc debout sans support ; ceux du couvercle affleurent son dessus, il s'imprime toujours retourné. <strong class="ui">« Nœuds (0 = automatique) »</strong> à 0 donne environ un nœud tous les 10 mm. Une charnière va avec un couvercle emboîté ou plat ; un rebord tout autour heurterait la paroi arrière à l'ouverture. Sur un côté rond, un pot ou un tube, la charnière court là où la paroi reste à moins d'un rayon de nœud de sa ligne, et les nœuds du corps reposent sur un petit bloc qui rejoint la paroi. <strong class="ui">« Trous d'axe en goutte (ne s'affaissent pas à l'impression) »</strong> (activé au départ) donne aux trous de l'axe une pointe en haut dans le sens d'impression de chaque pièce, pour qu'ils ne s'affaissent pas ; un axe imprimé repose sur un petit méplat. Sous <strong class="ui">« Type de charnière »</strong>, <strong class="ui">« Affleurante »</strong> place les nœuds dans la paroi au lieu de derrière : la boîte garde ses dimensions, chaque pièce est entaillée autour des nœuds de l'autre, et le couvercle s'ouvre jusqu'à environ 140°. <strong class="ui">« Axes pivots »</strong> fait un couvercle posé sur un petit rebord dans l'ouverture, qui pivote sur deux axes à travers les parois latérales, jusqu'à environ 95° ; la boîte garde là aussi ses dimensions. Les deux demandent un côté droit et se passent d'aimants.</p>
+<p>Pour une charnière <strong class="ui">« Affleurante »</strong>, coche <strong class="ui">« Bouchons d'extrémité »</strong> pour fermer le trou de l'axe aux deux bouts : l'axe reste caché et ne peut pas glisser dehors. Les 4 derniers millimètres du trou sont alors carrés à chaque bout, posés sur une pointe pour avoir eux aussi une pointe en haut et ne pas s'affaisser à l'impression, et juste assez grands pour laisser passer l'axe : enfonce d'abord l'axe, puis un bouchon à chaque bout. Les bouchons carrés ne peuvent pas tourner et tiennent aussi serré que l'axe dans le corps ; chacun est coupé à fleur de l'extérieur de la boîte, coins arrondis compris (sur une telle boîte, la charnière se prolonge jusque dans les coins, avec ou sans bouchons). Ils sont posés à côté du couvercle, couchés sur un côté plat. L'axe est raccourci d'autant, et la barre d'état indique sa longueur.</p>
+<aside class="tip"><p><strong>Astuce :</strong> Insère d'abord les aimants dans le corps. Pose ensuite un autre aimant sur chacun d'eux, où il s'accroche dans le bon sens, et appuie le couvercle dessus (avec une goutte de colle dans ses cavités s'ils ont du jeu) : chaque aimant entre dans le couvercle face à son partenaire, et ils s'attirent.</p></aside>
+<p>Coche <strong class="ui">« Picots de clipsage »</strong> et le couvercle se clipse : de petits picots ronds à l'extérieur de sa lèvre (à l'intérieur de son rebord pour un couvercle par-dessus) s'enclenchent dans des creux que Layerling découpe aux mêmes endroits dans la paroi du corps, un au milieu de chaque côté droit de 12 mm ou plus, deux sur un côté de plus de 80 mm, quatre autour d'une ouverture ronde et aucun du côté de la charnière. <strong class="ui">« Hauteur des picots »</strong> indique jusqu'où chaque picot entre dans la paroi, 0,4 mm au départ : moins pour une petite boîte ou une lèvre rigide, plus pour un clipsage plus ferme. Sous <strong class="ui">« Poignée »</strong>, <strong class="ui">« Languette »</strong> donne à la plaque une languette aussi épaisse qu'elle, qui dépasse de 6 mm son bord avant (ou le bord opposé à la charnière), si bien que le couvercle s'imprime toujours retourné, et <strong class="ui">« Encoche pour le doigt »</strong> découpe juste sous le bord du couvercle un creux pour le doigt dans la paroi avant du corps, en laissant toujours 0,8 mm de paroi ; ni l'une ni l'autre ne va avec un couvercle pivotant, et les picots ne vont pas non plus avec un couvercle plat.</p>
+<p>Choisis <strong class="ui">« Vissé »</strong> et le couvercle se visse comme celui d'un bocal : le corps reçoit un filetage à l'extérieur de son haut, et le couvercle le même filetage à l'intérieur de son rebord. Il faut pour cela un corps rond, par exemple un cylindre, un tube ou un pot rond évidé avec le dessus ouvert, dont la paroi fait au moins 0,8 mm ; une boîte ou un ovale est refusé. Un bord arrondi ou chanfreiné, comme celui d'un récipient obtenu par révolution d'une ligne aux extrémités rondes, peut rester tel quel, pour ce couvercle comme pour <strong class="ui">« À baïonnette »</strong> plus bas : le filetage ou les ergots vont sur la paroi droite sous l'arrondi, et le couvercle passe par-dessus. Le filetage est ajouté à l'extérieur de la paroi au lieu d'y être creusé, si bien que même une paroi fine garde sa solidité, et il est groupé avec le corps : dégroupe-le et tu retrouves le corps tel qu'il était. Le <strong class="ui">« Pas du filetage »</strong> est la hauteur dont le filetage monte en un tour, 3 mm au départ, comme sur un bocal ; le filetage est profond de trois dixièmes de cette valeur (1,5 mm au plus) et ses flancs sont à 45°, si bien que le corps s'imprime debout et le couvercle sur sa plaque, tous deux sans support. Les <strong class="ui">« Tours »</strong> disent combien de fois il fait le tour et, avec le pas, jusqu'où descend le rebord du couvercle. Le <strong class="ui">« Jeu par côté »</strong> est la place de chaque côté dans le filetage, mesurée sur le rayon comme pour un écrou ; si le couvercle tourne difficilement, prends un ajustement plus lâche. Pour fermer, tourne le couvercle dans le sens des aiguilles d'une montre. Le couvercle et le filetage sont faits de triangles, et aimants, charnière, picots de clipsage et poignée ne vont pas avec un couvercle à vis.</p>
+<p>Sous <strong class="ui">« Filetage »</strong>, tu peux choisir, au lieu de <strong class="ui">« Personnalisé »</strong>, le filetage d'une bouteille ou d'un bocal normalisé : PCO 1881 est le col de 28 mm de la plupart des bouteilles d'eau et de soda, PCO 1810 l'ancien au filetage plus haut, GL 45 le filetage des flacons de laboratoire (DIN 168), Mason 70 et Mason 86 l'ouverture normale et la large ouverture des bocaux Mason. Le couvercle est alors fait selon la norme et va sur une telle bouteille ou un tel bocal du commerce ; la norme fixe le pas et jusqu'où descend le couvercle, et le <strong class="ui">« Jeu par côté »</strong> est la place tout autour de son filetage. Le corps ne reçoit le filetage du col que si son haut est ce col : rond et aussi large que le col sous le filetage, ce que la fenêtre t'indique (24,94 mm pour PCO 1881) ; un couvercle du commerce va alors aussi sur lui. Tout autre corps reste tel quel et seul le couvercle est créé, comme le dit la barre d'état. Pour faire un couvercle pour une bouteille que tu as, sélectionne un cylindre à peu près aussi large que son col, clique sur <strong class="ui">« Couvercle »</strong>, puis choisis <strong class="ui">« Vissé »</strong> et le filetage de la bouteille. Les flancs d'une norme sont plus raides que les 45° du filetage personnalisé, si bien que le dessous du filetage sur le corps et les filets dans le couvercle sont davantage en surplomb à l'impression ; ils ne font qu'environ un millimètre de profondeur, mais imprime d'abord un couvercle pour voir comment ton imprimante s'en sort. Le filetage des bocaux Mason n'a pas de plan publié et ses cotes sont relevées sur des bocaux : essaie le couvercle sur le tien.</p>
+<p>Avant que tu cliques sur <strong class="ui">« Créer le couvercle »</strong>, la fenêtre mesure le haut de ton corps et dit s'il est ce col : sa largeur, la largeur que doit avoir le col sous le filetage, et si le corps reçoit le filetage ou si seul le couvercle est créé. S'il ne l'est pas et que le corps est un cylindre, un tube ou un cylindre évidé posé debout, <strong class="ui">« Ajuster le corps au col »</strong> lui donne la largeur du col, au milieu de ce qui compte (65,85 mm pour Mason 70), et garde sa hauteur ; un corps évidé garde ses parois aussi épaisses qu'avant. <strong class="ui">« Créer le couvercle »</strong> lui donne alors le filetage du col, et une seule annulation reprend l'ajustement. Pour tout autre corps, un groupe ou un maillage importé par exemple, la fenêtre dit quelle largeur donner à son haut.</p>
+<p>Choisis <strong class="ui">« Vissé dedans »</strong> et le filetage va dans l'autre sens, par exemple pour un pot à crayons dont l'extérieur doit rester lisse : le corps reçoit le filetage à l'intérieur de son ouverture, comme un écrou, et le couvercle est une plaque aussi grande que le corps avec en dessous un bouchon qui porte le même filetage et se visse jusqu'à ce que la plaque repose sur le bord. Le corps et son ouverture doivent être ronds tous les deux, de même centre, par exemple un cylindre, un tube ou un pot rond évidé avec le dessus ouvert, dont la paroi fait au moins 0,8 mm ; une boîte, un ovale ou une ouverture carrée est refusé, de même qu'une ouverture trop étroite ou pas assez profonde pour le bouchon. Ici aussi le filetage est ajouté à la paroi au lieu d'y être creusé : la paroi garde sa solidité, l'extérieur reste tel qu'il était, et l'ouverture ne rétrécit en haut que de la profondeur du filetage. Le <strong class="ui">« Pas du filetage »</strong>, les <strong class="ui">« Tours »</strong> et le <strong class="ui">« Jeu par côté »</strong> agissent comme pour un couvercle à vis ; le pas et les tours disent aussi jusqu'où descend le bouchon. Le bouchon est creux, un anneau dont la paroi (<strong class="ui">« Paroi du bouchon »</strong>) fait 1,6 mm au départ (0,8 mm au moins), et reste plein là où l'ouverture ne laisse pas de place pour un trou. Le corps s'imprime debout et le couvercle sur sa plaque, le bouchon vers le haut, tous deux sans support. Pour fermer, tourne le couvercle dans le sens des aiguilles d'une montre. Comme pour un couvercle à vis, le couvercle et le filetage sont faits de triangles, et aimants, charnière, picots de clipsage et poignée ne vont pas avec.</p>
+<p>Choisis <strong class="ui">« À baïonnette »</strong> et le couvercle se verrouille en tournant, comme une ampoule dans sa douille, pour assembler les éléments d'une lampe ou fermer une boîte ronde : le corps reçoit des ergots qui dépassent de l'extérieur de son haut (<strong class="ui">« Ergots »</strong> : trois au départ, de deux à quatre), et le couvercle une rainure en L à l'intérieur de son rebord pour chacun. Pose le couvercle avec ses rainures au-dessus des ergots, enfonce-le et tourne-le dans le sens des aiguilles d'une montre jusqu'au clic, de 40° avec trois ergots (45° avec deux, 30° avec quatre) : un épaulement du couvercle se trouve alors sous chaque ergot et le retient, et une butée arrête la rotation. <strong class="ui">« Angle de rotation (0 = automatique) »</strong> te laisse choisir la rotation toi-même, jusqu'à un quart de tour de 90°, par exemple pour un couvercle à deux ergots qui se ferme d'un quart de tour ; à 0, c'est la rotation que donnent les ergots. La rainure de chaque ergot, sa rotation et une butée avant la rainure suivante doivent tenir autour du corps : avec plus d'ergots ou sur un petit corps, un angle qui ne tient pas est ajusté à ce qui tient, et la barre d'état le signale. Deux ergots atteignent 90° sur tous les corps sauf les plus petits ; quatre tournent d'environ 65° au plus sur un corps de 40 à 80 mm de diamètre. Comme un couvercle à vis, il demande un corps rond avec une paroi d'au moins 0,8 mm, et les ergots sont groupés avec le corps. Leur taille suit son diamètre : ils dépassent de la paroi d'un quarantième de celui-ci (1,2 à 2,5 mm) ; leur dessous et l'épaulement sont inclinés à 45°, le corps s'imprime donc debout et le couvercle sur son plateau, tous deux sans support. <strong class="ui">« Profondeur du rebord »</strong> indique jusqu'où descend le couvercle, 8 mm au départ ; sous les ergots, il guide le couvercle le long de la paroi. Le <strong class="ui">« Jeu par côté »</strong> est la place autour des ergots et le long de la paroi, et part du jeu de ton imprimante une fois mesuré ; <strong class="ui">« Jeu en hauteur »</strong> est la place au-dessus de l'épaulement, de combien le couvercle verrouillé peut se soulever, 0,3 mm au départ. <strong class="ui">« Hauteur du cran »</strong> indique jusqu'où une petite nervure derrière chaque ergot verrouillé avance sur son chemin : l'ergot la franchit avec un clic, ainsi le couvercle ne tourne pas en arrière tout seul. Prends moins s'il tourne trop dur, 0 pour aucune. Pour l'ouvrir, tourne le couvercle en arrière et soulève-le. Couvercle et ergots sont faits de triangles, et aimants, charnière, picots de clipsage et poignée ne vont pas avec un couvercle à baïonnette.</p>
+<p>Coche <strong class="ui">« Attache »</strong> avec un couvercle vissé ou à baïonnette et le couvercle reste avec le corps quand il est ouvert, comme le bouchon d'une bouteille de boisson. L'attache est une seule pièce, posée à plat à côté du couvercle : deux anneaux ouverts reliés par une languette. Le grand anneau se clipse sur le couvercle par le bas et se place sous une collerette en haut de celui-ci, retenu par un bourrelet. Le petit entoure le corps juste sous le couvercle, sur un bourrelet que le corps reçoit à cet endroit, et le filetage ou les ergots au-dessus le retiennent : ouvre-le un peu et enfile-le par-dessus, ou par le bas par-dessus le bourrelet. Les deux anneaux tournent librement : le couvercle tourne toujours pour s'ouvrir et se fermer, et la languette est assez longue pour que le couvercle ouvert pende à côté du goulot. Imprime l'attache en PETG ou en TPU ; en PLA, elle ne supporte que quelques pliages. Les bourrelets sont inclinés à 45°, couvercle et corps s'impriment donc toujours sans support, et les anneaux gardent leur jeu (<strong class="ui">« Jeu par côté »</strong>) autour de ce sur quoi ils tournent. L'attache a besoin de quelques millimètres de corps sous le couvercle, rond et aussi large qu'en haut, et d'un rebord de couvercle d'environ 4 mm ; s'il en manque, l'outil le dit.</p>
+<p>Un couvercle vissé ou à baïonnette peut avoir un clapet, comme un flacon de shampooing ou de ketchup : coche <strong class="ui">« Clapet »</strong>, et le dessus du couvercle reçoit en son milieu une ouverture ronde (<strong class="ui">« Ouverture »</strong> : son diamètre, 8 mm au départ), fermée par un clapet qui affleure le dessus. Le couvercle reste en place, tu n'ouvres que le clapet. Un couvercle s'imprime sur son dessus ; un clapet rabattu depuis le côté serait donc à l'envers, son bouchon contre le plateau. C'est pourquoi le clapet est imprimé dans l'ouverture même, avec le <strong class="ui">« Jeu par côté »</strong> tout autour, et sert lui-même de bouchon : son bord se rétrécit à 45° juste sous le dessus, si bien qu'il repose sur le couvercle et ne peut pas être enfoncé, et à l'avant un cran passe sous le bord de l'ouverture, si bien qu'il se ferme avec un clic. À son arrière, droit, une bande de 0,4 mm d'épaisseur et 3 mm de long, posée à plat sur le plateau, le relie au couvercle et plie comme une charnière : le clapet ne se perd jamais ; sous la bande, clapet et couvercle s'inclinent l'un vers l'autre en V. Rien n'est incliné de plus de 45°, et le couvercle s'imprime d'une seule pièce sans support. Pour ouvrir, glisse un ongle dans la rainure qui traverse le clapet et soulève ; pour fermer, appuie jusqu'au clic. Imprime un clapet en PETG ou en PP : en PLA, la bande casse après quelques pliages. Le dessus doit faire au moins 1,8 mm d'épaisseur (avec un jeu de 0,2 mm), et l'ouverture avec sa charnière doit tenir dans l'ouverture du corps ; une ouverture trop grande est refusée, avec la plus grande qui tient.</p>
+<p>Les bouchons à vis et à baïonnette peuvent avoir leur bord supérieur arrondi ou chanfreiné : sous <strong class="ui">« Bord supérieur »</strong>, choisissez <strong class="ui">« Arrondi »</strong> ou <strong class="ui">« Chanfrein »</strong> et réglez <strong class="ui">« Taille du bord »</strong>, 1 mm au départ, au plus l'épaisseur de la plaque. Le bord est fait avec le bouchon, car ensuite bouchon et filetage forment un seul maillage avec bien trop de triangles pour l'outil d'arêtes. Le bouchon s'imprime retourné, ce bord repose donc sur le plateau : un chanfrein s'imprime proprement, et un arrondi de 1 ou 2 mm aussi.</p>
+<p>Choisis <strong class="ui">« Coulissant »</strong> pour un couvercle qui coulisse comme celui d'une trousse en bois : une plaque dans l'ouverture, son dessus au ras du bord, dont les bords courent dans des rainures de trois parois. La quatrième paroi, celle choisie sous <strong class="ui">« Côté d'insertion »</strong> (l'avant au départ, comme dans la vue de départ), est abaissée jusqu'au dessous du couvercle là où il passe : il glisse ainsi par-dessus, et son bout comble l'entaille, au ras de l'extérieur de la paroi. Une boîte posée de biais sur le plan de travail en reçoit un aussi : la paroi choisie est alors celle qui fait le plus face à ce côté. Il faut pour cela une boîte aux parois verticales et droites, coins arrondis compris ; un corps rond est refusé. Les rainures sont aussi profondes que l'<strong class="ui">« Épaisseur du couvercle »</strong> le permet, un peu moins de 1 mm pour un couvercle de 2 mm et jusqu'à 1,5 mm pour un plus épais, et laissent toujours 0,8 mm de paroi derrière elles ; leur haut est incliné à 45°, la boîte s'imprime donc debout et le couvercle sur son dessus, tous deux sans support. Si les parois ou le couvercle sont trop fins pour les rainures, la fenêtre indique l'épaisseur nécessaire. Le <strong class="ui">« Jeu par côté »</strong> est le jeu du couvercle dans les rainures de chaque côté ; s'il coulisse difficilement, prends un ajustement plus lâche. Les parois intérieures de la boîte sont elles aussi abaissées sous le couvercle. Coche <strong class="ui">« Picots de clipsage »</strong> et un petit picot sous le bout du couvercle franchit avec un clic la paroi abaissée, pour que le couvercle ne glisse pas tout seul ; la <strong class="ui">« Hauteur des picots »</strong> indique jusqu'où il descend sous le haut de la paroi. Sous <strong class="ui">« Poignée »</strong>, <strong class="ui">« Encoche pour le doigt »</strong> donne au couvercle quatre rainures en travers de son dessus près de ce bout, pour le pouce, et <strong class="ui">« Languette »</strong> une languette à cet endroit. Les rainures et l'entaille sont groupées avec la boîte, comme un trou : dégroupe-la et tu retrouves la boîte telle qu'elle était. Aimants et charnière ne vont pas avec un couvercle coulissant.</p>
+<p>Pour enfoncer le couvercle sous le bord, règle <strong class="ui">« Cadre au-dessus du couvercle »</strong> (0 au départ). Le couvercle et ses rainures sont alors d'autant plus bas, et les parois gardent toute leur hauteur au-dessus, comme un cadre autour du couvercle. La paroi par laquelle il entre n'est alors pas abaissée non plus : elle garde toute sa hauteur, avec une fente là où passe le couvercle, et le bout du couvercle comble cette fente, au ras de l'extérieur. Au-dessus du couvercle, la fente laisse le même jeu que sur les côtés (<strong class="ui">« Jeu par côté »</strong>), et avec <strong class="ui">« Picots de clipsage »</strong> en plus la hauteur du picot, pour que le couvercle puisse se bomber au-dessus de lui en sortant ; au moins 1 mm de paroi doit rester au-dessus, et un cadre plus bas est refusé avec le cadre nécessaire (1,2 mm avec un jeu de 0,2 mm). La boîte s'imprime toujours debout : seul le haut de la fente est imprimé dans le vide, un pont court et plat sur la largeur du couvercle, que la plupart des imprimantes réussissent sans support. Les rainures pour le pouce sont alors juste derrière cette paroi, et une languette sort de la fente.</p>
+</section><section class="guide-part"><h2 id="un-passage-de-cable-a-travers-un-corps"><span class="heading-alias" id="a-cable-channel-through-a-body"></span>Un passage de câble à travers un corps</h2>
+<p><strong class="ui">« Passage de câble »</strong> perce un conduit rond à travers un corps pour un câble ou un fil de LED, de l'endroit où il entre à celui où il sort, et trouve le chemin tout seul. Sélectionnez le corps et cliquez sur <strong class="ui">« Passage de câble »</strong>, puis cliquez sur le corps là où le câble entre (<strong class="ui">« Entrée »</strong>) et là où il sort (<strong class="ui">« Sortie »</strong>). Le chemin commence et finit droit, perpendiculaire à la surface, reste droit quand il le peut et se courbe quand il le doit, jamais plus serré que <strong class="ui">« Plus petite courbe »</strong>, et reste aussi loin de l'extérieur que possible, jamais plus près que <strong class="ui">« Paroi minimale »</strong>. Un câble passe dans une courbe d'environ cinq fois son diamètre ; <strong class="ui">« Diamètre »</strong> est celui du passage.</p>
+<p>Tant que le panneau est ouvert, le corps est vu en transparence, avec le passage à l'intérieur et une marque à chaque bout. Le panneau indique la longueur du passage, sa courbe la plus serrée et sa paroi la plus mince, en rouge quand une courbe ou la paroi a dû être plus petite que demandé ; réduire <strong class="ui">« Plus petite courbe »</strong>, ou choisir une autre entrée ou sortie, aide alors. <strong class="ui">« Placer à nouveau »</strong> déplace un bout. <strong class="ui">« Créer le passage »</strong> découpe le passage : il devient un <strong class="ui">« Tube cintré »</strong> en perçage, groupé avec le corps, qui reste donc exact, et une fois le groupe dissocié le tube reste modifiable. Un tube cintré a au plus onze courbes ; un chemin qui en demande plus réclame une autre entrée ou sortie.</p>
+</section><section class="guide-part"><h2 id="decaler-des-corps"><span class="heading-alias" id="offsetting-bodies"></span>Décaler des corps</h2>
+<p>Chaque face d'un corps peut être déplacée de la même distance, vers l'extérieur ou l'intérieur. C'est ce qu'il faut pour un ajustement, un couvercle ou un assemblage à clip : un jeu de 0,1 à 0,3 mm tout autour, les éléments restant à leur place, ce que la mise à l'échelle ne donne pas.</p>
+<ol><li>Sélectionne un corps et clique sur <strong class="ui">« Décalage »</strong>, ou fais un clic droit sur le corps et choisis-le là.</li><li>Choisis <strong class="ui">« Agrandir »</strong> ou <strong class="ui">« Réduire »</strong> et règle la <strong class="ui">« Distance »</strong>.</li><li>Les <strong class="ui">« Coins extérieurs »</strong> décident des coins extérieurs : arrondi garde la surface décalée ronde, vif laisse les faces se prolonger jusqu'à ce qu'elles se rencontrent.</li><li>Coche <strong class="ui">« Garder l'original et ajouter le corps décalé comme trou »</strong> pour garder la pièce telle quelle et obtenir le corps agrandi comme copie qui est déjà un trou. Groupe ce trou avec la pièce complémentaire, il coupe exactement le jeu choisi.</li><li>Clique sur <strong class="ui">« Décaler »</strong>.</li></ol>
+<p>Un texte dont le noyau ne peut pas décaler les lettres comme corps - dans certaines polices un A, B, M, N, W ou 9 - est décalé à la place par ses contours : il reçoit le remplissage <strong class="ui">« Plus large (base pour une impression multicolore) »</strong> de la distance (plus étroit quand il rétrécit) et grandit d'autant en haut et en bas. Il reste un texte que vous pouvez continuer à modifier. Cela fonctionne pour un texte aux lettres pleines et sans arrondi ; un texte qui a déjà un mode de remplissage est refusé comme avant.</p>
+<p>Coche <strong class="ui">« Côtés seulement : les faces planes du dessus et du dessous gardent leur hauteur »</strong> quand seul le contour doit grandir ou rétrécir : les côtés se déplacent de la distance, et chaque face plane du dessus et du dessous garde sa hauteur. Un panneau reçoit une bordure tout autour, un socle s'élargit, et le corps ne devient pas plus haut. Sur un corps en gradins, chaque marche garde sa propre hauteur. Un texte décalé par ses contours garde alors lui aussi sa hauteur.</p>
+<p>Sans la coche, le corps lui-même est décalé. Il devient un corps exact fixe, comme après un chanfrein : la liste en haut de la fenêtre annule le décalage, et <strong class="ui">« Modifier »</strong> rouvre l'outil avec l'ancienne distance. Seuls les corps CAD exacts peuvent être décalés - boîtes, cylindres et les autres formes, leurs groupes, pièces STEP importées. Un corps qui n'est qu'un maillage de triangles, comme beaucoup d'imports STL, ne le peut souvent pas. Une distance trop grande pour le corps, par exemple une réduction au-delà de sa paroi la plus fine, est refusée.</p>
+</section><section class="guide-part"><h2 id="supprimer-des-faces"><span class="heading-alias" id="deleting-faces"></span>Supprimer des faces</h2>
+<p>Un congé qui gêne, un trou au mauvais endroit, un bossage dont vous n'avez plus besoin : <strong class="ui">« Supprimer une face »</strong> les retire du corps, sans avoir à le reconstruire.</p>
+<ol><li>Sélectionnez le corps et cliquez sur <strong class="ui">« Supprimer une face »</strong>, ou cliquez avec le bouton droit sur le corps et sélectionnez-le dans le menu.</li><li>Cliquez sur chaque face de ce qui doit disparaître : les faces d'un bord arrondi, la paroi d'un trou, le côté et le dessus d'un bossage. Une face choisie s'allume ; un nouveau clic la retire. La fenêtre compte les faces.</li><li>Cliquez sur <strong class="ui">« Supprimer »</strong> ou appuyez sur <kbd>Delete</kbd>. <kbd>Esc</kbd> ferme l'outil sans rien changer.</li></ol>
+<p>Les faces autour s'étendent jusqu'à refermer le vide. Un bloc aux bords supérieurs arrondis retrouve ses arêtes vives, un trou est comblé, un bossage disparaît. Le corps reste exact : il peut à nouveau recevoir des congés et des chanfreins, et l'export STEP garde ses vraies faces. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> annule la suppression en une étape. Elle figure aussi sous <strong class="ui">« Annuler une entité de bord »</strong>, au même titre que les congés et les chanfreins, où <strong class="ui">« Annuler »</strong> l'annule ; il n'y a pas de <strong class="ui">« Modifier »</strong> pour elle. Sur un groupe, le résultat est un seul corps, comme pour un traitement de bord.</p>
+<p>Choisissez toutes les faces de ce qui doit disparaître, et seulement celles-là. Si les faces autour ne peuvent pas refermer le vide, layerling le signale et rien ne change : une face principale d'un bloc, par exemple, n'a pas de voisine qui puisse prendre sa place. Supprimer seulement le fond d'une poche en fait un trou traversant, car les parois de la poche se prolongent jusqu'à l'autre côté.</p>
+<p><strong class="ui">« Supprimer une face »</strong> a besoin de faces exactes : il fonctionne sur les pièces importées en STEP et sur les formes de layerling. Ce que layerling garde comme maillage n'en a pas : un fichier STL, OBJ ou 3MF importé, un corps divisé, enroulé autour d'un cylindre ou simplifié, ou une forme très détaillée comme un long texte. Importez une pièce en STEP si possible. Sur une pièce importée détaillée, quelques faces peuvent être trop lourdes pour le noyau CAO : au bout de 45 secondes, la suppression est arrêtée et rien ne change. Un corps redimensionné après un traitement de bord en gardant la taille des bords n'a pas de faces exactes à sa nouvelle taille tant que le redimensionnement n'est pas annulé.</p>
+<p>Un maillage importé rendu exact avec <strong class="ui">« Rendre exact »</strong> peut garder des faces fines comme un cheveu là où les triangles du fichier étaient défectueux, entre des faces situées dans un même plan, si bien qu'un côté ressort en bandes qui ne peuvent pas être supprimées seules. Une telle face fine, trop étroite pour être cliquée, part avec une face choisie lorsqu'elle la touche et mène à une autre face dans le plan de la face choisie, avec les faces fines qui y sont reliées et qui touchent elles aussi une face du plan de la face choisie ; la fenêtre les compte comme prises en plus.</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/guide-fr/solids-and-holes.html"><small>Chapitre précédent</small>Solides et trous</a><a class="next" href="/api/desktop/layerling/ui/guide-fr/sketches.html"><small>Chapitre suivant</small>Esquisses : du contour au corps</a></div>
+      </main>
+    </div>
+    <footer class="note">Ce manuel grandit avec le programme. Si quelque chose manque ou est inexact, dites-le nous dans les <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussions</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=fr" rel="noopener">Soutenir le projet</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussions</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Le projet sur GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Notes de version v1.154.1</a></div><p class="trademark">Tinkercad est une marque commerciale d'Autodesk, Inc. Layerling est un projet indépendant et n'est pas affilié, approuvé ou sponsorisé par Autodesk.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Retour à l'éditeur";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Ouvrir l'éditeur";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

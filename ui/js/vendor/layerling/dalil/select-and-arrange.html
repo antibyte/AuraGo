@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>التحديد والترتيب - دليل استخدام layerling</title>
+    <meta name="description" content="تحديد الأشكال، العثور عليها في قائمة الأجسام، المحاذاة، الانعكاس، التدوير، الوضع مسطحًا على وجه وتكثيرها في مصفوفات.">
+    <link rel="canonical" href="https://layerling.com/dalil/select-and-arrange.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/select-and-arrange.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/select-and-arrange.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/select-and-arrange.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/auswaehlen-und-anordnen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/select-and-arrange.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/select-and-arrange.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/select-and-arrange.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/select-and-arrange.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/selecteren-en-schikken.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/select-and-arrange.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/izbiranje-in-razporejanje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/select-and-arrange.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/select-and-arrange.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/select-and-arrange.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/select-and-arrange.html">
+    <meta property="og:title" content="التحديد والترتيب - دليل استخدام layerling">
+    <meta property="og:description" content="تحديد الأشكال، العثور عليها في قائمة الأجسام، المحاذاة، الانعكاس، التدوير، الوضع مسطحًا على وجه وتكثيرها في مصفوفات.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/dalil/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">دليل الاستخدام</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/dalil/search-index.json" data-nothing="لم يُعثر على شيء." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="ابحث في الدليل" aria-label="ابحث في الدليل" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="اللغة">العربية</summary><ul><li><a href="/api/desktop/layerling/ui/guide/select-and-arrange.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/select-and-arrange.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/select-and-arrange.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/select-and-arrange.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/select-and-arrange.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/select-and-arrange.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/select-and-arrange.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/select-and-arrange.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/select-and-arrange.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/select-and-arrange.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/izbiranje-in-razporejanje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/select-and-arrange.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/select-and-arrange.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/select-and-arrange.html" hreflang="ar" lang="ar" aria-current="true">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/select-and-arrange.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/select-and-arrange.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/select-and-arrange.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">افتح المحرّر</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>المحرّر مفتوح بالفعل في علامة تبويب أخرى، فانتقل إليها.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="الفصول"><h2>الفصول</h2><p class="print-link"><a href="/api/desktop/layerling/ui/dalil/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>الدليل كاملًا للطباعة</span></a></p><ol><li><a href="/api/desktop/layerling/ui/dalil/getting-started.html">البدء</a></li><li><a href="/api/desktop/layerling/ui/dalil/view-and-workplane.html">العرض وسطح العمل</a></li><li><a href="/api/desktop/layerling/ui/dalil/shapes.html">وضع الأشكال وضبطها</a></li><li><a href="/api/desktop/layerling/ui/dalil/select-and-arrange.html" aria-current="page">التحديد والترتيب</a></li><li><a href="/api/desktop/layerling/ui/dalil/solids-and-holes.html">الأجسام الصلبة والثقوب</a></li><li><a href="/api/desktop/layerling/ui/dalil/edges-and-hollowing.html">كسر الحواف وتفريغ الأجسام</a></li><li><a href="/api/desktop/layerling/ui/dalil/sketches.html">الرسومات التخطيطية: من الحد الخارجي إلى الجسم</a></li><li><a href="/api/desktop/layerling/ui/dalil/text.html">النص والكتابة المنحنية</a></li><li><a href="/api/desktop/layerling/ui/dalil/threads-and-mechanics.html">الأسنان اللولبية والتروس والأجزاء الأخرى</a></li><li><a href="/api/desktop/layerling/ui/dalil/measuring-and-notes.html">القياس والملاحظات</a></li><li><a href="/api/desktop/layerling/ui/dalil/printing.html">التحضير للطباعة ثلاثية الأبعاد</a></li><li><a href="/api/desktop/layerling/ui/dalil/files-and-saving.html">الملفات والحفظ والمشاركة</a></li><li><a href="/api/desktop/layerling/ui/dalil/shortcuts.html">اختصارات لوحة المفاتيح</a></li><li><a href="/api/desktop/layerling/ui/dalil/ai-with-mcp.html">البناء باستخدام الذكاء الاصطناعي (MCP)</a></li><li><a href="/api/desktop/layerling/ui/dalil/offline-and-install.html">التثبيت كتطبيق والعمل دون اتصال والاستضافة الذاتية</a></li><li><a href="/api/desktop/layerling/ui/dalil/videos.html">مقاطع فيديو عن layerling</a></li><li><a href="/api/desktop/layerling/ui/dalil/tablet-and-touch.html">الأجهزة اللوحية واللمس</a></li></ol></nav>
+      <main>
+<h1>التحديد والترتيب</h1>
+<p class="lead">تحديد الأشكال، العثور عليها في قائمة الأجسام، المحاذاة، الانعكاس، التدوير، الوضع مسطحًا على وجه وتكثيرها في مصفوفات.</p>
+<div class="toc"><b>في هذه الصفحة</b><ul><li><a href="#selecting">التحديد (Selecting)</a></li><li><a href="#the-object-list">قائمة الأجسام (The object list)</a></li><li><a href="#typing-a-position">كتابة الموضع</a></li><li><a href="#parking-parts-beside-the-plate">ركن الأجزاء بجانب اللوحة</a></li><li><a href="#snapping-while-moving">الالتقاط أثناء التحريك</a></li><li><a href="#aligning">المحاذاة</a></li><li><a href="#mirroring">الانعكاس</a></li><li><a href="#rotating-and-setting-the-pivot">التدوير وتعيين محور الدوران</a></li><li><a href="#laying-flat-on-a-face">الوضع مسطحًا على وجه (Laying flat on a face)</a></li><li><a href="#patterns-row-and-circle">الأنماط: صف ودائرة (Patterns: row and circle)</a></li><li><a href="#hole-pattern-on-a-face">نمط ثقوب على وجه (Hole pattern on a face)</a></li><li><a href="#pushing-a-face-out-or-in">دفع وجه للخارج أو الداخل (Pushing a face out or in)</a></li><li><a href="#changing-several-parts-at-once">تغيير عدة أجزاء مرة واحدة (Changing several parts at once)</a></li><li><a href="#scaling-by-percent">التكبير/التصغير بالنسبة المئوية (Scaling by percent)</a></li><li><a href="#undoing">التراجع</a></li><li><a href="#looking-back-the-history-view">عرض ما مضى: عرض السجل (Looking back: the history view)</a></li></ul></div>
+<section class="guide-part"><h2 id="selecting">التحديد (Selecting)</h2>
+<p>نقرة على شكل تحدده. مع <kbd>Shift</kbd> تضيف المزيد أو تأخذها مجددًا. وما دام <kbd>Shift</kbd> مضغوطًا وكان شكلان أو أكثر محددين، يعدّها رقم صغير تحت مؤشر الفأرة. نقرة على مساحة فارغة تلغي التحديد، وكذلك يفعل <kbd>Esc</kbd>. اسحب إطارًا على سطح العمل الفارغ لتحديد كل ما يلمسه؛ مع الضغط على <kbd>Shift</kbd>، يضيف الإطار ما لم يكن محددًا ويأخذ ما كان كذلك. وإذا كنت تفضّل اختيار جزء واحد من مجموعة أجزاء متقاربة، ففعّل <strong class="ui">«اتجاه الإطار يحدد طريقة التحديد»</strong> في الإعدادات (قسم <strong class="ui">«المظهر»</strong>): عندها يحدد الإطار المسحوب إلى اليمين فقط ما يقع داخله بالكامل، ويبقى المسحوب إلى اليسار يحدد كل ما يلمسه، ويُرسم خطه متقطعًا. واضغط <kbd>Alt</kbd> أثناء السحب لتعكس عمل الإطار لتلك السحبة وحدها، مثلًا لأخذ أجسام كاملة من الجهة التي لا يسمح بها الاتجاه. و<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span> يحدد جميع الأجسام المرئية. أثناء سحب جسم أو مقبض الإطار، يلغي <kbd>Esc</kbd> العملية ما دام زر الفأرة مضغوطًا: يعود كل شيء كما كان، ولا تُضاف أي خطوة إلى السجل.</p>
+<p>الشكل الواقع خلف شكل آخر، مثل ثقب داخل جسم، تصل إليه دون تدوير العرض: انقر بالزر الأيمن على المكان واختر <strong class="ui">«تحديد جسم آخر…»</strong>. تسرد القائمة عندها كل الأشكال تحت المؤشر، من الأمام إلى الخلف. ويُحاط الشكل الذي يقف عليه مؤشرك بخط في العرض، حتى من خلال الأشكال التي أمامه؛ والنقرة تحدده، ومع <kbd>Shift</kbd> يُضاف إلى التحديد. يظهر هذا الإدخال كلما وقع أكثر من شكل تحت المؤشر؛ وعلى الجهاز اللوحي، يفتح الضغط المطوّل القائمة نفسها.</p>
+<p>ما يعيق طريقك تخفيه (<strong class="ui">«إخفاء المحدد»</strong>، <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>H</kbd></span>). الأشكال المخفية تظل في التصميم، إنها فقط ليست مرئية وتظل خارج التصدير؛ تقول نافذة التصدير مسبقًا كم عددها. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></span> يعيدها جميعًا. ما يجب أن يبقى ثابتًا تقفله بالقفل في أعلى الإعدادات أو بـ<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span>. الشكل المقفل لا يمكن تحريكه، تغيير حجمه، تدويره، إعادة تلوينه أو حذفه: تتحول مقابضه إلى اللون الرمادي، ويظهر قفل بجانب السهم في الأعلى، وتكون الأدوات التي قد تغيره رمادية. تحريك المؤشر فوق مقبض لا يزال يعرض أحجامه، والمفتاح الذي قد يغيره يقول &quot;الجسم مقفل&quot;. بينما يوجد شكل مقفل واحد في التحديد، لا يتغير شيء للأشكال الأخرى أيضًا. الإخفاء، إعادة التسمية، النسخ والتكرار تظل تعمل. لإبقاء جزء كما هو مع مواصلة البناء به، اقفل شكله فقط: الدرع بجانب القفل، أو <strong class="ui">«قفل الشكل»</strong> في قائمة النقر بزر الفأرة الأيمن، أو <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd></span>. يظل بالإمكان تحريكه وتدويره ورفعه ومحاذاته ونسخه وتجميعه مع غيره، لكن حجمه وإعداداته واسمه تبقى كما هي: تختفي مقابض الحجم، وتصبح حقولها رمادية، ويُرفض تغيير الحجم والانعكاس وفك التجميع وأدوات الحواف والحذف. تحتفظ النسخة بالقفل، وكذلك الجزء داخل مجموعة: يمكن تحريك المجموعة وفكها مجددًا، لكن لا يمكن تغيير حجمها. الدرع يفك قفل الشكل مجددًا.</p>
+<p>للعمل على بضعة أجزاء في عمق التصميم، حدّدها واختر <strong class="ui">«إخفاء البقية»</strong> في قائمة النقر بالزر الأيمن أو تحت <strong class="ui">«خيارات الرؤية»</strong>: يُخفى كل ما عداها في خطوة واحدة، و<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> أو <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></span> يعيده. <strong class="ui">«عكس التحديد»</strong> في قائمة النقر بالزر الأيمن يحدّد كل شكل مرئي لم يكن محدّدًا ويلغي تحديد ما كان محدّدًا. كلاهما موجود أيضًا في البحث عن الأوامر (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>)، حيث يمكنك أن تعيّن لهما مفتاحًا خاصًا بك.</p>
+<p>رقم على زر المجموعة <strong class="ui">«الرؤية»</strong> يوضح عدد الأشكال المخفية، والنقر عليه يُظهرها جميعًا من جديد. وإذا فُتح تصميم يحتوي على أشكال مخفية، فتخبرك رسالة بذلك مرة واحدة، مع زر لإظهارها. الجزء الذي تخفيه والمجموعة مفتوحة يبقى مخفيًا عندما تغلقها بـ <strong class="ui">«تم»</strong>: تحتفظ المجموعة بحجمها وتبقى الأجزاء الأخرى كما هي، ويظل الجزء المخفي محسوبًا عند محاذاة المجموعة، ولا يمسّه إظهار كل الأشكال المخفية. افتح المجموعة مرة أخرى لإظهاره.</p>
+</section><section class="guide-part"><h2 id="the-object-list">قائمة الأجسام (The object list)</h2>
+<p>مع وجود العديد من الأجزاء، من السهل فقدان المسار في العرض. تعرض قائمة الأجسام (<strong class="ui">«إظهار قائمة الأجسام»</strong> أو <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd></span>) جميع الأشكال كقائمة. تظل مفتوحة أو مغلقة كما تركتها، لكل تصميم، حتى تغلقها؛ ويُحفظ هذا الخيار في المتصفح.</p>
+<figure><img src="/api/desktop/layerling/ui/dalil/img/object-list.webp" alt="قائمة الأجسام: المجموعة &quot;Group&quot; مع جزءين وكرة بجانبها. أيقونة مجلد تفتح المجموعة." width="1280" height="800" loading="lazy"><figcaption>قائمة الأجسام: المجموعة &quot;Group&quot; مع جزءين وكرة بجانبها. أيقونة مجلد تفتح المجموعة.</figcaption></figure>
+<ul><li>نقرة على عنصر تحدد الشكل، بما في ذلك الأجزاء داخل مجموعة. مع الضغط على <kbd>Shift</kbd> تضيف المزيد من العناصر أو تأخذها مجددًا، كما في العرض. والأسهم تفتح المجموعات وتطويها.</li><li>تُظهر التسمية ما إذا كان الجزء <strong class="ui">«صلب»</strong> أو <strong class="ui">«ثقب»</strong>.</li><li>تحت الاسم يظهر نوع الشكل. الجسم الذي لم يعد شكلًا بسيطًا (مدوّر الحواف أو مجوّف أو مستورد) يُظهر <strong class="ui">«جسم دقيق»</strong> عندما يكتبه تصدير STEP بدقة، و<strong class="ui">«شبكة»</strong> عندما يكون مثلثات فقط ويُصدَّر بصيغة STL. التدبيب أو الميل أو الالتواء الذي يُضاف بعد تدوير حواف الجسم أو تجويفه لا يغيّر إلا شبكته، فيظهر عندها <strong class="ui">«شبكة»</strong>.</li><li>القفل والعين يقفلان ويخفيان أجزاء فردية.</li><li><strong class="ui">«إعادة تسمية»</strong> يعطي جزءًا اسمًا خاصًا به؛ القلم بجانب الاسم في أعلى الإعدادات يفعل الشيء نفسه للشكل المحدد. الأسماء المنطقية تساعد بشكل هائل في التصاميم الكبيرة.</li><li>يرتّب زر A–Z في شريط العنوان (<strong class="ui">«رتّب الأشكال المسمّاة أبجديًا»</strong>) الأشكال التي سمّيتها أبجديًا، مع عدّ الأرقام أرقامًا (الجزء 2 قبل الجزء 10). تبقى الأشكال التي ما زالت تحمل اسمها الافتراضي تحتها بترتيب إضافتها، والأحدث في الأخير، وتُرتَّب الأجزاء داخل المجموعات بالطريقة نفسها. تتغيّر القائمة فقط، لا التصميم أبدًا. نقرة ثانية تعرض كل شيء من جديد بترتيب الإضافة، ويتذكّر المتصفح اختيارك.</li><li>المقبض عند يسار الصف (ست نقاط) ينقل الشكل في القائمة: اسحبه لأعلى أو لأسفل، أو ضع عليه التركيز واضغط <kbd>↑</kbd> أو <kbd>↓</kbd>. هذا يغيّر ترتيب التصميم نفسه، وهو الترتيب الذي تعود إليه القائمة عند إيقاف الفرز A–Z، ويتراجع عنه «تراجع». عند تشغيل الفرز A–Z أو البحث تختفي المقابض.</li><li>لوضع شكل في مجموعة، افتح المجموعة بسهمها واسحب الشكل من مقبضه إلى أجزاء المجموعة؛ فيظهر حول المجموعة إطار برتقالي. يبقى الشكل في مكانه ويحتفظ باسمه، وكذلك المجموعة: تُدمج المجموعة من جديد معه، أما الحزمة فتأخذه كما هو. لأجزاء المجموعة المفتوحة مقبض خاص بها: اسحب جزءًا خارج المجموعة فيعود منفردًا في الموضع الذي تفلته فيه من القائمة، أو أفلته على مجموعة مفتوحة أخرى لينتقل إليها. المجموعة التي يبقى فيها جزء واحد تزول ويبقى ذلك الجزء. التراجع يلغي كل خطوة من هذه دفعة واحدة. لا يعمل ذلك أثناء تحرير مجموعة.</li><li>حقل البحث يجد الأشكال بالاسم وبالنوع، لذا أيضًا &quot;أسطوانة&quot; أو &quot;ثقب&quot;. ينظر أيضًا داخل المجموعات، مهما كانت متداخلة بعمق: المجموعة التي تحتوي على مطابقة تظل في القائمة وتنفتح لتعرض الأجزاء المطابقة والمجموعات التي تؤدي إليها. المجموعة التي عثر عليها باسمها الخاص تعرض جميع أجزائها عندما تفتحها.</li><li>السهم الموجود في أقصى يسار شريط العنوان يطوي القائمة لأسفل إلى شريط عنوانها والعودة.</li></ul>
+<p>تستقر القائمة راسية على يمين مكعب العرض مباشرة. اسحبها من شريط عنوانها لوضعها في أي مكان على سطح العمل؛ تمر أسفل مكعب العرض وشريط العرض. أفلتها مجددًا بجانب مكعب العرض، أو انقر مرتين على شريط العنوان، وترسو مجددًا. مكان وجودها وما إذا كانت مطوية هما أمران يتذكرهما هذا المتصفح.</p>
+</section><section class="guide-part"><h2 id="typing-a-position">كتابة الموضع</h2>
+<p>تعرض البطاقة <strong class="ui">«الموضع»</strong> في لوحة الخصائص أين يقف الجسم المحدد، ويمكنك كتابته: <strong class="ui">«X»</strong> و<strong class="ui">«Y»</strong> هما منتصف صندوقه على اللوحة، مع العلامات نفسها للمسافات المعروضة على سطح العمل، و<strong class="ui">«Z (الارتفاع)»</strong> هو ارتفاع جانبه السفلي. ومع <strong class="ui">«مقاس من»</strong> في أعلى البطاقة تنتقل إلى <strong class="ui">«الحافة»</strong>: عندها يعرض X وY الحافتين اليسرى والأمامية للجسم، فتضع حافة على مقاس بالضبط. ويبقى هذا الإعداد حتى تعود إلى <strong class="ui">«المركز»</strong>. يحسب X إلى اليمين، وY نحو الخلف، وZ لأعلى، بقاعدة اليد اليمنى كما في Tinkercad وبرامج CAD؛ أسهم المحاور على اللوحة تعرض الاتجاهات. تذهب القيم بالوحدة التي ضبطتها، وتصل أشرطة التمرير إلى أبعد ما يصله السحب.</p>
+</section><section class="guide-part"><h2 id="parking-parts-beside-the-plate">ركن الأجزاء بجانب اللوحة</h2>
+<p>يمكنك سحب شكل متجاوزًا حافة اللوحة وتركه هناك، بمسافة عرض لوحة واحدة تقريبًا بعد كل جانب، للإبقاء عليه لوقت لاحق. مفاتيح الأسهم تحركه إلى أبعد ما تريد. الجزء المركون لا يزال ينتمي إلى التصميم ويدخل في التصدير مع كل شيء آخر. لتركه خارجًا، أخفِه أو صدّر التحديد فقط. إذا كنت قد اخترت طابعة، يحذر layerling عند التصدير عندما يستقر شيء ما خارج لوحتها.</p>
+</section><section class="guide-part"><h2 id="snapping-while-moving">الالتقاط أثناء التحريك</h2>
+<p>عندما تسحب شكلًا عبر سطح العمل، فإنه يلتقط بالأشكال الأخرى: حافته اليسرى، اليمنى، الأمامية أو الخلفية أو مركزه يهبط تمامًا على حافة أو مركز شكل آخر. يعرض خط إرشاد وردي ما يمسك به. بهذه الطريقة يستقر جزءان محاذيين جنبًا إلى جنب أو متمركزين واحد خلف الآخر دون كتابة أرقام. يعمل ذلك مع إيقاف تشغيل الشبكة أيضًا. ويُحسب مركز سطح العمل أيضًا: تُظهر الخطوط الوردية متى يكون الشكل في منتصف اللوح على المحور X أو Y أو كليهما.</p>
+<p>اضغط على <kbd>Shift</kbd> أثناء السحب للحفاظ على الحركة على محور واحد: يتبع الشكل أي اتجاه، X أو Y، سحبت فيه أبعد، ويترك الآخر وشأنه. من الأفضل الضغط على <kbd>Shift</kbd> بمجرد أن تبدأ في السحب بالفعل؛ على شكل غير محدد بعد، نقرة مع <kbd>Shift</kbd> تضيفه فقط إلى التحديد.</p>
+<p>أو اسحب السهم الأحمر أو الأخضر أعلى التحديد: فهو يحرّك على X فقط أو على Y فقط، ويتبع الشكل الفأرة على هذا الخط حتى في عرض منخفض، حيث يبتعد السحب الحر كثيرًا. تلتقط الأسهم كما في السحب، و<kbd>Alt</kbd> يوقف الالتقاط، وبعدها يمكنك النقر على المسافة المقطوعة وكتابة القيمة الدقيقة.</p>
+<p>مع الضغط على <kbd>Alt</kbd> بالفعل عند بدء السحب، تسحب نسخة، كما في Tinkercad: يبقى الشكل حيث هو وتهبط النسخة حيث تتركها. الضغط على <kbd>Alt</kbd> أثناء الطريق فقط يوقف الالتقاط مؤقتًا؛ يتبع الشكل حينها الشبكة فقط. النسخة أيضًا تلتقط فقط بمجرد ترك <kbd>Alt</kbd> أثناء الطريق. لإيقاف تشغيل الالتقاط نهائيًا، استخدم قائمة الشبكة في أسفل اليمين (<strong class="ui">«الالتقاط إلى الأشكال»</strong>) أو الإعدادات. حاليًا التحريك على سطح العمل العادي فقط هو ما يلتقط، وليس الرفع ولا إعادة الحجم.</p>
+</section><section class="guide-part"><h2 id="aligning">المحاذاة</h2>
+<p>يتم صف شكلين محددين أو أكثر بـ<strong class="ui">«محاذاة»</strong> (<kbd>L</kbd>، أو انقر بالزر الأيمن على التحديد واختره): تظهر نقاط حول التحديد لليسار، الوسط واليمين، الأمام، الوسط والخلف، والأعلى، الوسط والأسفل. نقرة على نقطة تحرك جميع الأشكال إلى هناك. إذا نقرت أولًا على أحد الأشكال المحددة، فإنه يبقى في مكانه وتتحاذى الأشكال الأخرى معه. والشكل المقفل في التحديد يصبح هو الشكل الثابت تلقائيًا. اليسار، اليمين، الأمام، الخلف، الأعلى والأسفل تذهب حسب الصندوق حول الشكل؛ مركز المثلث، الخماسي أو النجمة هو وسطه الخاص، لذا فإن الثقب المتمركز على أحدها يستقر في وسط الشكل وليس في صندوقه.</p>
+<p>الشكل المدار بزاوية، لنقل بـ45°، يحتوي على صندوقه حوله للمحاذاة معه، وليس حوافه الخاصة. للمحاذاة مع الحواف، اضبط سطح عمل على وجه ذلك الشكل أولًا (<strong class="ui">«وضع سطح العمل»</strong>، ثم انقر على الوجه): تقف النقاط حينها على محاور ذلك المستوى، وتقاس الأشكال وتحرك على طولها، كما في Tinkercad. أعد تعيين سطح العمل للمحاذاة على طول اللوحة مجددًا.</p>
+<figure><img src="/api/desktop/layerling/ui/dalil/img/align.webp" alt="تعرض المحاذاة الأهداف الممكنة كنقاط حول التحديد." width="1280" height="800" loading="lazy"><figcaption>تعرض المحاذاة الأهداف الممكنة كنقاط حول التحديد.</figcaption></figure>
+<p>المفتاح هو <kbd>L</kbd>. يلغي <kbd>Esc</kbd>.</p>
+<section class="guide-part"><h3 id="equal-gaps">مسافات متساوية (Equal gaps)</h3>
+<p>بجانب النقطة الوسطى من كل خط توجد نقطة أعرض بخط صغير على كل جانب. توزّع ثلاثة أشكال أو أكثر في ذلك الاتجاه بحيث تكون المسافة بين الحواف المتجاورة واحدة في كل مكان، مهما كان حجم كل شكل. يبقى الشكل الأول والأخير في مكانهما وتتحرك الأشكال التي بينهما. هكذا يحصل صف من الثقوب المختلفة الأحجام على الجدار نفسه بينها. مرّر المؤشر فوق النقطة لترى مسبقًا أين تذهب الأشكال؛ ثم يذكر شريط الحالة المسافة.</p>
+<p>إذا كان بين الأشكال المحددة لوح أطول في ذلك الاتجاه من كل الأشكال الأخرى، تتوزع الأشكال عليه: المسافة إلى حوافه مساوية للمسافة بين الأشكال، والشكل الوحيد يأتي إلى منتصفه. الأشكال في عدة صفوف، مثل حيوانات لغز التركيب، توزَّع صفًا صفًا؛ والأشكال التي تتداخل صناديقها عرضيًا تشكّل صفًا واحدًا. وحيث لا تقف الأشكال في أعمدة واضحة، كالحيوانات من الأمام إلى الخلف، تتحرك الأشكال المتجاورة بدلًا من ذلك كصف كامل.</p>
+<p>من دون لوح، اضغط <kbd>Shift</kbd> وانقر أولًا على مكان فارغ من اللوحة: تصبح عندها اللوحة الشكل الثابت، فتوزّع المسافات المتساوية الأشكال على اللوحة كلها بالمسافة نفسها إلى حوافه، وتحاذيها النقاط الأخرى إلى حوافه أو منتصفه. نقرة أخرى مع <kbd>Shift</kbd> على المكان الفارغ تتركه. والنقر على مكان فارغ دون <kbd>Shift</kbd> يُنهي المحاذاة، كما يفعل <kbd>L</kbd> و<kbd>Esc</kbd>.</p>
+<p>اضغط <kbd>Alt</kbd> مع النقر على النقطة لتكتب المسافة بنفسك، مثل 5 مم: تصطف الأشكال بهذا البعد بدءًا من الشكل الأول أو من الشكل الذي نقرته أولًا؛ وعلى اللوح يأتي الصف إلى منتصفه. الشكل المقفل يبقى مكانه، لذلك يمنع وجوده بين الشكلين الطرفيين المسافات المتساوية.</p>
+</section></section><section class="guide-part"><h2 id="mirroring">الانعكاس</h2>
+<section class="guide-part"><h3 id="matching-sizes">مطابقة الأحجام (Matching sizes)</h3>
+<p>اضغط <kbd>Alt</kbd> أثناء المحاذاة فتتحول النقاط إلى مربعات: لم تعد النقرة تحرّك الأشكال بل تغيّر حجمها. النقطة على أحد الجوانب تمدّ كل شكل إلى ذلك الجانب، ويبقى جانبه الآخر في مكانه، كأنك سحبت مقبضه إلى هناك. أما النقطة في المنتصف فتترك كل شكل في مكانه وتعطيه العرض أو الطول أو الارتفاع في ذلك الاتجاه. هكذا تستبدل صندوقًا بأسطوانة بالحجم نفسه مثلًا، أو قطعة مكسورة من شبكة بشكل نظيف. مرّر المؤشر فوق نقطة مع الضغط على <kbd>Alt</kbd> فترى مسبقًا كم ستصبح الأشكال كبيرة.</p>
+<p>المرجع هو الشكل الذي نقرت عليه أولًا؛ ولا يتغير إلا الآخرون. ومن دون مرجع، تمدّ نقاط الجوانب كل الأشكال إلى أبعد جانب، وتعطيها نقطة المنتصف جميعًا حجم الأكبر. وتبقى الأسطوانة مستديرة، فتكبر في الاتجاه الآخر أيضًا. أما الشكل المُدار بزاوية مائلة فيبقى كما هو؛ والأشكال المُدارة بـ 90° تعمل.</p>
+<p><strong class="ui">«انعكاس»</strong> (<kbd>M</kbd>، أو انقر بالزر الأيمن على التحديد واختره) يقلب التحديد عبر مستوى: <strong class="ui">«يسار-يمين»</strong>، <strong class="ui">«أمام-خلف»</strong> أو <strong class="ui">«أعلى-أسفل»</strong>. انقر على سهم المحور المطابق. هذا مفيد للأجزاء المتناظرة: ابنِ نصفًا واحدًا، انسخه واعكس النسخة.</p>
+</section></section><section class="guide-part"><h2 id="rotating-and-setting-the-pivot">التدوير وتعيين محور الدوران</h2>
+<p>تدور بالأسهم المنحنية على الشكل، بالأرقام في الإعدادات أو بـ<kbd>R</kbd> بخطوات 45°. عندما تسحب على دائرة التدوير، يلتقط التدوير مع كل علامة، وهي كل 22.5°؛ اضغط على <kbd>Shift</kbd> لخطوات أدق، وتظهر علامات إضافية كل 11.25°. اسحب خارج الدائرة لتدوير حر بخطوات 1°، أو بخطوات 45° مع <kbd>Shift</kbd>. عادة يدور التحديد حول مركزه. في بعض الأحيان لا ينبغي أن يفعل ذلك، على سبيل المثال عندما يُراد تدوير أنبوب مائل أكثر عند طرفه. لذلك توجد <strong class="ui">«تعيين محور الدوران»</strong>: بعد ذلك انقر على وجه. يوفر الوجه المسطح مركزه، على سبيل المثال محور طرف أنبوب. وفي المجموعة أو الحزمة يمتد الوجه عبر الأجزاء المتلاقية، كما في جسم واحد، ويذهب المحور إلى منتصف الوجه كله بعد ضم الأجزاء، إلا في مجموعة أو حزمة فيها نص، أو حزمة بين أجزائها ثقب. يدور التحديد الآن حول تلك النقطة. ونقرة ثانية على الأداة تزيله مجددًا.</p>
+<p>تظل الزوايا مع الجسم. في إعداداته، تعرض <strong class="ui">«الدوران»</strong> الزوايا كـ<strong class="ui">«حول X»</strong>، <strong class="ui">«حول Y»</strong> و<strong class="ui">«حول Z (الارتفاع)»</strong>، المسماة مثل الموقع: Y يجري عبر اللوحة، Z لأعلى. اكتب زاوية هناك ويدور الجسم إليها - حول مركزه، أو حول محوره الخاص إذا كان لديه واحد. بينما يكون الجسم المدار محددًا، تظهر زواياه أيضًا أسفله على سطح العمل؛ <strong class="ui">«إظهار زوايا الأجسام المدارة»</strong> في الإعدادات يوقف تشغيل ذلك.</p>
+<figure><img src="/api/desktop/layerling/ui/dalil/img/rotation-card.webp" alt="جسم مدار حول محورين: تقف زواياه تحته، وتأخذ بطاقة التدوير في إعداداته الزوايا كأرقام." width="1280" height="800" loading="lazy"><figcaption>جسم مدار حول محورين: تقف زواياه تحته، وتأخذ بطاقة التدوير في إعداداته الزوايا كأرقام.</figcaption></figure>
+<p>مع تحديد <strong>جسم واحد</strong>، ينتمي المحور إلى ذلك الجسم: حدد أجزاء أخرى وعد، ويظل هناك. يتحرك، يدور ويكبر/يصغر مع الجسم، ويحفظ في المشروع ويعود مع التراجع. تحت <strong class="ui">«الموضع»</strong> يحتوي المحور على X وY وZ خاصة به، والتي يمكنك كتابتها أو دفعها، و<strong class="ui">«إزالة»</strong> يأخذه بعيدًا. يمكنك أيضًا سحب علامة المحور الحمراء بالماوس: تنزلق فوق سطح الأجسام وتلتقط بالزوايا، منتصف الحواف والحواف، لذا يستقر دبوس المفصلة تمامًا على زاوية. مع تحديد عدة أجسام، يكون المحور لذلك التحديد فقط، والتحديد الجديد يزيله. عند تجميعها أو حزمها تبقى النقطة: تأخذ المجموعة نقطة الدوران كنقطتها الخاصة، مع X وY وZ تحت <strong class="ui">«الموضع»</strong>. اضغط Shift أثناء السحب فتلتقط بدلًا من ذلك إلى مركز الوجه تحت المؤشر - محور الوجه الدائري أو منتصف الوجه المسطح أو رأس المخروط - مع الرؤية عبر الأجسام الشفافة.</p>
+</section><section class="guide-part"><h2 id="laying-flat-on-a-face">الوضع مسطحًا على وجه (Laying flat on a face)</h2>
+<p>هل يجب أن يستقر جزء على أفضل جانب له للطباعة؟ حدده، وانقر على <strong class="ui">«الوضع مسطحًا على وجه»</strong> ثم الوجه الذي يجب أن ينزل لأسفل. بينما تحرك المؤشر فوق الجزء، يضيء الوجه أسفله، حتى ترى أي واحد أنت على وشك اختياره؛ أدر العرض للتحقق من الجوانب الأخرى. يدور الجزء بحيث يستقر هذا الوجه على سطح العمل.</p>
+<p>يجب أن يلتقي جزءان وجهًا لوجه، أو يتحاذيا مسطحين؟ حدد الجزء الذي يجب أن يتحرك، وانقر على <strong class="ui">«محاذاة الأوجه»</strong>، ثم انقر على وجهه وبعد ذلك على وجه الجزء الآخر. في النافذة، <strong class="ui">«وجهًا لوجه»</strong> يضع الوجهين مقابل بعضهما البعض (ظهرًا لظهر، متلامسين)، <strong class="ui">«مستوٍ (Flush)»</strong> يضعهما في مستوى واحد جنبًا إلى جنب؛ <strong class="ui">«الفجوة»</strong> يترك مساحة بينهما، للخلوص مثلًا. <strong class="ui">«محاذاة»</strong> يحرك الجزء: يدور بأقصر طريق حتى يصبح الوجهان متوازيين - لا يدور على الإطلاق إذا كانا بالفعل كذلك - ثم ينزلق فقط نحو الوجه الآخر، لذا يحتفظ بمكانه جانبًا. يبقى الجزء الآخر حيث هو، وتراجع واحد يعيد كل شيء.</p>
+<figure><img src="/api/desktop/layerling/ui/dalil/img/mate-faces.webp" alt="نافذة محاذاة الوجوه: تم اختيار الجزء الذي يتحرك، ويأتي وجه الجزء الآخر بعد ذلك، ثم وجهًا لوجه أو مسطحًا، وفجوة اختيارية." width="1280" height="800" loading="lazy"><figcaption>نافذة محاذاة الوجوه: تم اختيار الجزء الذي يتحرك، ويأتي وجه الجزء الآخر بعد ذلك، ثم وجهًا لوجه أو مسطحًا، وفجوة اختيارية.</figcaption></figure>
+<p><strong>ثقوب على محور واحد:</strong> <strong class="ui">«المحور نفسه»</strong> يحاذي بدلًا من ذلك الأوجه الدائرية: ثقبًا فوق ثقب، أو دبوسًا في ثقب، أو برغيًا في ثقب مروره. اختره قبل أن تنقر الأوجه. ثم انقر داخل الثقب الدائري (أو خارج الدبوس) في القطعة التي تتحرك، ثم وجهًا دائريًا في القطعة الأخرى؛ يضيء الوجه الدائري كله حين تشير إليه. <strong class="ui">«محاذاة»</strong> يدير القطعة بأقصر طريق حتى يتوازى المحوران، ثم يزيحها عرضيًا إلى المحور الآخر. على امتداد المحور تبقى حيث كانت، فيحتفظ الدبوس بارتفاعه؛ ادفعه بعد ذلك. يعمل هذا أيضًا مع الشبكات المستوردة ما دام الثقب مكونًا من أوجه صغيرة حول محور واحد.</p>
+<p><strong>نقطة على نقطة:</strong> <strong class="ui">«نقطة إلى نقطة»</strong> يحرّك الجزء في خط مستقيم دون تدويره، بحيث تستقر إحدى نقاطه على نقطة من جزء آخر. انقر على الجزء الذي يتحرك زاوية، أو موضعًا على حافة، أو مركز حافة دائرية، أو نقطة مرجعية، ثم النقطة التي يجب أن يستقر عليها؛ تُظهر نقطة ملونة ما سيلتقطه المؤشر. تحت <strong class="ui">«التحريك على»</strong> أطفئ المحاور التي يجب ألا يتحرك عليها: مع X وY فقط تقع النقطة فوق الأخرى أو تحتها مباشرة، ومع Z فقط على الارتفاع نفسه. تراجع واحد يعيده.</p>
+<p><strong>التدوير بزوج ثانٍ وثالث:</strong> بعد <strong class="ui">«محاذاة»</strong> تبقى اللوحة مفتوحة لزوج ثانٍ من النقاط. تبقى النقطة الأولى حيث استقرت، معلَّمة بالأزرق، و<strong class="ui">«تدوير»</strong> يدير الجزء حولها حتى يمر الخط المار بنقطته الثانية بالنقطة التي اخترتها على الجزء الآخر - فتقع حافتان على خط واحد حتى لو اختلف طول الجزأين. زوج ثالث يدير الجزء حول الخط المار بالنقطتين الزرقاوين حتى تتجه نقطته الثالثة نحو النقطة الثالثة التي اخترتها، فتتطابق الأوجه أيضًا - مثل المحاذاة بثلاث نقاط في برامج CAD الأخرى. <strong class="ui">«تم»</strong> ينهي العملية في أي خطوة؛ وكل خطوة تراجع واحد.</p>
+<p><strong>زاوية دقيقة بين وجهين:</strong> <strong class="ui">«محاذاة الأوجه»</strong> يترك الوجوه متوازية؛ لا توجد أداة خاصة بها لزاوية بينهما، ولكن هذا ينقلك إلى هناك. أولًا اجمع الوجوه معًا بـ<strong class="ui">«محاذاة الأوجه»</strong>، فتصبح متوازية. ثم اضبط المحور على الحافة التي يلتقيان فيها (<strong class="ui">«تعيين محور الدوران»</strong>، انقر على الحافة أو الزاوية) واكتب الزاوية، 15 أو 30 لنقل، في بطاقة <strong class="ui">«الدوران»</strong> للجزء. يدور حول ذلك المحور. محاور البطاقة هي محاور اللوحة، لذا يعمل هذا عندما تجري الحافة على طول X أو Y أو Z.</p>
+<p>بنفس البساطة توجد <strong class="ui">«إسقاط على سطح العمل»</strong> (<kbd>D</kbd>)، والتي تسقط التحديد على سطح العمل، و<strong class="ui">«توسيط على سطح العمل»</strong>. وعندما يكون سطح العمل على وجه، يوسّط على النقطة التي اخترتها بـ<kbd>W</kbd> ويحرّك التحديد على امتداد ذلك الوجه فقط، فيبقى ما يقف عليه واقفًا عليه.</p>
+<p>يُسقط <span dir="ltr"><kbd>Alt</kbd>+<kbd>D</kbd></span> عدة أجزاء كقطعة واحدة: تنزل كلها بالمسافة نفسها، فتبقى ارتفاعاتها بالنسبة لبعضها كما هي، بينما يُسقط <kbd>D</kbd> كل جزء وحده.</p>
+<p><kbd>C</kbd> يرفع التحديد، مثل Cruise في Tinkercad: يتبع مؤشر الماوس ويستقر على وجه جسم آخر أنت فوقه، المائلة منها أيضًا. نقرة تضعه هناك، و<kbd>Esc</kbd> يتركه حيث كان. جانبه السفلي يستقر حينها على الوجه، محاذيًا مع حواف الوجه كما سيكون شكل جديد؛ يحتفظ بدورانه الخاص حول محوره الرأسي. تسافر أجزاء عدة معًا وتحتفظ بتباعدها. فوق اللوحة الفارغة، <kbd>C</kbd> يوقف جزءًا مائلًا قائمًا على سطح العمل مجددًا. والضغط على <kbd>Shift</kbd> أثناء الحمل يُغرق القطعة في الوجه بدلًا من ذلك: تبقى قائمة، وأعلاها مستوٍ مع الوجه والجسم تحته، وهكذا يدخل ثقب غاطس أو متدرج في جسم؛ والشكل الجديد من المكتبة يوضع بالطريقة نفسها مع الضغط على <kbd>Shift</kbd>. و<span dir="ltr"><kbd>Shift</kbd>+<kbd>D</kbd></span> يُنزل التحديد بحيث يكون أعلاه على سطح العمل بدلًا من قاعدته. ودون لوحة مفاتيح، في قائمة الضغط المطول <strong class="ui">«وضع على وجه»</strong> للغرض نفسه.</p>
+</section><section class="guide-part"><h2 id="patterns-row-and-circle">الأنماط: صف ودائرة (Patterns: row and circle)</h2>
+<p>لشبكات الثقوب، دوائر البراغي وحلقات الأسنان توجد <strong class="ui">«نمط»</strong>. حدد الأشكال المراد تكثيرها وانقر عليها في الشريط.</p>
+<figure><img src="/api/desktop/layerling/ui/dalil/img/pattern-tool.webp" alt="المصفوفة في وضع &quot;دائرة&quot;: تظهر النسخ أولًا كمعاينة." width="1280" height="800" loading="lazy"><figcaption>المصفوفة في وضع &quot;دائرة&quot;: تظهر النسخ أولًا كمعاينة.</figcaption></figure>
+<ul><li><strong><strong class="ui">«صف»</strong>:</strong> يتم تكرار التحديد بمسافات متساوية. يخطو الصف على طول المحاور الثلاثة مرة واحدة، بـ<strong class="ui">«المسافة X»</strong>، <strong class="ui">«المسافة Y»</strong> و<strong class="ui">«المسافة Z (الارتفاع)»</strong>: أحدها يعطي صفًا مستقيمًا، واثنان أو ثلاثة يعطيان صفًا قطريًا أو درجًا. والمسافة السالبة تمد الصف بالاتجاه الآخر.</li><li><strong><strong class="ui">«التوزيع على جسم»</strong>:</strong> للثقوب على طول لوح، أو حامل مفاتيح أو علّاقة ملابس. ضع القطعة الأولى على الجسم أو داخله، واختر <strong class="ui">«على طول X»</strong> أو <strong class="ui">«على طول Y»</strong> واضبط <strong class="ui">«المسافة إلى الحافة»</strong>: تتحرك القطعة الأصلية بهذا القدر إلى الداخل من الطرف الأقرب (من الحافة إلى جانب القطعة)، وتحتفظ النسخة الأخيرة بالفراغ نفسه عند الطرف الآخر. تتبع المسافة بعد ذلك <strong class="ui">«العدد (مع الأصل)»</strong>: خمسة ثقوب أو تسعة، تملأ اللوح دائمًا بالتساوي.</li><li><strong><strong class="ui">«شبكة»</strong>:</strong> لثقوب لوح مثقب أو حقل من قطع متماثلة. يضع <strong class="ui">«أعمدة على امتداد X (مع الأصل)»</strong> و<strong class="ui">«المسافة X»</strong> الأعمدة جنبًا إلى جنب، و<strong class="ui">«صفوف على امتداد Y (مع الأصل)»</strong> و<strong class="ui">«المسافة Y»</strong> الصفوف من الأمام إلى الخلف. عمود واحد أو صف واحد يعطي خطًا واحدًا. للشبكة 100 قطعة على الأكثر؛ وبعدها تُقلَّص الصفوف وتذكر النافذة ذلك.</li><li><strong><strong class="ui">«دائرة»</strong>:</strong> ينتشر التحديد حول مركز. كم عدد النسخ التي تضبطها تحت <strong class="ui">«العدد (مع الأصل)»</strong>، و<strong class="ui">«الزاوية الإجمالية»</strong> هي 360° للدائرة الكاملة. اختر ما إذا كانت النسخ تدور معها. <strong class="ui">«الارتفاع لكل نسخة»</strong> يرفع كل نسخة أكثر قليلًا من التي قبلها (برغي أو حلزون صاعد)، و<strong class="ui">«تغيّر نصف القطر لكل نسخة»</strong> يحركها أبعد عن المركز أو أقرب إليه (حلزون مسطح)؛ معًا يعطيان حلزونًا مخروطيًا. يلتف الحلزون دورة واحدة كحد أقصى: الزاوية فوق 360° تحسب كدائرة كاملة، وهناك 100 نسخة كحد أقصى.</li></ul>
+<p>نصيحة: اضبط المحور أولًا على وجه بـ<strong class="ui">«تعيين محور الدوران»</strong>، حينها يقع مركز الدائرة هناك تمامًا.</p>
+<p>بعد ذلك تحتفظ القطع بمركز الدائرة محورًا لدورانها، حتى بعد تجميعها. وهناك يكون مكان جزء آخر، مثل كرة في منتصف ثلاث أرجل: منتصف صندوق القطع ليس هو المركز، لأن ثلاث أرجل تملأ صندوقًا أعرض في اتجاه منه في الآخر. انقر بالزر الأيمن على القطع واختر <strong class="ui">«وضع علامة على محور الدوران»</strong>، فيلتقط مركز الجزء الذي تسحبه إليه.</p>
+<figure><img src="/api/desktop/layerling/ui/dalil/img/pattern-spiral.webp" alt="المصفوفة في وضع &quot;دائرة&quot; مع ارتفاع وتغيير نصف قطر لكل نسخة: تتسلق النسخ وتتسع مثل حلزون." width="1280" height="800" loading="lazy"><figcaption>المصفوفة في وضع &quot;دائرة&quot; مع ارتفاع وتغيير نصف قطر لكل نسخة: تتسلق النسخ وتتسع مثل حلزون.</figcaption></figure>
+<p>تظهر النسخ أولًا كمعاينة. فقط <strong class="ui">«إنشاء»</strong> ينشئها. إذا كانت النسخ ثقوبًا، اجمعها بعد ذلك مع الجسم الذي يجب أن تقطع فيه.</p>
+<p>مع تعليم <strong class="ui">«تجميع النسخ»</strong>، يجمّع <strong class="ui">«إنشاء»</strong> الأصل وكل النسخ في جسم واحد في الخطوة نفسها، كما يفعل <strong class="ui">«تجميع»</strong>: فتصبح حلقة من 36 قطعة جزءًا واحدًا يمكنك تحريكه أو تلوينه أو القطع به. فوق 5 قطع تُعلَّم الخانة من تلقاء نفسها؛ وبمجرد أن تعلّمها أو تلغي علامتها بنفسك، تبقى كما ضبطتها. ويعيد <strong class="ui">«فك التجميع»</strong> القطع منفصلة. وإذا لم ينجح التجميع، يأتي النمط مع ذلك كقطع منفصلة وتذكر الرسالة السبب.</p>
+</section><section class="guide-part"><h2 id="hole-pattern-on-a-face">نمط ثقوب على وجه (Hole pattern on a face)</h2>
+<p>للمنافذ، شبكات مكبرات الصوت، السلال والغلافات، تنشر <strong class="ui">«نمط الثقوب»</strong> الثقوب بالتساوي فوق وجه مسطح. لم تعد مضطرًا لعمل ثقب واحد، تكراره وضبطه على الجدار. حدد جسمًا واحدًا بالضبط وانقر على <strong class="ui">«نمط الثقوب»</strong> في مجموعة <strong class="ui">«تعديل»</strong> للشريط، بجانب النمط. يمكنك أيضًا النقر بالزر الأيمن على الجسم، أو العثور عليه بـ<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</p>
+<ol><li>انقر على وجه مسطح للجسم. الوجه المسطح بأكمله حول نقرتك يُحتسب، وليس فقط المثلث أسفل المؤشر. الجدار الدائري لأسطوانة أو أنبوب أو ثقب يعمل أيضًا، انظر أدناه؛ أما أي وجه منحنٍ آخر فلا يعمل: تحصل على تلميح وتنقر على وجه مسطح بدلًا منه. وفي المجموعة أو الحزمة يمتد الوجه عبر الأجزاء المتلاقية، كما في جسم واحد؛ وفي الحزمة فقط إذا لم يكن بينها ثقب. تُضم الأجزاء بعد فتح الأداة بقليل؛ وحتى ذلك الحين لا يضيء تحت المؤشر إلا وجه جزء واحد، والنقرة تنتظر الضم. وفي مجموعة أو حزمة فيها نص لا يضيء إلا وجه جزء واحد، والنقرة تضم الأجزاء.</li><li>في النافذة، اضبط كيف تبدو الثقوب وتقع:</li></ol>
+<ul><li><strong><strong class="ui">«شكل الثقب»</strong>:</strong> <strong class="ui">«دائري»</strong>، <strong class="ui">«مربع»</strong>، <strong class="ui">«مستطيل»</strong>، <strong class="ui">«سداسي»</strong> أو <strong class="ui">«شق»</strong>.</li><li><strong>الحجم:</strong> <strong class="ui">«القطر (Ø)»</strong> للثقب المستدير، <strong class="ui">«طول الضلع»</strong> لمربع، <strong class="ui">«العرض»</strong> و<strong class="ui">«الارتفاع»</strong> للمستطيل والشق. للشكل السداسي، الحجم هو <strong class="ui">«القطر عبر الزوايا (Ø)»</strong>.</li><li><strong><strong class="ui">«زاوية الثقوب»</strong>:</strong> للمستطيلات والشقوق فقط: يدير كل ثقب في الوجه بهذا العدد من الدرجات، عكس اتجاه عقارب الساعة عند النظر إلى الوجه، من -90 إلى 90. تبقى الصفوف مستقيمة؛ وإذا اقتربت الثقوب المدارة كثيرًا من بعضها، ولو قطريًا، يزيد layerling التباعد والمسافة بين الصفوف ليبقى جدار بينها.</li><li><strong><strong class="ui">«ميل الثقوب عبر الجدار»</strong>:</strong> للأوجه المستوية فقط، وليس مع تجويف أسطواني أو مخروطي أو شكل خاص: يميل كل ثقب عبر الجدار، من -60 إلى 60 درجة. على جدار قائم يجعل الميل الموجب الطرف الداخلي أعلى، فيعود ماء المطر إلى الخارج. يبقى المقاس مقاس الثقب نفسه، لذا يبدو أطول قليلاً على الوجه؛ ويحافظ طرفا كل ثقب على الهامش. لا يحجب الميل رؤية الداخل إلا إذا كان سمك الجدار مضروباً في جيب الزاوية لا يقل عن ارتفاع الثقب، فاستخدم لذلك شقوقاً منخفضة أو جداراً أسمك.</li><li><strong><strong class="ui">«شكل خاص»</strong>:</strong> يكرر شكلًا من المشهد بدل الثقب: برشامًا أو نتوءًا أو لوحًا بنقش ماسي. تختاره من <strong class="ui">«شكل من المشهد»</strong>. عرضه وعمقه هما المساحة التي يشغلها؛ ويقف قائمًا على الوجه كما صُنع، دون دورانه الخاص. يوضع الجسم على الوجه ويتصل به، ويُقطع التجويف بعمق يساوي ارتفاعه. ويبقى الشكل نفسه في مكانه.</li><li><strong><strong class="ui">«نوع الثقب»</strong>:</strong> للثقوب الدائرية فقط. <strong class="ui">«عادي»</strong> ثقب مستقيم، و<strong class="ui">«ثقب متدرج»</strong> يضيف تجويفًا لرأس برغي أسطواني، و<strong class="ui">«ثقب غاطس»</strong> مخروطًا بزاوية 90° لبرغي غاطس. يصبح المقاس عندها <strong class="ui">«قطر الساق»</strong>، ويضبط <strong class="ui">«قطر الرأس»</strong> و<strong class="ui">«عمق الرأس»</strong> (في التجويف) الرأس. ويملأ <strong class="ui">«مقاس البرغي»</strong> كل ذلك لبرغي متري.</li><li><strong><strong class="ui">«المسافة من المركز إلى المركز»</strong>:</strong> المسافة من وسط ثقب إلى التالي. إذا كانت أصغر مما تسمح به الثقوب، يرفعها layerling إلى أصغر قيمة ممكنة حتى يبقى جدار بين الثقوب. وللمستطيلات والشقوق تُحسب على طول الصف، من اليسار إلى اليمين.</li><li><strong><strong class="ui">«الصفوف من مركز إلى مركز»</strong>:</strong> للمستطيلات والشقوق فقط: المسافة من صف إلى التالي. فتقف الثقوب الضيقة الطويلة متقاربة جنبًا إلى جنب بينما تبقى الصفوف متباعدة. الثقب بعرض 2 مم وارتفاع 14 مم يحتاج إلى 4 مم على طول الصف و16 مم من صف إلى صف مع جدار 2 مم.</li><li><strong><strong class="ui">«الجدار بين الثقوب»</strong>:</strong> المسافة نفسها مقولة بطريقة أخرى: الجدار المتروك بين ثقبين متجاورين، وهو سمك الجدار في الطباعة. اضبطه فيتبعه التباعد من المركز إلى المركز (وللمستطيلات والشقوق تباعد الصفوف أيضًا)، والعكس صحيح. للأشكال السداسية والمستطيلات والشقوق يقيس layerling أقل مسافة بين حوافها.</li><li><strong><strong class="ui">«الترتيب»</strong>:</strong> <strong class="ui">«شبكة»</strong> يضع الثقوب في صفوف وأعمدة. <strong class="ui">«متداخل»</strong> يزيح كل صف ثانٍ بنصف تباعد ويحرك الصفوف أقرب، لذا فإن كل ثقب لديه جيران عند المسافة نفسها - مع الأشكال السداسية يصنع ذلك قرص عسل.</li><li><strong><strong class="ui">«على الحافة»</strong>:</strong> بدلًا من ذلك حلقة من الثقوب على طول الحافة الخارجية للوجه، إلى الداخل منها بمقدار <strong class="ui">«الهامش إلى حافة الوجه»</strong> - ثقوب براغٍ حول غطاء أو لوح. مع <strong class="ui">«التوزيع حسب»</strong> <strong class="ui">«المسافة»</strong> تحافظ الثقوب على المسافة تقريبًا، ومع <strong class="ui">«العدد»</strong> تحدد <strong class="ui">«عدد الثقوب»</strong>؛ وفي الحالتين تُعدَّل المسافة لتنغلق الحلقة بلا فجوة. يضع <strong class="ui">«ثقب عند كل زاوية»</strong> (مفعّل في البداية) ثقبًا عند كل زاوية ويوزع كل ضلع بينها بالتساوي. على وجه دائري، أو دون العلامة، تدور الثقوب بالتساوي من الأعلى، ويحرك <strong class="ui">«البداية على الحافة»</strong> الحلقة كلها على طول الحافة.</li><li><strong><strong class="ui">«الهامش إلى حافة الوجه»</strong>:</strong> المسافة الخالية بين الثقوب وحافة الوجه. فقط الثقوب التي تقع بالكامل داخل الوجه ناقص هذا الهامش هي التي تُصنع؛ أي شيء قد يصل إلى أبعد منه يُترك خارجًا. الهامش يثبت أيضًا حول الفتحات في الوجه.</li><li><strong><strong class="ui">«العمق»</strong>:</strong> <strong class="ui">«عبر الجسم بأكمله»</strong> (الافتراضي) يقطع عبر الجدار بأكمله. مع <strong class="ui">«عمق مخصص»</strong> تعطيك العمق بالمليمترات، للتجاويف مثلًا.</li></ul>
+<ol><li>تظهر الثقوب فورًا كمعاينة على الوجه وتتبع كل قيمة. وتذكر النافذة عدد الثقوب التي يتسع لها الوجه. <strong class="ui">«وجه آخر»</strong> يختار وجهًا آخر، <kbd>Esc</kbd> يغلق الأداة، ومثل نوافذ الأدوات الأخرى تتحرك بشريط عنوانها.</li><li>فقط <strong class="ui">«إنشاء»</strong> يصنع الثقوب.</li></ol>
+<p>الثقوب ثقوب عادية مجمّعة مع الجسم، تمامًا كما بعد <strong class="ui">«تجميع»</strong>: لا شيء يُدمج نهائيًا. <strong class="ui">«فك التجميع»</strong> يفكك المجموعة مجددًا ويحرر كل ثقب، والذي يمكنك بعد ذلك تحريكه أو تغييره أو حذفه كلًّا على حدة. الشيء بأكمله خطوة واحدة لـ<strong class="ui">«تراجع»</strong>. لا تصنع الأداة أكثر من 400 ثقب مرة واحدة؛ اجعل الثقوب أكبر أو التباعد أوسع حينها.</p>
+<p>يقبل الجدار الدائري لأسطوانة أو أنبوب أو ثقب الثقوبَ أيضًا: حامل أقلام، أو غطاء مصباح، أو أنبوب بفتحات تهوية. انقر على الجدار بدلًا من وجه مسطح؛ فيضيء الجدار كله تحت المؤشر. يتجه كل ثقب حينها مباشرة نحو المحور، وتدور الصفوف حول الجدار. على جدار يلتف بالكامل، يحمل كل صف عددًا صحيحًا من الثقوب، موزعًا بحيث تنغلق الحلقة بلا فجوة ولا تقترب الثقوب أكثر من المسافة؛ وتذكر النافذة كم ثقبًا يدور وعلى أي بعد. يسري الهامش على الحافتين العليا والسفلى وعلى الفتحات في الجدار، وعلى جزء من جدار (حافة مستديرة مثلًا) على جانبيه أيضًا. يقطع <strong class="ui">«عبر الجدار»</strong> الجدار الذي نقرت عليه فقط ويترك الجانب الآخر من الأنبوب سليمًا؛ وفي أسطوانة صلبة تصل الثقوب إلى منتصفها. وإذا نقرت داخل ثقب، تتجه الثقوب إلى الخارج عبر جداره. أما <strong class="ui">«على الحافة»</strong> فهو للوجوه المسطحة ولا يُعرض على الجدار.</p>
+<p>يمكن لذكاء اصطناعي فعل الشيء نفسه عبر جسر MCP بـ<code>layerling_perforate_face</code> (انظر فصل <a href="/api/desktop/layerling/ui/dalil/ai-with-mcp.html">البناء باستخدام الذكاء الاصطناعي</a>).</p>
+</section><section class="guide-part"><h2 id="pushing-a-face-out-or-in">دفع وجه للخارج أو الداخل (Pushing a face out or in)</h2>
+<p>لجدار أسمك، وسادة مرفوعة على وجه أو جيب مقطوع فيه، تعمل أداة <strong class="ui">«الوجه»</strong> على وجه مسطح واحد. تعمل على STL مستورد أيضًا، حيث لا يوجد رسم تخطيطي لتغييره. حدد جسمًا واحدًا بالضبط وانقر على <strong class="ui">«الوجه»</strong> في مجموعة <strong class="ui">«تعديل»</strong> للشريط، بجانب نمط الثقوب. يمكنك أيضًا النقر بالزر الأيمن على الجسم، أو العثور عليه بـ<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</p>
+<ol><li>انقر على وجه مسطح للجسم. كما هو الحال مع نمط الثقوب، الوجه المسطح بأكمله حول نقرتك يُحتسب؛ الوجه المنحني لا يعمل هنا، ولا الجدار الدائري. وفي المجموعة أو الحزمة يمتد الوجه عبر الأجزاء المتلاقية، كما في نمط الثقوب.</li><li>في النافذة:</li></ol>
+<ul><li><strong><strong class="ui">«الاتجاه»</strong>:</strong> اختر <strong class="ui">«للخارج: إضافة مادة»</strong> للمادة الواقفة على الوجه أو <strong class="ui">«للداخل: قطع جيب»</strong> لجيب مقطوع فيه. الجيب لا يذهب أعمق من الجسم خلف الوجه؛ على جسم مفرغ يمكنه الاستمرار في الوصول إلى التجويف.</li><li><strong><strong class="ui">«الهامش الداخلي من حافة الوجه»</strong>:</strong> مدى بقاء الحد الخارجي الجديد داخل حافة الوجه. بالخروج، 0 يأخذ الوجه بأكمله، مما يجعل الجدار أسمك. الفتحات في الوجه تنمو بنفس المقدار.</li><li><strong><strong class="ui">«نصف قطر الزاوية»</strong>:</strong> ينعم كل زاوية من الحد الخارجي، الداخلية منها أيضًا، لذا فإن الرأس الحاد ينتهي في قوس. الشق الأضيق من ضعفي نصف القطر يغلق، وجزء الوجه الأضيق من ضعفي الهامش الداخلي ونصف القطر معًا يُترك خارجًا.</li><li><strong><strong class="ui">«العمق»</strong>:</strong> مدى بروز الجزء الجديد من الوجه، أو مدى عمق الجيب.</li><li><strong><strong class="ui">«كجسم مستقل (غير مجمّع)»</strong>:</strong> عند تشغيل المفتاح، يكون الجزء الجديد (أو ثقب الجيب) جسمًا مستقلًا بجانب الجسم بدل أن يكون في مجموعة معه، فيمكنك تغيير مقاسه أو تحريكه أو استخدامه للقطع مباشرة.</li></ul>
+<ol><li>تظهر النتيجة في الحال كمعاينة وتتبع كل قيمة. <strong class="ui">«وجه آخر»</strong> يختار وجهًا آخر، <kbd>Esc</kbd> يغلق الأداة.</li><li>فقط <strong class="ui">«إنشاء»</strong> يصنعه.</li></ol>
+<p>ما تضيفه الأداة هو جسم رسم تخطيطي عادي، مجمّع مع الجسم ما لم يكن <strong class="ui">«كجسم مستقل (غير مجمّع)»</strong> مفعّلًا (وعندها لا يجد <strong class="ui">«تعديل المجموعة»</strong> ما يفتحه، ويكون الجزء حرًا): لا شيء يُدمج نهائيًا. <strong class="ui">«تعديل المجموعة»</strong> يفتح المجموعة، و<strong class="ui">«تعديل الرسم التخطيطي»</strong> على الجزء الجديد يعرض الحد الخارجي الذي يتبعه. في الأعلى أو الأسفل لجسم رسم تخطيطي عادي - منطقة واحدة، غير مجمعة، غير معكوسة، غير مستدقة، غير ملتوية أو مائلة، وبدون خط بعرض، حلقة مفاتيح، تنعيم أو شطف - ذلك هو الحد الخارجي الخاص بالجسم، المضبوط عند بنائه، لذا تظل خطوطه وأقواسه دقيقة حيثما يمكن لنواة CAD ضبطها فيه، لأدوات الحواف وتصدير STEP. عند تغيير حجمه لاحقًا، يحتفظ الجزء بهامشه الداخلي. على أي وجه آخر، وعلى كل وجه لشبكة مستوردة، يتبع الحد الخارجي مثلثات الوجه، ويصنع المنحنى من قطع مستقيمة قصيرة. الشيء بأكمله خطوة واحدة لـ<strong class="ui">«تراجع»</strong>. لتغيير الهامش الداخلي أو نصف القطر لاحقًا، تراجع وشغّل الأداة مجددًا. لتنعيم الحافة العليا بعد ذلك، استخدم <strong class="ui">«تنعيم (Fillet)»</strong> مع <strong class="ui">«الحواف العليا»</strong> على المجموعة كخطوة أخيرة: مثل كل معالجة حافة على مجموعة، إنها تدمج المجموعة في جسم واحد.</p>
+<p>يمكن لذكاء اصطناعي فعل الشيء نفسه عبر جسر MCP بـ<code>layerling_push_face</code> (انظر فصل <a href="/api/desktop/layerling/ui/dalil/ai-with-mcp.html">البناء باستخدام الذكاء الاصطناعي</a>).</p>
+</section><section class="guide-part"><h2 id="changing-several-parts-at-once">تغيير عدة أجزاء مرة واحدة (Changing several parts at once)</h2>
+<p>مع تحديد أجزاء عدة، تعرض لوحة الخصائص على اليمين كم عددها وتقدم ما ينطبق عليها جميعًا معًا: <strong class="ui">«صلب»</strong> أو <strong class="ui">«ثقب»</strong>، لون واحد للكل (نقرة على <strong class="ui">«صلب»</strong> تفتح الألوان) والقفل. مع تحديد مختلط، نقرة واحدة تجعلها كلها أجسامًا صلبة أو كلها ثقوبًا. إذا كان أي من الأجزاء مقفلًا، يمكن استخدام القفل فقط. تغير الأحجام بالمقابض، بـ<strong class="ui">«التكبير/التصغير بالنسبة المئوية»</strong> أو بكتابة رقم في تسمية الحجم. مع أجزاء عدة، الرقم هو حجم التحديد بأكمله: كل جزء ينمو معه، المساحات بينها أيضًا، كما عندما تسحب مقبضًا. الجسم الصلب والثقب يعملان أيضًا بنقرة بالزر الأيمن أو بمفتاحي <kbd>S</kbd> و<kbd>H</kbd>.</p>
+</section><section class="guide-part"><h2 id="scaling-by-percent">التكبير/التصغير بالنسبة المئوية (Scaling by percent)</h2>
+<p>لجعل جزء واحد أو أجزاء عدة أكبر أو أصغر بنفس الحصة، لنقل جميع أجزاء ملف طباعة بـ20 %، استخدم <strong class="ui">«التكبير/التصغير بالنسبة المئوية»</strong>. حدد الأجزاء، انقر بالزر الأيمن عليها واختر <strong class="ui">«التكبير/التصغير بالنسبة المئوية»</strong>، أو ابحث عنها بـ<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</p>
+<p>تحت <strong class="ui">«الحجم الجديد»</strong> تكتب الحجم الجديد كنسبة مئوية من الحجم الحالي: 120 % أكبر بالخُمس، 50 % نصف الحجم. العرض، العمق والارتفاع تتغير بشكل مماثل، لذا تظل بالنسب. القاع يبقى حيث هو، لذا لا شيء يغرق في اللوحة.</p>
+<p>مع أجزاء عدة تختار كيف تنمو:</p>
+<ul><li><strong><strong class="ui">«معًا»</strong>:</strong> تنمو الأجزاء حول مركزها المشترك، والفجوات تنمو معها. يصبح الكل أكبر كما لو كان جزءًا واحدًا.</li><li><strong><strong class="ui">«كل في مكانه»</strong>:</strong> ينشأ كل جزء حيث يقف، والفجوات بينها تظل كما هي.</li></ul>
+<p>يكون التركيز على حقل النسبة المئوية عند فتح النافذة، فمن لوحة المفاتيح يكفي <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span> ثم النسبة ثم <kbd>Enter</kbd>؛ و<kbd>Esc</kbd> يغلق النافذة. فقط <strong class="ui">«تكبير/تصغير»</strong> (أو <kbd>Enter</kbd> في الحقل) يغير التصميم، وخطوة واحدة إلى الخلف تتراجع عنه. مع وجود جزء مقفل في التحديد لا يفتح.</p>
+</section><section class="guide-part"><h2 id="undoing">التراجع</h2>
+<p><strong class="ui">«تراجع»</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span>) و<strong class="ui">«إعادة»</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span> أو <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Y</kbd></span>) يخطوان عبر سجل تاريخك. كم عدد الخطوات التي تسافر مع التصميم المحفوظ تضبطه في الإعدادات تحت <strong class="ui">«السجل»</strong>. عندما تشير إلى أحد الزرين، يذكر تلميحه الخطوة التي سيتراجع عنها أو يعيدها، مع القياس إن كان للخطوة قياس، مثل «تم تنعيم حواف: Box (5 mm)»؛ والرسالة بعد الخطوة تقول الشيء نفسه. للرجوع عدة خطوات دفعة واحدة، استخدم عرض السجل أدناه. الرسالة التي تُبلغ عن خطوة نُفذت للتو، مثل «حُذفت 3 أشكال»، فيها زر «تراجع» يلغي هذه الخطوة بعينها.</p>
+</section><section class="guide-part"><h2 id="looking-back-the-history-view">عرض ما مضى: عرض السجل (Looking back: the history view)</h2>
+<p><strong class="ui">«السجل»</strong>، بجانب التراجع والإعادة، يفتح عرضًا لسجلك دون تغيير أي شيء. تعرض منطقة العمل التصميم كما كان، وشريط تمرير في الأسفل يمر عبر كل خطوة تراجع: الطريق بأكمله إلى اليمين هو الحالة الحالية، كل خطوة إلى اليسار هي تراجع أسبق بخطوة، والحالات التي تراجعت عنها تقع إلى يمين الحالة الحالية. مفاتيح الأسهم تخطو عبر الحالات، و<kbd>Esc</kbd> يعود إلى الحالة الحالية. وعجلة الفأرة فوق شريط التمرير تفعل الشيء نفسه، حالة واحدة لكل درجة، إلى حالة أقدم مثلًا؛ <kbd>Page Up</kbd> و<kbd>Page Down</kbd> يقفزان عشر حالات، و<kbd>Home</kbd> يذهب إلى أقدم حالة و<kbd>End</kbd> يعود إلى الحالة الحالية. يمكنك تدوير وتكبير/تصغير العرض في هذه الأثناء والنقر على الأجسام لإعادتها (انظر أدناه)، ولكن لا يمكن تحريك أي شيء؛ التصميم نفسه يبقى كما هو تمامًا. إذا كان الشريط يغطي شيئًا ما، اسحبه بعيدًا بشريط عنوانه؛ والنقر المزدوج عليه يعيده. يعرض زر القائمة في شريط العنوان كل الخطوات بأسمائها في قائمة، الأحدث في الأعلى: النقر على خطوة ينتقل إلى تلك الحالة، والحالة التي يقف عندها التصميم معلَّمة بـ <strong class="ui">«الآن»</strong>، والخطوات التي تراجعت عنها رمادية. إذا تركت القائمة مفتوحة، تظهر مفتوحة في المرة التالية. يشغّل زرا التشغيل أسفل شريط التمرير السجل مثل فيلم: الذي يشير إلى اليمين يشغّل إلى الأمام من الحالة المعروضة، والذي يشير إلى اليسار يشغّل إلى الخلف، كل حالة لحظة، حتى النهاية؛ والضغط على الزر نفسه مرة أخرى يوقفه مؤقتًا، وتحريك شريط التمرير أو العجلة أو المفاتيح أو القائمة يتولى الأمر. وإذا بدأ عند نهاية طريقه، يبدأ من جديد من الطرف الآخر. ويضبط <strong class="ui">«السرعة»</strong> مدة بقاء كل حالة (بطيء أو عادي أو سريع) ويُتذكَّر للمرة القادمة. سجّل الشاشة أثناء التشغيل لتُظهر كيف نشأت قطعة.</p>
+<p>شيئان يمكنك أخذهما معك من حالة سابقة. <strong class="ui">«مشروع جديد من هذه الحالة»</strong> يضع تلك الحالة في تصميم جديد في النظرة العامة، باسم هذا التصميم مع وقت تلك الحالة بين قوسين - التصميم المحفوظ قبل أن يسجل layerling الأوقات يقول &quot;نسخة&quot; بدلًا من ذلك - ومع السجل حتى تلك النقطة، لذا يظل التراجع يعمل هناك. <strong class="ui">«تصدير هذه الحالة»</strong> يفتح التصدير العادي مع تلك الحالة كتصميم، حتى تتمكن من حفظه كـSTL، 3MF، STEP، صورة أو ملف LYL مع السجل حتى تلك الحالة.</p>
+<p>يمكنك أيضًا إعادة أجسام منفردة إلى التصميم. انقر على جسم في الحالة المعروضة - <kbd>Shift</kbd>+نقرة تضيف المزيد أو تزيل واحدًا، والنقر في مكان فارغ لا يختار شيئًا - ثم اختر <strong class="ui">«إعادة إلى التصميم»</strong>. يُغلق العرض وتصل نسخة من كل جسم إلى التصميم الحالي تمامًا كما كان في تلك الحالة وفي المكان الذي كان فيه، محددة، بجانب كل ما يحويه التصميم الآن؛ ولا يتغير شيء آخر. إنها خطوة واحدة، فالتراجع يعيدها. استخدمها لنسخة من جزء غيّرته منذ ذلك الحين أو حذفته. تعود المجموعة كاملة؛ وتبقى الملاحظات والنقاط المرجعية الخاصة بالجسم في مكانها. يحمل اسمه وقت تلك الحالة، مثل „Box (12:32)“، ليسهل تمييزه عن النسخة الموجودة في التصميم الآن. لإعادة جزء من داخل مجموعة، حدد المجموعة واختر <strong class="ui">«فتح المجموعة»</strong> أو اضغط <kbd>E</kbd>، كما في التصميم: تُعرض أجزاؤها حيث كان تعديل المجموعة سيضعها، جاهزة للاختيار، ويوضح الشريط المجموعة التي أنت فيها. <strong class="ui">«رجوع»</strong> يغلقها مجددًا. هذا للعرض فقط - تبقى المجموعة والتصميم والسجل كما هي.</p>
+<p><strong class="ui">«حذف السجل»</strong> يقع وحده في أسفل يسار الشريط. بعد سؤال يزيل كل خطوة سابقة نهائيًا: يحتفظ التصميم بالحالة التي لديه الآن (ليست الحالة المعروضة)، والتراجع ليس لديه شيء ليعود إليه والملف المحفوظ بعد ذلك لا يحمل سجلًا. استخدمه لمشاركة تصميم بدون ماضيه، أو للبدء بخطوات التراجع من جديد. لا يمكن التراجع عنه؛ لمشاركة ملف دون لمس تصميمك الخاص، اختر <strong class="ui">«لا شيء»</strong> عند التصدير بدلًا من ذلك.</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/dalil/shapes.html"><small>الفصل السابق</small>وضع الأشكال وضبطها</a><a class="next" href="/api/desktop/layerling/ui/dalil/solids-and-holes.html"><small>الفصل التالي</small>الأجسام الصلبة والثقوب</a></div>
+      </main>
+    </div>
+    <footer class="note">ينمو هذا الدليل مع البرنامج. إذا كان هناك شيء ناقص أو خاطئ، فأخبرنا في <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">النقاشات</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=ar" rel="noopener">دعم المشروع</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">المناقشات</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">المزيد على GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">ملاحظات الإصدار v1.154.1</a></div><p class="trademark">Tinkercad هي علامة تجارية لشركة Autodesk, Inc. برنامج layerling هو مشروع مستقل وليس تابعًا لشركة Autodesk أو مدعومًا منها.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="العودة إلى المحرّر";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="افتح المحرّر";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

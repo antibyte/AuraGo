@@ -9,6 +9,16 @@
   "scope": "./",
   "display": "standalone",
   "launch_handler": { "client_mode": ["navigate-existing", "auto"] },
+  "file_handlers": [
+    {
+      "action": "./",
+      "accept": {
+        "application/vnd.layerling.project+zip": [".lyl"],
+        "model/stl": [".stl"],
+        "model/3mf": [".3mf"]
+      }
+    }
+  ],
   "orientation": "any",
   "background_color": "#fafafa",
   "theme_color": "#fafaf9",

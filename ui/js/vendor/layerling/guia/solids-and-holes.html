@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Sólidos e buracos - Guia do usuário do layerling</title>
+    <meta name="description" content="Como formas simples viram furos, rasgos e cavidades, e como alterar um grupo de união depois.">
+    <link rel="canonical" href="https://layerling.com/guia/solids-and-holes.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/solids-and-holes.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/solids-and-holes.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/solids-and-holes.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/koerper-und-aussparungen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/solids-and-holes.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/solids-and-holes.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/solids-and-holes.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/solids-and-holes.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/lichamen-en-gaten.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/solids-and-holes.html">
+    <link rel="alternate" hreflang="pt-BR" href="https://layerling.com/guia/solids-and-holes.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/telesa-in-luknje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/solids-and-holes.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/solids-and-holes.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/solids-and-holes.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/solids-and-holes.html">
+    <meta property="og:title" content="Sólidos e buracos - Guia do usuário do layerling">
+    <meta property="og:description" content="Como formas simples viram furos, rasgos e cavidades, e como alterar um grupo de união depois.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/guia/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Guia do usuário</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/guia/search-index.json" data-nothing="Nada encontrado." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Pesquisar no guia" aria-label="Pesquisar no guia" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Idioma">Português do Brasil</summary><ul><li><a href="/api/desktop/layerling/ui/guide/solids-and-holes.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/solids-and-holes.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/solids-and-holes.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/solids-and-holes.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/solids-and-holes.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/solids-and-holes.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/solids-and-holes.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/solids-and-holes.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/solids-and-holes.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/solids-and-holes.html" hreflang="pt-BR" lang="pt-BR" aria-current="true">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/telesa-in-luknje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/solids-and-holes.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/solids-and-holes.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/solids-and-holes.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/solids-and-holes.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/solids-and-holes.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/solids-and-holes.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Abrir o editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>O editor já está aberto em outra aba - é só mudar para ela.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Capítulos"><h2>Capítulos</h2><p class="print-link"><a href="/api/desktop/layerling/ui/guia/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Guia completo, para imprimir</span></a></p><ol><li><a href="/api/desktop/layerling/ui/guia/getting-started.html">Primeiros passos</a></li><li><a href="/api/desktop/layerling/ui/guia/view-and-workplane.html">View and workplane</a></li><li><a href="/api/desktop/layerling/ui/guia/shapes.html">Placing and adjusting shapes</a></li><li><a href="/api/desktop/layerling/ui/guia/select-and-arrange.html">Selecting and arranging</a></li><li><a href="/api/desktop/layerling/ui/guia/solids-and-holes.html" aria-current="page">Sólidos e buracos</a></li><li><a href="/api/desktop/layerling/ui/guia/edges-and-hollowing.html">Breaking edges and hollowing bodies</a></li><li><a href="/api/desktop/layerling/ui/guia/sketches.html">Sketches: from outline to body</a></li><li><a href="/api/desktop/layerling/ui/guia/text.html">Text and curved lettering</a></li><li><a href="/api/desktop/layerling/ui/guia/threads-and-mechanics.html">Threads, gears and other parts</a></li><li><a href="/api/desktop/layerling/ui/guia/measuring-and-notes.html">Measuring and notes</a></li><li><a href="/api/desktop/layerling/ui/guia/printing.html">Preparação para a impressão 3D</a></li><li><a href="/api/desktop/layerling/ui/guia/files-and-saving.html">Files, saving and sharing</a></li><li><a href="/api/desktop/layerling/ui/guia/shortcuts.html">Atalhos de teclado</a></li><li><a href="/api/desktop/layerling/ui/guia/ai-with-mcp.html">Building with an AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/guia/offline-and-install.html">Instalação como app, uso offline e hospedagem própria</a></li><li><a href="/api/desktop/layerling/ui/guia/videos.html">Vídeos sobre o layerling</a></li><li><a href="/api/desktop/layerling/ui/guia/tablet-and-touch.html">Tablet and touch</a></li></ol></nav>
+      <main>
+<h1>Sólidos e buracos</h1>
+<p class="lead">Como formas simples viram furos, rasgos e cavidades, e como alterar um grupo de união depois.</p>
+<div class="toc"><b>Nesta página</b><ul><li><a href="#solido-ou-buraco">Sólido ou buraco</a></li><li><a href="#agrupando">Agrupando</a></li><li><a href="#criando-conjuntos">Criando conjuntos</a></li><li><a href="#intersecao">Interseção</a></li><li><a href="#recortando-um-solido-de-outro">Recortando um sólido de outro</a></li><li><a href="#puncionando-um-contorno-atraves-de-um-solido">Puncionando um contorno através de um sólido</a></li><li><a href="#editando-um-grupo-de-uniao">Editando um grupo de união</a></li><li><a href="#dividindo">Dividindo</a></li><li><a href="#separando-pecas">Separando peças</a></li></ul></div>
+<p>Esta é a ideia mais importante do layerling, e ela se aprende rápido: <strong>toda forma é um sólido ou um buraco.</strong> Um sólido fica. Um buraco é uma ferramenta que tira material.</p>
+<section class="guide-part"><h2 id="solido-ou-buraco"><span class="heading-alias" id="solid-or-hole"></span>Sólido ou buraco</h2>
+<p>Selecione uma forma e clique em <strong class="ui">“Sólido”</strong> ou <strong class="ui">“Buraco”</strong> no painel de propriedades. Pelo teclado é mais rápido: <kbd>H</kbd> transforma a seleção em buraco, <kbd>S</kbd> a transforma de novo em sólido. As duas opções também estão no menu que aparece com um clique direito no sólido. Um buraco aparece transparente, para você ver onde ele está. <kbd>T</kbd> deixa um sólido transparente, por exemplo para olhar dentro de uma carcaça; pressione <kbd>T</kbd> de novo para deixá-lo opaco. Com vários sólidos selecionados, <kbd>T</kbd> vale para todos: se pelo menos um já estiver transparente, todos ficam opacos; se nenhum estiver, todos ficam transparentes.</p>
+<p>Enquanto nada estiver agrupado, um buraco não faz nada. Ele só fica ali e mostra onde algo vai sumir depois.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hole-before.webp" alt="O cilindro é um buraco. Ele sai pelo topo do cubo, para atravessá-lo de ponta a ponta." width="1280" height="800" loading="lazy"><figcaption>O cilindro é um buraco. Ele sai pelo topo do cubo, para atravessá-lo de ponta a ponta.</figcaption></figure>
+</section><section class="guide-part"><h2 id="agrupando"><span class="heading-alias" id="grouping"></span>Agrupando</h2>
+<p>Selecione os sólidos e os buracos e clique em <strong class="ui">“Grupo de união”</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>G</kbd></span>). Agora os buracos tiram o material dos sólidos em que tocam. O que sobra é uma única forma nova.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hole-after.webp" alt="O resultado: um cubo com um furo." width="1280" height="800" loading="lazy"><figcaption>O resultado: um cubo com um furo.</figcaption></figure>
+<p>É assim que se fazem:</p>
+<ul><li><strong>Furos:</strong> um cilindro como buraco atravessando um sólido.</li><li><strong>Rasgos:</strong> uma caixa alongada como buraco na borda.</li><li><strong>Cavidades:</strong> um buraco que não atravessa até o outro lado.</li><li><strong>Roscas numa peça:</strong> um furo roscado como buraco, veja <a href="/api/desktop/layerling/ui/guia/threads-and-mechanics.html">Roscas e mecânica</a>.</li></ul>
+<p>Se houver vários sólidos no grupo de união, eles se juntam. Dois sólidos que se tocam viram uma única peça.</p>
+<p>Com malhas grandes, como um STL importado com centenas de milhares de triângulos, o corte leva alguns segundos. layerling então trabalha em segundo plano e mostra &quot;<strong class="ui">“Calculando… você pode continuar trabalhando”</strong>&quot;; enquanto isso, você pode girar a vista e usar a interface. Se você alterar o modelo nesse meio-tempo, o resultado é descartado e layerling avisa. O mesmo vale para <strong class="ui">“Dividir”</strong>.</p>
+<p>Um grupo de união pode ser tratado como uma forma: mover, girar, mudar a cor, agrupar de novo. <strong class="ui">“Desagrupar”</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span>) desfaz o grupo de união, e as peças voltam a ficar separadas.</p>
+<section class="guide-part"><h3 id="transformando-um-grupo-de-uniao-em-buraco"><span class="heading-alias" id="making-a-group-a-hole"></span>Transformando um grupo de união em buraco</h3>
+<p>Um grupo de união inteiro também pode ser um sólido ou um buraco. Vale uma regra simples:</p>
+<ul><li>Se o grupo de união tem só sólidos (ou só buracos), você o troca por inteiro e as peças acompanham.</li><li>Se tem os dois, por exemplo um cubo com um furo, cada peça mantém o seu próprio estado. O grupo de união inteiro vira então uma ferramenta, mas o furo continua sendo um furo.</li></ul>
+</section><section class="guide-part"><h3 id="redimensionando-um-grupo-de-uniao-mantendo-furos-e-pecas-pequenas"><span class="heading-alias" id="resizing-a-group-keeping-holes-and-small-parts"></span>Redimensionando um grupo de união: mantendo furos e peças pequenas</h3>
+<p>Quando um grupo de união fica mais comprido, mais largo ou mais alto, as peças se esticam junto, como se estivessem desenhadas em borracha: os furos redondos de uma placa viram ovais e se deslocam para dentro. Para mantê-los como estão, escolha <strong class="ui">“Keep holes and small parts”</strong> em <strong class="ui">“When resized”</strong> nas configurações do grupo; <strong class="ui">“Stretch everything”</strong> é o que todo grupo faz até você mudar. A partir daí, cada vez que o grupo é redimensionado - pelas alças, pelos campos de tamanho ou por <strong class="ui">“Redimensionar por porcentagem”</strong> - ele é montado de novo a partir das peças por uma única regra, em cada direção separadamente:</p>
+<ul><li>Uma peça que atravessa quase o grupo inteiro, nove décimos dele ou mais, cresce ou encolhe junto e mantém a distância aos dois lados: a própria placa, uma parede ou o interior de uma caixa, cujas paredes continuam com a mesma espessura.</li><li>Todas as outras peças mantêm o próprio tamanho e a distância ao lado mais próximo. Uma peça no meio continua no meio.</li></ul>
+<p>Assim, uma placa com um furo a 5 mm de cada canto e uma fenda no meio, aumentada em 40 mm de comprimento, mantém os furos redondos e a 5 mm dos cantos, e a fenda no meio. Não há nenhum solver por trás e nada para configurar peça por peça: a mesma regra vale para todas as peças, então dá para saber antes o que vai acontecer. Uma peça girada conta com a caixa que ocupa no grupo e continua girada; um grupo dentro do grupo conta como uma peça. Enquanto você arrasta uma alça, o grupo se estica por inteiro; ao soltar, ele é montado de novo, no mesmo passo de desfazer. Se ficar menor do que uma peça precisa com a sua distância, essa peça encolhe com o grupo como antes, e uma mensagem avisa. Um grupo espelhado, afunilado ou torcido, e um com arredondamentos, chanfros ou uma textura própria, sempre estica tudo. Escolhida para um grupo que já está esticado, a configuração reorganiza as peças na hora.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/group-keep-parts.webp" alt="Uma placa com um furo a 5 mm de cada canto e uma fenda no meio, aumentada em 40 mm de comprimento com a opção de manter furos e peças pequenas: os furos continuam redondos e a 5 mm dos cantos, a fenda continua no meio." width="1280" height="800" loading="lazy"><figcaption>Uma placa com um furo a 5 mm de cada canto e uma fenda no meio, aumentada em 40 mm de comprimento com a opção de manter furos e peças pequenas: os furos continuam redondos e a 5 mm dos cantos, a fenda continua no meio.</figcaption></figure>
+</section></section><section class="guide-part"><h2 id="criando-conjuntos"><span class="heading-alias" id="bundling"></span>Criando conjuntos</h2>
+<p>Às vezes as peças só devem ficar juntas, sem virar uma só, por exemplo um logotipo branco sobre uma placa preta para uma impressão multicolorida. É para isso que serve <strong class="ui">“Criar conjunto”</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>B</kbd></span>), como no Tinkercad. Um conjunto se move, gira e muda de tamanho como uma forma, mas nada é fundido:</p>
+<ul><li>Cada peça mantém a sua cor e continua sendo um sólido ou um buraco. No painel de propriedades, o conjunto tem os mesmos cartões de um grupo de união: <strong class="ui">“Sólido”</strong> e <strong class="ui">“Buraco”</strong> para o conjunto inteiro (que mantêm as cores das peças), <strong class="ui">“Transparente”</strong> (<kbd>T</kbd>) e <strong class="ui">“Multicor”</strong> (<span dir="ltr"><kbd>Shift</kbd>+<kbd>M</kbd></span>); com <strong class="ui">“Multicor”</strong> desligado, o conjunto aparece e é exportado numa cor só. <strong class="ui">“Separar peças”</strong> desfaz o conjunto, como <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span>.</li><li>Os buracos não cortam nada. Quando você agrupa o conjunto com outras peças, os buracos dele cortam essas peças, mas continuam sem cortar os sólidos do próprio conjunto, como no Tinkercad. Assim, por exemplo, um pino com o seu buraco ao lado pode ser reaproveitado várias vezes como conjunto.</li><li>Ao exportar em STL, 3MF ou OBJ, cada peça é um sólido separado; em 3MF e OBJ, com a sua cor.</li></ul>
+<p><strong class="ui">“Desagrupar”</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span>) desfaz um conjunto, e <kbd>E</kbd> o abre para edição, como um grupo de união. Chanfro, arredondamento e vazar não funcionam num conjunto, porque ele não é um único sólido: para isso, agrupe-o ou trabalhe nas peças uma por uma. Se um buraco do conjunto também deve cortar os sólidos do próprio conjunto, desfaça o conjunto e agrupe as peças (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>G</kbd></span>).</p>
+</section><section class="guide-part"><h2 id="intersecao"><span class="heading-alias" id="intersection"></span>Interseção</h2>
+<p><strong class="ui">“Interseção booleana”</strong> mantém só o que dois ou mais sólidos têm em comum. Coloque duas formas uma sobre a outra, sobrepostas, selecione as duas e clique em <strong class="ui">“Interseção booleana”</strong>. Assim um cilindro e uma caixa viram uma peça com um lado redondo e um lado reto. Um grupo de união entra na interseção do jeito que aparece, com os buracos já recortados. Se um buraco também estiver selecionado, o que sobra é o que todos os sólidos têm em comum com todos os buracos. Se as formas não têm nada em comum, uma mensagem informa que nada foi alterado. O primeiro clique exibe a parte em comum antes de aplicá-la: as formas selecionadas ficam transparentes, e o que elas têm em comum aparece em verde. Selecione e mova cada forma separadamente, e a parte verde acompanha; outro clique em <strong class="ui">“Interseção booleana”</strong> aplica, <kbd>Esc</kbd> fecha a prévia. Formas com triângulos demais para a prévia, como malhas importadas grandes, são intersectadas já no primeiro clique.</p>
+<p><strong class="ui">“Envoltória”</strong> envolve as formas selecionadas em um único sólido convexo, como se fossem embaladas a vácuo: o menor sólido sem reentrâncias que contém todas elas. Uma meia esfera sobre um cilindro vira uma cúpula sem degrau, quatro cilindros nos cantos viram uma caixa de cantos arredondados, e duas esferas, uma cápsula. Os buracos da seleção são recortados da envoltória depois. A envoltória guarda as peças: <strong class="ui">“Editar grupo”</strong> a abre como um grupo de união, e se você mover uma peça dentro dela e clicar em <strong class="ui">“Concluído”</strong>, a envoltória é reconstruída. A envoltória é uma malha, então formas redondas mostram facetas, e as ferramentas de aresta funcionam nela como em qualquer malha. Quando só furos estão selecionados, a envoltória é ela mesma um furo: dois furos cilíndricos cortam um rasgo oblongo. A envoltória preenche tudo o que é oco em suas peças: um tubo, um cilindro esvaziado com <strong class="ui">“Vazar”</strong>, uma peça agrupada com seus furos. Ative <strong class="ui">“Manter os furos das peças”</strong> em Propriedades para mantê-los abertos: a envoltória então só preenche o espaço entre as peças, e um rebaixo na lateral de uma peça também fica.</p>
+<p><strong class="ui">“Cortador de biscoito”</strong> transforma a seleção num cortador de biscoito: uma parede fina de 15 mm de altura ao longo do contorno e uma aba plana de 2 mm em volta da base, para o cortador se apoiar na aba e você ter onde apertar com o polegar. Se você selecionar um único SVG importado ou um único sólido de esboço, a ferramenta usa o contorno dele. No caso de um texto deitado, o contorno segue as curvas das próprias letras. Nas outras formas (uma forma montada, uma malha importada ou várias peças), o contorno vem do corte feito pelo plano de trabalho. Por isso, coloque a forma primeiro sobre o plano de trabalho. Peças que se sobrepõem geram um único contorno em volta de todas, como se estivessem agrupadas; peças separadas geram um cortador para cada uma, todos no mesmo conjunto. O contorno é espelhado da esquerda para a direita: o cortador é impresso apoiado na aba e depois virado de cabeça para baixo para cortar. Assim, o texto ou o logotipo fica na orientação certa na massa. O topo da parede afina até um fio de corte de 0,4 mm de largura. Os espaços internos do contorno, como o miolo de um e ou de um a, ganham paredes próprias, então também são recortados do biscoito. Essas paredes internas formam um sólido à parte no conjunto, chamado <strong class="ui">“Paredes internas”</strong>: para só marcar um texto ou um padrão na massa, em vez de recortá-lo, diminua a altura delas no painel de propriedades. Com uma parede de 15 mm e uma massa de 5 mm de espessura, paredes internas de 12 mm deixam uma marca de 2 mm de profundidade. Paredes internas mais baixas que a parede externa têm o topo plano em vez do fio de corte: elas só marcam, e um fio deixaria pontas finas que quebram e sulcos que prendem massa. Se quiser um fio nelas, ajuste no painel de propriedades. Duas pontes do lado da aba, onde a mão aperta, prendem cada parede interna à parede que a cerca. As pontes ficam distribuídas em volta da parede interna e têm 4 mm de largura e 3 mm de altura. Cada ponte se apoia nas paredes com toda a sua largura, no meio de um trecho que acompanha o contorno, sem atravessar outra peça. Peças lado a lado, como as letras de um nome, também são ligadas entre si, começando pelas mais próximas, de modo que as pontes formam uma rede por todas elas e até uma letra no meio de uma palavra fica presa. Um clique na ferramenta abre uma pequena janela, onde você pode escolher uma <strong class="ui">“Placa”</strong> em vez das pontes: ela preenche todo o contorno do lado em que você aperta, é mais firme e adere melhor à mesa de impressão, mas impede que você solte a massa empurrando por trás. Com <strong class="ui">“Reforços”</strong>, você cria pequenas inclinações de 45° onde as paredes se apoiam na aba, nas pontes ou na placa, para que partes finas, como o pingo de um i, não quebrem; essas inclinações formam um sólido à parte no conjunto. Na mesma janela você também define quanto reduzir a altura das paredes internas e se quer espelhar o contorno; os valores ficam guardados para o próximo cortador. Você ajusta a altura das paredes internas e da aba no painel de propriedades. O cortador substitui a seleção por um conjunto de sólidos de esboço. Use <strong class="ui">“Editar grupo”</strong> para abri-lo. A parede, as paredes internas e a aba usam os modos de preenchimento de esboço, com um traço por fora da silhueta: no painel de propriedades, você muda a espessura, a altura ou a cor de cada parte e ajusta o <strong class="ui">“Fio de corte”</strong> da parede (0 deixa o topo plano). Onde uma curva muito fechada não deixa espaço para chanfrar os dois lados, a parede é chanfrada só por fora, até o mesmo fio de corte. Onde um contorno não pode ser chanfrado de jeito nenhum (um logotipo com pontas agudas, um contorno obtido dos triângulos de um sólido), o fio de corte é feito em degraus finos de 0,1 mm, que não se distinguem da inclinação numa impressão com camadas de 0,2 mm; uma parede assim é uma malha de triângulos, e não um sólido exato. Para manter o contorno como foi desenhado, espelhe o cortador de volta com <strong class="ui">“Espelhar”</strong>, <strong class="ui">“esquerda-direita”</strong>. Uma imagem PNG ou JPG também serve: ao ser importada, ela é contornada e vira um sólido de esboço, e o cortador segue esse contorno.</p>
+<p><strong class="ui">“Transição entre esboços”</strong> une dois sólidos de esboço ou SVGs importados em um único sólido, com o contorno do sólido de baixo na base, o do sólido de cima no topo e paredes retas entre eles. Assim você faz um funil, uma peça de transição de quadrado para redondo ou uma moldura que afunila para cima. Coloque os dois sólidos um acima do outro, na posição desejada (deslocados e girados, se quiser), selecione os dois e clique na ferramenta. A transição vai da base do sólido inferior ao topo do superior.</p>
+<p>Cada um dos dois precisa de exatamente um contorno. Se um deles tiver vãos, o outro precisa ter a mesma quantidade. A transição também liga esses vãos: dois anéis, por exemplo, formam uma peça oca. Um esboço feito como traço (traço externo, interno ou centralizado no painel de propriedades) conta como um anel desses. Um SVG importado chega preenchido; para transformá-lo em anel, escolha um dos modos de traço no painel de propriedades. Os dois sólidos precisam estar deitados; a ferramenta não aceita sólidos inclinados.</p>
+<p>A transição é um sólido CAD exato; as ferramentas de aresta e a exportação STEP a tratam como tal. Os dois esboços ficam guardados dentro dela. Use <strong class="ui">“Editar grupo”</strong> para editá-los como um grupo de união. Se você mover ou alterar um dos sólidos, ou editar seu esboço, a transição é reconstruída ao clicar em <strong class="ui">“Concluído”</strong>. <strong class="ui">“Desagrupar”</strong> separa os dois esboços de novo. Para dois retângulos, círculos ou polígonos, você também pode usar a forma Transição e definir suas extremidades com números.</p>
+</section><section class="guide-part"><h2 id="recortando-um-solido-de-outro"><span class="heading-alias" id="cutting-one-body-out-of-another"></span>Recortando um sólido de outro</h2>
+<p>Para peças que precisam encaixar, um eixo em uma bucha ou um parafuso em uma caixa, você faz uma peça e a recorta da outra. Selecione os dois sólidos e clique em <strong class="ui">“Recortar”</strong> na área <strong class="ui">“Combinar”</strong>, ou dê um clique direito e escolha <strong class="ui">“Recortar”</strong> no menu. A janela nomeia a peça que é mantida e o sólido que recebe a cavidade; layerling escolhe o menor como peça, e <strong class="ui">“Trocar os dois”</strong> inverte. <strong class="ui">“Folga”</strong> deixa a cavidade maior que a peça nessa medida, de cada lado: com 0, o encaixe é exato; 0,2 mm é uma folga comum para um encaixe impresso. <strong class="ui">“Recortar”</strong> recorta uma cópia da peça do outro sólido e deixa a própria peça onde está. O resultado é um grupo de união: <strong class="ui">“Desagrupar”</strong> separa o recorte de novo. Uma folga exige que a peça seja um sólido exato, como na ferramenta <strong class="ui">“Deslocamento”</strong>, que o recorte usa para isso.</p>
+</section><section class="guide-part"><h2 id="puncionando-um-contorno-atraves-de-um-solido"><span class="heading-alias" id="punching-an-outline-through-a-body"></span>Puncionando um contorno através de um sólido</h2>
+<p>Para cortar o contorno de um sólido em linha reta através de outro, selecione primeiro o punção e depois o sólido a puncionar e clique em <strong class="ui">“Puncionar”</strong> na área <strong class="ui">“Combinar”</strong>, ou escolha com um clique direito. Os dois não precisam se tocar: o punção pode ficar em qualquer lugar na frente do sólido, e só conta o seu contorno visto ao longo da <strong class="ui">“Direção”</strong>. Assim, um bule segurado sobre uma placa deixa nela uma abertura com a forma de um bule. layerling começa pelo eixo ao longo do qual o punção está mais longe do sólido; X vai da esquerda para a direita, Y da frente para trás, Z para cima. <strong class="ui">“Trocar os dois”</strong> inverte os papéis, e a <strong class="ui">“Folga”</strong> aumenta a abertura em todos os lados, 0,2 mm para uma peça impressa que precisa passar. <strong class="ui">“Puncionar”</strong> agrupa a abertura (um sólido de esboço exato definido como buraco) com o sólido, então <strong class="ui">“Desagrupar”</strong> a retira de novo; o punção fica onde está. Mova ou gire o punção e puncione de novo para outra abertura.</p>
+</section><section class="guide-part"><h2 id="editando-um-grupo-de-uniao"><span class="heading-alias" id="editing-a-group"></span>Editando um grupo de união</h2>
+<p>Se um furo ficou pequeno demais, você não precisa desfazer o grupo de união e montar tudo de novo. Selecione o grupo de união e clique em <strong class="ui">“Editar grupo”</strong> no painel de propriedades, no ícone de pasta na lista de objetos, ou pressione <kbd>E</kbd>. Na lista de objetos, você também pode expandir o grupo de união clicando na seta ao lado dele. Depois, clique numa das peças: o grupo de união se abre para edição com essa peça selecionada. Um clique duplo também abre um grupo de união ou um conjunto para edição, como no Tinkercad; se preferir que não, desligue <strong class="ui">“Clique duplo abre um grupo de união ou um conjunto”</strong> nas configurações. Uma peça só começa a se mover depois que o ponteiro foi arrastado alguns pixels, então um clique ou clique duplo tremido não a desloca. As peças agora ficam separadas, e você as altera com qualquer ferramenta: aumentar um buraco, mover um sólido, adicionar um buraco.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/open-group.webp" alt="O grupo de união em edição: a barra embaixo tem Cancelar e Concluído, e a lista de objetos mostra as peças." width="1280" height="800" loading="lazy"><figcaption>O grupo de união em edição: a barra embaixo tem Cancelar e Concluído, e a lista de objetos mostra as peças.</figcaption></figure>
+<p>Uma barra aparece na parte de baixo da área de trabalho. <strong class="ui">“Concluído”</strong> reconstrói o grupo de união, com o nome, a cor e o estado de sólido ou buraco. <strong class="ui">“Cancelar”</strong> o devolve sem alterações.</p>
+<p>Se uma das peças for ela mesma um grupo de união, você pode editá-la do mesmo jeito, e assim por diante, até onde o seu projeto for. A barra mostra onde você está, por exemplo &quot;Suporte › Ressalto do parafuso&quot;. <strong class="ui">“Concluído”</strong> e <strong class="ui">“Cancelar”</strong> sempre concluem o grupo de união mais interno e levam você um nível para fora. Enquanto você está dentro de um grupo de união, só os grupos de união entre as peças dele podem ser editados; para editar outro, conclua primeiro.</p>
+<p>Ao contrário de <strong class="ui">“Desagrupar”</strong>, que desfaz um grupo de união de vez, editar mantém o grupo: o nome e as configurações ficam, e você sempre pode voltar com <strong class="ui">“Cancelar”</strong>.</p>
+<p>Uma observação: arredondamentos e chanfros que você aplicou no grupo de união <strong>inteiro</strong> se perdem na reconstrução. A barra mostra esse aviso.</p>
+</section><section class="guide-part"><h2 id="dividindo"><span class="heading-alias" id="splitting"></span>Dividindo</h2>
+<p><strong class="ui">“Dividir”</strong>, na área <strong class="ui">“Modificar”</strong>, corta a seleção em duas com um plano, por exemplo uma peça grande demais para a mesa de impressão, ou uma cujo interior você quer ver. Selecione um ou mais sólidos ou buracos e clique em <strong class="ui">“Dividir”</strong>. Um plano translúcido mostra exatamente onde o corte vai passar, e uma linha branca o marca nos próprios sólidos, onde o plano os encontra; nada muda até você aplicar.</p>
+<ul><li><strong class="ui">“Orientação do plano”</strong>: <strong>X</strong> faz um corte vertical entre esquerda e direita, <strong>Y</strong> entre frente e trás, <strong>Z</strong> um corte horizontal entre cima e baixo. Os eixos têm os mesmos nomes do cartão Posição, com Z para cima. O plano começa paralelo ao plano de trabalho, então na mesa com Z.</li><li><strong class="ui">“Alinhar ao plano de trabalho”</strong>: <strong class="ui">“Paralelo”</strong> deita o plano paralelo ao plano de trabalho, <strong class="ui">“Transversal a X”</strong> e <strong class="ui">“Transversal a Y”</strong> o deixam em pé, perpendicular a ele, atravessando a direção X ou Y dele. Onde a origem do plano de trabalho cruza a seleção, o plano passa por essa origem; senão, pelo meio. Assim você coloca o plano de trabalho numa face inclinada com <kbd>W</kbd> e corta bem ali, sem mexer nos controles deslizantes.</li><li><strong class="ui">“Posição do plano”</strong>: onde o plano cruza, pelo controle deslizante ou digitando o valor. Ele começa no meio. Você também pode arrastar a ponta da seta no plano; o plano se move ao longo da seta em incrementos de 0,1 mm.</li><li><strong class="ui">“Escolher face”</strong>, o botão ao lado da posição, deita o plano sobre uma face: clique nele e depois na face. Orientação, as duas rotações e a posição são ajustadas para combinar. Enquanto você escolhe, um plano azul sob o ponteiro mostra a face que será usada. Uma face de um sólido que não está selecionado também serve, para alinhar o corte com ela, mas o plano fica dentro da seleção. <kbd>Esc</kbd> interrompe a escolha e deixa o plano onde estava.</li><li>Os dois controles deslizantes de rotação abaixo giram o plano em torno dos outros dois eixos, até 180° para cada lado, para um corte em ângulo. Eles podem ser combinados.</li></ul>
+<p><strong class="ui">“Dividir modelo”</strong> ou <kbd>Enter</kbd> faz o corte, <kbd>Esc</kbd> cancela (enquanto você escolhe uma face, o primeiro <kbd>Esc</kbd> só interrompe a escolha). Cada objeto que o plano cruza vira dois sólidos fechados, com o nome do seu lado, por exemplo &quot;Caixa (Z+)&quot; e &quot;Caixa (Z-)&quot;; os objetos que ele não cruza ficam como estão. Um buraco vira dois buracos, e um sólido vazado mantém o seu espaço interno. As duas metades ficam onde estavam; para imprimir, deite cada uma sobre a face cortada com <strong class="ui">“Deitar sobre a face”</strong>.</p>
+<p><strong class="ui">“Connectors”</strong> alinham as metades de novo, como fazem as ferramentas de corte do PrusaSlicer, do OrcaSlicer e do Bambu Studio. Com <strong class="ui">“None”</strong>, o padrão, a divisão é como descrito acima. <strong class="ui">“Dowels”</strong> faz um furo em cada metade e pinos soltos que entram nas duas: os pinos vêm como um terceiro sólido, em pé ao lado das metades sobre o piso, para imprimir junto - em pé, eles saem redondos nas camadas como os furos, e é isso que o teste de encaixe mede. <strong class="ui">“Plugs”</strong> coloca pinos redondos na metade cujo nome termina em menos, com os furos para eles na outra metade. Os conectores entram perpendiculares ao plano, seja qual for o giro dele, cada um com seu diâmetro e 1,2 mm de material até cada borda da face de corte, e dois deles a uma distância do dobro disso. Cada pedaço separado da face de corte recebe os seus, distribuídos por igual: <strong class="ui">“Per cut face (0 = automatic)”</strong> diz quantos, e 0 deixa isso pelo tamanho do pedaço, com pelo menos dois. Um pedaço pequeno demais para um não recebe nenhum, e um conector fica de fora onde uma metade é mais fina do que a profundidade do seu furo; o painel avisa antes de você dividir, e anéis brancos no plano mostram onde eles vão ficar. Se nenhum couber, as peças são divididas sem conectores, e a barra de status avisa.</p>
+<ul><li><strong class="ui">“Diameter”</strong> é o diâmetro dos pinos, 5 mm para começar.</li><li><strong class="ui">“Depth into each half”</strong> é quanto cada furo entra na sua metade. Um pino solto tem o dobro disso menos 0,6 mm de comprimento, e um pino fixo é 0,3 mm mais curto que o seu furo, para que nunca apoiem no fundo de um furo e as metades fechem por completo. Os pinos têm um pequeno chanfro nas pontas, e cada furo um na boca, para que uma primeira camada que se espalhou não o estreite.</li><li><strong class="ui">“Dowels on a breakaway base”</strong>, com <strong class="ui">“Dowels”</strong>, coloca os pinos soltos numa placa comum que adere à mesa, para impressoras cuja mesa móvel faz balançar as peças em pé. Cada pino se apoia num pequeno ressalto num encaixe da placa; depois de impresso, balance cada um até que se solte, como o pino do teste de encaixe.</li><li><strong class="ui">“Clearance per side”</strong> é a folga entre um pino e o seu furo. Depois que você mediu a folga da sua impressora com o teste de encaixe (no capítulo sobre impressão), ele parte desse valor, senão de 0,2 mm.</li></ul>
+<p><strong class="ui">“Dovetail”</strong> une as metades sem cola, como o corte em rabo de andorinha do OrcaSlicer: uma lingueta que se alarga ao se afastar da face de corte fica de pé na metade cujo nome termina em menos e atravessa a face em linha reta, de borda a borda; a outra metade recebe a ranhura correspondente, aberta nas duas pontas. Deslize as metades uma na outra pelo lado, ao longo da lingueta; depois de encaixadas, elas não podem mais ser separadas no sentido transversal ao corte. As linguetas seguem o lado comprido da face de corte, e quando um sólido encontra o plano em vários pedaços, todas vão no mesmo sentido, para que uma metade entre num só movimento. <strong class="ui">“Per cut face (0 = automatic)”</strong> é o número de linguetas lado a lado em cada pedaço; 0 deixa isso pela largura do pedaço, uma a cada seis larguras de lingueta, pelo menos uma. Ao lado do seu topo largo, uma lingueta mantém metade da própria largura e mais 1,2 mm de material até a borda da face de corte, e duas linguetas o dobro disso entre si. Um pedaço estreito demais para uma lingueta, ou curto demais no sentido dela, não recebe nenhuma, e uma lingueta fica de fora onde a outra metade é mais fina do que a profundidade da sua ranhura. Contornos brancos no plano mostram onde elas vão ficar: a faixa preenchida é o pé da lingueta, a linha em volta o seu topo largo.</p>
+<ul><li><strong class="ui">“Width at the cut face”</strong> é a largura da lingueta onde ela sai da face de corte, 6 mm para começar.</li><li><strong class="ui">“Depth into the other half”</strong> é quanto ela se projeta da face de corte para dentro da outra metade, 4 mm para começar. A ranhura é 0,3 mm mais funda, para que as metades fechem por completo.</li><li><strong class="ui">“Flank angle”</strong> é quanto cada flanco se inclina para fora em relação à perpendicular da face de corte, de 5° a 30°, 15° para começar. Quanto maior, mais largo o topo da lingueta e mais firme ela segura.</li><li><strong class="ui">“Direction (0 = lengthwise)”</strong>: 0 deixa as linguetas no comprimento, 90 atravessadas na face de corte, e um ângulo intermediário as gira esse tanto.</li><li><strong class="ui">“Clearance per side”</strong> é a folga de cada lado entre a lingueta e a sua ranhura, do seu teste de encaixe como para os pinos. As pontas da lingueta são chanfradas em volta para que ela encontre a ranhura, e a ranhura tem um chanfro na boca.</li></ul>
+<p>Para imprimir, apoie a metade com a ranhura sobre a sua face de corte e imprima a metade com a lingueta ao contrário, com a face de corte para cima: assim os flancos da lingueta se inclinam para fora só pelo seu ângulo, o que se imprime sem suportes.</p>
+<p>Furos são divididos sem conectores.</p>
+<p>As metades são malhas simples: configurações como os lados de um cilindro ou as letras de um texto se perdem, então ajuste isso antes. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> traz o original de volta num só passo. Objetos bloqueados e ocultos não podem ser divididos.</p>
+<p>Uma malha importada precisa de uma superfície fechada para ser dividida, agrupada ou recortada. Se ela tiver aberturas, como os olhos de uma figura deixados abertos ou uma rachadura num escaneamento, layerling as fecha antes com uma tampa plana e diz quantas fechou. Ele fecha qualquer abertura pequena e qualquer abertura plana, seja do tamanho que for; uma abertura grande cuja borda não está toda no mesmo plano fica por sua conta, e a mensagem avisa. Feche-a no programa de onde o modelo veio, ou com uma ferramenta de reparo de malha, e importe de novo.</p>
+</section><section class="guide-part"><h2 id="separando-pecas"><span class="heading-alias" id="separating-parts"></span>Separando peças</h2>
+<p>Se uma forma é composta de vários pedaços separados, como um texto feito de letras soltas, <strong class="ui">“Separar peças”</strong> a divide em formas independentes. A opção também está no menu que aparece com um clique direito na forma.</p>
+<aside class="tip"><p><strong>Dica:</strong> Faça os buracos sempre um pouco mais compridos que a peça que eles devem atravessar. Se o buraco termina exatamente rente à face, às vezes sobra uma película finíssima. Um milímetro a mais garante o corte.</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/guia/select-and-arrange.html"><small>Capítulo anterior</small>Selecting and arranging</a><a class="next" href="/api/desktop/layerling/ui/guia/edges-and-hollowing.html"><small>Próximo capítulo</small>Breaking edges and hollowing bodies</a></div>
+      </main>
+    </div>
+    <footer class="note">Este guia cresce junto com o programa. Se algo estiver faltando ou errado, avise nas <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussões</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=pt-br" rel="noopener">Apoie o projeto</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussões</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mais no GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Notas da versão v1.154.1</a></div><p class="trademark">Tinkercad é uma marca comercial da Autodesk, Inc. layerling é um projeto independente, sem vínculo, endosso ou patrocínio da Autodesk.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Voltar ao editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Abrir o editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

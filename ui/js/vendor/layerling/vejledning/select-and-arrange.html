@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Valg og arrangering - layerling brugervejledning</title>
+    <meta name="description" content="Vælge former, finde dem i objektlisten, justere, spejle, rotere, lægge fladt på en flade og formere i mønstre.">
+    <link rel="canonical" href="https://layerling.com/vejledning/select-and-arrange.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/select-and-arrange.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/select-and-arrange.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/select-and-arrange.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/auswaehlen-und-anordnen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/select-and-arrange.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/select-and-arrange.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/select-and-arrange.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/select-and-arrange.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/selecteren-en-schikken.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/select-and-arrange.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/izbiranje-in-razporejanje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/select-and-arrange.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/select-and-arrange.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/select-and-arrange.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/select-and-arrange.html">
+    <meta property="og:title" content="Valg og arrangering - layerling brugervejledning">
+    <meta property="og:description" content="Vælge former, finde dem i objektlisten, justere, spejle, rotere, lægge fladt på en flade og formere i mønstre.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/vejledning/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Brugervejledning</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/vejledning/search-index.json" data-nothing="Intet fundet." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Søg i vejledningen" aria-label="Søg i vejledningen" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Sprog">Dansk</summary><ul><li><a href="/api/desktop/layerling/ui/guide/select-and-arrange.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/select-and-arrange.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/select-and-arrange.html" hreflang="da" lang="da" aria-current="true">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/select-and-arrange.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/select-and-arrange.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/select-and-arrange.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/select-and-arrange.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/select-and-arrange.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/select-and-arrange.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/select-and-arrange.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/izbiranje-in-razporejanje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/select-and-arrange.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/select-and-arrange.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/select-and-arrange.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/select-and-arrange.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/select-and-arrange.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/select-and-arrange.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Åbn editoren</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Editoren er allerede åben i en anden fane – skift bare til den.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Kapitler"><h2>Kapitler</h2><p class="print-link"><a href="/api/desktop/layerling/ui/vejledning/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Hele vejledningen, til udskrivning</span></a></p><ol><li><a href="/api/desktop/layerling/ui/vejledning/getting-started.html">Kom godt i gang</a></li><li><a href="/api/desktop/layerling/ui/vejledning/view-and-workplane.html">Visning og arbejdsplan</a></li><li><a href="/api/desktop/layerling/ui/vejledning/shapes.html">Placering og justering af former</a></li><li><a href="/api/desktop/layerling/ui/vejledning/select-and-arrange.html" aria-current="page">Valg og arrangering</a></li><li><a href="/api/desktop/layerling/ui/vejledning/solids-and-holes.html">Solider og huller</a></li><li><a href="/api/desktop/layerling/ui/vejledning/edges-and-hollowing.html">Bryd kanter og hul former</a></li><li><a href="/api/desktop/layerling/ui/vejledning/sketches.html">Skitser: fra omrids til form</a></li><li><a href="/api/desktop/layerling/ui/vejledning/text.html">Tekst og buede bogstaver</a></li><li><a href="/api/desktop/layerling/ui/vejledning/threads-and-mechanics.html">Gevind, tandhjul og andre dele</a></li><li><a href="/api/desktop/layerling/ui/vejledning/measuring-and-notes.html">Måling og noter</a></li><li><a href="/api/desktop/layerling/ui/vejledning/printing.html">Forberedelse til 3D-print</a></li><li><a href="/api/desktop/layerling/ui/vejledning/files-and-saving.html">Filer, lagring og deling</a></li><li><a href="/api/desktop/layerling/ui/vejledning/shortcuts.html">Tastaturgenveje</a></li><li><a href="/api/desktop/layerling/ui/vejledning/ai-with-mcp.html">Byg med en AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/vejledning/offline-and-install.html">Installér som app, arbejd offline og vær selv vært</a></li><li><a href="/api/desktop/layerling/ui/vejledning/videos.html">Videoer om layerling</a></li><li><a href="/api/desktop/layerling/ui/vejledning/tablet-and-touch.html">Tablet og touch</a></li></ol></nav>
+      <main>
+<h1>Valg og arrangering</h1>
+<p class="lead">Vælge former, finde dem i objektlisten, justere, spejle, rotere, lægge fladt på en flade og formere i mønstre.</p>
+<div class="toc"><b>På denne side</b><ul><li><a href="#valg">Valg</a></li><li><a href="#objektlisten">Objektlisten</a></li><li><a href="#tast-en-position">Tast en position</a></li><li><a href="#parker-dele-ved-siden-af-pladen">Parkér dele ved siden af pladen</a></li><li><a href="#snap-under-flytning">Snap under flytning</a></li><li><a href="#justering">Justering</a></li><li><a href="#spejling">Spejling</a></li><li><a href="#rotation-og-indstilling-af-rotationspunkt">Rotation og indstilling af rotationspunkt</a></li><li><a href="#l-g-fladt-pa-en-flade">Læg fladt på en flade</a></li><li><a href="#m-nstre-r-kke-og-cirkel">Mønstre: række og cirkel</a></li><li><a href="#hulm-nster-pa-en-flade">Hulmønster på en flade</a></li><li><a href="#skub-en-flade-ud-eller-ind">Skub en flade ud eller ind</a></li><li><a href="#ndre-flere-dele-pa-en-gang">Ændre flere dele på én gang</a></li><li><a href="#skaler-med-procent">Skalér med procent</a></li><li><a href="#fortryd">Fortryd</a></li><li><a href="#se-tilbage-historikvisningen">Se tilbage: historikvisningen</a></li></ul></div>
+<section class="guide-part"><h2 id="valg"><span class="heading-alias" id="selecting"></span>Valg</h2>
+<p>Et klik på en form vælger den. Med <kbd>Shift</kbd> tilføjer du flere eller tager dem væk igen. Så længe <kbd>Shift</kbd> holdes nede, og to eller flere former er valgt, tæller et lille tal under musemarkøren dem. Et klik på tom plads rydder markeringen, og det samme gør <kbd>Esc</kbd>. Træk en ramme på det tomme arbejdsplan for at vælge alt den rører; med <kbd>Shift</kbd> holdt tilføjer rammen hvad der ikke var valgt og tager det valgte væk. Og <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span> vælger alle synlige former. Mens du trækker et legeme eller et håndtag på rammen, afbryder <kbd>Esc</kbd>, så længe museknappen stadig holdes nede: Alt går tilbage til, som det var, og intet føjes til historikken. Hvis du hellere vil plukke én del ud af en klynge, slår du <strong class="ui">“Rammens retning afgør”</strong> til i indstillingerne (område <strong class="ui">“Udseende”</strong>): en ramme der trækkes til højre tager så kun hvad der ligger helt inde i den, en der trækkes til venstre stadig alt den rører, og dens linje er stiplet. Hold <kbd>Alt</kbd> mens du trækker for at vende rammen om for det ene træk, for eksempel for at tage hele legemer fra den side, hvor retningen ikke ville tillade det.</p>
+<p>En form bag en anden, som et hul inde i en krop, kan du nå uden at dreje visningen: højreklik på stedet og vælg <strong class="ui">“Vælg et andet…”</strong>. Menuen lister så alle former under markøren, fra forsiden til bagsiden. Den form din markør står på, er kontureret i visningen, selv gennem formerne foran den; et klik vælger den, og med <kbd>Shift</kbd> lægges den til markeringen. Posten er der, når mere end én form ligger under markøren; på en tablet åbner et langt tryk den samme menu.</p>
+<p>Hvad der er i vejen skjuler du (<strong class="ui">“Skjul valgte”</strong>, <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>H</kbd></span>). Skjulte former bliver i designet, de er bare ikke synlige og er ude af eksporten; eksportvinduet siger på forhånd hvor mange der er. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></span> bringer dem alle tilbage. Hvad der skal blive låser du med hængelåsen øverst i indstillingerne eller med <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span>. En låst form kan ikke flyttes, ændres størrelse på, vendes, omfarves eller slettes: dens håndtag bliver grå, der vises en hængelås ved siden af pilen øverst, og de værktøjer der ville ændre den er grået ud. At holde musen over et håndtag viser stadig dets størrelser, og en tast der ville ændre den siger &quot;Objekt låst&quot;. Mens én låst form er i markeringen, ændres intet for de andre heller. Skjul, omdøb, kopier og duplikering virker stadig. Vil du lade en del være, som den er, og stadig bygge med den, så lås kun dens form: skjoldet ved siden af hængelåsen, <strong class="ui">“Lås form”</strong> i højreklikmenuen eller <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd></span>. Den kan stadig flyttes, drejes, løftes, justeres, kopieres og grupperes med andre, men størrelse, indstillinger og navn forbliver, som de er: håndtagene til størrelsen forsvinder, deres felter bliver grå, og ændring af størrelse, spejling, opløsning af gruppen, kantværktøjerne og sletning afvises. En kopi beholder låsen, og det gør delen i en gruppe også: gruppen kan flyttes og opløses igen, men ikke ændre størrelse. Objektlisten viser også skjoldet, ved siden af hængelåsen på hver del hvis form er låst, og et klik på et af skjoldene låser formen op igen.</p>
+<p>Vil du arbejde på nogle få dele dybt inde i et design, så vælg dem og tag <strong class="ui">“Skjul andre”</strong> i højrekliksmenuen eller under <strong class="ui">“Visningsmuligheder”</strong>: alt andet skjules i ét trin, så <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> eller <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></span> henter det tilbage. <strong class="ui">“Inverter markering”</strong> i højrekliksmenuen vælger alle synlige former, der ikke var valgt, og slipper dem, der var. Begge findes også i kommandosøgningen (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>), hvor du også kan give dem din egen tast.</p>
+<p>Et tal på knappen for gruppen <strong class="ui">“Synlighed”</strong> fortæller, hvor mange former der er skjult, og et klik på det viser dem alle igen. Et design, der åbnes med skjulte former, siger det én gang med en besked og en knap til at vise dem. En del, du skjuler, mens en gruppe er åben, forbliver skjult, når du lukker den med <strong class="ui">“Udført”</strong>: gruppen beholder sin størrelse, og de andre dele forbliver som de er, den skjulte del tæller stadig med, når gruppen justeres, og vis alle skjulte lader den være. Åbn gruppen igen for at vise den.</p>
+</section><section class="guide-part"><h2 id="objektlisten"><span class="heading-alias" id="the-object-list"></span>Objektlisten</h2>
+<p>Med mange dele er det let at miste overblikket i visningen. Objektlisten (<strong class="ui">“Vis objektliste”</strong> eller <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd></span>) viser alle former som en liste. Den bliver åben eller lukket, som du lod den være, for hvert design, indtil du lukker den; valget huskes i browseren.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/object-list.webp" alt="Objektlisten: gruppen &quot;Gruppe&quot; med to dele og en kugle ved siden af. Et mappeikon åbner gruppen." width="1280" height="800" loading="lazy"><figcaption>Objektlisten: gruppen &quot;Gruppe&quot; med to dele og en kugle ved siden af. Et mappeikon åbner gruppen.</figcaption></figure>
+<ul><li>Et klik på en post vælger formen, inklusive dele inde i en gruppe. Med <kbd>Shift</kbd> holdt tilføjer du flere poster eller tager dem væk igen, ligesom i visningen. Pilene folder grupper åbne og i.</li><li>Etiketten viser om en del er <strong class="ui">“Solid”</strong> eller <strong class="ui">“Hul”</strong>.</li><li>Under navnet står, hvilken slags form det er. En form, der ikke længere er en simpel form (afrundet, udhulet eller importeret), viser <strong class="ui">“Eksakt form”</strong>, når STEP-eksporten skriver den eksakt, og <strong class="ui">“Mesh”</strong>, når den kun består af trekanter og går ud som STL. En tilspidsning, hældning eller vridning, der først kommer til efter afrunding eller udhuling, bøjer kun dens mesh, så viser den <strong class="ui">“Mesh”</strong>.</li><li>Hængelås og øje låser og skjuler enkelte dele.</li><li><strong class="ui">“Omdøb”</strong> giver en del sit eget navn; blyanten ved siden af navnet øverst i indstillingerne gør det samme for den valgte form. Fornuftige navne hjælper enormt i større designs.</li><li>Knappen A–Z i titellinjen (<strong class="ui">“Sortér navngivne figurer A–Å”</strong>) sorterer de former, du har navngivet, alfabetisk, med tal talt som tal (Del 2 før Del 10). Former, der stadig har deres standardnavn, bliver nedenunder i den rækkefølge, du tilføjede dem, den nyeste sidst, og dele inde i grupper sorteres på samme måde. Kun listen ændres, aldrig designet. Et klik mere viser alt i den rækkefølge, det blev tilføjet, og browseren husker valget.</li><li>Håndtaget til venstre i en række (seks prikker) flytter en form i listen: træk det op eller ned, eller sæt fokus på det og tryk på <kbd>↑</kbd> eller <kbd>↓</kbd>. Det ændrer designets egen rækkefølge, som listen vender tilbage til uden A–Z-sortering, og Fortryd tager det tilbage. Med A–Z-sortering eller en søgning er håndtagene skjult.</li><li>For at lægge en form i en gruppe folder du gruppen ud med dens pil og trækker formen i dens håndtag hen på gruppens dele; gruppen får en orange ramme. Formen bliver, hvor den er, og beholder sit navn, og det samme gør gruppen: en gruppe smeltes sammen igen med den, et bundt tager den bare med. Delene i en udfoldet gruppe har deres eget håndtag: træk en del ud af gruppen, så ligger den løst igen på den plads i listen, hvor du slipper den, eller slip den på en anden udfoldet gruppe for at flytte den dertil. En gruppe med kun én del tilbage forsvinder og efterlader den del. Fortryd tager hvert af disse trin tilbage på én gang. Mens du redigerer en gruppe, er det slået fra.</li><li>Søgefeltet finder former på navn og type, så også &quot;cylinder&quot; eller &quot;hul&quot;. Det kigger også inden i grupper, uanset hvor dybt: en gruppe der indeholder et match bliver i listen og folder sig åben for at vise de matchende dele og de grupper der fører til dem. En gruppe fundet på sit eget navn viser alle sine dele når du åbner den.</li><li>Pilen yderst til venstre på titellinjen folder listen ned til dens titellinje og tilbage igen.</li></ul>
+<p>Listen sidder docket lige til højre for visningskuben. Træk den i dens titellinje for at placere den hvor som helst på arbejdsplanet; den passerer under visningskuben og visningsbjælken. Slip den tilbage ved siden af visningskuben, eller dobbeltklik titellinjen, og den docker igen. Hvor den var og om den var foldet huskes i denne browser.</p>
+</section><section class="guide-part"><h2 id="tast-en-position"><span class="heading-alias" id="typing-a-position"></span>Tast en position</h2>
+<p>Kortet <strong class="ui">“Position”</strong> i egenskabspanelet viser hvor den valgte form står, og du kan taste den: <strong class="ui">“X”</strong> og <strong class="ui">“Y”</strong> er midten af dens boks på pladen, med de samme fortegn som afstandene vist på arbejdsplanet, og <strong class="ui">“Z (højde)”</strong> er højden af dens underside. Med <strong class="ui">“Målt fra”</strong> øverst på kortet skifter du til <strong class="ui">“Kant”</strong>: X og Y viser så formens venstre og forreste kant, så du kan lægge en kant præcis på et mål. Indstillingen bliver, indtil du skifter tilbage til <strong class="ui">“Midte”</strong>. X tæller til højre, Y mod bag og Z op, efter højrehåndsreglen som i Tinkercad og CAD-programmer; aksepilene på pladen viser retningerne. Værdierne går i den enhed du har sat, og skydere rækker lige så langt som at trække.</p>
+</section><section class="guide-part"><h2 id="parker-dele-ved-siden-af-pladen"><span class="heading-alias" id="parking-parts-beside-the-plate"></span>Parkér dele ved siden af pladen</h2>
+<p>Du kan trække en form forbi kanten af pladen og lade den stå der, omkring én pladebredde ud over hver side, for at gemme den til senere. Piletasterne flytter den så langt du vil. En parkeret del hører stadig til designet og kommer med i eksporten sammen med alt andet. For at udelade den, skjul den eller eksportér kun markeringen. Har du valgt en printer, advarer layerling ved eksport når noget sidder uden for dens plade.</p>
+</section><section class="guide-part"><h2 id="snap-under-flytning"><span class="heading-alias" id="snapping-while-moving"></span>Snap under flytning</h2>
+<p>Når du trækker en form hen over arbejdsplanet, snapper den til andre former: dens venstre, højre, for- eller bagkant eller dens midte lander præcis på en kant eller midte af en anden form. En lyserød hjælpelinje viser hvad den holder fast i. Sådan sidder to dele lige ud for hinanden eller centreret den ene bag den anden uden at taste tal. Det virker også med gitteret slået fra. Arbejdsplanets midte tæller også: de lyserøde linjer viser, når formen står midt på pladen langs X, langs Y eller begge.</p>
+<p>Hold <kbd>Shift</kbd> mens du trækker for at holde flytningen på én akse: formen følger den retning, X eller Y, du har trukket længst i, og lader den anden være. Bedst at trykke <kbd>Shift</kbd> når du allerede trækker; på en form der ikke er valgt endnu, tilføjer et klik med <kbd>Shift</kbd> den kun til markeringen.</p>
+<p>Eller træk i den røde eller grønne pil oven på markeringen: den flytter kun langs X eller kun langs Y, og formen følger musen langs den linje, også i en lav visning, hvor frit træk løber langt væk. Pilene snapper som ved træk, <kbd>Alt</kbd> slipper, og bagefter kan du klikke på den tilbagelagte afstand og skrive den nøjagtige værdi.</p>
+<p>Med <kbd>Alt</kbd> allerede holdt når trækket begynder, trækker du en kopi, som i Tinkercad: formen bliver hvor den er, og kopien lander hvor du slap. At trykke <kbd>Alt</kbd> først på vejen pauserer snap; formen følger så kun gitteret. En kopi snapper også først når du slipper <kbd>Alt</kbd> på vejen. For at slå snap helt fra, brug gittermenuen nederst til højre (<strong class="ui">“Snap til former”</strong>) eller indstillingerne. Indtil videre snapper kun flytning på det almindelige arbejdsplan, ikke løft og ikke ændring af størrelse.</p>
+</section><section class="guide-part"><h2 id="justering"><span class="heading-alias" id="aligning"></span>Justering</h2>
+<p>To eller flere valgte former justeres med <strong class="ui">“Justér”</strong> (<kbd>L</kbd>, eller højreklik på markeringen og vælg den): punkter dukker op omkring markeringen for venstre, centrum og højre, for, centrum og bag, og top, centrum og bund. Et klik på et punkt flytter alle former derhen. Klikker du først på en af de valgte former, bliver den hvor den er, og de andre justeres med den. En låst form i markeringen er den faste form for sig selv. Venstre, højre, for, bag, top og bund går efter kassen omkring en form; midten af en trekant, en pentagon eller en stjerne er dens egen midte, så et hul centreret på en sidder i midten af formen og ikke af dens kasse.</p>
+<p>En form vendt i en vinkel, for eksempel med 45°, har sin kasse omkring sig at justere med, ikke dens egne kanter. For at justere med kanterne, sæt et arbejdsplan på en flade af den form først (<strong class="ui">“Placér arbejdsplan”</strong>, klik så fladen): punkterne står så på det plans akser, og formerne måles og flyttes langs dem, som i Tinkercad. Nulstil arbejdsplanet for at justere langs pladen igen.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/align.webp" alt="Juster viser de mulige mål som prikker omkring markeringen." width="1280" height="800" loading="lazy"><figcaption>Juster viser de mulige mål som prikker omkring markeringen.</figcaption></figure>
+<p>Tasten er <kbd>L</kbd>. <kbd>Esc</kbd> annullerer.</p>
+<section class="guide-part"><h3 id="tilpas-st-rrelser"><span class="heading-alias" id="matching-sizes"></span>Tilpas størrelser</h3>
+<p>Hold <kbd>Alt</kbd> nede under justering, og punkterne bliver firkantede: et klik flytter ikke længere formerne, men ændrer deres størrelse. Et punkt på siden strækker hver form hen til den side, mens dens anden side bliver hvor den er, som om du havde trukket dens håndtag dertil. Punktet i midten lader hver form blive hvor den er og giver den bredden, længden eller höjden i den retning. Sådan kan du for eksempel bytte en kasse med en cylinder af samme størrelse, eller erstatte en brudt del af et mesh med en ren form. Flytter du over et punkt med <kbd>Alt</kbd> holdt, ser du på forhånd, hvor store formerne bliver.</p>
+<p>Referencen er den form, du klikkede på først; kun de andre ændres. Uden en reference strækker sidepunkterne alle former til den yderste side, og midtpunktet giver dem alle den størstes størrelse. En cylinder bliver rund, så den vokser i den anden retning også. En form vendt i en vinkel forbliver som den er; former vendt 90° virker.</p>
+</section><section class="guide-part"><h3 id="lige-store-mellemrum"><span class="heading-alias" id="equal-gaps"></span>Lige store mellemrum</h3>
+<p>Ved siden af det midterste punkt på hver linje står et bredere punkt med en streg på hver side. Det fordeler tre eller flere figurer i den retning, så mellemrummet mellem nabokanterne er det samme overalt, uanset hvor store figurerne er. Den første og den sidste figur bliver stående, dem imellem flytter sig. En række huller i forskellige størrelser får på den måde samme væg imellem sig. Hold musen over punktet, så ser du på forhånd, hvor figurerne havner; statuslinjen viser bagefter mellemrummet.</p>
+<p>Er der blandt de valgte figurer en plade (en grundform, som de andre står på, for eksempel en flad kasse, ikke et SBC-print), der er længere i den retning end alle de andre, fordeles figurerne på den: mellemrummet til dens kanter er lige så stort som mellemrummet mellem figurerne, og en enkelt figur kommer i midten. Figurer i flere rækker, som dyrene i et knoppuslespil, fordeles række for række; figurer, hvis kasser overlapper på tværs af retningen, udgør én række. Står figurerne ikke i rene kolonner, som dyrene forfra og bagud, flytter figurerne ved siden af hinanden i stedet som en hel række. Hele puslespillet tager så et klik fra venstre til højre og et fra forfra til bagud.</p>
+<p>Uden en plade holder du <kbd>Shift</kbd> nede og klikker først på et tomt sted på byggepladen: så er den den faste figur, lige store mellemrum fordeler figurerne over hele pladen med samme mellemrum til kanterne, og de andre punkter justerer dem efter dens kanter eller midte. Et nyt klik med <kbd>Shift</kbd> på den tomme plade slipper den igen. Et klik på et tomt sted uden <kbd>Shift</kbd> afslutter justeringen, ligesom <kbd>L</kbd> og <kbd>Esc</kbd>.</p>
+<p>Hold <kbd>Alt</kbd> nede og klik på punktet for selv at indtaste mellemrummet, fx 5 mm: figurerne stilles så langt fra hinanden, fra den første figur eller fra den, du klikkede først; på en plade kommer rækken i midten. En låst figur bliver stående, så en mellem de yderste figurer forhindrer lige store mellemrum.</p>
+</section></section><section class="guide-part"><h2 id="spejling"><span class="heading-alias" id="mirroring"></span>Spejling</h2>
+<p><strong class="ui">“Spejl”</strong> (<kbd>M</kbd>, eller højreklik på markeringen og vælg den) vender markeringen over et plan: <strong class="ui">“venstre-højre”</strong>, <strong class="ui">“for-bag”</strong> eller <strong class="ui">“top-bund”</strong>. Klik den tilsvarende akse-pil. Det er handy for symmetriske dele: byg én halvdel, kopier den og spejl kopien.</p>
+</section><section class="guide-part"><h2 id="rotation-og-indstilling-af-rotationspunkt"><span class="heading-alias" id="rotating-and-setting-the-pivot"></span>Rotation og indstilling af rotationspunkt</h2>
+<p>Du roterer med de buede pile på formen, med tallene i indstillingerne eller med <kbd>R</kbd> i 45°-trin. Når du trækker på rotationscirklen, snapper drejningen til hvert hak, det er hver 22,5°; hold <kbd>Shift</kbd> for finere trin, og ekstra hak dukker op hver 11,25°. Træk uden for cirklen for at dreje frit i 1°-trin, eller i 45°-trin med <kbd>Shift</kbd>. Normalt drejer markeringen omkring sit centrum. Nogle gange bør den ikke, for eksempel når et skråt rør skal drejes yderligere ved sin ende. Til det er der <strong class="ui">“Sæt rotationspunkt”</strong>: klik bagefter på en flade. En flad flade giver dens centrum, for eksempel aksen på et rørs ende. På en gruppe eller et bundt løber fladen videre på tværs af de dele der mødes, som på én form, og rotationspunktet går til midten af hele fladen når delene er samlet, undtagen på en gruppe eller et bundt med tekst i, eller et bundt med et hul blandt delene. Markeringen drejer nu omkring det punkt. Endnu et klik på værktøjet fjerner det igen.</p>
+<p>Vinklerne bliver ved formen. I dens indstillinger viser <strong class="ui">“Rotation”</strong> dem som <strong class="ui">“Omkring X”</strong>, <strong class="ui">“Omkring Y”</strong> og <strong class="ui">“Omkring Z (højde)”</strong>, navngivet som positionen: Y løber hen over pladen, Z er op. Tast en vinkel der og formen drejer til den - omkring sit centrum, eller omkring sit eget rotationspunkt hvis det har et. Mens en vendt form er valgt, vises dens vinkler også under den på arbejdsplanet; <strong class="ui">“Vis vinkler på vendte former”</strong> i indstillingerne slår det fra.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/rotation-card.webp" alt="En form vendt omkring to akser: dens vinkler står under den, og Rotationskortet i dens indstillinger tager dem som tal." width="1280" height="800" loading="lazy"><figcaption>En form vendt omkring to akser: dens vinkler står under den, og Rotationskortet i dens indstillinger tager dem som tal.</figcaption></figure>
+<p>Med <strong>én legeme</strong> valgt hører rotationspunktet til det legeme: vælg andre dele og kom tilbage, så er det stadig der. Det flytter, drejer og skalerer med legemet, gemmes i projektet og kommer tilbage med Fortryd. Under <strong class="ui">“Position”</strong> har rotationspunktet sit eget X, Y og Z, som du kan taste eller skubbe, og <strong class="ui">“Fjern”</strong> fjerner det. Du kan også trække rotationspunktets røde markør med musen: den glider hen over legernes overflade og snapper til hjørner, kantmidtpunkter og kanter, så en hængseltap lander præcis på et hjørne. Med flere legemer valgt er rotationspunktet kun for den markering, og en ny markering fjerner det. Grupperer eller bundter du dem, bevares det: gruppen får rotationspunktet som sit eget, med X, Y og Z under <strong class="ui">“Position”</strong>. Hold Shift nede mens du trækker, så snapper den i stedet til midten af fladen under markøren - aksen på en rund flade, midten af en flad eller spidsen af en kegle - og ser gennem gennemsigtige former.</p>
+</section><section class="guide-part"><h2 id="l-g-fladt-pa-en-flade"><span class="heading-alias" id="laying-flat-on-a-face"></span>Læg fladt på en flade</h2>
+<p>Skal en del ligge på sin bedste side til printning? Vælg den, klik på <strong class="ui">“Læg fladt på flade”</strong> og klik så den flade der skal vende ned. Mens du flytter markøren over delen, lyser fladen under den op, så du ser hvilken du er ved at vælge; drej visningen for at tjekke de andre sider. Delen vender så den flade hviler på arbejdsplanet.</p>
+<p>To dele skal mødes flade mod flade, eller flugte? Vælg den del der skal flyttes, klik på <strong class="ui">“Justér flader”</strong>, klik så dens flade og derefter den anden dels flade. I vinduet lægger <strong class="ui">“Flade mod flade”</strong> fladerne mod hinanden (ryg mod ryg, rørende), <strong class="ui">“Flugtende”</strong> lægger dem i ét plan side om side; <strong class="ui">“Afstand”</strong> efterlader plads mellem dem, for eksempel for frirum. <strong class="ui">“Justér”</strong> flytter delen: den drejer den korteste vej indtil fladerne er parallelle - slet ikke hvis de allerede er det - og glider så kun mod den anden flade, så den beholder sin plads sideværts. Den anden del bliver hvor den er, og én Fortryd tager det hele tilbage.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/mate-faces.webp" alt="Juster flader-vinduet: den del der flyttes vælges, en flade på den anden del kommer næst, så flade mod flade eller flugtende, og en valgfri afstand." width="1280" height="800" loading="lazy"><figcaption>Juster flader-vinduet: den del der flyttes vælges, en flade på den anden del kommer næst, så flade mod flade eller flugtende, og en valgfri afstand.</figcaption></figure>
+<p><strong>Huller på én akse:</strong> <strong class="ui">“Samme akse”</strong> retter i stedet runde flader ind: et hul over et hul, en tap i et hul, en skrue i sit gennemgangshul. Vælg det, før du klikker på fladerne. Klik så på den runde inderside af et hul (eller ydersiden af en tap) på den del, der skal flyttes, og på en rund flade på den anden del; hele den runde flade lyser op, mens du peger på den. <strong class="ui">“Justér”</strong> drejer delen den korteste vej, til de to akser er parallelle, og skubber den på tværs over på den anden akse. Langs aksen bliver den, hvor den var, så en tap beholder sin højde; skub den ind bagefter. Det virker også på importerede mesh, så længe hullet består af facetter rundt om én akse.</p>
+<p><strong>Et punkt på et punkt:</strong> <strong class="ui">“Punkt til punkt”</strong> flytter delen lige, uden at dreje den, så et af dens punkter lander på et punkt på en anden del. Klik på et hjørne, et sted på en kant, midten af en rund kant eller et referencepunkt på den del, der flyttes, og derefter på punktet, hvor den skal lande; en prik viser, hvilket punkt markøren fanger. Under <strong class="ui">“Flyt langs”</strong> slår du de akser fra, den ikke skal flytte langs: med kun X og Y ender punktet lige over eller under det andet, med kun Z i samme højde. Én Fortryd tager det tilbage.</p>
+<p><strong>Drejning med et andet og tredje par:</strong> efter <strong class="ui">“Justér”</strong> forbliver panelet åbent for et andet punktpar. Det første punkt bliver, hvor det landede, markeret med blåt, og <strong class="ui">“Drej”</strong> drejer delen om det, til linjen gennem dens andet punkt går gennem det punkt, du valgte på den anden del - så to kanter ligger på én linje, også når delene ikke er lige lange. Et tredje par drejer delen om linjen gennem de to blå punkter, til dens tredje punkt vender mod det tredje punkt, du valgte, så fladerne også passer - som justering efter tre punkter i andre CAD-programmer. <strong class="ui">“Færdig”</strong> afslutter det ved hvert trin; hvert trin er én Fortryd.</p>
+<p><strong>En præcis vinkel mellem to flader:</strong> <strong class="ui">“Justér flader”</strong> efterlader fladerne parallelle; der er intet værktøj til en vinkel mellem dem, men sådan kommer du derhen. Først bringer du fladerne sammen med <strong class="ui">“Justér flader”</strong>, så de er parallelle. Sæt så rotationspunktet på kanten hvor de mødes (<strong class="ui">“Sæt rotationspunkt”</strong>, klik på kanten eller et hjørne), og tast vinklen, 15 eller 30 for eksempel, i kortet <strong class="ui">“Rotation”</strong> på delen. Den drejer omkring det rotationspunkt. Kortets akser er pladens akser, så det virker når kanten løber langs X, Y eller Z.</p>
+<p>Lige så enkle er <strong class="ui">“Læg på arbejdsplan”</strong> (<kbd>D</kbd>), der lægger markeringen ned på arbejdsplanet, og <strong class="ui">“Centrér på arbejdsplan”</strong>. Med arbejdsplanet på en flade centrerer det på det punkt du valgte med <kbd>W</kbd> og flytter kun markeringen langs fladen, så det der står på den bliver stående.</p>
+<p><span dir="ltr"><kbd>Alt</kbd>+<kbd>D</kbd></span> lægger flere dele ned som ét stykke: de flyttes alle lige langt ned, så de beholder deres højder i forhold til hinanden, mens <kbd>D</kbd> lægger hver del ned for sig.</p>
+<p><kbd>C</kbd> tager markeringen op, ligesom Cruise i Tinkercad: den følger musemarkøren og lægger sig ned på fladen af en anden form du er over, også skrå. Et klik sætter den ned der, <kbd>Esc</kbd> lader den stå hvor den var. Dens underside hviler så på fladen, justeret med fladens kanter som en ny form ville være; den beholder sin egen drejning omkring sin op-akse. Flere dele rejser sammen og bevarer deres afstand. Over den tomme plade stiller <kbd>C</kbd> en skrå del oprejst på arbejdsplanet igen. Holder du <kbd>Shift</kbd> nede undervejs, synker delen i stedet ned i fladen: den bliver stående opret, med oversiden i flugt med fladen og legemet under den, sådan som en undersænkning eller en forsænkning kommer ned i en legeme; en ny form fra biblioteket placeres på samme måde med <kbd>Shift</kbd> holdt nede. <span dir="ltr"><kbd>Shift</kbd>+<kbd>D</kbd></span> lægger markeringen ned på arbejdsplanet med oversiden i stedet for undersiden. Uden et tastatur har menuen ved et langt tryk <strong class="ui">“Sæt ned på en flade”</strong> til det samme.</p>
+</section><section class="guide-part"><h2 id="m-nstre-r-kke-og-cirkel"><span class="heading-alias" id="patterns-row-and-circle"></span>Mønstre: række og cirkel</h2>
+<p>Til hulgitre, boltecirkler og ringe af tænder er der <strong class="ui">“Mønster”</strong>. Vælg de former der skal formeres og klik det i båndet.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/pattern-tool.webp" alt="Mønsteret i &quot;Cirkel&quot;-tilstand: kopierne vises først som en forhåndsvisning." width="1280" height="800" loading="lazy"><figcaption>Mønsteret i &quot;Cirkel&quot;-tilstand: kopierne vises først som en forhåndsvisning.</figcaption></figure>
+<ul><li><strong><strong class="ui">“Række”</strong>:</strong> Markeringen gentages med lige afstande. Rækken skrider frem langs alle tre akser på én gang, med <strong class="ui">“X-afstand”</strong>, <strong class="ui">“Y-afstand”</strong> og <strong class="ui">“Z-afstand (højde)”</strong>: én af dem giver en lige række, to eller tre en diagonal række eller en trappe. En negativ afstand lægger rækken den anden vej.</li><li><strong><strong class="ui">“Fordel over et legeme”</strong>:</strong> Til huller langs en plade, en nøgleholder eller et knagerække. Sæt det første stykke på eller ind i legemet, vælg <strong class="ui">“Langs X”</strong> eller <strong class="ui">“Langs Y”</strong> og indstil <strong class="ui">“Afstand til kanten”</strong>: originalen rykker så langt ind fra den nærmeste ende (fra kanten til stykkets side), og den sidste kopi holder samme afstand til den anden ende. Afstanden følger så <strong class="ui">“Antal (med original)”</strong>: fem huller eller ni, de fylder altid pladen jævnt.</li><li><strong><strong class="ui">“Gitter”</strong>:</strong> Til hullerne i en hulplade eller et felt af ens dele. <strong class="ui">“Kolonner langs X (med original)”</strong> og <strong class="ui">“X-afstand”</strong> lægger kolonnerne side om side, <strong class="ui">“Rækker langs Y (med original)”</strong> og <strong class="ui">“Y-afstand”</strong> rækkerne forfra og bagud. Én kolonne eller én række giver en enkelt linje. Et gitter har højst 100 dele; derover skæres rækkerne ned, og vinduet siger det.</li><li><strong><strong class="ui">“Cirkel”</strong>:</strong> Markeringen spredes rundt om et centrum. Hvor mange kopier der er sætter du under <strong class="ui">“Antal (med original)”</strong>, og <strong class="ui">“Total vinkel”</strong> er 360° for en hel cirkel. Vælg om kopierne drejer med. <strong class="ui">“Stigning pr. kopi”</strong> løfter hver kopi lidt mere end den forrige (en skrue eller en stigende spiral), og <strong class="ui">“Radiusændring pr. kopi”</strong> flytter den længere fra centrum eller tættere på det (en flad spiral); sammen giver de en konisk spiral. En spiral får højst én vinding: en vinkel over 360° tæller som en hel cirkel, og der er højst 100 kopier.</li></ul>
+<p>Tip: sæt først rotationspunktet på en flade med <strong class="ui">“Sæt rotationspunkt”</strong>, så ligger cirklens centrum præcis der.</p>
+<p>Bagefter beholder stykkerne cirklens centrum som deres rotationspunkt, også når de er grupperet. Det er der, en anden del hører hjemme, en bold midt i tre ben for eksempel: midten af den kasse, stykkerne fylder, er ikke centrum, fordi tre ben fylder den bredere den ene vej end den anden. Højreklik på stykkerne og vælg <strong class="ui">“Markér drejepunktet”</strong>, så snapser midten af den del, du trækker, til det.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/pattern-spiral.webp" alt="Mønsteret i &quot;Cirkel&quot;-tilstand med stigning og radiusændring pr. kopi: kopierne klatrer op og bliver bredere som en spiral." width="1280" height="800" loading="lazy"><figcaption>Mønsteret i &quot;Cirkel&quot;-tilstand med stigning og radiusændring pr. kopi: kopierne klatrer op og bliver bredere som en spiral.</figcaption></figure>
+<p>Kopierne vises først som en forhåndsvisning. Kun <strong class="ui">“Opret”</strong> opretter dem. Hvis kopierne er huller, gruppér dem bagefter med den form de skal skære ind i.</p>
+<p>Med <strong class="ui">“Gruppér kopierne”</strong> sat i kryds grupperer <strong class="ui">“Opret”</strong> originalen og alle kopierne til ét objekt i samme skridt, som <strong class="ui">“Gruppér”</strong> ville gøre: en ring på 36 stykker er så én del du kan flytte, farve eller skære med. Over 5 stykker sætter kassen sig selv i kryds; når du selv sætter eller fjerner krydset, bliver det som du har sat det. <strong class="ui">“Opdel gruppe”</strong> bringer stykkerne tilbage. Hvis gruppering ikke går op, kommer mønsteret stadig ind som separate stykker, og beskeden siger hvorfor.</p>
+</section><section class="guide-part"><h2 id="hulm-nster-pa-en-flade"><span class="heading-alias" id="hole-pattern-on-a-face"></span>Hulmønster på en flade</h2>
+<p>Til udluftninger, højttalergitre, kurve og kabinetter spreder <strong class="ui">“Hulmønster”</strong> huller jævnt over en flad flade. Du behøver ikke længere lave ét hul, gentage det og sætte det på væggen. Vælg præcis én form og klik på <strong class="ui">“Hulmønster”</strong> i <strong class="ui">“Modificér”</strong>-gruppen i båndet, ved siden af mønsteret. Du kan også højreklikke på formen, eller finde den med <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</p>
+<ol><li>Klik en flad flade af formen. Hele den flade flade omkring dit klik tæller, ikke kun trekanten under markøren. Den runde væg på en cylinder, et rør eller en boring virker også, se nedenfor; andre krumme flader virker ikke: du får et tip og klikker en flad i stedet. På en gruppe eller et bundt løber fladen videre på tværs af de dele der mødes, som på én form; på et bundt kun når der ikke er et hul blandt delene. Delene lægges sammen kort efter at værktøjet er åbnet; indtil da lyser kun én dels flade op under markøren, og et klik venter på at delene er lagt sammen. På en gruppe eller et bundt med tekst i lyser kun én dels flade op, og klikket lægger delene sammen.</li><li>I vinduet sæt du hvordan hullerne ser ud og ligger:</li></ol>
+<ul><li><strong><strong class="ui">“Hulform”</strong>:</strong> <strong class="ui">“Rund”</strong>, <strong class="ui">“Firkantet”</strong>, <strong class="ui">“Rektangel”</strong>, <strong class="ui">“Hexagon”</strong> eller <strong class="ui">“Slids”</strong>.</li><li><strong>Størrelse:</strong> <strong class="ui">“Diameter (Ø)”</strong> for et rundt hul, <strong class="ui">“Sidelængde”</strong> for et firkantet, <strong class="ui">“Bredde”</strong> og <strong class="ui">“Højde”</strong> for et rektangel og en slids. For hexagon er størrelsen <strong class="ui">“Diameter over hjørnerne (Ø)”</strong>.</li><li><strong><strong class="ui">“Vinkel på hullerne”</strong>:</strong> kun rektangler og slidser: drejer hvert hul så mange grader i fladen, mod uret set mod fladen, fra -90 til 90. Rækkerne forbliver lige; hvis drejede huller ville komme for tæt på hinanden, også på skrå, øger layerling afstanden og rækkeafstanden, så der bliver en væg imellem dem.</li><li><strong><strong class="ui">“Hældning gennem væggen”</strong>:</strong> kun plane flader, ikke med forsænkning, keglesænkning eller egen form: hælder hvert hul gennem væggen, fra -60 til 60 grader. På en stående væg ligger den indre ende højere ved positiv hældning, så regn løber ud igen. Størrelsen er hullets egen, så det ser lidt længere ud på fladen; begge ender af hvert hul holder margenen. Hældningen skjuler kun det indre, når vægtykkelsen gange sin(vinkel) er mindst hullets højde, så brug lave slidser eller en tykkere væg til det.</li><li><strong><strong class="ui">“Egen form”</strong>:</strong> gentager en form fra scenen i stedet for et hul: en nitte, en knop eller riflen på en riflet plade. Du vælger den under <strong class="ui">“Form fra scenen”</strong>. Dens bredde og dybde er den plads, den tager; den står opret på fladen, som den er lavet, uden sin egen drejning. Et legeme sættes på fladen og forbindes med den, et hul skæres ind så dybt, som det er højt. Selve formen bliver, hvor den er.</li><li><strong><strong class="ui">“Hultype”</strong>:</strong> kun for runde huller. <strong class="ui">“Almindeligt”</strong> er et lige hul, <strong class="ui">“Forsænkning”</strong> tilføjer en lomme til hovedet på en cylinderskrue, <strong class="ui">“Undersænkning”</strong> en kegle på 90° til en undersænket skrue. Størrelsen er så <strong class="ui">“Skaftdiameter”</strong>; <strong class="ui">“Hoveddiameter”</strong> og for forsænkningen <strong class="ui">“Hoveddybde”</strong> indstiller hovedet. <strong class="ui">“Skruestørrelse”</strong> udfylder det hele for en metrisk skrue.</li><li><strong><strong class="ui">“Afstand”</strong>:</strong> afstanden fra ét huls midte til det næste. Hvis den er mindre end hullerne tillader, hæver layerling den til den mindst mulige værdi så en væg bliver mellem hullerne. For rektangler og slidser tæller den langs rækken, fra venstre mod højre.</li><li><strong><strong class="ui">“Rækkeafstand”</strong>:</strong> kun rektangler og slidser: afstanden fra én række til den næste. Så står smalle, høje huller tæt ved siden af hinanden, mens rækkerne holder afstand. Et hul 2 mm bredt og 14 mm højt har brug for 4 mm langs rækken og 16 mm fra række til række med en 2 mm væg.</li><li><strong><strong class="ui">“Væg mellem hullerne”</strong>:</strong> den samme afstand sagt på en anden måde: væggen mellem to nabohuller, det er vægtykkelsen i printet. Sæt den og afstanden center-til-center følger (for rektangler og slidser rækkeafstanden også), og omvendt. For hexagons, rektangler og slidser måler layerling den korteste afstand mellem deres kanter.</li><li><strong><strong class="ui">“Arrangement”</strong>:</strong> <strong class="ui">“Gitter”</strong> lægger hullerne i rækker og kolonner. <strong class="ui">“Forskudt”</strong> skubber hver anden række en halv afstand og rykker rækkerne tættere, så hvert hul har naboer i samme afstand - med hexagons bliver det en bikube.</li><li><strong><strong class="ui">“Langs kanten”</strong>:</strong> i stedet en krans af huller langs fladens yderkant, <strong class="ui">“Margen til fladens kant”</strong> inde fra den - skruehuller rundt om et låg eller en plade. <strong class="ui">“Fordel efter”</strong> <strong class="ui">“Afstand”</strong> holder omtrent afstanden, <strong class="ui">“Antal”</strong> fastlægger <strong class="ui">“Antal huller”</strong>; i begge tilfælde udjævnes afstanden, så kransen lukker sig uden hul. <strong class="ui">“Et hul i hvert hjørne”</strong> (slået til fra start) sætter et hul i hvert hjørne og deler hver side imellem dem jævnt. På en rund flade, eller uden fluebenet, går hullerne jævnt rundt fra toppen, og <strong class="ui">“Start langs kanten”</strong> flytter hele kransen langs kanten.</li><li><strong><strong class="ui">“Margen til fladens kant”</strong>:</strong> den fri afstand mellem hullerne og kanten af fladen. Kun huller der ligger helt inden for fladen minus denne margin laves; alt der ville nå ud over den udelades. Marginen holder også omkring åbninger i fladen.</li><li><strong><strong class="ui">“Dybde”</strong>:</strong> <strong class="ui">“Gennem hele formen”</strong> (standard) skærer gennem hele væggen. Med <strong class="ui">“Brugerdefineret dybde”</strong> giver du dybden i millimeter, for forsænkninger for eksempel.</li></ul>
+<ol><li>Hullerne vises med det samme som forhåndsvisning på fladen og følger hver værdi. Vinduet siger hvor mange huller der er plads til. <strong class="ui">“Anden flade”</strong> vælger en anden flade, <kbd>Esc</kbd> lukker værktøjet, og ligesom de andre værktøjsvinduer flyttes det i dets titellinje.</li><li>Kun <strong class="ui">“Opret”</strong> laver hullerne.</li></ol>
+<p>Hullerne er almindelige huller grupperet med formen, ligesom efter <strong class="ui">“Gruppér”</strong>: intet er bagt ind. <strong class="ui">“Opdel gruppe”</strong> opløser gruppen igen og frigør hvert hul, som du så kan flytte, ændre eller slette ét ad gangen. Hele tingen er ét skridt for <strong class="ui">“Fortryd”</strong>. Værktøjet laver højst 400 huller ad gangen; gør hullerne større eller afstanden bredere så.</p>
+<p>Den runde væg på en cylinder, et rør eller en boring tager også huller: en blyantsholder, en lampeskærm, et rør med udluftning. Klik på væggen i stedet for en flad flade; hele væggen lyser op under markøren. Hvert hul peger så lige ind mod aksen, og rækkerne går rundt om væggen. På en væg der går hele vejen rundt, har hver række et helt antal huller, jævnet ud så ringen lukker uden mellemrum og aldrig tættere end afstanden; vinduet siger hvor mange der går rundt og hvor langt fra hinanden. Margenen gælder mod kanterne foroven og forneden og mod åbninger i væggen, på en del af en væg (en afrunding f.eks.) også mod dens sider. <strong class="ui">“Gennem væggen”</strong> skærer gennem den ene væg du klikkede på og lader den anden side af et rør være hel; på en massiv cylinder går hullerne ind til midten. Klikket inde i en boring går hullerne udad gennem dens væg. <strong class="ui">“Langs kanten”</strong> er til flade flader og tilbydes ikke på en væg.</p>
+<p>En AI kan gøre det samme gennem MCP-broen med <code>layerling_perforate_face</code> (se kapitlet <a href="/api/desktop/layerling/ui/vejledning/ai-with-mcp.html">AI med MCP</a>).</p>
+</section><section class="guide-part"><h2 id="skub-en-flade-ud-eller-ind"><span class="heading-alias" id="pushing-a-face-out-or-in"></span>Skub en flade ud eller ind</h2>
+<p>Til en tykkere væg, et hævet stykke på en flade eller en lomme skåret ind i den arbejder <strong class="ui">“Flade”</strong> på én flad flade. Det virker også på en importeret STL, hvor der ingen skitse er at ændre. Vælg præcis én form og klik på <strong class="ui">“Flade”</strong> i <strong class="ui">“Modificér”</strong>-gruppen i båndet, ved siden af hulmønsteret. Du kan også højreklikke på formen, eller finde den med <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</p>
+<ol><li>Klik en flad flade af formen. Som med hulmønsteret tæller hele fladen omkring dit klik, ikke kun trekanten under markøren; en krum flade virker ikke her, heller ikke en rund væg. På en gruppe eller et bundt løber fladen videre på tværs af de dele der mødes, som med hulmønsteret.</li><li>I vinduet:</li></ol>
+<ul><li><strong><strong class="ui">“Retning”</strong>:</strong> vælg <strong class="ui">“Ud: tilføj materiale”</strong> for materiale der står på fladen, eller <strong class="ui">“Ind: skær en lomme”</strong> for en lomme skåret ind i den. En lomme går ikke dybere end legemet bag fladen; på en udhulet form kan den stadig nå hulrummet.</li><li><strong><strong class="ui">“Indrykning fra flatens kant”</strong>:</strong> hvor langt det nye omrids holder sig inde fra fladens kant. Ud ad gør 0 hele fladen, som gør en væg tykkere. Åbninger i fladen vokser med samme mål.</li><li><strong><strong class="ui">“Hjørneradius”</strong>:</strong> runder hvert hjørne af omridset, også de indre, så en skarp spids ender i en bue. Et hak der er smallere end det dobbelte af radius lukkes, og en del af fladen der er smallere end det dobbelte af inset og radius tilsammen udelades.</li><li><strong><strong class="ui">“Dybde”</strong>:</strong> hvor langt den nye del står ud af fladen, eller hvor dybt lommen går.</li><li><strong><strong class="ui">“Som sit eget legeme (ikke grupperet)”</strong>:</strong> med kontakten til er den nye del (eller hullet i en lomme) et legeme af sit eget ved siden af formen i stedet for en gruppe med den, så du kan ændre dens størrelse, flytte den eller bruge den til at skære med det samme.</li></ul>
+<ol><li>Resultatet vises med det samme som forhåndsvisning og følger hver værdi. <strong class="ui">“Anden flade”</strong> vælger en anden flade, <kbd>Esc</kbd> lukker værktøjet.</li><li>Kun <strong class="ui">“Opret”</strong> laver det.</li></ol>
+<p>Det værktøjet tilføjer, er et almindeligt skitselegeme, grupperet med formen med mindre end <strong class="ui">“Som sit eget legeme (ikke grupperet)”</strong> er slået til (så har <strong class="ui">“Redigér gruppe”</strong> intet at åbne, og delen står frit): intet er bagt ind. <strong class="ui">“Redigér gruppe”</strong> åbner gruppen, og <strong class="ui">“Redigér skitse”</strong> på den nye del viser det omrids, den følger. På toppen eller bunden af et rent skitselegeme – ét område, ikke grupperet, spejlet, spidst, snoet eller hældende, og uden streg, nøgleringshul, runding eller fas – er det legemets eget omrids, sat ind da det blev bygget, så dets linjer og buer forbliver nøjagtige, hvor CAD-kernen kan sætte dem ind, til kantværktøjerne og STEP-eksporten. Ændres størrelsen senere, beholder delen sit inset. På enhver anden flade, og på alle flader i et importeret mesh, følger omridset fladens trekanter, og en kurve består af korte lige stykker. Hele tingen er ét skridt for <strong class="ui">“Fortryd”</strong>. Vil du ændre inset eller radius senere, fortryd og kør værktøjet igen. Vil du runde topkanten bagefter, bruger du <strong class="ui">“Rund”</strong> med <strong class="ui">“Topkanter”</strong> på gruppen som sidste skridt: som enhver kantbehandling på en gruppe fører den gruppen sammen til ét legeme.</p>
+<p>En AI kan gøre det samme gennem MCP-broen med <code>layerling_push_face</code> (se kapitlet <a href="/api/desktop/layerling/ui/vejledning/ai-with-mcp.html">AI med MCP</a>).</p>
+</section><section class="guide-part"><h2 id="ndre-flere-dele-pa-en-gang"><span class="heading-alias" id="changing-several-parts-at-once"></span>Ændre flere dele på én gang</h2>
+<p>Med flere dele valgt viser egenskabspanelet til højre hvor mange der er og tilbyder hvad der gælder for dem alle sammen: <strong class="ui">“Solid”</strong> eller <strong class="ui">“Hul”</strong>, én farve for alle (et klik på <strong class="ui">“Solid”</strong> åbner farverne) og låsen. Med en blandet markering gør ét klik dem alle til solider eller alle til huller. Hvis nogen af delene er låst, kan kun låsen bruges. Størrelser ændres med håndtagene, med <strong class="ui">“Skalér med procent”</strong> eller ved at taste et tal ind i en størrelsesetiket. Med flere dele er tallet hele markeringens størrelse: hver del vokser med den, mellemrummene mellem dem også, som når du trækker et håndtag. Solid og hul virker også med højreklik eller tasterne <kbd>S</kbd> og <kbd>H</kbd>.</p>
+</section><section class="guide-part"><h2 id="skaler-med-procent"><span class="heading-alias" id="scaling-by-percent"></span>Skalér med procent</h2>
+<p>For at gøre en eller flere dele større eller mindre med den samme andel, for eksempel alle dele i en printfil med 20 %, brug <strong class="ui">“Skalér med procent”</strong>. Vælg delene, højreklik på dem og vælg <strong class="ui">“Skalér med procent”</strong>, eller søg efter den med <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</p>
+<p>Under <strong class="ui">“Ny størrelse”</strong> taster du den nye størrelse som en procent af den aktuelle: 120 % er en femtedel større, 50 % halv størrelse. Bredde, dybde og højde ændres ens, så proportionerne bevares. Bunden bliver hvor den er, så intet synker ned i pladen.</p>
+<p>Med flere dele vælger du hvordan de vokser:</p>
+<ul><li><strong><strong class="ui">“Sammen”</strong>:</strong> Delene vokser omkring deres fælles centrum, og mellemrummene vokser med dem. Hele bliver større som om det var én del.</li><li><strong><strong class="ui">“Hver på stedet”</strong>:</strong> Hver del vokser hvor den står, og mellemrummene mellem dem forbliver de samme.</li></ul>
+<p>Kun <strong class="ui">“Anvend”</strong> ændrer designet, og ét skridt tilbage fortryder det. Med en låst del i markeringen åbner det ikke. Procentfeltet har fokus, når vinduet åbner, så fra tastaturet er det <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>, procenten, <kbd>Enter</kbd>; <kbd>Esc</kbd> lukker vinduet.</p>
+</section><section class="guide-part"><h2 id="fortryd"><span class="heading-alias" id="undoing"></span>Fortryd</h2>
+<p><strong class="ui">“Fortryd”</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span>) og <strong class="ui">“Gendan”</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span> eller <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Y</kbd></span>) går gennem din historik. Hvor mange skridt der rejser med det gemte design sætter du i indstillingerne under <strong class="ui">“Historik”</strong>. Peg på en af knapperne, så nævner dens værktøjstip det trin, den fortryder eller gendanner, med målet hvis trinnet har et, fx &quot;Rundede kanterne på Box (5 mm)&quot; eller &quot;Flyttede 3 objekter (12 mm)&quot;; beskeden bagefter siger det samme. Vil du gå flere trin tilbage på én gang, så brug historikvisningen nedenfor. En meddelelse, der melder et skridt, du lige har taget, fx &quot;3 former slettet&quot;, har en Fortryd-knap, der tager netop det skridt tilbage.</p>
+</section><section class="guide-part"><h2 id="se-tilbage-historikvisningen"><span class="heading-alias" id="looking-back-the-history-view"></span>Se tilbage: historikvisningen</h2>
+<p><strong class="ui">“Historik”</strong>, ved siden af fortryd og gendan, åbner en visning af din historik uden at ændre noget. Arbejdsområdet viser designet som det var, og en skyder i bunden løber gennem hvert fortryd-trin: helt til højre er den aktuelle tilstand, hvert skridt til venstre er et fortryd tidligere, og tilstande du har fortrudt sidder til højre for den aktuelle. Piletasterne går gennem tilstandene, <kbd>Esc</kbd> vender tilbage til den aktuelle tilstand. Musehjulet over skyderen gør det samme, én tilstand pr. hak, op til en tidligere; <kbd>Page Up</kbd> og <kbd>Page Down</kbd> springer ti tilstande, <kbd>Home</kbd> går til den ældste tilstand og <kbd>End</kbd> tilbage til den aktuelle. Du kan dreje og zoome visningen imens og klikke på objekter for at hente dem tilbage (se nedenfor), men intet kan flyttes; designet selv forbliver præcis som det er. Dækker bjælken noget, så træk den væk i dens titellinje; et dobbeltklik på den bringer den tilbage. Listeknappen i titellinjen viser alle trin med navn i en liste, det nyeste øverst: et klik på et trin går til den tilstand, tilstanden designet står i er markeret med <strong class="ui">“nu”</strong>, og trin du har fortrudt er grå. Lader du listen stå åben, er den åben næste gang. De to afspilningsknapper under skyderen afspiller historien som en film: den der peger mod højre spiller fremad fra den viste tilstand, den der peger mod venstre spiller baglæns, hver tilstand et øjeblik, indtil enden; trykker du på den samme knap igen, sætter den på pause, og bevæger du skyderen, musehjulet, tasterne eller listen, tager den over. Startet ved enden af sin vej begynder den igen fra den anden ende. <strong class="ui">“Hastighed”</strong> sætter, hvor længe hver tilstand bliver (langsom, normal eller hurtig), og det huskes til næste gang. Optag skærmen, mens den afspiller, for at vise, hvordan en del blev til.</p>
+<p>To ting kan du tage med fra en tidligere tilstand. <strong class="ui">“Nyt projekt fra denne tilstand”</strong> lægger den tilstand i et nyt design i overblikket, opkaldt efter dette med tidspunktet for den tilstand i parenteser - et design gemt før layerling registrerede tider siger &quot;kopi&quot; i stedet - og med historikken op til det punkt, så fortryd bliver ved med at virke der. <strong class="ui">“Eksportér denne tilstand”</strong> åbner den sædvanlige eksport med den tilstand som designet, så du kan gemme det som STL, 3MF, STEP, et billede eller en LYL-fil med historikken op til den tilstand.</p>
+<p>Du kan også hente enkelte objekter tilbage i designet. Klik på et objekt i den viste tilstand - <kbd>Shift</kbd>+klik tilføjer flere eller fjerner et igen, et klik i det tomme vælger intet - og vælg <strong class="ui">“Tag ind i design”</strong>. Visningen lukker, og en kopi af hvert objekt kommer ind i det nuværende design, præcis som det var i den tilstand og på det sted, det stod der, valgt, ved siden af alt det, designet rummer nu; intet andet ændres. Det er ét trin, så fortryd tager det tilbage. Brug det til en version af en del, du siden har ændret eller slettet. En gruppe kommer tilbage hel; noter og referencepunkter på et objekt bliver tilbage. Navnet bærer tidspunktet for den tilstand, f.eks. „Kasse (12:32)“, så det er let at skelne fra den version, designet har nu. For at hente en del tilbage fra en gruppe vælger du gruppen og vælger <strong class="ui">“Åbn gruppe”</strong> eller trykker <kbd>E</kbd>, som i designet: delene lægges der, hvor redigering af gruppen ville lægge dem, klar til at vælge, og bjælken viser, hvilken gruppe du er i. <strong class="ui">“Tilbage”</strong> lukker den igen. Det er kun for at se - gruppen, designet og historikken forbliver, som de er.</p>
+<p><strong class="ui">“Slet historik”</strong> sidder alene nederst til venstre i bjælken. Efter et spørgsmål fjerner den hvert tidligere trin for evigt: designet beholder den tilstand det har nu (ikke den viste), Fortryd har intet at gå tilbage til, og en fil gemt bagefter har ingen historik. Brug den til at dele et design uden dets fortid, eller til at starte fortryd-trinnene forfra. Det kan ikke fortrydes; for at dele en fil uden at røre dit eget design, vælg <strong class="ui">“Ingen”</strong> når du eksporterer i stedet.</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/vejledning/shapes.html"><small>Forrige kapitel</small>Placering og justering af former</a><a class="next" href="/api/desktop/layerling/ui/vejledning/solids-and-holes.html"><small>Næste kapitel</small>Solider og huller</a></div>
+      </main>
+    </div>
+    <footer class="note">Denne vejledning vokser sammen med programmet. Hvis noget mangler eller er forkert, så fortæl os i <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">diskussioner</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=da" rel="noopener">Støt projektet</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Diskussioner</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mere på GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Udgivelsesnoter v1.154.1</a></div><p class="trademark">Tinkercad er et varemærke tilhørende Autodesk, Inc. layerling er et uafhængigt projekt og er ikke tilknyttet, anbefalet eller sponsoreret af Autodesk.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Tilbage til editoren";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Åbn editoren";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

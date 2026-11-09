@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="hu">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Szöveg és íves feliratok - layerling útmutató</title>
+    <meta name="description" content="Kiemelt vagy bemélyített felirat hét betűtípusban vagy egy saját betűtípussal, ha kell, körív mentén, például egy érmén, fedélen vagy gyűrűn.">
+    <link rel="canonical" href="https://layerling.com/utmutato/text.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/text.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/text.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/text.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/text.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/text.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/text.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/text.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/text.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/tekst.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/text.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/besedilo.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/text.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/text.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/text.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/text.html">
+    <meta property="og:title" content="Szöveg és íves feliratok - layerling útmutató">
+    <meta property="og:description" content="Kiemelt vagy bemélyített felirat hét betűtípusban vagy egy saját betűtípussal, ha kell, körív mentén, például egy érmén, fedélen vagy gyűrűn.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/utmutato/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Útmutató</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/utmutato/search-index.json" data-nothing="Nincs találat." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Keresés az útmutatóban" aria-label="Keresés az útmutatóban" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Nyelv">Magyar</summary><ul><li><a href="/api/desktop/layerling/ui/guide/text.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/text.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/text.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/text.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/text.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/text.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/text.html" hreflang="hu" lang="hu" aria-current="true">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/text.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/text.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/text.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/besedilo.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/text.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/text.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/text.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/text.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/text.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/text.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Szerkesztő megnyitása</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>A szerkesztő már nyitva van egy másik lapon – egyszerűen válts át oda.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Fejezetek"><h2>Fejezetek</h2><p class="print-link"><a href="/api/desktop/layerling/ui/utmutato/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>A teljes útmutató nyomtatáshoz</span></a></p><ol><li><a href="/api/desktop/layerling/ui/utmutato/getting-started.html">Első lépések</a></li><li><a href="/api/desktop/layerling/ui/utmutato/view-and-workplane.html">Nézet és munkasík</a></li><li><a href="/api/desktop/layerling/ui/utmutato/shapes.html">Alakzatok elhelyezése és beállítása</a></li><li><a href="/api/desktop/layerling/ui/utmutato/select-and-arrange.html">Kijelölés és elrendezés</a></li><li><a href="/api/desktop/layerling/ui/utmutato/solids-and-holes.html">Tömör testek és lyukak</a></li><li><a href="/api/desktop/layerling/ui/utmutato/edges-and-hollowing.html">Élek letörése és testek kiüregelése</a></li><li><a href="/api/desktop/layerling/ui/utmutato/sketches.html">Vázlatok: a körvonaltól a testig</a></li><li><a href="/api/desktop/layerling/ui/utmutato/text.html" aria-current="page">Szöveg és íves feliratok</a></li><li><a href="/api/desktop/layerling/ui/utmutato/threads-and-mechanics.html">Menetek, fogaskerekek és más alkatrészek</a></li><li><a href="/api/desktop/layerling/ui/utmutato/measuring-and-notes.html">Mérés és jegyzetek</a></li><li><a href="/api/desktop/layerling/ui/utmutato/printing.html">Előkészítés 3D nyomtatásra</a></li><li><a href="/api/desktop/layerling/ui/utmutato/files-and-saving.html">Fájlok, mentés és megosztás</a></li><li><a href="/api/desktop/layerling/ui/utmutato/shortcuts.html">Billentyűparancsok</a></li><li><a href="/api/desktop/layerling/ui/utmutato/ai-with-mcp.html">Építés MI-vel (MCP)</a></li><li><a href="/api/desktop/layerling/ui/utmutato/offline-and-install.html">Telepítés alkalmazásként, offline munka és saját üzemeltetés</a></li><li><a href="/api/desktop/layerling/ui/utmutato/videos.html">Videók a layerlingről</a></li><li><a href="/api/desktop/layerling/ui/utmutato/tablet-and-touch.html">Tablet and touch</a></li></ol></nav>
+      <main>
+<h1>Szöveg és íves feliratok</h1>
+<p class="lead">Kiemelt vagy bemélyített felirat hét betűtípusban vagy egy saját betűtípussal, ha kell, körív mentén, például egy érmén, fedélen vagy gyűrűn.</p>
+<div class="toc"><b>Ezen az oldalon</b><ul><li><a href="#szoeveg-hozzaadasa">Szöveg hozzáadása</a></li><li><a href="#sajat-betutipusok">Saját betűtípusok</a></li><li><a href="#kiemelt-vagy-bemelyitett">Kiemelt vagy bemélyített</a></li><li><a href="#sablonok-hidak-a-betuk-koezepehez">Sablonok: hidak a betűk közepéhez</a></li><li><a href="#koervonal-sziluett-es-szelesebb">Körvonal, sziluett és szélesebb</a></li><li><a href="#retegek-es-nevcimkek">Rétegek és névcímkék</a></li><li><a href="#ikoncimkek">Ikoncímkék</a></li><li><a href="#qr-kodok">QR-kódok</a></li><li><a href="#szoeveg-koeriv-menten">Szöveg körív mentén</a></li></ul></div>
+<section class="guide-part"><h2 id="szoeveg-hozzaadasa"><span class="heading-alias" id="adding-text"></span>Szöveg hozzáadása</h2>
+<p>Válaszd az alakzattárban a <strong class="ui">„Szöveg”</strong> alakzatot, és helyezd el. Jobbra a <strong class="ui">„Szöveg”</strong> mezőbe írd be, mi álljon rajta. Az alatta lévő beállítások:</p>
+<ul><li><strong><strong class="ui">„Betűtípus”</strong>:</strong> Hét betűtípus érhető el: Multilanguage, Sans, Serif, Script, Monospace, Rounded és Stencil (egyenes vonalakból álló betűk). Az új szöveg Sans betűtípussal indul. Az ékezetes betűk, mint az á, ö, ő, ü, ű, é és az € jel, minden betűtípusban megvannak. Ezeken felül saját betűtípusokat is használhatsz, lásd lent a <a href="#sajat-betutipusok">Saját betűtípusok</a> részt.</li><li><strong><strong class="ui">„Betűméret”</strong>:</strong> Milyen nagyok a betűk felülről nézve; a <strong class="ui">„Magasság”</strong> azt adja meg, milyen vastagok.</li><li><strong><strong class="ui">„Magasság”</strong>:</strong> Milyen messze áll ki a felirat a felületből.</li><li><strong><strong class="ui">„Letörés”</strong>:</strong> Lekerekíti a betűk éleit, hogy lágyabbnak tűnjenek. A <strong class="ui">„Szegmensek”</strong> értékkel döntöd el, hány lépésben.</li><li><strong><strong class="ui">„Betűél”</strong>:</strong> lekerekíti vagy letöri a betűk felső élét, ahogy egy névtáblán: <strong class="ui">„Nincs”</strong>, <strong class="ui">„Lekerekített”</strong> vagy <strong class="ui">„Letört”</strong>, a <strong class="ui">„Élméret”</strong> értékkel (kezdetben 0,4 mm, legfeljebb olyan magas, mint a szöveg). Tovább megy, mint a <strong class="ui">„Letörés”</strong>, de csak addig, amíg a vonások szélesek: ahol egy vonás vékonyabb a méret kétszeresénél, az él keskenyebb tetőben végződik. Az alja lapos marad, így az egyes betűk utólag felragaszthatók. Amíg egy él ki van választva, az a <strong class="ui">„Letörés”</strong> helyét veszi át.</li><li><strong>Hossz:</strong> Egy szöveg legfeljebb 250 karakteres lehet. A betűk megtartják a méretüket, a sor pedig olyan hosszú lesz, amilyen kell; rövidebbre kisebb betűkkel teheted. A <strong class="ui">„Betűél”</strong> legfeljebb 40 karakteres szövegnél működik, mert hosszabbnál percekig tartana a számítás.</li><li><strong><strong class="ui">„Letter spacing (%)”</strong>:</strong> A betűk közötti hely azon felül, amit a betűtípus ad, a betűméret százalékában: a 0 úgy hagyja, ahogy a betűtípus megalkotta, fölötte a betűk távolabb állnak egymástól, alatta (-50-ig) szorosabban, amire egy saját betűtípusnak gyakran szüksége van. A betűk megtartják a méretüket, a doboz pedig követi a sort, egyenes és íves szövegnél is. Az arab és héber írásra, amelynek betűi összekapcsolódnak, a betűköz nem vonatkozik.</li><li><strong><strong class="ui">„Automatic kerning”</strong>:</strong> Közelebb tolja azokat a betűpárokat, amelyek között túl sok hely marad, például AY, AV, LT vagy To, a betűk formája alapján mérve, minden betűtípusban, a sajátjaidban is. Az új szövegekben be van kapcsolva; a korábban készült szövegekben ki, hogy egy mentett tervben semmi ne mozduljon el. A betűk megtartják a méretüket, a keret követi őket. Egyenes és ívelt szövegnél működik, függőleges szövegnél, arab, héber és japán írásnál nem.</li><li><strong><strong class="ui">„Letters top to bottom”</strong>:</strong> Fentről lefelé rakja egymás alá a betűket, mindegyiket egy függőleges sor közepére, egy ajtókeretre kerülő felirathoz vagy egy tollon lefutó névhez. A doboz függőlegesre fordul, a betűk megtartják a méretüket; a(z) <strong class="ui">„Letter spacing (%)”</strong> a köztük lévő hézagot állítja. Íves szövegnél a betűk oszlopot alkotnak a kör bal oldalán, mindegyik egyenesen áll; a(z) <strong class="ui">„On the right side”</strong> az oszlopot a jobb oldalra teszi.</li><li><strong>Méret:</strong> A sor hosszát és szélességét úgy állítod, mint bármely alakzatnál. Húzd a fogantyúkat, vagy gépeld be a méreteket.</li></ul>
+<p>A szöveg kezdetben egyetlen test. Ha a betűket egyenként kezelnéd, kattints a <strong class="ui">„Részek szétválasztása”</strong> gombra. Ekkor minden betű önálló alakzat lesz.</p>
+<p><strong>Több sor:</strong> Egy szöveg egy sorból áll. Több soros táblához vagy feliratos laphoz nyisd meg a beállítások alatt a <strong class="ui">„Text block”</strong> kártyát: írd be a sorokat a <strong class="ui">„Lines”</strong> mezőbe, válaszd ki: <strong class="ui">„Align”</strong> (<strong class="ui">„Left”</strong>, <strong class="ui">„Centre”</strong> vagy <strong class="ui">„Right”</strong>), <strong class="ui">„Line gap”</strong> és <strong class="ui">„Next line (%)”</strong> - 80 %-nál minden sor egyötödével kisebb a felette lévőnél. A gomb minden sort önálló szöveggé tesz a felette lévő alatt, ennek a szövegnek a betűtípusával, magasságával és kitöltésével; az első ennek a szövegnek a helyére kerül. Utána minden sor kaphat saját méretet, betűtípust vagy színt.</p>
+<p>A szöveg élei is letörhetők vagy lekerekíthetők, egyenes és íves szövegnél egyaránt, lásd az <a href="/api/desktop/layerling/ui/utmutato/edges-and-hollowing.html">Élek letörése és testek kiüregelése</a> fejezetet. Kis méreteket használj, például 0,2–0,5 mm-t, mert a betűk vonalai keskenyek.</p>
+</section><section class="guide-part"><h2 id="sajat-betutipusok"><span class="heading-alias" id="your-own-fonts"></span>Saját betűtípusok</h2>
+<p>A hét beépített betűtípus mellett bármilyen saját betűtípust használhatsz: egy betűtípusfájlt a számítógépedről, vagy Chrome-ban és Edge-ben egy a számítógépedre telepített betűtípust. Válaszd a <strong class="ui">„Betűtípus”</strong> lista alján a <strong class="ui">„Saját betűtípusok …”</strong> lehetőséget. Megnyílik a <strong class="ui">„Saját betűtípusok”</strong> ablak.</p>
+<ul><li>A <strong><strong class="ui">„Betűtípusfájl kiválasztása …”</strong></strong> TrueType (<code>.ttf</code>), OpenType (<code>.otf</code>) vagy WOFF (<code>.woff</code>) fájlt fogad. A fájlt egyszerűen az ablakba is húzhatod.</li><li><strong>Windowson</strong> a telepített betűtípusok a Betűtípusok mappában vannak (<code>C:\Windows\Fonts</code>). A böngésző fájlválasztó ablaka ezt elrejti. Nyisd meg inkább a Fájlkezelőben, és húzd a betűtípust a <strong class="ui">„Saját betűtípusok”</strong> ablakba. A csak a te felhasználódra telepített betűtípusok a <code>%LOCALAPPDATA%\Microsoft\Windows\Fonts</code> mappában vannak, ezt a fájlválasztó ablak is mutatja. Macen a betűtípusok a <code>/Library/Fonts</code> és a <code>~/Library/Fonts</code> mappában vannak.</li><li>A <strong><strong class="ui">„Betűtípus a számítógépről …”</strong></strong> felsorolja a számítógépedre telepített betűtípusokat. Az első alkalommal a böngésző megkérdezi, hogy a layerling beolvashatja-e őket. A keresőmező gyorsan megtalál egy betűtípust, egy kattintás kiválasztja.</li></ul>
+<p>Ha egy szöveg ki van jelölve, azonnal megkapja az új betűtípust. Különben a betűtípus a <strong class="ui">„Betűtípus”</strong> alatt a <strong class="ui">„Saját betűtípusok”</strong> csoportban jelenik meg, és az ablakban a <strong class="ui">„Használat”</strong> gomb a kijelölt szövegekre teszi. A saját betűtípusok úgy működnek, mint a beépítettek: a körív menti szöveg, az élek letörése és lekerekítése és a STEP-export ugyanúgy működik. Azokat a betűket, amelyek egy betűtípusból hiányoznak, a Sans-ból veszi.</p>
+<section class="guide-part"><h3 id="arab-es-heber"><span class="heading-alias" id="arabic-and-hebrew"></span>Arab és héber</h3>
+<p>Az arab, a perzsa, az urdu és a héber jobbról balra íródik: az első betű jobbra áll, egy vegyes szövegben, például „Name عربي”, pedig csak az arab szó fut visszafelé, a számjegyek a szokásos módon maradnak. Az arab betűk úgy kapcsolódnak a szomszédaikhoz, ahogy az írás megkívánja, a lám-alif pedig ligatúra lesz. Ehhez olyan betűtípus kell, amelyben ezek a betűk megvannak; a beépítettekben nincsenek. Adj hozzá egy sajátot, például Windowson az Arialt, a Tahomát vagy a Segoe UI-t, vagy egy ingyeneset, mint a Noto Naskh Arabic, a Noto Sans Arabic vagy az Amiri. A magánhangzójelek arra a betűre kerülnek, amelyhez tartoznak. A körív menti szöveg, a körvonal, a sziluett, a rétegek és a névcímkék ugyanúgy működnek vele, mint bármely más szöveggel.</p>
+</section><section class="guide-part"><h3 id="mi-mukoedik-melyik-boengeszoben"><span class="heading-alias" id="what-works-in-which-browser"></span>Mi működik melyik böngészőben</h3>
+<div class="table-scroll"><table><thead><tr><th>Böngésző</th><th>Betűtípusfájl kiválasztása</th><th>Betűtípus a számítógépről</th></tr></thead><tbody><tr><td>Chrome és Edge számítógépen, a telepített layerling alkalmazás is</td><td>igen</td><td>igen, miután a böngésző rákérdez</td></tr><tr><td>Firefox</td><td>igen</td><td>nem</td></tr><tr><td>Safari Macen</td><td>igen</td><td>nem</td></tr><tr><td>Táblagép és telefon</td><td>igen, az eszköz fájljai közül</td><td>nem</td></tr></tbody></table></div>
+<p>A weboldalak nem olvashatják be csak úgy a telepített betűtípusokat. Csak a Chrome-nak és az Edge-nek van erre engedélye, és csak biztonságos oldalakon, <code>https</code>-en keresztül, mint a layerling.com-on. Ha a layerling <code>http</code>-n fut, mondjuk a saját szervereden vagy Docker-telepítésként az otthoni hálózatodban, a <strong class="ui">„Betűtípus a számítógépről …”</strong> hiányzik; ilyenkor húzd át a betűtípust a Fájlkezelőből. A többi böngészőben a betűtípusfájlt a betűtípusok mappájából választod ki, ugyanazzal az eredménnyel. Ha a Chrome-ban vagy az Edge-ben elutasítottad a kérdést, engedélyezd újra a webhely beállításaiban, a cím bal oldalán lévő lakat mögött.</p>
+<p>A layerling nem tudja olvasni a WOFF2 fájlokat (szinte mindig van TTF vagy OTF változat), a betűtípus-gyűjteményeket (<code>.ttc</code>, több betűtípus egy fájlban) és a színes emoji betűtípusokat. A nagyon nagy betűtípusokból, például a kínaiakból a layerling az első 8000 karaktert veszi át. A változó betűtípusokat az alapbeállításukban olvassa be, ez általában a normál vastagság.</p>
+<p>Egyes betűtípusok, főleg a kézírásos és a változó betűtípusok, egy betűt egymást átfedő vonalakból rajzolnak. A layerling a betűtípus beolvasásakor ezeket egyetlen tiszta körvonallá egyesíti, így a test nyomtatható marad. Az ilyen betűk ezután görbék helyett nagyon rövid egyenes darabokból állnak; ez nem látszik.</p>
+</section><section class="guide-part"><h3 id="hol-tarolodnak-a-betutipusok"><span class="heading-alias" id="where-the-fonts-are-kept"></span>Hol tárolódnak a betűtípusok</h3>
+<p>Egy saját betűtípus <strong>ebben a böngészőben, ezen a számítógépen</strong> marad. Egy másik böngésző vagy számítógép addig nem ismeri, amíg ott is hozzá nem adod. A böngésző webhelyadatainak törlése a betűtípusokat is törli. A <strong class="ui">„Saját betűtípusok”</strong> ablakban a kuka eltávolít egy betűtípust a böngészőből. A terveid ettől semmit sem veszítenek, ahogy a következő rész mutatja.</p>
+</section><section class="guide-part"><h3 id="sajat-betutipusos-tervek-tovabbadasa"><span class="heading-alias" id="passing-on-designs-with-a-font-of-your-own"></span>Saját betűtípusos tervek továbbadása</h3>
+<p>Egy terv <strong>nem tárolja a betűtípusfájlt</strong>, csak a szövegeiben használt betűk körvonalait, az előzmények korábbi lépéseiben lévőkét is. Ha egy szövegben „Szia” áll, csak az S, a z, az i és az a utazik vele. Ez minden mentési módra érvényes: a böngészőben, a saját szervereden, <code>.lyl</code> fájlként és a <strong class="ui">„Saját alakzatok”</strong> között is.</p>
+<p>Tehát:</p>
+<ul><li><strong>A terv bárhol helyesen nyílik meg</strong>, olyan számítógépen is, ahol nincs meg a betűtípus. A szövegek ugyanúgy néznek ki, és mozgathatók, forgathatók, méretezhetők és lekerekíthetők.</li><li><strong>Az új betűkhöz kell a betűtípus.</strong> Ha valaki, akinél nincs meg a betűtípus, olyan betűt gépel, amelyet a terv nem hozott magával, a layerling a Sans-ból rajzolja meg. A <strong class="ui">„Betűtípus”</strong> alatt a betűtípus ilyenkor <strong class="ui">„csak a terv betűi”</strong> jelölést kap. A betűtípusfájl hozzáadása minden betűt visszahoz.</li><li><strong>Az exportok csak geometriát tartalmaznak.</strong> Az STL, a 3MF, az OBJ, a STEP és az SVG testeket és körvonalakat tartalmaz, betűtípust nem.</li><li><strong>A régebbi layerling-verziók</strong> még nem ismerik a saját betűtípusokat, és az ilyen szövegeket Multilanguage betűtípussal rajzolják.</li></ul>
+<p><strong>Licencek:</strong> A betűtípusokat szerzői jog védi, és a licencük mondja meg, mit tehetsz velük. A beágyazott betűkörvonalak ugyanazok, amelyeket a PDF-fájlok is magukkal visznek egy betűtípusból, és a legtöbb licenc ezt megengedi. Egyes kereskedelmi betűtípusok viszont még egyes betűk továbbadását is tiltják. Mielőtt egy saját betűtípusos tervet továbbadsz vagy közzéteszel, nézd meg a betűtípus licencét. Az ingyenes betűtípusok, például a Google Fonts betűtípusai (többnyire SIL Open Font License alatt), gond nélkül továbbadhatók. Egy kinyomtatott alkatrésznél vagy egy exportált STL-nél ez nem számít: ezekben már nincs betűtípus, csak geometria.</p>
+</section></section><section class="guide-part"><h2 id="kiemelt-vagy-bemelyitett"><span class="heading-alias" id="raised-or-engraved"></span>Kiemelt vagy bemélyített</h2>
+<ul><li><strong>Kiemelt:</strong> Tedd a szöveget a felületre, és csoportosítsd a testtel. Domborműként nő ki belőle.</li><li><strong>Bemélyített:</strong> Állítsd a szöveget <strong class="ui">„Lyuk”</strong> típusúra, hagyd, hogy kicsit belenyúljon a felületbe, és csoportosítsd a testtel. A betűk ekkor bemélyednek.</li></ul>
+<p>Egy oldallapon lévő felirathoz előbb tedd a munkasíkot arra a lapra, lásd a <a href="/api/desktop/layerling/ui/utmutato/view-and-workplane.html">Nézet és munkasík</a> fejezetet.</p>
+</section><section class="guide-part"><h2 id="sablonok-hidak-a-betuk-koezepehez"><span class="heading-alias" id="stencils-bridges-for-the-middle-of-letters"></span>Sablonok: hidak a betűk közepéhez</h2>
+<p>Ha a szöveg átvágja a lemezt, az olyan betűk, mint az O, A és B, elveszítik a közepüket: lazán fekszik a betűben, és kiesik. A <strong class="ui">„Sablonhidak”</strong> kis hidakkal a lemezhez rögzíti, mint egy sablonon.</p>
+<ol><li>Állítsd a szöveget <strong class="ui">„Lyuk”</strong> módba, vezesd át a lemezen, és jelöld ki mindkettőt, csoportosítva vagy anélkül.</li><li>Kattints a <strong class="ui">„Sablonhidak”</strong> gombra a szalag <strong class="ui">„Módosítás”</strong> csoportjában, kattints jobb gombbal a kijelölésre, vagy keresd meg a <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span> billentyűkkel. A hidak narancssárgán jelennek meg ott, ahová kerülnek.</li><li>Állítsd be a <strong class="ui">„Híd szélessége”</strong> és a <strong class="ui">„Hidak részenként”</strong> értékét. A <strong class="ui">„Hídmagasság”</strong> a lemez vastagságáról indul; az alacsonyabb hidak az alsó lappal egy síkban, középen vagy a felső lappal egy síkban ülnek, ahogy a <strong class="ui">„Helyzet”</strong> mondja. Festékszórós sablonon a felül lévő hidak alatt marad hely a festéknek.</li><li>A <strong class="ui">„Létrehozás”</strong> csoportosítja a hidakat a lemezzel.</li></ol>
+<p>Minden híd egy közönséges téglatest: nyisd meg a csoportot, ha egyet áthelyeznél, törölnél, vagy sajátot adnál hozzá. Ha később módosítod a szöveget, jelöld ki a csoportot, és kattints újra a <strong class="ui">„Sablonhidak”</strong> gombra; az új hidak a régiek helyére kerülnek. A csak bevésett, át nem menő szöveg nem kap hidat, mert ott semmi sem esik ki. Lézerhez vagy plotterhez a DXF- és SVG-export ugyanilyen hidakat ad, lásd <a href="/api/desktop/layerling/ui/utmutato/files-and-saving.html">Fájlok, mentés és megosztás</a>.</p>
+</section><section class="guide-part"><h2 id="koervonal-sziluett-es-szelesebb"><span class="heading-alias" id="outline-silhouette-and-wider"></span>Körvonal, sziluett és szélesebb</h2>
+<p>Egy szöveget nem kell kitöltött betűkként felépíteni. A tulajdonságok között a <strong class="ui">„Kitöltés”</strong> ugyanazt a választékot kínálja, mint a Tinkercad:</p>
+<ul><li><strong><strong class="ui">„Kitöltött”</strong>:</strong> a betűk úgy, ahogy vannak.</li><li><strong><strong class="ui">„Körvonal”</strong>:</strong> egy vonal a betűk körvonala mentén, félig azon belül, félig kívül.</li><li><strong><strong class="ui">„Külső vonal”</strong>:</strong> egy vonal a betűk külső oldalán körben.</li><li><strong><strong class="ui">„Belső vonal”</strong>:</strong> egy vonal a betűk belső oldalán.</li></ul>
+<p>Ha vonalat választottál, közvetlenül a lista alatt két beállítás jelenik meg: a <strong class="ui">„Vonalvastagság”</strong> adja meg, milyen vastag a vonal, a <strong class="ui">„Sarkok”</strong> pedig azt, hogyan fordul a sarkoknál (<strong class="ui">„Kerek”</strong>, <strong class="ui">„Letört”</strong> vagy <strong class="ui">„Éles”</strong>). A ritkább beállítások a <strong class="ui">„Több”</strong> alatt vannak: a <strong class="ui">„Sziluett (lyukak nélkül)”</strong> kihagyja a lyukakat az O, az A vagy az e betűben, a <strong class="ui">„Szélesebb (alap többszínű nyomtatáshoz)”</strong> pedig kitöltve hagyja a betűket, és körben a vonalvastagsággal vastagabbá teszi őket; az egymáshoz érő betűk egy darabbá nőnek össze.</p>
+<p>Külső vonalnál, középre igazított vonalnál vagy a „Szélesebb” beállításnál a szöveg doboza nő, a betűk viszont megtartják a méretüket. A <strong class="ui">„Letörés”</strong> és a <strong class="ui">„Szegmensek”</strong> csak kitöltött betűknél létezik.</p>
+</section><section class="guide-part"><h2 id="retegek-es-nevcimkek"><span class="heading-alias" id="layers-and-name-tags"></span>Rétegek és névcímkék</h2>
+<p>Egy többszínű nyomtatáshoz készült névcímke rétegekből álló szöveg: felül a betűk, alattuk ugyanaz a szöveg kicsit szélesebben egy második színben, legalul pedig egy lyukak nélküli lap egy harmadikban. A layerling egy kattintással elkészíti:</p>
+<ul><li><strong>Új névcímke:</strong> válaszd az alakzattárban a <strong class="ui">„Névcímke”</strong> alakzatot, és helyezd el. Fehér betűkkel „Név” áll rajta, piros szegélyen és sötét lapon.</li><li><strong>Szövegből:</strong> jelöld ki a szöveget, és kattints a beállításai tetején a <strong class="ui">„Rétegek készítése”</strong> gombra.</li></ul>
+<p>A címke összes beállítása a beállítások tetején lévő <strong class="ui">„Névcímke”</strong> kártyán van:</p>
+<ul><li><strong><strong class="ui">„Szöveg”</strong></strong> és <strong><strong class="ui">„Betűtípus”</strong></strong>, saját betűtípusokkal is. A címke a szavakkal együtt nő.</li><li><strong><strong class="ui">„Betűméret”</strong>:</strong> milyen magasak a nagybetűk, mm-ben. Minden réteg követi, és egy vonalban marad.</li><li><strong><strong class="ui">„Letters top to bottom”</strong>:</strong> függőlegesre állítja a táblát, a betűk egymás alatt, az összes réteggel együtt.</li><li><strong><strong class="ui">„Rétegek”</strong>:</strong> rétegenként egy sor, fentről lefelé. Minden sorban ott a szín (kattints a színes négyzetre), hogy a réteg mennyivel szélesebb a betűknél, a magassága, valamint a <strong class="ui">„Lyukak nélkül”</strong>, amely kitölti a lyukakat az olyan betűkben, mint az O és az A. A <strong class="ui">„Sarkok”</strong> adja meg, hogyan fordul egy szélesebb réteg a betűk sarkainál: <strong class="ui">„Kerek”</strong>, <strong class="ui">„Letört”</strong> vagy <strong class="ui">„Éles”</strong>. A legfelső sor maguk a betűk. A <strong>+</strong> alulra ad hozzá egy réteget, a <strong>–</strong> elveszi az alsó réteget. Egy címkének kettő–hat rétege lehet.</li><li><strong><strong class="ui">„Kulcstartólyuk”</strong>:</strong> az alsó rétegnek egy egyenes, kerek végű fület ad egy kulcstartókarika lyukával; a fül a lyukkal együtt nő. Egy 3 mm-es lyuk, az alapértelmezett, 6,5 mm széles fület ad, amely 6,75 mm-rel áll ki, a lyuk széle 2 mm-re van az alsó réteg szélétől. Válaszd ki a <strong class="ui">„Lyukátmérő”</strong> és az <strong class="ui">„Oldal”</strong> értékét: <strong class="ui">„Bal”</strong>, <strong class="ui">„Jobb”</strong> vagy <strong class="ui">„Felül”</strong>. A <strong class="ui">„Szabad”</strong> leveszi a lyukat a címkéről, és mellé tesz egy külön <strong class="ui">„Kulcstartófül”</strong> alakzatot a legalsó réteg színében és magasságában: egy egészen közönséges alakzatot, amelyet a fogantyúival oda mozgatsz és forgatsz, ahová a címkén kell. Ha a helyén van, a tulajdonságai között a <strong class="ui">„Rögzítés a címkéhez”</strong> gomb pontosan ott a legközelebbi címke részévé teszi: a lyuk minden rétegen átmegy, amelyet elér, a fül az alsó réteghez tartozik, és mindkettő a betűk azon sarkánál marad, ha a szöveg vagy a méret változik. A <strong class="ui">„Szabad”</strong> újra kiveszi a fület oda, ahol volt, hogy ismét áthelyezhesd. A lyuk minden rétegen átmegy, amelyhez hozzáér, a fül pedig vele mozog, ha megváltoztatod a szavakat, a betűméretet vagy a betűtípust. <strong class="ui">„Helyzet az oldal mentén”</strong> feljebb vagy lejjebb tolja a fület az oldala mentén (felül balra vagy jobbra), egészen addig, ahol elhagyná az oldalt; a 0 a közép. Akkor hasznos, ha az oldal közepe egy résre esik, például egy J mellett: told a fület oda, ahol a betű kinyúlik.</li><li><strong><strong class="ui">„Betűél”</strong>:</strong> lekerekíti vagy letöri a felső rétegen a betűk felső élét, ahogy egy nyomtatott címkét szokás befejezni: <strong class="ui">„Nincs”</strong>, <strong class="ui">„Lekerekített”</strong> vagy <strong class="ui">„Letört”</strong>, az <strong class="ui">„Élméret”</strong> értékkel (kezdetben 0,4 mm, legfeljebb akkora, mint a réteg magassága). Minden betűtípusnál és szónál működik. Az él a betűk hálójának része, ezért az élműveleti eszköz az ilyen szöveget hálóként veszi, ami egy ilyen finom szövegnél nehézkes; az élt inkább itt válaszd ki.</li></ul>
+<p>Minden változás azonnal látszik. A címke köteg: egyben mozog, és minden réteg önálló test marad a saját színében, ahogy a szeletelőnek a többszínű nyomtatáshoz kellenek. Egy réteg éleinek lekerekítéséhez vagy letöréséhez kattints a <strong class="ui">„Köteg szerkesztése”</strong> gombra, és válaszd ki a réteget, lásd az <a href="/api/desktop/layerling/ui/utmutato/edges-and-hollowing.html">Élek letörése és testek kiüregelése</a> fejezetet.</p>
+<section class="guide-part"><h3 id="sok-nevcimke-egyszerre"><span class="heading-alias" id="many-name-tags-at-once"></span>Sok névcímke egyszerre</h3>
+<p>Gépeld be a neveket a <strong class="ui">„Névlista”</strong> mezőbe, soronként egyet, legfeljebb százat. Az alatta lévő gomb megmondja, hány címkét fog készíteni, például „12 névcímke készítése”. Minden címke ugyanazokat a rétegeket, betűméretet és kulcstartólyukat kapja, és önálló objektum; az első alatt sorokba rendeződnek, egymástól 5 mm-re. Egy egyszerű szövegnek is van névlistája, a beállításai között lejjebb.</p>
+</section></section><section class="guide-part"><h2 id="ikoncimkek"><span class="heading-alias" id="icon-tags"></span>Ikoncímkék</h2>
+<p>Az ikoncímke ugyanaz a címke betűk helyett egy SVG-ikonnal: egy szívvel, egy felhővel, egy klub logójával. Felül az ikon, alatta ugyanaz a körvonal kicsit szélesebben egy második színben, legalul egy lyukak nélküli lap.</p>
+<ul><li><strong>Új ikoncímke:</strong> válaszd az alakzattárban az <strong class="ui">„Ikoncímke”</strong> alakzatot. Megnyílik egy kis ablak: kattints a <strong class="ui">„Tallózás…”</strong> gombra, válassz egy SVG-, PNG- vagy JPG-fájlt, ellenőrizd a képet, gépeld be az ikon <strong class="ui">„Szélesség (mm)”</strong> értékét, és kattints az <strong class="ui">„OK”</strong> gombra. A címke a tárgyasztal közepén áll, ugyanazokkal a rétegekkel, mint egy új névcímke.</li><li><strong>Vázlattestből:</strong> egy importált SVG-nek vagy egy általad rajzolt vázlatnak a beállításai tetején ott a <strong class="ui">„Rétegek készítése”</strong> gomb.</li></ul>
+<p>A beállítások tetején lévő <strong class="ui">„Ikoncímke”</strong> kártyán ezek vannak:</p>
+<ul><li><strong><strong class="ui">„Másik fájl…”</strong>:</strong> egy másik fájl (SVG, PNG vagy JPG) ikonját teszi a címkére; a rétegek és a szélesség változatlanok maradnak.</li><li><strong><strong class="ui">„Szélesség”</strong>:</strong> milyen széles a felső ikon, mm-ben. Minden réteg követi, és egy vonalban marad.</li><li><strong><strong class="ui">„Rétegek”</strong>:</strong> a sorok, mint egy névcímkénél – szín, mennyivel szélesebb, <strong class="ui">„Sarkok”</strong>, magasság és <strong class="ui">„Lyukak nélkül”</strong>, <strong>+</strong> és <strong>–</strong>, kettő–hat réteg. A legfelső sor maga az ikon.</li><li><strong><strong class="ui">„Darabszám”</strong>:</strong> hány címkét szeretnél, 1-től 100-ig. Az <strong class="ui">„Amennyi elfér”</strong> a beállításokban kiválasztott nyomtató tárgyasztalából számolja ki, kis logóknál egy teljes tárgyasztalnyit. Az alatta lévő gomb elkészíti őket, egymástól 5 mm-re, a tárgyasztal közepére rendezve; az első maga a címke.</li></ul>
+<p>Az SVG-nek zárt körvonalak kellenek; egy csak nyitott vonalakból álló rajzból nem lehet címke. Az a vázlattest, amelynek a kitöltése vonal, megtartja ezt: ennek a vonalnak a felülete az ikon.</p>
+<p><strong>Egy kép (PNG vagy JPG)</strong> körvonallá alakul, és az előnézet a körvonalat mutatja. A <strong class="ui">„Körvonalazás alapja”</strong> alatt választod ki, hogy a <strong class="ui">„Sötét rész”</strong> vagy a <strong class="ui">„Világos rész”</strong> legyen az ikon; kezdetben az a rész, amelyik nem a háttér. Az átlátszó pixelek sosem tartoznak az ikonhoz. Egy olyan SVG, amely csak egyetlen képet tartalmaz – az Inkscape így menti az importált bitképet –, ugyanígy alakul körvonallá. A körvonal a pixeleket követi, ezért egy kis kép durva szélt ad: a néhány száz vagy annál több pixeles képek működnek a legjobban. A <strong class="ui">„Másik fájl…”</strong> egy képnek azt a részét veszi, amelyik nem a háttere.</p>
+</section><section class="guide-part"><h2 id="qr-kodok"><span class="heading-alias" id="qr-codes"></span>QR-kódok</h2>
+<p>A QR-kód egy szövegből vagy webcímből olyan mintát készít, amelyet a telefon kamerája elolvas: link a boltodra egy táblán, a Wi-Fi neve egy poháralátéten, telefonszám egy kulcstartón.</p>
+<p>Válaszd az alakzatkönyvtárban a <strong class="ui">„QR-kód”</strong> elemet. Megnyílik egy ablak; a kurzor már a szövegmezőben áll:</p>
+<ul><li><strong><strong class="ui">„Szöveg vagy cím”</strong>:</strong> amit a kód mond. Az Enter elkészíti a kódot, a Shift+Enter új sort kezd. A mező alatt látod, mennyi hely foglalt; az ékezetes betűk és más különleges jelek két bájtot foglalnak. Ha a szöveg túl hosszú, a mező jelzi.</li><li><strong><strong class="ui">„Hibajavítás”</strong>:</strong> L, M, Q vagy H. A magasabb szint akkor is olvasható, ha a kód egy része piszkos vagy karcos (L kb. 7 %, M 15 %, Q 25 %, H 30 %), de ugyanahhoz a szöveghez több modul kell, így minden modul kisebb lesz. Először az M van kiválasztva.</li><li><strong><strong class="ui">„Kivitel”</strong>:</strong> a <strong class="ui">„Csak kód”</strong> csak a kódot építi meg, 4 mm magasan. A <strong class="ui">„Kiemelve lapon”</strong> 1 mm magasan egy 3 mm vastag fehér lapra teszi, két szín kötegeként, így a többszínű nyomtatás a kódot sötéten, a lapot világosan nyomtatja. A <strong class="ui">„Gravírozva”</strong> 1 mm mélyen bevágja a kódot a lapba.</li><li><strong><strong class="ui">„Méret alapja”</strong>:</strong> írd be az egész kód <strong class="ui">„Szélesség”</strong> értékét (először 40 mm) vagy egy modul méretét; a másik szám alatta látható. A 0,8 mm alatti modulok figyelmeztetést kapnak. Ez ökölszabály egy 0,4 mm-es fúvókához, nem garancia: a nyomtató, az anyag, a színek és a telefon is számít.</li><li><strong><strong class="ui">„Csendes zóna (4 modul)”</strong>:</strong> a szkennereknek négy modul széles üres szegély kell a kód körül. Lapon a szegély a lap része; csak akkor kapcsold ki, ha a lap egy nagyobb világos felületen ül. A lap nélküli kódnak nincs saját szegélye: hagyd szabadon körülötte a helyet.</li><li><strong>Magasságok:</strong> a kód magassága, lapon a kód magassága vagy a gravírozás mélysége, és a lap vastagsága.</li></ul>
+<p>Az előnézet úgy mutatja a kódot, ahogy megépül. Az <strong class="ui">„OK”</strong> a tárgyasztal közepére teszi.</p>
+<p>A kód olyan test, mint bármelyik másik: mozgasd, forgasd, méretezd (a szélesség és a mélység maradjon egyforma, különben a kód torzul), csoportosítsd, vagy tedd üreggé, és csoportosítsd egy saját alkatrészbe, hogy oda gravírozd. A méretezés az egész kódot méretezi; minden modul négyzet marad.</p>
+<p>A beállításai tetején lévő <strong class="ui">„QR-kód”</strong> kártya tartalmazza a szöveget. Módosítsd, és kattints az <strong class="ui">„Újra elkészítés”</strong> gombra: a kód ott épül újra, ahol áll, és olyan szélesen, amilyen most. A hibajavítás, a csendes zóna és a kivitel olyan marad, ahogy választottad; más beállításokhoz készíts új kódot a könyvtárból.</p>
+<p>Nyomtatás előtt olvasd be a kódot a telefonoddal, és nyomtatás után még egyszer. A sötét a világoson olvasható a legjobban; a sötét lapon lévő világos kódot nem minden telefon olvassa el.</p>
+</section><section class="guide-part"><h2 id="szoeveg-koeriv-menten"><span class="heading-alias" id="text-on-a-circular-arc"></span>Szöveg körív mentén</h2>
+<p>A felirat ne egyenesen fusson, hanem kövesse egy érme, egy fedél vagy egy gyűrű szélét? Erre való az <strong class="ui">„Íven”</strong> beállítás.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/curved-text.webp" alt="A szöveg egy kört követ. Minden betű egy közös vonalon áll." width="1280" height="800" loading="lazy"><figcaption>A szöveg egy kört követ. Minden betű egy közös vonalon áll.</figcaption></figure>
+<p>Amint bekapcsolod, a szöveg a kör mentén fut. Minden betű ugyanazon az alapvonalon áll, olyan egyenletesen, mint normál szövegnél. Öt beállítás van:</p>
+<ul><li><strong><strong class="ui">„Ív sugara”</strong></strong> (5–500 mm): Annak a körnek a sugara, amelyen a betűk alapvonala fut. A betűk a helyükön maradnak, csak a hajlításuk változik.</li><li><strong><strong class="ui">„Letter width (%)”</strong></strong> (25–400 %): Milyen szélesre rajzolódik minden betű, a saját szélessége százalékában. 100 alatt keskenyebbek a betűk, fölötte szélesebbek; a magasságuk marad, és az általuk elfoglalt ív velük együtt nő vagy csökken. Például magas, keskeny felirathoz egy érmén. Egyenes szövegnél ezt a <strong class="ui">„Stretch letters to the frame”</strong> végzi a kerettel.</li><li><strong><strong class="ui">„Betűméret”</strong>:</strong> Milyen magasak a betűk. Már nem függ az alakzat szélességétől.</li><li><strong><strong class="ui">„Az ív alján”</strong>:</strong> A szöveget a kör tetejéről az aljára viszi. A betűk ilyenkor a fejükkel a középpont felé mutatnak.</li><li><strong><strong class="ui">„Fejjel lefelé”</strong>:</strong> Csak a betűket fordítja meg, hogy a másik oldalról olvashasd őket. A szöveg a helyén marad a körön.</li></ul>
+<p><strong>A kör középpontja az alakzat középpontja.</strong> Ezért az igazítás a szokásos módon működik: ha a szöveget egy hengerrel vagy gyűrűvel középre igazítod, pontosan koncentrikusan ül rajta. Ha egy fogantyút húzol, a sugár és a betűméret együtt nő, így a felirat nem torzul.</p>
+<aside class="tip"><p><strong>Tipp:</strong> A kör tetején a betűk az alapvonalon kívül állnak; az <strong class="ui">„Az ív alján”</strong> beállítással belül, a fejükkel a középpont felé. Hogy a felirat ráférjen egy korongra, a sugár és a betűméret összege legyen kisebb a korong sugaránál.</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/utmutato/sketches.html"><small>Előző fejezet</small>Vázlatok: a körvonaltól a testig</a><a class="next" href="/api/desktop/layerling/ui/utmutato/threads-and-mechanics.html"><small>Következő fejezet</small>Menetek, fogaskerekek és más alkatrészek</a></div>
+      </main>
+    </div>
+    <footer class="note">Ez az útmutató a programmal együtt bővül. Ha valami hiányzik vagy nem stimmel, szólj a <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">beszélgetésekben</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=hu" rel="noopener">A projekt támogatása</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Beszélgetések</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Bővebben a GitHubon</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Kiadási megjegyzések – v1.154.1</a></div><p class="trademark">A Tinkercad az Autodesk, Inc. védjegye. A layerling független projekt, nem kapcsolódik az Autodeskhez, és az Autodesk nem támogatja vagy szponzorálja.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Vissza a szerkesztőhöz";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Szerkesztő megnyitása";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

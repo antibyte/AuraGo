@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>الرسومات التخطيطية: من الحد الخارجي إلى الجسم - دليل استخدام layerling</title>
+    <meta name="description" content="ارسم حدًا خارجيًا مسطحًا، ونعّم زواياه أو اشطفها، ثم اسحبه أو أدِره ليصبح جسمًا.">
+    <link rel="canonical" href="https://layerling.com/dalil/sketches.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/sketches.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/sketches.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/sketches.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/skizzen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/sketches.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/sketches.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/sketches.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/sketches.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/schetsen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/sketches.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/skice.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/sketches.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/sketches.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/sketches.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/sketches.html">
+    <meta property="og:title" content="الرسومات التخطيطية: من الحد الخارجي إلى الجسم - دليل استخدام layerling">
+    <meta property="og:description" content="ارسم حدًا خارجيًا مسطحًا، ونعّم زواياه أو اشطفها، ثم اسحبه أو أدِره ليصبح جسمًا.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/dalil/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">دليل الاستخدام</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/dalil/search-index.json" data-nothing="لم يُعثر على شيء." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="ابحث في الدليل" aria-label="ابحث في الدليل" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="اللغة">العربية</summary><ul><li><a href="/api/desktop/layerling/ui/guide/sketches.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/sketches.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/sketches.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/sketches.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/sketches.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/sketches.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/sketches.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/sketches.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/sketches.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/sketches.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/skice.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/sketches.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/sketches.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/sketches.html" hreflang="ar" lang="ar" aria-current="true">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/sketches.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/sketches.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/sketches.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">افتح المحرّر</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>المحرّر مفتوح بالفعل في علامة تبويب أخرى، فانتقل إليها.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="الفصول"><h2>الفصول</h2><p class="print-link"><a href="/api/desktop/layerling/ui/dalil/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>الدليل كاملًا للطباعة</span></a></p><ol><li><a href="/api/desktop/layerling/ui/dalil/getting-started.html">البدء</a></li><li><a href="/api/desktop/layerling/ui/dalil/view-and-workplane.html">العرض وسطح العمل</a></li><li><a href="/api/desktop/layerling/ui/dalil/shapes.html">وضع الأشكال وضبطها</a></li><li><a href="/api/desktop/layerling/ui/dalil/select-and-arrange.html">التحديد والترتيب</a></li><li><a href="/api/desktop/layerling/ui/dalil/solids-and-holes.html">الأجسام الصلبة والثقوب</a></li><li><a href="/api/desktop/layerling/ui/dalil/edges-and-hollowing.html">كسر الحواف وتفريغ الأجسام</a></li><li><a href="/api/desktop/layerling/ui/dalil/sketches.html" aria-current="page">الرسومات التخطيطية: من الحد الخارجي إلى الجسم</a></li><li><a href="/api/desktop/layerling/ui/dalil/text.html">النص والكتابة المنحنية</a></li><li><a href="/api/desktop/layerling/ui/dalil/threads-and-mechanics.html">الأسنان اللولبية والتروس والأجزاء الأخرى</a></li><li><a href="/api/desktop/layerling/ui/dalil/measuring-and-notes.html">القياس والملاحظات</a></li><li><a href="/api/desktop/layerling/ui/dalil/printing.html">التحضير للطباعة ثلاثية الأبعاد</a></li><li><a href="/api/desktop/layerling/ui/dalil/files-and-saving.html">الملفات والحفظ والمشاركة</a></li><li><a href="/api/desktop/layerling/ui/dalil/shortcuts.html">اختصارات لوحة المفاتيح</a></li><li><a href="/api/desktop/layerling/ui/dalil/ai-with-mcp.html">البناء باستخدام الذكاء الاصطناعي (MCP)</a></li><li><a href="/api/desktop/layerling/ui/dalil/offline-and-install.html">التثبيت كتطبيق والعمل دون اتصال والاستضافة الذاتية</a></li><li><a href="/api/desktop/layerling/ui/dalil/videos.html">مقاطع فيديو عن layerling</a></li><li><a href="/api/desktop/layerling/ui/dalil/tablet-and-touch.html">الأجهزة اللوحية واللمس</a></li></ol></nav>
+      <main>
+<h1>الرسومات التخطيطية: من الحد الخارجي إلى الجسم</h1>
+<p class="lead">ارسم حدًا خارجيًا مسطحًا، ونعّم زواياه أو اشطفها، ثم اسحبه أو أدِره ليصبح جسمًا.</p>
+<div class="toc"><b>في هذه الصفحة</b><ul><li><a href="#starting-a-sketch">بدء رسم تخطيطي</a></li><li><a href="#drawing">الرسم (Drawing)</a></li><li><a href="#lines-by-numbers">الخطوط بالأرقام (Lines by numbers)</a></li><li><a href="#curving-a-straight-side">تحويل ضلع مستقيم إلى منحنى (Curving a straight side)</a></li><li><a href="#reading-and-typing-angles">قراءة وكتابة الزوايا</a></li><li><a href="#rounding-or-chamfering-corners">تنعيم أو شطف الزوايا (Rounding or chamfering corners)</a></li><li><a href="#mirroring">الانعكاس (Mirroring)</a></li><li><a href="#construction-lines">خطوط الإنشاء (Construction lines)</a></li><li><a href="#making-a-body-from-it">صنع جسم منه (Making a body from it)</a></li><li><a href="#sweeping-along-a-path">السحب على طول مسار (Sweeping along a path)</a></li><li><a href="#building-as-a-stroke">البناء كخط بعرض (Building as a stroke)</a></li><li><a href="#fill-and-silhouette">التعبئة والظل الخارجي (Fill and silhouette)</a></li><li><a href="#slanted-walls-for-stamps">الجدران المائلة، للأختام</a></li><li><a href="#a-picture-as-template">صورة كقالب (A picture as template)</a></li><li><a href="#keys-in-sketch-mode">المفاتيح في وضع الرسم التخطيطي</a></li></ul></div>
+<p>ليس كل شيء يمكن تجميعه من الأشكال الأساسية. فللقطع ذات الكفاف الخاص، كحامل أو شكل سن أو مزهرية، ترسم أولًا <strong>الحد الخارجي</strong> ثم تصنع منه جسمًا. وهذا هو الغرض من وضع الرسم التخطيطي.</p>
+<section class="guide-part"><h2 id="starting-a-sketch">بدء رسم تخطيطي</h2>
+<p>في الأعلى، انتقل من <strong class="ui">«المحرر ثلاثي الأبعاد»</strong> إلى <strong class="ui">«رسم تخطيطي»</strong>. في مجموعة <strong class="ui">«إنشاء»</strong> للشريط، تقف ثلاثة أزرار جنبًا إلى جنب لما ينبغي أن يؤول إليه الحد الخارجي:</p>
+<ul><li><strong><strong class="ui">«بثق الرسم التخطيطي»</strong>:</strong> يُسحب الحد الخارجي إلى الأعلى، مثل قطّاعة الكعك.</li><li><strong><strong class="ui">«دوران الرسم التخطيطي»</strong>:</strong> يُدار الحد الخارجي حول محور، كما في المخرطة. وهكذا تصنع المزهريات والأكواب والمخاريط وكل ما هو مستدير.</li><li><strong><strong class="ui">«سحب على مسار»</strong>:</strong> يُسحب الحد الخارجي على طول مسار: قناة كابلات تلتف عند زاوية، أو أنبوب، أو حلقة حول شكل. انظر &quot;السحب على طول مسار&quot; أدناه.</li></ul>
+<p>يعرض المحرر حينها ورقة مع شبكة. تلك هي سطح رسمك.</p>
+<p>يقع الرسم التخطيطي على سطح العمل. وللرسم على وجه جسم، لحد خارجي يجب أن يبدأ أعلى مثلًا، ضع سطح العمل أولًا على ذلك الوجه بـ <kbd>W</kbd> (انظر <a href="/api/desktop/layerling/ui/dalil/view-and-workplane.html">العرض وسطح العمل</a>)، ثم ابدأ الرسم التخطيطي.</p>
+</section><section class="guide-part"><h2 id="drawing">الرسم (Drawing)</h2>
+<p>ينقسم الشريط في وضع الرسم التخطيطي إلى مناطق. فيما يلي لكل أداة بطاقة خاصة بها: ما تفعله، خطوة في كل سطر، وبعد السهم ما يحدث عندها. والمفتاح على يمين البطاقة يختار الأداة.</p>
+<section class="guide-part"><h3 id="drawing-tools">أدوات الرسم</h3>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-line.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">خط</strong></span><span class="card-keys"><kbd>1</kbd></span></div><ul class="card-steps"><li class="step">انقر النقاط واحدة تلو الأخرى.</li><li class="step">اضغط <kbd>Shift</kbd> ليلتقط الخط الجديد بخطوات 15°، والأفقي والرأسي مشمولان.</li><li class="result">يظهر طول الخط الجديد وزاويته عند المؤشر.</li><li class="step">ولكتابة طوله المطلوب، انظر <a href="#lines-by-numbers">الخطوط بالأرقام</a>.</li><li class="tip">كل نقطة تنقرها تقع على شبكة الالتقاط المضبوطة تحت <strong class="ui">«شبكة الالتقاط»</strong>. ومع الضغط على <kbd>Shift</kbd> تأتي خطوة 15° أولًا: يبقى الطول بخطوات الشبكة، لكن الطرف يمكن أن يقع بين خطوط الشبكة.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-arc.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">قوس</strong></span></div><ul class="card-steps"><li class="step">انقر على طرفي القوس.</li><li class="step">انقر على نقطة ثالثة يمر بها القوس.</li><li class="result">حتى تلك النقرة الثالثة تتبع معاينةٌ المؤشر، وتذكر الرسالة نصف القطر.</li><li class="result">الطرف الذي تنقره على نقطة موجودة يتصل بها، فيمكن للقوس أن يغلق حدًا خارجيًا.</li><li class="step">يُسقط <kbd>Esc</kbd> النقاط المنقورة حتى الآن ويعود إلى <strong class="ui">«تحديد»</strong>.</li><li class="tip">بعد رسمه يكون القوس هندسة عادية من نقاط ومنحنيات: حرّكه أو اقطعه أو امسحه كأي خط آخر.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-bezier-curve.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">منحنى بيزيه</strong></span><span class="card-keys"><kbd>2</kbd></span></div><ul class="card-steps"><li class="step">انقر نقطة واسحب في الاتجاه الذي يجب أن يستمر فيه الخط، كما في أداة القلم في Illustrator أو Inkscape.</li><li class="result">كلما سحبت أبعد، زاد الانثناء.</li><li class="result">الجزء الممتد إلى النقطة الجديدة ينثني معك أثناء السحب، فترى ما ستحصل عليه.</li><li class="tip">قادم من Tinkercad وتريد النقر على النقاط فقط؟ استخدم <strong class="ui">«منحنى سلس»</strong>.</li><li class="tip">لا ينثني الجزء الأول عند بدايته إلا إذا سحبت عند النقطة الأولى أيضًا. فإذا نقرتها فقط، يخرج الخط منها مستقيمًا؛ ولثنيه لاحقًا، حدّد النقطة بـ <strong class="ui">«تحديد»</strong> واسحب مقبضها.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-smooth-curve.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">منحنى سلس</strong></span><span class="card-keys"><kbd>3</kbd></span></div><ul class="card-steps"><li class="step">انقر النقاط واحدة تلو الأخرى.</li><li class="result">يمدّ مسارًا انسيابيًا عبر النقاط التي تنقر عليها.</li><li class="tip">عند طرفي الخط المفتوح يتجه المنحنى مباشرة نحو النقطة التالية، فينثني الجزءان الأول والأخير أقل من غيرهما. ولثني أحدهما أكثر، حدّد نقطة طرفه بـ <strong class="ui">«تحديد»</strong> واسحب مقبضها. وفي الحد الخارجي المغلق تنثني كل النقاط بالتساوي.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">إغلاق الخط أو إنهاؤه</span></div><ul class="card-steps"><li class="step">لإغلاق الحد الخارجي، انقر على النقطة الأولى مجددًا في النهاية.</li><li class="step">ولإنهاء سلسلة الخطوط دون إغلاق الحد الخارجي، انقر بزر الفأرة الأيمن دون تحريك المؤشر، أو انقر نقرًا مزدوجًا على النقطة الأخيرة.</li><li class="result">الجسم يأتي فقط من حد خارجي <strong>مغلق</strong>.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-freehand.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">رسم حر</strong></span><span class="card-keys"><kbd>5</kbd></span></div><ul class="card-steps"><li class="step">ارسم بالقلم أو بالإصبع أو بالفأرة، كما على الورق.</li><li class="result">عندما ترفعه يصبح الخط نقاطًا عادية: زاوية حيث انعطف بحدة، ونقاط سلسة بينها، بقدر ما يحتاجه الشكل فقط، فيمكن سحب كل نقطة بعد ذلك.</li><li class="step">كبّر العرض للتفاصيل الدقيقة: كلما نظرت عن قرب تبع الخط يدك بدقة أكبر.</li><li class="result">الخط الذي ينتهي حيث بدأ يُغلق ليصبح حدًا خارجيًا يمكن أن يصير جسمًا؛ أما المفتوح فيبقى خطًا، لـ <strong class="ui">«خط بعرض»</strong> أو مسارًا للسحب على امتداده.</li><li class="step">ابدأ فوق الخطوط أو فوق صورة قالب لتتبّع صورة باليد.</li><li class="step">ابدأ الخط أو أنهِه عند طرف مفتوح لتُكمل ذلك الخط، فيمكن رسم الشكل بعدة ضربات.</li><li class="tip">لا يلتزم الخط بشبكة الالتقاط، حتى يتبع يدك. أما النقطة التي تسحبها بعد ذلك فتلتقط إليها، إلا إذا كانت <strong class="ui">«شبكة الالتقاط»</strong> معطّلة.</li></ul></div>
+<aside class="tip"><p>تختار الأرقام أداةً ما دام لا يُرسم خط؛ أما أثناء رسم خط فهي طوله (انظر أدناه). ومع <strong class="ui">«تحديد»</strong> وخطوط أو نقاط محددة، تغيّرها المفاتيح نفسها بدلًا من ذلك: <kbd>1</kbd> يجعل الخطوط مستقيمة والنقاط زوايا، و<kbd>2</kbd> يحوّل الخطوط إلى منحنيات، و<kbd>3</kbd> يجعل النقاط سلسة. ومن دون تحديد تختار الأداة كما من قبل.</p></aside>
+</section><section class="guide-part"><h3 id="shapes">الأشكال</h3>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title"><strong class="ui">إضافة شكل رسم تخطيطي</strong></span></div><ul class="card-steps"><li class="step">اختر حدًا خارجيًا جاهزًا: <strong class="ui">«مستطيل»</strong> أو <strong class="ui">«دائرة»</strong> أو <strong class="ui">«شكل بيضاوي»</strong> أو <strong class="ui">«نصف دائرة»</strong> أو <strong class="ui">«قطاع دائري»</strong> أو <strong class="ui">«دائرة براغي»</strong> (قرص فيه ثقوب) أو <strong class="ui">«مثلث»</strong> أو <strong class="ui">«سداسي»</strong> أو <strong class="ui">«مضلع»</strong> أو <strong class="ui">«نجمة»</strong>.</li><li class="step">انقر عليه لوضعه عند نقطة أصل الرسم التخطيطي، أو اسحبه من القائمة إلى حيث تريد.</li><li class="step">في أسفل القائمة يضبط <strong class="ui">«الأضلاع / الرؤوس»</strong> عدد أضلاع المضلع ورؤوس النجمة، و<strong class="ui">«الحجم الداخلي للنجمة»</strong> مدى عمق تجاويف النجمة نحو الوسط (من 10 إلى 90 بالمئة من نصف القطر الخارجي).</li><li class="result">كلاهما يسري على الشكل التالي الذي تضيفه.</li><li class="result">ومثل كل أشكال الرسم التخطيطي، تصبح بعد ذلك نقاط زوايا عادية، فيمكنك تحريكها أو تنعيمها أو شطفها كلًّا على حدة.</li><li class="tip">يبدأ المستطيل بالعرض والعمق المضبوطين للصندوق تحت <strong class="ui">«افتراضيات الأشكال»</strong> في الإعدادات، والدائرة والقطع الناقص بعرض الأسطوانة هناك؛ ومن دون قيمة خاصة بك، وفي باقي الأشكال، يكون قياسها 20 مم.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">حدود خارجية متداخلة</span></div><ul class="card-steps"><li class="step">ادفع حدّين خارجيين مغلقين أحدهما فوق الآخر.</li><li class="result">يبقيان جسمين يندمجان في المحرر ثلاثي الأبعاد؛ فالتداخل ليس ثقبًا.</li><li class="result">والتحريك لا يربط الخطوط عند تقاطعها، فيمكنك فصل الأشكال مجددًا.</li><li class="step">أما إذا رسمت خطًا يعبر خطوطًا أخرى، فيضع layerling نقطة عند كل تقاطع.</li><li class="tip">لا ينشأ الثقب إلا من حد خارجي يقع بالكامل داخل آخر.</li></ul></div>
+</section><section class="guide-part"><h3 id="select-and-change">التحديد والتغيير</h3>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-select.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">تحديد</strong></span></div><ul class="card-steps"><li class="step">انقر على نقطة أو خط واسحبه لتحريكه.</li><li class="step">انقر داخل حد خارجي مغلق لتحديده كله؛ وداخل ثقب يختار الثقب.</li><li class="result">يمكنك سحبه أو تغيير حجمه فورًا.</li><li class="step">اضغط <kbd>Shift</kbd> وانقر لإضافة نقطة أو خط إلى التحديد أو إزالته منه، فيمكنك تحريك عدة عناصر معًا.</li><li class="step">اسحب مربعًا فوق مساحة فارغة لتحديد كل ما فيه.</li><li class="step">اسحب خطًا لتحريكه بطرفيه، أو بالتحديد كله إن كان جزءًا منه.</li><li class="step">مفاتيح الأسهم تحرّك التحديد بخطوة شبكة واحدة، ومع <kbd>Shift</kbd> بخطوة أكبر.</li><li class="step">اضغط <kbd>Shift</kbd> أثناء السحب لإبقاء الحركة على محور واحد.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">الإطار حول التحديد</span></div><ul class="card-steps"><li class="step">اسحب مقبض زاوية لتغيير العرض والارتفاع معًا؛ واضغط <kbd>Shift</kbd> للحفاظ على النسب.</li><li class="step">اسحب مقبضًا جانبيًا لتغيير اتجاه واحد فقط.</li><li class="step">انقر على خانة العرض أو الارتفاع لكتابة حجم جديد، ولو كمجموع (&quot;60+12.5&quot;) أو بنسبة مئوية (&quot;150%&quot;).</li><li class="step">اسحب الأسهم المنحنية خارج الزوايا لتدوير التحديد كله حول وسطه.</li><li class="result">الرقم فوق المؤشر يعرض الزاوية؛ ومع الضغط على <kbd>Shift</kbd> يدور بخطوات 15°.</li><li class="result">أثناء التدوير تظهر حلقة: عندما يكون المؤشر داخلها يلتقط الدوران بخطوات 22.5°، وخارجها يدور بدرجات كاملة، بغض النظر عن الشبكة.</li><li class="step"><kbd>R</kbd> يدير حدًا خارجيًا مغلقًا كاملًا 45° مع كل ضغطة.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">الشريط فوق الرسم التخطيطي</span></div><ul class="card-steps"><li class="step"><strong class="ui">«الحفاظ على النسب»</strong> يحافظ على النسب دون <kbd>Shift</kbd>: فتمدّ الزوايا والجوانب عندها في الاتجاهين بالتساوي، والعرض أو الارتفاع المكتوب يغيّر الآخر أيضًا.</li><li class="result">يتذكر layerling هذا المفتاح.</li><li class="step">يعرض الحقلان X وY موضع منتصف التحديد بالمليمتر من أصل الرسم التخطيطي. اكتب قيمة لنقله إلى هناك، لثقب على بعد 12 مم بالضبط من المنتصف مثلًا. يزداد Y نحو الأعلى، كما في المحرر ثلاثي الأبعاد.</li><li class="step">ومع تحديد حدّين خارجيين أو أكثر، يحاذيها الشريط: يسارًا أو في المنتصف أو يمينًا، وأعلى أو في المنتصف أو أسفل، على الإطار المحيط بها كلها.</li><li class="result">يتحرك كل حد خارجي ككل ويحتفظ بشكله؛ ودائرتان موسّطتان في الاتجاهين تصبحان حلقة.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">قفل حد خارجي</span><span class="card-keys"><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span></span></div><ul class="card-steps"><li class="step">انقر <strong class="ui">«قفل»</strong> في الشريط لقفل الحد الخارجي المحدد، مثل الجسم المقفل في المحرر ثلاثي الأبعاد.</li><li class="result">لا يعود من الممكن نقله أو تغيير حجمه أو تدويره أو تعديله. وتصبح خطوطه أبهت ونقاطه رمادية، وتصبح مقابض الإطار رمادية ولا تستجيب.</li><li class="result">ويمكن مع ذلك أن تبدأ الخطوط من زواياه.</li><li class="result">وعند محاذاة الحدود الخارجية يبقى المقفل منها في مكانه وتصطف الأخرى عليه.</li><li class="step">لتحريره، انقر على القفل في زاويته وهو محدد، أو انقر <strong class="ui">«فتح القفل»</strong>.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-add-or-remove-points.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">إضافة أو إزالة نقاط</strong></span><span class="card-keys"><kbd>4</kbd></span></div><ul class="card-steps"><li class="step">انقر على مقطع لإضافة نقطة.</li><li class="step">انقر على نقطة لإزالتها.</li><li class="result">يصل layerling جارتيها، فيبقى الحد الخارجي مغلقًا.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-erase.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">مسح</strong></span></div><ul class="card-steps"><li class="step">انقر على نقطة أو خط لإزالته.</li><li class="step">اسحب نافذة فوق عدة عناصر لإزالة كل ما فيها.</li><li class="step">ومع وجود تحديد، يمسح الزر المحدد.</li><li class="step">وللتخلص من قطعة واحدة فقط من دائرة، لزاوية مدوّرة مثلًا، انقر على قطعة القوس تلك بالضبط بين نقطتين.</li><li class="result">يبقى الباقي.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">سدّ فجوة</span></div><ul class="card-steps"><li class="step">اسحب أحد الطرفين المفتوحين إلى الآخر، مثلًا بعد مسح جانب من شكل سداسي.</li><li class="result">يلتقط هناك ويصبح الطرفان نقطة واحدة، فيُغلق الحد الخارجي من جديد.</li><li class="result">وعند التقاطع، مثل موضع يقطع فيه خطٌ دائرةً، توصل الجوانب التي تستمر مستقيمة: القوس بالقوس والخط بالخط، وتبقى الدائرة مستديرة.</li></ul></div>
+<div class="tool-card"><div class="card-head"><span class="card-icon"><img src="/api/desktop/layerling/ui/assets/editor/sketch-tool-add-image.png" alt="" width="30" height="30" loading="lazy"></span><span class="card-title"><strong class="ui">إضافة صورة</strong></span></div><ul class="card-steps"><li class="step">ضع صورة قالب تحت الرسم التخطيطي لتتبّعها، انظر <a href="#a-picture-as-template">صورة كقالب</a>.</li></ul></div>
+</section><section class="guide-part"><h3 id="clipboard-and-history">الحافظة والسجل</h3>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">نسخ، لصق، تكرار، حذف</span></div><ul class="card-steps"><li class="step"><strong class="ui">«نسخ»</strong> و<strong class="ui">«لصق»</strong> و<strong class="ui">«تكرار»</strong> و<strong class="ui">«حذف»</strong> تعمل على النقاط والخطوط والصور المحددة، كما في المحرر ثلاثي الأبعاد؛ و<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span> يقص.</li><li class="result">الهندسة الملصقة أو المكررة تهبط بجانب الأصل على بعد 10 مم، في مكان خالٍ لا تلمس فيه أي خط موجود، فلا تنضم أبدًا إلى ما هو موجود.</li><li class="result">وتبقى محددة، فيمكنك سحبها إلى مكانها فورًا.</li><li class="step"><strong class="ui">«تراجع في الرسم التخطيطي»</strong> و<strong class="ui">«إعادة في الرسم التخطيطي»</strong> يرجعان خطوة إلى الخلف ثم إلى الأمام من جديد.</li></ul></div>
+</section><section class="guide-part"><h3 id="notes">الملاحظات</h3>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title"><strong class="ui">ملاحظة</strong></span><span class="card-keys"><kbd>N</kbd></span></div><ul class="card-steps"><li class="step">انقر <strong class="ui">«ملاحظة»</strong> تحت <strong class="ui">«عناصر التحكم في عرض الرسم التخطيطي»</strong>، ثم انقر حيث يجب أن تكون الملاحظة: في أي مكان، حتى على خط.</li><li class="step">اسحب الدبوس لنقلها؛ والنقر على الدبوس يطوي البطاقة.</li><li class="result">ملاحظات الرسم التخطيطي تخص جسمه: في العرض ثلاثي الأبعاد تجلس فوق الجسم المبثوق أو المسحوب على مسار، وعلى المقطع المرسوم للجسم الدوراني، وتتحرك معه.</li><li class="result">إعادة فتح الرسم التخطيطي تعرض كل ملاحظات الجسم، ومنها التي وُضعت في العرض ثلاثي الأبعاد.</li><li class="step"><strong class="ui">«تراجع في الرسم التخطيطي»</strong> يتراجع عن الملاحظة كما يتراجع عن الخط، و<strong class="ui">«إلغاء»</strong> يتجاهل ما تغيّر في الملاحظات.</li><li class="tip">المزيد في فصل <a href="/api/desktop/layerling/ui/dalil/measuring-and-notes.html">القياس والملاحظات</a>.</li></ul></div>
+</section><section class="guide-part"><h3 id="view-and-dimensions">العرض والأبعاد</h3>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">تحريك العرض</span></div><ul class="card-steps"><li class="step">أزح العرض بالزر الأوسط للفأرة، أو بـ <kbd>Shift</kbd> أو <kbd>Ctrl</kbd> مع الزر الأيمن، كما في المحرر ثلاثي الأبعاد.</li><li class="step">ومع عدم تحديد أي شيء تُزيحه <kbd>Ctrl</kbd> مع مفاتيح الأسهم أيضًا: عُشر العرض لكل ضغطة، ونصفه مع <kbd>Shift</kbd> أيضًا؛ ويتحرك الرسم التخطيطي في الاتجاه الذي تشير إليه.</li><li class="step"><kbd>Home</kbd> يُظهر الرسم التخطيطي كله في العرض، و<kbd>F</kbd> يكبّر على التحديد (وعند عدم وجود تحديد يُظهر الرسم كله)، و<kbd>+</kbd> و<kbd>−</kbd> يكبّران ويصغّران، كما في المحرر ثلاثي الأبعاد.</li><li class="step">ومع عدم تحديد أي شيء، انقر نقرًا مزدوجًا على موضع فارغ لإزاحته إلى وسط العرض.</li><li class="tip">يوقف <strong class="ui">«النقر المزدوج على سطح العمل يوسّط العرض عنده»</strong> في الإعدادات النقر المزدوج.</li></ul></div>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">الأبعاد</span></div><ul class="card-steps"><li class="step">انقر على خط أو نقطة.</li><li class="result">يعرض الرسم التخطيطي طول الخط، أو أطوال الخطوط التي تلتقي عند النقطة.</li><li class="step"><strong class="ui">«إظهار القياسات»</strong> في شريط أدوات الرسم التخطيطي يخفي هذه الأبعاد ويُظهرها عندما تعيق الطريق، مثلًا أثناء تشكيل المنحنيات.</li><li class="step"><strong class="ui">«شريط القياس»</strong> في شريط أدوات الرسم التخطيطي يقيس المسافة بين نقطتين؛ ويبقى يعمل والأبعاد مخفية.</li></ul></div>
+<figure><img src="/api/desktop/layerling/ui/dalil/img/sketch-outline.webp" alt="حد خارجي على شكل L. عند نقطة الزاوية المحددة، أعلى اليسار، تظهر أطوال الخطين بالمليمترات، والزاوية بينهما بالدرجات." width="1280" height="800" loading="lazy"><figcaption>حد خارجي على شكل L. عند نقطة الزاوية المحددة، أعلى اليسار، تظهر أطوال الخطين بالمليمترات، والزاوية بينهما بالدرجات.</figcaption></figure>
+<div class="tool-card no-icon"><div class="card-head"><span class="card-title">كتابة طول</span></div><ul class="card-steps"><li class="step">انقر على خانة البعد لخط مستقيم واكتب الطول بالمليمترات.</li><li class="step"><kbd>Enter</kbd> يطبّق، و<kbd>Esc</kbd> يلغي.</li><li class="result">يحتفظ الخط باتجاهه، وتبقى نقطة بدايته في مكانها، وتتبعه الخطوط عند الطرف الآخر. وإذا كانت نقطة النهاية محددة، فهي التي تتحرك.</li><li class="step"><span dir="ltr"><kbd>Alt</kbd>+<kbd>Enter</kbd></span> يطيل الخط على الجانبين حول وسطه بدلًا من ذلك.</li><li class="result">على المنحنيات تعرض الخانة الطول فقط.</li></ul></div>
+</section></section><section class="guide-part"><h2 id="lines-by-numbers">الخطوط بالأرقام (Lines by numbers)</h2>
+<p>بمجرد تعيين النقطة الأولى بـ<strong class="ui">«خط»</strong> أو <strong class="ui">«منحنى سلس»</strong>، اكتب رقمًا فقط: يفتح حقلان بجانب الخط، <strong class="ui">«الطول»</strong> بالمليمترات و<strong class="ui">«الزاوية»</strong> بالدرجات. <kbd>&lt;</kbd> أو <kbd>Tab</kbd> ينتقل إلى الزاوية، لذا &quot;50&lt;30&quot; يعطي خطًا بطول 50 مم بزاوية 30°، كما في AutoCAD. <kbd>Enter</kbd> يحدد النقطة، ويمكنك كتابة الخط التالي على الفور؛ <kbd>Esc</kbd> يغلق الحقول دون إنهاء سلسلة الخطوط.</p>
+<p>تحسب الزوايا عكس اتجاه عقارب الساعة من اليمين: 0° إلى اليمين، 90° لأعلى، 180° إلى اليسار، 270° لأسفل. اتركها فارغة ويتبع الخط المؤشر، لذا تعطي الطول فقط وتظهر الاتجاه بالماوس. المجموع مثل &quot;40+12.5&quot; يعمل في كلا الحقلين. إذا كانت النقطة سترسو خارج اللوحة، يقول الحقل ذلك وينتظر قيمة أخرى.</p>
+</section><section class="guide-part"><h2 id="curving-a-straight-side">تحويل ضلع مستقيم إلى منحنى (Curving a straight side)</h2>
+<p>حدد خطًا مستقيمًا وانقر على <strong class="ui">«تحويل الخط إلى منحنى»</strong> في الشريط الذي يظهر: ينحني الجانب للخارج في منحنى، كما في Tinkercad، ويعرض مقبضيه. اسحبهما لتشكيل المنحنى؛ كلما وقف المقبض أبعد للخارج، زاد الانثناء. تحت المؤشر يتحول المقبض إلى اللون البرتقالي، ويلتقط أيضًا نقرة بجانبه مباشرة، فلا تتحرك صورة القالب تحته عن طريق الخطأ. <strong class="ui">«خط مستقيم»</strong> يجعل الجانب مستقيمًا مجددًا. النقطة التي تحددها يمكن جعلها مستديرة بـ<strong class="ui">«منحنى سلس»</strong>: تحصل على مقابض خاصة بها وتصبح الخطوط المجاورة لها منحنيات. وعند تحديد ثلاث نقاط أو أكثر، يرسم <strong class="ui">«منحنى عبر النقاط»</strong> في الشريط منحنى سلسًا واحدًا من أولها إلى آخرها، مرورًا بكل نقطة بينهما، كما ترسمه أداة <strong class="ui">«منحنى سلس»</strong>؛ وتبقى الخطوط الواقعة خارج الطرفين كما هي. وتُسمّى هذه الوظيفة في برامج أخرى &quot;Fit curve&quot; أو &quot;Fit point spline&quot;. والفرق بينهما: <strong class="ui">«تحويل الخط إلى منحنى»</strong> يثني كل ضلع محدد وحده ويُبقي الزوايا بين الأضلاع، وهو مناسب لقوس على ضلع واحد؛ أما <strong class="ui">«منحنى عبر النقاط»</strong> فيمرّر منحنى واحدًا عبر النقاط دون أن يُبقي زوايا، وهو مناسب لتنعيم حافة متعرجة مرسومة من صورة. انقر على مقبض ويضيء: مفاتيح الأسهم تحركه حينها بخطوة شبكة واحدة، مع <kbd>Shift</kbd> بخطوة أكبر، لذا يمكنك ضبط منحنى بدقة.</p>
+<p>يمكن أيضًا كتابة القيم. تعرض النقطة المحددة في الشريط <strong class="ui">«X»</strong> و<strong class="ui">«Y»</strong>: موضعها بالمليمتر من أصل الرسم التخطيطي، ويُعد Y إلى الأعلى. انقر على مقبض فيعرض الشريط بدلًا من ذلك <strong class="ui">«المقبض X»</strong> و<strong class="ui">«المقبض Y»</strong>: موضع المقبض من نقطته. في النقطة الملساء يدور المقبض المقابل معه. أعطِ المقبض المقابل على الجانب الآخر قيمة Y نفسها وقيمة X بالإشارة المعاكسة، فيخرج المنحنى معكوسًا تمامًا؛ أما <strong class="ui">«انعكاس»</strong> فيعكس نصفًا كاملًا دفعة واحدة.</p>
+<figure><img src="/api/desktop/layerling/ui/dalil/img/sketch-curve.webp" alt="الجانب السفلي للحد الخارجي على شكل L منحني في قوس، مع مقبضيه عند الطرفين." width="1280" height="800" loading="lazy"><figcaption>الجانب السفلي للحد الخارجي على شكل L منحني في قوس، مع مقبضيه عند الطرفين.</figcaption></figure>
+</section><section class="guide-part"><h2 id="reading-and-typing-angles">قراءة وكتابة الزوايا</h2>
+<p>انقر على نقطة زاوية يلتقي عندها <strong>خطان مستقيمان</strong>: بجانب الأطوال، يعرض layerling <strong>الزاوية</strong> بينهما بالدرجات، مع قوس صغير. وعلى الحد الخارجي المغلق تكون هي الزاوية داخل الشكل، فالتجويف يُقرأ فوق 180°. انقر على القيمة واكتب زاوية جديدة. فيدور أحد الخطين حول الزاوية محتفظًا بطوله، ويبقى الآخر في مكانه. والخط الذي يدور يُرسم متقطعًا؛ و<kbd>Tab</kbd> ينتقل إلى الآخر، و<kbd>Enter</kbd> يطبّق، و<kbd>Esc</kbd> يلغي. وما يتصل بالطرف البعيد للخط المُدار يتحرك معه.</p>
+<p>تبقى النقطة المقفلة في مكانها، وتراعي القيمة المكتوبة ذلك: فالطول يحرّك الطرف الحر للخط، والزاوية تدير الخط الذي يكون طرفه البعيد حرًا. ويمكن قفل نقطة واحدة أيضًا: حدّدها واضغط <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span>. وهكذا تجعل الحد الخارجي دقيقًا زاوية بعد زاوية: اقفل زاوية، واكتب طول الخط التالي وزاويته، ثم اقفل طرفه وتابع.</p>
+<p>تحريك نقطة يغير ثلاث زوايا: عند النقطة نفسها وعند الزاويتين المجاورتين عند الأطراف البعيدة لخطوطها. لذا يعرض layerling هاتين الزاويتين أيضًا، وكل منهما يمكن النقر عليها وكتابتها. بهذه الطريقة تضبط، لنقل، الزاوية السفلى اليسرى إلى 75.5° بينما النقطة العليا اليسرى، التي تتحرك لها، محددة. يمكنك الحساب هنا أيضًا، مثل &quot;90-14.5&quot;.</p>
+<p>لا تُعرض الزاوية حيث يلتقي منحنى بالزاوية، أو حيث يلتقي أكثر من خطين. والزر <strong class="ui">«إظهار القياسات»</strong> في شريط أدوات الرسم يخفي الزوايا مع الأطوال.</p>
+</section><section class="guide-part"><h2 id="rounding-or-chamfering-corners">تنعيم أو شطف الزوايا (Rounding or chamfering corners)</h2>
+<p>انقر على نقطة زاوية واختر <strong class="ui">«تنعيم الزاوية»</strong> أو <strong class="ui">«شطف الزاوية»</strong>. يظهر حقل صغير لـ<strong class="ui">«نصف القطر»</strong> أو <strong class="ui">«المسافة»</strong>. أدخل الحجم وأكد بعلامة الاختيار. يعمل هذا للزوايا بين خطين مستقيمين.</p>
+<p>ويمكن معالجة عدة زوايا دفعة واحدة أيضًا: حددها بنقرة على كل منها مع <kbd>Shift</kbd>، أو اسحب إطارًا حولها، واختر <strong class="ui">«تنعيم الزاوية»</strong> أو <strong class="ui">«شطف الزاوية»</strong> من الشريط الذي يظهر. فتحصل كلها على نصف القطر أو المسافة نفسها. وحيث تشترك زاويتان محددتان في ضلع، تأخذ كل منهما 45 % منه كحد أقصى، فيأتي المستطيل المستدير من كل الجهات متماثلًا عند كل زاوية. والنقاط التي ليست زاوية بين خطين مستقيمين تُستثنى، وتذكر الرسالة عددها. والإطار حول شكل كامل، أو النقر داخله، يحدد زواياه وخطوطه معًا، ويعرض الشريط حينها <strong class="ui">«تحويل الخط إلى منحنى»</strong> و<strong class="ui">«خط مستقيم»</strong> لكل الخطوط المحددة بجانب أدوات الزوايا.</p>
+<figure><img src="/api/desktop/layerling/ui/dalil/img/sketch-fillet.webp" alt="الزاوية في أعلى اليسار مستديرة بنصف قطر 12 مم." width="1280" height="800" loading="lazy"><figcaption>الزاوية في أعلى اليسار مستديرة بنصف قطر 12 مم.</figcaption></figure>
+</section><section class="guide-part"><h2 id="mirroring">الانعكاس (Mirroring)</h2>
+<p>حدّد نقاطًا وخطوطًا (بالنقر، أو <kbd>Shift</kbd> مع النقر، أو بسحب إطار حولها) وانقر على <strong class="ui">«انعكاس»</strong> في الشريط. ثم اختر المحور: <strong class="ui">«يمين-يسار»</strong> يعكس حول المحور الرأسي المار بمنتصف اللوح، و<strong class="ui">«أعلى-أسفل»</strong> حول المحور الأفقي، و<strong class="ui">«حول خط»</strong> حول خط مستقيم من الرسم تنقر عليه بعد ذلك. تظهر النسخة في الجهة الأخرى ويبقى الأصل؛ لا شيء مرتبط، فيمكنك تعديل كل منهما على حدة. النقاط الواقعة على المحور مشتركة، فيصبح نصف المحيط الذي تقع نهايتاه على المحور حدًا خارجيًا مغلقًا: ارسم نصف حامل، حدّده، اعكسه ثم أنشئ الجسم. خط الإنشاء محور جيد. <kbd>Esc</kbd> يلغي.</p>
+</section><section class="guide-part"><h2 id="construction-lines">خطوط الإنشاء (Construction lines)</h2>
+<p>يساعدك خط الإنشاء على وضع النقاط دون أن يصبح جزءًا من الجسم. يُرسم متقطعًا ولا يُحسب أبدًا من الحد الخارجي: يمكنك مدّه خارج الشكل بقدر ما تشاء دون أن يكبر الجسم.</p>
+<ul><li>قم بتشغيل <strong class="ui">«خط إنشاء»</strong> في مجموعة <strong class="ui">«رسم»</strong>. الخطوط الجديدة، المكتوبة بالقياس أيضًا، تصبح حينها خطوط إنشاء. الزر ينتقل مجددًا إلى الخطوط العادية.</li><li>الخط الذي رسمته بالفعل يصبح خط إنشاء عندما تنقر عليه وتختار <strong class="ui">«إنشاء»</strong>. <strong class="ui">«خط عادي»</strong> يجعله خطًا عاديًا مجددًا.</li><li>النقاط الجديدة تلتقط إلى حيث يعبر خط إنشاء خطًا آخر، تظهر حلقة زرقاء ذلك، وإلى أطراف خط الإنشاء. هكذا تضع زاوية على وسط، عند مسافة ثابتة من حافة أو على تقاطع، دون حساب.</li><li>تلتقط النقاط الجديدة أيضًا منتصف كل خط مستقيم في الرسم التخطيطي، ومركز كل دائرة وزاوية مدوّرة، ومنتصفات جوانب الجسم الظاهر تحته (#624). والنقطة التي تُسحب تتجاهل منتصف خطوطها هي.</li><li>التحديد الذي تسحبه يلتقط بمركزه (#1236): يستقر مركز الدائرة أو المستطيل على أطراف الخطوط الأخرى وزواياها ومنتصفاتها، وعلى مراكز الدوائر، وعند تقاطع خطوط الإنشاء، وعلى زوايا جسم أسفلها؛ وتُظهر حلقة زرقاء المكان. والشكل الذي تسحبه من <strong class="ui">«إضافة شكل رسم تخطيطي»</strong> يستقر بمركزه على هذه النقاط أيضًا. اضغط مع الاستمرار على <kbd>Alt</kbd> للالتزام بالشبكة فقط.</li><li><strong class="ui">«خط من المنتصف»</strong> في مجموعة <strong class="ui">«رسم»</strong> يرسم الخط من منتصفه: انقر على المنتصف أولًا، ثم على الطرف، فيمتد الخط بالطول نفسه إلى الجهة الأخرى. ويصبح المنتصف نقطة مستقلة. وانقر على الزر مرة أخرى لرسم خطوط عادية.</li><li>خط الإنشاء لا يقطع الحد الخارجي حيث يعبره. وعند الدوران يمكن أن يقع على يمين المحور أيضًا.</li></ul>
+</section><section class="guide-part"><h2 id="making-a-body-from-it">صنع جسم منه (Making a body from it)</h2>
+<p>انقر على <strong class="ui">«إنهاء الرسم التخطيطي»</strong>. يقف الحد الخارجي كجسم على سطح العمل. في إعداداته تغير الارتفاع، اللون وكل شيء آخر كما هو الحال مع أي شكل آخر. عندما تغير حجمه، يبنيه layerling مجددًا من الرسم التخطيطي بعد لحظة، وينمو الرسم التخطيطي معه. لذا يبقى جسمًا دقيقًا يأخذ الشطف والتنعيم، وفي المرة القادمة التي تعدله فيها يكون للرسم التخطيطي الحجم الذي لدى الجسم.</p>
+<p>إذا كان سطح العمل على جانب جسم، ترسم كما تنظر إلى ذلك الجانب: الأعلى في الرسم التخطيطي هو الأعلى في الجسم النهائي أيضًا. ويُظهر الحد الخارجي الباهت للجسم في عرض الرسم التخطيطي مكانه. وإذا كان سطح العمل يقطع جسمًا، يُظهر عرض الرسم التخطيطي حدود ذلك المقطع بدلًا من ذلك، فيظهر الجسم المفرّغ كحلقة، ويمكنك محاذاة الرسم التخطيطي مع جدرانه. والنقطة التي تضعها أو تسحبها قرب زاوية هذه الحدود تلتقط عليها تمامًا؛ وتُظهر ذلك حلقة زرقاء صغيرة. وهكذا تنقل حواف الأجسام الأخرى إلى الرسم التخطيطي، حتى عندما لا يقع سطح العمل عليها تمامًا. وللرسم حول ما هو موجود، شغّل <strong class="ui">«إظهار الأجزاء كأنها شفافة: كل حوافها على مستوى الرسم التخطيطي»</strong> (زر الطبقات في أزرار العرض على اليسار): فتُرسم كل حواف الأجسام على مستوى الرسم التخطيطي، رفيعة وباهتة، كأنك تنظر من خلالها، أيًّا كان ارتفاعها. والمستوى الرأسي، الموضوع على وجه أمامي مثلًا، يُظهر المسقط الأمامي بهذه الطريقة. ويُحفظ هذا الخيار في المتصفح.</p>
+<figure><img src="/api/desktop/layerling/ui/dalil/img/sketch-result.webp" alt="أصبح الحد الخارجي جسمًا. الزاوية مستديرة." width="1280" height="800" loading="lazy"><figcaption>أصبح الحد الخارجي جسمًا. الزاوية مستديرة.</figcaption></figure>
+<p>مع <strong class="ui">«تعديل الرسم التخطيطي»</strong> يمكنك العودة إلى الرسم التخطيطي في أي وقت لتغييره. والنقر المزدوج على الجسم يفعل الشيء نفسه، كما في Tinkercad (والجسم المقفل لا يُفتح)؛ و<strong class="ui">«النقر المزدوج يفتح الرسم التخطيطي»</strong> في الإعدادات يوقف ذلك. لكن معالجات الحواف التي أجريتها على الجسم تضيع، لأن الحواف تُنشأ من جديد. الجسم الذي دوّرته أو حرّكته في محرر 3D يُفتح حيث يقف على اللوح، مدوّرًا كما تراه هناك وعلى شبكة اللوح؛ فقط الجسم المائل أو المعكوس يُفتح في إطاره الخاص.</p>
+<p>الرسم التخطيطي ذو الحدود الخارجية المتعددة يعطي جسمًا واحدًا، والحدود الخارجية المتداخلة تندمج فيه. ولكي يبقى كل حد خارجي وحده، حدد الجسم وانقر على <strong class="ui">«فصل الأجزاء»</strong>: يصبح كل حد خارجي من الخارج جسمًا مستقلًا مع الثقوب التي تقع داخله، ويحتفظ بارتفاع الجسم ولونه ومكانه. لكل جزء رسمه التخطيطي الخاص للتحرير، مع خطوط الإنشاء، فتستطيع رفع الأجزاء أو خفضها واحدًا واحدًا ثم دمجها أو طرحها. معالجات الحواف تمنع ذلك، وكذلك الجسم الذي مُدّد بعد إنشائه: يُفصل عندها كشبكة.</p>
+<p><strong>نوع آخر من الأجسام من الرسم التخطيطي نفسه:</strong> تبيّن الشارة أعلى الرسم التخطيطي ما سيصبح عليه: <strong class="ui">«رسم تخطيطي للبثق»</strong> أو <strong class="ui">«رسم تخطيطي للدوران»</strong> أو <strong class="ui">«سحب على مسار»</strong>. انقر عليها واختر نوعًا آخر، حتى أثناء تعديل جسم موجود: ملف SVG المستورد، الذي يأتي مبثوقًا، يصبح مزهرية أو مقبضًا عند تحويله إلى <strong class="ui">«رسم تخطيطي للدوران»</strong>. الحد الخارجي الذي يتجاوز المحور ينتقل إلى اليسار حتى تقع حافته اليمنى على المحور؛ ويتراجع <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> عن هذا النقل. عند الإنهاء يحل الجسم الجديد محل القديم بنفس الاسم واللون، وقاعدته على نفس الارتفاع. وتضيع معالجات الحواف، كما في كل تعديل للرسم التخطيطي.</p>
+<section class="guide-part"><h3 id="revolving">الدوران (Revolving)</h3>
+<p>عند الدوران، ترسم نصف المقطع العرضي <strong>على يسار المحور</strong> الظاهر في الرسم التخطيطي. وبجانبه ترى معاينة ثلاثية الأبعاد للدوران، تُظهر فورًا كيف سيبدو الجسم. ويمكنك تدويرها وإزاحتها وتكبيرها بالفأرة؛ والزر الصغير في زاويتها العليا اليمنى، أو النقر المزدوج عليها، يعيد العرض الأول. يجب أن يكون الحد الخارجي مغلقًا، أو أن تبني خطًا مفتوحًا كخط بعرض، انظر أدناه. وفي النهاية انقر على <strong class="ui">«إنهاء الدوران»</strong>. تظهر الأجسام الأخرى في التصميم من الأمام، في المنظر نفسه الذي يظهر فيه المقطع، والمحور في المنتصف: ارسم المقطع بجانبها أو فوقها. يقف الجسم حيث رسمته، والخط الأفقي المار بمنتصف الرسم هو الأرض: المقطع الذي فوقه يعطي جسمًا أعلى، وأدنى نقطة فيه هي قاعدة الجسم. ولنصف قطر أكبر، أبعد المقطع عن المحور، إلى ما بعد حافة اللوح إن لزم: يكبر اللوح مع الرسم التخطيطي، وتتبعه شبكته عند الإفلات، وزر التصغير يصغّر العرض حتى يتسع له كله.</p>
+<p>الجسم الدوراني جسم دقيق، مثل الجسم المبثوق: يقبل الشطف والتنعيم، ويمكنك تفريغه، لصنع كوب أو مزهرية. أما الجسم الدوراني المصنوع بإصدار أقدم من layerling فهو شبكة؛ افتح <strong class="ui">«تعديل الرسم التخطيطي»</strong> وأنهِه مجددًا ليصبح دقيقًا. والمقطع الذي يتجاوز المحور لا يمكن بناؤه بدقة ويصبح شبكة، كما كان من قبل.</p>
+<p><strong>أوجه مستديرة أنعم: <strong class="ui">«النعومة»</strong>.</strong> يُقسَّم الجسم الدوراني الدقيق إلى أوجه مستوية صغيرة للعرض والتصدير والطباعة، وقد تظهر على وعاء كبير في الطباعة. حدد الجسم واضبط <strong class="ui">«النعومة»</strong> في لوحة الخصائص على <strong class="ui">«ناعمة»</strong> أو <strong class="ui">«ناعمة جدًا»</strong>: تُقسَّم الأوجه المستديرة بدقة أكبر، مقابل مثلثات أكثر وتصميم أبطأ. أما اللولب أو الدوران الشبكي فله <strong class="ui">«الأضلاع»</strong> لذلك.</p>
+<p><strong>خيط واحد متصل: <strong class="ui">«الخطوة»</strong>.</strong> يحوّل الدوران الحد الخارجي إلى حلقات مغلقة. حدد الجسم الدوراني وأعطه في لوحة الخصائص <strong class="ui">«الخطوة»</strong> أكبر من 0، أي المسافة التي يرتفعها في كل لفة، فيلتف الحد الخارجي على شكل لولب: خيط واحد متصل مثل خيط الطباعة على البكرة أو الملف. عندها يصبح <strong class="ui">«زاوية الامتداد»</strong> هو <strong class="ui">«اللفات»</strong>، حتى 200؛ والرقم السالب يلفّ باتجاه اليسار. اللفات الأقرب من ارتفاع الحد الخارجي تندمج في جسم واحد، لذا يصلح أيضًا قلب صلب بخطوة دقيقة. يُبنى اللولب كشبكة، فلا يعمل عليه التنعيم ولا الشطف ولا التفريغ؛ أبقِ <strong class="ui">«الأضلاع»</strong> منخفضًا عند كثرة اللفات. الخطوة 0 تعيد الحلقات.</p>
+</section></section><section class="guide-part"><h2 id="sweeping-along-a-path">السحب على طول مسار (Sweeping along a path)</h2>
+<p><strong class="ui">«سحب على مسار»</strong> يسحب حدًا خارجيًا على طول مسار: قناة كابلات تلتف عند زاوية، أو أنبوب، أو واقٍ حول سير، أو حلقة حول شكل سداسي. ويوجد بجانب <strong class="ui">«بثق الرسم التخطيطي»</strong> و<strong class="ui">«دوران الرسم التخطيطي»</strong> في مجموعة <strong class="ui">«إنشاء»</strong>.</p>
+<p>ترسم شيئين على الورقة نفسها:</p>
+<ul><li><strong>المقطع العرضي</strong> كحد خارجي مغلق، كالمعتاد. ارسمه كما تراه ناظرًا على طول المسار من بدايته: عبر المسار هو يسار ويمين الرسم التخطيطي، الأعلى هو الأعلى على الجسم المنتهي. المقطع المفرغ، قناة أو أنبوب، هو حد خارجي مع آخر داخله. يكون المقطع افتراضيًا في منتصف المسار. وتتيح لك القائمة بجانب شارة الوضع في الأعلى وضع حافته اليسرى أو اليمنى على المسار بدلًا من ذلك (<strong class="ui">«على المسار: الحافة اليسرى»</strong>، <strong class="ui">«على المسار: الحافة اليمنى»</strong>، كما تُرى ناظرًا على طول المسار)، فيمكن للسكة أن تقف على جانب واحد من الخط أو أن تتبع حافة قطعة. ويقف الجسم على مستوى الرسم التخطيطي مع أدنى نقطة للمقطع.</li></ul>
+<ul><li><strong>المسار</strong> كـ<strong class="ui">«خط إنشاء»</strong>: قم بتشغيله وارسم خطوطًا أو منحنيات، سلسلة واحدة، مفتوحة أو مغلقة (السلسلة المغلقة تعطي حلقة). يقع المسار مسطحًا في مستوى الرسم التخطيطي.</li></ul>
+<p>ارسم المقطع قرب طرف المسار الذي يجب أن يبدأ منه؛ فالمسار يبدأ من الطرف الأقرب إليه. ثم انقر على <strong class="ui">«إنهاء السحب»</strong>. زاوية القطع المستقيمة تصبح وصلة مائلة (Mitre)، والمنحنى يبقى انسيابيًا، والمقطع يبقى قائمًا على طول المسار. والجسم دقيق، مثل المبثوق: التنعيم والشطف وتصدير STEP تعمل عليه. وإذا كان الحد الخارجي المغلق أو المسار مفقودًا، أو كانت هناك عدة مسارات منفصلة، يخبرك layerling بذلك. ومع <strong class="ui">«تعديل الرسم التخطيطي»</strong> يمكنك العودة إلى الرسم التخطيطي وتغيير المقطع أو المسار.</p>
+</section><section class="guide-part"><h2 id="building-as-a-stroke">البناء كخط بعرض (Building as a stroke)</h2>
+<p>عادة ما تكون المنطقة داخل حد خارجي مغلق هي الجسم. مع <strong class="ui">«خط بعرض»</strong> في قسم <strong class="ui">«إنهاء»</strong> تبني الخط نفسه بدلًا من ذلك، بعرض تضبطه. علم <strong class="ui">«البناء كخط بعرض»</strong> في نافذة الخط؛ يعرض الرسم التخطيطي على الفور ما يخرج.</p>
+<ul><li><strong>الحد الخارجي المغلق</strong> يصبح إطارًا. <strong class="ui">«الموضع»</strong> يحدد موضع الجدار: <strong class="ui">«متمركز»</strong> على الخط المرسوم، أو <strong class="ui">«للداخل»</strong> داخله، أو <strong class="ui">«للخارج»</strong> خارجه. والخارج مفيد للتفاوت: ارسم الحد الخارجي لثقب، كذيل الحمامة مثلًا، وأعطه خطًا بعرض 0.2 مم للخارج لتحصل على الفجوة التي تحتاجها الطباعة.</li><li><strong>الخط المفتوح</strong> يصبح شريطًا، متمركزًا على الخط. <strong class="ui">«النهايات»</strong> يضبط كيف تبدو أطرافه: <strong class="ui">«مسطحة»</strong>، <strong class="ui">«مربعة»</strong> (أطول بنصف العرض) أو <strong class="ui">«مستديرة»</strong>.</li><li><strong class="ui">«الزوايا»</strong> ينطبق على الاثنين: <strong class="ui">«حادة»</strong>، <strong class="ui">«مستديرة»</strong> أو <strong class="ui">«مشطوفة»</strong>.</li></ul>
+<p>يحتفظ الرسم التخطيطي بالخط المرسوم. افتحه مجددًا وواصل تغيير الخط وعرضه؛ وألغِ تحديد المربع فتُبنى المساحة من جديد. وتُقسَّم المنحنيات لهذا الغرض إلى قطع مستقيمة قصيرة.</p>
+<p>في الدوران يكون الخط بعرض جدارًا رقيقًا: ارسم جدار مزهرية أو كوب كـ<strong>خط مفتوح واحد</strong> على يسار المحور، وفعّل <strong class="ui">«خط بعرض»</strong> واضبط العرض، فيُدار ذلك الشريط حول المحور. وما يتجاوز المحور يُقطع عنده.</p>
+</section><section class="guide-part"><h2 id="fill-and-silhouette">التعبئة والظل الخارجي (Fill and silhouette)</h2>
+<p>يمكنك ضبط الخط بعرض دون فتح الرسم التخطيطي أيضًا: في خصائص جسم الرسم التخطيطي، اختر <strong class="ui">«مساحة»</strong> أو <strong class="ui">«خط بعرض للخارج»</strong> أو <strong class="ui">«خط بعرض للداخل»</strong> أو <strong class="ui">«خط بعرض متمركز»</strong> تحت <strong class="ui">«تعبئة»</strong>، مع <strong class="ui">«عرض الخط»</strong> و<strong class="ui">«الزوايا»</strong>. فيُعاد بناء الجسم فورًا في مكانه. وهذه تطابق أوضاع التعبئة في استيراد SVG في Tinkercad: افتراضي، والخط الخارجي، والخط الداخلي. و<strong class="ui">«أعرض»</strong> يُبقي المساحة معبأة ويوسّعها بعرض الخط من كل الجهات، بزوايا حادة أو مستديرة أو مشطوفة: طبقة قاعدة تحت شعار للطباعة متعددة الألوان، لا يعطيها الخط بعرض للخارج وحده إلا كحلقة. و<strong class="ui">«أضيق»</strong> يفعل العكس: تبقى المساحة معبأة وتنزاح حافتها إلى الداخل بعرض الخط من كل الجهات، ومن ذلك الثقوب (فتكبر). استخدم الاثنين على نسخ من رسم تخطيطي واحد للتركيب: الثقب بحجمه المرسوم، والقطعة التي تمر فيه <strong class="ui">«أضيق»</strong> بـ0.5 مم، أو جدار داخل شكل يُقطع من الحد الخارجي نفسه. والعرض الأكبر مما يسمح به الحد الخارجي لا يترك شيئًا. وفي نافذة الخط بعرض في الرسم التخطيطي يوجد الخياران نفسهما تحت <strong class="ui">«الموضع»</strong>. ومع خط للخارج أو للداخل أو في المنتصف، يجعل <strong class="ui">«حافة القطع»</strong> الجدار حادًا من الأعلى: يضيق أعلاه إلى ذلك العرض بشطف 45° من الجانبين، كما في قطّاعة الكعك. 0 يترك الأعلى مسطحًا؛ وتبقى الحافة عندما تغيّر عرض الخط.</p>
+<p><strong class="ui">«ظل خارجي (بدون ثقوب)»</strong> يستبعد كل حد خارجي يقع داخل آخر: الثقوب وما يقع فيها. فلا يبقى إلا الحد الخارجي. ومع <strong class="ui">«خط بعرض للخارج»</strong> يصنع قطّاعة كعك: استورد ملف SVG مرتين، مرة مع الظل الخارجي كمساحة للقاعدة، ومرة مع الظل الخارجي وخط بعرض 1 إلى 2 مم للخارج كجدار. والمفتاح موجود في نافذة <strong class="ui">«خط بعرض»</strong> في وضع الرسم التخطيطي أيضًا.</p>
+<p>التنعيم والشطف على الحواف تذهب عندما يبنى الجسم مجددًا، كما عندما يعدل الرسم التخطيطي.</p>
+</section><section class="guide-part"><h2 id="slanted-walls-for-stamps">الجدران المائلة، للأختام</h2>
+<p>الرسم التخطيطي المبثوق له جدران رأسية. أما الختم أو قالب النقش أو أداة الخرم فتحتاج إلى جدران مائلة، من الخارج والداخل، بسمك جدار ثابت على طولها. ليس في layerling زاوية سحب للبثق، لكن مع الأشكال العادية يوصلك <strong class="ui">«استدقاق»</strong> إلى ذلك. وإليك طريقة تنجح:</p>
+<ol><li>ارسم الحد الخارجي مع الثقب الذي يحتاجه واصنع جسمًا منه. كرر الجسم (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span>).</li><li>على الجسم الأول، قم بتشغيل <strong class="ui">«ظل خارجي (بدون ثقوب)»</strong>، لذا يتم تعبئة الثقب، وأعطه قاعًا أوسع من الأعلى بـ<strong class="ui">«استدقاق»</strong>.</li><li>على النسخة، افتح رسمها التخطيطي مجددًا واحذف الحد الخارجي، حتى يتبقى حد الثقب فقط. أنهِ الرسم التخطيطي، وحوّل الجسم إلى <strong class="ui">«ثقب»</strong> وأعطه قاعًا أضيق من الأعلى بـ<strong class="ui">«استدقاق»</strong>.</li><li>حرّك الثقب إلى الجسم الأول، حيث كان الثقب، وجمّعهما.</li></ol>
+<p>أصبحت الجدران مائلة الآن من الخارج والداخل. الاستدقاق يكبر/يصغر الحد الخارجي بأكمله، لذا يكون هذا دقيقًا للأشكال العادية، حيث يمكنك اختيار الأحجام حتى تجري الجدران متوازية، وتقريبًا فقط للتفاصيل الدقيقة مثل الكتابة.</p>
+</section><section class="guide-part"><h2 id="a-picture-as-template">صورة كقالب (A picture as template)</h2>
+<p>مع <strong class="ui">«إضافة صورة»</strong> تضع صورة أو رسمًا تحت الرسم التخطيطي وترسم فوقه، في أي وقت، حتى قبل الخط الأول. ويمكنك ضبط حجمها وعتامتها وموضعها. وبمجرد أن تستقر الصورة في مكانها الصحيح، اقفلها بـ<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> حتى لا تحركها عن طريق الخطأ أثناء الرسم. والصورة المقفلة لا تعترض طريقك: النقرات تمر عبرها، فيمكنك اختيار الخطوط والنقاط فوقها وسحب إطار عليها. والنقر على القفل في زاويتها يلغي قفلها، أما النقر مع <kbd>Alt</kbd> فيحددها دون إلغاء القفل. وإذا كانت إعداداتها عند الحافة اليمنى تغطي الصورة، فاسحبها جانبًا من شريط عنوانها؛ والنقر المزدوج عليه يثبّتها من جديد.</p>
+<p>تحت <strong class="ui">«محاذاة»</strong> تحاذي صورة لم تُلتقط بشكل مستقيم:</p>
+<ul><li><strong><strong class="ui">«الدوران»</strong>:</strong> أدر الصورة حول مركزها، بالأسهم المنحنية عند زواياها أو كرقم بالدرجات. مع <kbd>Shift</kbd> تلتقط الأسهم بخطوات 15°. داخل الحلقة التي تظهر أثناء التدوير تلتقط بخطوات 22.5°، وخارجها بدرجات كاملة.</li><li><strong><strong class="ui">«إلى X = 0»</strong></strong> و <strong><strong class="ui">«إلى Y = 0»</strong>:</strong> ضع مركز الصورة على X = 0 أو Y = 0. للدوران، X = 0 هو المحور، لذا تقع الصورة حينها متناظرة حوله.</li><li><strong><strong class="ui">«معايرة»</strong>:</strong> زرّه في الأعلى مباشرة تحت المعاينة. انقر نقطتين في الصورة تعرف مسافتهما، أطراف مسطرة أو قطرًا معلومًا، واكتب المسافة الحقيقية. تكبر/تصغر الصورة بالتساوي حتى تكون تلك المسافة صحيحة؛ تظل النقطة الأولى حيث كانت.</li><li><strong><strong class="ui">«قص»</strong>:</strong> المقابض على الإطار تقص الصورة الآن بدلًا من تكبيرها/تصغيرها؛ وما يُقص يبقى محفوظًا ويعود بـ<strong class="ui">«إظهار الصورة كاملة»</strong> أو عندما يسحب مقبض للخارج مجددًا.</li></ul>
+<p>الأربعة تلمس المرجع فقط، وليس الرسم التخطيطي أبدًا.</p>
+<p><strong><strong class="ui">«تتبّع»</strong></strong>، في إعدادات الصورة، يضع النقاط عنك: يتتبع محيط الشكل في الصورة – صورة ظلية أو شعار أو كلمة – ويعرضه بالأحمر فوقها، بنقاط مربعة للزوايا ومستديرة للنقاط الناعمة. يختار <strong class="ui">«شكل داكن»</strong> أو <strong class="ui">«شكل فاتح»</strong> أي جزء من الصورة هو الشكل، و<strong class="ui">«العتبة»</strong> أين يتحول الداكن إلى فاتح، و<strong class="ui">«النقاط»</strong> كم نقطة تأخذ المحيطات معًا (الأقل يعطي منحنيات أنعم، والأكثر يتبع الصورة عن قرب)، و<strong class="ui">«زاوية ابتداءً من»</strong> من أي انعطاف تصبح النقطة زاوية، و<strong class="ui">«تجاهل البقع حتى»</strong> حجم البقع الصغيرة التي تُترك، ويحفظ <strong class="ui">«الإبقاء على الثقوب»</strong> وسط حرف A أو O. يضع <strong class="ui">«تطبيق»</strong> المحيطات في الرسم حيث تقع الصورة تمامًا، بحجمها ودورانها وقصّها، ويحددها: هي نقاط عادية تُحرَّك أو تُقوَّس أو تُحذف، و<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> يتراجع عنها بخطوة واحدة. يعمل أفضل مع تباين واضح؛ قصّ الصورة ذات الخلفية المزدحمة أولًا. ما يسقط – حول المحيطات وفي الثقوب وما يُقطع – تغطيه المعاينة بلون اللوح، فلا يظهر من الصورة إلا ما يبقى. المحيطات المتقاربة لدرجة أن المنحنيات الواسعة ستتقاطع تأخذ نقاطًا أكثر من تلقاء نفسها؛ وتقول البطاقة ذلك. لحافة خارج المحيط أو داخله، أعطِ جسم الرسم خطًا خارج خطوطه أو داخلها، أو أزِح الجسم الجاهز.</p>
+<p>لصورة فوتوغرافية – لعبة على طاولة بيضاء مثلًا – اختر <strong><strong class="ui">«جسم»</strong></strong> تحت <strong class="ui">«الشكل»</strong>: الخلفية هي اللون عند حافة الصورة، وكل ما يبرز عنها يصبح حدًا خارجيًا واحدًا مهما كانت ألوانه؛ ويحدد <strong class="ui">«العتبة»</strong> حينها مدى وضوح بروزه. تبدأ الصورة الملونة على خلفية متجانسة هكذا. يرسم <strong class="ui">«اختيار مناطق»</strong> حدودًا أكثر: انقر منطقة في الصورة، نافذة مثلًا، فيُرسم الحد الخارجي للبقعة ذات اللون المشابه حول النقطة (ويحدد <strong class="ui">«تسامح اللون»</strong> مدى التشابه). تُسرد الثقوب والمناطق المنقورة تحت <strong class="ui">«الثقوب والمناطق»</strong>؛ الإشارة إلى واحدة تُظهرها في المعاينة، و✕ تزيلها، ومع إيقاف <strong class="ui">«قطع»</strong> تُرسم خط إنشاء بدل ثقب. المنطقة التي تبلغ حافة الصورة هي الخلفية فلا تؤخذ. ما لا تفصله عتبة ولا لون – ظل داكن كالعجلات فوقه – يزيله <strong class="ui">«قص بعيدًا»</strong>: انقر الزوايا حوله (نقرة على الزاوية الأولى أو نقرة مزدوجة أو <kbd>Enter</kbd> تغلقه)، فيسير الحد الخارجي على طول القطع؛ ويُسرد باسم «قص 1».</p>
+<p>شجرة بجانب بيت، شخص أمام خلفية مزدحمة – حيث لا يفصل لون الشكل عن الباقي، يلتقطه <strong><strong class="ui">«اللاسو المغناطيسي»</strong></strong>: انقر تقريبًا على طول حافته، وبين نقرتين يتبع الخط الحافة وحده، في انحناءاتها أيضًا؛ وأثناء تحريك المؤشر تُظهر المعاينة أين سيمر. نقرة على النقطة الأولى أو نقرة مزدوجة أو <kbd>Enter</kbd> تغلقه، و<kbd>Esc</kbd> يتخلص منه. يُسرد باسم «لاسو 1»، مع الاختيار <strong class="ui">«ضم»</strong> (تنضم المنطقة إلى الشكل) أو <strong class="ui">«قص بعيدًا»</strong> (تُزال)؛ ولكل قطع الاختيار نفسه. تحت <strong class="ui">«الشكل»</strong>، يجعل <strong><strong class="ui">«اللاسو فقط»</strong></strong> الشكل مما تلتقطه بهذه الطريقة فقط – لا شيء آخر من الصورة.</p>
+<figure><img src="/api/desktop/layerling/ui/dalil/img/trace-house.webp" alt="بيت مرسوم مُتتبَّع كجسم، والعتبة مخفّضة لجداره الفاتح: قطع اللاسو المغناطيسي الشجرة، واختيرت ألواح النوافذ الثمانية كثقوب." width="1280" height="800" loading="lazy"><figcaption>بيت مرسوم مُتتبَّع كجسم، والعتبة مخفّضة لجداره الفاتح: قطع اللاسو المغناطيسي الشجرة، واختيرت ألواح النوافذ الثمانية كثقوب.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/dalil/img/trace-house-body.webp" alt="البيت كجسم: بدون الشجرة، والنوافذ مقطوعة بالكامل." width="1280" height="800" loading="lazy"><figcaption>البيت كجسم: بدون الشجرة، والنوافذ مقطوعة بالكامل.</figcaption></figure>
+</section><section class="guide-part"><h2 id="keys-in-sketch-mode">المفاتيح في وضع الرسم التخطيطي</h2>
+<div class="table-scroll"><table><thead><tr><th>المفتاح</th><th>التأثير</th></tr></thead><tbody><tr><td><kbd>Esc</kbd></td><td>ترك أداة الملاحظة؛ وإلا ترك الأداة (العودة إلى <strong class="ui">«تحديد»</strong>)، ثم إلغاء التحديد</td></tr><tr><td><kbd>Delete</kbd></td><td>حذف العنصر المحدد</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>C</kbd></span></td><td>نسخ التحديد</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span></td><td>قص التحديد</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>V</kbd></span></td><td>لصق</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span></td><td>تكرار التحديد</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span></td><td>تراجع</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span></td><td>تحديد كل النقاط والخطوط</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>I</kbd></span></td><td><strong class="ui">«إضافة صورة»</strong></td></tr><tr><td><kbd>Shift</kbd></td><td>أثناء الرسم: التقاط الخط بخطوات 15°؛ أثناء السحب: الحفاظ على الحركة على محور واحد</td></tr><tr><td>رقم، <kbd>&lt;</kbd>، <kbd>Tab</kbd>، <kbd>Enter</kbd></td><td>أثناء الرسم: كتابة وضبط طول وزاوية الخط التالي</td></tr><tr><td><kbd>R</kbd></td><td>تدوير الرسم التخطيطي المغلق بـ45°</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span></td><td>قفل الحد الخارجي المحدد أو صورة القالب، أو فتح قفلهما</td></tr><tr><td><kbd>N</kbd></td><td>وضع ملاحظة: النقرة التالية تضعها على الرسم</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span></td><td>إظهار الملاحظات أو إخفاؤها</td></tr></tbody></table></div>
+<aside class="tip"><p><strong>نصيحة:</strong> ارسم أقل عدد ممكن من النقاط. الحد الخارجي ذو النقاط القليلة الموضوعة جيدًا يعطي جسمًا أنعم من تشابك النقاط الكثيرة.</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/dalil/edges-and-hollowing.html"><small>الفصل السابق</small>كسر الحواف وتفريغ الأجسام</a><a class="next" href="/api/desktop/layerling/ui/dalil/text.html"><small>الفصل التالي</small>النص والكتابة المنحنية</a></div>
+      </main>
+    </div>
+    <footer class="note">ينمو هذا الدليل مع البرنامج. إذا كان هناك شيء ناقص أو خاطئ، فأخبرنا في <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">النقاشات</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=ar" rel="noopener">دعم المشروع</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">المناقشات</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">المزيد على GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">ملاحظات الإصدار v1.154.1</a></div><p class="trademark">Tinkercad هي علامة تجارية لشركة Autodesk, Inc. برنامج layerling هو مشروع مستقل وليس تابعًا لشركة Autodesk أو مدعومًا منها.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="العودة إلى المحرّر";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="افتح المحرّر";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

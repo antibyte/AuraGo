@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="hu">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Fájlok, mentés és megosztás - layerling útmutató</title>
+    <meta name="description" content="Hol vannak a terveid, hogyan készíts róluk biztonsági mentést, milyen formátumokat importál és exportál a layerling, és mi lehetséges egy közös szerveren.">
+    <link rel="canonical" href="https://layerling.com/utmutato/files-and-saving.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/files-and-saving.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/files-and-saving.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/files-and-saving.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/dateien-und-speichern.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/files-and-saving.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/files-and-saving.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/files-and-saving.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/files-and-saving.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/bestanden-en-opslaan.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/files-and-saving.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/datoteke-in-shranjevanje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/files-and-saving.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/files-and-saving.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/files-and-saving.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/files-and-saving.html">
+    <meta property="og:title" content="Fájlok, mentés és megosztás - layerling útmutató">
+    <meta property="og:description" content="Hol vannak a terveid, hogyan készíts róluk biztonsági mentést, milyen formátumokat importál és exportál a layerling, és mi lehetséges egy közös szerveren.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/utmutato/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Útmutató</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/utmutato/search-index.json" data-nothing="Nincs találat." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Keresés az útmutatóban" aria-label="Keresés az útmutatóban" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Nyelv">Magyar</summary><ul><li><a href="/api/desktop/layerling/ui/guide/files-and-saving.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/files-and-saving.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/files-and-saving.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/files-and-saving.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/files-and-saving.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/files-and-saving.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/files-and-saving.html" hreflang="hu" lang="hu" aria-current="true">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/files-and-saving.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/files-and-saving.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/files-and-saving.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/datoteke-in-shranjevanje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/files-and-saving.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/files-and-saving.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/files-and-saving.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/files-and-saving.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/files-and-saving.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/files-and-saving.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Szerkesztő megnyitása</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>A szerkesztő már nyitva van egy másik lapon – egyszerűen válts át oda.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Fejezetek"><h2>Fejezetek</h2><p class="print-link"><a href="/api/desktop/layerling/ui/utmutato/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>A teljes útmutató nyomtatáshoz</span></a></p><ol><li><a href="/api/desktop/layerling/ui/utmutato/getting-started.html">Első lépések</a></li><li><a href="/api/desktop/layerling/ui/utmutato/view-and-workplane.html">Nézet és munkasík</a></li><li><a href="/api/desktop/layerling/ui/utmutato/shapes.html">Alakzatok elhelyezése és beállítása</a></li><li><a href="/api/desktop/layerling/ui/utmutato/select-and-arrange.html">Kijelölés és elrendezés</a></li><li><a href="/api/desktop/layerling/ui/utmutato/solids-and-holes.html">Tömör testek és lyukak</a></li><li><a href="/api/desktop/layerling/ui/utmutato/edges-and-hollowing.html">Élek letörése és testek kiüregelése</a></li><li><a href="/api/desktop/layerling/ui/utmutato/sketches.html">Vázlatok: a körvonaltól a testig</a></li><li><a href="/api/desktop/layerling/ui/utmutato/text.html">Szöveg és íves feliratok</a></li><li><a href="/api/desktop/layerling/ui/utmutato/threads-and-mechanics.html">Menetek, fogaskerekek és más alkatrészek</a></li><li><a href="/api/desktop/layerling/ui/utmutato/measuring-and-notes.html">Mérés és jegyzetek</a></li><li><a href="/api/desktop/layerling/ui/utmutato/printing.html">Előkészítés 3D nyomtatásra</a></li><li><a href="/api/desktop/layerling/ui/utmutato/files-and-saving.html" aria-current="page">Fájlok, mentés és megosztás</a></li><li><a href="/api/desktop/layerling/ui/utmutato/shortcuts.html">Billentyűparancsok</a></li><li><a href="/api/desktop/layerling/ui/utmutato/ai-with-mcp.html">Építés MI-vel (MCP)</a></li><li><a href="/api/desktop/layerling/ui/utmutato/offline-and-install.html">Telepítés alkalmazásként, offline munka és saját üzemeltetés</a></li><li><a href="/api/desktop/layerling/ui/utmutato/videos.html">Videók a layerlingről</a></li><li><a href="/api/desktop/layerling/ui/utmutato/tablet-and-touch.html">Tablet and touch</a></li></ol></nav>
+      <main>
+<h1>Fájlok, mentés és megosztás</h1>
+<p class="lead">Hol vannak a terveid, hogyan készíts róluk biztonsági mentést, milyen formátumokat importál és exportál a layerling, és mi lehetséges egy közös szerveren.</p>
+<div class="toc"><b>Ezen az oldalon</b><ul><li><a href="#hol-vannak-a-terveid">Hol vannak a terveid</a></li><li><a href="#mappak-a-terveidhez">Mappák a terveidhez</a></li><li><a href="#biztonsagi-mentes-es-tovabbadas">Biztonsági mentés és továbbadás</a></li><li><a href="#mellekletek">Mellékletek</a></li><li><a href="#exportalas">Exportálás</a></li><li><a href="#importalas">Importálás</a></li><li><a href="#importalt-halo-egyszerusitese">Importált háló egyszerűsítése</a></li><li><a href="#importalt-halo-pontossa-tetele">Importált háló pontossá tétele</a></li><li><a href="#hiba-jelentese">Hiba jelentése</a></li><li><a href="#koezoes-tervek-egy-szerveren">Közös tervek egy szerveren</a></li></ul></div>
+<section class="guide-part"><h2 id="hol-vannak-a-terveid"><span class="heading-alias" id="where-your-designs-live"></span>Hol vannak a terveid</h2>
+<p>A layerling mindent a számítógépeden lévő böngészőben ment. Nincs fiók, és semmi sem töltődik fel. Minden változtatás magától mentődik. A kezdőlapon lévő előnézeti kép azt a nézetet mutatja, amely utoljára előtted volt, amikor a <strong class="ui">„Kezdőlap”</strong> gombbal visszamentél. Ha napokkal később ugyanabban a böngészőben nyitod meg a layerlinget, minden ott van.</p>
+<p>Ha egy üres tervből mész vissza a kezdőlapra, a layerling megkérdezi, megtartsa-e. Az <strong class="ui">„Igen”</strong> vagy az <kbd>Enter</kbd> megtartja, a <strong class="ui">„Nem”</strong> eltávolítja, így nem gyűlnek fel az üres tervek. A szerveren lévő közös mappában lévő tervnél a <strong class="ui">„Nem”</strong> a szerverről törli a fájlt, mindenki számára, aki a szervert használja.</p>
+<p>Ennek van egy hátulütője: aki törli a böngésző tárolóját, vagy másik számítógépre vált, elveszíti a terveket. <strong>A fontos munkáidról ezért készíts biztonsági mentést egy fájlba.</strong></p>
+</section><section class="guide-part"><h2 id="mappak-a-terveidhez"><span class="heading-alias" id="folders-for-your-designs"></span>Mappák a terveidhez</h2>
+<p>Több tucat tervnél egyetlen lista már nem elég. A kezdőlapon a <strong class="ui">„Új mappa”</strong> mappát készít ennek a böngészőnek a terveihez; a mappára kattintva megnyílik. A mappák mappákat is tartalmazhatnak.</p>
+<ul><li><strong>Mappába:</strong> húzz egy tervet a mappára, vagy válaszd a terv menüjében a <strong class="ui">„Áthelyezés ide …”</strong> pontot, amely minden mappát felsorol. Egy új terv, valamint egy fájl, amelyet nyitott mappa mellett nyitsz meg vagy importálsz, ebbe a mappába kerül.</li><li><strong>Ki újra:</strong> egy mappa első csempéje, a <code>..</code>, és a fülek alatti sor vezet vissza; ezekre is ejthetsz tervet. Egy másik mappára húzott mappa abba kerül.</li><li><strong>Átnevezés és törlés</strong> a mappa menüjében van. Egy mappa törlése nem töröl tervet: ami benne volt, egy szinttel feljebb kerül.</li><li><strong>Keresés</strong> minden mappában keres; egy megtalált terv megmutatja a mappáját, és rákattintva megnyílik a mappa.</li></ul>
+<p>A <strong class="ui">„Minden mentése”</strong> megőrzi a mappákat: a tervek a biztonsági mentés fájljában a mappáikban ülnek, és a mentés visszaállítása oda teszi vissza őket. Ennek a böngészőnek a mappái külön vannak a szerveren lévő mappáktól. A kártyaképek is bekerülnek a fájlba, így a visszaállítás után azonnal visszatérnek.</p>
+</section><section class="guide-part"><h2 id="biztonsagi-mentes-es-tovabbadas"><span class="heading-alias" id="backing-up-and-passing-on"></span>Biztonsági mentés és továbbadás</h2>
+<p>A kezdőlapon minden tervnek van egy menüje az átnevezés, a másolatkészítés és a törlés lehetőségével. A fülek melletti sorban minden fülön ugyanazok a gombok vannak. Ha egyszerre több tervet törölnél, kattints a(z) <strong class="ui">„Select”</strong> gombra: egy kártyára kattintva kiválasztod (egy pipa mutatja, mi van kiválasztva), a(z) <strong class="ui">„Select all”</strong> a lista minden tervét kiválasztja, a(z) <strong class="ui">„Törlés”</strong> pedig egyszer kérdez rá mindegyikre. A(z) <strong class="ui">„Done”</strong> vagy az <kbd>Esc</kbd> kilép a kiválasztásból. A <strong class="ui">„Minden mentése”</strong> gombbal a nyitott fül összes tervét egyetlen ZIP-fájlba csomagolod. A mellette lévő <strong class="ui">„Mentés visszaállítása”</strong> (új, tervek nélküli számítógépen is ott van) visszahozza őket, másik böngészőben vagy másik számítógépen is; a <strong class="ui">„Terv megnyitása vagy geometria importálása”</strong> ugyanezt a fájlt fogadja. Ennek a böngészőnek a <strong class="ui">„Saját alakzatok”</strong> ugyanabban a fájlban utaznak, a <code>Custom shapes</code> mappában, lásd az <a href="/api/desktop/layerling/ui/utmutato/shapes.html">Alakzatok</a> fejezetet. Ha olyan böngészőbe állítasz vissza mentést, amelyben ezek közül néhány terv már megvan, azok nem kerülnek be még egyszer; az üzenet megmondja, hányat találtunk már meg. Egy olvashatatlan terv kimarad, és az üzenet megnevezi. Ha az oldal egy mentés közben újratöltődik, általában mert egy nagyon nagy terv elfoglalta a böngésző által engedett összes memóriát, a kezdőlap utána megmondja, melyik tervnél állt meg: azt mentsd el külön fájlként (lásd lent), vagy egyszerűsítsd a legnagyobb hálóit, majd készíts újra mentést. A kártyák előnézeti képei is bekerülnek a fájlba, így visszaállítás után azonnal megjelennek. A böngésző tervei fölött egy rövid sor emlékeztet arra, hogy máshol nincsenek meg.</p>
+<p>Csak néhány terv: a <strong class="ui">„Select”</strong> után a <strong class="ui">„Mentés”</strong> csak a kiválasztott terveket csomagolja a mappáikkal együtt egy ZIP-fájlba, egy mappa menüjében pedig a <strong class="ui">„Mentés”</strong> a mappát csomagolja a benne lévő összes tervvel és mappával. Egyik sem viszi magával a saját formákat, és a <strong class="ui">„Mentés visszaállítása”</strong> mindkettőt visszahozza, mint egy teljes mentést. Ez a böngésző saját terveire vonatkozik.</p>
+<p>Hová kerül a biztonsági mentés: Chrome-ban és Edge-ben egy mentési ablak megkérdezi a mappát és a nevet, és a következő mentéshez megjegyzi a mappát. Így a mentések egyenesen egy saját mappába kerülnek, például egy felhőtárhelyre. Ugyanez érvényes erre is: <strong class="ui">„Saját alakzatok biztonsági mentése”</strong>. Más böngészők a letöltési mappájukba teszik a fájlt; hogy ez melyik mappa, azt a böngésző beállításaiban lehet megadni.</p>
+<p>Ha egy terv nagyon lassan vagy egyáltalán nem nyílik meg, többnyire azért, mert a visszavonási lépések előzménye nagyon nagyra nőtt, válaszd a kezdőlapon a menüjében a <strong class="ui">„Open without history”</strong> pontot. A layerling ekkor csak a jelenlegi állapotot olvassa be, minden korábbi lépést véglegesen töröl, és megnyitja a tervet; előtte rákérdez, mert ez nem vonható vissza. Ha meg akarod tartani a lépéseket, előbb ments a tervről a <strong class="ui">„Mentés”</strong> gombbal.</p>
+<p>Egy tervről a szerkesztőben készítesz biztonsági mentést: <strong class="ui">„Exportálás”</strong>, válaszd a <strong>LYL</strong> formátumot, és kattints a <strong class="ui">„layerling terv mentése”</strong> gombra. A LYL fájl a layerling saját tervformátuma, és mindent tartalmaz: alakzatokat, csoportokat, vázlatokat, CAD-adatokat, importált forrásokat és az előzményeket, vagyis a visszavonási lépéseket. A <strong class="ui">„Mentett műveleti előzmények”</strong> alatt választod ki, hány utolsó lépés utazzon vele; azzal az értékkel indul, amelyet a beállítások (a fogaskerék a szalagon) az <strong class="ui">„Előzmények”</strong> alatt megtartanak. Az utolsó állás, a <strong class="ui">„Nincs”</strong>, csak a terv jelenlegi állapotát menti – így oszthatsz meg egy fájlt a visszavonási lépései nélkül. Az export egy másolat az általad megadott <strong class="ui">„Fájlnév”</strong> alatt; a böngésződben lévő terv megtartja az előzményeit. A korábbi verziókból származó régebbi <code>.skf</code> fájlok továbbra is megnyithatók; ilyenkor <code>.lyl</code>-ként mentődnek.</p>
+<p><strong>Mentés a saját mappádba (Chrome és Edge).</strong> Ott a gomb a rendszered mentési ablakát nyitja meg, így magad választod ki a mappát és a nevet, és egy meglévő fájl le is cserélhető. Ezután a <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>S</kbd></span> ablak nélkül újra ugyanabba a fájlba menti a tervet. Egy <code>.lyl</code> fájlból a <strong class="ui">„Terv megnyitása vagy geometria importálása”</strong> gombbal vagy az exportálási ablak megnyitás gombjával megnyitott terv is abba a fájlba ment vissza. A böngésző egyszer engedélyt kérhet a fájl módosításához. Az oldal újratöltése után a terv elfelejti a fájlját, és a következő <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>S</kbd></span> újra rákérdez; az ablak az utoljára használt mappában indul. A Firefox és a Safari nem engedi, hogy egy oldal így fájlokba írjon. Ott a fájl a korábbiakhoz hasonlóan a Letöltések mappába töltődik le, és a <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>S</kbd></span> újra letölti; a Firefoxban a beállítások letöltésekre vonatkozó részében beállítható, hogy minden alkalommal rákérdezzen a mappára. Ha ott más nevet adsz a fájlnak, a terv megtartja a sajátját, mert a fájlnévben lévő verzió vagy dátum gyakran szándékos; a mentés utáni üzenet ilyenkor felajánlja ezt: <strong class="ui">„A tervet is nevezd így”</strong>.</p>
+<p><strong>Ha a mentési ablak nem ment semmit.</strong> Ha az ablak fájl nélkül záródik be, a fenti üzenet jelzi ezt, és felajánlja a(z) <strong class="ui">„Letöltés helyette”</strong> lehetőséget: a terv ekkor a Letöltések mappába kerül, mint a Firefoxban. A böngésző a Mégse gombbal bezárt ablakot ugyanúgy jelzi, mint azt, amelyet nem tudott használni, így olyan gépen, ahol a mentési ablak minden mappában hibázik, így menthetsz tovább.</p>
+</section><section class="guide-part"><h2 id="mellekletek"><span class="heading-alias" id="attachments"></span>Mellékletek</h2>
+<p>Útmutató, alkatrészlista, jegyzetek, egy fénykép vagy egy adatlap fájlként a tervvel maradhat. A szalag <strong class="ui">„Fájl”</strong> csoportjának <strong class="ui">„Attachments”</strong> gombja, a gemkapocs, megnyitja a listát; a gemkapcson egy kis pont jelzi, hogy a tervnek van melléklete.</p>
+<ul><li><strong><strong class="ui">„Upload attachment”</strong>:</strong> válassz egy vagy több fájlt: <code>.md</code> (Markdown) vagy <code>.txt</code> egyszerű szövegként (UTF-8), <code>.png</code>, <code>.jpg</code>, <code>.jpeg</code> vagy <code>.webp</code> képeket, vagy <code>.pdf</code> dokumentumokat. Minden fájlt a tartalma alapján ellenőriz, így az a fájl, amely nem az, aminek a neve mondja, elutasításra kerül, más típusok, köztük az <code>.svg</code>, pedig nem csatolhatók. Egy szövegfájl legfeljebb 2 MB, egy kép 16 MB, egy PDF 32 MB lehet; egy terv legfeljebb 32 fájlt és összesen 64 MB-ot tartalmazhat.</li><li><strong>A lista:</strong> a nyíl úgy tölti le a fájlt, ahogy feltöltötték. A kuka eltávolítja; a sor előtte még egyszer rákérdez, és egy eltávolított fájl nem hozható vissza visszavonással, mert a mellékletek nem részei a visszavonási előzményeknek.</li><li><strong>Fájl olvasása:</strong> egy <code>.md</code> vagy <code>.txt</code> fájl sorában a szem letöltés nélkül megnyitja egy ablakban olvasásra. A Markdown formázva jelenik meg, címekkel, listákkal, jelölőnégyzetekkel, táblázatokkal és kóddal; a szövegfájl pontosan úgy, ahogy írták. Csak a weboldalakra és e-mail-címekre mutató hivatkozások működnek, és új lapon nyílnak meg. A fájlban említett képek nem töltődnek be: helyükön a leírásuk áll. Az Esc, a kereszt vagy egy kattintás az ablak mellé bezárja. Az olvasás az előzménynézetben is működik.</li><li><strong>Kép megtekintése:</strong> egy kép sorában a szem ugyanabban az ablakban nyitja meg, nagy kép esetén kicsinyítve. Egy PDF-nek nincs szeme: töltsd le, és nyisd meg azzal a programmal, amellyel PDF-eket olvasol.</li><li><strong>Már létező név:</strong> a layerling megkérdezi, mit tegyen. A <strong class="ui">„Replace”</strong> az új tartalmat az ilyen nevű fájlba teszi, amely megtartja a helyét a listában. A <strong class="ui">„Átnevezés”</strong> más néven adja hozzá az új fájlt, és az első szabad nevet javasolja, például <code>notes 2.md</code>. A kereszt kihagyja az új fájlt. A kis- és nagybetűk ugyanannak számítanak, és ugyanannak a fájlnak az újbóli feltöltése nem változtat semmit.</li></ul>
+<p>A mellékletek mindennel együtt mentődnek a tervvel: a böngészőben, egy LYL-fájlban, egy biztonsági mentésben és egy szerveren lévő tervben, ahová azonnal eljutnak, amint egyet hozzáadnak vagy eltávolítanak. Nem jönnek át a <strong class="ui">„Beillesztés ebbe a tervbe”</strong> funkcióval vagy egy saját alakzattal, és egy hibajelentés sem tartalmazza őket. Egy mellékletekkel rendelkező terv egy újabb fajta LYL-fájlként mentődik: egy régebbi layerling azt mondja, hogy nem tudja megnyitni, ahelyett hogy elhagyná a fájlokat. Egy melléklet nélküli terv pontosan úgy mentődik, mint korábban.</p>
+</section><section class="guide-part"><h2 id="exportalas"><span class="heading-alias" id="exporting"></span><span class="heading-alias" id="svg-for-a-laser-or-plotter"></span><span class="heading-alias" id="a-drawing-for-the-workshop"></span><span class="heading-alias" id="how-much-filament-does-it-take"></span>Exportálás</h2>
+<p>Kattints az <strong class="ui">„Exportálás”</strong> gombra, vagy nyomd meg a <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>E</kbd></span> billentyűt.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/export-panel.webp" alt="Az exportálási ablak az STL, 3MF, OBJ, STEP, SVG, PNG, LYL és 2D formátummal." width="1280" height="800" loading="lazy"><figcaption>Az exportálási ablak az STL, 3MF, OBJ, STEP, SVG, PNG, LYL és 2D formátummal.</figcaption></figure>
+<p>Felül van a fájlnév, alatta választod ki a formátumot. Ha valami ki van jelölve, csak a kijelölés exportálódik, különben a teljes terv. Ha a kijelölés látható részeket hagy ki, az ablakban egy megjegyzés ezt egyértelműen jelzi, és az <strong class="ui">„Az összes kijelölése”</strong> egy kattintással mindent kijelöl, ami látható. Amint a fájl kiíródott, az ablak magától bezárul; ha az exportálás nem sikerül, az üzenettel együtt nyitva marad.</p>
+<div class="table-scroll"><table><thead><tr><th>Formátum</th><th>Mire</th><th>Amit tudni érdemes</th></tr></thead><tbody><tr><td><strong>STL</strong></td><td>szeletelő és 3D nyomtatás</td><td>Háromszögháló. A legegyszerűbb és legelterjedtebb formátum. Az STL-nek nincsenek részei: az egymásba lógó testek egyetlen hálóvá egyesülnek. Ha külön részekként akarod megtartani őket, exportálj 3MF-et. Chrome-ban és Edge-ben az első STL-export megkérdezi, hová mentsen, a terv későbbi STL-exportjai pedig ebbe a fájlba írnak, amíg a fájlnév mezőbe másik nevet nem írsz, vagy meg nem nyomod a <strong class="ui">„Mentés másként…”</strong> gombot.</td></tr><tr><td><strong>3MF</strong></td><td>szeletelő színekkel</td><td>Minden test önálló rész marad a nevével és a színével. Az egymásba lógó testek csak akkor egyesülnek, ha azonos a színük; ahol egy alakzat egy másik színűn belül ül, mondjuk egy logó egy lapban, az elsőként épített helyet hagy a későbbinek. A PrusaSlicerhez, a Bambu Studióhoz, az OrcaSlicerhez és a Curához való. A Bambu Studio és az OrcaSlicer megnyitáskor megkérdezi, hogyan rendelje a színeket a filamentjeidhez, és a fájlt „nem a Bambutól származónak” nevezi – az üzenet ártalmatlan. Az OrcaSlicer és a rá épülő szeletelők azonban laponként nem olvasnak színt. Ezért ha a fájlban van több színű test, például saját színű betűkkel ellátott Gridfinity-rekesz vagy olyan csoport, amelyben be van kapcsolva a <strong class="ui">„Többszínű”</strong>, a fájl minden lapja a színe filamentjével is ki van festve, ahogy a szeletelőben való festés tenné: az OrcaSlicer és a PrusaSlicer 2.9 így minden színt a saját filamentjével nyomtat, a PrusaSlicer legfeljebb 15 színig, a Bambu Studio 2.9 pedig kérdezés helyett a festésből veszi a filamenteket.</td></tr><tr><td><strong>OBJ</strong></td><td>modellezés és adatcsere</td><td>Széles körben támogatott hálóformátum. A színek csúcspontszínekként ugyanabban a fájlban tárolódnak, külön <code>.mtl</code> nélkül. A Bambu Studio és az OrcaSlicer beolvassa őket, és a 3MF-hez hasonlóan megkérdezi, hogyan rendelje őket a filamentjeidhez; más programok csak az alakot látják. Mint a 3MF-nél, az egymásba lógó testek csak akkor egyesülnek, ha azonos a színük.</td></tr><tr><td><strong>STEP</strong></td><td>teljes értékű CAD-program</td><td>A dobozokat, hengereket, gömböket és kúpokat pontos geometriaként őrzi meg, így a körvonalból készült alakzatokat is (csillag, szív, ellipszis, cső, félgömb, íves tető, lekerekített doboz, fecskefark, a furatok és mások), a hajlított csövet, az éket, a gúlát, a paraboloidot, az ívelt kúpot, a meneteket, rugókat és fogaskerekeket, valamint a lekerekítéseket és élletöréseket. Az első STEP-export egy munkamenetben egyszer betölti a CAD-magot (kb. 22 MB).</td></tr><tr><td><strong>SVG</strong></td><td>lézervágó és plotter</td><td>Tiszta felülnézet milliméterben, a lyukakkal és az íves körvonalakkal együtt. A <strong class="ui">„Nézet”</strong> alatt a <strong class="ui">„Felfekvési felület a munkasíkon”</strong> csak azokat a körvonalakat írja ki, amelyekkel a tárgyak a munkasíkon állnak. A(z) <strong class="ui">„Látható élek felülről”</strong> a felülről látható éleket vonalakként írja ki, minden testet a saját színében; lásd lent.</td></tr><tr><td><strong>DXF</strong></td><td>lézervágó cég</td><td>Ugyanaz a felülnézet (<strong class="ui">„Sziluett felülről”</strong> vagy <strong class="ui">„Felfekvési felület a munkasíkon”</strong>) egyetlen körvonalként, egyenesekből, valódi ívekből és körökből - nincs benne polyline, spline vagy rövid egyenesekből összerakott görbe -, a 0-s rétegen, fehér színnel, DXF 2000 formátumban, milliméterben, tükrözés nélkül. Az összeérő testekből egy körvonal lesz, így egyetlen vonal sem vágódik kétszer. A cégek fájlonként egy alkatrészt kérnek: exportálás előtt jelöld ki az alkatrészt. Lézervágón még nincs kipróbálva: a visszajelzéseket szívesen fogadjuk.</td></tr><tr><td><strong>PNG</strong></td><td>fórumbejegyzések, nyomtatási oldalak, kérdések</td><td>Kép a nézetről úgy, ahogy van, kétszeres felbontásban, fogantyúk, kijelölőkeretek és méretek nélkül. A <strong class="ui">„Tárgyasztal mutatása”</strong> és az <strong class="ui">„Átlátszó háttér”</strong> az ablakban választható. Előbb forgasd és nagyítsd, amíg a kép jó nem lesz; a kijelölés itt nem számít.</td></tr><tr><td><strong>LYL</strong></td><td>maga a layerling</td><td>A szerkeszthető terv mindennel, ami hozzá tartozik.</td></tr><tr><td><strong>2D</strong></td><td>műhely, eszterga és maró, dokumentáció</td><td>1:1 méretarányú rajz PDF-ként vagy SVG-ként: elöl-, felül- és jobb oldalnézet ISO lapon. Lásd lent.</td></tr></tbody></table></div>
+<p><strong>Hidak a kieső részekhez (DXF és SVG).</strong> Ha egy lézer vagy plotter feliratos lapot vág, az o, a és b betűk belseje kiesik. Jelöld be a(z) <strong class="ui">„Hidak a kieső részekhez”</strong> lehetőséget a DXF, vagy a felülnézetes SVG exportablakában, és kis hidak tartják az ilyen részeket a körülöttük lévő anyaghoz, mint egy sablonon: a(z) <strong class="ui">„Híd szélessége”</strong> (0,5–3 mm) és a(z) <strong class="ui">„Hidak részenként”</strong> (1–4) mellette állítható. Egy híd sosem ér hozzá egy másik körvonalhoz vagy hídhoz, és sosem hagy vágáshoz túl keskeny rést; az egymást csak kölcsönösen tartó részek a laphoz is kötődnek. Ha egy rész a választott szélességnél nem kap hidat, az export utáni üzenet megmondja, hány ilyen van. Bejelölés nélkül semmi sem változik.</p>
+<p><strong>STL a saját mappádba (Chrome és Edge).</strong> Ott egy terv első STL-exportja megnyitja a rendszered mentési párbeszédablakát, így magad választod ki a mappát és a nevet, és felülírhatsz egy meglévő fájlt. Utána a terv minden STL-exportja párbeszédablak nélkül ugyanabba a fájlba ír; az exportablak mutatja, melyikbe, és az exportgomb melletti <strong>Mentés másként…</strong> másikat választ. A párbeszédablak megjegyzi a saját mappáját, a tervekétől külön, így a szeletelőnek szánt fájlok a szeletelőnél maradhatnak. Az oldal újratöltése után a terv elfelejti az STL-fájlját, és a következő export újra rákérdez. A Firefox és a Safari a korábbiak szerint letölti a fájlt. Ha minden STL-t egyszerű letöltésként szeretnél, hogy a böngésző a már használt nevet megszámozza (<code>name (1).stl</code>, <code>name (2).stl</code>), mint a Tinkercad, kapcsold be a beállításokban a(z) <strong class="ui">„Megjelenés”</strong> alatt a(z) <strong class="ui">„Save STL as a download”</strong> kapcsolót.</p>
+<p><strong>STL a saját mappádba (Chrome és Edge).</strong> Ott egy terv első STL-exportja a rendszered mentési ablakát nyitja meg, így magad választod ki a mappát és a nevet, és egy meglévő fájlt le is cserélhetsz. Ezután a terv minden STL-exportja ablak nélkül ugyanabba a fájlba ír; az exportálási ablak mutatja, melyikbe, az exportálás gomb melletti <strong>Mentés másként…</strong> pedig másikat választ. Az ablak külön megjegyzi a saját mappáját, a tervekétől függetlenül, így a szeletelőnek szánt fájlok a szeletelőnél maradhatnak. Az oldal újratöltése után a terv elfelejti az STL-fájlját, és a következő export újra rákérdez. A Firefox és a Safari a korábbiakhoz hasonlóan letölti a fájlt.</p>
+<p>Egy csoportosítatlan lyuk exportáláskor minden olyan testből kivágódik, amelyet elér, ahogy a nézet is mutatja. Így nem kell minden exportálás előtt csoportosítani. Kijelölésnél csak a kijelölt lyukak számítanak. Egy lyuk önmagában nem exportálható; a layerling ezt jelzi.</p>
+<p>A STEP csak pontos CAD-testeket visz. Egy importált háló a fájlhoz pontossá válik, ahogy a <strong class="ui">„Make exact”</strong> teszi (lásd lent: „Importált háló pontossá tétele”), ezért az exportálás akár egy percig is tarthat; a főként szabad formájú háló, például egy figura, kimarad, ahogy minden más is, ami nem írható ki pontosan. Az exportálás utáni üzenet megnevezi ezeket a testeket, és megmondja, miért. A nyomtatóhoz STL-t vagy 3MF-et használj, ezek mindent visznek.</p>
+<p>A(z) <strong class="ui">„Nézet”</strong> alatti <strong class="ui">„Látható élek felülről”</strong> beállítással az SVG úgy mutatja a tervet, ahogy felülről látod, mint egy rajz felülnézete: minden látható él egy vonal, a más részek által takart élek kimaradnak. Minden vonal a teste színét kapja, így egy szín szerint rendező lézer- vagy plotterprogram minden színt saját rétegre tesz. Hogy egy réteget vág, karcol vagy gravíroz, azt ott választod ki.</p>
+<section class="guide-part"><h3 id="rajz-a-muhelynek">Rajz a műhelynek</h3>
+<p>Válaszd a <strong>2D</strong> formátumot (ha fölé viszed az egeret, a Rajz felirat jelenik meg), a fájlnév alatt pedig a PDF-et vagy az SVG-t. Ha valami ki van jelölve, csak a kijelölés rajzolódik meg, különben a teljes látható terv; a csoportosítatlan lyukak így is kivágják azokat a részeket, amelyeket elérnek.</p>
+<p>A layerling az elöl-, felül- és jobb oldalnézetet európai vetítési elrendezésben rajzolja meg (a jobb oldalnézet az elölnézettől balra, a felülnézet alatta), a legkisebb olyan ISO lapon A4-től A0-ig, amelyre ráfér, vagy egy nagyobbon, ha az alkatrésznek az kell. Mindig 1:1 méretarányú. Minden nézet a befoglaló szélességét és magasságát mutatja, a nem látható élek szaggatottak. Az egyik nézetiránnyal párhuzamosan futó kerek furatok középkeresztet és jelet kapnak (F1, T1, R1), alul pedig egy táblázat sorolja fel az átmérőjüket és a helyzetüket, a nézet bal alsó sarkától mérve. A jobb alsó sarokban lévő szövegmező a nevet, a méretarányt, a mértékegységet, a dátumot és a lapszámot tartalmazza. A lapon lévő szavak a kezelőfelület nyelvét követik.</p>
+<p>100%-os vagy „tényleges méretben” nyomtasd, különben a hosszak nem stimmelnek. Amit a rajz nem tud: a menetek, a mélységek, a tűrések és a ferde furatok nincsenek beméretezve, a méretek pedig hálóként a modellből származnak, így névlegesek. Egy nagyon részletes alkatrészt (100 000 háromszög fölött) vagy 200-nál több furatot üzenettel elutasít; ilyenkor válassz kevesebb objektumot.</p>
+<p>A vetítés a WC3D Cadverix-3D programjának rajzkészítő munkáján alapul.</p>
+</section><section class="guide-part"><h3 id="mennyi-filament-kell-hozza">Mennyi filament kell hozzá?</h3>
+<p>STL-nél, 3MF-nél, OBJ-nél és STEP-nél az <strong class="ui">„Anyag”</strong> doboz az exportált dolog térfogatát, tömegét és 1,75 mm-es filamentben mért hosszát mutatja. Úgy számol, mint a fájl: csak a látható testeket, a lyukak levonásával, az átfedéseket csak egyszer. Jobbra kiválasztod a filamentet – PLA, PETG, ABS, ASA, TPU vagy PA (nejlon) –, és a tömeg a sűrűségét követi. A térfogat a test sajátja. A tömeg és a filament falakkal és kitöltéssel nyomtatott alkatrészre vonatkozó durva becslés: a címsor alatt állítod be a <strong class="ui">„Kitöltés”</strong> (kezdetben 15%) és a <strong class="ui">„Falak”</strong> (2) értékét, a doboz pedig megmondja, mivel számolt, és mennyi lenne ugyanennek az alkatrésznek a tömege tömören. A valódi számot a szeletelőd beállításai döntik el, ezért vedd tájékoztatónak: tervek összehasonlítására és arra jó, hogy kitart-e a tekercs. 100%-os kitöltésnél a doboz tömörnek veszi az alkatrészt, ez a felső határ. A doboz akkor számolja ki a számait, amikor megnyomod a(z) <strong class="ui">„Calculate”</strong> gombot, így az exportablak egy finoman átrajzolt modellnél is azonnal megnyílik.</p>
+</section></section><section class="guide-part"><h2 id="importalas"><span class="heading-alias" id="importing"></span>Importálás</h2>
+<p>Az <strong class="ui">„Importálás”</strong> gombbal vagy a <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>I</kbd></span> billentyűvel hozol be idegen fájlokat a tervbe.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/import-panel.webp" alt="Az importálási ablak: tervek megnyitása vagy beillesztése és geometria behúzása." width="1280" height="800" loading="lazy"><figcaption>Az importálási ablak: tervek megnyitása vagy beillesztése és geometria behúzása.</figcaption></figure>
+<ul><li><strong><strong class="ui">„layerling terv megnyitása”</strong>:</strong> Egy layerling terv (<code>.lyl</code> vagy egy régebbi <code>.skf</code>) új tervként tér vissza.</li><li><strong><strong class="ui">„Beillesztés ebbe a tervbe”</strong>:</strong> Egy layerling terv testei a nyitott tervhez adódnak. Hasznos az újra és újra szükséges alapalakzatokhoz: építsd meg őket egyszer, mentsd el, és hozd be minden alkalommal. Ha egy vagy több <code>.lyl</code> fájlt az alatta lévő területre húzol, ugyanígy beszúródnak. A <a href="/api/desktop/layerling/ui/utmutato/measuring-and-notes.html">jegyzetei</a> vele jönnek, összecsukva, és a tervben már meglévők után folytatólagosan számozva, és ugyanígy a referenciapontjai is.</li><li><strong><strong class="ui">„Insert from the server”</strong>:</strong> Ugyanez a szerveren tárolt tervhez (akkor jelenik meg, ha van szerveres tár). Válaszd ki a mappát, és kattints a tervre; a testei hozzáadódnak a megnyitotthoz.</li><li><strong>DXF:</strong> Egy DXF, ahogy egy lézervágó cég vagy egy beszállító egy alkatrész körvonalát küldi, szerkeszthető részekként érkezik: minden zárt körvonalból egy 4 mm magas test lesz, a benne lévő minden furatból pedig egy külön furat mellette (a kerekből henger), így a furatot a 3D szerkesztőben ugyanúgy mozgatod és méretezed, mint bármelyik másikat; az alkatrész mozgatásához jelöld ki mindet. Milliméterben (a hüvelykben rajzolt fájl át lesz számolva, a mértékegység nélküli milliméterként olvasódik be), az ívek és körök valódi ívek maradnak. Beolvasott elemek: egyenesek, ívek, körök, ellipszisek, polyline-ok, spline-ok és blokkok; a szöveg, a méretvonalak és a sraffozás kimarad, ahogy a nem záródó körvonalak is - az üzenet megmondja, hány. A vastagságot a tulajdonságoknál állítod be.</li><li><strong>Geometria hozzáadása:</strong> Ejts STL, OBJ, 3MF, STEP, SVG, PNG vagy JPG fájlokat az ablakba, vagy kattints egy fájl kiválasztásához. Az importált hálók forgathatók, mozgathatók, lyukakkal vághatók, és építhetsz rájuk. Az SVG vázlattestként érkezik, egy körvonalazóból, például a picsvg.com-ról vagy az Inkscape „Trace Bitmap” (bitkép vektorizálása) funkciójából származó is: a körvonalai egy vázlat vonalai és görbéi lesznek, 4 mm magasan, felülről olvashatóan, mint a rajzon. A tulajdonságok között beállítod a <strong class="ui">„Kitöltés”</strong> módját, felületet vagy kívül, belül vagy középen futó vonalat, a <strong class="ui">„Sziluett (lyukak nélkül)”</strong> pedig kihagyja a lyukakat, lásd a <a href="/api/desktop/layerling/ui/utmutato/sketches.html">Vázlatok</a> fejezet „Kitöltés és sziluett” részét. Magukat a pontokat vázlatmódban változtatod meg. Csak egy nagyon bonyolult, 2500-nál több vonalat és görbét tartalmazó SVG érkezik rögzített hálóként. Egy PNG- vagy JPG-kép körvonallá alakul, és ugyanígy érkezik, 50 mm széles vázlattestként, amelyet utána átméretezhetsz: a képnek az a része, amelyik nem a háttere, a háttér pedig az a rész, amelyik a kép szélének nagyobb részét foglalja el. Egy olyan SVG, amely csak egyetlen képet tartalmaz, ugyanígy alakul körvonallá. Az az alakzat, amely nem építhető tömör testté, például egy önmagát keresztező vagy egy pontban önmagát érintő körvonal, kimarad, és importálás után a layerling megmondja, hány ilyen volt. Ilyenkor segít, ha a rajzprogramban egyesíted az egymásba lógó darabokat, lezárod a körvonalakat, és újra elmented a fájlt. Az egy lapon készült rajzok, például egy dokumentum külön fájlokba exportált rétegei, újra egymáshoz illeszkednek, ha importálás előtt bekapcsolod az importálási ablakban a <strong class="ui">„SVG: a hely megtartása a rajzlapon”</strong> kapcsolót: mindegyik megtartja a helyét a lapon, különben mindegyik önmagára van középre igazítva. A több színnel rajzolt SVG is színenként egy testként érkezik, mindegyik a saját színében és a helyén; 12-nél több színnel, amennyi egy körberajzolt képnek van, egy test marad. Egy színes OBJ vagy 3MF színenként egy testként érkezik, mindegyik a helyén. Egy OBJ-ben a színek vagy magában a fájlban vannak, mint egy layerlingből származó OBJ-ben, vagy egy mellette lévő <code>.mtl</code> fájlban. Azt is jelöld ki, vagy importáld az egész ZIP-et, ahogy a Tinkercad kiadja az OBJ-jét. Egy 3MF maga hordozza a színeit, egy Bambu Studióból, OrcaSlicerből vagy PrusaSlicerből származó projektben pedig minden rész a filamentje színét kapja. Egy több objektumot tartalmazó 3MF, például egy tárgyasztalonként egy objektumot tartalmazó projekt, objektumonként egy testként érkezik; a szeletelő módosítói, negatív térfogatai és támaszblokkolói kimaradnak. A szeletelőben a lapokra festett színt nem olvassa be.</li><li><strong>Tinkercadből:</strong> A Tinkercad STL- vagy OBJ-exportja geometriaként jön be, mint bármely háló; az OBJ megtartja a színeket. A valódi formák a közösség ingyenes eszközével jönnek át: <a href="https://taylormadearmy.github.io/tinkercad-layerling-importer/" rel="noopener">Export to layerling</a> taylormadearmytól, egy könyvjelző, amely a böngésződben egy Tinkercad-tervet <code>.lyl</code> fájllá alakít, amelyet itt a <strong class="ui">„layerling terv megnyitása”</strong> paranccsal nyitsz meg. Nem része a layerlingnek, és mi magunk még nem próbáltuk ki; a készítője Windowson, Chrome-mal tesztelte.</li></ul>
+<p>Egy <strong>újabb layerlinggel</strong> mentett terv olyasmit tartalmazhat, amit a te verziód még nem ismer, például egy új alakzatot, egy új beállítást vagy saját betűtípusokat. Ha a layerling emiatt nem tudja megnyitni, az üzenet mindkét verziót megnevezi. Ha megnyílik, az értesítés jelzi, hogy az újabb dolgok itt másképp nézhetnek ki. Mindkét esetben az oldal újratöltése segít: a layerling.com mindig a legújabb verziót adja. A telepített alkalmazás a következő indításkor veszi át; a saját szervereden te telepíted a frissítést.</p>
+<p>A mintaképeket vázlatmódban adod hozzá, lásd a <a href="/api/desktop/layerling/ui/utmutato/sketches.html">Vázlatok</a> fejezetet.</p>
+</section><section class="guide-part"><h2 id="importalt-halo-egyszerusitese"><span class="heading-alias" id="simplifying-an-imported-mesh"></span>Importált háló egyszerűsítése</h2>
+<p>Egy szkennelt vagy szobrászprogramban készült háló gyakran sokkal több háromszögből áll, mint amennyi az alakjához kell, és mindegyiket magával cipeli mozgatáskor, vágáskor és mentéskor. A Módosítás csoportban (vagy a test jobb gombos menüjében) a <strong class="ui">„Háló egyszerűsítése”</strong> a hálót a jelenlegi állapotában mutatja amellé, ami a háromszögek kiválasztott hányadából maradna belőle; mindkét nézet együtt forog és nagyít a munkasík egérgombjaival. Add meg százalékban vagy háromszögszámban, mennyi maradjon meg, és az <strong class="ui">„Egyszerűsítés”</strong> a könnyebb hálót veszi át. Az eredmény egyszerű háló: egy vágás vagy egyesítés eredményénél a <strong class="ui">„Csoport szerkesztése”</strong> és az eredeti részek elvesznek. Bekapcsolt <strong class="ui">„Keep edges and holes”</strong> mellett – kezdetben így áll – az éles élek és a furatok peremei pontosan a helyükön maradnak, a sík lapok viszont így is elveszítik háromszögeik nagy részét; kikapcsolva az egyszerűsítés le is kerekítheti őket, hogy kevesebb háromszög maradjon. Ha az egyszerűsítés a kért szám fölött megáll, az ablak ezt jelzi, és azt is, miért: bekapcsolt <strong class="ui">„Keep edges and holes”</strong> mellett a sík lapokból és éles élekből álló test, például kockák és ékek, gyakran nem veszíthet többet.</p>
+<p>Egy importált háló vágása, egyesítése és metszése a böngésződben számolódik, ezért a munkaterület beállításai korlátozzák, hány háromszöge lehet egy ilyen hálónak (<strong class="ui">„Importált hálók vágása eddig”</strong>). A határ fölötti hálót nem dolgozza fel, és az üzenet megnevezi a háromszögszámát; előbb egyszerűsítsd a hálót, vagy emeld a határt, ha a géped bírja.</p>
+</section><section class="guide-part"><h2 id="importalt-halo-pontossa-tetele"><span class="heading-alias" id="making-an-imported-mesh-exact"></span>Importált háló pontossá tétele</h2>
+<p>Egy STL-, OBJ- vagy 3MF-fájl csak háromszögeket tartalmaz, akkor is, ha az alkatrészt CAD-ben rajzolták sík lapokkal és kerek furatokkal. A <strong class="ui">„Módosítás”</strong> csoportban (vagy a test jobb gombos menüjében) a <strong class="ui">„Make exact”</strong> megkeresi ezekben a háromszögekben azokat a síkokat, hengereket, kúpokat, gömböket és tóruszokat, amelyekből készültek, és belőlük pontos CAD-testként építi újra a testet: egy furat egyetlen valódi henger lesz kerek peremmel száz keskeny csík helyett. Ezután a <strong class="ui">„Lekerekítés”</strong> és a <strong class="ui">„Élletörés”</strong> egyetlen tiszta élt követ, a <strong class="ui">„Lap törlése”</strong> egy egész lekerekítést vagy egy furat falát veszi el, a STEP-export pedig a valódi lapokat viszi. Az állapotsor megmondja, hány síkot, hengert és egyéb felületet talált.</p>
+<p>Ami egyik ilyen felülethez sem illik, kis sík lapocskákként marad, és az üzenet megmondja, a felület mekkora része ez. Egy főként szabad formájú test, például egy figura vagy egy mintázott forma, háló marad, ahogy az a háló is, amelyben rések vagy egymást keresztező falak vannak, mert nem zárulhat testté. Legfeljebb 400 000 háromszöget fogad el, és egy nagy háló néhány percig is eltarthat. Egy nagyobb hálót előbb a <strong class="ui">„Háló egyszerűsítése”</strong> eszközzel, bekapcsolt <strong class="ui">„Keep edges and holes”</strong> mellett vihetsz e határ alá; egyébként a hálót úgy használd, ahogy érkezett, így lesz a legtisztább. Egy visszavonás visszahozza a hálót.</p>
+<p>Kerek lapokat tartalmazó kis hálónál, legfeljebb 4000 háromszögig, az élszerszámok maguktól megteszik ezt: egy ilyen STL élének lekerekítése előbb ugyanígy építi újra.</p>
+</section><section class="guide-part"><h2 id="hiba-jelentese"><span class="heading-alias" id="reporting-a-bug"></span>Hiba jelentése</h2>
+<p>Ha a layerling valami váratlant csinál, ments egy <strong class="ui">„Hibajelentés”</strong> fájlt: a link alul, a láblécben van, a fórum mellett. ZIP-fájl, mert a GitHub és sok fórum elutasítja a puszta .lyl fájlt: benne van a terved .lyl-ként és egy rövid szövegfájl a verzióval, a böngészővel, a képernyőmérettel, az utolsó üzenetekkel és az esetleges hibákkal. A kezdőlap úgy nyitja meg a ZIP-et, mint egy biztonsági mentést, vagy kicsomagolod, és megnyitod a .lyl-t. Nincs benne semmi személyes. Csatold a fájlt a fórumban vagy a GitHubon írt bejegyzésedhez, hogy a hibát pontosan a te terveddel lehessen követni.</p>
+<p>Ha a layerling hibával leáll, üres oldal helyett egy ablak jelenik meg a hibaüzenettel. Innen elmentheted .lyl fájlként a terv utoljára a böngészőben tárolt állapotát, visszamehetsz az áttekintéshez, vagy új tervet kezdhetsz. Az ablakban lévő hibaüzenet és a mentett fájl segít, amikor jelented.</p>
+</section><section class="guide-part"><h2 id="koezoes-tervek-egy-szerveren"><span class="heading-alias" id="shared-designs-on-a-server"></span>Közös tervek egy szerveren</h2>
+<p>Ha a layerling a saját számítógépeden vagy webszervereden fut, felkínálhat egy közös mappát, amelyben minden felhasználó tárolja a terveit. A kezdőlap ekkor két fülön mutatja a terveket: <strong class="ui">„Szerver”</strong> a közös mappáé, a másik ezé a böngészőé, mindegyiken a tervek számával; az a fül áll elöl és van nyitva, amelyiken több terv van. Ott mappákat hozhatsz létre, húzással mozgathatsz terveket, és az egész mappában kereshetsz. Az ott lévő terv magától oda ment vissza. Egy ebből a böngészőből származó terv úgy kerül a szerverre, hogy a kártyáját a <strong class="ui">„Szerver”</strong> fülre húzod, vagy a kártya menüjében a <strong class="ui">„Feltöltés a szerverre”</strong> lehetőséget választod. Amíg a <strong class="ui">„Szerver”</strong> fül nyitva van, a <strong class="ui">„Új 3D terv létrehozása”</strong> és a <strong class="ui">„Mentés visszaállítása”</strong> a szerver nyitott mappájába teszi a tervet, a <strong class="ui">„Minden mentése”</strong> pedig a szerver összes tervét a mappáikkal és a saját alakzatait egyetlen ZIP-fájlba csomagolja. A kezdőlap a fájlnevével mutat egy tervet, így ha egy tervet átnevezel, a kártyáján vagy a szerkesztő tetején, a szerveren lévő fájl is átneveződik. Egy terv vagy mappa törlése véglegesen eltávolítja, a böngészőben lévő munkapéldányával együtt. A szerveren tárolt saját alakzatok a <code>Custom shapes</code> mappájában vannak, lásd az <a href="/api/desktop/layerling/ui/utmutato/shapes.html">Alakzatok</a> fejezetet.</p>
+<p>Két dolog gyorsítja ezt: a kezdőlapon a <strong class="ui">„Mind fel a szerverre”</strong> egyszerre feltölti a böngésző összes tervét a szerverre, az <strong class="ui">„Új tervek a szerveren”</strong> bepipálása pedig azt eredményezi, hogy minden új terv a szerver mappájában induljon, így már az első változtatástól ott mentődjön. A pipa ebben a böngészőben megmarad. Egy terv, amely nem kerülhet fel – mondjuk a neve már foglalt a szerveren –, a böngészőben marad, és az üzenet megmondja, hány ilyen van.</p>
+<p>A többi exportformátum (STL, 3MF, OBJ, STEP, SVG, PNG és a rajz) ugyanabba a mappába is kerülhet: az exportablakban a(z) <strong class="ui">„Mentés a szerverre”</strong> a fájlt a terved mellé írja, vagy egy nem a szerveren lévő tervnél abba a mappába, amelyet a kezdőlapon nyitva tartasz. Egy program, amely osztozik a mappán, például egy Dockerben futó szeletelő, onnan megnyithatja. A fájl nem jelenik meg a tervek listájában. Ha már van ott ilyen nevű fájl, az üzenet jelzi, és a gomb újbóli megnyomása lecseréli.</p>
+<p>Ez nem egyidejű szerkesztés: aki megnyit egy fájlt, a saját másolatán dolgozik. Ha közben valaki más módosította a fájlt, a layerling megtagadja a felülírását.</p>
+<p>A layerling.com-on ez a funkció nincs bekapcsolva. Hogy a saját szervereden hogyan állíthatod be, azt a <a href="https://github.com/henmedia/layerling/blob/main/README.md" rel="noopener">GitHubon lévő README</a> írja le.</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/utmutato/printing.html"><small>Előző fejezet</small>Előkészítés 3D nyomtatásra</a><a class="next" href="/api/desktop/layerling/ui/utmutato/shortcuts.html"><small>Következő fejezet</small>Billentyűparancsok</a></div>
+      </main>
+    </div>
+    <footer class="note">Ez az útmutató a programmal együtt bővül. Ha valami hiányzik vagy nem stimmel, szólj a <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">beszélgetésekben</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=hu" rel="noopener">A projekt támogatása</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Beszélgetések</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Bővebben a GitHubon</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Kiadási megjegyzések – v1.154.1</a></div><p class="trademark">A Tinkercad az Autodesk, Inc. védjegye. A layerling független projekt, nem kapcsolódik az Autodeskhez, és az Autodesk nem támogatja vagy szponzorálja.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Vissza a szerkesztőhöz";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Szerkesztő megnyitása";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

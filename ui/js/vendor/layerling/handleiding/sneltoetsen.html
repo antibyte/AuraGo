@@ -7,8 +7,21 @@
     <meta name="description" content="Alle toetsen in één overzicht, rechtstreeks uit het programma gehaald, zodat de lijst altijd klopt.">
     <link rel="canonical" href="https://layerling.com/handleiding/sneltoetsen.html">
     <link rel="alternate" hreflang="en" href="https://layerling.com/guide/shortcuts.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/shortcuts.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/shortcuts.html">
     <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/tastenkuerzel.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/shortcuts.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/shortcuts.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/shortcuts.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/shortcuts.html">
     <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/sneltoetsen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/shortcuts.html">
+    <link rel="alternate" hreflang="pt-BR" href="https://layerling.com/guia/shortcuts.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/bliznjice.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/shortcuts.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/shortcuts.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/shortcuts.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/shortcuts.html">
     <meta property="og:title" content="Sneltoetsen - layerling handleiding">
     <meta property="og:description" content="Alle toetsen in één overzicht, rechtstreeks uit het programma gehaald, zodat de lijst altijd klopt.">
     <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
@@ -60,6 +73,7 @@ a { color: var(--accent); }
 .guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
 .guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
 .guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
 .editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
 .editor-elsewhere[hidden] { display: none; }
 .bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
@@ -89,26 +103,51 @@ li { margin-bottom: 4px; }
 strong.ui { font-weight: 700; white-space: nowrap; }
 kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
 code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
-pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
 pre code { padding: 0; background: none; }
 figure { margin: 22px 0; }
 figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
 figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
 aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
 aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
 .table-scroll { overflow-x: auto; margin: 0 0 16px; }
 table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
 table.keys { table-layout: fixed; }
 table.keys td:first-child { width: 42%; }
-th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
 th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
 .toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
 .toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
-.toc ul { margin: 0; padding-left: 18px; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
 .pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
 .pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
 .pager a small { display: block; color: var(--muted); font-size: 12px; }
-.pager a.next { margin-left: auto; text-align: right; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
 .cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
 .cards a:hover { border-color: var(--accent); }
@@ -131,91 +170,159 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
   .bar-inner { flex-wrap: wrap; }
   .guide-search { order: 5; flex: 1 1 100%; }
 }
-@media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
 </style>
   </head>
   <body>
     <header class="bar"><div class="bar-inner">
       <a class="brand" href="/api/desktop/layerling/ui/handleiding/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Handleiding</span></span></a>
       <form class="guide-search" id="guide-search" role="search" data-index="/handleiding/search-index.json" data-nothing="Niets gevonden." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Handleiding doorzoeken" aria-label="Handleiding doorzoeken" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
-      <details class="lang-menu"><summary aria-label="Taal">Nederlands</summary><ul><li><a href="/api/desktop/layerling/ui/guide/shortcuts.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/handleiding/sneltoetsen.html" hreflang="nl" lang="nl" aria-current="true">Nederlands</a></li></ul></details>
+      <details class="lang-menu"><summary aria-label="Taal">Nederlands</summary><ul><li><a href="/api/desktop/layerling/ui/guide/shortcuts.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/shortcuts.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/shortcuts.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/shortcuts.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/shortcuts.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/shortcuts.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/shortcuts.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/sneltoetsen.html" hreflang="nl" lang="nl" aria-current="true">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/shortcuts.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/shortcuts.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/shortcuts.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/bliznjice.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/shortcuts.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/shortcuts.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/shortcuts.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/shortcuts.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/shortcuts.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/shortcuts.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
       <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Naar de editor</a>
     </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>De editor is al open in een ander tabblad - schakel daar gewoon naartoe.</p></header>
     <div class="shell">
-      <nav class="chapters" aria-label="Hoofdstukken"><h2>Hoofdstukken</h2><ol><li><a href="/api/desktop/layerling/ui/handleiding/aan-de-slag.html">Aan de slag</a></li><li><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html">Weergave en werkvlak</a></li><li><a href="/api/desktop/layerling/ui/handleiding/vormen.html">Vormen plaatsen en aanpassen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html">Selecteren en schikken</a></li><li><a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html">Lichamen en gaten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/randen-en-uithollen.html">Randen breken en lichamen uithollen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html">Schetsen: van omtrek naar lichaam</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html">Tekst en gebogen belettering</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schroefdraad-en-mechanica.html">Schroefdraad, tandwielen en andere onderdelen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html">Meten en notities</a></li><li><a href="/api/desktop/layerling/ui/handleiding/printen.html">Voorbereiden op 3D-printen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html">Bestanden, opslaan en delen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/sneltoetsen.html" aria-current="page">Sneltoetsen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/ai-met-mcp.html">Bouwen met een AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/handleiding/offline-en-installeren.html">Installeren als app, offline werken en zelf hosten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/videos.html">Video's over layerling</a></li></ol></nav>
+      <nav class="chapters" aria-label="Hoofdstukken"><h2>Hoofdstukken</h2><p class="print-link"><a href="/api/desktop/layerling/ui/handleiding/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Hele handleiding, om af te drukken</span></a></p><ol><li><a href="/api/desktop/layerling/ui/handleiding/aan-de-slag.html">Aan de slag</a></li><li><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html">Weergave en werkvlak</a></li><li><a href="/api/desktop/layerling/ui/handleiding/vormen.html">Vormen plaatsen en aanpassen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html">Selecteren en schikken</a></li><li><a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html">Lichamen en gaten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/randen-en-uithollen.html">Randen breken en lichamen uithollen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html">Schetsen: van omtrek naar lichaam</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html">Tekst en gebogen belettering</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schroefdraad-en-mechanica.html">Schroefdraad, tandwielen en andere onderdelen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html">Meten en notities</a></li><li><a href="/api/desktop/layerling/ui/handleiding/printen.html">Voorbereiden op 3D-printen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html">Bestanden, opslaan en delen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/sneltoetsen.html" aria-current="page">Sneltoetsen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/ai-met-mcp.html">Bouwen met een AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/handleiding/offline-en-installeren.html">Installeren als app, offline werken en zelf hosten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/videos.html">Video's over layerling</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tablet-en-touch.html">Tablet en touch</a></li></ol></nav>
       <main>
 <h1>Sneltoetsen</h1>
 <p class="lead">Alle toetsen in één overzicht, rechtstreeks uit het programma gehaald, zodat de lijst altijd klopt.</p>
-
+<div class="toc"><b>Op deze pagina</b><ul><li><a href="#opdrachten-zoeken">Opdrachten zoeken</a></li><li><a href="#je-eigen-toetsen">Je eigen toetsen</a></li><li><a href="#interactieve-hulp">Interactieve hulp</a></li></ul></div>
 <p>De sneltoetsen werken zolang het werkvlak de focus heeft. Terwijl je in een veld typt, houden ze zich afzijdig. Op de Mac geldt <kbd>Cmd</kbd> overal waar hier <kbd>Ctrl</kbd> staat.</p>
-<p>In de editor opent <strong class="ui">“Sneltoetsen”</strong> in het gebied <strong class="ui">“Help”</strong> dezelfde lijst als venster.</p>
-<figure><img src="/api/desktop/layerling/ui/handleiding/img/shortcuts.webp" alt="Het venster met de sneltoetsen in de editor." width="1280" height="800" loading="lazy"><figcaption>Het venster met de sneltoetsen in de editor.</figcaption></figure>
-<h2 id="opdrachten-zoeken">Opdrachten zoeken</h2>
-<p>Kun je een gereedschap niet vinden? Druk op <kbd>Ctrl</kbd>+<kbd>K</kbd> of klik op het vergrootglas in het gebied <strong class="ui">“Help”</strong> en typ wat je zoekt: een gereedschap (&quot;afronding&quot;, &quot;spiegelen&quot;), een vorm (&quot;cilinder&quot;) of een opdracht (&quot;exporteren&quot;, &quot;ongedaan maken&quot;). Kies met de pijltjestoetsen en druk op <kbd>Enter</kbd>, of klik op het item.</p>
-<ul><li>De zoekfunctie begrijpt naast het Nederlandse woord ook het Engelse en het Duitse, en negeert hoofdletters en umlauts: &quot;aushoehlen&quot; vindt <strong class="ui">“Uithollen”</strong>.</li><li>Elk item toont de toetsen die hetzelfde doen en het gebied van de werkbalk waarin het staat, zodat je leert waar het zit.</li><li>Uitgegrijsde items kunnen op dit moment niet worden uitgevoerd, meestal omdat er niets geselecteerd is. Ze blijven in de lijst staan, zodat de zoekfunctie je toch vertelt waar het gereedschap zit.</li></ul>
-<p>Ook deze handleiding heeft een zoekveld, bovenaan elke pagina: typ een of twee woorden en het toont de onderdelen waarin ze allemaal voorkomen, met de gevonden woorden gemarkeerd. Klik op een ervan, of druk op <kbd>Enter</kbd> voor het eerste, om er direct heen te springen.</p>
-<ul><li>De naam van een vorm zet die vorm op het werkvlak, net als een klik erop in het vormenmenu.</li><li>Met een leeg veld toont de zoekfunctie bovenaan de opdrachten die je het laatst hebt gebruikt.</li><li>De naam van een lichaam in je ontwerp vindt dat lichaam en selecteert het, handig in een ontwerp met veel onderdelen. Lichamen verschijnen pas zodra je iets typt.</li><li>Het werkt ook in de schetsmodus, met de schetsgereedschappen.</li></ul>
-<h2 id="selectie">Selectie</h2>
-<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Esc</kbd></td><td>Selectie opheffen</td></tr><tr><td><kbd>Delete</kbd> of <kbd>Backspace</kbd></td><td>Selectie verwijderen</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>Alle zichtbare vormen selecteren</td></tr><tr><td><kbd>Shift</kbd>+<kbd>Klik</kbd></td><td>Aan de selectie toevoegen of eruit halen</td></tr><tr><td><kbd>Rechtsklik</kbd></td><td>Menu met de meestgebruikte commando’s voor de selectie</td></tr></tbody></table></div>
-<h2 id="klembord">Klembord</h2>
-<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>Kopiëren</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>X</kbd></td><td>Knippen</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>Plakken</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>Dupliceren</td></tr></tbody></table></div>
-<h2 id="geschiedenis">Geschiedenis</h2>
-<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>Ongedaan maken</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> of <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Opnieuw</td></tr><tr><td><kbd>← / →</kbd></td><td>In de geschiedenisweergave: eerdere of latere staat</td></tr><tr><td><kbd>Esc</kbd></td><td>In de geschiedenisweergave: terug naar de huidige staat</td></tr></tbody></table></div>
-<h2 id="bestand">Bestand</h2>
-<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Ctrl</kbd>+<kbd>I</kbd></td><td>Importvenster openen</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Exportvenster openen</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Ontwerp opslaan in zijn bestand</td></tr></tbody></table></div>
-<h2 id="groeperen-en-zichtbaarheid">Groeperen en zichtbaarheid</h2>
-<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Ctrl</kbd>+<kbd>G</kbd></td><td>Groeperen</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>B</kbd></td><td>Bundelen (bij elkaar houden zonder samen te voegen)</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></td><td>Groepering of bundel opheffen</td></tr><tr><td><kbd>E</kbd></td><td>Geselecteerde groep bewerken</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td><td>Selectie vergrendelen of ontgrendelen</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>H</kbd></td><td>Selectie verbergen</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></td><td>Alles wat verborgen is tonen</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd></td><td>Objectenlijst tonen of verbergen</td></tr></tbody></table></div>
-<h2 id="selectie-vormgeven">Selectie vormgeven</h2>
-<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>H</kbd></td><td>Selectie in een gat veranderen</td></tr><tr><td><kbd>S</kbd></td><td>Selectie weer massief maken</td></tr><tr><td><kbd>T</kbd></td><td>Selectie doorzichtig maken, of weer ondoorzichtig</td></tr><tr><td><kbd>M</kbd></td><td>Spiegelmodus</td></tr><tr><td><kbd>B</kbd></td><td>Afrondingsgereedschap voor het geselecteerde lichaam (nogmaals: sluiten)</td></tr><tr><td><kbd>Shift</kbd>+<kbd>B</kbd></td><td>Afschuiningsgereedschap voor het geselecteerde lichaam (nogmaals: sluiten)</td></tr><tr><td><kbd>L</kbd></td><td>Uitlijnmodus</td></tr><tr><td><kbd>D</kbd></td><td>Selectie op het werkvlak laten vallen</td></tr><tr><td><kbd>C</kbd></td><td>Selectie oppakken en op een vlak neerzetten (zoals Cruise in Tinkercad)</td></tr><tr><td><kbd>N</kbd></td><td>Notitie plaatsen</td></tr></tbody></table></div>
-<h2 id="verplaatsen-en-draaien">Verplaatsen en draaien</h2>
-<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>← / → / ↑ / ↓</kbd></td><td>Eén rasterstap verplaatsen, volgens de draaiing van de weergave</td></tr><tr><td><kbd>Shift</kbd>+<kbd>← / → / ↑ / ↓</kbd></td><td>Vijf rasterstappen verplaatsen</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>↑ / ↓</kbd></td><td>Selectie omhoog of omlaag</td></tr><tr><td><kbd>R</kbd></td><td>45° draaien</td></tr><tr><td><kbd>Shift</kbd>+<kbd>R</kbd></td><td>22,5° draaien</td></tr><tr><td><kbd>Shift</kbd></td><td>Ingedrukt houden tijdens slepen: alleen langs X of Y verplaatsen</td></tr><tr><td><kbd>Alt</kbd>+<kbd>Slepen</kbd></td><td>Een kopie slepen, het origineel blijft staan</td></tr><tr><td><kbd>Alt</kbd></td><td>Eenmaal indrukken tijdens slepen: snappen aan andere vormen pauzeren</td></tr></tbody></table></div>
-<h2 id="weergave-en-werkvlak">Weergave en werkvlak</h2>
-<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>1 – 6</kbd></td><td>De zes standaardweergaven</td></tr><tr><td><kbd>Shift</kbd>+<kbd>1 – 6</kbd></td><td>Standaardweergave, ingezoomd op de selectie</td></tr><tr><td><kbd>← / → / ↑ / ↓</kbd></td><td>Weergave 15° draaien als er niets geselecteerd is</td></tr><tr><td><kbd>Shift</kbd>+<kbd>← / → / ↑ / ↓</kbd></td><td>Weergave 90° draaien als er niets geselecteerd is</td></tr><tr><td><kbd>F</kbd> of <kbd>Home</kbd></td><td>Hele scène passend in beeld</td></tr><tr><td><kbd>Shift</kbd>+<kbd>F</kbd></td><td>Inzoomen op de selectie</td></tr><tr><td><kbd>O</kbd></td><td>Orthografisch of perspectief</td></tr><tr><td><kbd>+</kbd> of <kbd>−</kbd></td><td>In- of uitzoomen</td></tr><tr><td><kbd>W</kbd></td><td>Werkvlak plaatsen</td></tr><tr><td><kbd>Shift</kbd>+<kbd>W</kbd></td><td>Op het geselecteerde vlak plaatsen</td></tr><tr><td><kbd>Shift</kbd></td><td>Ingedrukt houden bij plaatsen om de richting om te keren</td></tr><tr><td><kbd>Esc</kbd></td><td>Werkvlak- of meetlintmodus verlaten</td></tr></tbody></table></div>
-<h2 id="help">Help</h2>
-<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>Opdrachten zoeken openen</td></tr></tbody></table></div>
-<h2 id="schetsmodus">Schetsmodus</h2>
-<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>Opdrachten zoeken openen</td></tr><tr><td><kbd>Esc</kbd></td><td>Ketting beëindigen, selectie opheffen</td></tr><tr><td><kbd>Delete</kbd> of <kbd>Backspace</kbd></td><td>Geselecteerd element verwijderen</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>Kopiëren</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>X</kbd></td><td>Knippen</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>Plakken</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>Dupliceren</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>Ongedaan maken</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> of <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Opnieuw</td></tr><tr><td><kbd>R</kbd></td><td>Gesloten schets 45° draaien</td></tr><tr><td><kbd>L</kbd></td><td>Referentieafbeelding vergrendelen of ontgrendelen</td></tr><tr><td><kbd>F</kbd> of <kbd>Home</kbd></td><td>Hele schets passend in beeld</td></tr><tr><td><kbd>Shift</kbd>+<kbd>F</kbd></td><td>Inzoomen op de selectie in de schets</td></tr><tr><td><kbd>+</kbd> of <kbd>−</kbd></td><td>In- of uitzoomen in de schets</td></tr><tr><td><kbd>Alt</kbd>+<kbd>Enter</kbd></td><td>In het lengteveld van een lijn: naar beide kanten groeien</td></tr><tr><td><kbd>← / → / ↑ / ↓</kbd> of <kbd>Shift</kbd>+<kbd>← / → / ↑ / ↓</kbd></td><td>Geselecteerde punten, lijnen of afbeelding één rasterstap verplaatsen (Shift: grotere stap)</td></tr><tr><td><kbd>Shift</kbd></td><td>Tijdens tekenen: de nieuwe lijn in stappen van 15° laten snappen</td></tr><tr><td><kbd>Shift</kbd></td><td>Tijdens slepen: op één as blijven</td></tr><tr><td><kbd>0-9</kbd> of <kbd>&lt;</kbd> of <kbd>Tab</kbd> of <kbd>Enter</kbd></td><td>Tijdens tekenen: typ de lengte, ‘&lt;’ of Tab voor de hoek, Enter zet het punt</td></tr></tbody></table></div>
-<h2 id="afschuining-en-afronding">Afschuining en afronding</h2>
-<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Enter</kbd></td><td>Voorbeeld toepassen</td></tr><tr><td><kbd>Esc</kbd></td><td>Voorbeeld verwerpen</td></tr></tbody></table></div>
+<p>In de editor opent <strong class="ui">“Sneltoetsen”</strong> in het gebied <strong class="ui">“Help”</strong> dezelfde lijst als venster. De printerknop in het venster (<strong class="ui">“Afdrukken of opslaan als pdf”</strong>) drukt de lijst apart af, zwart op wit en in grote letters; het afdrukvenster van de browser biedt ook aan om hem als pdf op te slaan.</p>
+<p>Het veld bovenin het venster doorzoekt de lijst: het houdt alleen de sneltoetsen over waarvan de zin, de groep of de toetsen elk getypt woord bevatten, dus &quot;ctrl+z&quot; laat alleen die regels staan. Hoofdletters en accenten tellen niet, en één letter of cijfer vindt die toets en de woorden die ermee beginnen. De X aan het eind van het veld maakt het leeg; met een leeg veld is de hele lijst terug. De printerknop drukt af wat het venster toont, dus na een zoekopdracht alleen de gevonden sneltoetsen.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/shortcuts.webp" alt="Het venster met de sneltoetsen in de editor." width="1280" height="800" loading="lazy"><figcaption>Het venster met de sneltoetsen in de editor.</figcaption></figure>
+<section class="guide-part"><h2 id="opdrachten-zoeken"><span class="heading-alias" id="command-search"></span>Opdrachten zoeken</h2>
+<p>Kun je een gereedschap niet vinden? Druk op <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span> of klik op het vergrootglas in het gebied <strong class="ui">“Help”</strong> en typ wat je zoekt: een gereedschap (&quot;afronding&quot;, &quot;spiegelen&quot;), een vorm (&quot;cilinder&quot;) of een opdracht (&quot;exporteren&quot;, &quot;ongedaan maken&quot;). Kies met de pijltjestoetsen en druk op <kbd>Enter</kbd>, of klik op het item.</p>
+<ul><li>De zoekfunctie begrijpt naast het Nederlandse woord ook het Engelse en het Duitse, en negeert hoofdletters en umlauts: &quot;aushoehlen&quot; vindt <strong class="ui">“Uithollen”</strong>.</li><li>Elk item toont de toetsen die hetzelfde doen en de groep van het lint waarin het staat, zodat je leert waar het zit.</li><li>Uitgegrijsde items kunnen op dit moment niet worden uitgevoerd, meestal omdat er niets geselecteerd is. Ze blijven in de lijst staan, zodat de zoekfunctie je toch vertelt waar het gereedschap zit.</li></ul>
+<p>Ook deze handleiding heeft een zoekveld, bovenaan elke pagina: typ een of twee woorden en het toont de onderdelen waarin ze allemaal voorkomen, met de gevonden woorden gemarkeerd. Klik op een ervan, of druk op <kbd>Enter</kbd> voor het eerste, om er direct heen te springen. De pagina die opent, markeert elke plek waar je woorden staan en scrolt naar de eerste in dat onderdeel; <kbd>Esc</kbd> of een klik op een markering haalt ze weer weg.</p>
+<ul><li>De naam van een vorm zet die vorm op het werkvlak, net als een klik erop in het vormenmenu.</li><li>Met een leeg veld toont de zoekfunctie bovenaan de opdrachten die je het laatst hebt gebruikt.</li><li>De naam van een lichaam in je ontwerp vindt dat lichaam en selecteert het, handig in een ontwerp met veel onderdelen. Lichamen verschijnen pas zodra je iets typt.</li><li>Een eigen vorm die je hebt opgeslagen vind je ook op naam, zodra je iets typt, en een klik zet hem in het ontwerp zoals in het vormenpaneel.</li><li>Het werkt ook in de schetsmodus, met de schetsgereedschappen.</li></ul>
+</section><section class="guide-part"><h2 id="je-eigen-toetsen"><span class="heading-alias" id="your-own-keys"></span>Je eigen toetsen</h2>
+<p>Elke opdracht uit Opdrachten zoeken kan op een eigen toets: een gereedschap dat je steeds gebruikt, een vorm, <strong class="ui">“Centreren op werkvlak”</strong> of <strong class="ui">“Vormenpaneel openen”</strong>.</p>
+<ol><li>Open <strong class="ui">“Sneltoetsen”</strong> en klik bovenaan het venster onder <strong class="ui">“Je eigen toetsen”</strong> op <strong class="ui">“Toets toevoegen”</strong>.</li><li>Typ een paar letters van de opdracht en klik erop, of druk op <kbd>Enter</kbd> voor de eerste.</li><li>Druk op de toets die je wilt, alleen of met <kbd>Ctrl</kbd>, <kbd>Alt</kbd> of <kbd>Shift</kbd>. Letters, cijfers en F1 tot F12 kunnen een opdracht dragen.</li></ol>
+<p>Een toets die de editor al gebruikt, een die de browser voor zichzelf houdt (zoals <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>W</kbd></span>) of een van je eigen toetsen wordt geweigerd, en het venster zegt waarvoor hij al dient. Klik op een toets in de lijst om hem te wijzigen, op de X ernaast om hem te verwijderen, of op <strong class="ui">“Al mijn toetsen verwijderen”</strong> om opnieuw te beginnen.</p>
+<ul><li>De toets start de opdracht net zoals Opdrachten zoeken. Kan die nu niet, meestal omdat er niets geselecteerd is, dan zegt de statusbalk dat.</li><li>Je toetsen staan naast hun opdrachten in Opdrachten zoeken en op de afgedrukte lijst.</li><li>Ze blijven in deze browser, net als het thema. Een toets voor een schetsgereedschap werkt in de schetsmodus, een voor de 3D-editor daarbuiten.</li><li>Terwijl je in een veld typt, houden je toetsen zich afzijdig, net als alle andere.</li></ul>
+</section><section class="guide-part"><h2 id="interactieve-hulp"><span class="heading-alias" id="interactive-help"></span>Interactieve hulp</h2>
+<p>Weet je niet waar je over een knop of een veld kunt lezen? Laat het programma je erheen brengen. Klik op het vraagteken in het gebied <strong class="ui">“Help”</strong> of druk op <span dir="ltr"><kbd>Shift</kbd>+<kbd>F1</kbd></span>. De aanwijzer wordt een vraagteken en alles wat eronder ligt, krijgt een rand.</p>
+<ul><li>Klik op een knop, een veld, een schakelaar, een greep, een groep van het lint of de titelbalk van een venster. Het doet dan <strong>niet</strong> wat het anders doet. In plaats daarvan opent een klein venster met de naam van het element, een korte samenvatting van het deel van deze handleiding dat erover gaat, maximaal twee andere plekken waar het genoemd wordt en <strong class="ui">“Openen in de handleiding”</strong>.</li><li>De hulp gaat over het element waar je naar wees, niet over het hele venster eromheen. Een element zonder eigen naam gebruikt het dichtstbijzijnde element eromheen; in een venster valt het terug op het vraagteken van dat venster.</li><li><strong class="ui">“Openen in de handleiding”</strong> opent de handleiding op die plek in een nieuw tabblad. Daar is het onderdeel met kleur omlijnd, van de kop tot het einde, zodat je ziet waar het begint en ophoudt.</li><li>Staat er niets over het element in de handleiding, dan zegt het venster dat en biedt het <strong class="ui">“Zoeken in de handleiding”</strong> aan.</li><li><kbd>Esc</kbd>, of nog een keer het vraagteken, verlaat de modus. Op een aanraakscherm is er geen aanwijzen: een tik op een element opent het venster meteen.</li></ul>
+<p>Het venster verplaats je net als de andere aan zijn titelbalk. Het programma vindt het onderdeel via de naam van het element - het opschrift van een knop, de naam van een veld - omdat deze handleiding elke knop schrijft zoals hij in het programma heet. Het zoekt die op met dezelfde zoekfunctie als het zoekvak bovenaan elke pagina van de handleiding, in de taal die je gebruikt, en alles gebeurt in je browser.</p>
+</section><section class="guide-part"><h2 id="selectie">Selectie</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Esc</kbd></td><td>Selectie opheffen</td></tr><tr><td><kbd>Delete</kbd> of <kbd>Backspace</kbd></td><td>Selectie verwijderen</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span></td><td>Alle zichtbare vormen selecteren</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>Klik</kbd></span></td><td>Aan de selectie toevoegen of eruit halen</td></tr><tr><td><kbd>Rechtsklik</kbd></td><td>Menu met de meestgebruikte commando’s voor de selectie</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="klembord">Klembord</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>C</kbd></span></td><td>Kopiëren</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span></td><td>Knippen</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>V</kbd></span></td><td>Plakken</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span></td><td>Dupliceren</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="geschiedenis">Geschiedenis</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span></td><td>Ongedaan maken</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span> of <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Y</kbd></span></td><td>Opnieuw</td></tr><tr><td><kbd>← / →</kbd> of <kbd>Wheel</kbd></td><td>In de geschiedenisweergave: eerdere of latere staat</td></tr><tr><td><kbd>PgUp / PgDn</kbd></td><td>In de geschiedenisweergave: tien stappen eerder of later</td></tr><tr><td><kbd>Home / End</kbd></td><td>In de geschiedenisweergave: oudste of huidige stand</td></tr><tr><td><kbd>Esc</kbd></td><td>In de geschiedenisweergave: terug naar de huidige staat</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="bestand">Bestand</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>I</kbd></span></td><td>Importvenster openen of sluiten</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>E</kbd></span></td><td>Exportvenster openen of sluiten</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>S</kbd></span></td><td>Ontwerp opslaan in zijn bestand</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="groeperen-en-zichtbaarheid">Groeperen en zichtbaarheid</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>G</kbd></span></td><td>Groeperen</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>B</kbd></span></td><td>Bundelen (bij elkaar houden zonder samen te voegen)</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span></td><td>Groepering of bundel opheffen</td></tr><tr><td><kbd>E</kbd></td><td>Geselecteerde groep bewerken</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span></td><td>Selectie vergrendelen of ontgrendelen</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd></span></td><td>Alleen de vorm vergrendelen of ontgrendelen: het onderdeel laat zich nog verplaatsen, draaien en groeperen</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>H</kbd></span></td><td>Selectie verbergen</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></span></td><td>Alles wat verborgen is tonen</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span></td><td>Notities en punten tonen of verbergen</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd></span></td><td>Objectenlijst tonen of verbergen</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="selectie-vormgeven">Selectie vormgeven</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>H</kbd></td><td>Selectie in een gat veranderen</td></tr><tr><td><kbd>S</kbd></td><td>Selectie weer massief maken</td></tr><tr><td><kbd>T</kbd></td><td>Selectie doorzichtig maken, of weer ondoorzichtig</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>M</kbd></span></td><td>Meerkleurig voor de geselecteerde groep: elk onderdeel in zijn eigen kleur, of één kleur voor allemaal</td></tr><tr><td><kbd>M</kbd></td><td>Spiegelmodus</td></tr><tr><td><kbd>B</kbd></td><td>Afrondingsgereedschap voor het geselecteerde lichaam (nogmaals: sluiten)</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>B</kbd></span></td><td>Afschuiningsgereedschap voor het geselecteerde lichaam (nogmaals: sluiten)</td></tr><tr><td><kbd>L</kbd></td><td>Uitlijnmodus</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>Klik</kbd></span></td><td>Op een uitlijnpunt: maat gelijkmaken in plaats van verschuiven</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>Klik</kbd></span></td><td>Op de punt voor gelijke tussenruimte: de tussenruimte intypen</td></tr><tr><td><kbd>D</kbd></td><td>Selectie op het werkvlak laten vallen</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>D</kbd></span></td><td>Selectie als één geheel laten vallen, de delen houden hun hoogte ten opzichte van elkaar</td></tr><tr><td><kbd>C</kbd></td><td>Selectie oppakken en op een vlak neerzetten (zoals Cruise in Tinkercad)</td></tr><tr><td><kbd>N</kbd></td><td>Notitie plaatsen</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="verplaatsen-en-draaien">Verplaatsen en draaien</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>← / → / ↑ / ↓</kbd></td><td>Eén rasterstap verplaatsen, volgens de draaiing van de weergave</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>Vijf rasterstappen verplaatsen</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>Een vijfde rasterstap verplaatsen</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>↑ / ↓</kbd></span></td><td>Selectie omhoog of omlaag</td></tr><tr><td><kbd>R</kbd></td><td>45° draaien</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>R</kbd></span></td><td>22,5° draaien</td></tr><tr><td><kbd>Shift</kbd></td><td>Ingedrukt houden tijdens slepen: alleen langs X of Y verplaatsen</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>Slepen</kbd></span></td><td>Een kopie slepen, het origineel blijft staan</td></tr><tr><td><kbd>Alt</kbd></td><td>Eenmaal indrukken tijdens slepen: snappen aan andere vormen pauzeren</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>Enter</kbd></span></td><td>Een maat naast de vorm typen: rond het midden groeien in plaats van vanaf de tegenoverliggende rand</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="weergave-en-werkvlak">Weergave en werkvlak</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>1 – 6</kbd></td><td>De zes standaardweergaven</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>1 – 6</kbd></span></td><td>Standaardweergave, ingezoomd op de selectie</td></tr><tr><td><kbd>7 / 8 / 9 / 0</kbd></td><td>Naar de weergave die onder die toets is opgeslagen</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>7 / 8 / 9 / 0</kbd></span></td><td>De weergave - draaiing, verschuiving en zoom - voor dit ontwerp opslaan</td></tr><tr><td><kbd>← / → / ↑ / ↓</kbd></td><td>Weergave 15° draaien als er niets geselecteerd is</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>Weergave 90° draaien als er niets geselecteerd is</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>Weergave verschuiven als er niets geselecteerd is</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>Weergave verder verschuiven als er niets geselecteerd is</td></tr><tr><td><kbd>Home</kbd></td><td>Hele scène passend in beeld</td></tr><tr><td><kbd>F</kbd> of <span dir="ltr"><kbd>Shift</kbd>+<kbd>F</kbd></span></td><td>Inzoomen op de selectie</td></tr><tr><td><kbd>O</kbd></td><td>Orthografisch of perspectief</td></tr><tr><td><kbd>Q</kbd></td><td>Maten en afstanden rond de selectie verbergen of tonen</td></tr><tr><td><kbd>+</kbd> of <kbd>−</kbd></td><td>In- of uitzoomen</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>1 – 0</kbd></span></td><td>Uitlijnraster kiezen: het item met dat nummer in het menu</td></tr><tr><td><kbd>,</kbd> of <kbd>.</kbd></td><td>Uitlijnraster een stap fijner of grover</td></tr><tr><td><kbd>Middelklik</kbd></td><td>Uitlijnrastermenu direct bij de muisaanwijzer</td></tr><tr><td><kbd>W</kbd></td><td>Werkvlak plaatsen</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>W</kbd></span></td><td>Op het geselecteerde vlak plaatsen</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>W</kbd></span></td><td>Terug op de grondplaat</td></tr><tr><td><kbd>P</kbd></td><td>Recht op het werkvlak kijken</td></tr><tr><td><kbd>Shift</kbd></td><td>Ingedrukt houden bij plaatsen om de richting om te keren</td></tr><tr><td><kbd>Esc</kbd></td><td>Werkvlak- of meetlintmodus verlaten</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="help">Help</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span></td><td>Opdrachten zoeken openen</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>F1</kbd></span></td><td>Interactieve hulp aan- of uitzetten</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="schetsmodus">Schetsmodus</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span></td><td>Opdrachten zoeken openen</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>F1</kbd></span></td><td>Interactieve hulp aan- of uitzetten</td></tr><tr><td><kbd>Esc</kbd></td><td>Gereedschap neerleggen (terug naar Selecteren), dan selectie opheffen</td></tr><tr><td><kbd>Delete</kbd> of <kbd>Backspace</kbd></td><td>Geselecteerd element verwijderen</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>C</kbd></span></td><td>Kopiëren</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span></td><td>Knippen</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>V</kbd></span></td><td>Plakken</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span></td><td>Dupliceren</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span></td><td>Ongedaan maken</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span> of <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Y</kbd></span></td><td>Opnieuw</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span></td><td>Alle punten en lijnen selecteren</td></tr><tr><td><kbd>R</kbd></td><td>Gesloten schets 45° draaien</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span></td><td>Geselecteerde omtrek of referentieafbeelding vergrendelen of ontgrendelen</td></tr><tr><td><kbd>N</kbd></td><td>Notitie plaatsen</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span></td><td>Notities en punten tonen of verbergen</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>Weergave verschuiven als er niets geselecteerd is</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>Weergave verder verschuiven als er niets geselecteerd is</td></tr><tr><td><kbd>Home</kbd></td><td>Hele schets passend in beeld</td></tr><tr><td><kbd>F</kbd> of <span dir="ltr"><kbd>Shift</kbd>+<kbd>F</kbd></span></td><td>Inzoomen op de selectie in de schets</td></tr><tr><td><kbd>+</kbd> of <kbd>−</kbd></td><td>In- of uitzoomen in de schets</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>1 – 0</kbd></span></td><td>Uitlijnraster kiezen: het item met dat nummer in het menu</td></tr><tr><td><kbd>,</kbd> of <kbd>.</kbd></td><td>Uitlijnraster een stap fijner of grover</td></tr><tr><td><kbd>Middelklik</kbd></td><td>Uitlijnrastermenu direct bij de muisaanwijzer</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>Enter</kbd></span></td><td>In het lengteveld van een lijn: naar beide kanten groeien</td></tr><tr><td><kbd>← / → / ↑ / ↓</kbd> of <span dir="ltr"><kbd>Shift</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>Geselecteerde punten, lijnen of afbeelding één rasterstap verplaatsen (Shift: grotere stap, Alt: een vijfde ervan)</td></tr><tr><td><kbd>← / → / ↑ / ↓</kbd> of <span dir="ltr"><kbd>Shift</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>Een aangeklikte krommegreep één rasterstap verplaatsen (Shift: grotere stap, Alt: een vijfde ervan)</td></tr><tr><td><kbd>1</kbd> of <kbd>2</kbd> of <kbd>3</kbd> of <kbd>4</kbd> of <kbd>5</kbd></td><td>Tekengereedschap kiezen: 1 Lijn, 2 Bézierkromme, 3 Vloeiende kromme, 4 Punten toevoegen of verwijderen, 5 Uit de vrije hand (zolang er geen lijn wordt getekend)</td></tr><tr><td><kbd>Shift</kbd></td><td>Tijdens tekenen: de nieuwe lijn in stappen van 15° laten snappen</td></tr><tr><td><kbd>Shift</kbd></td><td>Tijdens slepen: op één as blijven</td></tr><tr><td><kbd>0-9</kbd> of <kbd>&lt;</kbd> of <kbd>Tab</kbd> of <kbd>Enter</kbd></td><td>Tijdens tekenen: typ de lengte, ‘&lt;’ of Tab voor de hoek, Enter zet het punt</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="afschuining-en-afronding">Afschuining en afronding</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Enter</kbd></td><td>Voorbeeld toepassen</td></tr><tr><td><kbd>Esc</kbd></td><td>Voorbeeld verwerpen</td></tr></tbody></table></div></section>
 <div class="pager"><a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html"><small>Vorig hoofdstuk</small>Bestanden, opslaan en delen</a><a class="next" href="/api/desktop/layerling/ui/handleiding/ai-met-mcp.html"><small>Volgend hoofdstuk</small>Bouwen met een AI (MCP)</a></div>
       </main>
     </div>
     <footer class="note">Deze handleiding groeit mee met het programma. Mis je iets of klopt er iets niet, laat het ons weten in de <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussies</a>.</footer>
-    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=nl" rel="noopener">Steun het project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussies</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Meer over het project op GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.71.0</a></div><p class="trademark">Tinkercad is een handelsmerk van Autodesk, Inc. layerling is een onafhankelijk project en is niet gelieerd aan, goedgekeurd of gesponsord door Autodesk.</p></footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=nl" rel="noopener">Steun het project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussies</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Meer op GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.154.1</a></div><p class="trademark">Tinkercad is een handelsmerk van Autodesk, Inc. layerling is een onafhankelijk project en is niet gelieerd aan, goedgekeurd of gesponsord door Autodesk.</p></footer>
     <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Terug naar de editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Naar de editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
     <script>
-function guideFold(text){var out="";for(var i=0;i<text.length;i++){out+=text.charAt(i).toLowerCase().normalize("NFD").charAt(0);}return out;}
-function guideForms(word,umlauts){
-  var forms=[word];
-  if(umlauts){var plain=word.split("ae").join("a").split("oe").join("o").split("ue").join("u");if(plain!==word)forms.push(plain);}
-  if(word.indexOf("ss")>=0)forms.push(word.split("ss").join(String.fromCharCode(223)));
-  if(word.indexOf(String.fromCharCode(223))>=0)forms.push(word.split(String.fromCharCode(223)).join("ss"));
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
   return forms;
 }
-function guideFind(text,forms,from){
-  var best=null;
-  for(var i=0;i<forms.length;i++){var k=text.indexOf(forms[i],from);if(k>=0&&(!best||k<best.at))best={at:k,len:forms[i].length};}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
   return best;
 }
-function guidePrepare(entries){return entries.map(function(e){return {e:e,c:guideFold(e.c),h:guideFold(e.h),t:guideFold(e.t)};});}
-function guideTokens(query){return guideFold(query).split(" ").filter(function(w){return w.length>0;});}
-function guideSearch(prepared,query,limit,umlauts){
-  var tokens=guideTokens(query);if(!tokens.length)return [];
-  var forms=tokens.map(function(w){return guideForms(w,umlauts);}),phrase=guideForms(tokens.join(" "),umlauts),found=[];
-  prepared.forEach(function(p){
-    var score=0;
-    for(var i=0;i<tokens.length;i++){
-      var inH=guideFind(p.h,forms[i],0),inC=guideFind(p.c,forms[i],0),at=guideFind(p.t,forms[i],0);
-      if(!inH&&!inC&&!at)return;
-      if(inH)score+=10;
-      if(inC)score+=3;
-      if(at){score+=1;var n=0,k=at;while(k&&n<5){n++;k=guideFind(p.t,forms[i],k.at+k.len);}score+=n*0.3;}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
     }
-    if(tokens.length>1&&(guideFind(p.h,phrase,0)||guideFind(p.t,phrase,0)))score+=6;
-    found.push({entry:p.e,score:score,folded:p.t,forms:forms});
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
   });
-  found.sort(function(a,b){return b.score-a.score;});
-  return found.slice(0,limit||8);
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
 }
 
 function guideSnippet(hit){
@@ -233,20 +340,57 @@ function guideSnippet(hit){
   if(end<text.length)parts.push({text:" ...",mark:false});
   return parts;
 }
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
 (function(){
   var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
   var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
   function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
   function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
   function render(){
     if(!guideTokens(input.value).length){close();return;}
     if(!prepared){load().then(function(){if(prepared)render();});return;}
-    var hits=guideSearch(prepared,input.value,8,form.getAttribute("data-umlauts")==="true");
+    var hits=guideSearch(prepared,input.value,8,umlauts);
     box.textContent="";
     if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
     hits.forEach(function(hit){
       var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
-      link.href=hit.entry.u;
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
       title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
       guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
       link.appendChild(title);link.appendChild(line);box.appendChild(link);
@@ -259,7 +403,7 @@ function guideSnippet(hit){
     if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
     else if(e.key==="Escape"){input.value="";close();}
   });
-  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first)window.location.href=first.href;});
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
   box.addEventListener("keydown",function(e){
     var current=document.activeElement;
     if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}

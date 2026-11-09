@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Filer, lagring og deling - layerling brugervejledning</title>
+    <meta name="description" content="Hvor dine designs bor, hvordan du sikkerhedskopierer dem, hvilke formater layerling importerer og eksporterer, og hvad der er muligt på en delt server.">
+    <link rel="canonical" href="https://layerling.com/vejledning/files-and-saving.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/files-and-saving.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/files-and-saving.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/files-and-saving.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/dateien-und-speichern.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/files-and-saving.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/files-and-saving.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/files-and-saving.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/files-and-saving.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/bestanden-en-opslaan.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/files-and-saving.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/datoteke-in-shranjevanje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/files-and-saving.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/files-and-saving.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/files-and-saving.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/files-and-saving.html">
+    <meta property="og:title" content="Filer, lagring og deling - layerling brugervejledning">
+    <meta property="og:description" content="Hvor dine designs bor, hvordan du sikkerhedskopierer dem, hvilke formater layerling importerer og eksporterer, og hvad der er muligt på en delt server.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/vejledning/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Brugervejledning</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/vejledning/search-index.json" data-nothing="Intet fundet." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Søg i vejledningen" aria-label="Søg i vejledningen" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Sprog">Dansk</summary><ul><li><a href="/api/desktop/layerling/ui/guide/files-and-saving.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/files-and-saving.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/files-and-saving.html" hreflang="da" lang="da" aria-current="true">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/files-and-saving.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/files-and-saving.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/files-and-saving.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/files-and-saving.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/files-and-saving.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/files-and-saving.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/files-and-saving.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/datoteke-in-shranjevanje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/files-and-saving.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/files-and-saving.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/files-and-saving.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/files-and-saving.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/files-and-saving.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/files-and-saving.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Åbn editoren</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Editoren er allerede åben i en anden fane – skift bare til den.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Kapitler"><h2>Kapitler</h2><p class="print-link"><a href="/api/desktop/layerling/ui/vejledning/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Hele vejledningen, til udskrivning</span></a></p><ol><li><a href="/api/desktop/layerling/ui/vejledning/getting-started.html">Kom godt i gang</a></li><li><a href="/api/desktop/layerling/ui/vejledning/view-and-workplane.html">Visning og arbejdsplan</a></li><li><a href="/api/desktop/layerling/ui/vejledning/shapes.html">Placering og justering af former</a></li><li><a href="/api/desktop/layerling/ui/vejledning/select-and-arrange.html">Valg og arrangering</a></li><li><a href="/api/desktop/layerling/ui/vejledning/solids-and-holes.html">Solider og huller</a></li><li><a href="/api/desktop/layerling/ui/vejledning/edges-and-hollowing.html">Bryd kanter og hul former</a></li><li><a href="/api/desktop/layerling/ui/vejledning/sketches.html">Skitser: fra omrids til form</a></li><li><a href="/api/desktop/layerling/ui/vejledning/text.html">Tekst og buede bogstaver</a></li><li><a href="/api/desktop/layerling/ui/vejledning/threads-and-mechanics.html">Gevind, tandhjul og andre dele</a></li><li><a href="/api/desktop/layerling/ui/vejledning/measuring-and-notes.html">Måling og noter</a></li><li><a href="/api/desktop/layerling/ui/vejledning/printing.html">Forberedelse til 3D-print</a></li><li><a href="/api/desktop/layerling/ui/vejledning/files-and-saving.html" aria-current="page">Filer, lagring og deling</a></li><li><a href="/api/desktop/layerling/ui/vejledning/shortcuts.html">Tastaturgenveje</a></li><li><a href="/api/desktop/layerling/ui/vejledning/ai-with-mcp.html">Byg med en AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/vejledning/offline-and-install.html">Installér som app, arbejd offline og vær selv vært</a></li><li><a href="/api/desktop/layerling/ui/vejledning/videos.html">Videoer om layerling</a></li><li><a href="/api/desktop/layerling/ui/vejledning/tablet-and-touch.html">Tablet og touch</a></li></ol></nav>
+      <main>
+<h1>Filer, lagring og deling</h1>
+<p class="lead">Hvor dine designs bor, hvordan du sikkerhedskopierer dem, hvilke formater layerling importerer og eksporterer, og hvad der er muligt på en delt server.</p>
+<div class="toc"><b>På denne side</b><ul><li><a href="#hvor-dine-designs-bor">Hvor dine designs bor</a></li><li><a href="#mapper-til-dine-designs">Mapper til dine designs</a></li><li><a href="#sikkerhedskopier-og-giv-videre">Sikkerhedskopiér og giv videre</a></li><li><a href="#vedh-ftninger">Vedhæftninger</a></li><li><a href="#eksport">Eksport</a></li><li><a href="#import">Import</a></li><li><a href="#forenkling-af-et-importeret-mesh">Forenkling af et importeret mesh</a></li><li><a href="#g-r-et-importeret-mesh-eksakt">Gør et importeret mesh eksakt</a></li><li><a href="#fejlrapportering">Fejlrapportering</a></li><li><a href="#delte-designs-pa-en-server">Delte designs på en server</a></li></ul></div>
+<section class="guide-part"><h2 id="hvor-dine-designs-bor"><span class="heading-alias" id="where-your-designs-live"></span>Hvor dine designs bor</h2>
+<p>layerling gemmer alt i browseren på din computer. Der er ingen konto, og intet uploades. (Med en kopi du selv kører, kan designs i stedet ligge i en delt mappe på serveren; se afsnittet om den delte mappe længere nede.) Hver ændring gemmer sig selv. Forhåndsbilledet på startsiden viser den visning du sidst havde foran dig da du gik tilbage med <strong class="ui">“Hjem-dashboard”</strong>. Hvis du åbner layerling i den samme browser dage senere, er alt der.</p>
+<p>Hvis du går tilbage til startsiden fra et design der ikke har noget i sig, spørger layerling om det skal beholdes. <strong class="ui">“Ja”</strong> eller <kbd>Enter</kbd> beholder det, <strong class="ui">“Nej”</strong> fjerner det, så tomme designs ikke hober sig op. For et design i en delt mappe på en server sletter <strong class="ui">“Nej”</strong> filen fra serveren, for alle der bruger den.</p>
+<p>Det har en ulempe: den der rydder browserens lager eller skifter til en anden computer mister designsene. <strong>Så sikkerhedskopiér vigtigt arbejde i en fil.</strong></p>
+</section><section class="guide-part"><h2 id="mapper-til-dine-designs"><span class="heading-alias" id="folders-for-your-designs"></span>Mapper til dine designs</h2>
+<p>Med snesevis af designs er én liste ikke nok. På startsiden laver <strong class="ui">“Ny mappe”</strong> en mappe til denne browsers designs; et klik på mappen åbner den. Mapper kan indeholde mapper.</p>
+<ul><li><strong>Ind i en mappe:</strong> træk et design over på mappen, eller vælg <strong class="ui">“Flyt til …”</strong> i designets menu, som lister alle mapper. Et nyt design, og en fil du åbner eller importerer, lavet mens en mappe er åben, lander i den mappe.</li><li><strong>Ud igen:</strong> den første flise i en mappe, <code>..</code>, og linjen under fanerne fører tilbage; du kan også slippe et design på dem. En mappe der trækkes over på en anden mappe, kommer ind i den.</li><li><strong>Omdøb og slet</strong> ligger i mappens menu. At slette en mappe sletter intet design: hvad der lå i den, rykker op ét niveau.</li><li><strong>Søg</strong> ser i alle mapper; et design der findes, viser hvilken mappe det ligger i, og et klik på det åbner mappen.</li></ul>
+<p><strong class="ui">“Sikkerhedskopiér alle”</strong> bevarer mapperne: designsene sidder i sikkerhedskopien i deres mapper, og at gendanne sikkerhedskopien lægger dem tilbage der. Denne browsers mapper er adskilt fra mapperne på en server. Kortenes forhåndsbilleder kommer også med i filen, så de er tilbage, så snart du gendanner.</p>
+</section><section class="guide-part"><h2 id="sikkerhedskopier-og-giv-videre"><span class="heading-alias" id="backing-up-and-passing-on"></span>Sikkerhedskopiér og giv videre</h2>
+<p>På startsiden har hvert design en menu med mulighederne omdøb, duplikér og slet. Rækken ved siden af fanerne har de samme knapper på hver fane. For at slette flere ad gangen klikker du på <strong class="ui">“Vælg”</strong>: et klik på et kort markerer det (et flueben viser hvad der er markeret), <strong class="ui">“Vælg alle”</strong> vælger alle designs i listen, og <strong class="ui">“Slet”</strong> spørger én gang for dem alle. <strong class="ui">“Færdig”</strong> eller <kbd>Esc</kbd> forlader markeringen. Med <strong class="ui">“Sikkerhedskopiér alle”</strong> pakker du alle designs på den åbne fane i én ZIP-fil. <strong class="ui">“Gendan sikkerhedskopi”</strong>, lige ved siden af (den er der også på en ny computer uden designs), bringer dem tilbage, også i en anden browser eller på en anden computer; <strong class="ui">“Åbn et design eller importér geometri”</strong> tager den samme fil. <strong class="ui">“Egne former”</strong> fra denne browser rejser med i den samme fil, i mappen <code>Custom shapes</code>, se <a href="/api/desktop/layerling/ui/vejledning/shapes.html">Former</a>. Gendanner du en sikkerhedskopi ind i en browser der allerede har nogle af disse designs, bliver de ikke lagt ind en gang til; beskeden siger hvor mange der allerede var. Et design der ikke kan læses, springes over, og beskeden nævner det. Genindlæses siden midt i en sikkerhedskopi, ofte fordi et meget stort design har brugt hele den hukommelse browseren tillader, siger startsiden bagefter hvilket design den stoppede ved: gem det som en fil på egen hånd (se nedenfor) eller forenkl dets største meshes, og tag så en sikkerhedskopi igen. Over designene i denne browser minder en kort linje dig om, at de ikke ligger andre steder.</p>
+<p>Kun nogle designs: Efter <strong class="ui">“Vælg”</strong> pakker <strong class="ui">“Sikkerhedskopiér”</strong> kun de valgte designs, i deres mapper, i én ZIP-fil, og <strong class="ui">“Sikkerhedskopiér”</strong> i en mappes menu pakker mappen med alle designs og mapper i den. Ingen af dem tager de egne former med, og <strong class="ui">“Gendan sikkerhedskopi”</strong> henter begge tilbage som en fuld sikkerhedskopi. Det gælder designs i denne browser.</p>
+<p>Hvor en sikkerhedskopi havner: i Chrome og Edge spørger en gem-dialog om mappe og navn og husker mappen til næste sikkerhedskopi. Så havner dine sikkerhedskopier direkte i en mappe, du selv vælger, for eksempel på et clouddrev. Det samme gælder <strong class="ui">“Sikkerhedskopiér egne former”</strong>. Andre browsere lægger filen i deres downloadmappe; hvilken mappe det er, indstiller du i browserens indstillinger.</p>
+<p>Hvis et design åbner meget langsomt eller slet ikke, som regel fordi dets historik af fortryd-trin er blevet meget stor, så vælg <strong class="ui">“Åbn uden historik”</strong> i dets menu på startsiden. layerling læser så kun den nuværende tilstand, sletter alle tidligere trin for evigt og åbner designet; efter et spørgsmål, for det kan ikke fortrydes. Vil du beholde trinnene, så sikkerhedskopiér designet først med <strong class="ui">“Sikkerhedskopiér”</strong>.</p>
+<p>Du sikkerhedskopierer et enkelt design i editoren: <strong class="ui">“Eksportér”</strong>, vælg formatet <strong>LYL</strong> og klik på <strong class="ui">“Gem layerling-design”</strong>. LYL-filen er layerlings eget designformat og indeholder alt: former, grupper, skitser, CAD-data, importerede kilder og historikken, det vil sige fortryd-trinene. Under <strong class="ui">“Gemt handlingshistorik”</strong> vælger du hvor mange af de sidste trin der rejser med; det starter ved det indstillingerne (tandhjulet i båndet) beholder under <strong class="ui">“Historik”</strong>. Det sidste stop, <strong class="ui">“Ingen”</strong>, gemmer designet med kun dets aktuelle tilstand - måden at dele en fil uden dens fortryd-trin. Eksporten er en kopi under det <strong class="ui">“Filnavn”</strong> du giver den; designet i din browser beholder sin historik. Ældre <code>.skf</code>-filer fra tidligere versioner kan stadig åbnes; de gemmes så som <code>.lyl</code>.</p>
+<p><strong>Gem i din egen mappe (Chrome og Edge).</strong> Der åbner knappen din systems gem-dialog, så du selv vælger mappen og navnet, og en eksisterende fil kan erstattes. Bagefter gemmer <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>S</kbd></span> designet i den samme fil igen, uden en dialog. Et design åbnet fra en <code>.lyl</code>-fil med <strong class="ui">“Åbn et design eller importér geometri”</strong> eller åbn-knappen i eksportvinduet gemmer også tilbage i den fil. Browseren kan spørge én gang om tilladelse til at ændre filen. Efter at siden er genindlæst glemmer designet sin fil, og næste <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>S</kbd></span> spørger igen; dialogen starter i den mappe du brugte sidst. Firefox og Safari lader ikke en side skrive til filer på denne måde. Der downloades filen til Downloads-mappen som før, og <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>S</kbd></span> downloader den igen; Firefox kan sættes til at spørge efter mappen hver gang under Indstillinger, Generelt, Downloads. Giver du filen et andet navn der, beholder designet sit eget, for en version eller en dato i filnavnet er ofte ment sådan; beskeden efter gemningen tilbyder så <strong class="ui">“Giv også designet dette navn”</strong>.</p>
+<p><strong>Når gem-vinduet ikke gemmer noget.</strong> Lukker vinduet uden en fil, siger meddelelsen øverst det og tilbyder <strong class="ui">“Download i stedet”</strong>: designet går så til mappen Overførsler som i Firefox. Browseren melder et vindue lukket med Annuller på samme måde som et, den ikke kunne bruge, så på en pc, hvor gem-vinduet fejler i alle mapper, er dette vejen til at blive ved med at gemme.</p>
+</section><section class="guide-part"><h2 id="vedh-ftninger"><span class="heading-alias" id="attachments"></span>Vedhæftninger</h2>
+<p>Instruktioner, en deleliste, noter, et foto eller et datablad kan blive ved designet som filer. <strong class="ui">“Vedhæftninger”</strong> i <strong class="ui">“Fil”</strong>-gruppen i båndet, papirklemmen, åbner listen; en lille prik på papirklemmen viser at designet har nogle.</p>
+<ul><li><strong><strong class="ui">“Upload fil”</strong>:</strong> Vælg en eller flere filer: <code>.md</code> (Markdown) eller <code>.txt</code> som ren tekst (UTF-8), billeder som <code>.png</code>, <code>.jpg</code>, <code>.jpeg</code> eller <code>.webp</code>, eller dokumenter som <code>.pdf</code>. En fil kontrolleres ud fra sit indhold, så en fil, der ikke er det, dens navn siger, afvises, og andre typer, blandt dem <code>.svg</code>, kan ikke vedhæftes. En tekstfil må højst være 2 MB, et billede 16 MB og en PDF 32 MB; et design rummer højst 32 filer og 64 MB i alt.</li><li><strong>Listen:</strong> Pilen downloader en fil, som den blev uploadet. Skraldespanden fjerner den; rækken spørger én gang til først, og en fjernet fil kan ikke hentes tilbage med fortryd, for vedhæftninger er ikke en del af fortrykshistorikken.</li><li><strong>Læs en fil:</strong> Øjet i rækken for en <code>.md</code>- eller <code>.txt</code>-fil åbner den i et vindue, så du kan læse den uden at downloade den. Markdown vises formateret, med overskrifter, lister, afkrydsningsfelter, tabeller og kode; en tekstfil vises præcis som den er skrevet. Kun links til websider og e-mailadresser virker, og de åbner i en ny fane. Billeder, som filen nævner, hentes ikke: deres beskrivelse står i stedet. Escape, krydset eller et klik ved siden af vinduet lukker det. Læsning virker også i historikvisningen.</li><li><strong>Se et billede:</strong> Øjet i rækken for et billede åbner det i samme vindue, formindsket hvis det er stort. En PDF har intet øje: download den, og åbn den i det program, du læser PDF-filer med.</li><li><strong>Et navn der allerede er taget:</strong> layerling spørger hvad der skal ske. <strong class="ui">“Erstat”</strong> lægger det nye indhold i filen med det navn, som bevarer sin plads på listen. <strong class="ui">“Omdøb”</strong> tilføjer den nye fil under et andet navn og foreslår det første ledige, såsom <code>notes 2.md</code>. Krydset lader den nye fil være ude. Store og små bogstaver tæller ens, og den samme fil uploadet igen ændrer intet.</li></ul>
+<p>Vedhæftningerne gemmes med designet som alt andet: i browseren, i en LYL-fil, i en sikkerhedskopi og i et design på en server, som de når, så snart en tilføjes eller fjernes. De kommer ikke med <strong class="ui">“Indsæt i dette design”</strong> eller med en form fra <code>Custom shapes</code>, og en fejlrapportering indeholder dem ikke. Et design med vedhæftninger gemmes som en nyere slags LYL-fil: et ældre layerling siger at det ikke kan åbne den i stedet for at droppe filerne. Et design uden vedhæftninger gemmes nøjagtig som før.</p>
+</section><section class="guide-part"><h2 id="eksport"><span class="heading-alias" id="exporting"></span>Eksport</h2>
+<p>Klik på <strong class="ui">“Eksportér”</strong> eller tryk <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>E</kbd></span>.</p>
+<p>Dækker vinduet noget, trækker du det i titellinjen hen til et andet sted; import- og vedhæftningsvinduerne flyttes på samme måde. Et dobbeltklik på titellinjen lægger det tilbage.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/export-panel.webp" alt="Eksportvinduet med formaterne STL, 3MF, OBJ, STEP, SVG, PNG, LYL og 2D." width="1280" height="800" loading="lazy"><figcaption>Eksportvinduet med formaterne STL, 3MF, OBJ, STEP, SVG, PNG, LYL og 2D.</figcaption></figure>
+<p>Øverst er filnavnet, nedenunder vælger du formatet. Med noget valgt eksporteres kun markeringen, ellers hele designet. Hvis markeringen udelader synlige dele, siger vinduet det tydeligt, og <strong class="ui">“Vælg alle”</strong> vælger alt synligt i ét klik. Når filen er skrevet, lukker vinduet af sig selv; hvis eksporten fejler, bliver det stående med beskeden.</p>
+<div class="table-scroll"><table><thead><tr><th>Format</th><th>Til</th><th>Hvad du skal vide</th></tr></thead><tbody><tr><td><strong>STL</strong></td><td>slicer og 3D-print</td><td>Et mesh af trekanter. Det simpleste og mest udbredte format. En STL har ingen dele: former der overlapper samles til ét mesh. For at beholde dem som separate dele, eksporter 3MF. I Chrome og Edge spørger den første STL-eksport hvor der skal gemmes, og senere STL-eksporter af designet skriver ind i den fil, indtil du taster et andet navn i filnavnfeltet eller trykker på <strong class="ui">“Gem som …”</strong>.</td></tr><tr><td><strong>3MF</strong></td><td>slicer med farver</td><td>Hver form bliver sin egen del med navn og farve. Overlappende former samles kun når de deler farve; hvor en form sidder inden i en af en anden farve, siger en logo i en plade, efterlader den der blev bygget først plads til den senere. Passer til PrusaSlicer, Bambu Studio, OrcaSlicer og Cura. Bambu Studio og OrcaSlicer spørger ved åbning hvordan farverne skal mappes til dine filamenter, og kalder filen &quot;ikke fra Bambu&quot; - beskeden er harmløs. OrcaSlicer og de slicere, der bygger på den, læser dog ikke en farve pr. flade. En fil med et legeme i flere farver, som en Gridfinity-bakke med bogstaver i deres egen farve eller en gruppe med <strong class="ui">“Multifarve”</strong> slået til, har derfor også hver flade malet med sin farves filament, som maling i sliceren ville: OrcaSlicer og PrusaSlicer 2.9 printer så hver farve med sit filament, PrusaSlicer op til 15 farver, og Bambu Studio 2.9 tager filamenterne fra malingen i stedet for at spørge.</td></tr><tr><td><strong>OBJ</strong></td><td>modellering og udveksling</td><td>Et bredt understøttet meshformat. Farver gemmes som vertex-farver i den samme fil, uden ekstra <code>.mtl</code>. Bambu Studio og OrcaSlicer læser dem og spørger, som med 3MF, hvordan de skal mappes til dine filamenter; andre programmer ser kun formen. Som med 3MF samles overlappende former kun når de deler farve.</td></tr><tr><td><strong>STEP</strong></td><td>et fuldt CAD-program</td><td>Bevarer kasser, cylindre, kugler og kegler som eksakt geometri, og så former lavet fra et omrids (stjerne, hjerte, ellipse, rør, halvkugle, rundt tag, rundet kasse, svalehale, boringer og mere), det bøjede rør, kilen, pyramiden, paraboloiden, den buede kegle, gevind, fjedre og tandhjul, plus faser og rundinger. Den første STEP-eksport i en session indlæser CAD-kernen (omkring 22 MB) én gang.</td></tr><tr><td><strong>SVG</strong></td><td>laserskærer og plotter</td><td>En ren topvisning i millimeter, inklusive huller og buede konturer. Under <strong class="ui">“Visning”</strong> skriver <strong class="ui">“Fodaftryk på arbejdsfladen”</strong> kun de omrids, objekterne står med på arbejdsfladen. <strong class="ui">“Synlige kanter set ovenfra”</strong> skriver de kanter du ser ovenfra som linjer, hver form i sin egen farve; se nedenunder.</td></tr><tr><td><strong>DXF</strong></td><td>laserskæreværksted</td><td>Den samme topvisning (<strong class="ui">“Silhuet ovenfra”</strong> eller <strong class="ui">“Fodaftryk på arbejdsfladen”</strong>) som ét omrids af linjer, ægte buer og cirkler - ingen polylinjer, splines eller kurver lavet af korte lige stykker - på lag 0 i hvid, DXF 2000 i millimeter, ikke spejlvendt. Objekter der rører hinanden bliver ét omrids, så ingen linje skæres to gange. Værksteder vil have én del pr. fil: vælg delen før du eksporterer. Endnu ikke afprøvet på en laserskærer: tilbagemeldinger er velkomne.</td></tr><tr><td><strong>PNG</strong></td><td>forumindlæg, printsites, spørgsmål</td><td>Et billede af visningen som den er, i dobbelt opløsning og uden håndtag, markeringsrammer og mål. <strong class="ui">“Vis byggepladen”</strong> og <strong class="ui">“Gennemsigtig baggrund”</strong> vælges i vinduet. Drej og zoom først indtil billedet er rigtigt; markeringen betyder intet her.</td></tr><tr><td><strong>LYL</strong></td><td>layerling selv</td><td>Det redigerbare design med alt hvad der hører til det.</td></tr><tr><td><strong>2D</strong></td><td>værksted, drejebænk og fræser, dokumentation</td><td>En tegning i 1:1 som PDF eller SVG: forside, top- og højre-sidevisninger på et ISO-ark. Se nedenunder.</td></tr></tbody></table></div>
+<p><strong>Broer for dele der ville falde ud (DXF og SVG).</strong> Når en plade med tekst skæres af en laser eller en plotter, falder midten af bogstaver som o, a og b ud. Sæt flueben i <strong class="ui">“Broer for dele der ville falde ud”</strong> i eksportvinduet for DXF, eller for SVG med topvisningen, og små broer holder sådanne dele fast i materialet omkring dem, som på en skabelon: <strong class="ui">“Brobredde”</strong> (0,5 til 3 mm) og <strong class="ui">“Broer pr. del”</strong> (1 til 4) stilles ved siden af. En bro rører aldrig et andet omrids eller en anden bro og efterlader aldrig et spænd der er for smalt at skære i; dele der kun ville holde på hinanden bindes også til pladen. Hvis en del ikke får nogen bro ved den valgte bredde, siger beskeden efter eksporten hvor mange. Intet ændres medmindre flueben er sat.</p>
+<p><strong>STL i din egen mappe (Chrome og Edge).</strong> Der åbner den første STL-eksport af et design din systems gem-dialog, så du selv vælger mappen og navnet og kan erstatte en eksisterende fil. Bagefter skriver hver STL-eksport af designet i den samme fil uden en dialog; eksportvinduet viser hvilken fil, og <strong>Gem som…</strong> ved siden af eksportknappen vælger en anden. Dialogen husker sin egen mappe, adskilt fra den for designs, så slicer-filerne kan blive hos sliceren. Efter at siden er genindlæst glemmer designet sin STL-fil og næste eksport spørger igen. Firefox og Safari downloader filen som før. Vil du hellere have hver STL som en almindelig download, så browseren nummererer et navn den har brugt før (<code>navn (1).stl</code>, <code>navn (2).stl</code>) som Tinkercad gør, slår du <strong class="ui">“Gem STL som download”</strong> til i indstillingerne under <strong class="ui">“Udseende”</strong>.</p>
+<p>Et hul du ikke har grupperet tages ud af hver form det når når du eksporterer, som visningen viser det. Så der er ingen grund til at gruppere før hver eksport. Med en markering tæller kun de valgte huller. Et hul kan ikke eksporteres alene; layerling gør opmærksom på det.</p>
+<p>STEP bærer kun eksakte CAD-former. Et importeret mesh gøres eksakt til filen, som <strong class="ui">“Gør eksakt”</strong> gør det (se &quot;Gør et importeret mesh eksakt&quot; nedenfor), så eksporten kan tage op til et minut; et mesh, der mest er fri form, som en figur, udelades, ligesom alt andet, der ikke kan skrives eksakt. Beskeden efter eksporten navngiver de former og siger hvorfor. Til printeren, brug STL eller 3MF, som bærer alt.</p>
+<section class="guide-part"><h3 id="svg-til-en-lasersk-rer-eller-plotter"><span class="heading-alias" id="svg-for-a-laser-or-plotter"></span>SVG til en laserskærer eller plotter</h3>
+<p>Med <strong class="ui">“Synlige kanter set ovenfra”</strong> under <strong class="ui">“Visning”</strong> viser SVG'en designet som du ser det ovenfra, som topvisningen af en tegning: hver kant du kan se er en linje, og kanter der skjules af andre dele udelades. Hver linje har farven på sin form, så et laser- eller plotterprogram der sorterer efter farve lægger hver farve på et lag for sig. Om et lag skæres, rilles eller graveres, vælger du der.</p>
+<p>Hvert område en farve viser, har et lukket omrids, og hvor to former mødes, får begge linjen. Områderne fyldes even-odd, så at fylde en farve for at gravere den efterlader dens huller og pladserne for andre former fri. En del der stikker gennem en anden får linjen hvor den kommer ud. SVG'en er i 1:1 i millimeter, med designets forside nederst på siden, samme sted som silhuetten. Et design med for mange kanter til denne visning, som en plade med hundredevis af huller, får i stedet sin fyldte silhuet, og beskeden efter eksporten siger det.</p>
+</section><section class="guide-part"><h3 id="en-tegning-til-v-rkstedet"><span class="heading-alias" id="a-drawing-for-the-workshop"></span>En tegning til værkstedet</h3>
+<p>Vælg formatet <strong>2D</strong> (hold musen over og der står Tegning) og, under filnavnet, PDF eller SVG. Med noget valgt, tegnes kun markeringen, ellers hele det synlige design; huller du ikke har grupperet skærer stadig de dele de når.</p>
+<p>layerling tegner forside-, top- og højre-sidevisninger i første-vinkels layout (højre side til venstre for forsiden, topvisningen under den) på det mindste ISO-ark der passer, fra A4 til A0, eller et større hvis delen kræver det. Det er altid 1:1. Hver visning bærer sin samlede bredde og højde, og kanter du ikke kan se er stiplede. Runde boringer der løber parallelt med en visningsretning får et centerkryds og en etiket (F1, T1, R1), og en tabel for neden lister deres diameter og position, målt fra visningens nederste venstre hjørne. Titelfeltet i nederste højre hjørne rummer navn, skala, enheder, dato og arknummer. Ordene på arket følger grænsefladesproget.</p>
+<p>Print i 100% eller &quot;faktisk størrelse&quot;, ellers passer længderne ikke. Det tegningen ikke gør: gevind, dybder, tolerancer og boringer i en vinkel målsættes ikke, og størrelserne kommer fra modellen som et mesh, så de er nominelle. En meget detaljeret del (over 100.000 trekanter) eller mere end 200 boringer afvises med en besked; vælg færre objekter så.</p>
+<p>Projektionen er baseret på Cadverix-3D-tegningsarbejdet af WC3D.</p>
+</section><section class="guide-part"><h3 id="hvor-meget-filament-kr-ver-det"><span class="heading-alias" id="how-much-filament-does-it-take"></span>Hvor meget filament kræver det?</h3>
+<p>For STL, 3MF, OBJ og STEP viser feltet <strong class="ui">“Materiale”</strong> volumen, vægt og længde af 1,75 mm filament for det der eksporteres. Det tæller som filen: kun synlige former, huller trukket fra, overlap kun én gang. Til højre vælger du filamentet - PLA, PETG, ABS, ASA, TPU eller PA (nylon) - og vægten følger dets densitet. Volumenet er formens eget. Vægt og filament er et groft estimat for et print med vægge og fyldning: du sætter <strong class="ui">“Fyldning”</strong> (15% for at starte) og <strong class="ui">“Vægge”</strong> (2) under overskriften, og feltet siger hvad det talte og hvad den samme del ville veje som solid. Din slicers egne indstillinger bestemmer det rigtige tal, så tag det som vejledning: godt til at sammenligne designs og til om spolen rækker. Ved 100% fyldning tæller feltet delen som solid, det øvre bånd. Feltet regner sine tal ud når du trykker på <strong class="ui">“Beregn”</strong>, så eksportvinduet åbner med det samme, også for en fint sporet model.</p>
+</section></section><section class="guide-part"><h2 id="import"><span class="heading-alias" id="importing"></span>Import</h2>
+<p>Med <strong class="ui">“Importér”</strong> eller <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>I</kbd></span> bringer du fremmede filer ind i designet.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/import-panel.webp" alt="Importvinduet: åbn eller indsæt designs og slip geometri." width="1280" height="800" loading="lazy"><figcaption>Importvinduet: åbn eller indsæt designs og slip geometri.</figcaption></figure>
+<ul><li><strong><strong class="ui">“Åbn layerling-design”</strong>:</strong> Et layerling-design (<code>.lyl</code>, eller en ældre <code>.skf</code>) kommer tilbage som et nyt design.</li><li><strong><strong class="ui">“Indsæt i dette design”</strong>:</strong> Formerne fra et layerling-design tilføjes til det åbne. Praktisk til basisformer du har brug for igen og igen: byg dem én gang, gem dem og bring dem ind hver gang. Slipper du en eller flere <code>.lyl</code>-filer i feltet nedenunder, indsættes de på samme måde. Dets <a href="/api/desktop/layerling/ui/vejledning/measuring-and-notes.html">noter</a> kommer med, lukkede og nummereret videre efter dem designet allerede har, og det samme gør dets referencepunkter.</li><li><strong><strong class="ui">“Indsæt fra serveren”</strong>:</strong> Det samme for et design, der ligger på serveren (vises, når der er et serverlager). Vælg mappen og klik på designet; dets former føjes til det åbne.</li><li><strong>DXF:</strong> En DXF, som et laserskæreværksted eller en leverandør sender omridset af en del, kommer ind som dele du kan arbejde videre med: hvert lukket omrids bliver et objekt 4 mm højt, og hvert hul i det et hul for sig ved siden af (et rundt som cylinder), så du flytter og ændrer størrelsen på et hul i 3D-editoren som på ethvert andet; vælg dem alle for at flytte delen. I millimeter (en fil i tommer omregnes, en uden enhed læses som millimeter), buer og cirkler forbliver ægte buer. Linjer, buer, cirkler, ellipser, polylinjer, splines og blokke læses; tekst, mål og skraveringer udelades, og det samme gør omrids der ikke lukker - beskeden siger hvor mange. Tykkelsen sætter du i egenskaberne.</li><li><strong>Tilføj geometri:</strong> Slip STL-, OBJ-, 3MF-, STEP- eller SVG-filer i vinduet eller klik for at vælge en fil. Importerede meshes kan vendes, flyttes, skæres med huller og bygges videre på. En STEP-fil med flere solider, en samling fra et andet CAD-program, kommer ind som ét legeme pr. solid under det navn, filen giver den, på sin plads ved de andre og i den farve, filen giver den; flere legemer under ét element i filen, skruerne på en del for eksempel, bliver hver især en del. Dens samlinger bliver bundter under deres navne, en samling inde i en anden et bundt i bundtet; så skjules eller flyttes en hel samling på én gang, og et dobbeltklik åbner den, så du kan arbejde på en enkelt del. En SVG kommer ind som en skitseform, en fra en tracer som picsvg.com eller Inkscapes &quot;Trace Bitmap&quot; også: dens omrids bliver til skitsens linjer og kurver, 4 mm højt og læst oppefra som i tegningen. I egenskaberne sætter du dens <strong class="ui">“Fyld”</strong>, et areal eller en streg udvendig, indvendig eller centreret, og <strong class="ui">“Silhuet (ingen huller)”</strong> udelader hullerne, se <a href="/api/desktop/layerling/ui/vejledning/sketches.html">Skitser</a>, &quot;Fyld og silhuet&quot;. Du ændrer selve punkterne i skitsetilstand. Skal den komme ind i en størrelse du selv vælger, taster du først bredden i importvinduet under <strong>SVG og billede: bredde i mm</strong>, som i Tinkercad: tegningen skaleres til den, højden og dybden med den, og feltet tømmes igen efter den ene import; lad feltet stå tomt, så kommer en SVG ind i sin egen størrelse og et billede 50 mm bredt. Kun en meget indviklet SVG med mere end 2500 linjer og kurver kommer ind som et fast mesh. Et PNG- eller JPG-billede sporeres til et omrids og kommer ind på samme måde, som en skitseform 50 mm bred du kan ændre i størrelse bagefter: den del af billedet der ikke er dets baggrund, og baggrunden er den del der fylder mest af billedets kant. En SVG der ikke indeholder andet end ét billede spores på samme måde. En form der ikke kan bygges til en solid, såsom et omrids der krydser sig selv eller rører sig selv i et punkt, udelades, og efter importen siger layerling hvor mange der var. Så hjælper det at samle overlappende stykker i tegneprogrammet, lukke omridset og gemme filen igen. Tegninger lavet på én side, såsom lagene i ét dokument eksporteret som separate filer, passer sammen igen når du slår <strong class="ui">“SVG: bevar pladsen på tegnesiden”</strong> til i importvinduet før du importerer dem: hver bevarer sin plads på siden, hvor ellers hver er centreret på sig selv. En SVG tegnet i flere farver kommer også ind som ét legeme pr. farve, hvert i sin farve og på sin plads; med mere end 12 farver, som et optegnet billede har, forbliver den ét legeme. En farvet OBJ eller 3MF kommer ind som én form pr. farve, hver på sin plads. I en OBJ sidder farverne enten i selve filen, som i en OBJ fra layerling, eller i en <code>.mtl</code> ved siden af. Vælg den også, eller importer hele ZIP'en som Tinkercad uddeler sin OBJ. En 3MF bærer sine farver selv, og i et projekt fra Bambu Studio, OrcaSlicer eller PrusaSlicer tager hver del farven på sit filament. En 3MF med flere objekter, såsom et projekt med ét objekt pr. plade, kommer ind som én form pr. objekt; modifikatorer, negative volumener og støtteblokkere fra sliceren udelades. Farve malet på flader i sliceren læses ikke.</li><li><strong>Fra Tinkercad:</strong> En STL- eller OBJ-eksport fra Tinkercad kommer ind som geometri ligesom ethvert andet mesh; en OBJ beholder farverne. De rigtige former kommer med et gratis værktøj fra fællesskabet: <a href="https://taylormadearmy.github.io/tinkercad-layerling-importer/" rel="noopener">Export to layerling</a> af taylormadearmy, et bogmærke, der laver et Tinkercad-design i din browser om til en <code>.lyl</code>-fil, som du åbner her med <strong class="ui">“Åbn layerling-design”</strong>. Det er ikke en del af layerling, og vi har ikke selv prøvet det endnu; udvikleren har testet det på Windows med Chrome.</li></ul>
+<p>Et design gemt med en <strong>nyere layerling</strong> kan indeholde ting din version ikke kender endnu, såsom en ny form, en ny indstilling eller egne fonte. Hvis layerling ikke kan åbne det af den grund, navngiver beskeden begge versioner. Hvis det åbner, siger meddelelsen at nyere ting kan se anderledes ud her. I begge tilfælde hjælper det at genindlæse siden: layerling.com serverer altid den nyeste version. Den installerede app henter den næste gang den starter; på din egen server installerer du opdateringen.</p>
+<p>Skabelonbilleder tilføjes i skitsetilstand, se <a href="/api/desktop/layerling/ui/vejledning/sketches.html">Skitser</a>.</p>
+</section><section class="guide-part"><h2 id="forenkling-af-et-importeret-mesh"><span class="heading-alias" id="simplifying-an-imported-mesh"></span>Forenkling af et importeret mesh</h2>
+<p>Et scannet eller skulptureret mesh har ofte langt flere trekanter end dets form har brug for, og hver eneste af dem bæres med mens du flytter, skærer og gemmer. <strong class="ui">“Forenkl mesh”</strong> i Modificér-gruppen (eller i højreklik-menuen på formen) viser meshet som det er ved siden af hvad en valgt andel af dets trekanter ville efterlade af det; begge visninger drejer og zoomer sammen med arbejdsplanets museknapper. Sæt hvor meget der skal beholdes som en procent eller et antal trekanter, og <strong class="ui">“Anvend”</strong> tager det lettere mesh. Resultatet er et almindeligt mesh: for resultatet af en skæring eller sammenfletning opgives <strong class="ui">“Redigér gruppe”</strong> og dets originale dele. Med <strong class="ui">“Bevar kanter og huller”</strong> slået til, som det er fra start, bliver skarpe kanter og kanterne af huller præcis, hvor de er, mens plane flader stadig mister de fleste trekanter; slået fra må forenklingen runde dem af for et lavere antal. Stopper forenklingen over det antal, du bad om, siger vinduet det og hvorfor: med <strong class="ui">“Bevar kanter og huller”</strong> slået til kan et legeme af plane flader og skarpe kanter, som kasser og kiler, ofte ikke miste flere.</p>
+<p>At skære, flette og finde fælles med et importeret mesh beregnes i din browser, så arbejdsområdeindstillingerne begrænser hvor mange trekanter et sådant mesh må have (<strong class="ui">“Skær importerede meshes op til”</strong>). Et mesh over grænsen behandles ikke, og beskeden navngiver dets trekantsantal; forenkl meshet først, eller hæv grænsen hvis din computer kan klare det.</p>
+</section><section class="guide-part"><h2 id="g-r-et-importeret-mesh-eksakt"><span class="heading-alias" id="making-an-imported-mesh-exact"></span>Gør et importeret mesh eksakt</h2>
+<p>En STL-, OBJ- eller 3MF-fil rummer kun trekanter, også når delen blev tegnet i CAD med plane flader og runde huller. <strong class="ui">“Gør eksakt”</strong> i <strong class="ui">“Modificér”</strong>-gruppen (eller i formens højreklikmenu) leder i trekanterne efter de planer, cylindre, kegler, kugler og tori, de blev lavet af, og bygger formen op igen af dem som en eksakt CAD-form: et hul bliver én rigtig cylinder med rund kant i stedet for hundrede smalle strimler. Derefter følger <strong class="ui">“Rund”</strong> og <strong class="ui">“Fas”</strong> én ren kant, <strong class="ui">“Slet flade”</strong> fjerner en hel afrunding eller væggen i et hul, og en STEP-eksport bærer de rigtige flader. Statuslinjen fortæller, hvad der blev fundet, f.eks. &quot;planer: 9, cylindre: 4&quot;.</p>
+<p>Det, der ikke passer til nogen af disse flader, bliver som små plane facetter, og beskeden fortæller, hvor meget af overfladen det er. En form, der mest er fri form, som en figur eller en modelleret form, forbliver et mesh, og det samme gør et mesh med huller eller vægge, der krydser hinanden, og som ikke kan lukke sig til en form. Op til 400.000 trekanter tages imod, og et stort mesh kan tage et par minutter. Et større mesh bringer du under grænsen med <strong class="ui">“Forenkl mesh”</strong> og <strong class="ui">“Bevar kanter og huller”</strong> slået til; ellers tag meshet, som det kom, så bliver det renest. Ét fortryd-trin bringer meshet tilbage.</p>
+<p>For et lille mesh med runde flader, op til 4.000 trekanter, gør kantværktøjerne det selv: at runde en kant af sådan en STL bygger den først op på samme måde.</p>
+</section><section class="guide-part"><h2 id="fejlrapportering"><span class="heading-alias" id="reporting-a-bug"></span>Fejlrapportering</h2>
+<p>Hvis layerling gør noget uventet, så gem en <strong class="ui">“Fejlrapport”</strong>: linket sidder i sidefoden forneden, ved siden af forumet. Det er en ZIP-fil, fordi GitHub og mange fora afviser en bare .lyl: indeni er dit design som en .lyl og en kort tekstfil med versionen, browseren, skærmstørrelsen, de seneste beskeder og eventuelle fejl. Startsiden åbner ZIP'en som en sikkerhedskopi, eller du pakker den ud og åbner .lyl. Intet personligt er i den. Vedhæft filen til dit indlæg i forumet eller på GitHub, så problemet kan følges med præcis dit design.</p>
+<p>Hvis layerling stopper med en fejl, vises et vindue med fejlmeddelelsen i stedet for en tom side. Derfra kan du gemme den sidst gemte tilstand af designet i browseren som en .lyl-fil, gå tilbage til overblikket, eller starte et nyt design. Fejlmeddelelsen fra vinduet og den gemte fil hjælper når du rapporterer det.</p>
+</section><section class="guide-part"><h2 id="delte-designs-pa-en-server"><span class="heading-alias" id="shared-designs-on-a-server"></span>Delte designs på en server</h2>
+<p>Når layerling kører på din egen computer eller webserver, kan det tilbyde en delt mappe hvor alle brugere opbevarer designs. Startsiden viser så designene på to faner, <strong class="ui">“Server”</strong> for den delte mappe og en for denne browser, hver med antallet af designs; fanen med flest designs kommer først og er åben. Du opretter mapper der, flytter designs ved at trække og søger på tværs af hele mappen. Et design der bor der gemmer sig selv tilbage i det. Et design fra denne browser kommer op på serveren ved at trække dets kort over på fanen <strong class="ui">“Server”</strong>, eller med <strong class="ui">“Læg på serveren”</strong> i kortets menu. Mens fanen <strong class="ui">“Server”</strong> er åben, lægger <strong class="ui">“Opret nyt 3D-design”</strong> og <strong class="ui">“Gendan sikkerhedskopi”</strong> designet i den servermappe, du har åben, og <strong class="ui">“Sikkerhedskopiér alle”</strong> pakker alle serverens designs, i deres mapper, og dens egne former i én ZIP-fil. Startsiden viser et design ved dets filnavn, så at omdøbe et design, på dets kort eller øverst i editoren, omdøber også filen på serveren. Sletning af et design eller en mappe fjerner det for evigt, sammen med dets arbejdskopi i denne browser. Egne former der opbevares på serveren sidder i mappen <code>Custom shapes</code>, se <a href="/api/desktop/layerling/ui/vejledning/shapes.html">Former</a>.</p>
+<p>To ting gør det hurtigere: <strong class="ui">“Læg alle på serveren”</strong> på startsiden lægger alle designs i denne browser på serveren i én omgang, og at sætte kryds i <strong class="ui">“Nye designs på serveren”</strong> får hvert nyt design til at starte i servermappen, så det gemmes der fra den første ændring. Med krydset starter alt det andet, der skaber et design, også der: at åbne eller importere en fil, <strong class="ui">“Gendan sikkerhedskopi”</strong> (med sikkerhedskopiens mapper), at duplikere og at hente en tilstand fra historikken, hver gang i den servermappe du havde åben; <strong class="ui">“Ny mappe”</strong> på startsiden opretter så en mappe på serveren. Et design der laves i de første øjeblikke venter, til serveren har svaret. Når nye designs altid skal starte på serveren, og denne browser ikke har nogen designs af sine egne, viser startsiden kun serverens designs. Krydset gemmes i denne browser. Et design der ikke kan komme derop - dets navn er optaget på serveren, for eksempel - bliver i browseren, og beskeden siger hvor mange.</p>
+<p>De andre eksportformater (STL, 3MF, OBJ, STEP, SVG, PNG og tegningen) kan komme i den samme mappe: i eksportvinduet skriver <strong class="ui">“Gem på serveren”</strong> filen ved siden af dit design, eller ind i den mappe du har åben på startsiden for et design der ikke ligger på serveren. Et program der deler mappen, som en slicer i Docker, kan åbne den derfra. Filen dukker ikke op i listen over designs. Er der allerede en fil med det navn, siger beskeden det, og trykker du på knappen igen, erstattes den.</p>
+<p>Det er ikke samtidig redigering: den der åbner en fil arbejder på sin egen kopi. Hvis en anden har ændret filen i mellemtiden, nægter layerling at overskrive den.</p>
+<p>På layerling.com er denne funktion ikke slået til. Hvordan du sætter den op på din egen server er beskrevet i <a href="https://github.com/henmedia/layerling/blob/main/README.md" rel="noopener">README på GitHub</a>.</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/vejledning/printing.html"><small>Forrige kapitel</small>Forberedelse til 3D-print</a><a class="next" href="/api/desktop/layerling/ui/vejledning/shortcuts.html"><small>Næste kapitel</small>Tastaturgenveje</a></div>
+      </main>
+    </div>
+    <footer class="note">Denne vejledning vokser sammen med programmet. Hvis noget mangler eller er forkert, så fortæl os i <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">diskussioner</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=da" rel="noopener">Støt projektet</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Diskussioner</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mere på GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Udgivelsesnoter v1.154.1</a></div><p class="trademark">Tinkercad er et varemærke tilhørende Autodesk, Inc. layerling er et uafhængigt projekt og er ikke tilknyttet, anbefalet eller sponsoreret af Autodesk.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Tilbage til editoren";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Åbn editoren";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

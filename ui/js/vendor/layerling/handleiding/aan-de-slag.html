@@ -7,8 +7,22 @@
     <meta name="description" content="Van een leeg vel naar je eerste onderdeel voor de 3D-printer, in vijf minuten, zonder account en zonder iets te installeren.">
     <link rel="canonical" href="https://layerling.com/handleiding/aan-de-slag.html">
     <link rel="alternate" hreflang="en" href="https://layerling.com/guide/getting-started.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/getting-started.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/getting-started.html">
     <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/erste-schritte.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/getting-started.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/getting-started.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/getting-started.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/getting-started.html">
     <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/aan-de-slag.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/getting-started.html">
+    <link rel="alternate" hreflang="pt-PT" href="https://layerling.com/guia-pt-pt/getting-started.html">
+    <link rel="alternate" hreflang="pt-BR" href="https://layerling.com/guia/getting-started.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/prvi-koraki.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/getting-started.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/getting-started.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/getting-started.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/getting-started.html">
     <meta property="og:title" content="Aan de slag - layerling handleiding">
     <meta property="og:description" content="Van een leeg vel naar je eerste onderdeel voor de 3D-printer, in vijf minuten, zonder account en zonder iets te installeren.">
     <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
@@ -60,6 +74,7 @@ a { color: var(--accent); }
 .guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
 .guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
 .guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
 .editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
 .editor-elsewhere[hidden] { display: none; }
 .bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
@@ -89,26 +104,51 @@ li { margin-bottom: 4px; }
 strong.ui { font-weight: 700; white-space: nowrap; }
 kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
 code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
-pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
 pre code { padding: 0; background: none; }
 figure { margin: 22px 0; }
 figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
 figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
 aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
 aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
 .table-scroll { overflow-x: auto; margin: 0 0 16px; }
 table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
 table.keys { table-layout: fixed; }
 table.keys td:first-child { width: 42%; }
-th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
 th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
 .toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
 .toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
-.toc ul { margin: 0; padding-left: 18px; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
 .pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
 .pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
 .pager a small { display: block; color: var(--muted); font-size: 12px; }
-.pager a.next { margin-left: auto; text-align: right; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
 .cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
 .cards a:hover { border-color: var(--accent); }
@@ -131,82 +171,170 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
   .bar-inner { flex-wrap: wrap; }
   .guide-search { order: 5; flex: 1 1 100%; }
 }
-@media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
 </style>
   </head>
   <body>
     <header class="bar"><div class="bar-inner">
       <a class="brand" href="/api/desktop/layerling/ui/handleiding/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Handleiding</span></span></a>
       <form class="guide-search" id="guide-search" role="search" data-index="/handleiding/search-index.json" data-nothing="Niets gevonden." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Handleiding doorzoeken" aria-label="Handleiding doorzoeken" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
-      <details class="lang-menu"><summary aria-label="Taal">Nederlands</summary><ul><li><a href="/api/desktop/layerling/ui/guide/getting-started.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/anleitung/erste-schritte.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/handleiding/aan-de-slag.html" hreflang="nl" lang="nl" aria-current="true">Nederlands</a></li></ul></details>
+      <details class="lang-menu"><summary aria-label="Taal">Nederlands</summary><ul><li><a href="/api/desktop/layerling/ui/guide/getting-started.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/getting-started.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/getting-started.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/erste-schritte.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/getting-started.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/getting-started.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/getting-started.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/getting-started.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/aan-de-slag.html" hreflang="nl" lang="nl" aria-current="true">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/getting-started.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/getting-started.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/getting-started.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/prvi-koraki.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/getting-started.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/getting-started.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/getting-started.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/getting-started.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/getting-started.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/getting-started.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
       <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Naar de editor</a>
     </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>De editor is al open in een ander tabblad - schakel daar gewoon naartoe.</p></header>
     <div class="shell">
-      <nav class="chapters" aria-label="Hoofdstukken"><h2>Hoofdstukken</h2><ol><li><a href="/api/desktop/layerling/ui/handleiding/aan-de-slag.html" aria-current="page">Aan de slag</a></li><li><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html">Weergave en werkvlak</a></li><li><a href="/api/desktop/layerling/ui/handleiding/vormen.html">Vormen plaatsen en aanpassen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html">Selecteren en schikken</a></li><li><a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html">Lichamen en gaten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/randen-en-uithollen.html">Randen breken en lichamen uithollen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html">Schetsen: van omtrek naar lichaam</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html">Tekst en gebogen belettering</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schroefdraad-en-mechanica.html">Schroefdraad, tandwielen en andere onderdelen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html">Meten en notities</a></li><li><a href="/api/desktop/layerling/ui/handleiding/printen.html">Voorbereiden op 3D-printen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html">Bestanden, opslaan en delen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/sneltoetsen.html">Sneltoetsen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/ai-met-mcp.html">Bouwen met een AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/handleiding/offline-en-installeren.html">Installeren als app, offline werken en zelf hosten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/videos.html">Video's over layerling</a></li></ol></nav>
+      <nav class="chapters" aria-label="Hoofdstukken"><h2>Hoofdstukken</h2><p class="print-link"><a href="/api/desktop/layerling/ui/handleiding/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Hele handleiding, om af te drukken</span></a></p><ol><li><a href="/api/desktop/layerling/ui/handleiding/aan-de-slag.html" aria-current="page">Aan de slag</a></li><li><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html">Weergave en werkvlak</a></li><li><a href="/api/desktop/layerling/ui/handleiding/vormen.html">Vormen plaatsen en aanpassen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html">Selecteren en schikken</a></li><li><a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html">Lichamen en gaten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/randen-en-uithollen.html">Randen breken en lichamen uithollen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html">Schetsen: van omtrek naar lichaam</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html">Tekst en gebogen belettering</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schroefdraad-en-mechanica.html">Schroefdraad, tandwielen en andere onderdelen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html">Meten en notities</a></li><li><a href="/api/desktop/layerling/ui/handleiding/printen.html">Voorbereiden op 3D-printen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html">Bestanden, opslaan en delen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/sneltoetsen.html">Sneltoetsen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/ai-met-mcp.html">Bouwen met een AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/handleiding/offline-en-installeren.html">Installeren als app, offline werken en zelf hosten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/videos.html">Video's over layerling</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tablet-en-touch.html">Tablet en touch</a></li></ol></nav>
       <main>
 <h1>Aan de slag</h1>
 <p class="lead">Van een leeg vel naar je eerste onderdeel voor de 3D-printer, in vijf minuten, zonder account en zonder iets te installeren.</p>
-<div class="toc"><b>Op deze pagina</b><ul><li><a href="#een-ontwerp-maken">Een ontwerp maken</a></li><li><a href="#de-editor-in-een-oogopslag">De editor in één oogopslag</a></li><li><a href="#je-eerste-onderdeel">Je eerste onderdeel</a></li><li><a href="#nieuw-sinds-je-laatste-bezoek">Nieuw sinds je laatste bezoek</a></li><li><a href="#van-ontwerp-naar-print">Van ontwerp naar print</a></li></ul></div>
+<div class="toc"><b>Op deze pagina</b><ul><li><a href="#een-ontwerp-maken">Een ontwerp maken</a></li><li><a href="#de-editor-in-een-oogopslag">De editor in één oogopslag</a></li><li><a href="#de-knoppen-rond-het-werkvlak">De knoppen rond het werkvlak</a></li><li><a href="#je-eerste-onderdeel">Je eerste onderdeel</a></li><li><a href="#nieuw-sinds-je-laatste-bezoek">Nieuw sinds je laatste bezoek</a></li><li><a href="#van-ontwerp-naar-print">Van ontwerp naar print</a></li></ul></div>
 <p>layerling is een ontwerpprogramma voor 3D-printen dat gewoon in je browser draait. Je bouwt een onderdeel op uit eenvoudige vormen, snijdt er gaten in, rondt de randen af en stuurt het naar je slicer. Er valt niets te installeren en je hoeft je nergens aan te melden. Wat je bouwt, blijft op je eigen computer.</p>
-<figure><img src="/api/desktop/layerling/ui/handleiding/img/start-page.webp" alt="De startpagina van layerling: bovenaan &quot;Nieuw 3D-ontwerp maken&quot;, daaronder je ontwerpen en de snelgids." width="1280" height="800" loading="lazy"><figcaption>De startpagina van layerling: bovenaan &quot;Nieuw 3D-ontwerp maken&quot;, daaronder je ontwerpen en de snelgids.</figcaption></figure>
-<h2 id="een-ontwerp-maken">Een ontwerp maken</h2>
+<figure><img src="/api/desktop/layerling/ui/guide/img/start-page.webp" alt="De startpagina van layerling: bovenaan &quot;Nieuw 3D-ontwerp maken&quot;, daaronder je ontwerpen en de snelgids." width="1280" height="800" loading="lazy"><figcaption>De startpagina van layerling: bovenaan &quot;Nieuw 3D-ontwerp maken&quot;, daaronder je ontwerpen en de snelgids.</figcaption></figure>
+<section class="guide-part"><h2 id="een-ontwerp-maken"><span class="heading-alias" id="creating-a-design"></span>Een ontwerp maken</h2>
 <p>Open <a href="https://layerling.com/" rel="noopener">layerling.com</a>. Klik op de startpagina op <strong class="ui">“Nieuw 3D-ontwerp maken”</strong>. De editor opent met een leeg werkvlak, het raster waarop alles vorm krijgt.</p>
 <p>Heb je al een bestand waarmee je verder wilt, gebruik dan <strong class="ui">“Een ontwerp openen of geometrie importeren”</strong>. Dat werkt voor layerling-ontwerpen (<code>.lyl</code>) en ook voor STL-, OBJ-, 3MF-, STEP- en SVG-bestanden.</p>
-<p>Al je ontwerpen verschijnen later op de startpagina met een voorbeeldafbeelding. Ze worden bewaard in de opslag van je browser en na elke wijziging automatisch opgeslagen, dus er is geen knop om op te slaan. Hoe je ontwerpen in een bestand verpakt en doorgeeft, lees je in <a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html">Bestanden en opslaan</a>.</p>
-<h2 id="de-editor-in-een-oogopslag">De editor in één oogopslag</h2>
-<figure><img src="/api/desktop/layerling/ui/handleiding/img/editor-overview.webp" alt="De editor met twee vormen op het werkvlak. Bovenaan het lint, links de camerabediening, rechts de instellingen van de geselecteerde vorm." width="1280" height="800" loading="lazy"><figcaption>De editor met twee vormen op het werkvlak. Bovenaan het lint, links de camerabediening, rechts de instellingen van de geselecteerde vorm.</figcaption></figure>
-<ul><li><strong>Bovenaan</strong> staat het lint. Het is ingedeeld naar taak: <strong class="ui">“Klembord”</strong>, <strong class="ui">“Geschiedenis”</strong>, <strong class="ui">“Vormen”</strong>, <strong class="ui">“Zichtbaarheid”</strong>, <strong class="ui">“Combineren”</strong>, <strong class="ui">“Bewerken”</strong>, <strong class="ui">“Schikken”</strong>, <strong class="ui">“Beheren”</strong> en <strong class="ui">“Help”</strong>. Houd de muis boven een pictogram om de naam te zien. Overal waar je een klein vraagteken ziet, bijvoorbeeld in de instellingen van een vorm, in de vormenbibliotheek of in de gereedschapspanelen, kom je daarmee direct bij het bijbehorende hoofdstuk van deze handleiding.</li><li><strong>In het midden</strong> ligt het werkvlak. Hier zet je vormen neer, trek je ze in model en zie je het resultaat.</li><li><strong>Rechts</strong> verschijnen de instellingen van de geselecteerde vorm: kleur, afmetingen, positie en wat de vorm verder bepaalt. Getallen typen is nauwkeuriger dan slepen.</li><li><strong>Links</strong> staat de camerabediening, met de weergavekubus erboven. Daarmee beweeg je door de scène, meer daarover in <a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html">Weergave en werkvlak</a>.</li><li><strong>Helemaal bovenaan</strong> wissel je tussen <strong class="ui">“3D-editor”</strong> en <strong class="ui">“Schets”</strong>, geef je het ontwerp een andere naam en kies je taal en kleurenschema.</li></ul>
-<h2 id="je-eerste-onderdeel">Je eerste onderdeel</h2>
-<p>Als voorbeeld bouwen we een kubus met een gat.</p>
-<ol><li>Klik in het lint op <strong class="ui">“Vorm toevoegen”</strong> en kies <strong class="ui">“Blok”</strong>. De vorm hangt nu aan je muisaanwijzer. Met een klik op het werkvlak zet je hem neer.</li><li>Stel rechts de afmetingen in, bijvoorbeeld 40 mm lang, 40 mm breed en 20 mm hoog.</li><li>Zet op dezelfde manier een <strong class="ui">“Cilinder”</strong> in het midden, 14 mm doorsnede en 30 mm hoog. Hij moet hoger zijn dan de kubus, zodat hij er helemaal doorheen steekt.</li><li>Selecteer de cilinder en klik rechts op <strong class="ui">“Gat”</strong>. Hij wordt doorzichtig: het lichaam is een gereedschap geworden dat materiaal weghaalt.</li><li>Selecteer beide vormen en klik op <strong class="ui">“Groeperen”</strong>. De kubus heeft nu een gat.</li></ol>
-<figure><img src="/api/desktop/layerling/ui/handleiding/img/hole-before.webp" alt="De cilinder is een gat en steekt boven de kubus uit." width="1280" height="800" loading="lazy"><figcaption>De cilinder is een gat en steekt boven de kubus uit.</figcaption></figure>
-<figure><img src="/api/desktop/layerling/ui/handleiding/img/hole-after.webp" alt="Na het groeperen heeft de kubus een boring." width="1280" height="800" loading="lazy"><figcaption>Na het groeperen heeft de kubus een boring.</figcaption></figure>
+<p>Al je ontwerpen verschijnen later op de startpagina met een voorbeeldafbeelding. Ze worden bewaard in de opslag van je browser en na elke wijziging automatisch opgeslagen, dus er is geen knop om op te slaan. <strong>layerling neemt geen verantwoordelijkheid voor ontwerpen die in de browser bewaard worden.</strong> Een browser kan haperen, of een browserupdate kan problemen geven, dus maak af en toe een back-up van je ontwerpen met <strong class="ui">“Alles back-uppen”</strong> op de startpagina, of sla ze op als bestanden. Een back-up komt terug met <strong class="ui">“Back-up terugzetten”</strong>. Hoe je ontwerpen in een bestand verpakt en doorgeeft, lees je in <a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html">Bestanden en opslaan</a>. Wil je een herinnering, zet dan <strong class="ui">“Vragen voor het sluiten van het tabblad”</strong> aan in de instellingen (het tandwiel in het lint): de browser vraagt dan om bevestiging voordat een tabblad met een open ontwerp wordt gesloten of herladen.</p>
+</section><section class="guide-part"><h2 id="de-editor-in-een-oogopslag"><span class="heading-alias" id="the-editor-at-a-glance"></span>De editor in één oogopslag</h2>
+<figure><img src="/api/desktop/layerling/ui/handleiding/img/editor-areas.webp" alt="De editor met zijn benoemde delen: bovenaan het lint, links de weergavekubus met daaronder de weergavebalk, ernaast de statusmelding en de objectenlijst, rechts de eigenschappen van de geselecteerde vorm." width="1280" height="800" loading="lazy"><figcaption>De editor met zijn benoemde delen: bovenaan het lint, links de weergavekubus met daaronder de weergavebalk, ernaast de statusmelding en de objectenlijst, rechts de eigenschappen van de geselecteerde vorm.</figcaption></figure>
+<ul><li><strong>Bovenaan</strong> staat het <strong>lint</strong>. Het is ingedeeld naar taak: <strong class="ui">“Klembord”</strong>, <strong class="ui">“Geschiedenis”</strong>, <strong class="ui">“Vormen”</strong>, <strong class="ui">“Zichtbaarheid”</strong>, <strong class="ui">“Combineren”</strong>, <strong class="ui">“Bewerken”</strong>, <strong class="ui">“Schikken”</strong> en <strong class="ui">“Bestand”</strong>; <strong class="ui">“Help”</strong> staat erboven in de titelregel, en het huisje naast de tabbladen brengt je terug naar de startpagina. Is het venster te smal voor alle groepen, dan klappen de minst gebruikte in tot één knop onder hun naam, met een pijltje in de kleur van de groep eronder: wijs hem aan of tik erop, en de gereedschappen openen eronder. Ingeklapt <strong class="ui">“Geschiedenis”</strong> is de uitzondering: de knop is <strong class="ui">“Ongedaan maken”</strong> zelf, en alleen het pijltje eronder opent <strong class="ui">“Opnieuw”</strong> en de rest. De punaise rechtsboven, links van het vergrootglas, houdt in plaats daarvan alle groepen open. Houd de muis boven een pictogram om de naam te zien, ook bij een grijs pictogram; <strong class="ui">“Interactieve hulp”</strong> (het vraagteken onder <strong class="ui">“Help”</strong>, of Shift+F1) legt elk ervan met een klik uit en brengt je naar het bijbehorende deel van deze handleiding. Overal waar je een klein vraagteken ziet, bijvoorbeeld in de instellingen van een vorm, in de vormenbibliotheek of in de gereedschapsvensters, kom je daarmee direct bij het bijbehorende hoofdstuk van deze handleiding. De groep <strong class="ui">“Bewerken”</strong> is verdeeld in vier delen, elk met de naam boven de gereedschappen: <strong class="ui">“Spiegelen &amp; patroon”</strong>, <strong class="ui">“Splitsen &amp; vormen”</strong>, <strong class="ui">“Randen &amp; wanden”</strong> en <strong class="ui">“Oppervlak”</strong>. Een grijs pictogram zegt ook waarop het wacht, bijvoorbeeld <strong class="ui">“Selecteer één lichaam”</strong> of <strong class="ui">“De selectie is vergrendeld: ontgrendel die eerst”</strong>. Kun je een gereedschap niet vinden? Druk op <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span> en typ de naam; een leeg ontwerp herinnert je eraan onderaan de weergave.</li><li><strong>In het midden</strong> ligt het werkvlak. Hier zet je vormen neer, trek je ze in model en zie je het resultaat.</li><li><strong>Rechts</strong> verschijnen de <strong>eigenschappen</strong> van de geselecteerde vorm: kleur, afmetingen, positie en wat de vorm verder bepaalt. Getallen typen is nauwkeuriger dan slepen.</li><li><strong>Links</strong> staat de weergavebalk, met de weergavekubus erboven. Daarmee beweeg je door de scène, meer daarover in <a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html">Weergave en werkvlak</a>.</li><li><strong>Naast de weergavebalk</strong> gaat de <strong>objectenlijst</strong> open (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>U</kbd></span>), met alle vormen van het ontwerp. Meer in <a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html">Selecteren en schikken</a>.</li><li><strong>Rechts van de weergavekubus</strong> verschijnt de <strong>statusmelding</strong> als layerling je iets te zeggen heeft, bijvoorbeeld wat een gereedschap van je verwacht. Is er niets te zeggen, dan is ze er niet.</li><li><strong>Gereedschapsvensters</strong> gaan open boven het werkvlak als je een gereedschap start, zoals <strong class="ui">“Afronding”</strong>, <strong class="ui">“Patroon”</strong> of <strong class="ui">“Uithollen”</strong>. Schuif ze aan hun titelbalk opzij als ze iets bedekken.</li><li><strong>Helemaal bovenaan</strong> wissel je tussen <strong class="ui">“3D-editor”</strong> en <strong class="ui">“Schets”</strong>, geef je het ontwerp een andere naam en kies je taal en kleurenschema.</li></ul>
+</section><section class="guide-part"><h2 id="de-knoppen-rond-het-werkvlak"><span class="heading-alias" id="the-buttons-around-the-work-area"></span>De knoppen rond het werkvlak</h2>
+<p>Houd de muis boven een knop om de naam te zien. Weet je niet zeker wat een knop doet, klik dan in het gebied <strong class="ui">“Help”</strong> op <strong class="ui">“Interactieve hulp”</strong> (<span dir="ltr"><kbd>Shift</kbd>+<kbd>F1</kbd></span>) en daarna op de knop. Hier staan de knoppen waar het vaakst naar gevraagd wordt.</p>
+<section class="guide-part"><h3 id="plakken"><span class="heading-alias" id="paste"></span>Plakken</h3>
+<p><strong class="ui">“Plakken”</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>V</kbd></span>) voegt wat je met <strong class="ui">“Kopiëren”</strong> kopieerde toe aan het ontwerp. <strong class="ui">“Dupliceren”</strong> kopieert en plakt in één stap. Plakken zet elk onderdeel een stukje naast waar het stond. Onderdelen uit een ander programma kunnen ver van de plaat terechtkomen; daarvoor is er <strong class="ui">“Plakken in het midden en neerzetten”</strong> in de instellingen, onder <strong class="ui">“Weergave”</strong>: plakken zet de onderdelen dan samen in het midden van het werkvlak en laat ze erop zakken.</p>
+</section><section class="guide-part"><h3 id="verwijderen"><span class="heading-alias" id="delete"></span>Verwijderen</h3>
+<p><strong class="ui">“Verwijderen”</strong> (<kbd>Delete</kbd>) verwijdert de geselecteerde vormen. <strong class="ui">“Ongedaan maken”</strong> haalt ze terug.</p>
+</section><section class="guide-part"><h3 id="groep-opheffen"><span class="heading-alias" id="ungroup"></span>Groep opheffen</h3>
+<p><strong class="ui">“Groep opheffen”</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span>) haalt de geselecteerde groep weer uit elkaar in de vormen waaruit ze gemaakt is.</p>
+</section><section class="guide-part"><h3 id="werkruimte-instellingen"><span class="heading-alias" id="workspace-settings"></span>Werkruimte-instellingen</h3>
+<p><strong class="ui">“Werkruimte-instellingen”</strong> opent de instellingen van het werkvlak: eenheid, grootte van de plaat, printer, raster, kleuren, licht en meer. Meer in <a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html">Beeld en werkvlak</a>.</p>
+</section><section class="guide-part"><h3 id="thema"><span class="heading-alias" id="theme"></span>Thema</h3>
+<p><strong class="ui">“Thema”</strong> helemaal bovenaan bepaalt hoe layerling eruitziet: zoals je systeem, licht, donker of grafiet.</p>
+</section><section class="guide-part"><h3 id="ontwerp-hernoemen"><span class="heading-alias" id="rename-design"></span>Ontwerp hernoemen</h3>
+<p><strong class="ui">“Ontwerp hernoemen”</strong>: het potlood naast de naam helemaal bovenaan. Typ de nieuwe naam en druk op <kbd>Enter</kbd>.</p>
+</section><section class="guide-part"><h3 id="naam-van-het-ontwerp"><span class="heading-alias" id="design-name"></span>Naam van het ontwerp</h3>
+<p>De naam van het ontwerp (<strong class="ui">“Naam van het ontwerp”</strong>) staat helemaal bovenaan. Klik erop, typ, en <kbd>Enter</kbd> houdt de naam.</p>
+</section><section class="guide-part"><h3 id="zichtbaarheidsopties"><span class="heading-alias" id="visibility-options"></span>Zichtbaarheidsopties</h3>
+<p><strong class="ui">“Zichtbaarheidsopties”</strong>, de pijl naast het oog, bevat wat je kunt tonen of verbergen: de lijst met objecten, alles wat je verborgen hebt, de notities en de overhangen van de print. Meer in <a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html">Selecteren en schikken</a>.</p>
+</section><section class="guide-part"><h3 id="selectie-verbergen"><span class="heading-alias" id="hide-selected"></span>Selectie verbergen</h3>
+<p><strong class="ui">“Selectie verbergen”</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>H</kbd></span>) verbergt de geselecteerde vormen. Ze blijven in het ontwerp en in de objectlijst; <strong class="ui">“Zichtbaarheidsopties”</strong> toont ze weer.</p>
+</section><section class="guide-part"><h3 id="opdrachten-zoeken"><span class="heading-alias" id="search-commands"></span>Opdrachten zoeken</h3>
+<p><strong class="ui">“Opdrachten zoeken (Ctrl+K)”</strong>: typ wat je zoekt, een gereedschap, een vorm of een instelling, en klik op het resultaat.</p>
+</section><section class="guide-part"><h3 id="weergavebalk-verbergen"><span class="heading-alias" id="hide-the-view-bar"></span>Weergavebalk verbergen</h3>
+<p><strong class="ui">“Weergavebalk verbergen”</strong> klapt de weergavebalk links weg en geeft het werkvlak meer ruimte; <strong class="ui">“Weergavebalk tonen”</strong> haalt ze terug.</p>
+</section><section class="guide-part"><h3 id="uitlijnraster"><span class="heading-alias" id="snap-grid"></span>Uitlijnraster</h3>
+<p><strong class="ui">“Uitlijnraster”</strong>, onderaan de eigenschappen, is de stap waarop verplaatsen en vergroten vastklikt. Ernaast verandert de kleine schakelaar <strong>mm | in</strong> de eenheid. Meer in <a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html">Beeld en werkvlak</a>.</p>
+</section><section class="guide-part"><h3 id="eenheid-millimeters-of-inches"><span class="heading-alias" id="unit-millimetres-or-inches"></span>Eenheid: millimeters of inches</h3>
+<p>De schakelaar <strong>mm | in</strong> naast <strong class="ui">“Uitlijnraster”</strong> verandert de eenheid, het raster van de plaat en de vangstap, voor dit ontwerp.</p>
+</section><section class="guide-part"><h3 id="de-voettekst"><span class="heading-alias" id="the-footer"></span>De voettekst</h3>
+<p>Onderaan het venster: <strong class="ui">“Steun het project”</strong> leidt naar de pagina waar je het project kunt steunen; <strong class="ui">“Handleiding”</strong> opent deze handleiding; <strong class="ui">“Discussies”</strong> leidt naar de plek voor vragen, ideeën en foutmeldingen (de discussies op GitHub, in het Duits het forum van drucktipps3d); <strong class="ui">“Foutrapport”</strong> maakt een ZIP voor een foutmelding; <strong class="ui">“Meer op GitHub”</strong> leidt naar het project op GitHub, en het versienummer opent de versienotities. De links naar het impressum en het privacybeleid horen bij wie de kopie van layerling beheert die je gebruikt.</p>
+</section></section><section class="guide-part"><h2 id="je-eerste-onderdeel"><span class="heading-alias" id="your-first-part"></span>Je eerste onderdeel</h2>
+<p>Als voorbeeld bouwen we een blok met een gat.</p>
+<ol><li>Klik in het lint op <strong class="ui">“Vorm toevoegen”</strong> en kies <strong class="ui">“Blok”</strong>. De vorm hangt nu aan je muisaanwijzer. Met een klik op het werkvlak zet je hem neer.</li><li>Stel rechts de afmetingen in, bijvoorbeeld 40 mm lang, 40 mm breed en 20 mm hoog.</li><li>Zet op dezelfde manier een <strong class="ui">“Cilinder”</strong> in het midden, 14 mm doorsnede en 30 mm hoog. Hij moet hoger zijn dan het blok, zodat hij er helemaal doorheen steekt.</li><li>Selecteer de cilinder en klik rechts op <strong class="ui">“Gat”</strong>. Hij wordt doorzichtig: het lichaam is een gereedschap geworden dat materiaal weghaalt.</li><li>Selecteer beide vormen en klik op <strong class="ui">“Groeperen”</strong>. Het blok heeft nu een gat.</li></ol>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hole-before.webp" alt="De cilinder is een gat en steekt boven het blok uit." width="1280" height="800" loading="lazy"><figcaption>De cilinder is een gat en steekt boven het blok uit.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hole-after.webp" alt="Na het groeperen heeft het blok een boring." width="1280" height="800" loading="lazy"><figcaption>Na het groeperen heeft het blok een boring.</figcaption></figure>
 <p>Zo maak je boringen, sleuven en kamers. Het hoofdstuk <a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html">Lichamen en gaten</a> legt het uitgebreid uit.</p>
-<h2 id="nieuw-sinds-je-laatste-bezoek">Nieuw sinds je laatste bezoek</h2>
-<p>Open je layerling opnieuw na een update, dan toont een kaart op de startpagina wat er is bijgekomen sinds je hier het laatst was: elke versie sindsdien, de nieuwste eerst. Na een lange afwezigheid scrol je binnen de kaart naar beneden. Daaronder voegt <strong class="ui">“Eerdere versies tonen ({count})”</strong> ook de versies van vóór je laatste bezoek toe. Sluit hem met <strong class="ui">“Begrepen”</strong> en hij blijft weg tot de volgende update. <strong class="ui">“Wat is er nieuw?”</strong> onderaan de startpagina toont de nieuwste toevoegingen op elk moment opnieuw. De browser onthoudt de laatste versie die je hebt gezien, en niets over jou verlaat de browser.</p>
+</section><section class="guide-part"><h2 id="nieuw-sinds-je-laatste-bezoek"><span class="heading-alias" id="new-since-your-last-visit"></span>Nieuw sinds je laatste bezoek</h2>
+<p>Open je layerling opnieuw na een update, dan toont een kaart op de startpagina wat er is bijgekomen sinds je hier het laatst was: elke versie sindsdien, de nieuwste eerst. Na een lange afwezigheid scrol je binnen de kaart naar beneden. Daaronder voegt <strong class="ui">“Eerdere versies tonen”</strong> ook de versies van vóór je laatste bezoek toe. Sluit hem met <strong class="ui">“Begrepen”</strong> en hij blijft weg tot de volgende update. <strong class="ui">“Wat is er nieuw?”</strong> onderaan de startpagina toont de nieuwste toevoegingen op elk moment opnieuw. De browser onthoudt de laatste versie die je hebt gezien, en niets over jou verlaat de browser.</p>
 <p>Op een kopie van layerling op je eigen computer of server heeft de melding &quot;Update beschikbaar&quot; een knop, <strong class="ui">“Voorproefje: wat brengt de update?”</strong>, die laat zien wat de update brengt voordat je hem installeert. De lijst wordt pas bij GitHub opgehaald als je op de knop drukt.</p>
-<h2 id="van-ontwerp-naar-print">Van ontwerp naar print</h2>
+</section><section class="guide-part"><h2 id="van-ontwerp-naar-print"><span class="heading-alias" id="from-design-to-print"></span>Van ontwerp naar print</h2>
 <p>Is je onderdeel klaar, klik dan op <strong class="ui">“Exporteren”</strong>, kies STL of 3MF en download het bestand. Open het in je slicer, bijvoorbeeld Bambu Studio, PrusaSlicer, OrcaSlicer of Cura. Kies je in de instellingen je printer, dan zie je al tijdens het bouwen of het onderdeel op het printbed past. Meer in <a href="/api/desktop/layerling/ui/handleiding/printen.html">Printen</a>.</p>
-<aside class="tip"><p><strong>Tip:</strong> Kom je van Tinkercad, dan vind je snel je weg: plaat, vormen, lichaam en gat, groeperen, uitlijnen en spiegelen werken bijna hetzelfde. Nieuw zijn vooral afschuinen en afronden, uithollen, schroefdraad en schetsen.</p></aside>
+<aside class="tip"><p><strong>Tip:</strong> Kom je van Tinkercad, dan vind je snel je weg: plaat, vormen, lichaam en gat, groeperen, uitlijnen en spiegelen werken bijna hetzelfde. Nieuw zijn vooral afschuinen en afronden, uithollen, schroefdraad en schetsen. Ook je eigen Tinkercad-ontwerpen kunnen mee, zie <a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html">Bestanden, opslaan en delen</a>.</p></aside></section>
 <div class="pager"><a class="next" href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html"><small>Volgend hoofdstuk</small>Weergave en werkvlak</a></div>
       </main>
     </div>
     <footer class="note">Deze handleiding groeit mee met het programma. Mis je iets of klopt er iets niet, laat het ons weten in de <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussies</a>.</footer>
-    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=nl" rel="noopener">Steun het project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussies</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Meer over het project op GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.71.0</a></div><p class="trademark">Tinkercad is een handelsmerk van Autodesk, Inc. layerling is een onafhankelijk project en is niet gelieerd aan, goedgekeurd of gesponsord door Autodesk.</p></footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=nl" rel="noopener">Steun het project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussies</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Meer op GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.154.1</a></div><p class="trademark">Tinkercad is een handelsmerk van Autodesk, Inc. layerling is een onafhankelijk project en is niet gelieerd aan, goedgekeurd of gesponsord door Autodesk.</p></footer>
     <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Terug naar de editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Naar de editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
     <script>
-function guideFold(text){var out="";for(var i=0;i<text.length;i++){out+=text.charAt(i).toLowerCase().normalize("NFD").charAt(0);}return out;}
-function guideForms(word,umlauts){
-  var forms=[word];
-  if(umlauts){var plain=word.split("ae").join("a").split("oe").join("o").split("ue").join("u");if(plain!==word)forms.push(plain);}
-  if(word.indexOf("ss")>=0)forms.push(word.split("ss").join(String.fromCharCode(223)));
-  if(word.indexOf(String.fromCharCode(223))>=0)forms.push(word.split(String.fromCharCode(223)).join("ss"));
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
   return forms;
 }
-function guideFind(text,forms,from){
-  var best=null;
-  for(var i=0;i<forms.length;i++){var k=text.indexOf(forms[i],from);if(k>=0&&(!best||k<best.at))best={at:k,len:forms[i].length};}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
   return best;
 }
-function guidePrepare(entries){return entries.map(function(e){return {e:e,c:guideFold(e.c),h:guideFold(e.h),t:guideFold(e.t)};});}
-function guideTokens(query){return guideFold(query).split(" ").filter(function(w){return w.length>0;});}
-function guideSearch(prepared,query,limit,umlauts){
-  var tokens=guideTokens(query);if(!tokens.length)return [];
-  var forms=tokens.map(function(w){return guideForms(w,umlauts);}),phrase=guideForms(tokens.join(" "),umlauts),found=[];
-  prepared.forEach(function(p){
-    var score=0;
-    for(var i=0;i<tokens.length;i++){
-      var inH=guideFind(p.h,forms[i],0),inC=guideFind(p.c,forms[i],0),at=guideFind(p.t,forms[i],0);
-      if(!inH&&!inC&&!at)return;
-      if(inH)score+=10;
-      if(inC)score+=3;
-      if(at){score+=1;var n=0,k=at;while(k&&n<5){n++;k=guideFind(p.t,forms[i],k.at+k.len);}score+=n*0.3;}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
     }
-    if(tokens.length>1&&(guideFind(p.h,phrase,0)||guideFind(p.t,phrase,0)))score+=6;
-    found.push({entry:p.e,score:score,folded:p.t,forms:forms});
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
   });
-  found.sort(function(a,b){return b.score-a.score;});
-  return found.slice(0,limit||8);
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
 }
 
 function guideSnippet(hit){
@@ -224,20 +352,57 @@ function guideSnippet(hit){
   if(end<text.length)parts.push({text:" ...",mark:false});
   return parts;
 }
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
 (function(){
   var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
   var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
   function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
   function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
   function render(){
     if(!guideTokens(input.value).length){close();return;}
     if(!prepared){load().then(function(){if(prepared)render();});return;}
-    var hits=guideSearch(prepared,input.value,8,form.getAttribute("data-umlauts")==="true");
+    var hits=guideSearch(prepared,input.value,8,umlauts);
     box.textContent="";
     if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
     hits.forEach(function(hit){
       var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
-      link.href=hit.entry.u;
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
       title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
       guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
       link.appendChild(title);link.appendChild(line);box.appendChild(link);
@@ -250,7 +415,7 @@ function guideSnippet(hit){
     if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
     else if(e.key==="Escape"){input.value="";close();}
   });
-  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first)window.location.href=first.href;});
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
   box.addEventListener("keydown",function(e){
     var current=document.activeElement;
     if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}

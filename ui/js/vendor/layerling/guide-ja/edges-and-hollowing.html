@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Breaking edges and hollowing bodies - layerling ユーザーガイド</title>
+    <meta name="description" content="Chamfer and fillet on chosen edges, walls of equal thickness for boxes, cups and cases.">
+    <link rel="canonical" href="https://layerling.com/guide/edges-and-hollowing.html">
+    <meta name="robots" content="noindex">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/kanten-und-aushoehlen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/randen-en-uithollen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/robovi-in-izdolbljenje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/edges-and-hollowing.html">
+    <meta property="og:title" content="Breaking edges and hollowing bodies - layerling ユーザーガイド">
+    <meta property="og:description" content="Chamfer and fillet on chosen edges, walls of equal thickness for boxes, cups and cases.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/guide-ja/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">ユーザーガイド</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/guide-ja/search-index.json" data-nothing="見つかりませんでした。" data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="ガイドを検索" aria-label="ガイドを検索" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="言語">日本語</summary><ul><li><a href="/api/desktop/layerling/ui/guide/edges-and-hollowing.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/edges-and-hollowing.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/edges-and-hollowing.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/edges-and-hollowing.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/edges-and-hollowing.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/edges-and-hollowing.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/edges-and-hollowing.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/randen-en-uithollen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/edges-and-hollowing.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/edges-and-hollowing.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/edges-and-hollowing.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/robovi-in-izdolbljenje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/edges-and-hollowing.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/edges-and-hollowing.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/edges-and-hollowing.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/edges-and-hollowing.html" hreflang="ja" lang="ja" aria-current="true">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/edges-and-hollowing.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/edges-and-hollowing.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">エディターを開く</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>エディターはもう別のタブで開いています。そのタブに切り替えてください。</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="章"><h2>章</h2><p class="print-link"><a href="/api/desktop/layerling/ui/guide-ja/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>ガイドをまとめて印刷</span></a></p><ol><li><a href="/api/desktop/layerling/ui/guide-ja/getting-started.html">Getting started</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/view-and-workplane.html">View and workplane</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/shapes.html">Placing and adjusting shapes</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/select-and-arrange.html">Selecting and arranging</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/solids-and-holes.html">Solids and holes</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/edges-and-hollowing.html" aria-current="page">Breaking edges and hollowing bodies</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/sketches.html">Sketches: from outline to body</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/text.html">Text and curved lettering</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/threads-and-mechanics.html">Threads, gears and other parts</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/measuring-and-notes.html">Measuring and notes</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/printing.html">Preparing for 3D printing</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/files-and-saving.html">Files, saving and sharing</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/shortcuts.html">Keyboard shortcuts</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/ai-with-mcp.html">Building with an AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/offline-and-install.html">Installing as an app, working offline and self-hosting</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/videos.html">Videos about layerling</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/tablet-and-touch.html">Tablet and touch</a></li></ol></nav>
+      <main>
+<h1>Breaking edges and hollowing bodies</h1>
+<p class="lead">Chamfer and fillet on chosen edges, walls of equal thickness for boxes, cups and cases.</p>
+<p class="not-translated" role="note" lang="ja">この章はまだ日本語になっていません。このあとは英語で書かれています。</p>
+<div class="toc"><b>このページの内容</b><ul><li><a href="#chamfering-and-filleting-edges">Chamfering and filleting edges</a></li><li><a href="#hollowing-bodies">Hollowing bodies</a></li><li><a href="#a-lid-for-an-open-body">A lid for an open body</a></li><li><a href="#a-cable-channel-through-a-body">A cable channel through a body</a></li><li><a href="#offsetting-bodies">Offsetting bodies</a></li><li><a href="#deleting-faces">Deleting faces</a></li></ul></div>
+<section class="guide-part"><h2 id="chamfering-and-filleting-edges">Chamfering and filleting edges</h2>
+<p>Sharp edges rarely look good on a printed part, and they are not particularly strong either. A <strong>chamfer</strong> cuts the edge off at an angle, a <strong>fillet</strong> rounds it. Both act on the edges you click.</p>
+<ol><li>Select the body (or the group).</li><li>Click <strong class="ui">「フィレット」</strong> or <strong class="ui">「面取り」</strong> in the ribbon, press <kbd>B</kbd> for the fillet or <span dir="ltr"><kbd>Shift</kbd>+<kbd>B</kbd></span> for the chamfer, or right-click the body and pick it from the menu.</li><li>The body's edges light up. Click those that should be affected. Another click takes an edge out again. With <kbd>Shift</kbd> you add or remove a single edge.</li><li>Set the size and confirm with <strong class="ui">「反映」</strong> or <kbd>Enter</kbd>. Afterwards the window stays open on the new body with the same size, so the next fillet or chamfer can follow at once; <strong class="ui">「完了」</strong>, <kbd>Esc</kbd> or the cross closes it. With <kbd>Shift</kbd> or <kbd>Ctrl</kbd> a click on <strong class="ui">「上端のエッジ」</strong>, <strong class="ui">「下端のエッジ」</strong>, <strong class="ui">「垂直のエッジ」</strong> or <strong class="ui">「水平なエッジ」</strong> adds those edges to the ones picked instead of replacing them.</li></ol>
+<figure><img src="/api/desktop/layerling/ui/guide/img/fillet-preview.webp" alt="The &quot;Fillet edges&quot; tool: all sharp edges are selected, the picture shows the preview with a 4 mm radius." width="1280" height="800" loading="lazy"><figcaption>The &quot;Fillet edges&quot; tool: all sharp edges are selected, the picture shows the preview with a 4 mm radius.</figcaption></figure>
+<p>The tool window sits at the top right. If it covers edges you want to click, drag it away by its title bar; it opens there next time too, and so do <strong class="ui">「中空にする」</strong> and <strong class="ui">「パターン」</strong>. Double-click the title bar to put it back.</p>
+<p>Picking a shape from the shape list while the tool window is open closes it without applying anything, and the edges you clicked are forgotten. The click then places the new shape instead of picking edges.</p>
+<p>In the tool window you find:</p>
+<ul><li><strong class="ui">「すべての鋭いエッジ」</strong> selects every edge at once, <strong class="ui">「クリア」</strong> empties the selection.</li><li><strong><strong class="ui">「半径」</strong></strong> for the fillet. For the chamfer you set <strong class="ui">「距離」</strong> or <strong class="ui">「角度」</strong>.</li><li><strong class="ui">「半径を変える」</strong> (fillet only) lets the radius change along one edge: small at one end, larger at the other, evenly in between, as where a straight wall meets a slanted one. Click a single edge, then set <strong class="ui">「始まりの半径」</strong> and <strong class="ui">「終わりの半径」</strong>. Which end counts as the start follows from how the edge was built; if the larger radius comes out at the wrong end, <strong class="ui">「両はしを入れかえる」</strong> turns it round. It works on one edge at a time, so round several edges one after the other. <strong class="ui">「編集」</strong> brings both values back.</li><li><strong class="ui">「凹（えぐる）」</strong> (fillet only) turns the fillet round: instead of rounding the edge off, it cuts a quarter-round scoop out of it, like the notched corners of a box. The scoop is a cylinder of the chosen <strong class="ui">「半径」</strong> lying along the edge, so it works for any angle between the faces, but on straight edges only, and not together with <strong class="ui">「半径を変える」</strong>. <strong class="ui">「編集」</strong> brings it back.</li><li><strong class="ui">「鋭いエッジのしきい値」</strong> decides which edges count as sharp at all. A value of 25° treats only clear kinks as edges and leaves flat transitions alone.</li><li><strong class="ui">「垂直のエッジ」</strong> picks the edges that stand straight up, such as the corners of a box: one fillet then rounds all the vertical corners at once.</li><li><strong class="ui">「上端のエッジ」</strong> picks only the edges along the very top of the body. It is the quick way for a cookie cutter: build the outline in a sketch as a stroke, then chamfer the top edges. <strong class="ui">「角度」</strong> sets how steep the chamfer is; it cannot reach further than the wall is thick.</li><li><strong class="ui">「下端のエッジ」</strong> picks only the edges along the very bottom of the body, the mirror of <strong class="ui">「上端のエッジ」</strong>. It is the quick way to round or chamfer only the foot of a part.</li><li><strong class="ui">「面取りフィレット」</strong>, chosen at the top of the chamfer window next to <strong class="ui">「面取り」</strong>, makes the printable foot of a part: a chamfer at the plate that blends tangentially into a fillet toward the wall, so the first layers need no support and the edge still ends soft. <strong class="ui">「距離」</strong> is the height the foot takes up, <strong class="ui">「角度」</strong> (15° to 75°) the steepness of the chamfer at the plate. Pick the edges with <strong class="ui">「下端のエッジ」</strong>.</li><li><strong class="ui">「見えているエッジのみ」</strong> hides the edges that lie behind the body from where you look. By default every edge shows through the body, which gets confusing on a busy part; with the switch on you see, and can click, only the edges facing you. Turn the view to reach the others. An edge drawn in red (see below) always shows.</li><li><strong class="ui">「クリックで、なめらかに続くエッジも一緒に選ぶ」</strong>: a click then also picks edges that flow smoothly into each other, for example all edges around a face with rounded corners. The switch only decides what a click picks: the CAD kernel always carries a chamfer or fillet on along such smoothly continuing edges. The tool window tells you along how many more edges that happens.</li><li><strong class="ui">「サイズ変更時にエッジのサイズを保つ」</strong> keeps the chamfer or fillet as large as it is, even if you scale the body later.</li><li><strong class="ui">「プレビューの品質」</strong> (<strong class="ui">「ドラフト」</strong>, <strong class="ui">「標準」</strong> or <strong class="ui">「高品質」</strong>) decides how finely the preview is calculated. For difficult parts <strong class="ui">「ドラフト」</strong> is faster.</li><li>The window keeps its settings in this browser, one set each for chamfer, fillet and chamfer-fillet: size, angle, threshold, preview quality and the switches stay as you left them after <strong class="ui">「反映」</strong>, after an undo and the next time you open the tool. A size the body cannot take gives way to the one worked out from the body. Only <strong class="ui">「クリックで、なめらかに続くエッジも一緒に選ぶ」</strong> starts anew: on for a body's first chamfer or fillet, off after that.</li></ul>
+<p>While you adjust the size, layerling recalculates the preview. It can take a moment. You may keep adjusting; the last value you chose is what gets calculated.</p>
+<p>If the size is too large for the edge, layerling says so and suggests a smaller value. Often one or two millimetres less will do. At sharp angles a fillet needs more room than its radius suggests. On a small screen the tool window scrolls down by itself so the message is in view.</p>
+<p>When a selection that worked fails after you click one more edge, that edge turns red and is drawn wider: it is the one that cannot be treated together with the others at this size. Click it again to take it out, or make the size smaller. If you click more edges while the message stands, the first one stays red. When there is no earlier selection that worked - the very first click, or a size you just raised - the edges that fail even on their own turn red, or all of them if it is only their combination.</p>
+<p>A fillet along a curved edge has one more limit. Where the edge bends round the outside of the body tighter than the radius, as at the tip of a drop drawn in a sketch or brought in as an SVG, the rounding cannot follow the bend. layerling then says how tight the tightest bend is and draws the edges that have it in red. Choose a radius smaller than that, or draw the bend rounder. A sharp corner is no such bend: two edges meet there, and each is rounded on its own. So round the top edges before you round a corner with a small radius: the rounded corner would be a tight bend for the top.</p>
+<p>Before it gives up, layerling tries once more with the short edges at the ends of the picked ones, up to twice the size long. One sits where an earlier chamfer ends on a wall that is still sharp: a short slanted edge in the corner, and the corner cannot be treated while it stays sharp. If that helps, those edges are picked as well, and a message says how many were taken along. And where the picked edges meet in a sharp inner corner, as two discs of a cloud do, a fillet has no room at any size: layerling then rounds those corners first, at the same size or a smaller one, and the message says how many and how much (a chamfer chamfers them).</p>
+<p>The edge under the pointer is drawn wider too, so you can see which one a click will pick.</p>
+<p>A hole takes <strong class="ui">「面取り」</strong> and <strong class="ui">「フィレット」</strong> as well, and so do <strong class="ui">「中空にする」</strong>, <strong class="ui">「オフセット」</strong> and <strong class="ui">「面を削除」</strong>: it stays a hole and cuts with its new shape. Rounding the four upright edges of a box hole cuts a pocket with round inside corners, and a hole grown with <strong class="ui">「オフセット」</strong> cuts with that much more room. To break the edge where a hole meets the part, treat the finished group instead: that edge belongs to it.</p>
+<section class="guide-part"><h3 id="taking-an-edge-treatment-back">Taking an edge treatment back</h3>
+<p>A treated body can always be treated again. Select it again and open the tool - Fillet, Chamfer or Hollow, each shows the list: under <strong class="ui">「エッジ処理を元に戻す」</strong> you see what is already on it. <strong class="ui">「元に戻す」</strong> takes back a single treatment. Note: if newer treatments lie on top, they go with it, and the tool window tells you how many.</p>
+<p>Next to a chamfer, a fillet or a hollowing there is also <strong class="ui">「編集」</strong>. It takes the treatment back the same way, but opens the tool again at once with the same edges and the old value. You change the value and apply it again: a 3 mm fillet becomes a 5 mm one without clicking the edges once more. If newer treatments lie on top, they go with it here too. This holds for edge treatments you make from now on; older ones only offer taking back, and so do single parts of a group.</p>
+<p>On a group, say a cylinder with a hole, the treated edge belongs to the finished body, not to one of its parts. So the group becomes a single body. <strong class="ui">「グループ解除」</strong> still works on it: it takes the edge features back first and then dissolves the group, in one step that <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> undoes. Take the treatment back as described above and the group returns with all its parts. The easiest way is to treat edges last. That goes for threads too: the edge tool takes a thread as its exact body, so a block with a tapped hole in it gets its edges rounded with the thread in place. Working out a thread's edges takes longer than for a plain shape, a few seconds for an M6 and about half a minute for a G1/2 pipe thread.</p>
+<aside class="tip"><p><strong>Good to know:</strong> layerling works with real CAD geometry for fillets and chamfers, not just a triangle mesh. That is why a rounded edge is still a rounded edge in the STEP export.</p></aside>
+<p>A part imported as STEP keeps its CAD geometry too: chamfers, fillets and hollowing work on the body from the file, however finely the part is drawn on screen. STL, OBJ and 3MF bring only triangles, and a finely drawn part can be too dense for the edge tool. If a part is also available as STEP, import that. <strong class="ui">「Make exact」</strong> turns such a part into an exact body with real planes and cylinders first, see <a href="/api/desktop/layerling/ui/guide-ja/files-and-saving.html">Files, saving and sharing</a>, &quot;Making an imported mesh exact&quot;.</p>
+</section></section><section class="guide-part"><h2 id="hollowing-bodies">Hollowing bodies</h2>
+<p>Boxes, cups, cases and covers have one thing in common: they are empty inside, with walls of equal thickness. That is exactly what <strong class="ui">「中空にする」</strong> does.</p>
+<ol><li>Select the body and click <strong class="ui">「中空にする」</strong>, or right-click the body and pick it from the menu.</li><li>Set the <strong class="ui">「壁の厚さ」</strong>.</li><li>Under <strong class="ui">「開ける側」</strong>, switch on the sides that stay open: <strong class="ui">「上」</strong>, <strong class="ui">「下」</strong>, <strong class="ui">「前」</strong>, <strong class="ui">「後ろ」</strong>, <strong class="ui">「左」</strong> or <strong class="ui">「右」</strong>, as many as you like - <strong class="ui">「前」</strong> alone makes a slot for a drawer, <strong class="ui">「左」</strong> and <strong class="ui">「右」</strong> a tunnel. With no side switched on the body stays closed all round, with a cavity in the middle. <strong class="ui">「閉じる (内部が空洞)」</strong> switches every side off in one click. <strong class="ui">「上」</strong> is already on when the tool window opens; a click on it closes the top again. A body closed all round looks unchanged from outside: the section view shows the cavity.</li><li>Decide whether the <strong class="ui">「内側のエッジ」</strong> should be <strong class="ui">「丸める」</strong> or <strong class="ui">「鋭く」</strong>.</li><li>Click <strong class="ui">「中空にする」</strong>.</li></ol>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-panel.webp" alt="The hollowing tool window with wall thickness, a switch for each side that stays open, and the inner edges." width="1280" height="800" loading="lazy"><figcaption>The hollowing tool window with wall thickness, a switch for each side that stays open, and the inner edges.</figcaption></figure>
+<p>The walls grow inward. The outside stays as it is.</p>
+<p>The <strong class="ui">「内側のエッジ」</strong> only matter where the inner walls move apart - at a step in the body or around an opening. The corners of the cavity of a plain box are always sharp, with both settings. For a rounded inside, round the outside edges of the body first (see above), then hollow it: the inside follows with the radius minus the wall thickness. If the rounded inside cannot be built, which can happen with an outline made of very many short straight pieces such as a traced drawing, layerling builds the same hollow body with sharp inner corners instead.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-result.webp" alt="The result: a shell with a 3 mm wall, open at the top." width="1280" height="800" loading="lazy"><figcaption>The result: a shell with a 3 mm wall, open at the top.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-sides.webp" alt="The same box with only the front side open: a slot for a drawer." width="1280" height="800" loading="lazy"><figcaption>The same box with only the front side open: a slot for a drawer.</figcaption></figure>
+<p>For every open side, the body needs a flat face at its very edge on that side. Spheres and free-form shapes therefore cannot be hollowed this way. If the wall is too thick for the body, layerling tells you and asks for a thinner one. A rounded box whose top and bottom edges are rounded as well is such a case: its wall has to be clearly thinner than that rounding, or set the rounding to 0 first.</p>
+<p>A body with a pocket - a block with a hole that does not go all the way through, made by grouping a box with a raised hole - can be hollowed too, with the top open: the walls round the pocket are hollowed as well, so a ring of cavity stays between the outer wall and the pocket, open at the top, and a thin cavity lies under the pocket's floor.</p>
+<p><strong>Bodies that end in a point,</strong> such as a cone or a revolved triangle, have no flat face on top that could stay open. A fully closed cavity does not work there either, because a point cannot be offset inwards: even with a 1 mm wall you get the message that the walls cannot be this thick. Draw the wall into the profile before revolving instead: duplicate the outline, scale the copy down evenly, put it in the middle of the large outline and cut the large one with it, then revolve the whole (chapter Sketches, section Revolve). The distance between the two outlines is the wall thickness.</p>
+<p>If you resize a hollowed body later, layerling hollows it again at the new size right away. The wall stays as thick as you chose, round bodies included. A cylinder you pull further one way than the other becomes an ellipse. Fillets and chamfers you laid on it after the hollowing go on again at the same edges.</p>
+<aside class="tip"><p><strong>Tip:</strong> With a 0.4 mm nozzle, 1.2 to 2 mm of wall is a good start: thin enough to save material, thick enough for a sturdy part.</p></aside>
+</section><section class="guide-part"><h2 id="a-lid-for-an-open-body">A lid for an open body</h2>
+<p><strong class="ui">「ふた」</strong> makes the lid for a body that is open at the top: a box you hollowed with its top open, a pot, a tray. Select the body and click <strong class="ui">「ふた」</strong>. In the window you choose the kind:</p>
+<ul><li><strong class="ui">「差しこむ」</strong>: a plate as large as the body with a lip below it that goes into the opening.</li><li><strong class="ui">「かぶせる」</strong>: a plate a wall wider than the body with a rim below it that goes over the outside.</li><li><strong class="ui">「Both sides」</strong>: a plate a wall wider than the body with both: a lip into the opening and a rim over the outside. The body's wall sits in a groove between them, like on a food container.</li><li><strong class="ui">「平ら」</strong>: only the plate, to lay on top or glue on.</li><li><strong class="ui">「Screw on」</strong>: a cap that screws on like a jar's lid, for a round body; more about it below.</li><li><strong class="ui">「Screw in」</strong>: a plate with a threaded plug that screws into the opening of a round body; more about it below.</li><li><strong class="ui">「Bayonet」</strong>: a twist lock for a round body, a cap pushed down over lugs and turned; more about it below.</li><li><strong class="ui">「Slide-in」</strong>: a plate that slides into a box through one wall, like a wooden pencil box's lid; more about it below.</li></ul>
+<p>Then you set the <strong class="ui">「ふたの厚さ」</strong>, the <strong class="ui">「はまり具合」</strong> (the <strong class="ui">「片側のすき間」</strong> between lid and body: 0.1 mm tight, 0.2 mm normal, 0.3 mm loose, or any value up to 1 mm) and how deep the lip or rim reaches down and how thick its wall is. Click <strong class="ui">「ふたを作る」</strong>: the lid lies beside the body, turned over with its plate down, so it prints without support. The body stays as it is. The lid follows any outline, round or angular, because it is taken from the body itself just below its rim. A body without an opening at the top only gets a flat lid; for the others, hollow it with the top open first. For a body that is an exact CAD body, such as a rounded box hollowed with Hollow, the lid is one too, with round corners that stay round: round or chamfer its edges with the edge tool like any other. Other bodies, and lids with posts for the magnets, get a lid made of triangles.</p>
+<aside class="tip"><p><strong>Tip:</strong> How tight a lid sits depends on the printer. Print a small box with its lid first; if the lid is too tight, take the next looser fit.</p></aside>
+<p>Tick <strong class="ui">「Magnets in the corners」</strong> and the lid holds by four round magnets instead of a tight fit. Pick a <strong class="ui">「Magnet」</strong> (6 × 2, 8 × 3 or 10 × 3 mm) or set its <strong class="ui">「Magnet diameter」</strong> and <strong class="ui">「Magnet height」</strong>, and the <strong class="ui">「Play round the magnet」</strong>: 0.1 mm to press the magnets in, 0.2 to 0.3 mm to glue them. Layerling cuts a pocket into each corner of the body's rim and one facing it into the lid's plate, a little deeper than the magnet, so it never stands proud. Where the wall is too thin for a pocket, a post fills the corner from the bottom up to the rim, and the lid's lip goes round it. The body is grouped with its pockets and posts: ungroup it and you have it back as it was. The plate must be at least the magnet's height plus 0.8 mm thick; switching the magnets on makes it so.</p>
+<p>Tick <strong class="ui">「Hinge」</strong> and the lid swings open about a pin along a straight side of the body: the back, or the side you pick under <strong class="ui">「Hinge side」</strong> (as in the starting view, where the back faces away from you). Knuckles take turns along it, the outer ones on the body and those between on the lid, <strong class="ui">「Hinge clearance」</strong> apart, and a hole for the pin goes through them all: with a <strong class="ui">「Pin diameter」</strong> of 1.75 mm a piece of filament is the pin; tick <strong class="ui">「Print the pin too」</strong> for a thicker one printed apart. The pin sits tight in the body's part of the hinge, so a piece of filament pressed in stays put, and turns in the lid's: <strong class="ui">「Pin play (per side)」</strong> is its room there on each side, 0.2 mm to begin with; give it more if the lid turns stiffly. In the body's part a printed pin has 0.15 mm on each side, as it comes out at its full width: it still sits firmly, but it can be pressed in. The body's knuckles stand on a 45° slope, so the body prints upright without support; the lid's are flush with its top, so it still prints turned over. <strong class="ui">「Knuckles (0 = automatic)」</strong> at 0 gives about one knuckle per 10 mm. A hinge goes with a lid that pushes in or a flat one; a rim round the outside would hit the back wall as it opens. On a round side, a pot or a tube, the hinge runs where the wall stays within a knuckle's radius of the hinge's line, and the body's knuckles stand on a small block that reaches in to the wall. <strong class="ui">「Teardrop pin holes (no droop when printed)」</strong> (on to start with) gives the pin's holes a point on top as each part is printed, so they do not droop; a printed pin lies on a small flat. Under <strong class="ui">「Hinge type」</strong>, <strong class="ui">「Flush」</strong> puts the knuckles into the wall instead of behind it: the box keeps its size, each part is notched round the other's knuckles, and the lid opens to about 140°. <strong class="ui">「Pivot pins」</strong> makes a lid that lies in the opening on a small ledge and turns on two pins through the side walls, to about 95°; the box keeps its size there too. Both need a straight side and go without magnets.</p>
+<p>For a <strong class="ui">「Flush」</strong> hinge, tick <strong class="ui">「End plugs」</strong> to close the pin's hole at both ends, so the pin stays hidden and cannot slide out. The last 4 mm of the hole at each end are then square, standing on a corner so that they too have a point on top and print without drooping, and just large enough for the pin to pass: push the pin in first, then press a plug into each end. The square plugs cannot turn and sit as tight as the pin does in the body; each is cut flush with the outside of the box, rounded corners included (on such a box the hinge runs on into the corners, with plugs or without). They come out beside the lid, lying on a flat side. The pin is shorter by them, and the status bar says how long.</p>
+<aside class="tip"><p><strong>Tip:</strong> Press the magnets into the body first. Then set one more magnet on each of them, where it snaps on the right way round, and press the lid down onto them (with a drop of glue in its pockets if they are loose): each magnet goes into the lid facing its partner, so they attract.</p></aside>
+<p>Tick <strong class="ui">「Click bumps」</strong> and the lid clicks shut: small round bumps on the outside of its lip (on a lid that goes over the top, on the inside of its rim) snap into dimples that Layerling cuts into the body's wall at the same places, one in the middle of each straight side of 12 mm or more, two on a side over 80 mm, four round a round opening, and none on the hinge's side. <strong class="ui">「Bump height」</strong> is how far each bump reaches into the wall, 0.4 mm to begin with: less for a small box or a stiff lip, more for a firmer click. Under <strong class="ui">「Handle」</strong>, <strong class="ui">「Pull tab」</strong> gives the plate a tab 6 mm out from its front edge (or the edge opposite the hinge), as thick as the plate, so the lid still prints turned over, and <strong class="ui">「Finger notch」</strong> cuts a recess for a finger into the body's front wall just below the lid's edge, always leaving 0.8 mm of the wall; neither goes with a pivot lid, nor do the bumps with a flat one.</p>
+<p>Pick <strong class="ui">「Screw on」</strong> and the lid screws on like a jar's: the body gets a thread on the outside of its top, and the cap the same thread inside its rim. This needs a round body, such as a cylinder, a tube or a round pot hollowed with its top open, with a wall at least 0.8 mm thick; a box or an oval is refused. A rim that is rounded or chamfered, as on a vessel revolved from a line with round ends, can stay as it is, for this lid and for <strong class="ui">「Bayonet」</strong> below: the thread or the lugs go on the straight wall under the rounding, and the cap reaches over it. The thread is added to the outside of the wall rather than cut into it, so even a thin wall keeps its strength, and it is grouped with the body: ungroup it and you have the body back as it was. <strong class="ui">「Thread pitch」</strong> is how far the thread climbs in one turn, 3 mm to begin with, as on a jar; the thread is three tenths of that deep (at most 1.5 mm), its flanks at 45°, so the body prints upright and the cap on its plate, both without support. <strong class="ui">「Turns」</strong> is how many times it goes round, and with the pitch how far the cap's rim reaches down. The <strong class="ui">「片側のすき間」</strong> is the thread's room on each side, measured across the radius as for a nut; if the cap turns stiffly, take a looser fit. Turn the cap clockwise to close it. Cap and thread are made of triangles, and magnets, a hinge, click bumps and a handle do not go with a screw lid.</p>
+<p>Under <strong class="ui">「Thread」</strong> you can pick, instead of <strong class="ui">「Custom」</strong>, the thread of a standard bottle or jar: PCO 1881 is the 28 mm neck of most water and soft-drink bottles, PCO 1810 the older one with a taller thread, GL 45 the thread of laboratory bottles (DIN 168), Mason 70 and Mason 86 the regular and the wide mouth of mason jars. The cap is then made to the standard, so it fits such a bottle or jar from the shop; the standard sets the pitch and how far the cap reaches down, and the <strong class="ui">「片側のすき間」</strong> is the room all round its thread. The body gets the neck's thread only if its top is that neck: round, and as wide as the neck under its thread, which the window tells you (24.94 mm for PCO 1881); a cap from the shop then fits the body too. Any other body stays as it is and only the cap is made, as the status bar says. To make a cap for a bottle you have, select a cylinder about as wide as its neck, click <strong class="ui">「ふた」</strong>, and pick <strong class="ui">「Screw on」</strong> and the bottle's thread. A standard's flanks are steeper than the 45° of the custom thread, so the thread's underside on the body and the ridges inside the cap hang over more as they print; they are only about a millimetre deep, but print one cap first to see how your printer manages them. The thread of mason jars has no published drawing, and its sizes are measured ones: try the cap on your jar.</p>
+<p>Before you click <strong class="ui">「ふたを作る」</strong>, the window measures your body's top and says whether it is the neck: how wide it is, how wide the neck must be under the thread, and whether the body gets the thread or only the cap is made. If it is not the neck and the body is a cylinder, a tube or a hollowed cylinder standing upright, <strong class="ui">「Fit the body to the neck」</strong> makes it as wide as the neck, in the middle of what counts (65.85 mm for Mason 70), and keeps its height; a hollowed body keeps its walls as thick as they were. <strong class="ui">「ふたを作る」</strong> then gives it the neck's thread, and one undo takes the fitting back. For any other body, such as a group or an imported mesh, the window says how wide to make its top.</p>
+<p>Pick <strong class="ui">「Screw in」</strong> and the thread goes the other way round, for a pen holder, say, whose outside should stay smooth: the body gets the thread inside its opening, like a nut, and the lid is a plate as large as the body with a plug below it that has the same thread and screws in until the plate rests on the rim. The body and its opening must both be round, with the same middle, such as a cylinder, a tube or a round pot hollowed with its top open, with a wall at least 0.8 mm thick; a box, an oval or a square opening is refused, and so is an opening too narrow or not deep enough for the plug. Here too the thread is added to the wall rather than cut into it: the wall keeps its strength, the outside stays as it was, and the opening is only the thread's depth narrower near the top. <strong class="ui">「Thread pitch」</strong>, <strong class="ui">「Turns」</strong> and the <strong class="ui">「片側のすき間」</strong> work as for a screw lid; pitch and turns also set how far the plug reaches down. The plug is hollow, a ring with a <strong class="ui">「Plug wall」</strong> of 1.6 mm to begin with (0.8 mm at least), and stays solid where the opening leaves no room for a hole. The body prints upright and the lid on its plate with the plug standing up, both without support. Turn the lid clockwise to close it. As with a screw lid, lid and thread are made of triangles, and magnets, a hinge, click bumps and a handle do not go with it.</p>
+<p>Pick <strong class="ui">「Bayonet」</strong> for a twist lock, as a light bulb sits in its socket, to join the sections of a lamp or close a round box: the body gets lugs standing out of the outside of its top (<strong class="ui">「Lugs」</strong>: three to begin with, two to four), and the cap an L-shaped slot inside its rim for each. Set the cap on with its slots over the lugs, push it down and turn it clockwise until it clicks, 40° with three lugs (45° with two, 30° with four): a ledge in the cap then lies under each lug and holds it down, and a stop ends the turn. <strong class="ui">「Turn (0 = automatic)」</strong> lets you set the turn yourself, up to a quarter turn of 90°, for example for a cap with two lugs that goes on with a 90° twist; at 0 it is the turn the lugs give. Each lug's slot, its turn and a stop before the next slot must fit round the body: with more lugs or on a small body, a turn that does not fit is held to what fits, and the status bar says so. Two lugs reach 90° on all but the smallest bodies; four turn about 65° at most on a body 40 to 80 mm across. Like a screw lid it needs a round body with a wall at least 0.8 mm thick, and the lugs are grouped with the body. They are sized from its diameter, standing a fortieth of it out of the wall (1.2 to 2.5 mm); their undersides and the ledge slope at 45°, so the body prints upright and the cap on its plate, both without support. <strong class="ui">「外ぶちの深さ」</strong> is how far the cap reaches down, 8 mm to begin with; below the lugs it guides the cap along the wall. The <strong class="ui">「片側のすき間」</strong> is the room round the lugs and along the wall, and starts from your printer's play once you have measured it; <strong class="ui">「Gap in height」</strong> is the room above the ledge, how far the locked cap can lift, 0.3 mm to begin with. <strong class="ui">「Detent height」</strong> is how far a small rib behind each locked lug reaches into its way: the lug clicks past it, so the cap does not turn back by itself. Take less if the cap turns too hard, 0 for none. To open it, turn the cap back and lift it off. Cap and lugs are made of triangles, and magnets, a hinge, click bumps and a handle do not go with a bayonet lid.</p>
+<p>Tick <strong class="ui">「Tether」</strong> with a screw or bayonet lid and the cap stays with the body when it is open, as on a drinks bottle. The tether is one part, lying flat beside the cap: two open rings joined by a strap. The larger ring snaps onto the cap from below and sits under a collar round its top, held there by a bead. The smaller one goes round the body just below the cap, on a bead the body gets there, and the thread or the lugs above keep it on: open it a little and push it on over them, or from below over the bead. Both rings turn freely, so the cap still turns on and off, and the strap is long enough for the open cap to hang beside the neck. Print the tether in PETG or TPU; in PLA it takes only a few bends. The beads slope at 45°, so cap and body still print without support, and the rings keep the <strong class="ui">「片側のすき間」</strong> round what they turn on. The tether needs a few millimetres of the body below the cap, round and as wide as at the top, and a cap rim about 4 mm deep; where that is missing, the tool says so.</p>
+<p>Screw lids and bayonet lids can be flip-tops, as on a bottle of shampoo or ketchup: tick <strong class="ui">「Flip-top」</strong> and the cap's plate gets a round opening in its middle (<strong class="ui">「Opening」</strong>: its diameter, 8 mm to begin with) with a flap in it that closes it, flush with the top. The cap stays on, and you open only the flap. A cap prints on its plate, so a flap folded over from beside it would lie upside down, its plug against the bed; that is why the flap is printed in the opening itself, the <strong class="ui">「片側のすき間」</strong> all round it, and is its own plug. Its edge narrows at 45° just below the top, so it rests on the plate and cannot be pushed in, and at the front a catch reaches under the edge of the opening, so it clicks shut. At its straight back a strip 0.4 mm thick and 3 mm long, lying flat on the bed, joins it to the plate and bends as its hinge, so the flap never comes off; under the strip, flap and plate lean towards each other in a V. Nothing slopes more than 45°, and the cap prints in one piece without support. To open the flap, put a fingernail in the groove across it and lift; to close it, press it down until it clicks. Print a flip-top in PETG or PP: in PLA the strip breaks after a few bends. The plate must be at least 1.8 mm thick (with a gap of 0.2 mm), and the opening and its hinge have to fit inside the body's opening; an opening too large is refused with the largest that fits.</p>
+<p>Screw caps and bayonet caps can have their top rim rounded or chamfered: under <strong class="ui">「Top edge」</strong> pick <strong class="ui">「Rounded」</strong> or <strong class="ui">「Chamfer」</strong> and set <strong class="ui">「Edge size」</strong>, 1 mm to begin with, at most as much as the plate is thick. The edge is made with the cap, because afterwards cap and thread are one mesh with far too many triangles for the edge tool. The cap prints turned over, so this edge lies on the bed: a chamfer prints cleanly, and a rounding of 1 or 2 mm does too.</p>
+<p>Pick <strong class="ui">「Slide-in」</strong> for a lid that slides in like a wooden pencil box's: a plate in the opening, its top flush with the rim, whose edges run in grooves in three walls. The fourth wall, the one picked under <strong class="ui">「Slides in from」</strong> (the front to begin with, as in the starting view), is cut down to the lid's underside where the lid passes, so it slides in over that wall, and the lid's end fills the cut, flush with the wall's outside. A box set down turned on the workplane takes one too: the wall picked is then the one facing most nearly that way. This needs a box with upright, straight walls, rounded corners included; a round body is refused. The grooves go as deep as the <strong class="ui">「ふたの厚さ」</strong> allows, a little under 1 mm for a 2 mm lid and up to 1.5 mm for a thicker one, always leaving 0.8 mm of the wall behind them; their tops slope at 45°, so the box prints upright and the lid on its top, both without support. If the walls or the lid are too thin for the grooves, the window says how thick they must be. The <strong class="ui">「片側のすき間」</strong> is the lid's play in the grooves on each side; if it slides stiffly, take a looser fit. Walls inside the box are cut down under the lid too. Tick <strong class="ui">「Click bumps」</strong> and a small bump under the lid's end clicks past the cut wall, so the lid does not slide out by itself; <strong class="ui">「Bump height」</strong> is how far it reaches below the wall's top. Under <strong class="ui">「Handle」</strong>, <strong class="ui">「Finger notch」</strong> gives the lid four grooves across its top near that end, for your thumb, and <strong class="ui">「Pull tab」</strong> a pull tab there. The grooves and the cut are grouped with the box as a hole: ungroup it and you have the box back as it was. Magnets and a hinge do not go with a slide-in lid.</p>
+<p>To sink the lid below the rim, set <strong class="ui">「Frame above the lid」</strong> (0 to begin with). The lid and its grooves then sit that much lower, and the walls keep their full height above them, a frame round the lid. The wall it slides in through is then not cut down either: it keeps its full height, with a slot through it where the lid passes, and the lid's end fills the slot, flush with the outside. Above the lid the slot leaves the same play as at its sides (<strong class="ui">「片側のすき間」</strong>), and with <strong class="ui">「Click bumps」</strong> the bump's height more, so the lid can bow up over its bump on the way out; at least 1 mm of the wall must stay above it, and a lower frame is refused with the frame needed (1.2 mm with a gap of 0.2 mm). The box still prints upright: the slot's top is the one place printed over air, a short, level bridge across the lid's width, which most printers bridge without support. The thumb grooves then sit just behind that wall, and a pull tab stands out of the slot.</p>
+</section><section class="guide-part"><h2 id="a-cable-channel-through-a-body">A cable channel through a body</h2>
+<p><strong class="ui">「Cable channel」</strong> runs a round tunnel through a body for a cable or an LED lead, from where it goes in to where it comes out, and finds the way itself. Select the body and click <strong class="ui">「Cable channel」</strong>, then click on the body where the cable goes in (<strong class="ui">「Entry」</strong>) and where it comes out (<strong class="ui">「Exit」</strong>). The way starts and ends straight along the surface, runs straight where it can and bends where it must, never tighter than <strong class="ui">「Smallest bend」</strong>, and keeps as far from the outside as it can, never closer than <strong class="ui">「Least wall」</strong>. A cable pushes through a bend of about five times its diameter; <strong class="ui">「Diameter」</strong> is the channel's own.</p>
+<p>While the panel is open the body is seen through, with the channel inside it and a mark on each end. The panel says how long the channel is, its tightest bend and its thinnest wall, and in red when a bend or the wall had to be smaller than asked; a smaller value for <strong class="ui">「Smallest bend」</strong> or another entry or exit helps then. <strong class="ui">「Set again」</strong> moves an end. <strong class="ui">「Make channel」</strong> cuts the channel in: it becomes a <strong class="ui">「曲がりパイプ」</strong> as a hole, grouped with the body, so the body stays exact, and after ungrouping the tube can still be changed. A bent tube has at most eleven bends; a way that needs more asks for another entry or exit.</p>
+</section><section class="guide-part"><h2 id="offsetting-bodies">Offsetting bodies</h2>
+<p>Every face of a body can be moved by the same distance, out or in. That is what a press fit, a lid or a snap joint needs: a gap of 0.1 to 0.3 mm all round while the features stay where they are, which scaling cannot give you.</p>
+<ol><li>Select one body and click <strong class="ui">「オフセット」</strong>, or right-click the body and choose it there.</li><li>Choose <strong class="ui">「拡大」</strong> or <strong class="ui">「縮小」</strong> and set the <strong class="ui">「距離」</strong>.</li><li>The <strong class="ui">「外側の角」</strong> decide the outer corners: rounded keeps the offset surface round there, sharp lets the faces run on until they meet.</li><li>Tick <strong class="ui">「元を残し、オフセットしたボディを穴として追加」</strong> to keep the part as it is and get the grown body as a copy that already is a hole. Group that hole with the mating part and it cuts exactly the clearance you chose.</li><li>Click <strong class="ui">「オフセット」</strong>.</li></ol>
+<p>Tick <strong class="ui">「側面のみ：平らな上面と底面は高さを保つ」</strong> when only the outline should grow or shrink: the sides move by the distance, while every flat top and bottom stays at its height. A sign gets a border all round, a base gets wider, and the body does not get taller. On a stepped body each step keeps its own height. A text that is offset through its outlines keeps its height then too.</p>
+<p>Without the tick the body itself is offset. It becomes a fixed exact body, like after a chamfer: the list at the top of the tool window takes the offset back, and <strong class="ui">「編集」</strong> opens the tool again with the old distance. Only bodies that are exact CAD bodies can be offset - boxes, cylinders and the other shapes, groups of them, imported STEP parts. A body that is only a triangle mesh, such as many STL imports, often cannot be. A distance that is too big for the body, for example a shrink beyond its thinnest wall, is refused.</p>
+<p>A text whose letters the kernel cannot offset as a body - in some fonts an A, B, M, N, W or 9 - is offset through its outlines instead: it gets the fill <strong class="ui">「太らせる（マルチカラープリントの土台）」</strong> by the distance (narrower when it shrinks) and grows by as much at the top and the bottom. It stays a text you can go on editing. This works for a text with filled letters and no rounding; one that already has a fill mode is refused as before.</p>
+</section><section class="guide-part"><h2 id="deleting-faces">Deleting faces</h2>
+<p>A fillet in the way, a hole in the wrong place, a boss you no longer need: <strong class="ui">「面を削除」</strong> takes it off the body again, without building the body anew.</p>
+<ol><li>Select the body and click <strong class="ui">「面を削除」</strong>, or right-click the body and pick it from the menu.</li><li>Click every face of what should go: the faces of a rounded edge, the wall of a hole, the side and the top of a boss. A picked face lights up; another click takes it out again. The tool window counts the faces.</li><li>Click <strong class="ui">「削除」</strong> or press <kbd>Delete</kbd>. <kbd>Esc</kbd> closes the tool without changing anything.</li></ol>
+<p>The faces around the deleted ones grow until the gap is closed. A box with rounded top edges gets its sharp edges back, a hole is filled, a boss is gone. The body stays exact, so it can be filleted and chamfered again and the STEP export keeps its true faces. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> takes the deletion back in one step. It is also listed under <strong class="ui">「エッジ処理を元に戻す」</strong> with the fillets and chamfers, where <strong class="ui">「元に戻す」</strong> takes it back; there is no <strong class="ui">「編集」</strong> for it. On a group, the result is a single body, as with an edge treatment.</p>
+<p>Pick all the faces of what should go, and only those. If the faces around them cannot close the gap, layerling says so and nothing changes: a main side of a box, for example, has no neighbour that could take its place. Deleting only the floor of a pocket turns it into a hole straight through, because the walls of the pocket run on to the other side.</p>
+<p><strong class="ui">「面を削除」</strong> needs exact faces: it works on parts imported as STEP and on layerling's shapes. Whatever layerling keeps as a mesh has none: an imported STL, OBJ or 3MF, a split, wrapped or simplified body, or a very detailed shape such as a long text. Import a part as STEP if you can. On a detailed imported part, a few faces can be too much for the CAD kernel: after 45 seconds the deletion is stopped and nothing changes. A body resized after an edge treatment while keeping its edge size has no exact faces at its new size until the resize is taken back.</p>
+<p>An imported mesh made exact with <strong class="ui">「Make exact」</strong> can keep hair-thin faces where the file's triangles were bad, between faces that lie in one plane, so that one side comes out as strips that cannot be deleted on their own. Such a thin face, too narrow to click, goes with a picked face when it touches it and leads on to another face in the picked face's plane, together with the thin faces joined to it that touch a face in that plane too; the tool window counts them as taken along.</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/guide-ja/solids-and-holes.html"><small>前の章</small>Solids and holes</a><a class="next" href="/api/desktop/layerling/ui/guide-ja/sketches.html"><small>次の章</small>Sketches: from outline to body</a></div>
+      </main>
+    </div>
+    <footer class="note">このガイドはプログラムといっしょに育っていきます。足りないところやまちがいがあったら、ここで教えてください: <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">ディスカッション</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=ja" rel="noopener">プロジェクトを支援</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">ディスカッション</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">詳細はGitHubで</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">リリースノート v1.154.1</a></div><p class="trademark">TinkercadはAutodesk, Inc.の商標です。layerlingは独立したプロジェクトであり、Autodeskとの提携、承認、後援はありません。</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="エディターに戻る";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="エディターを開く";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

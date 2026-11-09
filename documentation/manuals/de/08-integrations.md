@@ -2394,7 +2394,7 @@ Details: der [System-World-Deep-Dive](../../system-world-2.md).
 - Speichern prüft die beim Öffnen gelesene Version (Konflikt: Ersetzen / Kopie speichern / Abbrechen); ungespeicherte Entwürfe bleiben browser-lokal wiederherstellbar.
 - **Agent-Zugriff ist standardmäßig Aus**, unabhängig vom Aktivierungsschalter: **Lesen** erlaubt Inspektion und Vorschauen, **Lesen und Schreiben** zusätzlich Modellbearbeitung und Desktop-Dateischreibungen. Desktop-Agent-Zugriff und Schreibschutz bleiben Obergrenzen.
 - Version 1 braucht einen offenen Browser-Editor — kein Headless-CAD, keine gleichzeitige Ko-Bearbeitung, keine direkte Druckersteuerung.
-- Upstream ist Layerling **1.57.0** (AGPL-3.0-only); die Quelltext-Links im Editor liefern das korrespondierende Archiv.
+- Upstream ist Layerling **1.154.1** (AGPL-3.0-only); die Quelltext-Links im Editor liefern das korrespondierende Archiv.
 
 Details: der [Layerling-Deep-Dive](../../layerling.md).
 

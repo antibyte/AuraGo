@@ -7,8 +7,20 @@
     <meta name="description" content="Maßband, Lineal und Winkellineal, Abstände zum Nullpunkt – und Notizen, die an einem Teil hängen.">
     <link rel="canonical" href="https://layerling.com/anleitung/messen-und-notizen.html">
     <link rel="alternate" hreflang="en" href="https://layerling.com/guide/measuring-and-notes.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/measuring-and-notes.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/measuring-and-notes.html">
     <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/messen-und-notizen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/measuring-and-notes.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/measuring-and-notes.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/measuring-and-notes.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/measuring-and-notes.html">
     <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/meten-en-notities.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/measuring-and-notes.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/merjenje-in-opombe.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/measuring-and-notes.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/measuring-and-notes.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/measuring-and-notes.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/measuring-and-notes.html">
     <meta property="og:title" content="Messen und Notizen - layerling Anleitung">
     <meta property="og:description" content="Maßband, Lineal und Winkellineal, Abstände zum Nullpunkt – und Notizen, die an einem Teil hängen.">
     <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
@@ -60,6 +72,7 @@ a { color: var(--accent); }
 .guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
 .guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
 .guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
 .editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
 .editor-elsewhere[hidden] { display: none; }
 .bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
@@ -89,26 +102,51 @@ li { margin-bottom: 4px; }
 strong.ui { font-weight: 700; white-space: nowrap; }
 kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
 code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
-pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
 pre code { padding: 0; background: none; }
 figure { margin: 22px 0; }
 figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
 figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
 aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
 aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
 .table-scroll { overflow-x: auto; margin: 0 0 16px; }
 table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
 table.keys { table-layout: fixed; }
 table.keys td:first-child { width: 42%; }
-th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
 th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
 .toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
 .toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
-.toc ul { margin: 0; padding-left: 18px; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
 .pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
 .pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
 .pager a small { display: block; color: var(--muted); font-size: 12px; }
-.pager a.next { margin-left: auto; text-align: right; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
 .cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
 .cards a:hover { border-color: var(--accent); }
@@ -131,88 +169,162 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
   .bar-inner { flex-wrap: wrap; }
   .guide-search { order: 5; flex: 1 1 100%; }
 }
-@media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
 </style>
   </head>
   <body>
     <header class="bar"><div class="bar-inner">
       <a class="brand" href="/api/desktop/layerling/ui/anleitung/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Anleitung</span></span></a>
       <form class="guide-search" id="guide-search" role="search" data-index="/anleitung/search-index.json" data-nothing="Nichts gefunden." data-umlauts="true"><input type="search" id="guide-search-input" name="q" placeholder="Anleitung durchsuchen" aria-label="Anleitung durchsuchen" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
-      <details class="lang-menu"><summary aria-label="Sprache">Deutsch</summary><ul><li><a href="/api/desktop/layerling/ui/guide/measuring-and-notes.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html" hreflang="de" lang="de" aria-current="true">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html" hreflang="nl" lang="nl">Nederlands</a></li></ul></details>
+      <details class="lang-menu"><summary aria-label="Sprache">Deutsch</summary><ul><li><a href="/api/desktop/layerling/ui/guide/measuring-and-notes.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/measuring-and-notes.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/measuring-and-notes.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html" hreflang="de" lang="de" aria-current="true">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/measuring-and-notes.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/measuring-and-notes.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/measuring-and-notes.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/measuring-and-notes.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/measuring-and-notes.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/measuring-and-notes.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/measuring-and-notes.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/merjenje-in-opombe.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/measuring-and-notes.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/measuring-and-notes.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/measuring-and-notes.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/measuring-and-notes.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/measuring-and-notes.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/measuring-and-notes.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
       <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Zum Editor</a>
     </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Der Editor ist schon in einem anderen Tab offen - wechsle einfach dorthin.</p></header>
     <div class="shell">
-      <nav class="chapters" aria-label="Kapitel"><h2>Kapitel</h2><ol><li><a href="/api/desktop/layerling/ui/anleitung/erste-schritte.html">Erste Schritte</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html">Ansicht und Arbeitsebene</a></li><li><a href="/api/desktop/layerling/ui/anleitung/formen.html">Formen setzen und einstellen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html">Auswählen und Anordnen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html">Körper und Aussparungen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html">Kanten brechen und Körper aushöhlen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html">Skizzen: vom Umriss zum Körper</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html">Text und gebogene Schrift</a></li><li><a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html">Gewinde, Zahnräder und andere Bauteile</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html" aria-current="page">Messen und Notizen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/drucken.html">Für den 3D-Druck vorbereiten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html">Dateien, Speichern und Weitergeben</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html">Tastenkürzel</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ki-mit-mcp.html">Mit einer KI bauen (MCP)</a></li><li><a href="/api/desktop/layerling/ui/anleitung/offline-und-installieren.html">Als App installieren, ohne Internet arbeiten und selbst hosten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/videos.html">Videos über layerling</a></li></ol></nav>
+      <nav class="chapters" aria-label="Kapitel"><h2>Kapitel</h2><p class="print-link"><a href="/api/desktop/layerling/ui/anleitung/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Ganze Anleitung zum Drucken</span></a></p><ol><li><a href="/api/desktop/layerling/ui/anleitung/erste-schritte.html">Erste Schritte</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html">Ansicht und Arbeitsebene</a></li><li><a href="/api/desktop/layerling/ui/anleitung/formen.html">Formen setzen und einstellen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html">Auswählen und Anordnen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html">Körper und Aussparungen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html">Kanten brechen und Körper aushöhlen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html">Skizzen: vom Umriss zum Körper</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html">Text und gebogene Schrift</a></li><li><a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html">Gewinde, Zahnräder und andere Bauteile</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html" aria-current="page">Messen und Notizen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/drucken.html">Für den 3D-Druck vorbereiten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html">Dateien, Speichern und Weitergeben</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html">Tastenkürzel</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ki-mit-mcp.html">Mit einer KI bauen (MCP)</a></li><li><a href="/api/desktop/layerling/ui/anleitung/offline-und-installieren.html">Als App installieren, ohne Internet arbeiten und selbst hosten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/videos.html">Videos über layerling</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tablet-und-touch.html">Tablet und Touch</a></li></ol></nav>
       <main>
 <h1>Messen und Notizen</h1>
 <p class="lead">Maßband, Lineal und Winkellineal, Abstände zum Nullpunkt – und Notizen, die an einem Teil hängen.</p>
-<div class="toc"><b>Auf dieser Seite</b><ul><li><a href="#das-massband">Das Maßband</a></li><li><a href="#das-lineal">Das Lineal</a></li><li><a href="#das-winkellineal">Das Winkellineal</a></li><li><a href="#abstaende-zum-nullpunkt-und-beim-verschieben">Abstände zum Nullpunkt und beim Verschieben</a></li><li><a href="#notizen">Notizen</a></li><li><a href="#bezugspunkte">Bezugspunkte</a></li></ul></div>
+<div class="toc"><b>Auf dieser Seite</b><ul><li><a href="#das-massband">Das Maßband</a></li><li><a href="#das-lineal">Das Lineal</a></li><li><a href="#das-winkellineal">Das Winkellineal</a></li><li><a href="#der-winkelmesser">Der Winkelmesser</a></li><li><a href="#abstaende-zum-nullpunkt-und-beim-verschieben">Abstände zum Nullpunkt und beim Verschieben</a></li><li><a href="#spiel-pruefen">Spiel prüfen</a></li><li><a href="#notizen">Notizen</a></li><li><a href="#bezugspunkte">Bezugspunkte</a></li><li><a href="#referenzbilder">Referenzbilder</a></li></ul></div>
 <p>Wer ein Teil genau bauen will, muss messen können. layerling hat dafür mehrere Werkzeuge. Keines davon landet in einem Export. Wandstärken und Spalte im Inneren misst du am besten in der <a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html">Schnittansicht</a> mit <strong class="ui">„Messen“</strong>.</p>
-<h2 id="das-massband">Das Maßband</h2>
-<p>Das Maßband liegt am unteren Ende der Kameraleiste am linken Rand (<strong class="ui">„Maßband“</strong>). Es misst Abstände zwischen Ecken, Kanten und Flächen. Ein Klick darauf öffnet fünf Schaltflächen. Verdecken sie, was du messen willst, ziehst du sie am Griff links frei über die Arbeitsfläche; ein Doppelklick auf den Griff bringt sie zurück:</p>
+<section class="guide-part"><h2 id="das-massband"><span class="heading-alias" id="the-tape-measure"></span>Das Maßband</h2>
+<p>Das Maßband liegt am unteren Ende der Ansichtsleiste am linken Rand (<strong class="ui">„Maßband“</strong>). Es misst Abstände zwischen Ecken, Kanten und Flächen. Ein Klick darauf öffnet fünf Schaltflächen. Verdecken sie, was du messen willst, ziehst du sie am Griff links frei über die Arbeitsfläche; ein Doppelklick auf den Griff bringt sie zurück:</p>
 <figure><img src="/api/desktop/layerling/ui/anleitung/img/tape-menu.webp" alt="Das Maßband mit seinen Schaltflächen: Maß hinzufügen, Messpunkte verschieben, Maß entfernen, ganze Kanten messen, alle Maße entfernen." width="1280" height="800" loading="lazy"><figcaption>Das Maßband mit seinen Schaltflächen: Maß hinzufügen, Messpunkte verschieben, Maß entfernen, ganze Kanten messen, alle Maße entfernen.</figcaption></figure>
-<ol><li><strong><strong class="ui">„Maß hinzufügen“</strong>:</strong> Klicke einen Punkt an, ziehe zum nächsten und klicke ihn an. Die Strecke wird beschriftet.</li><li><strong><strong class="ui">„Messpunkte verschieben“</strong>:</strong> Fasse die Punkte an und schiebe sie, die Zahl folgt.</li><li><strong><strong class="ui">„Maß entfernen“</strong>:</strong> Danach klickst du ein Maß an, um es zu entfernen.</li><li><strong><strong class="ui">„Ganze Kanten messen“</strong>:</strong> Ein Klick auf eine Kante misst sie ganz, bei einem Kreis zum Beispiel den Umfang. Ist das ausgeschaltet, setzt der Klick stattdessen einen Punkt auf die Kante, und der zweite Punkt kann überall liegen, so dass du den Durchmesser oder jede andere Strecke messen kannst. Mit <kbd>Alt</kbd> gilt der Schalter für einen Klick umgekehrt. Auf einem Kreis rastet der Punkt gegenüber vom ersten ein, wenn der Zeiger in die Nähe kommt, und die Punkte liegen auf dem wirklichen Kreis, so dass der Durchmesser genau herauskommt.</li><li><strong><strong class="ui">„Alle Maße entfernen“</strong>:</strong> Entfernt alle Maße auf einmal. Weil sich das nicht rückgängig machen lässt, fragt layerling vorher nach; gibt es keine Maße, passiert nichts.</li></ol>
+<ol><li><strong><strong class="ui">„Maß hinzufügen“</strong>:</strong> Klicke einen Punkt an, ziehe zum nächsten und klicke ihn an. Die Strecke wird beschriftet, davor die Achsen, entlang derer sie läuft: X, Y oder Z für eine gerade, XY, XZ oder YZ quer über eine Ebene, 3D für alle drei. Fährst du über die Beschriftung, zeigt sie, wie weit die Strecke entlang jeder Achse reicht; über einem Punkt stehen seine Koordinaten. Während du den zweiten Punkt setzt, stehen Achsen, Strecke und die Reichweite entlang jeder Achse neben dem Zeiger. Eine Messung, die größtenteils hinter einem anderen Körper liegt, wird blass; fährst du über ihre Linie oder Beschriftung, erscheint sie wieder voll. Auf einer gegenüberliegenden Kante oder Fläche rastet der zweite Punkt im rechten Winkel zum ersten ein, wenn der Zeiger in die Nähe kommt – oder überall auf dieser Kante oder Fläche, solange du <kbd>Umschalt</kbd> hältst. Auf derselben Fläche oder auf der Arbeitsfläche hält <kbd>Umschalt</kbd> die Messung entlang der Hauptachse gerade. Außer an Ecken und Kanten rastet ein Punkt auch in der Mitte der ebenen Fläche unter dem Zeiger ein und im Mittelpunkt einer runden Kante, etwa am Rand einer Bohrung oder eines Zylinders: Ein kleines Kreuz im Kreis zeigt die Mitte an; kommt der Zeiger in die Nähe, rastet der Punkt dort ein, und ein Hinweis sagt, wovon es die Mitte ist (<strong class="ui">„Mitte der Fläche“</strong>, <strong class="ui">„Mitte des Lochs“</strong> oder <strong class="ui">„Kreismitte“</strong>).</li><li><strong><strong class="ui">„Messpunkte verschieben“</strong>:</strong> Fasse die Punkte an und schiebe sie, die Zahl folgt.</li><li><strong><strong class="ui">„Maß entfernen“</strong>:</strong> Danach klickst du ein Maß an, um es zu entfernen. Noch schneller geht es direkt unter <strong><strong class="ui">„Maß hinzufügen“</strong></strong>: Halte <kbd>Umschalt</kbd> oder <kbd>Strg</kbd> (auf dem Mac <kbd>Cmd</kbd>) gedrückt und klicke einen Messpunkt oder eine Messlinie an, um sie sofort zu löschen.</li><li><strong><strong class="ui">„Ganze Kanten messen“</strong>:</strong> Ein Klick auf eine Kante misst sie ganz. Eine runde Kante, etwa der Rand einer Bohrung oder eines Zylinders, nennt ihren Durchmesser (Ø), ein Bogen seinen Radius (R); zeigst du auf die Zahl, siehst du die Länge entlang der Kante. Ist das ausgeschaltet, setzt der Klick stattdessen einen Punkt auf die Kante, und der zweite Punkt kann überall liegen, so dass du den Durchmesser oder jede andere Strecke messen kannst. Mit <kbd>Alt</kbd> gilt der Schalter für einen Klick umgekehrt. Auf einem Kreis rastet der Punkt gegenüber vom ersten ein, wenn der Zeiger in die Nähe kommt, und die Punkte liegen auf dem wirklichen Kreis, so dass der Durchmesser genau herauskommt.</li><li><strong><strong class="ui">„Alle Maße entfernen“</strong>:</strong> Entfernt alle Maße auf einmal. Weil sich das nicht rückgängig machen lässt, fragt layerling vorher nach; gibt es keine Maße, passiert nichts.</li><li><strong><strong class="ui">„Mitte als Bezugspunkt markieren“</strong>:</strong> In der Mitte jeder Messung sitzt eine kleine runde Marke, unten halb gefüllt. Er setzt einen <a href="#bezugspunkte">Bezugspunkt</a> in die Mitte der Messung: nach einem Klick auf eine runde Kante, etwa den Rand einer Bohrung, in den Mittelpunkt dieses Kreises - auch bei einem importierten Netz, wo sonst nichts die Mitte einer Bohrung markiert -, bei einem Durchmesser oder jeder geraden Messung auf halber Strecke. Eine Form, die du ziehst, rastet dann mit ihrer Mitte an dem Punkt ein. Einen Punkt, der schon da ist, legt layerling nicht doppelt an. Das Maßband rastet an einem Bezugspunkt ein wie an einer Ecke: So misst du vom Mittelpunkt eines Kreises oder von der Mitte einer Linie aus - Punkt setzen, dann anklicken.</li><li><strong><strong class="ui">„Länge eintippen: der Körper am zweiten Punkt rückt entlang der Linie; eine negative Länge schiebt ihn über den ersten Punkt hinaus“</strong>:</strong> Liegt mindestens ein Ende einer geraden Messung auf einem Körper, lässt sich ihre Zahl anklicken. Tippe eine neue Länge ein und drücke <kbd>Enter</kbd>: Der Körper am zweiten Punkt rückt entlang der gemessenen Linie, bis der Abstand genau so groß ist, wie beim Lineal in Tinkercad. Ist nur der Körper am ersten Punkt ausgewählt, rückt stattdessen dieser. Die Messpunkte bleiben am Körper, die Messung geht also mit. Miss von einer Ecke, einer Kante oder der Mitte einer Fläche oder Bohrung aus, um Teile auf einen genauen Abstand zu setzen: Von der Mitte einer Bohrung zur Mitte der Oberseite eines Zylinders rückt der Zylinder Mitte auf Mitte. Eine negative Länge schiebt ihn so weit über den ersten Punkt hinaus, etwa 5 mm innerhalb der Kante eines Quaders. Ein <a href="#bezugspunkte">Bezugspunkt</a> gehört zu keinem Körper; zwischen zwei Bezugspunkten rückt deshalb nichts. Läuft die Messung entlang zwei oder drei Achsen, hat das Feld unter der Länge noch ein Kästchen für jede davon (ΔX, ΔY, ΔZ, die Strecken, die beim Zeigen auf die Zahl erscheinen): Tippst du dort, rückt der Körper nur entlang dieser Achse. <kbd>Tab</kbd> springt von Kästchen zu Kästchen, <kbd>Esc</kbd> schließt das Feld, ohne etwas zu verschieben. Zeigst du auf die Zahl, steht dort, welcher Körper rückt, oder warum keiner rücken kann: Er ist gesperrt, beide Punkte liegen auf demselben Körper, oder keiner liegt auf einem Körper. Die Meldung danach sagt, was um wie viel verschoben wurde; ein Rückgängig nimmt es zurück.</li></ol>
 <p>Mit <kbd>Esc</kbd> verlässt du den Messmodus.</p>
-<h2 id="das-lineal">Das Lineal</h2>
-<p>Aus der Formenbibliothek holst du das <strong class="ui">„Lineal“</strong>. Es ist ein reines Messwerkzeug: Es erscheint in keinem Export und lässt sich weder gruppieren noch verschneiden. Für jeden Körper, der das Lineal berührt oder überlappt, zeigt es die Ausdehnung als schwebende Zahl direkt in der Ansicht. Diese Zahl kannst du direkt dort ändern, und der Körper passt sich an. Über das schwebende Plus-Symbol legst du eine Kopie der gemessenen Form an.</p>
-<h2 id="das-winkellineal">Das Winkellineal</h2>
-<p>Manchmal misst du besser an einem rechten Winkel. Klicke in der Kameraleiste auf <strong class="ui">„Winkellineal setzen“</strong> und dann auf die Arbeitsfläche. Dort legt sich ein Winkellineal mit zwei Armen im rechten Winkel ab, mit Teilstrichen, wie ein Anschlagwinkel. Auch das hat keinen eigenen Körper. Klickst du nahe an die Ecke eines Körpers, rastet seine Ecke genau dort ein.</p>
+</section><section class="guide-part"><h2 id="das-lineal"><span class="heading-alias" id="the-ruler"></span>Das Lineal</h2>
+<p>Aus der Formenbibliothek holst du das <strong class="ui">„Lineal“</strong>. Es ist ein reines Messwerkzeug: Es erscheint in keinem Export und lässt sich weder gruppieren noch verschneiden. Für jeden Körper, der das Lineal berührt oder überlappt, zeigt es die Ausdehnung als schwebende Zahl direkt in der Ansicht. Diese Zahl kannst du direkt dort ändern, und der Körper passt sich an. Stellst du das Lineal auf oder kippst es, misst es entlang seiner eigenen Richtung: Senkrecht neben einem Körper zeigt es dessen Höhe. Über das schwebende Plus-Symbol legst du eine Kopie der gemessenen Form an; das geht nur, solange das Lineal flach liegt. Seine aufgedruckte Skala läuft in Millimetern an der einen Längskante, mit nummerierten Zehnern, und in Zoll an der anderen, mit einem Strich je Sechzehntelzoll und nummerierten ganzen Zoll. Die Skala der Einheit, in der du arbeitest (der Schalter unten rechts), liegt an der oberen Kante; ein Lineal schmaler als 15 mm trägt nur diese eine.</p>
+</section><section class="guide-part"><h2 id="das-winkellineal"><span class="heading-alias" id="the-framing-square"></span>Das Winkellineal</h2>
+<p>Manchmal misst du besser an einem rechten Winkel. Klicke in der Ansichtsleiste auf <strong class="ui">„Winkellineal setzen“</strong> und dann auf die Arbeitsfläche. Dort legt sich ein Winkellineal mit zwei Armen im rechten Winkel ab, mit Teilstrichen, wie ein Anschlagwinkel. Auch das hat keinen eigenen Körper. Klickst du nahe an die Ecke eines Körpers, rastet seine Ecke genau dort ein. Der Entwurf behält das Winkellineal dort, wo du es gesetzt hast, auch in einer gespeicherten .lyl-Datei: Öffnest du den Entwurf wieder, liegt es an derselben Stelle, gleich gedreht und mit denselben Messpunkten, bis du es entfernst. Brauchst du es in fast jedem Entwurf, setze in den Einstellungen unter <strong class="ui">„Maße“</strong> das Häkchen bei <strong class="ui">„Neue Entwürfe mit Winkellineal im Nullpunkt beginnen“</strong>: Dann beginnt jeder neue Entwurf mit einem Winkellineal im Nullpunkt.</p>
 <p>Das Winkellineal legt sich auf die Arbeitsebene. Liegt sie auf der Seite eines Körpers, liegt es also auch auf dieser Seite, siehe <a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html">Ansicht und Arbeitsebene</a>. So bemaßt du auf einer senkrechten Wand: Arbeitsebene auf die Wand legen, Winkellineal an ihre obere linke Ecke setzen und so oft auf den Griff klicken, bis die Arme nach rechts und nach unten zeigen.</p>
-<ul><li><strong>Am Griff ziehen</strong> verschiebt es.</li><li><strong>Ein kurzer Klick auf den Griff</strong> dreht es um 90°.</li><li><strong>Das ×</strong> daneben entfernt es.</li><li><strong>Der kleine Knopf links am Griff</strong> schaltet um, wovon aus gemessen wird: von der Außenkante eines Körpers (Eckpunkt, Symbol mit Linien) oder von seiner Mitte (Mittelpunkt, Fadenkreuz).</li></ul>
-<p>Stehen Körper an einem der Arme, zeigt das Winkellineal automatisch deren Maße an. Das geht nur auf der Grundplatte, nicht auf der Seite eines Körpers.</p>
+<ul><li><strong>Am Griff ziehen</strong> verschiebt es.</li><li><strong>Ein kurzer Klick auf den Griff</strong> dreht es um 90°.</li><li><strong>Das ×</strong> daneben entfernt es.</li><li><strong>Am kleinen Kreis am Ende eines Arms ziehen</strong> macht diesen Arm länger oder kürzer, in ganzen Millimetern. Der unterste Knopf unter dem Griff, <strong class="ui">„Arme so lang wie die Druckplatte (am Ende eines Arms ziehen, um seine Länge zu ändern)“</strong>, macht beide Arme so lang, wie die Druckplatte des in den Einstellungen gewählten Druckers breit und tief ist. Das Winkellineal behält die Längen seiner Arme mit dem Entwurf, und ein neu gesetztes übernimmt sie.</li><li><strong>Der kleine Knopf links am Griff</strong> schaltet um, wovon aus gemessen wird: von der Außenkante eines Körpers (Eckpunkt, Symbol mit Linien) oder von seiner Mitte (Mittelpunkt, Fadenkreuz). Neben jeder grünen Zahl sitzt ein ebensolcher kleiner Schalter, der nur diese Zahl umstellt: bei einem stehenden Zylinder die Mitte in den beiden Armen und die Unterseite in der Höhe, bei einem liegenden die Mitte quer und ein Ende längs. Stimmen alle drei wieder überein, zeigt der Knopf am Griff den gemeinsamen Modus.</li></ul>
+<p>Stehen Körper an einem der Arme, zeigt das Winkellineal automatisch deren Maße an, ausgewählt oder nicht: Körper innerhalb des Winkels, neben einem Arm oder quer darüber. Ein Körper außerhalb, hinter der Ecke oder von außen neben einem Arm, bekommt keine. Das geht nur auf der Grundplatte, nicht auf der Seite eines Körpers. Der Knopf mit dem Pfeil unter dem Griff des Lineals schaltet das ab, sodass nur die ausgewählten Körper ihre Maße zeigen; er wird mit dem Entwurf gespeichert.</p>
 <p>Markierst du einen Körper, zeigt das Winkellineal in Grün, wie weit er von der Ecke entfernt ist, entlang beider Arme und in der Höhe. Ein Klick auf eine grüne Zahl öffnet ein Eingabefeld: Tippe den gewünschten Abstand ein, und der Körper rückt genau dorthin. Sind mehrere Körper markiert, zählen sie zusammen wie einer. Gemessen wird ihr gemeinsamer Umriss, und ein eingetippter Wert verschiebt alle gemeinsam, ohne dass sich ihre Lage zueinander ändert.</p>
+<p>Die Hilfslinien der grünen Zahlen laufen am Boden entlang, in der Ebene, in der das Winkellineal liegt, bis zu dem Punkt unter oder neben dem Körper; die Höhe hat ihren eigenen Pfeil. Der Schalter jeder Zahl sitzt im Rahmen der Zahl. Die Arme und die Teilstriche sind Linien im Raum: Ein Körper davor verdeckt sie, wie er ein echtes Lineal verdecken würde. Das kleine Auge unter dem Griff schaltet das um: Mit durchgestrichenem Auge verdecken Körper das Lineal (so beginnt es), mit offenem Auge bleibt es über allem sichtbar. Die Zahlen an den Armen verblassen, wo ein Körper davor steht.</p>
 <p>Mit dem Mittelpunkt zählen die grünen Zahlen bis zur Mitte des Körpers, auch in der Höhe. So setzt du etwa eine Kugel mit ihrer Mitte genau 15 mm neben eine Kante, ohne den Radius abzuziehen. Auf einer Wand setzt du so ein Loch 40 mm von links und 190 mm von oben: Loch markieren, Mittelpunkt einschalten, 40 und 190 eintippen. Die Höhe zählt dort von der Wand aus nach außen.</p>
-<p>Das Maßband und das Winkellineal bleiben stehen, wenn du eine Skizze machst und in die 3D-Ansicht zurückkehrst. Sie werden nicht mit dem Entwurf gespeichert und stehen nicht im Verlauf, und beim Neuladen der Seite sind sie weg.</p>
-<h2 id="abstaende-zum-nullpunkt-und-beim-verschieben">Abstände zum Nullpunkt und beim Verschieben</h2>
+<p>Das Maßband und das Winkellineal bleiben stehen, wenn du eine Skizze machst und in die 3D-Ansicht zurückkehrst. Beide stehen nicht im Verlauf. Das Winkellineal wird mit dem Entwurf gespeichert, ebenso die Messungen des Maßbands, im Browser und in der .lyl-Datei: Beim Öffnen des Entwurfs sind sie wieder da. Der Augenknopf unter den Maßband-Knöpfen blendet alle Messungen aus und wieder ein; ob sie ausgeblendet sind, wird mitgespeichert, und wer eine Messung setzt, verschiebt oder löscht, sieht sie vorher wieder.</p>
+</section><section class="guide-part"><h2 id="der-winkelmesser"><span class="heading-alias" id="the-protractor"></span>Der Winkelmesser</h2>
+<p>Mit <strong class="ui">„Winkelmesser“</strong> in der Ansichtsleiste misst du Winkel. Daneben öffnet sich eine Knopfreihe, und bis du den Knopf noch einmal anklickst oder <kbd>Esc</kbd> drückst, misst ein Klick in die Ansicht mit dem Winkelmesser. Wie das Maßband rastet er an Ecken und Kanten von Körpern ein; neben den Körpern setzt er einen Punkt auf die Platte.</p>
+<ul><li><strong class="ui">„Winkel aus drei Punkten“</strong>: erst die Ecke des Winkels anklicken, dann auf jedem Schenkel einen Punkt. Schon beim Setzen des letzten Punkts steht der Winkel da; nach dem dritten Klick bleibt er, mit einem Bogen zwischen den Schenkeln. Gemessen wird der Winkel an der Ecke, von 0° bis 180°.</li><li><strong class="ui">„Winkel zwischen zwei Flächen“</strong>: zwei ebene Flächen anklicken. Ein kurzer blauer Strich auf jeder zeigt, wohin sie schaut, und die Beschriftung nennt beide Winkel, die die Flächen bilden, den kleineren zuerst: eine 45°-Fase gegen die Oberseite ergibt 45° · 135°, zwei Seiten eines Quaders nur 90°. Eine gewölbte Fläche hat keine einzelne Richtung, deshalb verlangt der Winkelmesser eine ebene.</li></ul>
+<p>Der nächste Klick nach einem fertigen Winkel beginnt einen neuen, <strong class="ui">„Winkel entfernen“</strong> entfernt ihn. Der Winkel folgt den Körpern, wenn sie verschoben oder gedreht werden. Gespeichert wird nichts davon, auch nicht im Verlauf: Legst du den Winkelmesser weg, ist der Winkel fort.</p>
+</section><section class="guide-part"><h2 id="abstaende-zum-nullpunkt-und-beim-verschieben"><span class="heading-alias" id="distances-to-the-origin-and-while-moving"></span>Abstände zum Nullpunkt und beim Verschieben</h2>
 <p>In den Einstellungen unter <strong class="ui">„Darstellung“</strong> gibt es zwei Schalter für laufende Maße:</p>
-<ul><li><strong class="ui">„Maße beim Verschieben zeigen“</strong> zeigt beim Verschieben, um wie viel du dich bewegst.</li><li><strong class="ui">„Abstände zum Nullpunkt zeigen“</strong> zeigt die Abstände der Auswahl zum Nullpunkt der Platte, auch bei mehreren markierten Körpern.</li></ul>
-<p>Mit <strong class="ui">„Maße immer sichtbar“</strong> bleiben die Maße dauerhaft sichtbar.</p>
-<h2 id="notizen">Notizen</h2>
+<ul><li><strong class="ui">„Maße beim Verschieben zeigen“</strong> zeigt beim Verschieben, um wie viel du dich bewegst. Das gilt auch beim Heben mit dem schwarzen Pfeil über einem Körper; der Weg steht dann an seiner vorderen Ecke. Auch die Pfeiltasten zeigen ihren Weg: Die Tastendrücke zählen zusammen, bis du etwas anderes auswählst oder ziehst, und <span dir="ltr"><kbd>Strg</kbd>+<kbd>↑</kbd></span> und <span dir="ltr"><kbd>Strg</kbd>+<kbd>↓</kbd></span> zeigen den Weg nach oben oder unten. Nach dem Loslassen klickst du auf so eine Zahl und tippst den genauen Weg ein; ein Minus geht nach unten.</li><li><strong class="ui">„Abstände zum Nullpunkt zeigen“</strong> zeigt die Abstände der Auswahl zum Nullpunkt der Platte, auch bei mehreren markierten Körpern.</li></ul>
+<p>Mit <strong class="ui">„Maße immer sichtbar“</strong> bleiben die Maße dauerhaft sichtbar. Steht ein Körper nicht auf der Arbeitsebene, steht auch seine Höhe darüber dabei; ein Klick auf die Zahl nimmt einen neuen Wert. Mit <strong class="ui">„Maßkästchen in Achsenfarben“</strong> bekommt jedes Kästchen die Farbe seiner Achse, wie die Griffe: rot für X, grün für Y und blau für Z. So siehst du auch an einem kleinen Teil auf einen Blick, welche Zahl welche ist.</p>
+<p>Wenn sie kurz stören, drück <kbd>Q</kbd>: Die Maße und Abstände um die Auswahl verschwinden, und ein Teil, das du verschiebst, ist gut zu sehen. Noch einmal <kbd>Q</kbd> holt sie zurück. Ein Griff, auf den du zeigst, zeigt sein Maß trotzdem.</p>
+</section><section class="guide-part"><h2 id="spiel-pruefen"><span class="heading-alias" id="checking-clearance"></span>Spiel prüfen</h2>
+<p>Teile, die sich nach dem Druck bewegen sollen - ein Flexi-Drache, ein am Stück gedrucktes Scharnier, Kasten und Deckel, eine Achse in ihrer Bohrung - brauchen Abstand zueinander. Ist er zu klein, kleben sie zusammen; überschneiden sie sich, werden sie als ein Stück gedruckt. <strong class="ui">„Spiel prüfen“</strong> neben <strong class="ui">„Übergang aus Skizzen“</strong> prüft das vor dem Druck. Es nimmt die ausgewählten Objekte oder, wenn nichts ausgewählt ist, alle sichtbaren (dieselben, die ein Export nimmt) und prüft jedes Paar:</p>
+<ul><li><strong><strong class="ui">„Überschneidung“</strong></strong> (rot): Die beiden teilen sich ein Volumen. Es erscheint rot in den Körpern, die dafür durchsichtig werden, und die Liste nennt seine Größe.</li><li><strong><strong class="ui">„Berühren sich“</strong></strong> (rot): Sie berühren sich und verschmelzen beim Druck.</li><li><strong><strong class="ui">„Zu eng“</strong></strong> (orange): Der engste Abstand ist kleiner als das <strong class="ui">„Mindestspiel“</strong>.</li><li><strong><strong class="ui">„In Ordnung“</strong></strong> (grün): Der engste Abstand ist mindestens so groß.</li></ul>
+<p>Jede Zeile nennt die beiden Teile und bei einem Spalt seine Breite und wo er liegt: <strong class="ui">„seitlich“</strong> (in derselben Schicht) oder <strong class="ui">„zwischen den Schichten“</strong> (darüber oder darunter: Dort kann der Slicer nur ganze Schichten frei lassen, ein Spalt dünner als eine Schicht geht also zu). Ein Klick auf eine Zeile fährt die Kamera hin, umrandet beide Teile und markiert die engste Stelle mit einer Linie und der Zahl. Paare, die weiter als 5 mm auseinanderliegen, stehen nicht in der Liste. Am Entwurf ändert sich nichts: Die Prüfung speichert nichts und hinterlässt nichts zum Rückgängigmachen.</p>
+<p>Das <strong class="ui">„Mindestspiel“</strong> beginnt bei 0,3 mm; 0,3 ist knapp, 0,4 bei Print in Place üblich. Ändern sortiert die Liste sofort neu, ohne neue Prüfung, und der Browser merkt sich den Wert. <strong class="ui">„Getrennte Teile eines Objekts prüfen (Print in Place)“</strong> (anfangs an) prüft auch die getrennten Teile eines Objekts gegeneinander: Ein als eine STL importierter Flexi-Drache oder ein Scharnier ist ein Objekt, seine Glieder aber getrennte Teile. Sie stehen als „Name · Teil 2“ in der Liste. Ein Teil im Hohlraum eines anderen, etwa eine Kugel im Käfig, zählt als eigenes Teil.</p>
+<p>Änderst du den Entwurf, während das Fenster offen ist, steht dort <strong class="ui">„Geändert – neu prüfen“</strong>; ein Klick darauf oder auf <strong class="ui">„Neu prüfen“</strong> prüft neu. <kbd>Esc</kbd> oder <strong class="ui">„Schließen“</strong> schließt das Fenster. Auch Skalieren ändert die Abstände: Ein auf 70 % verkleinertes Flexi-Modell hat nur noch 70 % seines Spiels, also nach dem Skalieren neu prüfen.</p>
+<p>Gemessen wird am Dreiecksnetz, das auch der Slicer bekommt. Eine runde Achse und ihre Bohrung sind Vielecke mit den Ecken auf dem Kreis, ein Spalt kann also um wenige Hundertstel kleiner herauskommen als die runden Maße. Ein Paar mit zu vielen Dreiecken steht als <strong class="ui">„Nicht geprüft“</strong> in der Liste. Eine KI prüft dasselbe mit <code>layerling_check_clearance</code>.</p>
+</section><section class="guide-part"><h2 id="notizen"><span class="heading-alias" id="notes"></span>Notizen</h2>
 <p>Eine Notiz hält fest, was die Geometrie nicht sagt: „Hier ist eine Schraube 0,3 mm zu eng“, „Deckel noch drucken“, „Maß von Peter“. Setze sie mit <strong class="ui">„Notiz“</strong> oder der Taste <kbd>N</kbd>.</p>
-<ul><li>Setzt du die Notiz <strong>auf einen Körper</strong>, wandert sie mit ihm.</li><li>Setzt du sie <strong>daneben</strong>, bleibt sie auf der Arbeitsebene (<strong class="ui">„Auf der Arbeitsebene“</strong>).</li><li><strong class="ui">„Vom Objekt lösen“</strong> löst eine angeheftete Notiz vom Körper.</li><li>Ziehen verschiebt die Notiz, ein Klick öffnet sie zum Bearbeiten.</li><li>Beim Schreiben übernimmt <kbd>Enter</kbd> den Text, und <kbd>Esc</kbd> stellt ihn wieder her, wie er vorher war; <kbd>Umschalt</kbd>+<kbd>Enter</kbd> beginnt eine neue Zeile.</li></ul>
-<p>Notizen werden im Entwurf gespeichert, tauchen in keinem Export auf und lassen sich über <strong class="ui">„Notizen und Punkte anzeigen“</strong> ein- und ausblenden.</p>
-<h2 id="bezugspunkte">Bezugspunkte</h2>
-<p>Ein Bezugspunkt ist eine bloße Markierung im Raum, wie ein Bleistiftstrich oder ein Anreißpunkt in der Werkstatt: Er gehört zu keinem Körper, wird nie gedruckt, und andere Dinge rasten an ihm ein. Klicke einen Körper mit der rechten Maustaste an und wähle <strong class="ui">„Mitte markieren“</strong>, <strong class="ui">„Ecken markieren“</strong> oder <strong class="ui">„Kantenmitten markieren“</strong>: Die Punkte erscheinen auf der Oberseite des Körpers (der ganzen Auswahl, wenn du mehrere gewählt hast).</p>
-<ul><li>Ziehe einen Punkt, um ihn zu verschieben, oder klicke ihn an, um seine Koordinaten zu sehen und neue einzutippen; sie gelten in der eingestellten Einheit. Die Karte lässt sich am Titel wegziehen, wenn sie etwas verdeckt, und ein Doppelklick auf den Titel holt sie zurück. <strong class="ui">„Löschen“</strong> entfernt ihn.</li><li>Ziehst du eine Form, rasten ihre Kanten und ihre Mitte an einem Punkt ein, wie sie an anderen Formen einrasten (<strong class="ui">„Beim Verschieben an anderen Formen fangen“</strong>). Auch das Winkellineal rastet an Punkten ein.</li><li>Punkte werden im Entwurf gespeichert, tauchen in keinem Export auf und werden zusammen mit den Notizen über <strong class="ui">„Notizen und Punkte anzeigen“</strong> ein- und ausgeblendet.</li><li>Eine KI kann sie mit <code>layerling_add_reference_points</code>, <code>layerling_list_reference_points</code> und <code>layerling_remove_reference_points</code> setzen, auflisten und entfernen.</li></ul>
+<ul><li>Setzt du die Notiz <strong>auf einen Körper</strong>, wandert sie mit ihm.</li><li>Setzt du sie <strong>daneben</strong>, bleibt sie auf der Arbeitsebene (<strong class="ui">„Auf der Arbeitsebene“</strong>).</li><li><strong class="ui">„Vom Objekt lösen“</strong> löst eine angeheftete Notiz vom Körper.</li><li><strong class="ui">„Für die KI“</strong> macht eine Notiz zu einem Auftrag für einen KI-Agenten an der MCP-Brücke (siehe „KI mit MCP“): Der Agent liest sie mit <code>layerling_list_notes</code>, erledigt die Arbeit und antwortet in derselben Notiz, unter deinem Text. Er kann auch eigene Notizen ans Modell setzen, um an einer Stelle etwas zu fragen oder zu melden. Bitte den Agenten, auf deine Notizen aufzupassen, dann wartet er mit <code>layerling_wait_for_notes</code> auf sie: Du arbeitest nur noch am Modell, und jeder neue Auftrag wird aufgegriffen, sobald du das Kästchen ankreuzt, ohne Umweg über das Fenster des Agenten.</li><li><strong class="ui">„Gruppieren“</strong> nimmt eine angeheftete Notiz mit in die Gruppe; <strong class="ui">„Gruppierung aufheben“</strong> gibt sie an das sichtbare Teil darunter weiter, auch an eine Gruppe darin. Solange eine Gruppe mit <strong class="ui">„Gruppe bearbeiten“</strong> offen ist, wandern ihre Notizen mit dem Teil darunter und kehren mit <strong class="ui">„Fertig“</strong> zur Gruppe zurück; Abbrechen stellt sie wieder her, wie sie waren.</li><li>Wird ihr Körper gelöscht oder liegt kein sichtbarer Körper mehr darunter, bleibt die Notiz stehen, wo sie war, auf der Arbeitsebene.</li><li>Ziehen an der Nadel verschiebt die Notiz. Ein Klick auf die Nadel klappt die Karte zu, nur die kleine Nummer bleibt; ein weiterer Klick klappt sie wieder auf. Ein Klick in den Text bearbeitet ihn.</li><li>Beim Schreiben übernimmt <kbd>Enter</kbd> den Text, und <kbd>Esc</kbd> stellt ihn wieder her, wie er vorher war; <span dir="ltr"><kbd>Umschalt</kbd>+<kbd>Enter</kbd></span> beginnt eine neue Zeile.</li><li><strong>In einer Skizze</strong> setzt <strong class="ui">„Notiz“</strong> oder <kbd>N</kbd> ebenso eine Notiz, irgendwo auf die Skizze. Alle Notizen einer Skizze gehören zu ihrem Körper: In der 3D-Ansicht sitzen sie darauf, oben auf einem extrudierten oder gezogenen Körper und auf dem gezeichneten Profil eines gedrehten, und wandern mit ihm. Öffnest du die Skizze wieder, zeigt sie die Notizen des Körpers, auch die in 3D gesetzten. In der Skizze nimmt Rückgängig eine Notiz zurück wie eine Linie, und <strong class="ui">„Abbrechen“</strong> verwirft, was du an den Notizen geändert hast. <span dir="ltr"><kbd>Umschalt</kbd>+<kbd>N</kbd></span> blendet die Notizen auch hier ein und aus.</li></ul>
+<p>Notizen werden im Entwurf gespeichert, tauchen in keinem Export auf und lassen sich über <strong class="ui">„Notizen und Punkte anzeigen“</strong> (unter <strong class="ui">„Sichtbarkeitsoptionen“</strong>, dem Pfeil neben dem Augen-Symbol) oder mit <span dir="ltr"><kbd>Umschalt</kbd>+<kbd>N</kbd></span> ein- und ausblenden.</p>
+</section><section class="guide-part"><h2 id="bezugspunkte"><span class="heading-alias" id="reference-points"></span>Bezugspunkte</h2>
+<p>Ein Bezugspunkt ist eine bloße Markierung im Raum, wie ein Bleistiftstrich oder ein Anreißpunkt in der Werkstatt: Er gehört zu keinem Körper, wird nie gedruckt, und andere Dinge rasten an ihm ein. Klicke einen Körper mit der rechten Maustaste an und wähle <strong class="ui">„Mitte markieren“</strong>, <strong class="ui">„Ecken markieren“</strong> oder <strong class="ui">„Kantenmitten markieren“</strong>: Die Punkte erscheinen auf der Oberseite des Körpers (der ganzen Auswahl, wenn du mehrere gewählt hast). <strong class="ui">„Mitte dieser Fläche markieren“</strong> setzt stattdessen einen in die Mitte der ebenen Fläche, auf die du geklickt hast, etwa an einer Seite oder einem Ende. Ist ein Drehpunkt gesetzt, setzt <strong class="ui">„Drehpunkt markieren“</strong> einen genau darauf, so rastet die Mitte eines anderen Teils an dem Punkt ein, um den sich die Auswahl dreht.</p>
+<ul><li>Ziehe einen Punkt, um ihn zu verschieben: Er rastet dabei an Ecken, Kanten- und Flächenmitten der Körper, an echten Eckpunkten und an anderen Punkten ein; mit gedrückter <kbd>Alt</kbd>-Taste bleibt er frei. Oder klicke ihn an, um seine Koordinaten zu sehen und neue einzutippen; sie gelten in der eingestellten Einheit. Jede Karte lässt sich am Titel wegziehen, wenn sie etwas verdeckt, und zwar einzeln: Die anderen bleiben, wo sie sind, und ein Doppelklick auf den Titel holt sie zurück. Die Karte, die du zuletzt angefasst hast, liegt vor den anderen. <strong>Alle löschen</strong> in einer Karte oder <strong>Alle Bezugspunkte löschen</strong> im Rechtsklickmenü (eines Körpers oder einer leeren Stelle der 3D-Ansicht) löscht alle Punkte auf einmal. <strong class="ui">„Löschen“</strong> entfernt ihn.</li><li>Das Maßband kann auch einen Punkt setzen: <strong class="ui">„Mitte als Bezugspunkt markieren“</strong>, die halb gefüllte Marke in der Mitte einer Messung, legt einen in ihre Mitte, etwa in den Mittelpunkt einer runden Bohrung. Und es misst von einem Punkt aus: Das Maßband rastet an Bezugspunkten ein wie an Ecken.</li><li>Ziehst du eine Form, rasten ihre Kanten und ihre Mitte an einem Punkt ein, wie sie an anderen Formen einrasten (<strong class="ui">„Beim Verschieben an anderen Formen fangen“</strong>). Auch das Winkellineal rastet an Punkten ein.</li><li>Punkte werden im Entwurf gespeichert, tauchen in keinem Export auf und werden zusammen mit den Notizen über <strong class="ui">„Notizen und Punkte anzeigen“</strong> (<span dir="ltr"><kbd>Umschalt</kbd>+<kbd>N</kbd></span>) ein- und ausgeblendet.</li><li>Eine KI kann sie mit <code>layerling_add_reference_points</code>, <code>layerling_list_reference_points</code> und <code>layerling_remove_reference_points</code> setzen, auflisten und entfernen.</li></ul>
+</section><section class="guide-part"><h2 id="referenzbilder"><span class="heading-alias" id="reference-images"></span>Referenzbilder</h2>
+<p>Ein Referenzbild ist ein Bild, an dem du Teile ausrichtest: Leg das Foto einer Platine auf den Boden ihres Gehäuses und setz die Abstandshalter, Löcher und Ausschnitte für die Anschlüsse genau darauf. Es ist eine Hilfe, kein Körper: Es wird nie gedruckt, nie exportiert (STL, 3MF, OBJ, STEP, SVG), gehört nie zu einer Gruppe, einem Bündel oder einem Schnitt, und die Druckschätzung lässt es weg.</p>
+<ul><li>Öffne <strong class="ui">„Importieren“</strong> und wähle <strong class="ui">„Referenzbild“</strong>, dann ein PNG-, JPG-, WebP-, GIF- oder BMP-Bild. Es landet auf der Arbeitsebene - auf der Platte oder auf der Fläche, auf die du die Arbeitsebene gelegt hast -, mit der längeren Seite 100 mm und halb durchsichtig.</li><li>Verschieb, dreh und skalier es mit seinen Griffen wie jede Form. Ein Körper davor wird zuerst gewählt, du greifst also beim Arbeiten darauf nicht versehentlich das Bild.</li><li><strong class="ui">„Durchsichtig (%)“</strong> in seinen Einstellungen blendet es von ganz sichtbar bis kaum noch da.</li><li><strong class="ui">„Kalibrieren“</strong> gibt ihm seine wirkliche Größe wie in der Skizze: Klicke zwei Punkte auf dem Bild an, deren wirklichen Abstand du kennst - zwei Befestigungslöcher der Platine etwa - und gib diesen Abstand unter <strong class="ui">„Wirklicher Abstand (mm)“</strong> ein. Das Bild behält seine Proportionen und seine Mitte.</li><li>Sperre es mit dem Schloss im Kopf seiner Einstellungen, dann bleibt es liegen: Klicks gehen durch es hindurch auf die Platte. In der Objektliste wählst du es wieder aus, um es zu entsperren.</li><li>Das Bild liegt einmal in der Entwurfsdatei, egal wie oft es kopiert oder rückgängig gemacht wird. Ein großes Bild macht die Datei um so viel größer; die Meldung beim Hinzufügen nennt seine Größe.</li><li>Eine KI legt eines mit <code>layerling_reference_image</code> an, verschiebt, kalibriert, blendet und sperrt es. Mit <code>trace</code> zeichnet sie das Bild zu einem Skizzenkörper nach, der darauf steht, wie <strong class="ui">„Nachzeichnen“</strong> in der Skizze.</li></ul></section>
 <div class="pager"><a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html"><small>Vorheriges Kapitel</small>Gewinde, Zahnräder und andere Bauteile</a><a class="next" href="/api/desktop/layerling/ui/anleitung/drucken.html"><small>Nächstes Kapitel</small>Für den 3D-Druck vorbereiten</a></div>
       </main>
     </div>
     <footer class="note">Diese Anleitung wächst mit dem Programm. Fehlt dir etwas oder stimmt etwas nicht, sag es im <a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a>.</footer>
-    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=de" rel="noopener">Projekt unterstützen</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mehr Informationen zum Projekt auf GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Versionshinweise v1.71.0</a></div><p class="trademark">Tinkercad ist eine Marke von Autodesk, Inc. layerling ist ein unabhängiges Projekt und steht in keiner Verbindung zu Autodesk, wird nicht von Autodesk unterstützt oder gesponsert.</p></footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=de" rel="noopener">Projekt unterstützen</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mehr Infos auf GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Versionshinweise v1.154.1</a></div><p class="trademark">Tinkercad ist eine Marke von Autodesk, Inc. layerling ist ein unabhängiges Projekt und steht in keiner Verbindung zu Autodesk, wird nicht von Autodesk unterstützt oder gesponsert.</p></footer>
     <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Zurück zum Editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Zum Editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
     <script>
-function guideFold(text){var out="";for(var i=0;i<text.length;i++){out+=text.charAt(i).toLowerCase().normalize("NFD").charAt(0);}return out;}
-function guideForms(word,umlauts){
-  var forms=[word];
-  if(umlauts){var plain=word.split("ae").join("a").split("oe").join("o").split("ue").join("u");if(plain!==word)forms.push(plain);}
-  if(word.indexOf("ss")>=0)forms.push(word.split("ss").join(String.fromCharCode(223)));
-  if(word.indexOf(String.fromCharCode(223))>=0)forms.push(word.split(String.fromCharCode(223)).join("ss"));
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
   return forms;
 }
-function guideFind(text,forms,from){
-  var best=null;
-  for(var i=0;i<forms.length;i++){var k=text.indexOf(forms[i],from);if(k>=0&&(!best||k<best.at))best={at:k,len:forms[i].length};}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
   return best;
 }
-function guidePrepare(entries){return entries.map(function(e){return {e:e,c:guideFold(e.c),h:guideFold(e.h),t:guideFold(e.t)};});}
-function guideTokens(query){return guideFold(query).split(" ").filter(function(w){return w.length>0;});}
-function guideSearch(prepared,query,limit,umlauts){
-  var tokens=guideTokens(query);if(!tokens.length)return [];
-  var forms=tokens.map(function(w){return guideForms(w,umlauts);}),phrase=guideForms(tokens.join(" "),umlauts),found=[];
-  prepared.forEach(function(p){
-    var score=0;
-    for(var i=0;i<tokens.length;i++){
-      var inH=guideFind(p.h,forms[i],0),inC=guideFind(p.c,forms[i],0),at=guideFind(p.t,forms[i],0);
-      if(!inH&&!inC&&!at)return;
-      if(inH)score+=10;
-      if(inC)score+=3;
-      if(at){score+=1;var n=0,k=at;while(k&&n<5){n++;k=guideFind(p.t,forms[i],k.at+k.len);}score+=n*0.3;}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
     }
-    if(tokens.length>1&&(guideFind(p.h,phrase,0)||guideFind(p.t,phrase,0)))score+=6;
-    found.push({entry:p.e,score:score,folded:p.t,forms:forms});
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
   });
-  found.sort(function(a,b){return b.score-a.score;});
-  return found.slice(0,limit||8);
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
 }
 
 function guideSnippet(hit){
@@ -230,20 +342,57 @@ function guideSnippet(hit){
   if(end<text.length)parts.push({text:" ...",mark:false});
   return parts;
 }
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
 (function(){
   var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
   var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
   function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
   function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
   function render(){
     if(!guideTokens(input.value).length){close();return;}
     if(!prepared){load().then(function(){if(prepared)render();});return;}
-    var hits=guideSearch(prepared,input.value,8,form.getAttribute("data-umlauts")==="true");
+    var hits=guideSearch(prepared,input.value,8,umlauts);
     box.textContent="";
     if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
     hits.forEach(function(hit){
       var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
-      link.href=hit.entry.u;
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
       title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
       guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
       link.appendChild(title);link.appendChild(line);box.appendChild(link);
@@ -256,7 +405,7 @@ function guideSnippet(hit){
     if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
     else if(e.key==="Escape"){input.value="";close();}
   });
-  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first)window.location.href=first.href;});
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
   box.addEventListener("keydown",function(e){
     var current=document.activeElement;
     if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}

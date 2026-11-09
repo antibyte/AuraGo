@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Tablet und Touch - layerling Anleitung</title>
+    <meta name="description" content="Arbeiten mit Fingern oder Stift: mehrere Körper wählen, die Ansicht drehen und zoomen, das Menü des langen Drucks und was auf dem iPad zu wissen ist.">
+    <link rel="canonical" href="https://layerling.com/anleitung/tablet-und-touch.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/tablet-and-touch.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/tablet-and-touch.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/tablet-and-touch.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/tablet-und-touch.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/tablet-and-touch.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/tablet-and-touch.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/tablet-and-touch.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/tablet-en-touch.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/tablet-and-touch.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/tablica-in-dotik.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/tablet-and-touch.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/tablet-and-touch.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/tablet-and-touch.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/tablet-and-touch.html">
+    <meta property="og:title" content="Tablet und Touch - layerling Anleitung">
+    <meta property="og:description" content="Arbeiten mit Fingern oder Stift: mehrere Körper wählen, die Ansicht drehen und zoomen, das Menü des langen Drucks und was auf dem iPad zu wissen ist.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/anleitung/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Anleitung</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/anleitung/search-index.json" data-nothing="Nichts gefunden." data-umlauts="true"><input type="search" id="guide-search-input" name="q" placeholder="Anleitung durchsuchen" aria-label="Anleitung durchsuchen" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Sprache">Deutsch</summary><ul><li><a href="/api/desktop/layerling/ui/guide/tablet-and-touch.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/tablet-and-touch.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/tablet-and-touch.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tablet-und-touch.html" hreflang="de" lang="de" aria-current="true">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/tablet-and-touch.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/tablet-and-touch.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/tablet-and-touch.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/tablet-and-touch.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tablet-en-touch.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/tablet-and-touch.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/tablet-and-touch.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/tablet-and-touch.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/tablica-in-dotik.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/tablet-and-touch.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/tablet-and-touch.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/tablet-and-touch.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/tablet-and-touch.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/tablet-and-touch.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/tablet-and-touch.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Zum Editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Der Editor ist schon in einem anderen Tab offen - wechsle einfach dorthin.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Kapitel"><h2>Kapitel</h2><p class="print-link"><a href="/api/desktop/layerling/ui/anleitung/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Ganze Anleitung zum Drucken</span></a></p><ol><li><a href="/api/desktop/layerling/ui/anleitung/erste-schritte.html">Erste Schritte</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html">Ansicht und Arbeitsebene</a></li><li><a href="/api/desktop/layerling/ui/anleitung/formen.html">Formen setzen und einstellen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html">Auswählen und Anordnen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html">Körper und Aussparungen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html">Kanten brechen und Körper aushöhlen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html">Skizzen: vom Umriss zum Körper</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html">Text und gebogene Schrift</a></li><li><a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html">Gewinde, Zahnräder und andere Bauteile</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html">Messen und Notizen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/drucken.html">Für den 3D-Druck vorbereiten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html">Dateien, Speichern und Weitergeben</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html">Tastenkürzel</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ki-mit-mcp.html">Mit einer KI bauen (MCP)</a></li><li><a href="/api/desktop/layerling/ui/anleitung/offline-und-installieren.html">Als App installieren, ohne Internet arbeiten und selbst hosten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/videos.html">Videos über layerling</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tablet-und-touch.html" aria-current="page">Tablet und Touch</a></li></ol></nav>
+      <main>
+<h1>Tablet und Touch</h1>
+<p class="lead">Arbeiten mit Fingern oder Stift: mehrere Körper wählen, die Ansicht drehen und zoomen, das Menü des langen Drucks und was auf dem iPad zu wissen ist.</p>
+<div class="toc"><b>Auf dieser Seite</b><ul><li><a href="#finger-und-stift">Finger und Stift</a></li><li><a href="#mehrere-koerper-waehlen">Mehrere Körper wählen</a></li><li><a href="#ansicht-drehen-und-zoomen">Ansicht drehen und zoomen</a></li><li><a href="#griffe-kleine-punkte-und-ein-stift">Griffe, kleine Punkte und ein Stift</a></li><li><a href="#auf-einem-ipad-oder-iphone">Auf einem iPad oder iPhone</a></li><li><a href="#werkstaetten-mit-kindern">Werkstätten mit Kindern</a></li></ul></div>
+<section class="guide-part"><h2 id="finger-und-stift"><span class="heading-alias" id="fingers-and-a-stylus"></span>Finger und Stift</h2>
+<p>layerling läuft im Browser eines Tablets und als App vom Startbildschirm. Ein Finger tut, was die linke Maustaste tut. Für drei Dinge, die ein Tablet nicht hat, nämlich eine rechte Maustaste, eine Umschalttaste und ein Rad, gibt es eigene Wege:</p>
+<div class="table-scroll"><table><thead><tr><th>Du willst</th><th>Auf dem Tablet</th></tr></thead><tbody><tr><td>Einen Körper wählen</td><td>Auf ihn tippen.</td></tr><tr><td>Mehrere Körper wählen</td><td>Einen Körper antippen: Unten links erscheint ein runder Knopf. Tippe ihn an, dann kommt jeder weitere angetippte Körper zur Auswahl dazu, und ein Tipp auf einen gewählten Körper nimmt ihn wieder heraus. Ein Tipp auf die leere Fläche ändert daran nichts; ein zweiter Tipp auf den Knopf beendet es und hebt die Auswahl auf. Oder einen Finger eine halbe Sekunde ruhig halten, <strong class="ui">„Mehrere auswählen“</strong> wählen, dann einen Körper nach dem anderen antippen.</td></tr><tr><td>Alle Körper wählen</td><td>Einen Finger eine halbe Sekunde ruhig auf die leere Fläche halten, <strong class="ui">„Alle auswählen“</strong> wählen.</td></tr><tr><td>Das Menü eines Rechtsklicks öffnen</td><td>Einen Finger eine halbe Sekunde ruhig auf einen Körper oder die leere Fläche halten.</td></tr><tr><td>Einen Körper verschieben</td><td>Ihn ziehen.</td></tr><tr><td>Einen Körper skalieren, drehen oder heben</td><td>An seinen Griffen ziehen, den kleinen Quadraten und Pfeilen um ihn. Ein Finger fasst sie auch ein Stück daneben.</td></tr><tr><td>Die Ansicht drehen</td><td>Ein Finger auf der leeren Fläche oder am Ansichtswürfel ziehen.</td></tr><tr><td>Die Ansicht zoomen</td><td>Zwei Finger: auseinanderziehen kommt näher, zusammenziehen geht weg.</td></tr><tr><td>Die Ansicht verschieben</td><td>Zwei Finger gemeinsam schieben.</td></tr><tr><td>Die Auswahl aufheben</td><td>Auf die leere Fläche tippen. Nicht, solange <strong class="ui">„Ansicht mit einem Finger drehen“</strong> an ist, denn dann dreht ein Finger die Ansicht; und in <strong class="ui">„Mehrere auswählen“</strong> beendet der erste Tipp auf die leere Fläche nur den Modus und lässt die Auswahl stehen, erst der nächste hebt sie auf.</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="mehrere-koerper-waehlen"><span class="heading-alias" id="selecting-several-bodies"></span>Mehrere Körper wählen</h2>
+<p>Ohne Umschalttaste tut <strong class="ui">„Mehrere auswählen“</strong> im Menü des langen Drucks, was am Rechner Umschalt+Klick tut. Solange es an ist, sagt eine Meldung es, und jedes Tippen auf einen Körper nimmt ihn zur Auswahl dazu oder wieder heraus. Ein Tipp auf die leere Fläche, an einer Tastatur <kbd>Esc</kbd>, beendet es und lässt die Auswahl, wie sie ist. Ein Finger auf der leeren Fläche dreht währenddessen weiter die Ansicht. Dann wirken <strong class="ui">„Gruppieren“</strong>, <strong class="ui">„Ausrichten“</strong> oder ein Verschieben auf alle gewählten Körper.</p>
+<p>Im selben Menü steht <strong class="ui">„Auf eine Fläche setzen“</strong>, die Taste <kbd>C</kbd> für den Touchscreen. Die Auswahl folgt dann dem Finger über die Flächen anderer Körper; ein Tipp setzt sie auf die Fläche ab, die du antippst, auch auf eine schräge, und schon der erste Tipp genügt. Den Eintrag findest du auch in der Befehlssuche mit „absetzen“ oder „cruise“ (<span dir="ltr"><kbd>Strg</kbd>+<kbd>K</kbd></span> an einer Tastatur).</p>
+</section><section class="guide-part"><h2 id="ansicht-drehen-und-zoomen"><span class="heading-alias" id="turning-and-zooming-the-view"></span>Ansicht drehen und zoomen</h2>
+<p>Ein Finger auf der leeren Fläche dreht die Ansicht, zwei Finger zoomen und verschieben sie. Ein Finger, der auf einem Körper beginnt, arbeitet am Körper, nicht an der Ansicht. Soll er lieber die Ansicht drehen, schalte <strong class="ui">„Ansicht mit einem Finger drehen“</strong> in der Ansichtsleiste ein: Ein Finger dreht dann die Ansicht statt zu wählen, wo er auch beginnt. Der Schalter erscheint nur auf einem Gerät mit Touchscreen.</p>
+<p>Der Ansichtswürfel oben links dreht die Ansicht, wenn du ihn ziehst, und ein Tipp auf eine seiner Seiten, Ecken oder Kanten springt in diese Ansicht. Siehe <a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html">Ansicht und Arbeitsebene</a>.</p>
+</section><section class="guide-part"><h2 id="griffe-kleine-punkte-und-ein-stift"><span class="heading-alias" id="handles-small-points-and-a-stylus"></span>Griffe, kleine Punkte und ein Stift</h2>
+<p>Eine Fingerspitze verdeckt, worauf sie zielt. layerling lässt einen Finger an Griffe, Punkte, Linien und Kanten etwas weiter heranreichen als einen Mauszeiger, aber ein Stift ist feiner. Das gilt für einen Stift, den das Tablet als Stift kennt, etwa einen Apple Pencil oder einen S Pen. Ein einfacher Stift mit Gummispitze gilt für den Bildschirm als Finger und ist nicht feiner als einer, arbeite damit also wie mit dem Finger. Schwebt ein Apple Pencil auf dem iPad über einem Knopf, erscheint nach einem Moment sein Name in einer kleinen Blase, wie bei der Maus der Tooltip.</p>
+<p>Im Skizzenmodus zeichnet <strong class="ui">„Freihand“</strong> mit Stift oder Finger wie auf Papier; beim Absetzen wird die Linie zu Skizzenpunkten, die du bearbeiten kannst, siehe <a href="/api/desktop/layerling/ui/anleitung/skizzen.html">Skizzen</a>.</p>
+<p>Wenn Körper verrutschen, weil Kinder oder eilige Hände sie berühren, schalte in den Einstellungen <strong class="ui">„Erst auswählen, dann verschieben“</strong> ein: Ein Körper muss dann erst gewählt sein, und erst der nächste Zug verschiebt ihn.</p>
+</section><section class="guide-part"><h2 id="auf-einem-ipad-oder-iphone"><span class="heading-alias" id="on-an-ipad-or-iphone"></span>Auf einem iPad oder iPhone</h2>
+<ul><li><strong>Als App installieren.</strong> Tippe in Safari auf das Teilen-Symbol und wähle „Zum Home-Bildschirm“. Die App öffnet sich in einem eigenen Fenster ohne Adressleiste und läuft auch ohne Verbindung, siehe <a href="/api/desktop/layerling/ui/anleitung/offline-und-installieren.html">Offline und installieren</a>.</li><li><strong>Deine Entwürfe liegen im Browser</strong> (außer du betreibst layerling selbst und richtest einen Serverordner ein). Es gibt kein Konto, und nichts wird hochgeladen. Safari hat eine eigene Regel gegen Tracking: Es löscht, was eine Website gespeichert hat, wenn du sie sieben Tage lang nicht in Safari besucht hast. Eine Web-App auf dem Home-Bildschirm ist von dieser Regel ausgenommen, so beschreibt es WebKit. Das ist ein Grund mehr, die App vom Home-Bildschirm zu benutzen und wichtige Arbeiten zu sichern: <strong class="ui">„Alle sichern“</strong> auf der Startseite packt alle Entwürfe in eine Datei.</li><li><strong>Dateien.</strong> Safari lässt eine Seite nur über einen Download in eine Datei schreiben, daher legt <strong class="ui">„Exportieren“</strong> die Datei in die Downloads der Dateien-App, und <span dir="ltr"><kbd>Strg</kbd>+<kbd>S</kbd></span> an einer Tastatur lädt sie noch einmal herunter; siehe <a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html">Dateien und Speichern</a>.</li><li><strong>Keine Tastatur nötig.</strong> Jedes Werkzeug hat einen Knopf im Menüband, und ein Zahlenfeld öffnet die Bildschirmtastatur. Eine Tastatur am iPad bringt die <a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html">Tastenkürzel</a> dazu. Ein Wertekästchen neben einem Körper öffnet sein Zahlenfeld erst mit dem zweiten Tipp: Der erste markiert es nur, so holt ein Finger, der versehentlich darauf landet, die Tastatur nicht hoch.</li></ul>
+</section><section class="guide-part"><h2 id="werkstaetten-mit-kindern"><span class="heading-alias" id="workshops-with-children"></span>Werkstätten mit Kindern</h2>
+<p>Finger und Gummistifte funktionieren hier gleich. Zwei Einstellungen machen eine Gruppe leichter: <strong class="ui">„Erst auswählen, dann verschieben“</strong>, damit eine Berührung keinen Körper aus Versehen verschiebt, und <strong class="ui">„Ansicht mit einem Finger drehen“</strong>, damit ein Finger immer die Ansicht dreht. Der Fragezeichen-Knopf in der Gruppe Hilfe des Menübands schaltet die <strong class="ui">„Interaktive Hilfe“</strong> ein: Ein Tipp auf einen beliebigen Knopf, ein Feld oder einen Griff erklärt ihn dann, und derselbe Knopf oder <kbd>Esc</kbd> beendet sie.</p>
+<p>Für eine ganze Klasse schaltest Du in den Einstellungen <strong class="ui">„Einfacher Modus“</strong> ein. Die Leiste behält dann nur die Werkzeuge einer Werkstatt (Kopieren, Einfügen, Duplizieren, Löschen, Rückgängig, Gruppieren, Spiegeln, Fase, Verrundung, Aushöhlen, Ausrichten, Exportieren), die Formenliste ist kurz, die Knöpfe sind größer, und die Startseite zeigt nur die Entwürfe: keine Neuigkeiten, kein Willkommenstext, keine Hilfeknöpfe und keine Verweise aus layerling hinaus. Einschalten ist ein Tippen; ausschalten geht nur mit einem Druck von zwei Sekunden auf den Knopf, der dann an seine Stelle tritt. Ein Link mit <code>?mode=simple</code> am Ende schaltet den Modus auf dem Gerät ein, das ihn öffnet, <code>?mode=full</code> schaltet ihn wieder aus. Wer layerling auf einem Server betreibt, startet alle damit über <code>LAYERLING_SIMPLE_MODE=true</code> oder legt ihn mit <code>always</code> für alle fest, dann hat das Programm keinen Schalter zum Verlassen; siehe README.</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/anleitung/videos.html"><small>Vorheriges Kapitel</small>Videos über layerling</a></div>
+      </main>
+    </div>
+    <footer class="note">Diese Anleitung wächst mit dem Programm. Fehlt dir etwas oder stimmt etwas nicht, sag es im <a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=de" rel="noopener">Projekt unterstützen</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mehr Infos auf GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Versionshinweise v1.154.1</a></div><p class="trademark">Tinkercad ist eine Marke von Autodesk, Inc. layerling ist ein unabhängiges Projekt und steht in keiner Verbindung zu Autodesk, wird nicht von Autodesk unterstützt oder gesponsert.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Zurück zum Editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Zum Editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

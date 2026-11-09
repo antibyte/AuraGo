@@ -1959,7 +1959,7 @@ Electronics calculators from the same catalog and formulas as the ECalc desktop 
 | `tolerance`, `tempco`, `voltage`, `class` | string | Further fields of a code, for example `5%`, `50 ppm/K`, `63 V`, `X7R` (`encode`) |
 
 ### `layerling`
-Interactive 3D CAD in the user's open browser editor. Needs an authenticated Desktop chat context, the enabled Layerling integration, Desktop agent access and `agent_access: read` or `write` (default `off`). Workflow: `list_editors` with the exact `editor_id` from the window chat, then `describe` for Layerling 1.57.0's parameter schema, then the operation. No headless CAD; commands never auto-retry after a browser disconnect. Details: chapter 8 and [layerling.md](../../layerling.md).
+Interactive 3D CAD in the user's open browser editor. Needs an authenticated Desktop chat context, the enabled Layerling integration, Desktop agent access and `agent_access: read` or `write` (default `off`). Workflow: `list_editors` with the exact `editor_id` from the window chat, then `describe` for Layerling 1.154.1's parameter schema, then the operation. No headless CAD; commands never auto-retry after a browser disconnect. Details: chapter 8 and [layerling.md](../../layerling.md).
 
 ### `rtl_sdr`
 Drives RTL-SDR reception: status, devices, tuning, scans, favorites, recordings (FLAC), schedules, and re-running speech recognition. Requires `rtl_sdr.enabled`; receive-only by design.

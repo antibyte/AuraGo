@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Выделение и упорядочивание - Руководство layerling</title>
+    <meta name="description" content="Как выделять фигуры, находить их в списке объектов, выравнивать, отражать, вращать, укладывать на грань и размножать массивами.">
+    <link rel="canonical" href="https://layerling.com/ru/select-and-arrange.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/select-and-arrange.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/select-and-arrange.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/select-and-arrange.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/auswaehlen-und-anordnen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/select-and-arrange.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/select-and-arrange.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/select-and-arrange.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/select-and-arrange.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/selecteren-en-schikken.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/select-and-arrange.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/izbiranje-in-razporejanje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/select-and-arrange.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/select-and-arrange.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/select-and-arrange.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/select-and-arrange.html">
+    <meta property="og:title" content="Выделение и упорядочивание - Руководство layerling">
+    <meta property="og:description" content="Как выделять фигуры, находить их в списке объектов, выравнивать, отражать, вращать, укладывать на грань и размножать массивами.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/ru/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Руководство</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/ru/search-index.json" data-nothing="Ничего не найдено." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Поиск по руководству" aria-label="Поиск по руководству" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Язык">Русский</summary><ul><li><a href="/api/desktop/layerling/ui/guide/select-and-arrange.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/select-and-arrange.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/select-and-arrange.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/select-and-arrange.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/select-and-arrange.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/select-and-arrange.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/select-and-arrange.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/select-and-arrange.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/select-and-arrange.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/select-and-arrange.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/izbiranje-in-razporejanje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/select-and-arrange.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/select-and-arrange.html" hreflang="ru" lang="ru" aria-current="true">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/select-and-arrange.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/select-and-arrange.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/select-and-arrange.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/select-and-arrange.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Открыть редактор</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Редактор уже открыт в другой вкладке — просто переключитесь туда.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Главы"><h2>Главы</h2><p class="print-link"><a href="/api/desktop/layerling/ui/ru/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Всё руководство для печати</span></a></p><ol><li><a href="/api/desktop/layerling/ui/ru/getting-started.html">С чего начать</a></li><li><a href="/api/desktop/layerling/ui/ru/view-and-workplane.html">Вид и рабочая плоскость</a></li><li><a href="/api/desktop/layerling/ui/ru/shapes.html">Размещение и настройка фигур</a></li><li><a href="/api/desktop/layerling/ui/ru/select-and-arrange.html" aria-current="page">Выделение и упорядочивание</a></li><li><a href="/api/desktop/layerling/ui/ru/solids-and-holes.html">Тела и отверстия</a></li><li><a href="/api/desktop/layerling/ui/ru/edges-and-hollowing.html">Обработка кромок и выдолбливание тел</a></li><li><a href="/api/desktop/layerling/ui/ru/sketches.html">Эскизы: от контура к телу</a></li><li><a href="/api/desktop/layerling/ui/ru/text.html">Текст и надписи по дуге</a></li><li><a href="/api/desktop/layerling/ui/ru/threads-and-mechanics.html">Резьба, шестерни и другие детали</a></li><li><a href="/api/desktop/layerling/ui/ru/measuring-and-notes.html">Измерения и заметки</a></li><li><a href="/api/desktop/layerling/ui/ru/printing.html">Подготовка к 3D-печати</a></li><li><a href="/api/desktop/layerling/ui/ru/files-and-saving.html">Файлы, сохранение и обмен</a></li><li><a href="/api/desktop/layerling/ui/ru/shortcuts.html">Сочетания клавиш</a></li><li><a href="/api/desktop/layerling/ui/ru/ai-with-mcp.html">Создание с помощью ИИ (MCP)</a></li><li><a href="/api/desktop/layerling/ui/ru/offline-and-install.html">Установка как приложения, работа офлайн и свой сервер</a></li><li><a href="/api/desktop/layerling/ui/ru/videos.html">Видео о layerling</a></li><li><a href="/api/desktop/layerling/ui/ru/tablet-and-touch.html">Планшет и сенсорный экран</a></li></ol></nav>
+      <main>
+<h1>Выделение и упорядочивание</h1>
+<p class="lead">Как выделять фигуры, находить их в списке объектов, выравнивать, отражать, вращать, укладывать на грань и размножать массивами.</p>
+<div class="toc"><b>На этой странице</b><ul><li><a href="#vydelenie">Выделение</a></li><li><a href="#spisok-obektov">Список объектов</a></li><li><a href="#vvod-polozheniya">Ввод положения</a></li><li><a href="#detali-v-storone-ot-stola">Детали в стороне от стола</a></li><li><a href="#privyazka-pri-peremeshchenii">Привязка при перемещении</a></li><li><a href="#vyravnivanie">Выравнивание</a></li><li><a href="#otrazhenie">Отражение</a></li><li><a href="#vrashchenie-i-tsentr-vrashcheniya">Вращение и центр вращения</a></li><li><a href="#ukladka-na-gran">Укладка на грань</a></li><li><a href="#massivy-ryad-i-krug">Массивы: ряд и круг</a></li><li><a href="#massiv-otverstiy-na-grani">Массив отверстий на грани</a></li><li><a href="#vytyagivanie-grani-naruzhu-ili-vnutr">Вытягивание грани наружу или внутрь</a></li><li><a href="#izmenenie-neskolkikh-detaley-srazu">Изменение нескольких деталей сразу</a></li><li><a href="#masshtabirovanie-v-protsentakh">Масштабирование в процентах</a></li><li><a href="#otmena-deystviy">Отмена действий</a></li><li><a href="#vzglyad-nazad-prosmotr-istorii">Взгляд назад: просмотр истории</a></li></ul></div>
+<section class="guide-part"><h2 id="vydelenie"><span class="heading-alias" id="selecting"></span>Выделение</h2>
+<p>Щелчок по фигуре выделяет её. С <kbd>Shift</kbd> вы добавляете другие или убираете их снова. Пока <kbd>Shift</kbd> зажат и выделено две фигуры или больше, маленькое число под указателем мыши считает их. Щелчок по пустому месту снимает выделение, как и <kbd>Esc</kbd>. Протяните рамку по пустой рабочей плоскости, чтобы выделить всё, чего она коснётся; с зажатым <kbd>Shift</kbd> рамка добавляет невыделенное и снимает выделенное. Если вам удобнее выхватить одну деталь из скопления, включите <strong class="ui">«Направление рамки решает»</strong> в настройках (раздел <strong class="ui">«Внешний вид»</strong>): рамка, протянутая вправо, берёт тогда только то, что целиком лежит внутри неё, протянутая влево — по-прежнему всё, чего касается, и её линия пунктирная. Удерживайте <kbd>Alt</kbd> при протягивании, чтобы развернуть рамку на этот один раз, например чтобы взять целые тела с той стороны, где направление этого не позволило бы. А <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span> выделяет все видимые тела. Пока ты тянешь тело или маркер рамки, <kbd>Esc</kbd> отменяет действие, пока кнопка мыши ещё нажата: всё возвращается как было, и в историю ничего не добавляется.</p>
+<p>Фигуру за другой фигурой, например отверстие внутри тела, можно достать, не поворачивая вид: щёлкните правой кнопкой по этому месту и выберите <strong class="ui">«Выбрать другой…»</strong>. Меню перечисляет все фигуры под указателем, спереди назад. Та, на которой стоит указатель, обводится в виде, даже сквозь фигуры перед ней; щелчок выделяет её, а с <kbd>Shift</kbd> она добавляется к выделению. Пункт есть всегда, когда под указателем лежит больше одной фигуры; на планшете то же меню открывает долгое нажатие.</p>
+<p>То, что мешает, скрывайте (<strong class="ui">«Скрыть выделенное»</strong>, <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>H</kbd></span>). Скрытые фигуры остаются в проекте, они просто не видны и не попадают в экспорт; окно экспорта заранее сообщает, сколько их. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></span> возвращает их все. То, что должно оставаться на месте, блокируйте замком вверху настроек или сочетанием <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span>. Заблокированную фигуру нельзя переместить, изменить в размере, повернуть, перекрасить или удалить: её маркеры сереют, рядом со стрелкой сверху появляется замок, а инструменты, которые могли бы её изменить, отключаются. Наведение на маркер по-прежнему показывает размеры, а клавиша, которая изменила бы фигуру, отвечает «Объект заблокирован». Пока в выделении есть хоть одна заблокированная фигура, остальные тоже не меняются. Скрытие, переименование, копирование и дублирование при этом работают. Чтобы оставить деталь как есть и всё же строить с ней, заблокируйте только её форму: щит рядом с замком, <strong class="ui">«Заблокировать форму»</strong> в меню правой кнопки или <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd></span>. Её по-прежнему можно перемещать, поворачивать, поднимать, выравнивать, копировать и группировать с другими, но размер, настройки и имя остаются прежними: маркеры размера исчезают, их поля становятся серыми, а изменение размера, зеркалирование, разгруппировка, инструменты рёбер и удаление отклоняются. Копия сохраняет блокировку, как и деталь внутри группы: группу можно перемещать и снова разгруппировать, но не менять её размер. Щит снимает блокировку формы.</p>
+<p>Чтобы поработать с несколькими деталями глубоко внутри проекта, выделите их и выберите <strong class="ui">«Скрыть остальные»</strong> в меню правой кнопки или в <strong class="ui">«Параметры видимости»</strong>: всё остальное скрывается за один шаг, поэтому <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> или <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></span> возвращает его. <strong class="ui">«Инвертировать выделение»</strong> в меню правой кнопки выделяет все видимые фигуры, которые не были выделены, и снимает выделение с тех, что были. Обе команды есть и в поиске команд (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>), где им можно назначить и свою клавишу.</p>
+<p>Число на кнопке группы <strong class="ui">«Видимость»</strong> показывает, сколько фигур скрыто, а щелчок по нему снова показывает их все. Если открыть проект со скрытыми фигурами, об этом один раз сообщит сообщение с кнопкой, чтобы показать их. Деталь, скрытая при открытой группе, остаётся скрытой, когда вы закрываете группу кнопкой <strong class="ui">«Готово»</strong>: группа сохраняет свой размер, остальные детали остаются как есть, при выравнивании скрытая деталь по-прежнему учитывается, а показ всех скрытых фигур её не затрагивает. Чтобы показать её, откройте группу снова.</p>
+</section><section class="guide-part"><h2 id="spisok-obektov"><span class="heading-alias" id="the-object-list"></span>Список объектов</h2>
+<p>Когда деталей много, в виде легко потерять ориентир. Список объектов (<strong class="ui">«Показать список объектов»</strong> или <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd></span>) показывает все фигуры списком.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/object-list.webp" alt="Список объектов: группа «Группа» с двумя деталями и сфера рядом. Значок папки раскрывает группу." width="1280" height="800" loading="lazy"><figcaption>Список объектов: группа «Группа» с двумя деталями и сфера рядом. Значок папки раскрывает группу.</figcaption></figure>
+<ul><li>Щелчок по строке выделяет фигуру, в том числе детали внутри группы. С зажатым <kbd>Shift</kbd> вы добавляете строки или убираете их снова — так же, как в виде. Стрелки раскрывают и сворачивают группы.</li><li>Подпись показывает, что это за деталь — <strong class="ui">«Тело»</strong> или <strong class="ui">«Отверстие»</strong>.</li><li>Под именем указано, что это за форма. Тело, которое уже не простая форма (скруглённое, полое или импортированное), показывает <strong class="ui">«Точное тело»</strong>, если экспорт STEP записывает его точно, и <strong class="ui">«Сетка»</strong>, если оно состоит только из треугольников и уходит в STL. Сужение, наклон или закрутка, добавленные после скругления или выдалбливания тела, изгибают только его сетку, поэтому тогда там стоит <strong class="ui">«Сетка»</strong>.</li><li>Замок и глаз блокируют и скрывают отдельные детали.</li><li><strong class="ui">«Переименовать»</strong> даёт детали своё имя; карандаш рядом с именем вверху настроек делает то же для выделенной фигуры. Понятные имена очень помогают в крупных проектах.</li><li>Кнопка A–Z в заголовке (<strong class="ui">«Сортировать именованные фигуры от А до Я»</strong>) сортирует фигуры, которым вы дали имя, по алфавиту, считая числа числами («Деталь 2» перед «Деталь 10»). Фигуры со стандартным именем остаются ниже в порядке добавления, самая новая последней, а детали внутри групп сортируются так же. Меняется только список, а не проект. Повторный щелчок снова показывает всё в порядке добавления, и браузер запоминает выбор.</li><li>Ручка слева в строке (шесть точек) перемещает фигуру в списке: перетащите её вверх или вниз либо наведите на неё фокус и нажмите <kbd>↑</kbd> или <kbd>↓</kbd>. Это меняет собственный порядок проекта, к которому список возвращается без сортировки А–Я, а «Отменить» возвращает всё назад. При сортировке А–Я или поиске ручки скрыты.</li><li>Чтобы положить форму в группу, раскройте группу стрелкой и перетащите форму за ручку на части группы; группа получает оранжевую рамку. Форма остаётся на месте и сохраняет имя, как и группа: группа заново объединяется с ней, набор просто принимает её. У частей раскрытой группы есть своя ручка: вытащенная из группы часть снова лежит отдельно, в том месте списка, где вы её отпустите, или отпустите её на другую раскрытую группу, чтобы перенести туда. Группа, в которой осталась одна часть, исчезает и оставляет эту часть. Отмена возвращает каждый из этих шагов за один раз. Пока вы редактируете группу, это недоступно.</li><li>Поле поиска находит фигуры по имени и по типу — так и «цилиндр», и «отверстие». Оно заглядывает и внутрь групп, как бы глубоко они ни были вложены: группа, в которой есть совпадение, остаётся в списке и раскрывается, показывая подходящие детали и группы, которые к ним ведут. Группа, найденная по своему имени, при раскрытии показывает все свои детали.</li><li>Стрелка у самого левого края заголовка сворачивает список до заголовка и обратно.</li></ul>
+<p>Список закреплён справа от куба ориентации. Перетащите его за заголовок, чтобы поставить в любое место на рабочей плоскости; он проходит под кубом ориентации и панелью вида. Отпустите его обратно рядом с кубом ориентации или дважды щёлкните по заголовку, и он снова закрепится. Где он был и был ли он свёрнут, запоминается в этом браузере.</p>
+</section><section class="guide-part"><h2 id="vvod-polozheniya"><span class="heading-alias" id="typing-a-position"></span>Ввод положения</h2>
+<p>Карточка <strong class="ui">«Положение»</strong> на панели свойств показывает, где стоит выделенное тело, и это можно ввести: <strong class="ui">«X»</strong> и <strong class="ui">«Y»</strong> — середина его габаритной коробки на столе, с теми же знаками, что у расстояний, показанных на рабочей плоскости, а <strong class="ui">«Z (высота)»</strong> — высота его нижней грани. Через <strong class="ui">«Отсчёт от»</strong> вверху карточки вы переключаетесь на <strong class="ui">«Край»</strong>: тогда X и Y показывают левый и передний края тела, так что край ставится точно на размер. Настройка остаётся, пока вы не переключитесь обратно на <strong class="ui">«Центр»</strong>. X считает вправо, Y — от себя, Z — вверх, по правилу правой руки, как в Tinkercad и CAD-программах; направления показывают стрелки осей на столе. Значения задаются в выбранных вами единицах, а ползунки доходят так же далеко, как перетаскивание.</p>
+</section><section class="guide-part"><h2 id="detali-v-storone-ot-stola"><span class="heading-alias" id="parking-parts-beside-the-plate"></span>Детали в стороне от стола</h2>
+<p>Фигуру можно перетащить за край стола и оставить там — примерно на ширину стола с каждой стороны, чтобы сохранить на потом. Стрелки двигают её как угодно далеко. Отставленная деталь по-прежнему принадлежит проекту и попадает в экспорт вместе со всем остальным. Чтобы её исключить, скройте её или экспортируйте только выделение. Если вы выбрали принтер, layerling предупредит при экспорте, когда что-то стоит за пределами его стола.</p>
+</section><section class="guide-part"><h2 id="privyazka-pri-peremeshchenii"><span class="heading-alias" id="snapping-while-moving"></span>Привязка при перемещении</h2>
+<p>Когда вы перетаскиваете фигуру по рабочей плоскости, она притягивается к другим фигурам: её левая, правая, передняя или задняя кромка либо её центр точно попадает на кромку или центр другой фигуры. Розовая направляющая линия показывает, за что она держится. Так две детали встают заподлицо бок о бок или одна по центру за другой без ввода чисел. Это работает и с выключенной сеткой. Центр рабочей плоскости тоже считается: розовые линии показывают, когда фигура стоит посередине платформы по X, по Y или по обеим осям.</p>
+<p>Удерживайте <kbd>Shift</kbd> при перетаскивании, чтобы движение шло по одной оси: фигура следует за тем направлением, X или Y, в котором вы протянули дальше, и не трогает второе. Лучше нажимать <kbd>Shift</kbd>, когда перетаскивание уже началось; на ещё не выделенной фигуре щелчок с <kbd>Shift</kbd> только добавляет её к выделению.</p>
+<p>Или потяните красную или зелёную стрелку сверху на выделении: она двигает только по X или только по Y, и фигура следует за мышью вдоль этой линии даже при низком взгляде, где свободное перетаскивание уводит далеко. Стрелки притягиваются, как при перетаскивании, <kbd>Alt</kbd> это отключает, а пройденное расстояние потом можно щёлкнуть и ввести точно.</p>
+<p>Если <kbd>Alt</kbd> нажат уже в начале перетаскивания, вы перетаскиваете копию, как в Tinkercad: фигура остаётся на месте, а копия встаёт там, где вы её отпустите. Нажатие <kbd>Alt</kbd> только по ходу движения приостанавливает привязку; тогда фигура следует только за сеткой. Копия тоже привязывается лишь после того, как вы отпустите <kbd>Alt</kbd> по ходу. Чтобы выключить привязку совсем, воспользуйтесь меню сетки в правом нижнем углу (<strong class="ui">«Привязка к фигурам»</strong>) или настройками. Пока привязывается только перемещение по обычной рабочей плоскости, но не подъём и не изменение размера.</p>
+</section><section class="guide-part"><h2 id="vyravnivanie"><span class="heading-alias" id="aligning"></span><span class="heading-alias" id="matching-sizes"></span><span class="heading-alias" id="equal-gaps"></span>Выравнивание</h2>
+<p>Две или более выделенных фигуры выравниваются кнопкой <strong class="ui">«Выровнять»</strong> (<kbd>L</kbd>, или через правый щелчок по выделению): вокруг выделения появляются точки для левого края, центра и правого края, для переда, центра и зада, для верха, центра и низа. Щелчок по точке переносит туда все фигуры. Если сначала щёлкнуть по одной из выделенных фигур, она останется на месте, а остальные выровняются по ней. Если в выделении есть заблокированная фигура, она сама служит неподвижной опорой. Лево, право, перед, зад, верх и низ отсчитываются по габаритной коробке фигуры; центр треугольника, пятиугольника или звезды — это их собственная середина, поэтому отверстие, выровненное по центру такой фигуры, встаёт в середину самой фигуры, а не её габаритной коробки.</p>
+<p>Фигура, повёрнутая под углом — скажем, на 45°, — выравнивается по своей габаритной коробке, а не по собственным кромкам. Чтобы выравниваться по кромкам, сначала поставьте рабочую плоскость на грань этой фигуры (<strong class="ui">«Поставить рабочую плоскость»</strong>, затем щёлкните по грани): точки встанут по осям этой плоскости, и фигуры будут измеряться и перемещаться вдоль них, как в Tinkercad. Верните рабочую плоскость на основание — и выравнивание снова пойдёт по столу печати.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/align.webp" alt="Выравнивание показывает возможные цели точками вокруг выделения." width="1280" height="800" loading="lazy"><figcaption>Выравнивание показывает возможные цели точками вокруг выделения.</figcaption></figure>
+<p>Клавиша — <kbd>L</kbd>. <kbd>Esc</kbd> отменяет.</p>
+<section class="guide-part"><h3 id="ravnye-promezhutki">Равные промежутки</h3>
+<p>Рядом со средней точкой каждой линии стоит более широкая точка с чёрточкой по бокам. Она распределяет три и более фигуры в этом направлении так, чтобы промежуток между соседними краями был везде одинаковым, какого бы размера ни была каждая фигура. Первая и последняя фигуры остаются на месте, промежуточные сдвигаются. Так ряд отверстий разного размера получает между ними одинаковую стенку. Наведите указатель на точку, и вы заранее увидите, куда встанут фигуры; строка состояния затем покажет промежуток.</p>
+<p>Если среди выбранных фигур есть основание, которое в этом направлении длиннее всех остальных, фигуры распределяются по нему: отступ от его краёв равен промежутку между фигурами, а одна фигура встаёт посередине. Фигуры в несколько рядов, например звери детской рамки-вкладыша, распределяются по рядам; фигуры, чьи габариты перекрываются поперёк направления, образуют один ряд. Где фигуры не стоят ровными столбцами, как звери спереди назад, стоящие рядом фигуры сдвигаются вместо этого целым рядом.</p>
+<p>Без основания сначала щёлкните с <kbd>Shift</kbd> по свободному месту стола: тогда стол становится опорной фигурой, равные промежутки распределяют фигуры по всему столу с тем же отступом от краёв, а остальные точки выравнивают их по его краям или середине. Повторный щелчок с <kbd>Shift</kbd> по свободному месту отпускает его. Щелчок по пустому месту без <kbd>Shift</kbd> завершает выравнивание, как и <kbd>L</kbd> или <kbd>Esc</kbd>.</p>
+<p>Удерживайте <kbd>Alt</kbd> и щёлкните точку, чтобы ввести промежуток самому, например 5 мм: фигуры выстроятся на таком расстоянии, начиная с первой фигуры или с той, по которой вы щёлкнули первой; на основании ряд встанет посередине. Заблокированная фигура остаётся на месте, поэтому такая фигура между крайними не даёт выровнять промежутки.</p>
+</section></section><section class="guide-part"><h2 id="otrazhenie"><span class="heading-alias" id="mirroring"></span>Отражение</h2>
+<p><strong class="ui">«Отразить»</strong> (<kbd>M</kbd>, или через правый щелчок по выделению) отражает выделение относительно плоскости: <strong class="ui">«слева-справа»</strong>, <strong class="ui">«спереди-сзади»</strong> или <strong class="ui">«сверху-снизу»</strong>. Щёлкните по стрелке нужной оси. Это удобно для симметричных деталей: постройте одну половину, скопируйте её и отразите копию.</p>
+</section><section class="guide-part"><h2 id="vrashchenie-i-tsentr-vrashcheniya"><span class="heading-alias" id="rotating-and-setting-the-pivot"></span>Вращение и центр вращения</h2>
+<p>Вращать можно изогнутыми стрелками на фигуре, числами в настройках или клавишей <kbd>R</kbd> с шагом 45°. Когда вы тянете по окружности вращения, поворот прилипает к каждому делению — то есть каждые 22,5°; удерживайте <kbd>Shift</kbd> для более мелких шагов — появятся дополнительные деления через каждые 11,25°. Тяните вне окружности, чтобы поворачивать свободно с шагом 1°, а с <kbd>Shift</kbd> — 45°. Обычно выделение поворачивается вокруг своего центра. Иногда это не нужно — например, когда наклонную трубу надо повернуть дальше на её конце. Для этого есть <strong class="ui">«Задать центр вращения»</strong>: после него щёлкните по грани. Плоская грань даёт свой центр, например ось конца трубы. У группы или связки грань проходит через соприкасающиеся детали, как у одного тела, и центр вращения переносится в середину всей грани, как только детали считаны как одно тело, кроме группы или связки с текстом и связки с отверстием. Теперь выделение вращается вокруг этой точки. Повторный щелчок по инструменту убирает его.</p>
+<p>Углы остаются при теле. В его настройках карточка <strong class="ui">«Поворот»</strong> показывает их как <strong class="ui">«Вокруг X»</strong>, <strong class="ui">«Вокруг Y»</strong> и <strong class="ui">«Вокруг Z (высота)»</strong>, названные по образцу положения: Y идёт поперёк стола, Z — вверх. Введите там угол, и тело повернётся к нему — вокруг своего центра или вокруг собственного центра вращения, если он задан. Пока повёрнутое тело выделено, его углы показываются и под ним на рабочей плоскости; <strong class="ui">«Показывать углы повёрнутых тел»</strong> в настройках это отключает.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/rotation-card.webp" alt="Тело, повёрнутое вокруг двух осей: его углы стоят под ним, а карточка «Поворот» в настройках принимает их числами." width="1280" height="800" loading="lazy"><figcaption>Тело, повёрнутое вокруг двух осей: его углы стоят под ним, а карточка «Поворот» в настройках принимает их числами.</figcaption></figure>
+<p>Если выбрано одно тело, центр вращения принадлежит ему: выделите другие детали и вернитесь — он всё ещё там. Он перемещается, поворачивается и масштабируется вместе с телом, сохраняется в проекте и возвращается отменой. В карточке <strong class="ui">«Положение»</strong> у центра вращения свои X, Y и Z — их можно ввести или подправить, а <strong class="ui">«Удалить»</strong> убирает его. Красный маркер центра можно и перетащить мышью: он скользит по поверхности тел и прилипает к углам, серединам кромок и самим кромкам — так ось петли встанет точно в угол. При нескольких выделенных телах центр вращения действует только для этого выделения, и новое выделение его убирает. Если сгруппировать или связать их, она сохранится: группа получает её как собственную точку вращения, с X, Y и Z в <strong class="ui">«Положение»</strong>. Если при перетаскивании удерживать Shift, он привязывается к центру грани под указателем — к оси круглой грани, середине плоской или вершине конуса — и смотрит сквозь прозрачные тела.</p>
+</section><section class="guide-part"><h2 id="ukladka-na-gran"><span class="heading-alias" id="laying-flat-on-a-face"></span>Укладка на грань</h2>
+<p>Нужно, чтобы деталь лежала лучшей стороной для печати? Выделите её, нажмите <strong class="ui">«Уложить на грань»</strong> и затем щёлкните по грани, которая должна смотреть вниз. Пока вы ведёте указатель по детали, грань под ним подсвечивается — видно, что именно вы выберете; поверните вид, чтобы проверить остальные стороны. Деталь повернётся так, что эта грань ляжет на рабочую плоскость.</p>
+<p>Две детали должны сойтись грань к грани или встать заподлицо? Выделите деталь, которая должна переместиться, нажмите <strong class="ui">«Выровнять грани»</strong>, затем щёлкните по её грани, а после — по грани другой детали. В окне <strong class="ui">«Грань к грани»</strong> прижимает грани друг к другу (тыльными сторонами, вплотную), <strong class="ui">«Вровень»</strong> кладёт их в одну плоскость рядом; <strong class="ui">«Зазор»</strong> оставляет между ними место — например, под зазор. <strong class="ui">«Выровнять»</strong> перемещает деталь: она поворачивается кратчайшим путём, пока грани не станут параллельны — а если уже параллельны, не поворачивается вовсе, — и затем скользит только в сторону другой грани, не смещаясь вбок. Другая деталь остаётся на месте, и одна отмена возвращает всё назад.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/mate-faces.webp" alt="Окно «Выровнять грани»: выбрана перемещаемая деталь, дальше — грань другой детали, затем «грань к грани» или «вровень» и необязательный зазор." width="1280" height="800" loading="lazy"><figcaption>Окно «Выровнять грани»: выбрана перемещаемая деталь, дальше — грань другой детали, затем «грань к грани» или «вровень» и необязательный зазор.</figcaption></figure>
+<p><strong>Отверстия на одной оси:</strong> <strong class="ui">«Одна ось»</strong> вместо этого выравнивает круглые грани: отверстие над отверстием, штифт в отверстии, винт в его сквозном отверстии. Выберите этот вариант до того, как щёлкнуть по граням. Затем щёлкните по круглой внутренней стороне отверстия (или наружной стороне штифта) у детали, которая движется, и по круглой грани другой детали; вся круглая грань подсвечивается под указателем. <strong class="ui">«Выровнять»</strong> поворачивает деталь кратчайшим путём, пока обе оси не станут параллельны, и сдвигает её поперёк на другую ось. Вдоль оси она остаётся где была, так что штифт сохраняет высоту; вдвиньте его потом. Это работает и с импортированными сетками, если отверстие состоит из граней вокруг одной оси.</p>
+<p><strong>Точка на точку:</strong> <strong class="ui">«Точка к точке»</strong> сдвигает деталь по прямой, не поворачивая её, чтобы одна из её точек попала на точку другой детали. Щёлкните угол, место на ребре, центр круглого ребра или опорную точку на сдвигаемой детали, затем точку, куда она должна попасть; кружок показывает, какую точку возьмёт указатель. В разделе <strong class="ui">«Сдвиг вдоль»</strong> отключите оси, вдоль которых деталь двигаться не должна: только с X и Y точка окажется ровно над или под другой, только с Z — на той же высоте. Одна отмена всё возвращает.</p>
+<p><strong>Поворот второй и третьей парой:</strong> после «<strong class="ui">«Выровнять»</strong>» панель остаётся открытой для второй пары точек. Первая точка остаётся там, куда попала, и отмечена синим, а «<strong class="ui">«Повернуть»</strong>» поворачивает деталь вокруг неё, пока линия через её вторую точку не пройдёт через точку, выбранную на другой детали, - так два ребра ложатся на одну линию, даже если детали разной длины. Третья пара поворачивает деталь вокруг линии через две синие точки, пока её третья точка не будет направлена на выбранную третью точку, и грани тоже совпадают - как выравнивание по трём точкам в других CAD-программах. «<strong class="ui">«Готово»</strong>» завершает на любом шаге; каждый шаг - одна отмена.</p>
+<p>Так же просты <strong class="ui">«Опустить на рабочую плоскость»</strong> (<kbd>D</kbd>), опускающий выделение на рабочую плоскость, и <strong class="ui">«Центрировать на рабочей плоскости»</strong>.</p>
+<p><span dir="ltr"><kbd>Alt</kbd>+<kbd>D</kbd></span> опускает несколько деталей целиком: все сдвигаются вниз на одно и то же расстояние и сохраняют высоту относительно друг друга, а <kbd>D</kbd> опускает каждую деталь по отдельности.</p>
+<p><kbd>C</kbd> подхватывает выделение, как Cruise в Tinkercad: оно следует за указателем мыши и ложится на грань другого тела, над которой вы находитесь, и на наклонную тоже. Щелчок ставит его туда, <kbd>Esc</kbd> оставляет на прежнем месте. Его нижняя сторона ложится на грань, выровненная по краям грани, как новая фигура; собственный поворот вокруг вертикальной оси сохраняется. Несколько деталей перемещаются вместе и сохраняют промежутки. Над пустым столом <kbd>C</kbd> снова ставит наклонённую деталь прямо на рабочую плоскость. Если держать <kbd>Shift</kbd> при переносе, деталь утапливается в грань: она остаётся прямой, её верх вровень с гранью, а тело под ней — так в тело входит зенковка или цековка; новая фигура из библиотеки с зажатым <kbd>Shift</kbd> ставится так же. <span dir="ltr"><kbd>Shift</kbd>+<kbd>D</kbd></span> опускает выделение на рабочую плоскость верхом, а не основанием. Без клавиатуры в меню долгого нажатия для того же есть <strong class="ui">«Поставить на грань»</strong>.</p>
+<p><kbd>C</kbd> подхватывает выделение, как Cruise в Tinkercad: оно следует за указателем и ложится на грань тела, над которым вы находитесь, — даже на наклонную. Щелчок ставит его туда, <kbd>Esc</kbd> оставляет там, где оно было. Нижняя сторона при этом ложится на грань и выравнивается по её кромкам, как это сделала бы новая фигура; собственный поворот вокруг вертикальной оси сохраняется. Несколько деталей путешествуют вместе и сохраняют расстояния между собой. Над пустым столом <kbd>C</kbd> снова ставит наклонённую деталь вертикально на рабочую плоскость.</p>
+</section><section class="guide-part"><h2 id="massivy-ryad-i-krug"><span class="heading-alias" id="patterns-row-and-circle"></span>Массивы: ряд и круг</h2>
+<p>Для сеток отверстий, окружностей под болты и зубчатых венцов есть <strong class="ui">«Массив»</strong>. Выделите фигуры, которые нужно размножить, и нажмите эту кнопку на панели инструментов.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/pattern-tool.webp" alt="Массив в режиме «Круг»: копии сначала показываются как предпросмотр." width="1280" height="800" loading="lazy"><figcaption>Массив в режиме «Круг»: копии сначала показываются как предпросмотр.</figcaption></figure>
+<ul><li><strong class="ui">«Ряд»</strong>: выделение повторяется на равных расстояниях. Ряд шагает сразу по всем трём осям: <strong class="ui">«Шаг по X»</strong>, <strong class="ui">«Шаг по Y»</strong> и <strong class="ui">«Шаг по Z (высота)»</strong> — одна даёт прямой ряд, две или три — наклонный ряд или лестницу. Отрицательный шаг укладывает ряд в другую сторону.</li><li><strong class="ui">«Распределить по телу»</strong>: для отверстий вдоль пластины, ключницы или вешалки. Поставь первую деталь на тело или в него, выбери <strong class="ui">«Вдоль X»</strong> или <strong class="ui">«Вдоль Y»</strong> и задай <strong class="ui">«Зазор до края»</strong>: оригинал сдвинется на столько от ближнего конца (от края до боковой стороны детали), а последняя копия сохранит такой же зазор до дальнего конца. Шаг тогда следует за значением <strong class="ui">«Количество (с оригиналом)»</strong>: пять отверстий или девять, они всегда равномерно заполняют пластину.</li><li><strong class="ui">«Сетка»</strong>: для отверстий перфорированной пластины или поля одинаковых деталей. <strong class="ui">«Столбцы вдоль X (с оригиналом)»</strong> и <strong class="ui">«Шаг по X»</strong> ставят столбцы рядом друг с другом, <strong class="ui">«Ряды вдоль Y (с оригиналом)»</strong> и <strong class="ui">«Шаг по Y»</strong> — ряды спереди назад. Один столбец или один ряд дают одну линию. В сетке не больше 100 деталей; сверх этого ряды урезаются, и окно об этом сообщает.</li><li><strong class="ui">«Круг»</strong>: выделение распределяется вокруг центра. Сколько будет копий, вы задаёте в поле <strong class="ui">«Количество (с оригиналом)»</strong>, а <strong class="ui">«Общий угол»</strong> равно 360° для полного круга. Выберите, должны ли копии поворачиваться вместе с кругом. <strong class="ui">«Подъём на копию»</strong> поднимает каждую копию чуть выше предыдущей (винт или восходящая спираль), а <strong class="ui">«Изменение радиуса на копию»</strong> отодвигает её дальше от центра или придвигает ближе (плоская спираль); вместе они дают коническую спираль. Спираль делает не больше одного витка: угол больше 360° считается полным кругом, и копий не больше 100.</li></ul>
+<p>Совет: сначала задайте центр вращения на грани кнопкой <strong class="ui">«Задать центр вращения»</strong> — тогда центр круга окажется точно там.</p>
+<p>После этого детали сохраняют центр окружности как центр вращения, и после группировки тоже. Туда и ставится другая деталь, например шар посреди трёх ножек: середина рамки деталей — это не центр, потому что три ножки заполняют рамку, широкую в одном направлении больше, чем в другом. Щёлкните правой кнопкой по деталям и выберите <strong class="ui">«Отметить точку вращения»</strong>, и центр перетаскиваемой детали привяжется к нему.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/pattern-spiral.webp" alt="Массив в режиме «Круг» с подъёмом и изменением радиуса на копию: копии поднимаются и расходятся спиралью." width="1280" height="800" loading="lazy"><figcaption>Массив в режиме «Круг» с подъёмом и изменением радиуса на копию: копии поднимаются и расходятся спиралью.</figcaption></figure>
+<p>Копии сначала показываются как предпросмотр. Создаёт их только <strong class="ui">«Создать»</strong>. Если копии — отверстия, сгруппируйте их после этого с телом, в которое они должны врезаться.</p>
+<p>С отмеченным <strong class="ui">«Сгруппировать копии»</strong> <strong class="ui">«Создать»</strong> в том же шаге группирует оригинал и все копии в один объект, как сделал бы <strong class="ui">«Сгруппировать»</strong>: кольцо из 36 деталей — тогда одна деталь, которую можно двигать, красить или резать ею. При больше чем 5 деталях флажок ставится сам; как только вы сами его поставите или снимете, он остаётся как есть. <strong class="ui">«Разгруппировать»</strong> возвращает детали. Если группировка не удаётся, массив всё равно приходит отдельными деталями, и сообщение говорит почему.</p>
+</section><section class="guide-part"><h2 id="massiv-otverstiy-na-grani"><span class="heading-alias" id="hole-pattern-on-a-face"></span>Массив отверстий на грани</h2>
+<p>Для вентиляционных отверстий, решёток динамиков, корзин и корпусов инструмент <strong class="ui">«Массив отверстий»</strong> равномерно распределяет отверстия по плоской грани. Больше не нужно делать одно отверстие, повторять его и ставить на стенку. Выделите ровно одно тело и нажмите <strong class="ui">«Массив отверстий»</strong> в группе <strong class="ui">«Изменение»</strong> на панели инструментов, рядом с массивом. Можно и щёлкнуть по телу правой кнопкой, или найти команду через <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</p>
+<ol><li>Щёлкните по плоской грани тела. Учитывается вся плоская грань вокруг щелчка, а не только треугольник под указателем. Подойдёт и круглая стенка цилиндра, трубы или отверстия, см. ниже; другая криволинейная грань не подойдёт: появится подсказка, и вы щёлкнете по плоской. У группы или связки грань проходит через соприкасающиеся детали, как у одного тела, а у связки только если среди деталей нет отверстия. Детали считываются как одно тело вскоре после открытия инструмента; до этого под указателем подсвечивается грань лишь одной детали, а щелчок ждёт этого. У группы или связки с текстом подсвечивается грань лишь одной детали, а как одно тело детали считываются только при щелчке.</li><li>В окне задайте вид и расположение отверстий:</li></ol>
+<ul><li><strong class="ui">«Форма отверстия»</strong>: <strong class="ui">«Круг»</strong>, <strong class="ui">«Квадрат»</strong>, <strong class="ui">«Прямоугольник»</strong>, <strong class="ui">«Шестиугольник»</strong> или <strong class="ui">«Паз»</strong>.</li><li>Размер: <strong class="ui">«Диаметр (Ø)»</strong> круглого отверстия, <strong class="ui">«Длина стороны»</strong> квадратного, <strong class="ui">«Ширина»</strong> и <strong class="ui">«Высота»</strong> для прямоугольника и паза. У шестиугольника размер — это <strong class="ui">«Диаметр по вершинам (Ø)»</strong>.</li><li><strong class="ui">«Угол отверстий»</strong>: только для прямоугольников и пазов: поворачивает каждое отверстие в грани на столько градусов, против часовой стрелки, если смотреть на грань, от -90 до 90. Ряды остаются прямыми; если повёрнутые отверстия сошлись бы слишком близко, в том числе по диагонали, layerling увеличивает шаг и расстояние между рядами, чтобы между ними оставалась перемычка.</li><li><strong class="ui">«Наклон сквозь стенку»</strong>: только для плоских граней, не с цековкой, зенковкой или своей формой: наклоняет каждое отверстие сквозь стенку, от -60 до 60 градусов. На стоящей стенке при положительном наклоне внутренний конец выше, поэтому дождь стекает обратно наружу. Размер остаётся размером самого отверстия, поэтому на грани оно выглядит чуть длиннее; оба конца каждого отверстия соблюдают отступ. Наклон закрывает вид внутрь, только если толщина стенки, умноженная на sin(угол), не меньше высоты отверстия, поэтому для этого берите низкие пазы или стенку потолще.</li><li><strong class="ui">«Своя форма»</strong>: вместо отверстия повторяет форму из сцены — заклёпку, бобышку или рифление рифлёного листа. Её выбирают в <strong class="ui">«Форма из сцены»</strong>. Её ширина и глубина — место, которое она занимает; она стоит на грани вертикально, как была сделана, без собственного поворота. Тело ставится на грань и соединяется с ней, отверстие вырезается на глубину своей высоты. Сама форма остаётся на месте.</li><li><strong class="ui">«Тип отверстия»</strong>: только для круглых отверстий. <strong class="ui">«Простое»</strong> — прямое отверстие, <strong class="ui">«Цековка»</strong> добавляет гнездо под головку винта с цилиндрической головкой, <strong class="ui">«Зенковка»</strong> — конус 90° под потайной винт. Размер тогда — <strong class="ui">«Диаметр стержня»</strong>; <strong class="ui">«Диаметр головки»</strong> и для цековки <strong class="ui">«Глубина головки»</strong> задают головку. <strong class="ui">«Размер винта»</strong> заполняет всё для метрического винта.</li><li><strong class="ui">«Шаг между центрами»</strong>: расстояние от центра одного отверстия до центра следующего. Если оно меньше допустимого, layerling поднимет его до наименьшего возможного, чтобы между отверстиями осталась стенка. Для прямоугольников и пазов он считается вдоль ряда, слева направо.</li><li><strong class="ui">«Расстояние между рядами»</strong>: только для прямоугольников и пазов: расстояние от одного ряда до следующего. Так узкие высокие отверстия стоят тесно бок о бок, а ряды остаются раздвинутыми. Отверстию шириной 2 мм и высотой 14 мм при стенке 2 мм нужно 4 мм вдоль ряда и 16 мм от ряда до ряда.</li><li><strong class="ui">«Перемычка между отверстиями»</strong>: то же расстояние другими словами: стенка, оставляемая между двумя соседними отверстиями, — она и будет толщиной стенки на печати. Задайте её — и шаг между центрами пересчитается сам (для прямоугольников и пазов — и расстояние между рядами), и наоборот. Для шестиугольников, прямоугольников и пазов layerling меряет наименьшее расстояние между их краями.</li><li><strong class="ui">«Расположение»</strong>: <strong class="ui">«Сетка»</strong> расставляет отверстия по строкам и столбцам. <strong class="ui">«Шахматный порядок»</strong> смещает каждую вторую строку на полшага и сдвигает строки ближе, так что у каждого отверстия соседи на одинаковом расстоянии — с шестиугольниками получаются соты.</li><li><strong class="ui">«По краю»</strong>: вместо этого венец отверстий вдоль внешнего края грани, отступив внутрь на <strong class="ui">«Отступ от края грани»</strong> — отверстия под винты вокруг крышки или пластины. <strong class="ui">«Распределить по»</strong> <strong class="ui">«Шагу»</strong> примерно держит шаг, <strong class="ui">«Количеству»</strong> задаёт <strong class="ui">«Число отверстий»</strong>; в обоих случаях шаг выравнивается, чтобы венец замкнулся без зазора. <strong class="ui">«Отверстие в каждом углу»</strong> (сначала включено) ставит отверстие в каждый угол и делит каждую сторону между ними поровну. На круглой грани или без галочки отверстия идут равномерно по кругу сверху, а <strong class="ui">«Начало на краю»</strong> сдвигает весь венец вдоль края.</li><li><strong class="ui">«Отступ от края грани»</strong>: чистое расстояние между отверстиями и краем грани. Создаются только отверстия, целиком попадающие в грань с учётом этого отступа; всё, что задевает его границу, пропускается. Отступ соблюдается и вокруг проёмов в самой грани.</li><li><strong class="ui">«Глубина»</strong>: <strong class="ui">«Сквозь всё тело»</strong> (по умолчанию) прорезает стенку насквозь. С <strong class="ui">«Заданная глубина»</strong> вы задаёте глубину в миллиметрах — скажем, для углублений.</li></ul>
+<ol><li>Отверстия сразу показываются на грани предпросмотром и следуют за каждым значением. В окне видно, сколько отверстий помещается. Кнопка <strong class="ui">«Другая грань»</strong> выбирает другую грань, <kbd>Esc</kbd> закрывает инструмент, а окно, как и другие окна инструментов, перемещается за заголовок.</li><li>Отверстия создаёт только <strong class="ui">«Создать»</strong>.</li></ol>
+<p>Отверстия остаются обычными отверстиями, сгруппированными с телом, как после <strong class="ui">«Сгруппировать»</strong>: ничего не «запекается». <strong class="ui">«Разгруппировать»</strong> снова разбирает группу и освобождает каждое отверстие — его можно перемещать, менять и удалять по отдельности. Всё действие — один шаг для <strong class="ui">«Отменить»</strong>. Инструмент не создаёт больше 400 отверстий за раз — тогда сделайте отверстия крупнее или шаг шире.</p>
+<p>Отверстия можно сделать и в круглой стенке цилиндра, трубы или отверстия: подставка для ручек, абажур, труба с вентиляцией. Щёлкните по стенке вместо плоской грани; под указателем подсветится вся стенка. Каждое отверстие тогда направлено прямо к оси, а ряды идут вокруг стенки. На стенке, которая идёт по всему кругу, в каждом ряду целое число отверстий, выровненное так, чтобы кольцо замкнулось без зазора и отверстия не стояли теснее шага; окно показывает, сколько их по кругу и на каком расстоянии. Отступ считается до краёв сверху и снизу и до проёмов в стенке, а на части стенки (например, скруглении) ещё и до её боков. <strong class="ui">«Сквозь стенку»</strong> прорезает только ту стенку, по которой вы щёлкнули, и оставляет другую сторону трубы целой; у сплошного цилиндра отверстия доходят до его середины. Если щёлкнуть внутри отверстия, отверстия пойдут наружу сквозь его стенку. <strong class="ui">«По краю»</strong> предназначен для плоских граней и для стенки не предлагается.</p>
+<p>Через интерфейс MCP то же умеет и ИИ — командой layerling_perforate_face (см. главу ИИ и MCP).</p>
+</section><section class="guide-part"><h2 id="vytyagivanie-grani-naruzhu-ili-vnutr"><span class="heading-alias" id="pushing-a-face-out-or-in"></span>Вытягивание грани наружу или внутрь</h2>
+<p>Чтобы сделать стенку толще, поставить на грань выступ или вырезать в ней карман, инструмент <strong class="ui">«Грань»</strong> работает с одной плоской гранью. Он подходит и для импортированного STL, у которого нет эскиза. Выделите ровно одно тело и нажмите <strong class="ui">«Грань»</strong> в группе <strong class="ui">«Изменение»</strong> панели инструментов, рядом с массивом отверстий. Можно также щёлкнуть по телу правой кнопкой или найти инструмент через <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</p>
+<ol><li>Щёлкните по плоской грани тела. Как и у массива отверстий, учитывается вся плоская грань вокруг щелчка; криволинейная грань здесь не подойдёт, круглая стенка тоже. У группы или связки грань, как и у массива отверстий, проходит через соприкасающиеся детали.</li><li>В окне:</li></ol>
+<ul><li><strong><strong class="ui">«Направление»</strong>:</strong> <strong class="ui">«Наружу: добавить материал»</strong> — материал на грани, <strong class="ui">«Внутрь: вырезать карман»</strong> — вырезанный в ней карман. Карман не глубже тела за гранью; в полом теле он всё же может дойти до полости.</li><li><strong><strong class="ui">«Отступ от края грани»</strong>:</strong> насколько новый контур отстоит от края грани. Наружу при 0 берётся вся грань — так стенка становится толще. Отверстия в грани увеличиваются на столько же.</li><li><strong><strong class="ui">«Радиус углов»</strong>:</strong> скругляет каждый угол контура, и внутренние тоже, поэтому острый угол заканчивается дугой. Выемка уже двух радиусов закрывается, а часть грани уже удвоенной суммы отступа и радиуса пропадает.</li><li><strong><strong class="ui">«Глубина»</strong>:</strong> насколько новая деталь выступает из грани или насколько глубок карман.</li><li><strong><strong class="ui">«Как отдельное тело (без группы)»</strong>:</strong> при включённом переключателе новая деталь (или отверстие кармана) — отдельное тело рядом с телом, а не группа с ним, так что её сразу можно масштабировать, двигать или резать ею.</li></ul>
+<ol><li>Результат сразу виден как предпросмотр и следует за каждым значением. <strong class="ui">«Другая грань»</strong> выбирает другую грань, <kbd>Esc</kbd> закрывает инструмент.</li><li>Только <strong class="ui">«Создать»</strong> создаёт его.</li></ol>
+<p>Инструмент добавляет обычное тело из эскиза, сгруппированное с телом, если не включён <strong class="ui">«Как отдельное тело (без группы)»</strong> (тогда <strong class="ui">«Изменить группу»</strong> нечего открывать, и деталь свободна): ничего не «запекается». <strong class="ui">«Изменить группу»</strong> открывает группу, а <strong class="ui">«Изменить эскиз»</strong> у новой детали показывает контур, по которому она построена. На верхней или нижней грани простого тела из эскиза — одна область, не сгруппировано, не отражено, без сужения, закрутки и наклона, без обводки, колечка, фаски и скругления — это собственный контур тела, смещённый внутрь при построении, поэтому его линии и дуги остаются точными там, где CAD-ядро может их сместить, — для инструментов кромок и экспорта STEP. При изменении размера деталь сохраняет отступ. На любой другой грани, в том числе у импортированной сетки, контур идёт по треугольникам грани, и кривая состоит из коротких прямых отрезков. Всё это — один шаг для <strong class="ui">«Отменить»</strong>. Чтобы позже изменить отступ или радиус, отмените шаг и примените инструмент снова. Чтобы потом скруглить верхнюю кромку, используйте <strong class="ui">«Скругление»</strong> с <strong class="ui">«Верхние кромки»</strong> на группе последним шагом: как любая обработка кромок группы, это превращает группу в одно тело.</p>
+<p>Через интерфейс MCP то же умеет и ИИ — командой layerling_push_face (см. главу ИИ и MCP).</p>
+</section><section class="guide-part"><h2 id="izmenenie-neskolkikh-detaley-srazu"><span class="heading-alias" id="changing-several-parts-at-once"></span>Изменение нескольких деталей сразу</h2>
+<p>Когда выделено несколько деталей, панель свойств справа показывает, сколько их, и предлагает то, что применимо ко всем вместе: <strong class="ui">«Тело»</strong> или <strong class="ui">«Отверстие»</strong>, один цвет для всех (щелчок по <strong class="ui">«Тело»</strong> открывает цвета) и блокировку. При смешанном выделении один щелчок делает все детали телами или все — отверстиями. Если хоть одна деталь заблокирована, доступна только блокировка. Размеры меняются маркерами, через <strong class="ui">«Масштаб в процентах»</strong> или вводом числа в размерную табличку. При нескольких деталях число задаёт размер всего выделения: каждая деталь растёт вместе с ним — и расстояния между ними тоже, как при перетаскивании маркера. Тело и отверстие работают и через правый щелчок, и клавишами <kbd>S</kbd> и <kbd>H</kbd>.</p>
+</section><section class="guide-part"><h2 id="masshtabirovanie-v-protsentakh"><span class="heading-alias" id="scaling-by-percent"></span>Масштабирование в процентах</h2>
+<p>Чтобы увеличить или уменьшить одну или несколько деталей на одинаковую долю — например, все детали файла печати на 20 %, — используйте <strong class="ui">«Масштаб в процентах»</strong>. Выделите детали, щёлкните по ним правой кнопкой мыши и выберите <strong class="ui">«Масштаб в процентах»</strong>, либо найдите команду через <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</p>
+<p>В поле <strong class="ui">«Новый размер»</strong> укажите новый размер в процентах от текущего: 120 % — это на пятую часть больше, 50 % — вдвое меньше. Ширина, глубина и высота меняются одинаково, поэтому пропорции сохраняются. Низ остаётся на месте, так что ничего не проваливается в стол.</p>
+<p>Если выбрано несколько деталей, выберите способ масштабирования:</p>
+<ul><li><strong class="ui">«Вместе»</strong>: детали увеличиваются относительно общего центра, и зазоры между ними тоже растут. Вся конструкция становится больше, как если бы это была одна деталь.</li><li><strong class="ui">«Каждая на месте»</strong>: каждая деталь увеличивается на месте, а зазоры между ними остаются прежними.</li></ul>
+<p>Изменения в проект вносит только нажатие <strong class="ui">«Масштабировать»</strong>, а отмена последнего шага вернёт всё назад. Если в выделении есть заблокированная деталь, окно не откроется.</p>
+</section><section class="guide-part"><h2 id="otmena-deystviy"><span class="heading-alias" id="undoing"></span>Отмена действий</h2>
+<p><strong class="ui">«Отменить»</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span>) и <strong class="ui">«Вернуть»</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span> или <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Y</kbd></span>) шагают по вашей истории. Сколько шагов сохраняется вместе с проектом, вы задаёте в настройках, в разделе <strong class="ui">«История»</strong>. Наведите указатель на любую из двух кнопок, и подсказка назовёт шаг, который она отменит или вернёт, с размером, если он у шага есть, например «Скруглены рёбра: Box (5 мм)»; сообщение после шага говорит то же самое. Чтобы вернуться сразу на несколько шагов, используйте просмотр истории ниже. Сообщение о только что сделанном шаге, например «Удалено фигур: 3», получает кнопку «Отменить», которая отменяет именно этот шаг.</p>
+</section><section class="guide-part"><h2 id="vzglyad-nazad-prosmotr-istorii"><span class="heading-alias" id="looking-back-the-history-view"></span>Взгляд назад: просмотр истории</h2>
+<p><strong class="ui">«История»</strong>, рядом с отменой и возвратом, открывает просмотр истории, ничего не меняя. Рабочая область показывает проект таким, каким он был, а ползунок внизу пролистывает все шаги отмены: крайнее правое положение — текущее состояние, каждый шаг влево — одна отмена назад, а отменённые состояния стоят справа от текущего. Стрелки перелистывают состояния, <kbd>Esc</kbd> возвращает к текущему. Колесо мыши над ползунком делает то же самое, одно состояние на щелчок, вверх — к более раннему; <kbd>Page Up</kbd> и <kbd>Page Down</kbd> перескакивают на десять состояний, <kbd>Home</kbd> ведёт к самому раннему состоянию, а <kbd>End</kbd> — обратно к текущему. Вид можно вращать и масштабировать и щёлкать по объектам, чтобы вернуть их (см. ниже), но ничего нельзя переместить; сам проект остаётся в точности таким, как есть. Если панель что-то закрывает, перетащите её за заголовок; двойной щелчок по нему вернёт её на место. Кнопка списка в заголовке показывает все шаги по названиям списком, новейший сверху: щелчок по шагу переходит к этому состоянию, состояние, в котором находится проект, отмечено <strong class="ui">«сейчас»</strong>, а отменённые шаги серые. Если оставить список открытым, в следующий раз он тоже будет открыт. Две кнопки воспроизведения под ползунком прокручивают историю как фильм: кнопка, указывающая вправо, проигрывает вперёд от показанного состояния, указывающая влево — назад, каждое состояние на мгновение, до конца; повторное нажатие той же кнопки ставит на паузу, а движение ползунка, колёсика, клавиш или списка берёт управление на себя. Запущенное в конце пути, воспроизведение начинается снова с другого конца. <strong class="ui">«Скорость»</strong> задаёт, сколько длится каждое состояние (медленно, нормально или быстро), и запоминается на следующий раз. Запишите экран во время воспроизведения, чтобы показать, как появилась деталь.</p>
+<p>Из более раннего состояния можно забрать две вещи. <strong class="ui">«Новый проект из этого состояния»</strong> кладёт это состояние в новый проект на главной странице — названный по имени текущего, с временем того состояния в скобках (для проекта, сохранённого до того, как layerling начал записывать время, будет стоять «копия») и с историей до этого момента, так что отмена работает и там. <strong class="ui">«Экспортировать это состояние»</strong> открывает обычное окно экспорта с этим состоянием в качестве проекта: сохраняйте его как STL, 3MF, STEP, картинку или файл LYL с историей до этого состояния.</p>
+<p>Можно также вернуть в проект отдельные объекты. Щёлкните объект в показанном состоянии - <kbd>Shift</kbd>+щелчок добавляет ещё или убирает один, щелчок по пустому месту ничего не выбирает - и выберите <strong class="ui">«Вернуть в проект»</strong>. Просмотр закроется, и копия каждого объекта появится в текущем проекте точно такой, какой была в том состоянии, и на том же месте, выделенной, рядом со всем, что проект содержит сейчас; больше ничего не меняется. Это один шаг, отмена его снимает. Так можно вернуть версию детали, которую вы с тех пор изменили или удалили. Группа возвращается целиком; заметки и опорные точки объекта остаются. Его имя содержит время того состояния, например «Куб (12:32)», чтобы его было легко отличить от нынешней версии. Чтобы вернуть деталь из группы, выделите группу и выберите <strong class="ui">«Открыть группу»</strong> или нажмите <kbd>E</kbd>, как в проекте: её детали раскладываются там, куда их положило бы изменение группы, и их можно выбрать, а панель показывает, в какой вы группе. <strong class="ui">«Выйти»</strong> снова закрывает её. Это только для просмотра - группа, проект и история остаются как были.</p>
+<p><strong class="ui">«Удалить историю»</strong> стоит отдельно в левом нижнем углу панели. После вопроса она безвозвратно удаляет все предыдущие шаги: проект сохраняет состояние, в котором находится сейчас (не то, что показано), отменять становится нечего, а файл, сохранённый после этого, не несёт истории. Пригодится, чтобы поделиться проектом без его прошлого или начать шаги отмены заново. Отменить её нельзя; чтобы отдать файл, не трогая собственный проект, выберите при экспорте <strong class="ui">«Нет»</strong>.</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/ru/shapes.html"><small>Предыдущая глава</small>Размещение и настройка фигур</a><a class="next" href="/api/desktop/layerling/ui/ru/solids-and-holes.html"><small>Следующая глава</small>Тела и отверстия</a></div>
+      </main>
+    </div>
+    <footer class="note">Это руководство растёт вместе с программой. Если чего-то не хватает или что-то не так — напишите в <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">обсуждениях</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=ru" rel="noopener">Поддержать проект</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Обсуждения</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Подробнее на GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Заметки о выпуске v1.154.1</a></div><p class="trademark">Tinkercad — товарный знак Autodesk, Inc. layerling — независимый проект, не связанный с Autodesk, не одобренный и не спонсируемый ею.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Вернуться в редактор";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Открыть редактор";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

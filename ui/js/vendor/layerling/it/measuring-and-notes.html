@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Misurazioni e annotazioni - Guida utente di layerling</title>
+    <meta name="description" content="Metro a nastro, righello e squadra, distanze dall’origine, note che restano associate a una parte e punti di riferimento a cui gli oggetti possono agganciarsi.">
+    <link rel="canonical" href="https://layerling.com/it/measuring-and-notes.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/measuring-and-notes.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/measuring-and-notes.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/measuring-and-notes.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/messen-und-notizen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/measuring-and-notes.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/measuring-and-notes.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/measuring-and-notes.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/measuring-and-notes.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/meten-en-notities.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/measuring-and-notes.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/merjenje-in-opombe.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/measuring-and-notes.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/measuring-and-notes.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/measuring-and-notes.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/measuring-and-notes.html">
+    <meta property="og:title" content="Misurazioni e annotazioni - Guida utente di layerling">
+    <meta property="og:description" content="Metro a nastro, righello e squadra, distanze dall’origine, note che restano associate a una parte e punti di riferimento a cui gli oggetti possono agganciarsi.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/it/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Guida utente</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/it/search-index.json" data-nothing="Nessun risultato." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Cerca nella guida" aria-label="Cerca nella guida" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Lingua">Italiano</summary><ul><li><a href="/api/desktop/layerling/ui/guide/measuring-and-notes.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/measuring-and-notes.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/measuring-and-notes.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/measuring-and-notes.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/measuring-and-notes.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/measuring-and-notes.html" hreflang="it" lang="it" aria-current="true">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/measuring-and-notes.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/measuring-and-notes.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/measuring-and-notes.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/measuring-and-notes.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/merjenje-in-opombe.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/measuring-and-notes.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/measuring-and-notes.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/measuring-and-notes.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/measuring-and-notes.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/measuring-and-notes.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/measuring-and-notes.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Apri l'editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>L'editor è già aperto in un'altra scheda: passa semplicemente a quella.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Capitoli"><h2>Capitoli</h2><p class="print-link"><a href="/api/desktop/layerling/ui/it/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Guida completa da stampare</span></a></p><ol><li><a href="/api/desktop/layerling/ui/it/getting-started.html">Primi passi</a></li><li><a href="/api/desktop/layerling/ui/it/view-and-workplane.html">Vista e piano di lavoro</a></li><li><a href="/api/desktop/layerling/ui/it/shapes.html">Inserire e modificare le forme</a></li><li><a href="/api/desktop/layerling/ui/it/select-and-arrange.html">Selezionare e disporre</a></li><li><a href="/api/desktop/layerling/ui/it/solids-and-holes.html">Solidi e fori</a></li><li><a href="/api/desktop/layerling/ui/it/edges-and-hollowing.html">Smussare gli spigoli e svuotare i corpi</a></li><li><a href="/api/desktop/layerling/ui/it/sketches.html">Schizzi: dal contorno al corpo</a></li><li><a href="/api/desktop/layerling/ui/it/text.html">Testo e scritte curve</a></li><li><a href="/api/desktop/layerling/ui/it/threads-and-mechanics.html">Filettature, ingranaggi e altri componenti</a></li><li><a href="/api/desktop/layerling/ui/it/measuring-and-notes.html" aria-current="page">Misurazioni e annotazioni</a></li><li><a href="/api/desktop/layerling/ui/it/printing.html">Preparare la stampa 3D</a></li><li><a href="/api/desktop/layerling/ui/it/files-and-saving.html">File, salvataggio e condivisione</a></li><li><a href="/api/desktop/layerling/ui/it/shortcuts.html">Scorciatoie da tastiera</a></li><li><a href="/api/desktop/layerling/ui/it/ai-with-mcp.html">Progettare con un’IA (MCP)</a></li><li><a href="/api/desktop/layerling/ui/it/offline-and-install.html">Installare come app, lavorare offline e ospitare layerling</a></li><li><a href="/api/desktop/layerling/ui/it/videos.html">Video su layerling</a></li><li><a href="/api/desktop/layerling/ui/it/tablet-and-touch.html">Tablet e comandi touch</a></li></ol></nav>
+      <main>
+<h1>Misurazioni e annotazioni</h1>
+<p class="lead">Metro a nastro, righello e squadra, distanze dall’origine, note che restano associate a una parte e punti di riferimento a cui gli oggetti possono agganciarsi.</p>
+<div class="toc"><b>In questa pagina</b><ul><li><a href="#il-metro-a-nastro">Il metro a nastro</a></li><li><a href="#il-righello">Il righello</a></li><li><a href="#la-squadra">La squadra</a></li><li><a href="#il-goniometro">Il goniometro</a></li><li><a href="#distanze-dall-origine-e-durante-lo-spostamento">Distanze dall’origine e durante lo spostamento</a></li><li><a href="#controllare-il-gioco">Controllare il gioco</a></li><li><a href="#note">Note</a></li><li><a href="#immagini-di-riferimento">Immagini di riferimento</a></li><li><a href="#punti-di-riferimento">Punti di riferimento</a></li></ul></div>
+<p>Per costruire un pezzo con precisione, devi poterlo misurare. layerling offre diversi strumenti per farlo. Nessuno compare nelle esportazioni. Per misurare lo spessore delle pareti e le distanze all’interno di un pezzo, è preferibile usare la <a href="/api/desktop/layerling/ui/it/view-and-workplane.html">vista in sezione</a> con <strong class="ui">«Misura»</strong>.</p>
+<section class="guide-part"><h2 id="il-metro-a-nastro"><span class="heading-alias" id="the-tape-measure"></span>Il metro a nastro</h2>
+<p>Il metro a nastro si trova in fondo alla barra della vista, sul bordo sinistro (<strong class="ui">«Metro a nastro»</strong>). Misura la distanza tra angoli, spigoli e facce. Facendo clic si apre una serie di sei pulsanti. Se coprono la zona che vuoi misurare, trascinali dalla maniglia a sinistra e spostali sul piano di lavoro; un doppio clic sulla maniglia li riporta al loro posto:</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/tape-menu.webp" alt="Il metro a nastro con i pulsanti: aggiungi misura, sposta i punti di misurazione, rimuovi misura, misura spigoli interi, elimina tutte le misure." width="1280" height="800" loading="lazy"><figcaption>Il metro a nastro con i pulsanti: aggiungi misura, sposta i punti di misurazione, rimuovi misura, misura spigoli interi, elimina tutte le misure.</figcaption></figure>
+<ol><li><strong><strong class="ui">«Aggiungi misurazione»</strong>:</strong> fai clic su un punto, trascina fino al successivo e fai clic. Viene indicata la distanza, preceduta dagli assi lungo cui corre: X, Y o Z per una misura dritta, XY, XZ o YZ attraverso un piano, 3D per tutti e tre. Passa il puntatore sull’etichetta per vedere quanto si estende la misura lungo ogni asse, e su un punto per vederne le coordinate. Mentre posizioni il secondo punto, gli assi, la distanza e l’estensione lungo ogni asse compaiono accanto al puntatore. Una misura che sta per lo più dietro un altro corpo sbiadisce; passando il puntatore sulla sua linea o etichetta torna ben visibile. Se il secondo punto si trova su uno spigolo o una faccia opposta, quando il puntatore si avvicina si aggancia perpendicolarmente al primo; tenendo premuto <kbd>Shift</kbd>, puoi agganciarlo ovunque su quello spigolo o quella faccia. Sulla stessa faccia o sul piano di lavoro, <kbd>Shift</kbd> vincola la misura lungo l’asse principale. Oltre che ad angoli e spigoli, un punto si aggancia al centro della faccia piana sotto il puntatore e al centro di un bordo rotondo, come il bordo di un foro o di un cilindro: una piccola croce in un cerchio segna il centro proposto; quando il puntatore si avvicina, il punto si aggancia lì e un suggerimento dice di che cosa è il centro (<strong class="ui">«Centro della faccia»</strong>, <strong class="ui">«Centro del foro»</strong> o <strong class="ui">«Centro del cerchio»</strong>).</li><li><strong><strong class="ui">«Sposta i punti di misurazione»</strong>:</strong> afferra i punti e spostali; il valore della misura li segue.</li><li><strong><strong class="ui">«Elimina una parte della misurazione»</strong>:</strong> attiva lo strumento e fai clic sulla misura da rimuovere. Se invece, con <strong class="ui">«Aggiungi misurazione»</strong> attivo, tieni premuto <kbd>Shift</kbd> o <kbd>Ctrl</kbd> (<kbd>Cmd</kbd> su Mac) mentre fai clic su un punto o una linea di misura, lo elimini subito senza cambiare modalità.</li><li><strong><strong class="ui">«Misura gli spigoli interi»</strong>:</strong> facendo clic su uno spigolo, ne misura l’intera lunghezza, per esempio la circonferenza di un cerchio. Se disattivi l’opzione, il clic posiziona un punto sullo spigolo e il secondo può essere ovunque: puoi misurare il diametro o qualsiasi altra distanza. <kbd>Alt</kbd> inverte l’opzione per un solo clic. Su un cerchio, quando il puntatore si avvicina, il secondo punto si aggancia a quello opposto al primo; entrambi i punti restano sulla circonferenza esatta, così la misura del diametro è precisa.</li><li><strong><strong class="ui">«Elimina tutte le misurazioni»</strong>:</strong> elimina tutte le misure in una volta. Poiché non è possibile annullare l’operazione, layerling chiede conferma; se non ci sono misure, il comando non fa nulla.</li><li><strong><strong class="ui">«Segna il punto medio come riferimento»</strong>:</strong> al centro di ogni misura c’è un piccolo segno rotondo con la metà inferiore piena. Posiziona un <a href="#punti-di-riferimento">punto di riferimento</a> al centro della misura: dopo aver fatto clic su uno spigolo rotondo, per esempio il bordo di un foro, lo mette al centro del cerchio (anche su una mesh importata, dove non c’è un altro indicatore del centro del foro); per un diametro o una misura rettilinea, lo posiziona a metà. Trascinando una forma, il suo centro si aggancia al punto. Se il punto esiste già, non ne viene creato un duplicato. Il metro a nastro si aggancia ai punti di riferimento come agli angoli, quindi puoi misurare dal centro di un cerchio o dal punto medio di una linea: crea il punto e poi fai clic su di esso.</li><li><strong><strong class="ui">«Digita una lunghezza: il corpo al secondo punto si sposta lungo la linea; una lunghezza negativa lo porta oltre il primo punto»</strong>:</strong> Quando almeno un'estremità di una misura dritta si trova su un corpo, il suo numero si può cliccare. Digita una nuova lunghezza e premi <kbd>Enter</kbd>: il corpo al secondo punto si sposta lungo la linea misurata finché la distanza è esattamente quella, come con il righello di Tinkercad. Se è selezionato solo il corpo al primo punto, si sposta quello. I punti di misura restano sul corpo, quindi la misura lo segue. Misura da uno spigolo, un bordo o dal centro di una faccia o di un foro per mettere i pezzi a una distanza esatta: dal centro di un foro al centro della faccia superiore di un cilindro, il cilindro si sposta da centro a centro. Una lunghezza negativa lo porta altrettanto oltre il primo punto, per esempio 5 mm all'interno del bordo di una scatola. Un <a href="#punti-di-riferimento">punto di riferimento</a> non appartiene a nessun corpo, quindi tra due punti di riferimento non si sposta nulla. Se la misura corre lungo due o tre assi, il campo ha anche, sotto la lunghezza, una casella per ciascuno (ΔX, ΔY, ΔZ, le distanze che compaiono puntando il numero): scrivi lì e il corpo si sposta solo lungo quell'asse. <kbd>Tab</kbd> passa da una casella all'altra, <kbd>Esc</kbd> chiude il campo senza spostare nulla. Puntando il numero vedi quale corpo si sposterà, o perché nessuno può farlo: è bloccato, entrambi i punti stanno sullo stesso corpo, o nessuno sta su un corpo. Il messaggio dopo dice cosa si è spostato e di quanto; un annulla lo riporta indietro.</li></ol>
+<p>Premi <kbd>Esc</kbd> per uscire dalla modalità di misurazione.</p>
+</section><section class="guide-part"><h2 id="il-righello"><span class="heading-alias" id="the-ruler"></span>Il righello</h2>
+<p>Seleziona <strong class="ui">«Righello»</strong> nella libreria delle forme. È solo uno strumento di misurazione: non appare in alcuna esportazione e non può essere raggruppato o tagliato. Per ogni corpo che tocca o interseca il righello, mostra direttamente nella vista una misura sospesa che ne indica l’estensione. Puoi modificare il valore in quel punto e il corpo si adegua. Il simbolo più sospeso crea una copia della forma misurata. La scala è stampata in millimetri; quando passi ai pollici (con l’interruttore in basso a destra), mostra i pollici, con una tacca ogni sedicesimo e i pollici interi numerati.</p>
+</section><section class="guide-part"><h2 id="la-squadra"><span class="heading-alias" id="the-framing-square"></span>La squadra</h2>
+<p>A volte è più semplice misurare perpendicolarmente. Fai clic su <strong class="ui">«Posiziona la squadra»</strong> nella barra della vista, poi sul piano di lavoro. Qui viene posizionata una squadra con due bracci ad angolo retto e tacche come quelle di una squadra da falegname. Anche la squadra non è un corpo vero e proprio. Fai clic vicino all’angolo di un corpo e l’angolo della squadra vi si aggancia con precisione. Se ti serve in quasi ogni progetto, attiva <strong class="ui">«Avvia i nuovi progetti con una squadra all’origine»</strong> in <strong class="ui">«Misurazione»</strong> nelle impostazioni: ogni nuovo progetto parte così con una squadra all’origine.</p>
+<p>La squadra poggia sul piano di lavoro. Se questo si trova sul lato di un corpo, anche la squadra si appoggia a quel lato; vedi <a href="/api/desktop/layerling/ui/it/view-and-workplane.html">Vista e piano di lavoro</a>. Così puoi quotare una parete verticale: posiziona il piano di lavoro sulla parete, metti la squadra nell’angolo superiore sinistro e fai clic sulla maniglia finché i bracci puntano a destra e verso il basso.</p>
+<ul><li><strong>Trascina la maniglia</strong> per spostare la squadra.</li><li><strong>Fai un clic breve sulla maniglia</strong> per ruotarla di 90°.</li><li><strong>Fai clic sulla ×</strong> accanto alla maniglia per rimuoverla.</li><li><strong>Trascinare il cerchietto all'estremità di un braccio</strong> lo allunga o lo accorcia, a millimetri interi. Il pulsante più in basso sotto la maniglia, <strong class="ui">«Bracci lunghi quanto il piatto di stampa (trascina l'estremità di un braccio per cambiarne la lunghezza)»</strong>, rende i due bracci lunghi quanto il piatto della stampante scelta nelle impostazioni è largo e profondo. La squadra conserva la lunghezza dei bracci con il progetto, e una squadra posata di nuovo la riprende.</li><li><strong>Il pulsante piccolo a sinistra della maniglia</strong> cambia il riferimento della misura: il bordo esterno del corpo (estremità, icona con linee) oppure il suo centro (punto medio, mirino). Un pulsante dello stesso tipo accanto a ciascun numero verde imposta il riferimento solo per quella misura: per un cilindro verticale, il centro sui due bracci e il fondo per l’altezza; per un cilindro coricato, il centro in larghezza e un’estremità in lunghezza. Quando tutte e tre le misure usano lo stesso riferimento, il pulsante sulla maniglia mostra la modalità comune.</li></ul>
+<p>Se i corpi sono posizionati accanto a uno dei bracci, la squadra ne mostra automaticamente le dimensioni. Funziona solo sulla piastra di base, non sul lato di un corpo. Il pulsante con la freccia sotto la maniglia della squadra lo disattiva, così solo i corpi selezionati mostrano le misure; viene salvato con il progetto.</p>
+<p>Quando selezioni un corpo, la squadra mostra in verde quanto dista dall’angolo, lungo entrambi i bracci e in altezza. Fai clic su un numero verde e digita una distanza per spostare il corpo esattamente lì. Se selezioni più corpi, vengono considerati come un unico insieme: la squadra ne misura il profilo complessivo e un valore digitato li sposta tutti insieme, mantenendo invariata la distanza reciproca.</p>
+<p>Le linee guida dei valori verdi seguono il pavimento, cioè il piano su cui poggia la squadra, fino al punto sotto o accanto al corpo; l’altezza ha una freccia dedicata. Il riferimento di ogni misura si cambia dal riquadro del relativo valore. I bracci e le tacche sono linee nello spazio: un corpo davanti a loro le nasconde, come farebbe con una squadra vera. Il piccolo occhio sotto la maniglia cambia questo comportamento: con l’occhio barrato, come all’inizio, i corpi nascondono la squadra; con l’occhio aperto, la squadra resta visibile sopra gli oggetti. Le tacche dei bracci si attenuano quando un corpo si trova davanti.</p>
+<p>Usando il punto medio, i numeri verdi misurano fino al centro del corpo, anche in altezza. Puoi così posizionare una sfera con il centro esattamente a 15 mm da uno spigolo, senza sottrarne il raggio. Per mettere un foro su una parete a 40 mm da sinistra e 190 mm dall’alto, seleziona il foro, imposta il riferimento al punto medio e digita 40 e 190. In questo caso l’altezza si misura verso l’esterno della parete.</p>
+<p>Il metro a nastro e la squadra restano al loro posto mentre lavori nello schizzo e ricompaiono quando torni alla vista 3D. Nessuno dei due entra nella cronologia. La squadra viene salvata con il progetto, e così le misurazioni del metro a nastro, nel browser e nel file .lyl: quando apri il progetto sono di nuovo al loro posto. Il pulsante con l’occhio tra i pulsanti del metro a nastro nasconde tutte le misurazioni e le mostra di nuovo; viene salvato anche se sono nascoste, e aggiungere, spostare o eliminare una misurazione le mostra prima.</p>
+</section><section class="guide-part"><h2 id="il-goniometro"><span class="heading-alias" id="the-protractor"></span>Il goniometro</h2>
+<p>Fai clic su <strong class="ui">«Goniometro»</strong> nella barra della vista per misurare un angolo. Accanto si apre una fila di pulsanti e, finché non fai di nuovo clic sul pulsante o premi <kbd>Esc</kbd>, ogni clic nella vista misura con il goniometro. Come il metro, si aggancia a vertici e spigoli dei corpi; accanto ai corpi mette un punto sul piano.</p>
+<ul><li><strong class="ui">«Angolo da tre punti»</strong>: fai clic prima sul vertice dell'angolo, poi su un punto di ciascun lato. Mentre posizioni l'ultimo punto l'angolo è già visibile; dopo il terzo clic resta, con un arco tra i lati. È l'angolo al vertice, da 0° a 180°.</li><li><strong class="ui">«Angolo tra due facce»</strong>: fai clic su due facce piane. Un breve tratto blu su ciascuna mostra verso dove è rivolta, e l'etichetta riporta entrambi gli angoli che formano le facce, prima il minore: uno smusso di 45° rispetto alla faccia superiore dà 45° · 135°, due lati di un parallelepipedo solo 90°. Una faccia curva non ha un'unica direzione, quindi il goniometro ne chiede una piana.</li></ul>
+<p>Il clic successivo a un angolo completato ne inizia uno nuovo, e <strong class="ui">«Rimuovi l'angolo»</strong> lo rimuove. L'angolo segue i corpi quando vengono spostati o ruotati. Nulla viene salvato né entra nella cronologia: sparisce quando chiudi il goniometro.</p>
+</section><section class="guide-part"><h2 id="distanze-dall-origine-e-durante-lo-spostamento"><span class="heading-alias" id="distances-to-the-origin-and-while-moving"></span>Distanze dall’origine e durante lo spostamento</h2>
+<p>Nelle impostazioni, sotto <strong class="ui">«Aspetto»</strong>, trovi due interruttori per visualizzare le misure in tempo reale:</p>
+<ul><li><strong class="ui">«Mostra le dimensioni durante lo spostamento»</strong> mostra di quanto si sposta il corpo mentre lo trascini. Vale anche per il sollevamento con la freccia nera sopra il corpo; lo spostamento appare al suo angolo anteriore. Dopo aver rilasciato, fai clic su quel numero e digita la distanza esatta; un valore negativo scende.</li><li><strong class="ui">«Mostra le distanze dall'origine»</strong> mostra la distanza della selezione dall’origine della piastra, anche quando sono selezionati più corpi.</li></ul>
+<p>Con <strong class="ui">«Dimensioni sempre visibili»</strong> le misure restano sempre visibili. Un corpo che non poggia sul piano di lavoro mostra anche la sua altezza sopra di esso; fai clic sul numero per scriverne una nuova. Con <strong class="ui">«Caselle delle quote nei colori degli assi»</strong> ogni casella prende il colore del suo asse, come le maniglie: rosso per X, verde per Y e blu per Z. Così anche su un pezzo piccolo vedi a colpo d'occhio quale numero è quale.</p>
+<p>Se per un momento danno fastidio, premi <kbd>Q</kbd>: le misure e le distanze attorno alla selezione spariscono e il pezzo che sposti si vede bene. Di nuovo <kbd>Q</kbd> le riporta. Una maniglia su cui punti mostra comunque la sua misura.</p>
+</section><section class="guide-part"><h2 id="controllare-il-gioco"><span class="heading-alias" id="checking-clearance"></span>Controllare il gioco</h2>
+<p>Le parti che devono muoversi dopo la stampa - un drago flexi, una cerniera stampata già montata, una scatola con il suo coperchio, un perno nel suo foro - hanno bisogno di gioco tra loro. Se è troppo poco si incollano; se si sovrappongono, vengono stampate come un pezzo unico. <strong class="ui">«Controlla il gioco»</strong>, accanto a <strong class="ui">«Transizione tra schizzi»</strong>, lo controlla prima della stampa. Prende gli oggetti selezionati o, se non è selezionato nulla, tutti quelli visibili (gli stessi di un'esportazione) e controlla ogni coppia:</p>
+<ul><li><strong><strong class="ui">«Sovrapposte»</strong></strong> (rosso): le due parti condividono un volume. Appare in rosso dentro i corpi, che diventano trasparenti, e l'elenco ne indica la grandezza.</li><li><strong><strong class="ui">«A contatto»</strong></strong> (rosso): si toccano e si fondono in stampa.</li><li><strong><strong class="ui">«Troppo vicine»</strong></strong> (arancione): la distanza più stretta è minore di <strong class="ui">«Distanza minima»</strong>.</li><li><strong><strong class="ui">«Distanza adeguata»</strong></strong> (verde): la distanza più stretta è almeno così ampia.</li></ul>
+<p>Ogni riga nomina le due parti e, per una fessura, la sua larghezza e dove si trova: <strong class="ui">«affiancate»</strong> (nello stesso strato) o <strong class="ui">«tra gli strati»</strong> (sopra o sotto: lì lo slicer può lasciare liberi solo strati interi, quindi una fessura più sottile di uno strato si chiude). Un clic su una riga porta la telecamera sul punto, evidenzia il contorno delle due parti e segna il punto più stretto con una linea e il valore. Le coppie distanti più di 5 mm non sono elencate. Il progetto non cambia: il controllo non salva nulla e non lascia nulla da annullare.</p>
+<p><strong class="ui">«Distanza minima»</strong> parte da 0,3 mm; 0,3 è stretto, 0,4 è usuale per la stampa già montata. Cambiarlo riordina subito l'elenco senza un nuovo controllo, e il browser ricorda il valore. <strong class="ui">«Controlla le singole parti di un oggetto (stampa in un unico pezzo)»</strong> (attivo all'inizio) controlla tra loro anche le parti separate di un oggetto: un drago flexi o una cerniera importati come un unico STL sono un oggetto, ma le loro maglie sono parti separate. Compaiono come &quot;Nome · Parte 2&quot;. Una parte dentro la cavità di un'altra, una sfera in una gabbia, è una parte a sé.</p>
+<p>Se modifichi il progetto mentre la finestra è aperta, compare <strong class="ui">«Progetto modificato: controlla di nuovo»</strong>; fai clic lì o su <strong class="ui">«Controlla di nuovo»</strong>. <kbd>Esc</kbd> o <strong class="ui">«Chiudi»</strong> chiude la finestra. Anche il ridimensionamento cambia le distanze: un modello flexi ridotto al 70 % mantiene solo il 70 % del suo gioco, quindi controlla di nuovo dopo il ridimensionamento.</p>
+<p>Il controllo misura la mesh di triangoli che riceve anche lo slicer. Un perno rotondo e il suo foro sono poligoni con i vertici sul cerchio, quindi una fessura può risultare qualche centesimo più piccola delle misure tonde. Una coppia con troppi triangoli è elencata come <strong class="ui">«Non controllate»</strong>. Un'IA esegue lo stesso controllo con <code>layerling_check_clearance</code>.</p>
+</section><section class="guide-part"><h2 id="note"><span class="heading-alias" id="notes"></span>Note</h2>
+<p>Una nota registra informazioni che la geometria non può esprimere: “Questa vite è troppo stretta di 0,3 mm”, “stampare il coperchio?” oppure “misura presa da Peter”. Inseriscila con <strong class="ui">«Nota»</strong> o premendo <kbd>N</kbd>.</p>
+<ul><li>Se posizioni la nota <strong>su un corpo</strong>, si sposta insieme a esso.</li><li>Se la posizioni <strong>accanto a un corpo</strong>, resta sul piano di lavoro (<strong class="ui">«Sul piano di lavoro»</strong>).</li><li><strong class="ui">«Scollega dall'oggetto»</strong> stacca dal corpo una nota associata.</li><li><strong class="ui">«Per l'IA»</strong> trasforma una nota in una richiesta per un agente IA sul ponte MCP (vedi «IA con MCP»): l'agente la legge con <code>layerling_list_notes</code>, fa il lavoro e risponde nella stessa nota, sotto il tuo testo. Può anche mettere sul modello note proprie, per chiedere o segnalare qualcosa in un punto. Chiedi all'agente di tenere d'occhio le tue note e le attenderà con <code>layerling_wait_for_notes</code>: così lavori solo sul modello, e ogni nuova richiesta viene presa appena spunti la casella, senza tornare alla finestra dell'agente.</li><li><strong class="ui">«Raggruppa»</strong> include nel gruppo una nota associata; <strong class="ui">«Separa gruppo»</strong> la assegna alla parte visibile sottostante, anche se si trova in un gruppo interno. Mentre modifichi un gruppo con <strong class="ui">«Modifica gruppo»</strong>, le sue note si spostano insieme alle parti a cui sono associate e tornano nel gruppo con <strong class="ui">«Fine»</strong>; annullando la modifica, tornano alla posizione originale.</li><li>Se il corpo viene eliminato, o se sotto la nota non resta più alcun corpo visibile, la nota rimane nella stessa posizione sul piano di lavoro.</li><li>Trascina il fermaglio per spostare la nota. Facendo clic sul fermaglio, la scheda si comprime e resta visibile solo il numero; fai di nuovo clic per riaprirla. Fai clic sul testo per modificarlo.</li><li>Durante la modifica, <kbd>Enter</kbd> salva il testo e <kbd>Esc</kbd> lo ripristina com’era prima; <span dir="ltr"><kbd>Shift</kbd>+<kbd>Enter</kbd></span> inserisce una nuova riga.</li><li><strong>In uno schizzo</strong>, anche <strong class="ui">«Nota»</strong> o <kbd>N</kbd> inseriscono una nota, in qualsiasi punto dello schizzo. Tutte le note di uno schizzo appartengono al suo corpo: nella vista 3D stanno su di esso, sopra un corpo creato con <strong class="ui">«Estrudi schizzo»</strong> o <strong class="ui">«Estrusione lungo un percorso»</strong> e sul profilo disegnato di uno creato con <strong class="ui">«Ruota schizzo»</strong>, e si spostano con lui. Quando riapri lo schizzo, mostra le note del corpo, comprese quelle inserite in 3D. Nello schizzo, <strong class="ui">«Annulla nello schizzo»</strong> annulla una nota come una linea e <strong class="ui">«Annulla»</strong> scarta ciò che hai cambiato nelle note. Anche qui <span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span> mostra o nasconde le note.</li></ul>
+<p>Le note vengono salvate nel progetto, non compaiono nelle esportazioni e possono essere mostrate o nascoste con <strong class="ui">«Mostra note e punti»</strong> (in <strong class="ui">«Opzioni di visibilità»</strong>, la freccia accanto all’icona dell’occhio) o con <span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span>.</p>
+</section><section class="guide-part"><h2 id="immagini-di-riferimento"><span class="heading-alias" id="reference-points"></span>Immagini di riferimento</h2>
+<p>Un’immagine di riferimento è una fotografia da usare per allineare le parti: puoi appoggiare, per esempio, la foto di una scheda elettronica sul fondo del suo contenitore e posizionare direttamente su di essa i distanziatori, i fori e le aperture per i connettori. È una guida, non un corpo: non viene mai stampata né esportata (STL, 3MF, OBJ, STEP, SVG), non entra in un gruppo, un insieme o un taglio e non viene conteggiata nella stima di stampa.</p>
+<ul><li>Apri <strong class="ui">«Importa»</strong>, scegli <strong class="ui">«Immagine di riferimento»</strong> e seleziona un’immagine PNG, JPG, WebP, GIF o BMP. Viene posizionata sul piano di lavoro, sulla piastra oppure sulla faccia su cui hai disposto il piano, con il lato più lungo di 100 mm e una trasparenza del 50%.</li><li>Spostala, ruotala e ridimensionala con le maniglie, come qualsiasi forma. Se davanti all’immagine c’è un corpo, viene selezionato prima quello: lavorando sopra la foto non la afferrerai per sbaglio.</li><li><strong class="ui">«Trasparenza (%)»</strong> nelle sue impostazioni ne regola la trasparenza, da completamente opaca a appena visibile.</li><li><strong class="ui">«Calibra»</strong> imposta la dimensione reale, come nello schizzo: fai clic su due punti dell’immagine di cui conosci la distanza reale, per esempio due fori di fissaggio della scheda, poi inseriscila in <strong class="ui">«Distanza reale (mm)»</strong>. L’immagine mantiene le proporzioni e il centro.</li><li>Blocca l’immagine con il lucchetto nell’intestazione delle sue impostazioni: resterà ferma e i clic passeranno attraverso di essa fino alla piastra. Per sbloccarla, selezionala nell’elenco degli oggetti.</li><li>L’immagine viene salvata una sola volta nel file del progetto, anche se la copi o annulli l’operazione più volte. Un’immagine grande aumenta il file della stessa quantità; il messaggio che appare quando la aggiungi ne indica la dimensione.</li><li>Un sistema di IA può aggiungere, spostare, calibrare, rendere trasparente e bloccare un’immagine con <code>layerling_reference_image</code>. Con <code>trace</code> ricalca l'immagine in un corpo di schizzo appoggiato sopra, come <strong class="ui">«Ricalca»</strong> nello schizzo.</li></ul>
+</section><section class="guide-part"><h2 id="punti-di-riferimento"><span class="heading-alias" id="reference-images"></span>Punti di riferimento</h2>
+<p>Un punto di riferimento è un semplice segno nello spazio, come una tacca fatta a matita o un punto di tracciatura in officina: non appartiene a un corpo, non viene mai stampato e permette agli altri oggetti di agganciarsi. Fai clic destro su un corpo e scegli <strong class="ui">«Segna il centro»</strong>, <strong class="ui">«Segna gli angoli»</strong> o <strong class="ui">«Segna i punti medi degli spigoli»</strong>: i punti vengono posizionati sulla faccia superiore del corpo o, se hai selezionato più corpi, dell’intera selezione. <strong class="ui">«Segna il centro di questa faccia»</strong> mette invece un punto al centro della faccia piana su cui hai fatto clic destro, per esempio su un lato o su un’estremità. Con un perno impostato, <strong class="ui">«Segna il perno di rotazione»</strong> ne mette uno esattamente lì, così il centro di un'altra parte si aggancia al punto attorno a cui ruota la selezione.</p>
+<ul><li>Trascina un punto per spostarlo oppure fai clic per visualizzarne le coordinate e digitarne di nuove; viene usata l’unità selezionata. Puoi spostare ogni scheda trascinandone la barra del titolo, senza influenzare le altre. Un doppio clic sulla barra la riporta al suo posto. L’ultima scheda toccata appare sopra le altre. <strong>Elimina tutto</strong> in una scheda o <strong>Elimina tutti i punti di riferimento</strong> nel menu che si apre facendo clic destro (su un corpo o in uno spazio vuoto della vista 3D) rimuove tutti i punti in una volta. <strong class="ui">«Elimina»</strong> elimina il punto selezionato.</li><li>Anche il metro a nastro può creare un punto: <strong class="ui">«Segna il punto medio come riferimento»</strong>, il segno pieno a metà al centro di una misura, lo posiziona al centro; per esempio, al centro di un foro rotondo. Puoi anche misurare a partire da un punto: il metro si aggancia ai punti di riferimento come agli angoli.</li><li>Quando trascini una forma, i suoi spigoli e il suo centro si agganciano ai punti proprio come si agganciano alle altre forme (<strong class="ui">«Aggancia alle altre forme durante lo spostamento»</strong>). Anche la squadra si aggancia ai punti.</li><li>I punti vengono salvati nel progetto, non compaiono nelle esportazioni e possono essere mostrati o nascosti insieme alle note con <strong class="ui">«Mostra note e punti»</strong> (<span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span>).</li><li>Un’IA può crearli, elencarli ed eliminarli con <code>layerling_add_reference_points</code>, <code>layerling_list_reference_points</code> e <code>layerling_remove_reference_points</code>.</li></ul></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/it/threads-and-mechanics.html"><small>Capitolo precedente</small>Filettature, ingranaggi e altri componenti</a><a class="next" href="/api/desktop/layerling/ui/it/printing.html"><small>Capitolo successivo</small>Preparare la stampa 3D</a></div>
+      </main>
+    </div>
+    <footer class="note">Questa guida cresce insieme al programma. Se manca qualcosa o trovi un errore, segnalalo nelle <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussioni</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=it" rel="noopener">Sostieni il progetto</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussioni</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Scopri di più su GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Note di rilascio v1.154.1</a></div><p class="trademark">Tinkercad è un marchio di Autodesk, Inc. Layerling è un progetto indipendente, non affiliato ad Autodesk né approvato o sponsorizzato da essa.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Torna all'editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Apri l'editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

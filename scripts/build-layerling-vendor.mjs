@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { writeContract } from './layerling/contract.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const commit = '8704d5c99adfeb981be31bb5eddc9c17f75ab281';
+const commit = 'bdf50b068f7b0475dece5307e1b2019aa10d5305';
 const source = path.join(root, 'disposable/_layerling/layerling-' + commit);
 const output = path.join(root, 'ui/js/vendor/layerling');
 const base = '/api/desktop/layerling/ui';
@@ -26,8 +26,8 @@ if (process.argv.includes('--check')) {
 }
 if(process.version !== 'v24.21.0') throw new Error('Use pinned Node 24.21.0 for the vendor build');
 if (!fs.existsSync(source)) throw new Error('Extract the pinned upstream archive into '+source+'; see scripts/layerling/README.md');
-const archive = path.join(root,'disposable/_layerling/upstream-1.71.0.zip');
-if(hash(fs.readFileSync(archive)) !== '53a613e5fa04e003d47d5aedf552595c8774a1c846984aa8cab0058358ed41d6') throw new Error('Upstream archive checksum mismatch');
+const archive = path.join(root,'disposable/_layerling/upstream-1.154.1.zip');
+if(hash(fs.readFileSync(archive)) !== 'be64e8f895bad8e5a2df961d3a345f7a576bbf550f0f749b10b943625b16f080') throw new Error('Upstream archive checksum mismatch');
 const { unzipSync, zipSync } = createRequire(path.join(source,'package.json'))('fflate');
 const reset = ['apps/web/next.config.ts','apps/web/src/components/LayerlingEditor.tsx','apps/web/src/app/layout.tsx','apps/web/src/components/AppFooter.tsx','scripts/build-guide.mjs','scripts/verify-static-worker-assets.mjs','tests/unit/cadModifierRuntime.test.ts','tests/unit/appTheme.test.ts'];
 const originals = unzipSync(fs.readFileSync(archive), {filter:entry=>reset.some(name=>entry.name==='layerling-'+commit+'/'+name)});
@@ -49,6 +49,9 @@ patch('apps/web/src/app/layout.tsx','  manifest: "/manifest.webmanifest",','  //
 patch('apps/web/src/app/layout.tsx','url: "/favicon.ico"',`url: "${base}/favicon.ico"`);
 for(const variable of ['page','indexPage']) patch('scripts/build-guide.mjs',`, ${variable});`,`, ${variable}.replace(/((?:src|href)=")\\/(?!\\/)/g, '$1${base}/'));`);
 patch('apps/web/src/components/AppFooter.tsx','${SOURCE_CODE_URL.replace(/\\/+$/, "")}', 'https://github.com/henmedia/layerling');
+// Release notes stay on the GitHub project. SOURCE_CODE_URL is the local
+// corresponding-source archive, and appending /releases would miss the file.
+patch('apps/web/src/lib/appUpdate.ts','export function releaseNotesUrl(sourceCodeUrl: string = SOURCE_CODE_URL) {','export function releaseNotesUrl(sourceCodeUrl: string = DEFAULT_SOURCE_CODE_URL) {');
 // Only the corresponding-source link uses the archive; project links retain their upstream destinations.
 {
   const name=path.join(source,'apps/web/src/components/AppFooter.tsx');
@@ -73,13 +76,19 @@ patch(editor,'onPickInsertProjectFile={() => insertProjectFileInputRef.current?.
 patch(editor,'  triggerBrowserDownload(filename, content, type);','  await deliverFile(filename, new Blob([content], { type }));');
 // Serializing a recovery draft is not a completed Desktop file save.
 patch(editor,'        setNotice(t("status.savedProject"));','        setNotice(""); // AuraGo confirms the actual Desktop save.');
-// Return the existing mesh-export promise so completion means the file was delivered.
+// Mesh export must settle before the Desktop bridge treats the file as delivered.
 {
   const name=path.join(source,editor), text=fs.readFileSync(name,'utf8');
   const start=text.indexOf('  const exportDesign ='), end=text.indexOf('  const exportStepDesign =',start);
+  if (start < 0 || end < 0) throw new Error('Export promise patch drift');
   const section=text.slice(start,end);
-  if((section.match(/void exportBodiesWithLooseHoles/g)||[]).length!==2) throw new Error('Export promise patch drift');
-  fs.writeFileSync(name,text.slice(0,start)+section.replaceAll('void exportBodiesWithLooseHoles','return exportBodiesWithLooseHoles')+text.slice(end));
+  const voids=(section.match(/void exportBodiesWithLooseHoles/g)||[]).length;
+  if (voids === 2) {
+    fs.writeFileSync(name,text.slice(0,start)+section.replaceAll('void exportBodiesWithLooseHoles','return exportBodiesWithLooseHoles')+text.slice(end));
+  } else if (voids !== 0 || !section.includes('await exportBodiesWithLooseHoles') || !section.includes('await deliver(')) {
+    throw new Error('Export promise patch drift');
+  }
+  if (!text.includes('await downloadBlobFile(fileName, blob)')) throw new Error('Export delivery patch drift');
 }
 {
   const name = path.join(source,editor), text = fs.readFileSync(name,'utf8');
@@ -116,6 +125,8 @@ function run(args) {
   if(result.status !== 0) throw new Error('Layerling build failed: '+args.join(' '));
 }
 run(['scripts/copy-occt-wasm.mjs']);
+run(['scripts/build-japanese-typeface.mjs']);
+fs.copyFileSync(path.join(source,'fonts/zen-maru-gothic/OFL.txt'), path.join(source,'apps/web/public/fonts/japanese/OFL.txt'));
 run(['scripts/build-guide.mjs']);
 for(const file of files(path.join(source,'apps/web/public')).filter(f=>f.endsWith('.html'))) {
   const text=fs.readFileSync(file,'utf8');
@@ -131,7 +142,7 @@ fs.cpSync(path.join(source,'apps/web/.next-export'),output,{recursive:true});
 // Upstream's optional PHP storage endpoint and public-site sitemap are not browser resources.
 for(const name of ['store.php','sitemap.xml']) fs.rmSync(path.join(output,name),{force:true});
 fs.copyFileSync(path.join(source,'LICENSE'),path.join(output,'LICENSE.txt'));
-const manifest = {version:'1.71.0',commit,base,node:'24.21.0',inputs:Object.fromEntries(inputs.map(name=>[name,hash(inputBytes(name))])),files:{}};
+const manifest = {version:'1.154.1',commit,base,node:'24.21.0',inputs:Object.fromEntries(inputs.map(name=>[name,hash(inputBytes(name))])),files:{}};
 await writeContract(source,path.join(root,'internal/layerling'));
 const corresponding = {};
 function sourceFiles(dir) {
@@ -143,7 +154,7 @@ function sourceFiles(dir) {
   }
 }
 sourceFiles(source);
-corresponding['AURAGO-BUILD.txt'] = new TextEncoder().encode('Corresponding source for Layerling 1.71.0 / '+commit+' with AuraGo patches.\nLicense: layerling/LICENSE.\nUse Node 24.21.0, cd layerling, npm ci.\nSet environment STATIC_EXPORT=true, NEXT_TELEMETRY_DISABLED=1, NEXT_PUBLIC_SOURCE_CODE_URL='+base+'/source.zip.\nThen run: node scripts/copy-occt-wasm.mjs; node scripts/build-guide.mjs; node node_modules/next/dist/bin/next build apps/web; node scripts/verify-static-worker-assets.mjs.\nOutput: layerling/apps/web/.next-export. The patched basePath is '+base+'. No Node server is needed at runtime.\nThe aurago/scripts directory contains the reproducible patch generator and its guide.\n');
+corresponding['AURAGO-BUILD.txt'] = new TextEncoder().encode('Corresponding source for Layerling 1.154.1 / '+commit+' with AuraGo patches.\nLicense: layerling/LICENSE.\nUse Node 24.21.0, cd layerling, npm ci.\nSet environment STATIC_EXPORT=true, NEXT_TELEMETRY_DISABLED=1, NEXT_PUBLIC_SOURCE_CODE_URL='+base+'/source.zip.\nThen run: node scripts/copy-occt-wasm.mjs; node scripts/build-japanese-typeface.mjs; node scripts/build-guide.mjs; node node_modules/next/dist/bin/next build apps/web; node scripts/verify-static-worker-assets.mjs.\nOutput: layerling/apps/web/.next-export. The patched basePath is '+base+'. No Node server is needed at runtime.\nThe aurago/scripts directory contains the reproducible patch generator and its guide.\nZen Maru Gothic (SIL OFL-1.1) is rebuilt into public/fonts/japanese; its OFL.txt is copied there.\n');
 for(const name of ['build-layerling-vendor.mjs','layerling/bridge.ts','layerling/page.tsx','layerling/contract.mjs','layerling/operations.json','layerling/README.md']) corresponding['aurago/scripts/'+name]=[inputBytes('scripts/'+name),{mtime:new Date('1980-01-01T00:00:00Z')}];
 fs.writeFileSync(path.join(output,'source.zip'),zipSync(corresponding,{level:6,mtime:new Date('1980-01-01T00:00:00Z')}));
 for(const file of files(output)) if(!file.endsWith('vendor.json')) manifest.files[path.relative(output,file).replaceAll('\\','/')] = hash(fs.readFileSync(file));

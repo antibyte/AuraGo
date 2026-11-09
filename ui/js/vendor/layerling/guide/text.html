@@ -4,13 +4,25 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Text and curved lettering - layerling user guide</title>
-    <meta name="description" content="Raised or engraved lettering in seven typefaces or one of your own, and if you like along a circular arc, such as on a coin, a lid or a ring.">
+    <meta name="description" content="Raised or engraved lettering in eight typefaces or one of your own, and if you like along a circular arc, such as on a coin, a lid or a ring.">
     <link rel="canonical" href="https://layerling.com/guide/text.html">
     <link rel="alternate" hreflang="en" href="https://layerling.com/guide/text.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/text.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/text.html">
     <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/text.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/text.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/text.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/text.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/text.html">
     <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/tekst.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/text.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/besedilo.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/text.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/text.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/text.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/text.html">
     <meta property="og:title" content="Text and curved lettering - layerling user guide">
-    <meta property="og:description" content="Raised or engraved lettering in seven typefaces or one of your own, and if you like along a circular arc, such as on a coin, a lid or a ring.">
+    <meta property="og:description" content="Raised or engraved lettering in eight typefaces or one of your own, and if you like along a circular arc, such as on a coin, a lid or a ring.">
     <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
     <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
     <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
@@ -60,6 +72,7 @@ a { color: var(--accent); }
 .guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
 .guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
 .guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
 .editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
 .editor-elsewhere[hidden] { display: none; }
 .bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
@@ -89,26 +102,51 @@ li { margin-bottom: 4px; }
 strong.ui { font-weight: 700; white-space: nowrap; }
 kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
 code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
-pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
 pre code { padding: 0; background: none; }
 figure { margin: 22px 0; }
 figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
 figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
 aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
 aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
 .table-scroll { overflow-x: auto; margin: 0 0 16px; }
 table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
 table.keys { table-layout: fixed; }
 table.keys td:first-child { width: 42%; }
-th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
 th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
 .toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
 .toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
-.toc ul { margin: 0; padding-left: 18px; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
 .pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
 .pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
 .pager a small { display: block; color: var(--muted); font-size: 12px; }
-.pager a.next { margin-left: auto; text-align: right; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
 .cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
 .cards a:hover { border-color: var(--accent); }
@@ -131,113 +169,186 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
   .bar-inner { flex-wrap: wrap; }
   .guide-search { order: 5; flex: 1 1 100%; }
 }
-@media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
 </style>
   </head>
   <body>
     <header class="bar"><div class="bar-inner">
       <a class="brand" href="/api/desktop/layerling/ui/guide/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">User guide</span></span></a>
       <form class="guide-search" id="guide-search" role="search" data-index="/guide/search-index.json" data-nothing="Nothing found." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Search the guide" aria-label="Search the guide" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
-      <details class="lang-menu"><summary aria-label="Language">English</summary><ul><li><a href="/api/desktop/layerling/ui/guide/text.html" hreflang="en" lang="en" aria-current="true">English</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html" hreflang="nl" lang="nl">Nederlands</a></li></ul></details>
+      <details class="lang-menu"><summary aria-label="Language">English</summary><ul><li><a href="/api/desktop/layerling/ui/guide/text.html" hreflang="en" lang="en" aria-current="true">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/text.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/text.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/text.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/text.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/text.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/text.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/text.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/text.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/text.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/besedilo.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/text.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/text.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/text.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/text.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/text.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/text.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
       <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Open the editor</a>
     </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>The editor is already open in another tab - just switch to it.</p></header>
     <div class="shell">
-      <nav class="chapters" aria-label="Chapters"><h2>Chapters</h2><ol><li><a href="/api/desktop/layerling/ui/guide/getting-started.html">Getting started</a></li><li><a href="/api/desktop/layerling/ui/guide/view-and-workplane.html">View and workplane</a></li><li><a href="/api/desktop/layerling/ui/guide/shapes.html">Placing and adjusting shapes</a></li><li><a href="/api/desktop/layerling/ui/guide/select-and-arrange.html">Selecting and arranging</a></li><li><a href="/api/desktop/layerling/ui/guide/solids-and-holes.html">Solids and holes</a></li><li><a href="/api/desktop/layerling/ui/guide/edges-and-hollowing.html">Breaking edges and hollowing bodies</a></li><li><a href="/api/desktop/layerling/ui/guide/sketches.html">Sketches: from outline to body</a></li><li><a href="/api/desktop/layerling/ui/guide/text.html" aria-current="page">Text and curved lettering</a></li><li><a href="/api/desktop/layerling/ui/guide/threads-and-mechanics.html">Threads, gears and other parts</a></li><li><a href="/api/desktop/layerling/ui/guide/measuring-and-notes.html">Measuring and notes</a></li><li><a href="/api/desktop/layerling/ui/guide/printing.html">Preparing for 3D printing</a></li><li><a href="/api/desktop/layerling/ui/guide/files-and-saving.html">Files, saving and sharing</a></li><li><a href="/api/desktop/layerling/ui/guide/shortcuts.html">Keyboard shortcuts</a></li><li><a href="/api/desktop/layerling/ui/guide/ai-with-mcp.html">Building with an AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/guide/offline-and-install.html">Installing as an app, working offline and self-hosting</a></li><li><a href="/api/desktop/layerling/ui/guide/videos.html">Videos about layerling</a></li></ol></nav>
+      <nav class="chapters" aria-label="Chapters"><h2>Chapters</h2><p class="print-link"><a href="/api/desktop/layerling/ui/guide/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Whole guide, to print</span></a></p><ol><li><a href="/api/desktop/layerling/ui/guide/getting-started.html">Getting started</a></li><li><a href="/api/desktop/layerling/ui/guide/view-and-workplane.html">View and workplane</a></li><li><a href="/api/desktop/layerling/ui/guide/shapes.html">Placing and adjusting shapes</a></li><li><a href="/api/desktop/layerling/ui/guide/select-and-arrange.html">Selecting and arranging</a></li><li><a href="/api/desktop/layerling/ui/guide/solids-and-holes.html">Solids and holes</a></li><li><a href="/api/desktop/layerling/ui/guide/edges-and-hollowing.html">Breaking edges and hollowing bodies</a></li><li><a href="/api/desktop/layerling/ui/guide/sketches.html">Sketches: from outline to body</a></li><li><a href="/api/desktop/layerling/ui/guide/text.html" aria-current="page">Text and curved lettering</a></li><li><a href="/api/desktop/layerling/ui/guide/threads-and-mechanics.html">Threads, gears and other parts</a></li><li><a href="/api/desktop/layerling/ui/guide/measuring-and-notes.html">Measuring and notes</a></li><li><a href="/api/desktop/layerling/ui/guide/printing.html">Preparing for 3D printing</a></li><li><a href="/api/desktop/layerling/ui/guide/files-and-saving.html">Files, saving and sharing</a></li><li><a href="/api/desktop/layerling/ui/guide/shortcuts.html">Keyboard shortcuts</a></li><li><a href="/api/desktop/layerling/ui/guide/ai-with-mcp.html">Building with an AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/guide/offline-and-install.html">Installing as an app, working offline and self-hosting</a></li><li><a href="/api/desktop/layerling/ui/guide/videos.html">Videos about layerling</a></li><li><a href="/api/desktop/layerling/ui/guide/tablet-and-touch.html">Tablet and touch</a></li></ol></nav>
       <main>
 <h1>Text and curved lettering</h1>
-<p class="lead">Raised or engraved lettering in seven typefaces or one of your own, and if you like along a circular arc, such as on a coin, a lid or a ring.</p>
-<div class="toc"><b>On this page</b><ul><li><a href="#adding-text">Adding text</a></li><li><a href="#your-own-fonts">Your own fonts</a></li><li><a href="#raised-or-engraved">Raised or engraved</a></li><li><a href="#outline-silhouette-and-wider">Outline, silhouette and wider</a></li><li><a href="#layers-and-name-tags">Layers and name tags</a></li><li><a href="#icon-tags">Icon tags</a></li><li><a href="#text-on-a-circular-arc">Text on a circular arc</a></li></ul></div>
-<h2 id="adding-text">Adding text</h2>
+<p class="lead">Raised or engraved lettering in eight typefaces or one of your own, and if you like along a circular arc, such as on a coin, a lid or a ring.</p>
+<div class="toc"><b>On this page</b><ul><li><a href="#adding-text">Adding text</a></li><li><a href="#your-own-fonts">Your own fonts</a></li><li><a href="#raised-or-engraved">Raised or engraved</a></li><li><a href="#stencils-bridges-for-the-middle-of-letters">Stencils: bridges for the middle of letters</a></li><li><a href="#outline-silhouette-and-wider">Outline, silhouette and wider</a></li><li><a href="#layers-and-name-tags">Layers and name tags</a></li><li><a href="#icon-tags">Icon tags</a></li><li><a href="#qr-codes">QR codes</a></li><li><a href="#text-on-a-circular-arc">Text on a circular arc</a></li></ul></div>
+<section class="guide-part"><h2 id="adding-text">Adding text</h2>
 <p>Choose <strong class="ui">“Text”</strong> in the shape library and place it. In the <strong class="ui">“Text”</strong> field on the right, type what it should say. The settings below:</p>
-<ul><li><strong><strong class="ui">“Font”</strong>:</strong> Seven typefaces are available: Multilanguage, Sans, Serif, Script, Monospace, Rounded and Stencil (letters made of straight lines). New text starts in Sans. Accented letters such as ä, ö, ü, é and the € sign are in every typeface. Fonts of your own come on top, see <a href="#your-own-fonts">Your own fonts</a> below.</li><li><strong><strong class="ui">“Letter size”</strong>:</strong> How big the letters are, seen from above; <strong class="ui">“Height”</strong> sets how thick they are.</li><li><strong><strong class="ui">“Height”</strong>:</strong> How far the lettering stands out from the surface.</li><li><strong><strong class="ui">“Bevel”</strong>:</strong> Rounds the letter edges so they look softer. With <strong class="ui">“Segments”</strong> you decide in how many steps.</li><li><strong>Size:</strong> You set the length and width of the line as with any shape. Drag the handles or type the dimensions.</li></ul>
+<ul><li><strong><strong class="ui">“Font”</strong>:</strong> Eight typefaces are available: Multilanguage, Sans, Serif, Script, Monospace, Rounded, Stencil (letters made of straight lines) and Japanese (Zen Maru Gothic). New text starts in Sans. Accented letters such as ä, ö, ü, é and the € sign are in every typeface, and so are kana, the common kanji and many of the rare ones in names such as 澤, 槇 and 檜: a Japanese name works in every typeface and on a name tag. The Japanese letters are fetched the first time a text needs them (the rare kanji in a second file, only when a text has one), so such a text shows question marks for a moment. They are kept on the computer afterwards, so Japanese also works offline from then on. Fonts of your own come on top, see <a href="#your-own-fonts">Your own fonts</a> below.</li><li><strong><strong class="ui">“Letter size”</strong>:</strong> How big the letters are, seen from above; <strong class="ui">“Height”</strong> sets how thick they are.</li><li><strong><strong class="ui">“Height”</strong>:</strong> How far the lettering stands out from the surface.</li><li><strong><strong class="ui">“Bevel”</strong>:</strong> Rounds the letter edges so they look softer. With <strong class="ui">“Segments”</strong> you decide in how many steps.</li><li><strong><strong class="ui">“Letter edge”</strong>:</strong> rounds or chamfers the top edge of the letters, as on a name tag: <strong class="ui">“None”</strong>, <strong class="ui">“Round”</strong> or <strong class="ui">“Chamfer”</strong>, with the <strong class="ui">“Edge size”</strong> (0.4 mm to start with, at most as high as the text). It goes further than the <strong class="ui">“Bevel”</strong>, but only as far as the strokes are wide: where a stroke is thinner than twice the size, the edge ends in a narrower top. The underside stays flat, so single letters can be glued on afterwards. While an edge is chosen it takes the place of <strong class="ui">“Bevel”</strong>.</li><li><strong>Length:</strong> A text takes up to 250 characters. The letters keep their size and the line gets as long as it needs to be; to make it shorter, make the letters smaller. The <strong class="ui">“Letter edge”</strong> works on a text of up to 40 characters, because on a longer one it would take minutes to build.</li><li><strong>Size:</strong> You set the length and width of the line as with any shape. Drag the handles or type the dimensions.</li><li><strong><strong class="ui">“Letter spacing (%)”</strong>:</strong> The space between the letters on top of the one the font has, in per cent of the letter size: 0 leaves it as the font made it, above it the letters stand further apart, below it (down to -50) tighter, which a font of your own often needs. The letters keep their size and the box follows the line, on straight and on curved text. The spacing is not applied to Arabic and Hebrew, whose letters join up.</li><li><strong><strong class="ui">“Stretch letters to the frame”</strong>:</strong> Off at first: the letters keep their proportions and sit in the middle of the frame, so a frame pulled wider or deeper than the word needs stays larger than the letters. Switch it on and the letters are stretched to fill the whole frame in both directions: a capital can be made lower or narrower, as in Tinkercad. It is for straight text; curved text has its own letter size.</li><li><strong><strong class="ui">“Automatic kerning”</strong>:</strong> Moves pairs of letters that leave too much room between them, such as AY, AV, LT or To, closer, measured from the shapes of the letters, in every font, your own too. New texts start with it on; texts made before it existed have it off, so nothing moves in a saved design. The letters keep their size and the box follows. It works on straight and curved text, not on vertical text, Arabic, Hebrew or Japanese.</li><li><strong><strong class="ui">“Letters top to bottom”</strong>:</strong> Stacks the letters top to bottom, each in the middle of one upright line, for a sign on a door frame or a name down a pen. The box turns upright and the letters keep their size; <strong class="ui">“Letter spacing (%)”</strong> sets the gap between them. On curved text the letters form a column along the left side of the circle, each one standing upright; <strong class="ui">“On the right side”</strong> puts the column on the right side.</li></ul>
 <p>Text is at first a single body. If you want to treat the letters individually, click <strong class="ui">“Separate Parts”</strong>. Then every letter is a shape of its own.</p>
+<p><strong>Several lines:</strong> A text holds one line. For a sign or a plaque with several lines, open the <strong class="ui">“Text block”</strong> card below the settings: type the lines under <strong class="ui">“Lines”</strong>, choose <strong class="ui">“Align”</strong> (<strong class="ui">“Left”</strong>, <strong class="ui">“Centre”</strong> or <strong class="ui">“Right”</strong>), <strong class="ui">“Line gap”</strong> and <strong class="ui">“Next line (%)”</strong> - at 80 % each line is a fifth smaller than the one above. The button makes every line a text of its own under the one above, in this text's font, height and fill; the first takes this text's place. Afterwards each line can get its own size, font or colour.</p>
 <p>The edges of text can be chamfered or filleted too, straight or curved, see <a href="/api/desktop/layerling/ui/guide/edges-and-hollowing.html">Breaking edges and hollowing bodies</a>. Use small sizes such as 0.2 to 0.5 mm, because the strokes of the letters are narrow.</p>
-<h2 id="your-own-fonts">Your own fonts</h2>
-<p>Besides the seven built-in fonts you can use any font of your own: a font file from your computer or, in Chrome and Edge, a font installed on your computer. Choose <strong class="ui">“Your own fonts …”</strong> at the bottom of <strong class="ui">“Font”</strong>. The <strong class="ui">“Your own fonts”</strong> window opens.</p>
+</section><section class="guide-part"><h2 id="your-own-fonts">Your own fonts</h2>
+<p>The list under <strong class="ui">“Font”</strong> draws every font in its own letters, with the words of your text, so you see how they will look before you choose. The same goes for the fonts in the window below; the fonts listed from your computer show their names in their own letters. Arrow keys and <kbd>Enter</kbd> work in the list, and a letter jumps to the next font that starts with it.</p>
+<p>Besides the eight built-in fonts you can use any font of your own: a font file from your computer or, in Chrome and Edge, a font installed on your computer. Choose <strong class="ui">“Your own fonts …”</strong> at the bottom of <strong class="ui">“Font”</strong>. The <strong class="ui">“Your own fonts”</strong> window opens.</p>
 <ul><li><strong><strong class="ui">“Choose a font file …”</strong></strong> takes a TrueType file (<code>.ttf</code>), an OpenType file (<code>.otf</code>) or a WOFF file (<code>.woff</code>). You can also simply drag the file into the window.</li><li><strong>On Windows</strong> the installed fonts live in the Fonts folder (<code>C:\Windows\Fonts</code>). The browser's file dialog hides it. Open it in Explorer instead and drag the font into the <strong class="ui">“Your own fonts”</strong> window. Fonts installed for you alone live in <code>%LOCALAPPDATA%\Microsoft\Windows\Fonts</code>, which the file dialog shows too. On a Mac fonts live in <code>/Library/Fonts</code> and <code>~/Library/Fonts</code>.</li><li><strong><strong class="ui">“Font from the computer …”</strong></strong> lists the fonts installed on your computer. The first time, the browser asks whether layerling may read them. The search field finds a font quickly, a click takes it.</li></ul>
 <p>If a text is selected, it gets the new font at once. Otherwise the font shows up under <strong class="ui">“Font”</strong> in the <strong class="ui">“Your own fonts”</strong> group, and <strong class="ui">“Use”</strong> in the window puts it on the selected texts. Fonts of your own work like the built-in ones: text on a circular arc, chamfers and fillets on the edges and the STEP export all work the same. Letters a font lacks are taken from Sans.</p>
-<h3 id="arabic-and-hebrew">Arabic and Hebrew</h3>
+<section class="guide-part"><h3 id="arabic-and-hebrew">Arabic and Hebrew</h3>
 <p>Arabic, Persian, Urdu and Hebrew are written right to left: the first letter stands on the right, and in a mixed text such as &quot;Name عربي&quot; only the Arabic word runs backwards, digits stay as usual. Arabic letters join their neighbours the way the script asks, and lam-alef becomes a ligature. This needs a font that has these letters; the built-in ones do not. Add one of your own, such as Arial, Tahoma or Segoe UI on Windows, or a free one such as Noto Naskh Arabic, Noto Sans Arabic or Amiri. Vowel marks sit on the letter they belong to. Text on a circular arc, outline, silhouette, layers and name tags work with it as with any other text.</p>
-<h3 id="what-works-in-which-browser">What works in which browser</h3>
+</section><section class="guide-part"><h3 id="what-works-in-which-browser">What works in which browser</h3>
 <div class="table-scroll"><table><thead><tr><th>Browser</th><th>Choose a font file</th><th>Font from the computer</th></tr></thead><tbody><tr><td>Chrome and Edge on a computer, the installed layerling app too</td><td>yes</td><td>yes, after the browser asks</td></tr><tr><td>Firefox</td><td>yes</td><td>no</td></tr><tr><td>Safari on a Mac</td><td>yes</td><td>no</td></tr><tr><td>Tablet and phone</td><td>yes, from the device's files</td><td>no</td></tr></tbody></table></div>
 <p>Web pages may not simply read the installed fonts. Only Chrome and Edge have a permission for it, and only on secure pages, over <code>https</code> as on layerling.com. When layerling runs over <code>http</code>, say on your own server or as a Docker install in your home network, <strong class="ui">“Font from the computer …”</strong> is missing; drag the font over from Explorer then. In the other browsers you choose the font file from the fonts folder, with the same result. If you declined the question in Chrome or Edge, allow it again in the site settings, behind the padlock to the left of the address.</p>
 <p>layerling cannot read WOFF2 files (there is almost always a TTF or OTF version), font collections (<code>.ttc</code>, several fonts in one file) or colour emoji fonts. From very large fonts, such as Chinese ones, layerling takes the first 8000 characters. A variable font is read in its default setting, usually the regular weight.</p>
 <p>Some fonts, script and variable fonts above all, draw a letter from strokes that overlap. layerling merges them into one clean outline when it reads the font, so the body stays printable. Such letters are then made of very short straight pieces instead of curves; it does not show.</p>
-<h3 id="where-the-fonts-are-kept">Where the fonts are kept</h3>
+</section><section class="guide-part"><h3 id="where-the-fonts-are-kept">Where the fonts are kept</h3>
 <p>A font of your own stays <strong>in this browser on this computer</strong>. Another browser or another computer does not know it until you add it there too. Clearing the browser's site data clears the fonts as well. In the <strong class="ui">“Your own fonts”</strong> window the bin removes a font from the browser. Your designs lose nothing by it, as the next section shows.</p>
-<h3 id="passing-on-designs-with-a-font-of-your-own">Passing on designs with a font of your own</h3>
+</section><section class="guide-part"><h3 id="passing-on-designs-with-a-font-of-your-own">Passing on designs with a font of your own</h3>
 <p>A design does <strong>not store the font file</strong>, only the outlines of the letters its texts use, those in earlier steps of the history included. If a text says &quot;Hello&quot;, only H, e, l and o travel with it. That holds for every way a design is saved: in the browser, on your own server, as a <code>.lyl</code> file and in <strong class="ui">“Custom shapes”</strong>.</p>
 <p>So:</p>
 <ul><li><strong>The design opens correctly anywhere</strong>, also on a computer without the font. The texts look the same and can be moved, turned, scaled and filleted.</li><li><strong>New letters need the font.</strong> If someone without the font types a letter the design did not bring along, layerling draws it from Sans. Under <strong class="ui">“Font”</strong> the font is then marked <strong class="ui">“only the design's letters”</strong>. Adding the font file brings back every letter.</li><li><strong>Exports hold geometry only.</strong> STL, 3MF, OBJ, STEP and SVG contain bodies and outlines, no font.</li><li><strong>Older layerling versions</strong> do not know fonts of one's own yet and draw such texts in Multilanguage.</li></ul>
 <p><strong>Licences:</strong> Fonts are protected by copyright, and their licence says what you may do with them. The embedded letter outlines are what PDF files take along from a font, and most licences allow that. Some commercial fonts, though, forbid passing on even single letters. Before you pass on or publish a design with a font of your own, check the font's licence. Free fonts such as those from Google Fonts (mostly under the SIL Open Font License) can be passed on without worry. For a printed part or an exported STL it does not matter: they hold no font any more, only geometry.</p>
-<h2 id="raised-or-engraved">Raised or engraved</h2>
+</section></section><section class="guide-part"><h2 id="raised-or-engraved">Raised or engraved</h2>
 <ul><li><strong>Raised:</strong> Place the text on the surface and group it with the body. It grows out as a relief.</li><li><strong>Engraved:</strong> Switch the text to <strong class="ui">“Hole”</strong>, let it reach a little into the surface and group it with the body. The letters are then engraved.</li></ul>
 <p>For lettering on a side face, first put the workplane on that face, see <a href="/api/desktop/layerling/ui/guide/view-and-workplane.html">View and workplane</a>.</p>
-<h2 id="outline-silhouette-and-wider">Outline, silhouette and wider</h2>
+</section><section class="guide-part"><h2 id="stencils-bridges-for-the-middle-of-letters">Stencils: bridges for the middle of letters</h2>
+<p>Cut through a plate, letters like O, A and B lose their middle: it lies loose inside the letter and falls out. <strong class="ui">“Stencil bridges”</strong> holds it to the plate with small bridges, as on a stencil.</p>
+<ol><li>Switch the text to <strong class="ui">“Hole”</strong>, let it reach through the plate and select both, grouped or not.</li><li>Click <strong class="ui">“Stencil bridges”</strong> in the <strong class="ui">“Modify”</strong> group of the ribbon, right-click the selection, or find it with <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>. The bridges show in orange where they will go.</li><li>Set <strong class="ui">“Bridge width”</strong> and <strong class="ui">“Bridges per part”</strong>. <strong class="ui">“Bridge height”</strong> starts at the plate's thickness; lower bridges sit flush with the bottom, in the middle or flush with the top of the plate, as <strong class="ui">“Position”</strong> says. On a spray stencil, bridges at the top leave room under them for the paint.</li><li><strong class="ui">“Create”</strong> groups the bridges with the plate.</li></ol>
+<p>Each bridge is an ordinary box: open the group to move one, delete one or add one of your own. If you change the text later, select the group and click <strong class="ui">“Stencil bridges”</strong> again; new bridges take the place of the old ones. A text that is engraved and does not go through gets no bridges, as nothing falls out there. For a laser or a plotter, the DXF and SVG export add the same bridges, see <a href="/api/desktop/layerling/ui/guide/files-and-saving.html">Files, saving and sharing</a>.</p>
+</section><section class="guide-part"><h2 id="outline-silhouette-and-wider">Outline, silhouette and wider</h2>
 <p>A text need not be built as filled letters. <strong class="ui">“Fill”</strong> in the properties offers the same choice as Tinkercad:</p>
 <ul><li><strong><strong class="ui">“Filled”</strong>:</strong> the letters as they are.</li><li><strong><strong class="ui">“Outline”</strong>:</strong> a line along the outline of the letters, half inside and half outside it.</li><li><strong><strong class="ui">“Outer line”</strong>:</strong> a line round the outside of the letters.</li><li><strong><strong class="ui">“Inner line”</strong>:</strong> a line on the inside of the letters.</li></ul>
 <p>With a line chosen, two settings appear right under the list: <strong class="ui">“Line Width”</strong> sets how thick the line is, <strong class="ui">“Corners”</strong> how it goes round the corners (<strong class="ui">“Round”</strong>, <strong class="ui">“Bevel”</strong> or <strong class="ui">“Sharp”</strong>). The rarer settings are under <strong class="ui">“More”</strong>: <strong class="ui">“Silhouette (No Holes)”</strong> leaves out the holes in O, A or e, and <strong class="ui">“Wider (base for a multicolour print)”</strong> keeps the letters filled and makes them thicker by the line width all round; letters that touch grow into one piece.</p>
 <p>With a line outside, a centred line or &quot;Wider&quot; the box of the text grows, while the letters keep their size. <strong class="ui">“Bevel”</strong> and <strong class="ui">“Segments”</strong> exist for filled letters only.</p>
-<h2 id="layers-and-name-tags">Layers and name tags</h2>
+</section><section class="guide-part"><h2 id="layers-and-name-tags">Layers and name tags</h2>
 <p>A name tag for a multicolour print is a text in layers: the letters on top, under them the same text a little wider in a second colour, at the bottom a plate without holes in a third. layerling makes it in one click:</p>
 <ul><li><strong>A new name tag:</strong> choose <strong class="ui">“Name tag”</strong> in the shape library and place it. It says &quot;Name&quot; in white letters on a red rim and a dark plate.</li><li><strong>From a text:</strong> select the text and click <strong class="ui">“Make layers”</strong> at the top of its settings.</li></ul>
 <p>All settings of the tag are in the card <strong class="ui">“Name tag”</strong>, at the top of the settings:</p>
-<ul><li><strong><strong class="ui">“Text”</strong></strong> and <strong><strong class="ui">“Font”</strong></strong>, fonts of your own too. The tag grows with the words.</li><li><strong><strong class="ui">“Letter size”</strong>:</strong> how tall the capital letters are, in mm. All layers follow and stay lined up.</li><li><strong><strong class="ui">“Layers”</strong>:</strong> one row per layer, from the top down. Each row has the colour (click the coloured square), how much wider the layer is than the letters, its height and <strong class="ui">“No holes”</strong>, which fills the holes in letters such as O and A. <strong class="ui">“Corners”</strong> sets how a wider layer goes round the corners of the letters: <strong class="ui">“Round”</strong>, <strong class="ui">“Bevel”</strong> or <strong class="ui">“Sharp”</strong>. The top row is the letters themselves. <strong>+</strong> adds a layer at the bottom, <strong>–</strong> takes the bottom layer away. A tag has two to six layers.</li><li><strong><strong class="ui">“Key ring hole”</strong>:</strong> gives the bottom layer a straight tab with a round end and a hole for a key ring; the tab grows with the hole. A 3 mm hole, the default, makes a tab 6.5 mm wide that sticks out 6.75 mm, the hole's edge 2 mm from the edge of the bottom layer. Choose the <strong class="ui">“Hole diameter”</strong> and the <strong class="ui">“Side”</strong>: <strong class="ui">“Left”</strong>, <strong class="ui">“Right”</strong> or <strong class="ui">“Top”</strong>. The hole goes through every layer it touches, and the tab moves along when you change the words, the letter size or the font.</li><li><strong><strong class="ui">“Letter edge”</strong>:</strong> rounds or chamfers the top edge of the letters on the top layer, the way a printed tag is finished: <strong class="ui">“None”</strong>, <strong class="ui">“Round”</strong> or <strong class="ui">“Chamfer”</strong>, with the <strong class="ui">“Edge size”</strong> (0.4 mm to start with, at most as high as the layer). It works for every font and word. The edge is part of the letters' mesh, so the edge tool takes such a text as a mesh, which for a text this fine is heavy; pick the edge here instead.</li></ul>
+<ul><li><strong><strong class="ui">“Text”</strong></strong> and <strong><strong class="ui">“Font”</strong></strong>, fonts of your own too. The tag grows with the words.</li><li><strong><strong class="ui">“Letter size”</strong>:</strong> how tall the capital letters are, in mm. All layers follow and stay lined up.</li><li><strong><strong class="ui">“Letters top to bottom”</strong>:</strong> stands the tag upright with the letters under one another, all layers along.</li><li><strong><strong class="ui">“Layers”</strong>:</strong> one row per layer, from the top down. Each row has the colour (click the coloured square), how much wider the layer is than the letters, its height and <strong class="ui">“No holes”</strong>, which fills the holes in letters such as O and A. <strong class="ui">“Corners”</strong> sets how a wider layer goes round the corners of the letters: <strong class="ui">“Round”</strong>, <strong class="ui">“Bevel”</strong> or <strong class="ui">“Sharp”</strong>. The top row is the letters themselves. <strong>+</strong> adds a layer at the bottom, <strong>–</strong> takes the bottom layer away. A tag has two to six layers.</li><li><strong><strong class="ui">“Key ring hole”</strong>:</strong> gives the bottom layer a straight tab with a round end and a hole for a key ring; the tab grows with the hole. A 3 mm hole, the default, makes a tab 6.5 mm wide that sticks out 6.75 mm, the hole's edge 2 mm from the edge of the bottom layer. Choose the <strong class="ui">“Hole diameter”</strong> and the <strong class="ui">“Side”</strong>: <strong class="ui">“Left”</strong>, <strong class="ui">“Right”</strong> or <strong class="ui">“Top”</strong>. <strong class="ui">“Free”</strong> takes the hole off the tag and puts a <strong class="ui">“Key ring tab”</strong> of its own beside it, in the bottom layer's colour and height: an ordinary shape you move and turn with its handles wherever the tag needs it. Once it is in place, <strong class="ui">“Fix to the tag”</strong> in its properties makes it part of the nearest tag, just where it is: the hole goes through every layer it reaches, the ear joins the bottom layer, and both keep to that corner of the letters when the words or the size change. <strong class="ui">“Free”</strong> brings the tab out again where it was, to move it once more. The hole goes through every layer it touches, and the tab moves along when you change the words, the letter size or the font. <strong class="ui">“Position along side”</strong> moves the tab up or down along its side (along the top: left or right), up to where it would leave the side; 0 is the middle. Use it when the middle of the side meets a gap, as beside a J, and move the tab to the part of the letter that reaches out.</li><li><strong><strong class="ui">“Letter edge”</strong>:</strong> rounds or chamfers the top edge of the letters on the top layer, the way a printed tag is finished: <strong class="ui">“None”</strong>, <strong class="ui">“Round”</strong> or <strong class="ui">“Chamfer”</strong>, with the <strong class="ui">“Edge size”</strong> (0.4 mm to start with, at most as high as the layer). It works for every font and word. The edge is part of the letters' mesh, so the edge tool takes such a text as a mesh, which for a text this fine is heavy; pick the edge here instead.</li></ul>
 <p>Every change shows at once. The tag is a bundle: it moves as one, and each layer stays a body of its own in its own colour, the way a slicer needs them for a multicolour print. To round or bevel the edges of one layer, click <strong class="ui">“Edit bundle”</strong> and pick the layer, see <a href="/api/desktop/layerling/ui/guide/edges-and-hollowing.html">Breaking edges and hollowing bodies</a>.</p>
-<h3 id="many-name-tags-at-once">Many name tags at once</h3>
+<section class="guide-part"><h3 id="many-name-tags-at-once">Many name tags at once</h3>
 <p>Type the names into <strong class="ui">“Name list”</strong>, one per line, up to a hundred. The button below says how many tags it will make, for example &quot;Make 12 name tags&quot;. Every tag gets the same layers, letter size and key ring hole and is an object of its own; they are laid out in rows below the first, 5 mm apart. A plain text has the name list too, further down in its settings.</p>
-<h2 id="icon-tags">Icon tags</h2>
+</section></section><section class="guide-part"><h2 id="icon-tags">Icon tags</h2>
 <p>An icon tag is the same tag with an SVG icon instead of letters: a heart, a cloud, a club's logo. The icon on top, under it the same outline a little wider in a second colour, at the bottom a plate without holes.</p>
-<ul><li><strong>A new icon tag:</strong> choose <strong class="ui">“Icon tag”</strong> in the shape library. A small window opens: click <strong class="ui">“Browse…”</strong>, pick an SVG file, check the picture, type the <strong class="ui">“Width (mm)”</strong> of the icon and click <strong class="ui">“OK”</strong>. The tag stands in the middle of the plate, in the same layers as a new name tag.</li><li><strong>From a sketch body:</strong> an imported SVG, or a sketch you drew, has <strong class="ui">“Make layers”</strong> at the top of its settings.</li></ul>
+<ul><li><strong>A new icon tag:</strong> choose <strong class="ui">“Icon tag”</strong> in the shape library. A small window opens: click <strong class="ui">“Browse…”</strong>, pick an SVG, PNG or JPG file, check the picture, type the <strong class="ui">“Width (mm)”</strong> of the icon and click <strong class="ui">“OK”</strong>. The tag stands in the middle of the plate, in the same layers as a new name tag.</li><li><strong>From a sketch body:</strong> an imported SVG, or a sketch you drew, has <strong class="ui">“Make layers”</strong> at the top of its settings.</li></ul>
 <p>The card <strong class="ui">“Icon tag”</strong> at the top of the settings holds:</p>
-<ul><li><strong><strong class="ui">“Another SVG…”</strong>:</strong> puts another SVG's icon on the tag; the layers and the width stay as they are.</li><li><strong><strong class="ui">“Width”</strong>:</strong> how wide the icon on top is, in mm. All layers follow and stay lined up.</li><li><strong><strong class="ui">“Layers”</strong>:</strong> the rows as on a name tag - colour, how much wider, <strong class="ui">“Corners”</strong>, height and <strong class="ui">“No holes”</strong>, <strong>+</strong> and <strong>–</strong>, two to six layers. The top row is the icon itself.</li><li><strong><strong class="ui">“Count”</strong>:</strong> how many tags you want, 1 to 100. <strong class="ui">“As many as fit”</strong> works it out from the plate of the printer chosen in the settings, for small logos a full plate. The button below makes them, 5 mm apart, laid out on the middle of the plate; the first is the tag itself.</li></ul>
+<ul><li><strong><strong class="ui">“Another file…”</strong>:</strong> puts the icon of another file (SVG, PNG or JPG) on the tag; the layers and the width stay as they are.</li><li><strong><strong class="ui">“Width”</strong>:</strong> how wide the icon on top is, in mm. All layers follow and stay lined up.</li><li><strong><strong class="ui">“Layers”</strong>:</strong> the rows as on a name tag - colour, how much wider, <strong class="ui">“Corners”</strong>, height and <strong class="ui">“No holes”</strong>, <strong>+</strong> and <strong>–</strong>, two to six layers. The top row is the icon itself.</li><li><strong><strong class="ui">“Key ring hole”</strong>:</strong> as on a name tag: a hole for a key ring through every layer, with a tab with a round end on the bottom layer, beyond the icon. <strong class="ui">“Hole diameter”</strong> and <strong class="ui">“Side”</strong> choose its size and where it sits; <strong class="ui">“Free”</strong> gives a tab of its own, as on a name tag. The tab is made for the outline of the icon, so on a very ragged icon check where it meets the plate. <strong class="ui">“Position along side”</strong> moves the tab along its side, as on the name tag.</li><li><strong><strong class="ui">“Count”</strong>:</strong> how many tags you want, 1 to 100. <strong class="ui">“As many as fit”</strong> works it out from the plate of the printer chosen in the settings, for small logos a full plate. The button below makes them, 5 mm apart, laid out on the middle of the plate; the first is the tag itself.</li></ul>
 <p>The SVG needs closed outlines; a drawing of open lines only cannot become a tag. A sketch body whose fill is a line keeps it: the area of that line is the icon.</p>
-<h2 id="text-on-a-circular-arc">Text on a circular arc</h2>
+<p><strong>A picture (PNG or JPG)</strong> is traced into an outline, and the preview shows the outline. Under <strong class="ui">“Traced from”</strong> you choose whether the <strong class="ui">“Dark part”</strong> or the <strong class="ui">“Light part”</strong> becomes the icon; at first it is the part that is not the background. Transparent pixels never belong to the icon. An SVG that holds nothing but one picture, as Inkscape saves an imported bitmap, is traced the same way. The outline follows the pixels, so a small picture gives a rough edge: pictures of a few hundred pixels or more work best. <strong class="ui">“Another file…”</strong> takes the part of a picture that is not its background.</p>
+</section><section class="guide-part"><h2 id="qr-codes">QR codes</h2>
+<p>A QR code turns a text or a web address into a pattern a phone camera reads: a link to your shop on a sign, the Wi-Fi name on a coaster, a phone number on a key tag.</p>
+<p>Choose <strong class="ui">“QR code”</strong> in the shape library. A window opens; the cursor is already in the text field:</p>
+<ul><li><strong><strong class="ui">“Text or address”</strong>:</strong> what the code says. Enter makes the code, Shift+Enter starts a new line. Below the field you see how much of the room is used; umlauts and other special letters take two bytes. When the text is too long, the field says so.</li><li><strong><strong class="ui">“Error correction”</strong>:</strong> L, M, Q or H. A higher level can still be read when part of the code is dirty or scratched (L about 7 %, M 15 %, Q 25 %, H 30 %), but needs more modules for the same text, so each module gets smaller. M is chosen at first.</li><li><strong><strong class="ui">“Build as”</strong>:</strong> <strong class="ui">“Code only”</strong> makes the code alone, 4 mm high. <strong class="ui">“Raised on a plate”</strong> puts it 1 mm high on a white plate 3 mm thick, as a bundle of two colours, so a multicolour print prints the code dark and the plate light. <strong class="ui">“Engraved”</strong> cuts the code 1 mm deep into the plate.</li><li><strong><strong class="ui">“Size by”</strong>:</strong> type the <strong class="ui">“Width”</strong> of the whole code (40 mm at first) or the size of one module; the other number is shown below. Modules under 0.8 mm get a warning. That is a rule of thumb for a 0.4 mm nozzle, not a guarantee: printer, material, colours and the phone all play a part.</li><li><strong><strong class="ui">“Quiet zone (4 modules)”</strong>:</strong> scanners need an empty rim four modules wide round the code. On a plate the rim is part of the plate; switch it off only if the plate sits on a larger light surface. The code alone has no rim of its own: leave the room free round it.</li><li><strong>Heights:</strong> the height of the code, or on a plate the code height or engraving depth, and the plate thickness.</li></ul>
+<p>The preview shows the code as it will be built. <strong class="ui">“OK”</strong> puts it in the middle of the plate.</p>
+<p>The code is a body like any other: move it, turn it, scale it (keep width and depth the same, or the code is stretched), group it, or make it a hole and group it into a part of your own to engrave it there. Scaling it scales the whole code; each module stays square.</p>
+<p>The card <strong class="ui">“QR code”</strong> at the top of its settings holds the text. Change it and click <strong class="ui">“Make again”</strong>: the code is built again where it stands and as wide as it is now. Error correction, quiet zone and build stay as they were chosen; for other choices make a new code from the library.</p>
+<p>Scan the code with your phone before you print it, and once more after printing. Dark on light reads best; a light code on a dark plate is not read by every phone.</p>
+</section><section class="guide-part"><h2 id="text-on-a-circular-arc">Text on a circular arc</h2>
 <p>Should the lettering not run straight but follow the edge of a coin, a lid or a ring? For that there is the setting <strong class="ui">“On arc”</strong>.</p>
 <figure><img src="/api/desktop/layerling/ui/guide/img/curved-text.webp" alt="Text follows a circle. All letters stand on one common line." width="1280" height="800" loading="lazy"><figcaption>Text follows a circle. All letters stand on one common line.</figcaption></figure>
-<p>Once you switch it on, the text runs along the circle. All letters stand on the same baseline, as evenly as with normal text. There are four settings:</p>
-<ul><li><strong><strong class="ui">“Arc radius”</strong></strong> (5 to 500 mm): The radius of the circle the letters' baseline runs on.</li><li><strong><strong class="ui">“Letter size”</strong>:</strong> How tall the letters are. It no longer depends on the width of the shape.</li><li><strong><strong class="ui">“Along the bottom”</strong>:</strong> Moves the text from the top of the circle to its bottom. The letters then point with their heads to the centre.</li><li><strong><strong class="ui">“Upside down”</strong>:</strong> Turns only the letters over so you can read them from the other side. The text stays in its place on the circle.</li></ul>
+<p>Once you switch it on, the text runs along the circle. All letters stand on the same baseline, as evenly as with normal text. There are five settings:</p>
+<ul><li><strong><strong class="ui">“Arc radius”</strong></strong> (5 to 500 mm): The radius of the circle the letters' baseline runs on. The letters stay where they are; only their bend changes.</li><li><strong><strong class="ui">“Letter width (%)”</strong></strong> (25 to 400 %): How wide each letter is drawn, in per cent of its own width. Below 100 the letters get narrower, above it wider; their height stays, and the arc they take grows or shrinks with them. For a tall, narrow lettering on a coin, for example. On straight text <strong class="ui">“Stretch letters to the frame”</strong> does this with the frame.</li><li><strong><strong class="ui">“Letter size”</strong>:</strong> How tall the letters are. It no longer depends on the width of the shape.</li><li><strong><strong class="ui">“Along the bottom”</strong>:</strong> Moves the text from the top of the circle to its bottom. The letters then point with their heads to the centre.</li><li><strong><strong class="ui">“Upside down”</strong>:</strong> Turns only the letters over so you can read them from the other side. The text stays in its place on the circle.</li></ul>
 <p><strong>The centre of the circle is the centre of the shape.</strong> That is why aligning works as usual: if you centre the text with a cylinder or ring, it sits exactly concentric on it. When you pull a handle, radius and letter size grow together, so the lettering is not distorted.</p>
-<aside class="tip"><p><strong>Tip:</strong> At the top of the circle the letters stand outside the baseline; with <strong class="ui">“Along the bottom”</strong> they stand inside, heads towards the centre. For the lettering to fit on a disc, the radius plus the letter size should be smaller than the disc's radius.</p></aside>
+<aside class="tip"><p><strong>Tip:</strong> At the top of the circle the letters stand outside the baseline; with <strong class="ui">“Along the bottom”</strong> they stand inside, heads towards the centre. For the lettering to fit on a disc, the radius plus the letter size should be smaller than the disc's radius.</p></aside></section>
 <div class="pager"><a href="/api/desktop/layerling/ui/guide/sketches.html"><small>Previous chapter</small>Sketches: from outline to body</a><a class="next" href="/api/desktop/layerling/ui/guide/threads-and-mechanics.html"><small>Next chapter</small>Threads, gears and other parts</a></div>
       </main>
     </div>
     <footer class="note">This guide grows with the program. If something is missing or wrong, tell us in the <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussions</a>.</footer>
-    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=en" rel="noopener">Support the project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussions</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">More about the project on GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.71.0</a></div><p class="trademark">Tinkercad is a trademark of Autodesk, Inc. layerling is an independent project and is not affiliated with, endorsed or sponsored by Autodesk.</p></footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=en" rel="noopener">Support the project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussions</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">More on GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.154.1</a></div><p class="trademark">Tinkercad is a trademark of Autodesk, Inc. layerling is an independent project and is not affiliated with, endorsed or sponsored by Autodesk.</p></footer>
     <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Back to the editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Open the editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
     <script>
-function guideFold(text){var out="";for(var i=0;i<text.length;i++){out+=text.charAt(i).toLowerCase().normalize("NFD").charAt(0);}return out;}
-function guideForms(word,umlauts){
-  var forms=[word];
-  if(umlauts){var plain=word.split("ae").join("a").split("oe").join("o").split("ue").join("u");if(plain!==word)forms.push(plain);}
-  if(word.indexOf("ss")>=0)forms.push(word.split("ss").join(String.fromCharCode(223)));
-  if(word.indexOf(String.fromCharCode(223))>=0)forms.push(word.split(String.fromCharCode(223)).join("ss"));
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
   return forms;
 }
-function guideFind(text,forms,from){
-  var best=null;
-  for(var i=0;i<forms.length;i++){var k=text.indexOf(forms[i],from);if(k>=0&&(!best||k<best.at))best={at:k,len:forms[i].length};}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
   return best;
 }
-function guidePrepare(entries){return entries.map(function(e){return {e:e,c:guideFold(e.c),h:guideFold(e.h),t:guideFold(e.t)};});}
-function guideTokens(query){return guideFold(query).split(" ").filter(function(w){return w.length>0;});}
-function guideSearch(prepared,query,limit,umlauts){
-  var tokens=guideTokens(query);if(!tokens.length)return [];
-  var forms=tokens.map(function(w){return guideForms(w,umlauts);}),phrase=guideForms(tokens.join(" "),umlauts),found=[];
-  prepared.forEach(function(p){
-    var score=0;
-    for(var i=0;i<tokens.length;i++){
-      var inH=guideFind(p.h,forms[i],0),inC=guideFind(p.c,forms[i],0),at=guideFind(p.t,forms[i],0);
-      if(!inH&&!inC&&!at)return;
-      if(inH)score+=10;
-      if(inC)score+=3;
-      if(at){score+=1;var n=0,k=at;while(k&&n<5){n++;k=guideFind(p.t,forms[i],k.at+k.len);}score+=n*0.3;}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
     }
-    if(tokens.length>1&&(guideFind(p.h,phrase,0)||guideFind(p.t,phrase,0)))score+=6;
-    found.push({entry:p.e,score:score,folded:p.t,forms:forms});
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
   });
-  found.sort(function(a,b){return b.score-a.score;});
-  return found.slice(0,limit||8);
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
 }
 
 function guideSnippet(hit){
@@ -255,20 +366,57 @@ function guideSnippet(hit){
   if(end<text.length)parts.push({text:" ...",mark:false});
   return parts;
 }
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
 (function(){
   var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
   var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
   function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
   function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
   function render(){
     if(!guideTokens(input.value).length){close();return;}
     if(!prepared){load().then(function(){if(prepared)render();});return;}
-    var hits=guideSearch(prepared,input.value,8,form.getAttribute("data-umlauts")==="true");
+    var hits=guideSearch(prepared,input.value,8,umlauts);
     box.textContent="";
     if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
     hits.forEach(function(hit){
       var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
-      link.href=hit.entry.u;
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
       title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
       guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
       link.appendChild(title);link.appendChild(line);box.appendChild(link);
@@ -281,7 +429,7 @@ function guideSnippet(hit){
     if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
     else if(e.key==="Escape"){input.value="";close();}
   });
-  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first)window.location.href=first.href;});
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
   box.addEventListener("keydown",function(e){
     var current=document.activeElement;
     if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}

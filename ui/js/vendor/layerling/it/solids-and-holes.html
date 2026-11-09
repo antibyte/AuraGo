@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Solidi e fori - Guida utente di layerling</title>
+    <meta name="description" content="Come le forme semplici diventano fori passanti, asole e cavità, e come modificare un gruppo in seguito.">
+    <link rel="canonical" href="https://layerling.com/it/solids-and-holes.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/solids-and-holes.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/solids-and-holes.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/solids-and-holes.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/koerper-und-aussparungen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/solids-and-holes.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/solids-and-holes.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/solids-and-holes.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/solids-and-holes.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/lichamen-en-gaten.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/solids-and-holes.html">
+    <link rel="alternate" hreflang="pt-BR" href="https://layerling.com/guia/solids-and-holes.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/telesa-in-luknje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/solids-and-holes.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/solids-and-holes.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/solids-and-holes.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/solids-and-holes.html">
+    <meta property="og:title" content="Solidi e fori - Guida utente di layerling">
+    <meta property="og:description" content="Come le forme semplici diventano fori passanti, asole e cavità, e come modificare un gruppo in seguito.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/it/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Guida utente</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/it/search-index.json" data-nothing="Nessun risultato." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Cerca nella guida" aria-label="Cerca nella guida" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Lingua">Italiano</summary><ul><li><a href="/api/desktop/layerling/ui/guide/solids-and-holes.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/solids-and-holes.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/solids-and-holes.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/solids-and-holes.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/solids-and-holes.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/solids-and-holes.html" hreflang="it" lang="it" aria-current="true">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/solids-and-holes.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/solids-and-holes.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/solids-and-holes.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/solids-and-holes.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/telesa-in-luknje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/solids-and-holes.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/solids-and-holes.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/solids-and-holes.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/solids-and-holes.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/solids-and-holes.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/solids-and-holes.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Apri l'editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>L'editor è già aperto in un'altra scheda: passa semplicemente a quella.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Capitoli"><h2>Capitoli</h2><p class="print-link"><a href="/api/desktop/layerling/ui/it/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Guida completa da stampare</span></a></p><ol><li><a href="/api/desktop/layerling/ui/it/getting-started.html">Primi passi</a></li><li><a href="/api/desktop/layerling/ui/it/view-and-workplane.html">Vista e piano di lavoro</a></li><li><a href="/api/desktop/layerling/ui/it/shapes.html">Inserire e modificare le forme</a></li><li><a href="/api/desktop/layerling/ui/it/select-and-arrange.html">Selezionare e disporre</a></li><li><a href="/api/desktop/layerling/ui/it/solids-and-holes.html" aria-current="page">Solidi e fori</a></li><li><a href="/api/desktop/layerling/ui/it/edges-and-hollowing.html">Smussare gli spigoli e svuotare i corpi</a></li><li><a href="/api/desktop/layerling/ui/it/sketches.html">Schizzi: dal contorno al corpo</a></li><li><a href="/api/desktop/layerling/ui/it/text.html">Testo e scritte curve</a></li><li><a href="/api/desktop/layerling/ui/it/threads-and-mechanics.html">Filettature, ingranaggi e altri componenti</a></li><li><a href="/api/desktop/layerling/ui/it/measuring-and-notes.html">Misurazioni e annotazioni</a></li><li><a href="/api/desktop/layerling/ui/it/printing.html">Preparare la stampa 3D</a></li><li><a href="/api/desktop/layerling/ui/it/files-and-saving.html">File, salvataggio e condivisione</a></li><li><a href="/api/desktop/layerling/ui/it/shortcuts.html">Scorciatoie da tastiera</a></li><li><a href="/api/desktop/layerling/ui/it/ai-with-mcp.html">Progettare con un’IA (MCP)</a></li><li><a href="/api/desktop/layerling/ui/it/offline-and-install.html">Installare come app, lavorare offline e ospitare layerling</a></li><li><a href="/api/desktop/layerling/ui/it/videos.html">Video su layerling</a></li><li><a href="/api/desktop/layerling/ui/it/tablet-and-touch.html">Tablet e comandi touch</a></li></ol></nav>
+      <main>
+<h1>Solidi e fori</h1>
+<p class="lead">Come le forme semplici diventano fori passanti, asole e cavità, e come modificare un gruppo in seguito.</p>
+<div class="toc"><b>In questa pagina</b><ul><li><a href="#solido-o-foro">Solido o foro</a></li><li><a href="#raggruppare">Raggruppare</a></li><li><a href="#creare-un-insieme">Creare un insieme</a></li><li><a href="#intersezione">Intersezione</a></li><li><a href="#ritagliare-un-corpo-da-un-altro">Ritagliare un corpo da un altro</a></li><li><a href="#punzonare-un-contorno-attraverso-un-corpo">Punzonare un contorno attraverso un corpo</a></li><li><a href="#modificare-un-gruppo">Modificare un gruppo</a></li><li><a href="#dividere">Dividere</a></li><li><a href="#separare-le-parti">Separare le parti</a></li></ul></div>
+<p>È il concetto più importante di layerling e si impara in fretta: <strong>ogni forma è un solido oppure un foro.</strong> Un solido viene mantenuto. Un foro è uno strumento che sottrae materiale.</p>
+<section class="guide-part"><h2 id="solido-o-foro"><span class="heading-alias" id="solid-or-hole"></span>Solido o foro</h2>
+<p>Seleziona una forma e fai clic su <strong class="ui">«Solido»</strong> o <strong class="ui">«Foro»</strong> nelle sue impostazioni. Con la tastiera fai prima: <kbd>H</kbd> trasforma la selezione in un foro, <kbd>S</kbd> la rende di nuovo solida. Trovi entrambi i comandi anche nel menu che si apre facendo clic destro sul corpo. Un foro è visualizzato in trasparenza, così puoi vedere dov’è. <kbd>T</kbd> rende trasparente un corpo, per esempio per guardare dentro un involucro; premilo di nuovo per renderlo opaco. Il comando agisce sull’intera selezione: se almeno un corpo è già trasparente, li rende tutti opachi; altrimenti li rende tutti trasparenti.</p>
+<p>Finché gli elementi non vengono raggruppati, il foro non ha effetto. Resta semplicemente nella posizione in cui verrà sottratto il materiale.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hole-before.webp" alt="Il cilindro è un foro. Sporge dalla parte superiore del cubo e lo attraversa da parte a parte." width="1280" height="800" loading="lazy"><figcaption>Il cilindro è un foro. Sporge dalla parte superiore del cubo e lo attraversa da parte a parte.</figcaption></figure>
+</section><section class="guide-part"><h2 id="raggruppare"><span class="heading-alias" id="grouping"></span>Raggruppare</h2>
+<p>Seleziona solidi e uno o più fori e fai clic su <strong class="ui">«Raggruppa»</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>G</kbd></span>). I fori sottraggono il materiale dai solidi che attraversano. Il materiale rimanente diventa un’unica nuova forma.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hole-after.webp" alt="Il risultato: un cubo con un foro passante." width="1280" height="800" loading="lazy"><figcaption>Il risultato: un cubo con un foro passante.</figcaption></figure>
+<p>Con mesh grandi, come un STL importato con centinaia di migliaia di triangoli, il taglio richiede qualche secondo. layerling lavora allora in background e mostra &quot;<strong class="ui">«Calcolo in corso… puoi continuare a lavorare.»</strong>&quot;; nel frattempo puoi ruotare la vista e usare l'interfaccia. Se nel frattempo cambi la scena, il risultato viene scartato e layerling te lo dice. Lo stesso vale per <strong class="ui">«Dividi»</strong>.</p>
+<p>In questo modo puoi creare:</p>
+<ul><li><strong>Fori passanti:</strong> un cilindro impostato come foro attraversa un corpo.</li><li><strong>Asole:</strong> una scatola allungata impostata come foro sul bordo.</li><li><strong>Cavità:</strong> un foro che non attraversa completamente il corpo.</li><li><strong>Filettature in un pezzo:</strong> un foro filettato impostato come foro; vedi <a href="/api/desktop/layerling/ui/it/threads-and-mechanics.html">Filettature e meccanica</a>.</li></ul>
+<p>Se il gruppo contiene più solidi, questi vengono uniti. Due solidi a contatto diventano un unico pezzo.</p>
+<p>Puoi trattare un gruppo come una forma: spostarlo, ruotarlo, cambiarne il colore e raggrupparlo di nuovo. <strong class="ui">«Separa gruppo»</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span>) scioglie il gruppo e ripristina le singole parti.</p>
+<section class="guide-part"><h3 id="trasformare-un-gruppo-in-un-foro"><span class="heading-alias" id="making-a-group-a-hole"></span>Trasformare un gruppo in un foro</h3>
+<p>Anche un intero gruppo può essere solido o foro. Si applica una regola semplice:</p>
+<ul><li>Se il gruppo contiene solo solidi (o solo fori), puoi cambiare lo stato dell’intero gruppo e tutte le sue parti lo seguono.</li><li>Se contiene sia solidi sia fori, come un cubo con un foro passante, ogni parte mantiene il proprio stato. L’intero gruppo diventa uno strumento di sottrazione, ma il foro resta un foro.</li></ul>
+</section><section class="guide-part"><h3 id="ridimensionare-un-gruppo-mantenere-fori-e-parti-piccole"><span class="heading-alias" id="resizing-a-group-keeping-holes-and-small-parts"></span>Ridimensionare un gruppo: mantenere fori e parti piccole</h3>
+<p>Quando un gruppo diventa più lungo, più largo o più alto, le sue parti si allungano con lui come se fossero disegnate sulla gomma: i fori rotondi di una piastra diventano ovali e si spostano verso l'interno. Per lasciarli come sono, scegli <strong class="ui">«Mantieni fori e parti piccole»</strong> in <strong class="ui">«Al ridimensionamento»</strong> nelle impostazioni del gruppo; <strong class="ui">«Allunga tutto»</strong> è ciò che fa ogni gruppo finché non lo cambi. Da quel momento, ogni volta che il gruppo cambia dimensione - con le maniglie, nei campi delle misure o con <strong class="ui">«Ridimensiona in percentuale»</strong> - viene ricostruito dalle sue parti secondo un'unica regola, direzione per direzione:</p>
+<ul><li>Una parte che attraversa quasi tutto il gruppo, nove decimi o più, cresce o si riduce con esso e mantiene la distanza da entrambi i lati: la piastra stessa, una parete o l'interno di una scatola, le cui pareti restano spesse come prima.</li><li>Ogni altra parte mantiene la propria dimensione e la distanza dal lato più vicino. Una parte al centro resta al centro.</li></ul>
+<p>Una piastra con un foro a 5 mm da ogni angolo e un'asola al centro, allungata di 40 mm, mantiene quindi i fori rotondi e a 5 mm dagli angoli, e l'asola al centro. Dietro non c'è alcun risolutore di vincoli e non c'è niente da impostare parte per parte: la stessa regola vale per tutte le parti, così sai in anticipo cosa succederà. Una parte ruotata conta con il riquadro che occupa nel gruppo e resta ruotata; un gruppo dentro il gruppo conta come una sola parte. Mentre trascini una maniglia, il gruppo si allunga tutto intero; quando la rilasci, viene ricostruito, nello stesso passo di annullamento. Se il gruppo diventa più piccolo di quanto serve a una parte con la sua distanza, quella parte si riduce con esso come prima, e un messaggio lo segnala. Un gruppo specchiato, rastremato o ritorto, o con raccordi, smussi o una texture propri, allunga sempre tutto. Scelta per un gruppo già allungato, l'impostazione ridispone subito le sue parti.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/group-keep-parts.webp" alt="Una piastra con un foro a 5 mm da ogni angolo e un'asola al centro, allungata di 40 mm con «Mantieni fori e parti piccole»: i fori sono ancora rotondi e a 5 mm dagli angoli, l'asola è ancora al centro." width="1280" height="800" loading="lazy"><figcaption>Una piastra con un foro a 5 mm da ogni angolo e un'asola al centro, allungata di 40 mm con «Mantieni fori e parti piccole»: i fori sono ancora rotondi e a 5 mm dagli angoli, l'asola è ancora al centro.</figcaption></figure>
+</section></section><section class="guide-part"><h2 id="creare-un-insieme"><span class="heading-alias" id="bundling"></span>Creare un insieme</h2>
+<p>A volte vuoi tenere insieme più parti senza fonderle, per esempio un logo bianco su una piastra nera per una stampa multicolore. A questo serve <strong class="ui">«Crea insieme»</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>B</kbd></span>), come in Tinkercad. Un insieme si sposta, ruota e ridimensiona come una forma, ma le sue parti non vengono unite:</p>
+<ul><li>Ogni parte mantiene il suo colore e resta un solido o un foro. Le impostazioni del gruppo libero hanno le stesse schede di un gruppo: <strong class="ui">«Solido»</strong> e <strong class="ui">«Foro»</strong> per l'intero insieme (che mantengono i colori delle parti), <strong class="ui">«Trasparente»</strong> (<kbd>T</kbd>) e <strong class="ui">«Multicolore»</strong> (<span dir="ltr"><kbd>Shift</kbd>+<kbd>M</kbd></span>); con Multicolore disattivato l'insieme si mostra e si esporta in un solo colore. <strong class="ui">«Separa le parti»</strong> scompone l'insieme, come fa <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span>.</li></ul>
+<ul><li>Ogni parte conserva il proprio colore e resta un solido o un foro.</li><li>I fori non sottraggono materiale. Se raggruppi l’insieme con altre parti, i suoi fori sottraggono materiale da quelle parti, ma non dai solidi dello stesso insieme, come in Tinkercad. Puoi quindi riutilizzare, per esempio, un perno insieme al foro che lo affianca.</li><li>Nell’esportazione STL, 3MF o OBJ ogni parte resta un corpo indipendente; in 3MF e OBJ mantiene anche il proprio colore.</li></ul>
+<p><strong class="ui">«Separa gruppo»</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></span>) scioglie l’insieme; <kbd>E</kbd> lo apre per la modifica, come un gruppo. Smussi, raccordi e svuotamento non funzionano su un insieme perché non è un corpo unico: raggruppalo per applicare questi strumenti oppure modifica le parti singolarmente. Se un foro dell’insieme deve sottrarre materiale anche ai solidi che contiene, sciogli l’insieme e raggruppa le parti (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>G</kbd></span>).</p>
+</section><section class="guide-part"><h2 id="intersezione"><span class="heading-alias" id="intersection"></span>Intersezione</h2>
+<p><strong class="ui">«Intersezione booleana»</strong> conserva solo la parte condivisa da due o più corpi. Sovrapponi due forme, selezionale entrambe e fai clic sullo strumento. Per esempio, puoi combinare un cilindro e una scatola per ottenere un pezzo con un lato curvo e uno diritto. Un gruppo viene considerato per la forma che ha, compresi i fori. Se selezioni anche un foro, il risultato è la parte comune a tutti i solidi e a tutti i fori. Se le forme non hanno alcuna parte in comune, non cambia nulla e compare un messaggio. Il primo clic mostra la parte condivisa prima di applicare l’operazione: le forme selezionate diventano trasparenti e la parte comune viene evidenziata in verde. Seleziona e sposta ogni forma separatamente: la parte verde la segue. Un secondo clic su <strong class="ui">«Intersezione booleana»</strong> applica l’intersezione; <kbd>Esc</kbd> chiude l’anteprima. Le forme con troppi triangoli per l’anteprima, come mesh importate di grandi dimensioni, vengono intersecate già al primo clic.</p>
+<p><strong class="ui">«Involucro»</strong> avvolge le forme selezionate in un unico corpo convesso, come se fossero termoretratte: il corpo più piccolo senza rientranze che le contiene tutte. Una semisfera su un cilindro diventa una cupola senza gradino, quattro cilindri agli angoli diventano una scatola con angoli arrotondati, due sfere una capsula. I fori nella selezione vengono poi tagliati dall'involucro. Le parti restano al suo interno: <strong class="ui">«Modifica gruppo»</strong> apre l'involucro come un gruppo, e spostare lì una parte e richiuderlo ricostruisce l'involucro. L'involucro è una mesh, quindi le forme rotonde mostrano sfaccettature, e gli strumenti per gli spigoli funzionano su di esso come su qualsiasi mesh. Quando sono selezionati solo fori, l'involucro è esso stesso un foro: due fori cilindrici tagliano un'asola. Un involucro riempie tutto ciò che è cavo nelle sue parti: un tubo, un cilindro svuotato con <strong class="ui">«Svuota»</strong>, una parte raggruppata con i suoi fori. Attiva <strong class="ui">«Mantieni i fori delle parti»</strong> nelle Proprietà per tenerli aperti: l'involucro riempie allora solo lo spazio tra le parti, e anche una rientranza sul lato di una parte resta.</p>
+<p><strong class="ui">«Taglia-biscotti»</strong> crea un tagliabiscotti dalla selezione: una parete sottile attorno al contorno, alta 15 mm, e un bordo piatto di 2 mm attorno alla sua base, così il tagliabiscotti poggia sul bordo e il pollice ha qualcosa da premere. Seleziona un SVG importato o un corpo da schizzo e ne viene usato il contorno. Un testo disteso dà le curve stesse delle sue lettere. Qualsiasi altra forma, costruita, una mesh importata o più parti, dà ciò su cui poggia: il contorno che il piano di lavoro taglia attraverso di essa, quindi mettila prima sul piano di lavoro. Le parti che si sovrappongono danno un solo contorno attorno a tutte, come se fossero raggruppate; le parti separate danno un tagliabiscotti ciascuna, nello stesso insieme. Il contorno viene specchiato da sinistra a destra: il tagliabiscotti si stampa in piedi sul bordo e si capovolge per tagliare, così un testo o un logo esce dall'impasto nel verso giusto. La cima della parete si restringe in un tagliente largo 0,4 mm. I fori nel contorno, l'interno di una e o di una a, ricevono pareti proprie, così vengono anch'essi tagliati via dal biscotto. Sono un corpo a sé nell'insieme, <strong class="ui">«Pareti interne»</strong>: per avere un testo o un motivo solo impresso nell'impasto invece che tagliato, rendile più basse nelle Proprietà. Con una parete di 15 mm e un impasto spesso 5 mm, pareti interne di 12 mm premono per 2 mm. Le pareti interne più basse della parete esterna hanno la cima piatta invece del tagliente: premono soltanto, e un tagliente lascerebbe punte sottili che si spezzano e solchi che trattengono l'impasto. Dai loro un tagliente nelle Proprietà se lo vuoi. Due ponti sul bordo, dal lato su cui preme la mano, tengono ogni parete interna alla parete che la circonda, distribuiti attorno, larghi 4 mm e alti 3 mm. Ogni ponte poggia con tutta la sua larghezza sulle pareti, al centro di un lato che corre lungo il contorno, e mai attraverso un altro pezzo. Anche i pezzi affiancati, come le lettere di un nome, vengono uniti tra loro, prima i più vicini, così i ponti corrono come una rete attraverso tutti e anche una lettera in mezzo a una parola resta tenuta. Un clic sullo strumento apre una piccola finestra: lì scegli una <strong class="ui">«Piastra»</strong> al posto dei ponti, che riempie l'intero contorno sul lato che premi, è più stabile e aderisce meglio al piano di stampa, ma non permette più di spingere fuori l'impasto da dietro. <strong class="ui">«Raccordi»</strong> mette piccoli raccordi a 45° dove le pareti poggiano sul bordo, sui ponti o sulla piastra, così le parti sottili come il punto di una i non si staccano; sono un corpo a sé nell'insieme. Lì imposti anche di quanto sono più basse le pareti interne e se il contorno viene specchiato; i valori restano per il tagliabiscotti successivo. Cambia la loro altezza nelle Proprietà come quella del bordo. Il tagliabiscotti sostituisce la selezione come un insieme di corpi da schizzo, <strong class="ui">«Modifica gruppo»</strong> lo apre. Parete, pareti interne e bordo sono le modalità di riempimento dello schizzo, una linea all'esterno della sagoma: cambia spessore, altezza o colore di ciascuna nelle Proprietà, e lì anche il <strong class="ui">«Bordo di taglio»</strong> della parete (0 per una cima piatta). Dove una curva stretta non lascia spazio per uno smusso su entrambi i lati, la parete viene smussata solo all'esterno, fino allo stesso tagliente. Dove un contorno non si può smussare affatto - un logo con punte aguzze, un contorno tagliato dai triangoli di un corpo - il tagliente viene invece costruito a gradini fini di 0,1 mm, che uno strato di stampa di 0,2 mm non distingue dalla pendenza; una parete così è una mesh di triangoli invece di un corpo esatto. Per mantenere il contorno come disegnato, specchia di nuovo il tagliabiscotti con <strong class="ui">«Specchia»</strong>, <strong class="ui">«sinistra-destra»</strong>. Funziona anche un'immagine PNG o JPG: importata, viene ricalcata in un corpo da schizzo, e il tagliabiscotti segue quello.</p>
+<p><strong class="ui">«Transizione tra schizzi»</strong> unisce due corpi da schizzo o SVG importati in un unico corpo: il contorno di quello in basso alla base, il contorno di quello in alto in cima, con pareti diritte tra loro. Così nasce un imbuto, un raccordo da quadrato a rotondo o una cornice che si restringe verso l'alto. Metti i due corpi uno sopra l'altro dove devono stare, spostati e ruotati se vuoi, selezionali entrambi e fai clic sullo strumento. Il loft va dalla base del corpo inferiore alla cima di quello superiore.</p>
+</section><section class="guide-part"><h2 id="ritagliare-un-corpo-da-un-altro"><span class="heading-alias" id="cutting-one-body-out-of-another"></span>Ritagliare un corpo da un altro</h2>
+<p>Per parti che devono combaciare, un albero in un manicotto o una vite in un alloggiamento, fai una parte e la ritagli dall'altra. Seleziona i due corpi e clicca su <strong class="ui">«Ritaglia»</strong> nell'area <strong class="ui">«Combina»</strong>, oppure fai clic destro e sceglilo lì. La finestra nomina la parte che resta e il corpo che riceve la cavità; layerling prende il più piccolo come parte, e <strong class="ui">«Scambia i due corpi»</strong> lo inverte. <strong class="ui">«Gioco»</strong> rende la cavità più grande della parte di altrettanto tutto intorno: 0 combacia esattamente, 0,2 mm è un gioco abituale per un accoppiamento stampato. <strong class="ui">«Esegui ritaglio»</strong> ritaglia una copia della parte dall'altro corpo e lascia la parte dov'è. Il risultato è un gruppo: <strong class="ui">«Separa gruppo»</strong> separa di nuovo il taglio. Un gioco richiede che la parte sia un corpo esatto, come per lo strumento <strong class="ui">«Offset»</strong>, che viene usato per questo.</p>
+</section><section class="guide-part"><h2 id="punzonare-un-contorno-attraverso-un-corpo"><span class="heading-alias" id="punching-an-outline-through-a-body"></span>Punzonare un contorno attraverso un corpo</h2>
+<p>Per tagliare il contorno di un corpo dritto attraverso un altro, seleziona prima il punzone e poi il corpo da punzonare, e fai clic su <strong class="ui">«Punzonare»</strong> nell'area <strong class="ui">«Combina»</strong>, oppure sceglilo con un clic destro. I due non devono toccarsi: il punzone può stare ovunque davanti al corpo e conta solo il suo contorno visto lungo la <strong class="ui">«Direzione»</strong>. Una teiera tenuta sopra una piastra lascia così un'apertura a forma di teiera. layerling parte dall'asse lungo il quale il punzone è più lontano dal corpo; X va da sinistra a destra, Y da davanti a dietro, Z verso l'alto. <strong class="ui">«Scambia i due»</strong> inverte i ruoli, e il <strong class="ui">«Gioco»</strong> allarga l'apertura su ogni lato, 0,2 mm per un pezzo stampato che deve passarci. <strong class="ui">«Punzona»</strong> raggruppa l'apertura con il corpo come corpo di schizzo esatto impostato come foro, così <strong class="ui">«Separa gruppo»</strong> la toglie di nuovo; il punzone resta dov'è. Spostalo o ruotalo e punzona di nuovo per un'altra apertura.</p>
+</section><section class="guide-part"><h2 id="modificare-un-gruppo"><span class="heading-alias" id="editing-a-group"></span>Modificare un gruppo</h2>
+<p>Se il foro passante è venuto troppo piccolo, non devi sciogliere il gruppo e ricostruirlo. Seleziona il gruppo e fai clic su <strong class="ui">«Modifica gruppo»</strong> nelle sue impostazioni, sull’icona della cartella nell’elenco degli oggetti oppure premi <kbd>E</kbd>. Anche un doppio clic sul gruppo lo apre, come in Tinkercad; lo stesso vale per un insieme. Se preferisci disattivare questa funzione, usa <strong class="ui">«Il doppio clic apre un gruppo o un insieme»</strong> nelle impostazioni. Una parte inizia a spostarsi solo dopo che il puntatore ha percorso alcuni pixel, così un clic incerto o un doppio clic non la sposta accidentalmente. A questo punto le parti sono separate e puoi modificarle con qualsiasi strumento: ingrandire un foro, spostare un corpo o aggiungere un altro foro.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/open-group.webp" alt="Modifica del gruppo: la barra in basso contiene i comandi Annulla e Fine; l’elenco degli oggetti mostra le singole parti." width="1280" height="800" loading="lazy"><figcaption>Modifica del gruppo: la barra in basso contiene i comandi Annulla e Fine; l’elenco degli oggetti mostra le singole parti.</figcaption></figure>
+<p>In fondo alla vista compare una barra. <strong class="ui">«Fine»</strong> ricostruisce il gruppo mantenendone nome, colore e stato, solido o foro. <strong class="ui">«Annulla»</strong> lo ripristina senza modifiche.</p>
+<p>Se una delle parti è a sua volta un gruppo, puoi modificarlo nello stesso modo e continuare a scendere nei livelli del progetto. La barra mostra dove ti trovi, per esempio “Supporto › Sede vite”. <strong class="ui">«Fine»</strong> e <strong class="ui">«Annulla»</strong> chiudono sempre il gruppo più interno e risalgono di un livello. All’interno di un gruppo puoi modificare solo gli altri gruppi che ne fanno parte; per modificarne un altro, esci prima da quello corrente.</p>
+<p>A differenza di <strong class="ui">«Separa gruppo»</strong>, che scioglie definitivamente il gruppo, la modifica lo conserva: nome e impostazioni restano e puoi sempre tornare indietro con <strong class="ui">«Annulla»</strong>.</p>
+<p>Attenzione: ricostruendo il gruppo si perdono i raccordi e gli smussi applicati all’<strong>intero</strong> gruppo. La barra te lo segnala.</p>
+</section><section class="guide-part"><h2 id="dividere"><span class="heading-alias" id="splitting"></span>Dividere</h2>
+<p><strong class="ui">«Dividi»</strong> nell’area <strong class="ui">«Modifica»</strong> taglia la selezione in due parti lungo un piano, per esempio per separare un pezzo troppo grande per il piatto di stampa o per guardarne l’interno. Seleziona uno o più solidi o fori e fai clic sullo strumento. Un piano traslucido mostra esattamente dove avverrà il taglio; una linea bianca indica dove incontra i corpi. Finché non confermi, non cambia nulla.</p>
+<ul><li><strong><strong class="ui">«Orientamento del piano»</strong>:</strong> <strong>X</strong> esegue un taglio verticale tra sinistra e destra; <strong>Y</strong> tra davanti e dietro; <strong>Z</strong> un taglio orizzontale tra sopra e sotto. Gli assi hanno lo stesso nome che compare nel riquadro Posizione, con Z verso l’alto. Il piano inizia parallelo al piano di lavoro, quindi lungo Z quando il piano di lavoro è sulla piastra di base.</li><li><strong><strong class="ui">«Allinea al piano di lavoro»</strong>:</strong> <strong class="ui">«Parallelo»</strong> dispone il piano di taglio parallelo al piano di lavoro; <strong class="ui">«Trasversale a X»</strong> e <strong class="ui">«Trasversale a Y»</strong> lo dispongono perpendicolarmente, lungo la direzione X o Y del piano. Se l’origine del piano di lavoro attraversa la selezione, il taglio passa da lì; altrimenti passa per il centro. Puoi quindi posizionare il piano di lavoro su una faccia inclinata con <kbd>W</kbd> e tagliare proprio in quel punto, senza regolare i cursori.</li><li><strong><strong class="ui">«Posizione del piano»</strong>:</strong> imposta il punto attraversato dal piano, usando il cursore o digitando un valore. Inizialmente è al centro. Puoi anche trascinare la punta della freccia sul piano per spostarlo lungo di essa a intervalli di 0,1 mm.</li><li><strong><strong class="ui">«Seleziona faccia»</strong></strong>, il pulsante accanto alla posizione, appoggia il piano su una faccia: fai clic sul pulsante e poi sulla faccia. L’orientamento, entrambe le rotazioni e la posizione vengono impostati per corrispondere a essa. Durante la selezione, un piano blu sotto il puntatore mostra quale faccia verrà usata. Puoi scegliere anche una faccia di un corpo non selezionato per allineare il taglio, ma il piano resta all’interno della selezione. <kbd>Esc</kbd> interrompe la scelta e lascia il piano dov’era.</li><li>I due cursori di rotazione sottostanti inclinano il piano attorno agli altri due assi, fino a 180° in entrambe le direzioni, per eseguire un taglio obliquo. Puoi combinarli.</li></ul>
+<p><strong class="ui">«Dividi modello»</strong> o <kbd>Enter</kbd> esegue il taglio; <kbd>Esc</kbd> lo annulla. Durante la scelta di una faccia, il primo <kbd>Esc</kbd> interrompe solo quella selezione. Ogni oggetto attraversato dal piano diventa due corpi chiusi, nominati in base al lato, per esempio “Scatola (Z+)” e “Scatola (Z-)”; gli oggetti non raggiunti restano invariati. Un foro diventa due fori e un corpo svuotato conserva la cavità interna. Le due metà restano nella posizione originale; per stamparle, appoggiale sulla faccia appena tagliata con <strong class="ui">«Appoggia una faccia sul piano»</strong>.</p>
+<p>I <strong class="ui">«Connettori»</strong> riallineano le metà, come fanno gli strumenti di taglio di PrusaSlicer, OrcaSlicer e Bambu Studio. Con <strong class="ui">«Nessuno»</strong>, l'impostazione predefinita, la divisione avviene come descritto sopra. <strong class="ui">«Spine»</strong> fa un foro in ciascuna metà e spine separate che entrano in entrambe: le spine arrivano come terzo corpo, in piedi accanto alle metà sul loro fondo, da stampare con esse – in piedi escono rotonde negli strati come i loro fori, ed è proprio ciò che misura la prova di accoppiamento. <strong class="ui">«Perni»</strong> mette perni rotondi sulla metà il cui nome finisce con un meno, con i fori per loro nell'altra metà. I connettori entrano perpendicolari al piano, comunque sia ruotato, ciascuno con il suo diametro e 1,2 mm di materiale fino a ogni bordo della faccia di taglio, e due di loro al doppio di distanza tra loro. Ogni pezzo separato della faccia di taglio riceve i propri, distribuiti in modo uniforme: <strong class="ui">«Per faccia (0 = automatico)»</strong> dice quanti, e 0 lo lascia alle dimensioni del pezzo, almeno due. Un pezzo troppo piccolo per uno non ne riceve nessuno, e un connettore viene omesso dove una metà è più sottile della profondità del suo foro; il pannello lo dice prima della divisione, e anelli bianchi sul piano mostrano dove andranno. Se non ne entra nessuno, le parti vengono divise senza e la barra di stato lo segnala.</p>
+<ul><li><strong class="ui">«Diametro»</strong> è quello delle spine e dei perni, all'inizio 5 mm.</li><li><strong class="ui">«Profondità in ciascuna metà»</strong> è quanto ogni foro entra nella sua metà. Una spina è lunga il doppio meno 0,6 mm e un perno 0,3 mm meno del suo foro, così non poggiano mai sul fondo di un foro e le metà si chiudono del tutto. Spine e perni hanno un piccolo smusso alle estremità, e ogni foro uno all'imbocco, così un primo strato schiacciato non lo restringe.</li><li><strong class="ui">«Spine su una base staccabile»</strong>, con <strong class="ui">«Spine»</strong>, poggia le spine sciolte su una piastra comune che aderisce al piano, per stampanti il cui piano mobile fa oscillare i pezzi in piedi. Ogni spina poggia su un piccolo dente in una sede della piastra; dopo la stampa piegala avanti e indietro finché si stacca, come il perno della prova di accoppiamento.</li><li><strong class="ui">«Gioco per lato»</strong> è lo spazio tra una spina o un perno e il suo foro. Una volta misurato il gioco della tua stampante con la prova di accoppiamento (nel capitolo sulla stampa), parte da lì, altrimenti da 0,2 mm.</li></ul>
+<p><strong class="ui">«Coda di rondine»</strong> tiene insieme le metà senza colla, come il taglio a coda di rondine di OrcaSlicer: una linguetta che si allarga allontanandosi dalla faccia di taglio sta sulla metà il cui nome finisce con un meno e attraversa la faccia in linea retta, da bordo a bordo; l'altra metà riceve la scanalatura corrispondente, aperta a entrambe le estremità. Fai scorrere le metà l'una nell'altra di lato, lungo la linguetta; una volta dentro non si possono più separare di traverso al taglio. Le linguette seguono il lato lungo della faccia di taglio, e quando un corpo incontra il piano in più pezzi vanno tutte nella stessa direzione, così una metà si infila con un solo movimento. <strong class="ui">«Per faccia (0 = automatico)»</strong> è il numero di linguette affiancate su ogni pezzo; 0 lo lascia alla larghezza del pezzo, una ogni sei larghezze di linguetta, almeno una. Accanto alla sua sommità larga una linguetta tiene metà della propria larghezza e altri 1,2 mm di materiale fino al bordo della faccia di taglio, e due linguette il doppio tra loro. Un pezzo troppo stretto per una linguetta, o troppo corto nel suo senso, non ne riceve nessuna, e una linguetta viene omessa dove l'altra metà è più sottile della profondità della sua scanalatura. Contorni bianchi sul piano mostrano dove andranno: la striscia piena è il piede della linguetta, la linea intorno la sua sommità larga.</p>
+<ul><li><strong class="ui">«Larghezza alla faccia di taglio»</strong> è la larghezza della linguetta dove esce dalla faccia di taglio, 6 mm all'inizio.</li><li><strong class="ui">«Profondità nell'altra metà»</strong> è quanto sporge dalla faccia di taglio nell'altra metà, 4 mm all'inizio. La scanalatura è 0,3 mm più profonda, così le metà si chiudono del tutto.</li><li><strong class="ui">«Angolo dei fianchi»</strong> è quanto ogni fianco si inclina verso l'esterno rispetto alla perpendicolare alla faccia di taglio, da 5° a 30°, 15° all'inizio. Più è grande, più la sommità della linguetta è larga e più tiene.</li><li><strong class="ui">«Direzione (0 = per il lungo)»</strong>: 0 mette le linguette per il lungo, 90 di traverso alla faccia di taglio, e un angolo intermedio le ruota altrettanto.</li><li><strong class="ui">«Gioco per lato»</strong> è lo spazio su ciascun lato tra la linguetta e la sua scanalatura, dalla tua prova di accoppiamento come per le spine. Le estremità della linguetta sono smussate tutto intorno perché trovi la scanalatura, e la scanalatura ha uno smusso all'imbocco.</li></ul>
+<p>Per la stampa appoggia la metà con la scanalatura sulla sua faccia di taglio e stampa la metà con la linguetta al contrario, con la faccia di taglio in alto: i fianchi della linguetta si inclinano allora verso l'esterno solo del loro angolo, e si stampa senza supporti.</p>
+<p>Gli oggetti foro si dividono senza connettori.</p>
+<p>Le metà sono mesh semplici: impostazioni come il numero di lati di un cilindro o le caratteristiche di un testo vengono perse, quindi regolale prima di dividere. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> ripristina l’originale in un solo passaggio. Gli oggetti bloccati o nascosti non possono essere divisi.</p>
+</section><section class="guide-part"><h2 id="separare-le-parti"><span class="heading-alias" id="separating-parts"></span>Separare le parti</h2>
+<p>Se una forma è composta da più elementi separati, come un testo formato da lettere indipendenti, <strong class="ui">«Separa le parti»</strong> li divide in forme autonome. Trovi il comando anche nel menu che si apre facendo clic destro sulla forma.</p>
+<aside class="tip"><p><strong>Suggerimento:</strong> crea sempre i fori un po’ più lunghi della parte che devono attraversare. Se terminano esattamente a filo della faccia, a volte resta una pellicola sottilissima di materiale. Superare la faccia di un millimetro evita il problema.</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/it/select-and-arrange.html"><small>Capitolo precedente</small>Selezionare e disporre</a><a class="next" href="/api/desktop/layerling/ui/it/edges-and-hollowing.html"><small>Capitolo successivo</small>Smussare gli spigoli e svuotare i corpi</a></div>
+      </main>
+    </div>
+    <footer class="note">Questa guida cresce insieme al programma. Se manca qualcosa o trovi un errore, segnalalo nelle <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussioni</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=it" rel="noopener">Sostieni il progetto</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussioni</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Scopri di più su GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Note di rilascio v1.154.1</a></div><p class="trademark">Tinkercad è un marchio di Autodesk, Inc. Layerling è un progetto indipendente, non affiliato ad Autodesk né approvato o sponsorizzato da essa.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Torna all'editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Apri l'editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

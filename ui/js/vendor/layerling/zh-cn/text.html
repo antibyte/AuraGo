@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>文字与弧形文字 - layerling 用户指南</title>
+    <meta name="description" content="用八种字体或你自己的字体创建凸起或凹刻的文字，还可以让它沿圆弧排列，例如硬币、盖子或戒指上的文字。">
+    <link rel="canonical" href="https://layerling.com/zh-cn/text.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/text.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/text.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/text.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/text.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/text.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/text.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/text.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/text.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/tekst.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/text.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/besedilo.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/text.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/text.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/text.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/text.html">
+    <meta property="og:title" content="文字与弧形文字 - layerling 用户指南">
+    <meta property="og:description" content="用八种字体或你自己的字体创建凸起或凹刻的文字，还可以让它沿圆弧排列，例如硬币、盖子或戒指上的文字。">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/zh-cn/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">用户指南</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/zh-cn/search-index.json" data-nothing="未找到结果。" data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="搜索指南" aria-label="搜索指南" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="语言">简体中文</summary><ul><li><a href="/api/desktop/layerling/ui/guide/text.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/text.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/text.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/text.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/text.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/text.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/text.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/text.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/text.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/text.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/besedilo.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/text.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/text.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/text.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/text.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/text.html" hreflang="zh-CN" lang="zh-CN" aria-current="true">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/text.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">打开编辑器</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>编辑器已在另一个标签页中打开，请切换到那里。</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="章节"><h2>章节</h2><p class="print-link"><a href="/api/desktop/layerling/ui/zh-cn/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>打印完整指南</span></a></p><ol><li><a href="/api/desktop/layerling/ui/zh-cn/getting-started.html">快速上手</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/view-and-workplane.html">视图与工作平面</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/shapes.html">放置与调整形状</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/select-and-arrange.html">选择与排列</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/solids-and-holes.html">实体与孔</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/edges-and-hollowing.html">处理边与抽壳实体</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/sketches.html">草图：从轮廓到实体</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/text.html" aria-current="page">文字与弧形文字</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/threads-and-mechanics.html">螺纹、齿轮和其他零件</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/measuring-and-notes.html">测量与备注</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/printing.html">为 3D 打印做准备</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/files-and-saving.html">文件、保存与分享</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/shortcuts.html">键盘快捷键</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/ai-with-mcp.html">用 AI 搭建（MCP）</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/offline-and-install.html">安装为应用、离线使用与自托管</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/videos.html">关于 layerling 的视频</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/tablet-and-touch.html">平板与触控</a></li></ol></nav>
+      <main>
+<h1>文字与弧形文字</h1>
+<p class="lead">用八种字体或你自己的字体创建凸起或凹刻的文字，还可以让它沿圆弧排列，例如硬币、盖子或戒指上的文字。</p>
+<div class="toc"><b>本页内容</b><ul><li><a href="#adding-text">添加文字</a></li><li><a href="#your-own-fonts">你自己的字体</a></li><li><a href="#raised-or-engraved">凸起或凹刻</a></li><li><a href="#stencils-bridges-for-the-middle-of-letters">镂空模板：字母中间部分的连接桥</a></li><li><a href="#outline-silhouette-and-wider">轮廓、剪影与加宽</a></li><li><a href="#layers-and-name-tags">分层与名牌</a></li><li><a href="#icon-tags">图标牌</a></li><li><a href="#qr-codes">二维码</a></li><li><a href="#text-on-a-circular-arc">弧形文字</a></li></ul></div>
+<section class="guide-part"><h2 id="adding-text">添加文字</h2>
+<p>在形状库中选择 <strong class="ui">“文字”</strong> 并放置。在右侧的 <strong class="ui">“文本”</strong> 字段中，输入要显示的内容。下方是各项设置：</p>
+<ul><li><strong><strong class="ui">“字体”</strong>：</strong> 提供八种字体：Multilanguage、Sans、Serif、Script、Monospace、Rounded、Stencil（用直线构成的字母）和 Japanese（Zen Maru Gothic）。新文字默认使用 Sans。每种字体都包含 ä、ö、ü、é 等带重音的字母和 € 符号，也包含假名、常用汉字以及姓名中许多生僻字，例如 澤、槇 和 檜：日文姓名在每种字体和名牌上都能正常显示。首次用到日文字符时才会下载（生僻汉字位于第二个文件，只有文字中用到时才下载），因此这类文字会短暂显示为问号。之后它们会保存在电脑上，从那时起日文离线也能使用。你自己的字体会显示在最上面，见下文<a href="#your-own-fonts">你自己的字体</a>。</li><li><strong><strong class="ui">“字母大小”</strong>：</strong> 从上方看字母的大小；<strong class="ui">“高度”</strong> 决定字母的厚度。</li><li><strong><strong class="ui">“高度”</strong>：</strong> 文字高出表面的距离。</li><li><strong><strong class="ui">“斜角”</strong>：</strong> 将字母边缘做成圆角，看起来更柔和。用 <strong class="ui">“分段”</strong> 决定分成多少段。</li><li><strong><strong class="ui">“字母边缘”</strong>：</strong> 对字母的顶边做圆角或倒角，就像名牌上那样：<strong class="ui">“无”</strong>、<strong class="ui">“圆角”</strong> 或 <strong class="ui">“倒角”</strong>，并设置 <strong class="ui">“边缘尺寸”</strong>（初始为 0.4 mm，最大不超过文字高度）。它比 <strong class="ui">“斜角”</strong> 影响更远，但只到笔画宽度允许的范围：当笔画比尺寸的两倍还窄时，边缘会终止于一个更窄的顶面。底面保持平整，因此单个字母可以之后再粘上去。选择边处理时，它会取代 <strong class="ui">“斜角”</strong>。</li><li><strong>长度：</strong> 一段文字最多可有 250 个字符。字母保持大小，行会按需要变长；要缩短它，就把字母调小。<strong class="ui">“字母边缘”</strong> 仅适用于不超过 40 个字符的文字，因为更长的文字需要几分钟才能算出。</li><li><strong>尺寸：</strong> 与任何形状一样设置这一行的长度和宽度。拖动手柄或输入尺寸。</li><li><strong><strong class="ui">“字距（%）”</strong>：</strong> 在字体原有间距之上增加的字母间距，以字母大小的百分比表示：0 表示保持字体原本的间距，大于 0 时字母分得更开，小于 0 时（最低 -50）更紧凑，你自己的字体常常需要这样。字母大小不变，外框随这一行变化，直线文字和弧形文字都是如此。阿拉伯文和希伯来文的字母相互连写，不应用此间距。</li><li><strong><strong class="ui">“将字母拉伸到外框”</strong>：</strong> 初始为关闭：字母保持原有比例并位于外框中间，因此把外框拉得比文字所需更宽或更深时，外框会比字母大。开启后，字母会在两个方向上拉伸以填满整个外框：大写字母可以变矮或变窄，与 Tinkercad 中一样。它适用于直线文字；弧形文字有自己的字母大小。</li><li><strong><strong class="ui">“自动字距调整”</strong>：</strong> 根据字母本身的形状，把彼此间留有过多空隙的字母对（如 AY、AV、LT 或 To）靠得更近，适用于所有字体，包括你自己的字体。新文本默认开启；在此功能出现之前创建的文本默认关闭，因此已保存设计中的内容不会移动。字母保持大小，框随之调整。适用于直排和弯曲文本，不适用于竖排文本、阿拉伯文、希伯来文或日文。</li><li><strong><strong class="ui">“文字竖排”</strong>：</strong> 把字母从上到下堆叠，每个字母位于一条竖线的中间，用于门框上的标牌或沿笔杆写的名字。外框变为竖直，字母保持大小；<strong class="ui">“字距（%）”</strong> 设定它们之间的间距。在弧形文字上，字母沿圆的左侧排成一列，每个都直立；<strong class="ui">“在右侧”</strong> 把这一列放到右侧。</li></ul>
+<p>文字最初是一个实体。如果想单独处理每个字母，点击 <strong class="ui">“分离部件”</strong>。之后每个字母都是独立的形状。</p>
+<p><strong>多行文字：</strong> 一段文字只有一行。要做多行的标牌或铭牌，请打开设置下方的 <strong class="ui">“文本块”</strong> 卡片：在 <strong class="ui">“行”</strong> 中输入各行，选择 <strong class="ui">“对齐”</strong>（<strong class="ui">“左”</strong>、<strong class="ui">“居中”</strong> 或 <strong class="ui">“右”</strong>）、<strong class="ui">“行距”</strong> 和 <strong class="ui">“下一行（%）”</strong>——设为 80 % 时每行比上一行小五分之一。按钮会把每行做成上一行下方的独立文字，使用此文字的字体、高度和填充；第一行占据此文字的位置。之后每行都可以有自己的大小、字体或颜色。</p>
+<p>文字的边也可以倒角或加圆角，直线文字和弧形文字都可以，见<a href="/api/desktop/layerling/ui/zh-cn/edges-and-hollowing.html">断开边缘与抽壳实体</a>。请使用 0.2 至 0.5 mm 这样的小尺寸，因为字母的笔画很窄。</p>
+</section><section class="guide-part"><h2 id="your-own-fonts">你自己的字体</h2>
+<p>除了八种内置字体，你还可以使用任何自己的字体：电脑上的字体文件，或者在 Chrome 和 Edge 中直接使用电脑上已安装的字体。在 <strong class="ui">“字体”</strong> 底部选择 <strong class="ui">“你自己的字体…”</strong>，会打开 <strong class="ui">“你自己的字体”</strong> 窗口。</p>
+<ul><li><strong><strong class="ui">“选择字体文件…”</strong></strong> 可接受 TrueType 文件（<code>.ttf</code>）、OpenType 文件（<code>.otf</code>）或 WOFF 文件（<code>.woff</code>）。也可以直接把文件拖进窗口。</li><li><strong>在 Windows 上</strong>，已安装的字体放在 Fonts 文件夹（<code>C:\Windows\Fonts</code>）中，浏览器的文件对话框会隐藏它。改为在资源管理器中打开该文件夹，把字体拖到 <strong class="ui">“你自己的字体”</strong> 窗口。仅为当前用户安装的字体位于 <code>%LOCALAPPDATA%\Microsoft\Windows\Fonts</code>，文件对话框会显示这个位置。在 Mac 上，字体位于 <code>/Library/Fonts</code> 和 <code>~/Library/Fonts</code>。</li><li><strong><strong class="ui">“从电脑中选择字体…”</strong></strong> 会列出电脑上已安装的字体。首次使用时，浏览器会询问是否允许 layerling 读取这些字体。用搜索框可以快速找到字体，点击即可选用。</li></ul>
+<p>如果已选中文字，它会立即使用新字体。否则该字体会出现在 <strong class="ui">“字体”</strong> 下的 <strong class="ui">“你自己的字体”</strong> 分组中，窗口里的 <strong class="ui">“使用”</strong> 可将其应用到选中的文字上。自己的字体与内置字体的工作方式相同：弧形文字、边缘倒角和圆角以及 STEP 导出都照常可用。字体缺少的字母会从 Sans 中取用。</p>
+<section class="guide-part"><h3 id="arabic-and-hebrew">阿拉伯文与希伯来文</h3>
+<p>阿拉伯文、波斯文、乌尔都文和希伯来文从右向左书写：第一个字母在最右边；在“Name عربي”这样的混合文字中，只有阿拉伯文单词反向排列，数字保持正常方向。阿拉伯字母按书写规则与相邻字母连写，lam-alef 会形成连字。这需要包含这些字母的字体；内置字体没有。添加一种自己的字体，例如 Windows 上的 Arial、Tahoma 或 Segoe UI，或者 Noto Naskh Arabic、Noto Sans Arabic、Amiri 这样的免费字体。元音符号会落在所属的字母上。弧形文字、轮廓、剪影、分层和名牌都能像处理其他文字一样处理它。</p>
+</section><section class="guide-part"><h3 id="what-works-in-which-browser">各浏览器支持的功能</h3>
+<div class="table-scroll"><table><thead><tr><th>浏览器</th><th>选择字体文件</th><th>使用电脑上的字体</th></tr></thead><tbody><tr><td>电脑上的 Chrome 和 Edge，以及安装版 layerling 应用</td><td>支持</td><td>支持，浏览器询问后即可</td></tr><tr><td>Firefox</td><td>支持</td><td>不支持</td></tr><tr><td>Mac 上的 Safari</td><td>支持</td><td>不支持</td></tr><tr><td>平板和手机</td><td>支持，从设备文件中选择</td><td>不支持</td></tr></tbody></table></div>
+<p>网页不能随意读取已安装的字体。只有 Chrome 和 Edge 具备这项权限，而且仅限于安全页面，即通过 <code>https</code> 访问，例如 layerling.com。当 layerling 通过 <code>http</code> 运行时，例如运行在你自己的服务器上或作为家庭网络中的 Docker 安装，<strong class="ui">“从电脑中选择字体…”</strong> 不会出现；这时请从资源管理器把字体拖过来。在其他浏览器中，从字体文件夹选择字体文件，效果相同。如果你在 Chrome 或 Edge 中拒绝了询问，可以在网站设置中重新允许，入口位于地址栏左侧的挂锁图标后面。</p>
+<p>layerling 无法读取 WOFF2 文件（几乎总能找到 TTF 或 OTF 版本）、字体集合（<code>.ttc</code>，一个文件里含多种字体）或彩色 emoji 字体。对于超大的字体，例如中文字体，layerling 只取前 8000 个字符。可变字体会按其默认设置读取，通常是常规字重。</p>
+<p>有些字体，尤其是手写体和可变字体，用相互重叠的笔画绘制字母。layerling 在读取字体时会把它们合并成一个干净的轮廓，让实体保持可打印。这样得到的字母由许多很短的直线段而不是曲线构成；肉眼看不出来。</p>
+</section><section class="guide-part"><h3 id="where-the-fonts-are-kept">字体保存在哪里</h3>
+<p>你自己的字体保存在<strong>这台电脑的这个浏览器中</strong>。其他浏览器或其他电脑在你也添加之前不会知道它。清除浏览器的网站数据也会清除这些字体。在 <strong class="ui">“你自己的字体”</strong> 窗口中，垃圾桶图标会把字体从浏览器中移除。你的设计不会因此丢失任何东西，下一节会说明原因。</p>
+</section><section class="guide-part"><h3 id="passing-on-designs-with-a-font-of-your-own">传递使用了自定义字体的设计</h3>
+<p>设计<strong>不会保存字体文件</strong>，只保存其文字所用字母的轮廓，历史记录中较早步骤里的文字也是如此。如果文字是“Hello”，随设计一起传递的只有 H、e、l 和 o。设计以任何方式保存都是如此：保存在浏览器中、你自己的服务器上、<code>.lyl</code> 文件中，以及 <strong class="ui">“自定义形状”</strong> 中。</p>
+<p>因此：</p>
+<ul><li><strong>设计在任何地方都能正确打开</strong>，包括没有该字体的电脑。文字看起来一样，可以移动、旋转、缩放和加圆角。</li><li><strong>新字母需要字体。</strong> 如果使用者在没有该字体的情况下输入了设计未携带的字母，layerling 会用 Sans 绘制它。此时在 <strong class="ui">“字体”</strong> 下，字体会标记为 <strong class="ui">“仅设计用到的字母”</strong>。添加字体文件后，所有字母都会恢复。</li><li><strong>导出内容只包含几何体。</strong> STL、3MF、OBJ、STEP 和 SVG 只包含实体和轮廓，不含字体。</li><li><strong>较旧的 layerling 版本</strong>尚不认识自定义字体，会用 Multilanguage 绘制这类文字。</li></ul>
+<p><strong>许可：</strong> 字体受版权保护，其许可条款规定了你可以如何使用。PDF 文件从字体中携带的正是内嵌的字母轮廓，大多数许可允许这样做。但有些商业字体连传递单个字母都禁止。在传递或发布使用自定义字体的设计之前，请检查字体的许可。Google Fonts 等免费字体（大多采用 SIL Open Font License）可以放心传递。对于打印出来的零件或导出的 STL 则无所谓：它们不再包含字体，只有几何体。</p>
+</section></section><section class="guide-part"><h2 id="raised-or-engraved">凸起或凹刻</h2>
+<ul><li><strong>凸起：</strong> 将文字放在表面上，并与实体分组。它会长出来形成浮雕。</li><li><strong>凹刻：</strong> 将文字切换为 <strong class="ui">“孔”</strong>，让它略微伸入表面，再与实体分组。字母就被刻进去了。</li></ul>
+<p>要在侧面放置文字，先把工作平面放到该面上，见<a href="/api/desktop/layerling/ui/zh-cn/view-and-workplane.html">视图与工作平面</a>。</p>
+</section><section class="guide-part"><h2 id="stencils-bridges-for-the-middle-of-letters">镂空模板：字母中间部分的连接桥</h2>
+<p>文字穿透板时，O、A、B 等字母会失去中间部分：它松散地留在字母里并掉出。<strong class="ui">“模板连接桥”</strong> 用小连接桥把它固定在板上，就像镂空模板一样。</p>
+<ol><li>把文字切换为<strong class="ui">“孔”</strong>，让它穿透板，然后选中两者，组合与否均可。</li><li>单击功能区 <strong class="ui">“修改”</strong> 组中的 <strong class="ui">“模板连接桥”</strong>，或右键单击所选对象，或用 <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span> 查找。连接桥会以橙色显示在将要放置的位置。</li><li>设置 <strong class="ui">“桥接宽度”</strong> 和 <strong class="ui">“每个部件的桥接数”</strong>。<strong class="ui">“连接桥高度”</strong> 从板的厚度开始；较矮的连接桥按 <strong class="ui">“位置”</strong> 与板底齐平、位于中间或与板顶齐平。用于喷漆的模板，顶部的连接桥下方会给油漆留出空间。</li><li><strong class="ui">“创建”</strong> 把连接桥与板组合在一起。</li></ol>
+<p>每个连接桥都是普通的长方体：打开组合即可移动、删除或自己添加。以后修改文字时，选中组合并再次单击 <strong class="ui">“模板连接桥”</strong>；新的连接桥会替换旧的。只是凹刻、没有穿透的文字不会得到连接桥，因为那里没有东西会掉出。对于激光切割机或绘图仪，DXF 和 SVG 导出会添加同样的连接桥，参见<a href="/api/desktop/layerling/ui/zh-cn/files-and-saving.html">文件、保存与分享</a>。</p>
+</section><section class="guide-part"><h2 id="outline-silhouette-and-wider">轮廓、剪影与加宽</h2>
+<p>文字不必做成实心字母。属性中的 <strong class="ui">“填充”</strong> 提供了与 Tinkercad 相同的选项：</p>
+<ul><li><strong><strong class="ui">“实心”</strong>：</strong> 字母保持原样。</li><li><strong><strong class="ui">“轮廓”</strong>：</strong> 沿字母轮廓画线，一半在内、一半在外。</li><li><strong><strong class="ui">“外轮廓线”</strong>：</strong> 沿字母外侧画线。</li><li><strong><strong class="ui">“内轮廓线”</strong>：</strong> 沿字母内侧画线。</li></ul>
+<p>选择线条后，列表正下方会出现两项设置：<strong class="ui">“线宽”</strong> 设置线条的粗细，<strong class="ui">“拐角”</strong> 设置线条如何绕过拐角（<strong class="ui">“圆角”</strong>、<strong class="ui">“斜角”</strong> 或 <strong class="ui">“尖角”</strong>）。较少用的设置位于 <strong class="ui">“更多”</strong> 下：<strong class="ui">“剪影（无孔）”</strong> 会略去 O、A 或 e 中的孔，<strong class="ui">“加宽（多色打印底座）”</strong> 让字母保持实心，并沿四周按线宽加粗；相互接触的字母会连成一体。</p>
+<p>使用外侧线、居中线条或“加宽”时，文字的外框会变大，而字母大小保持不变。<strong class="ui">“斜角”</strong> 和 <strong class="ui">“分段”</strong> 仅适用于实心字母。</p>
+</section><section class="guide-part"><h2 id="layers-and-name-tags">分层与名牌</h2>
+<p>用于多色打印的名牌是分层的文字：最上面是字母，下面是用第二种颜色、略宽一些的同样文字，最底层是第三种颜色、不带孔的底板。layerling 一键即可生成：</p>
+<ul><li><strong>新建名牌：</strong> 在形状库中选择 <strong class="ui">“名牌”</strong> 并放置。它显示“Name”，白色字母配红色边框和深色底板。</li><li><strong>从文字生成：</strong> 选中文字，点击其设置顶部的 <strong class="ui">“生成分层”</strong>。</li></ul>
+<p>名牌的所有设置都在设置顶部的 <strong class="ui">“名牌”</strong> 卡片中：</p>
+<ul><li><strong><strong class="ui">“文本”</strong></strong> 和 <strong><strong class="ui">“字体”</strong></strong>，也包括自己的字体。名牌会随文字增长。</li><li><strong><strong class="ui">“字母大小”</strong>：</strong> 大写字母的高度，单位为 mm。所有层都会跟随并保持对齐。</li><li><strong><strong class="ui">“文字竖排”</strong>：</strong> 把名牌竖起来，字母上下排列，所有层一起跟随。</li><li><strong><strong class="ui">“分层”</strong>：</strong> 每层一行，从上到下排列。每行包含颜色（点击色块）、该层比字母宽出多少、高度以及 <strong class="ui">“无孔”</strong>（用于填平 O、A 等字母中的孔）。<strong class="ui">“角”</strong> 设置较宽的层如何绕过字母的拐角：<strong class="ui">“圆角”</strong>、<strong class="ui">“斜角”</strong> 或 <strong class="ui">“尖角”</strong>。最上面一行就是字母本身。<strong>+</strong> 在底部添加一层，<strong>–</strong> 移除最底层。名牌可有两到六层。</li><li><strong><strong class="ui">“钥匙环孔”</strong>：</strong> 在底层加上一个末端为圆形的直舌片，并开一个钥匙圈孔；舌片会随孔一起变大。默认的 3 mm 孔会生成一个宽 6.5 mm、伸出 6.75 mm 的舌片，孔边缘距底层边缘 2 mm。选择 <strong class="ui">“孔径”</strong> 和 <strong class="ui">“侧边”</strong>：<strong class="ui">“左侧”</strong>、<strong class="ui">“右侧”</strong> 或 <strong class="ui">“顶部”</strong>。<strong class="ui">“自由”</strong> 会把孔从名牌上取下，在旁边放一个独立的 <strong class="ui">“钥匙环挂耳”</strong>，颜色和高度与底层相同：这是一个普通形状，你可以用手柄移动和旋转它到名牌需要的任何位置。放好之后，其属性中的 <strong class="ui">“固定到名牌”</strong> 会把它并入最近的名牌，并保持在当前位置：孔会穿过它到达的每一层，耳片并入底层，而且文字或尺寸变化时，两者都会保持在该字母的拐角处。<strong class="ui">“自由”</strong> 会把舌片重新放回原来的位置，以便再次移动。孔会穿过它接触的每一层，改变文字、字母大小或字体时舌片也会跟着移动。<strong class="ui">“沿侧边位置”</strong> 让舌片沿所在边上下移动（在顶边上则是左右移动），直到将要离开该边的位置；0 表示中间。当边的中点正好遇到空隙时（例如 J 旁边），可以用它把舌片移到字母伸出的部位。</li><li><strong><strong class="ui">“字母边缘”</strong>：</strong> 对顶层的字母顶边做圆角或倒角，就像打印出的名牌那样收边：<strong class="ui">“无”</strong>、<strong class="ui">“圆角”</strong> 或 <strong class="ui">“倒角”</strong>，并设置 <strong class="ui">“边缘尺寸”</strong>（初始为 0.4 mm，最大不超过层高）。它适用于所有字体和文字。该边是字母网格的一部分，因此边工具会把这样的文字当作网格处理，对如此精细的文字来说负担很重；请改为在这里选择边处理。</li></ul>
+<p>每次更改都会立即显示。名牌是一个捆绑体：它作为一个整体移动，而每一层仍是各自独立、各具颜色的实体，切片软件进行多色打印正需要如此。要对某一层的边做圆角或倒角，点击 <strong class="ui">“编辑捆绑”</strong> 并选择该层，见<a href="/api/desktop/layerling/ui/zh-cn/edges-and-hollowing.html">断开边缘与抽壳实体</a>。</p>
+<section class="guide-part"><h3 id="many-name-tags-at-once">一次生成多个名牌</h3>
+<p>在 <strong class="ui">“姓名列表”</strong> 中输入姓名，每行一个，最多一百个。下方的按钮会显示将生成多少个名牌，例如“生成 12 个名牌”。每个名牌使用相同的层、字母大小和钥匙圈孔，并且是独立的对象；它们从第一个下方开始按行排列，间距 5 mm。普通文字在其设置靠下的位置也有姓名列表。</p>
+</section></section><section class="guide-part"><h2 id="icon-tags">图标牌</h2>
+<p>图标牌是同样的名牌，只是用 SVG 图标代替字母：一颗心、一朵云、俱乐部的标志。最上面是图标，下面是用第二种颜色、略宽一些的相同轮廓，最底层是不带孔的底板。</p>
+<ul><li><strong>新建图标牌：</strong> 在形状库中选择 <strong class="ui">“图标牌”</strong>。会打开一个小窗口：点击 <strong class="ui">“浏览…”</strong>，选择 SVG、PNG 或 JPG 文件，检查图片，输入图标的 <strong class="ui">“宽度（mm）”</strong>，然后点击 <strong class="ui">“确定”</strong>。图标牌会立在平台中央，分层与新名牌相同。</li><li><strong>从草图实体生成：</strong> 导入的 SVG 或你自己绘制的草图，其设置顶部有 <strong class="ui">“生成分层”</strong>。</li></ul>
+<p>设置顶部的 <strong class="ui">“图标牌”</strong> 卡片包含：</p>
+<ul><li><strong><strong class="ui">“另一个文件…”</strong>：</strong> 用另一个文件（SVG、PNG 或 JPG）的图标替换到图标牌上；分层和宽度保持不变。</li><li><strong><strong class="ui">“宽度”</strong>：</strong> 顶部图标的宽度，单位为 mm。所有层都会跟随并保持对齐。</li><li><strong><strong class="ui">“分层”</strong>：</strong> 各行与名牌相同——颜色、宽出多少、<strong class="ui">“角”</strong>、高度和 <strong class="ui">“无孔”</strong>，以及 <strong>+</strong> 和 <strong>–</strong>，两到六层。最上面一行就是图标本身。</li><li><strong><strong class="ui">“钥匙环孔”</strong>：</strong> 与名牌相同：穿过每一层的钥匙圈孔，底层在图标之外有一个末端为圆形的舌片。<strong class="ui">“孔径”</strong> 和 <strong class="ui">“侧边”</strong> 选择它的大小和位置；<strong class="ui">“自由”</strong> 会生成独立的舌片，与名牌上一样。舌片是按图标轮廓生成的，因此对于轮廓非常参差的图标，请检查它与底板相接的位置。<strong class="ui">“沿侧边位置”</strong> 让舌片沿所在边移动，与名牌上相同。</li><li><strong><strong class="ui">“数量”</strong>：</strong> 想要多少个图标牌，1 到 100。<strong class="ui">“放得下多少就多少”</strong> 会根据设置中所选打印机的平台计算数量，小标志可以铺满一整个平台。下方的按钮会生成它们，间距 5 mm，以平台中央为中心排列；第一个就是图标牌本身。</li></ul>
+<p>SVG 需要闭合轮廓；只有开放线条的图形无法成为图标牌。填充为线条的草图实体会保留线条：线条围出的区域就是图标。</p>
+<p><strong>图片（PNG 或 JPG）</strong> 会被描摹成轮廓，预览中会显示该轮廓。在 <strong class="ui">“描摹依据”</strong> 下选择是 <strong class="ui">“深色部分”</strong> 还是 <strong class="ui">“浅色部分”</strong> 成为图标；初始为非背景的部分。透明像素永远不属于图标。只包含一张图片的 SVG（例如 Inkscape 保存导入的位图时）也以同样方式描摹。轮廓会跟随像素，因此小图片的边缘会比较粗糙：几百像素以上的图片效果最好。<strong class="ui">“另一个文件…”</strong> 会取图片中非背景的部分。</p>
+</section><section class="guide-part"><h2 id="qr-codes">二维码</h2>
+<p>二维码把文字或网址变成手机摄像头可读取的图案：招牌上指向你店铺的链接、杯垫上的 Wi-Fi 名称、钥匙牌上的电话号码。</p>
+<p>在形状库中选择 <strong class="ui">“二维码”</strong>。会打开一个窗口，光标已经在文本字段中：</p>
+<ul><li><strong><strong class="ui">“文字或网址”</strong>：</strong> 二维码的内容。Enter 生成二维码，Shift+Enter 换行。字段下方会显示已用掉多少容量；变音符号和其他特殊字母占两个字节。文字过长时，字段会给出提示。</li><li><strong><strong class="ui">“纠错级别”</strong>：</strong> L、M、Q 或 H。级别越高，二维码局部弄脏或刮花时仍可读取（L 约 7 %，M 15 %，Q 25 %，H 30 %），但同样的文字需要更多模块，因此每个模块会更小。初始选择 M。</li><li><strong><strong class="ui">“构建方式”</strong>：</strong> <strong class="ui">“仅二维码”</strong> 只生成二维码本身，高 4 mm。<strong class="ui">“在底板上凸起”</strong> 把它以 1 mm 的高度放在 3 mm 厚的白色底板上，作为双色捆绑体，这样多色打印会把二维码印成深色、底板印成浅色。<strong class="ui">“雕刻”</strong> 把二维码刻入底板 1 mm 深。</li><li><strong><strong class="ui">“尺寸依据”</strong>：</strong> 输入整个二维码的 <strong class="ui">“宽度”</strong>（初始为 40 mm）或单个模块的尺寸；另一个数值会显示在下方。模块小于 0.8 mm 时会给出警告。这只是针对 0.4 mm 喷嘴的经验法则，并非保证：打印机、材料、颜色和手机都会有影响。</li><li><strong><strong class="ui">“静区（4 个模块）”</strong>：</strong> 扫描器需要二维码四周有一圈四个模块宽的空边。在底板上，这圈空边是底板的一部分；只有底板放在更大的浅色表面上时才可关闭。单独的二维码自身没有空边：请在其四周留出空间。</li><li><strong>高度：</strong> 二维码的高度，或者在底板上为二维码高度或雕刻深度，以及底板厚度。</li></ul>
+<p>预览会显示二维码构建后的样子。<strong class="ui">“确定”</strong> 会把它放到平台中央。</p>
+<p>二维码与其他实体一样：移动、旋转、缩放（保持宽度和深度相同，否则二维码会被拉伸）、分组，或者把它设为孔并与你自己的零件分组，从而在那里刻出二维码。缩放会缩放整个二维码；每个模块始终保持正方形。</p>
+<p>设置顶部的 <strong class="ui">“二维码”</strong> 卡片中保存着文本。修改后点击 <strong class="ui">“重新生成”</strong>：二维码会在原处重新生成，宽度保持当前值。纠错级别、空边和构建方式保持原先的选择；如需其他选择，请从形状库新建二维码。</p>
+<p>打印前用手机扫描一次，打印后再扫描一次。深色配浅色最易读取；深色底板上的浅色二维码并非所有手机都能读取。</p>
+</section><section class="guide-part"><h2 id="text-on-a-circular-arc">弧形文字</h2>
+<p>文字不一定非要排成直线，也可以沿硬币、盖子或戒指的边缘排列。为此提供了 <strong class="ui">“沿圆弧”</strong> 设置。</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/curved-text.webp" alt="文字沿圆周排列。所有字母都立在同一条基线上。" width="1280" height="800" loading="lazy"><figcaption>文字沿圆周排列。所有字母都立在同一条基线上。</figcaption></figure>
+<p>开启后，文字会沿圆周排列。所有字母都立在同一条基线上，与普通文字一样均匀。共有五项设置：</p>
+<ul><li><strong><strong class="ui">“圆弧半径”</strong></strong>（5 至 500 mm）：字母基线所在圆的半径。字母保持原位，只改变弯曲程度。</li><li><strong><strong class="ui">“字宽（%）”</strong></strong>（25 至 400 %）：每个字母绘制的宽度，以其自身宽度的百分比表示。小于 100 字母变窄，大于 100 变宽；高度不变，所占的弧长随之变长或变短。例如在硬币上做高而窄的文字。直排文字则用 <strong class="ui">“将字母拉伸到外框”</strong> 配合外框实现。</li><li><strong><strong class="ui">“字母大小”</strong>：</strong> 字母的高度。它不再取决于形状的宽度。</li><li><strong><strong class="ui">“沿底部”</strong>：</strong> 把文字从圆的顶部移到圆的底部。此时字母的顶部朝向圆心。</li><li><strong><strong class="ui">“上下翻转”</strong>：</strong> 只把字母翻转过来，让你可以从另一侧阅读。文字在圆上的位置不变。</li></ul>
+<p><strong>圆心就是形状的中心。</strong> 因此对齐照常有效：如果把文字与圆柱体或圆环居中对齐，它会正好同心。拉动手柄时，半径和字母大小一起增大，因此文字不会变形。</p>
+<aside class="tip"><p><strong>提示：</strong> 在圆的顶部，字母立在基线外侧；使用 <strong class="ui">“沿底部”</strong> 时它们立在基线内侧，顶部朝向圆心。要让文字正好落在圆盘上，半径加上字母大小应小于圆盘的半径。</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/zh-cn/sketches.html"><small>上一章</small>草图：从轮廓到实体</a><a class="next" href="/api/desktop/layerling/ui/zh-cn/threads-and-mechanics.html"><small>下一章</small>螺纹、齿轮和其他零件</a></div>
+      </main>
+    </div>
+    <footer class="note">本指南随程序一同完善。如有缺漏或错误，请到 <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">讨论区反馈</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=zh-cn" rel="noopener">支持项目</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">讨论区</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">在 GitHub 上了解更多</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">发行说明 v1.154.1</a></div><p class="trademark">Tinkercad 是 Autodesk, Inc. 的商标。layerling 是一个独立项目，与 Autodesk 无关联，也未获其认可或赞助。</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="返回编辑器";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="打开编辑器";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

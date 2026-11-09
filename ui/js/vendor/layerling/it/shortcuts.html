@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Scorciatoie da tastiera - Guida utente di layerling</title>
+    <meta name="description" content="Tutti i tasti a colpo d’occhio, direttamente dall’applicazione, per avere un elenco sempre aggiornato.">
+    <link rel="canonical" href="https://layerling.com/it/shortcuts.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/shortcuts.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/shortcuts.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/shortcuts.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/tastenkuerzel.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/shortcuts.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/shortcuts.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/shortcuts.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/shortcuts.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/sneltoetsen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/shortcuts.html">
+    <link rel="alternate" hreflang="pt-BR" href="https://layerling.com/guia/shortcuts.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/bliznjice.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/shortcuts.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/shortcuts.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/shortcuts.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/shortcuts.html">
+    <meta property="og:title" content="Scorciatoie da tastiera - Guida utente di layerling">
+    <meta property="og:description" content="Tutti i tasti a colpo d’occhio, direttamente dall’applicazione, per avere un elenco sempre aggiornato.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/it/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Guida utente</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/it/search-index.json" data-nothing="Nessun risultato." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Cerca nella guida" aria-label="Cerca nella guida" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Lingua">Italiano</summary><ul><li><a href="/api/desktop/layerling/ui/guide/shortcuts.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/shortcuts.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/shortcuts.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/shortcuts.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/shortcuts.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/shortcuts.html" hreflang="it" lang="it" aria-current="true">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/shortcuts.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/sneltoetsen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/shortcuts.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/shortcuts.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/shortcuts.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/bliznjice.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/shortcuts.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/shortcuts.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/shortcuts.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/shortcuts.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/shortcuts.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/shortcuts.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Apri l'editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>L'editor è già aperto in un'altra scheda: passa semplicemente a quella.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Capitoli"><h2>Capitoli</h2><p class="print-link"><a href="/api/desktop/layerling/ui/it/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Guida completa da stampare</span></a></p><ol><li><a href="/api/desktop/layerling/ui/it/getting-started.html">Primi passi</a></li><li><a href="/api/desktop/layerling/ui/it/view-and-workplane.html">Vista e piano di lavoro</a></li><li><a href="/api/desktop/layerling/ui/it/shapes.html">Inserire e modificare le forme</a></li><li><a href="/api/desktop/layerling/ui/it/select-and-arrange.html">Selezionare e disporre</a></li><li><a href="/api/desktop/layerling/ui/it/solids-and-holes.html">Solidi e fori</a></li><li><a href="/api/desktop/layerling/ui/it/edges-and-hollowing.html">Smussare gli spigoli e svuotare i corpi</a></li><li><a href="/api/desktop/layerling/ui/it/sketches.html">Schizzi: dal contorno al corpo</a></li><li><a href="/api/desktop/layerling/ui/it/text.html">Testo e scritte curve</a></li><li><a href="/api/desktop/layerling/ui/it/threads-and-mechanics.html">Filettature, ingranaggi e altri componenti</a></li><li><a href="/api/desktop/layerling/ui/it/measuring-and-notes.html">Misurazioni e annotazioni</a></li><li><a href="/api/desktop/layerling/ui/it/printing.html">Preparare la stampa 3D</a></li><li><a href="/api/desktop/layerling/ui/it/files-and-saving.html">File, salvataggio e condivisione</a></li><li><a href="/api/desktop/layerling/ui/it/shortcuts.html" aria-current="page">Scorciatoie da tastiera</a></li><li><a href="/api/desktop/layerling/ui/it/ai-with-mcp.html">Progettare con un’IA (MCP)</a></li><li><a href="/api/desktop/layerling/ui/it/offline-and-install.html">Installare come app, lavorare offline e ospitare layerling</a></li><li><a href="/api/desktop/layerling/ui/it/videos.html">Video su layerling</a></li><li><a href="/api/desktop/layerling/ui/it/tablet-and-touch.html">Tablet e comandi touch</a></li></ol></nav>
+      <main>
+<h1>Scorciatoie da tastiera</h1>
+<p class="lead">Tutti i tasti a colpo d’occhio, direttamente dall’applicazione, per avere un elenco sempre aggiornato.</p>
+<div class="toc"><b>In questa pagina</b><ul><li><a href="#ricerca-dei-comandi">Ricerca dei comandi</a></li><li><a href="#i-tuoi-tasti">I tuoi tasti</a></li><li><a href="#guida-interattiva">Guida interattiva</a></li></ul></div>
+<p>Le scorciatoie funzionano quando il piano di lavoro è attivo. Mentre scrivi in un campo, non interferiscono con la digitazione. Su Mac, <kbd>Cmd</kbd> sostituisce <kbd>Ctrl</kbd> ovunque sia indicato in questo capitolo.</p>
+<p>Nell’editor, <strong class="ui">«Scorciatoie da tastiera»</strong> nell’area <strong class="ui">«Aiuto»</strong> apre lo stesso elenco in una finestra. Il pulsante di stampa nella finestra (<strong class="ui">«Stampa o salva come PDF»</strong>) stampa l’elenco da solo, in bianco e nero, su un unico lato di un foglio A4 o Letter, disposto in tre colonne: puoi tenerlo a portata di mano come promemoria. La finestra di stampa del browser permette anche di salvarlo in PDF.</p>
+<p>La casella in cima alla finestra cerca nell’elenco: tiene solo le scorciatoie la cui frase, il cui gruppo o i cui tasti contengono ogni parola scritta, così &quot;ctrl+z&quot; lascia solo quelle righe. Maiuscole e accenti non contano, e una sola lettera o cifra trova quel tasto e le parole che iniziano con essa. La X in fondo alla casella la svuota; con la casella vuota torna l’elenco intero. Il pulsante di stampa stampa ciò che mostra la finestra, quindi dopo una ricerca stampa solo le scorciatoie trovate.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/shortcuts.webp" alt="La finestra delle scorciatoie da tastiera nell’editor." width="1280" height="800" loading="lazy"><figcaption>La finestra delle scorciatoie da tastiera nell’editor.</figcaption></figure>
+<section class="guide-part"><h2 id="ricerca-dei-comandi"><span class="heading-alias" id="command-search"></span>Ricerca dei comandi</h2>
+<p>Non trovi uno strumento? Premi <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span> oppure fai clic sulla lente d’ingrandimento nell’area <strong class="ui">«Aiuto»</strong>, poi digita ciò che cerchi: uno strumento («raccordo», «specchia»), una forma («cilindro») o un comando («esporta», «annulla»). Spostati con i tasti freccia e premi <kbd>Enter</kbd>, oppure fai clic sul risultato.</p>
+<ul><li>La ricerca riconosce sia il termine inglese sia quello tedesco e non distingue maiuscole e dieresi: «aushoehlen» trova <strong class="ui">«Svuota»</strong>.</li><li>Ogni risultato mostra i tasti che eseguono la stessa operazione e il gruppo della barra degli strumenti in cui si trova, così puoi imparare dove cercarlo.</li><li>Le voci disattivate non sono disponibili in quel momento, spesso perché non hai selezionato nulla. Restano nell’elenco, così la ricerca ti indica comunque dove si trova lo strumento.</li></ul>
+<p>Anche la guida che stai leggendo ha una casella di ricerca in cima a ogni pagina: digita una o due parole e verranno elencate le sezioni che le contengono tutte, con i termini corrispondenti evidenziati. Fai clic su una sezione oppure premi <kbd>Enter</kbd> per aprire la prima. La pagina che si apre evidenzia ogni punto in cui compaiono le tue parole e scorre fino al primo in quella sezione; <kbd>Esc</kbd> o un clic su un'evidenziazione le rimuove.</p>
+<ul><li>Il nome di una forma la aggiunge al piano di lavoro, proprio come se la scegliessi dal menu delle forme.</li><li>Se il campo è vuoto, in cima compaiono i comandi usati più di recente.</li><li>Se cerchi il nome di un corpo del progetto, la ricerca lo trova e lo seleziona: è utile quando il progetto contiene molti pezzi. I corpi compaiono solo dopo che inizi a digitare.</li><li>Anche una forma personalizzata salvata si trova dal nome, appena digiti, e un clic la inserisce nel progetto come nel pannello delle forme.</li><li>La ricerca funziona anche in modalità schizzo, con gli strumenti per gli schizzi.</li></ul>
+</section><section class="guide-part"><h2 id="i-tuoi-tasti"><span class="heading-alias" id="your-own-keys"></span>I tuoi tasti</h2>
+<p>Ogni comando della ricerca comandi può andare su un tasto tuo: uno strumento che usi di continuo, una forma, <strong class="ui">«Centra sul piano di lavoro»</strong> o <strong class="ui">«Apri il pannello delle forme»</strong>.</p>
+<ol><li>Apri <strong class="ui">«Scorciatoie da tastiera»</strong> e fai clic su <strong class="ui">«Aggiungi un tasto»</strong> sotto <strong class="ui">«I tuoi tasti»</strong>, in alto nella finestra.</li><li>Digita qualche lettera del comando e fai clic su di esso, oppure premi <kbd>Enter</kbd> per il primo.</li><li>Premi il tasto che vuoi, da solo o con <kbd>Ctrl</kbd>, <kbd>Alt</kbd> o <kbd>Shift</kbd>. Lettere, cifre e i tasti da F1 a F12 possono portare un comando.</li></ol>
+<p>Un tasto che l’editor usa già, uno che il browser tiene per sé (come <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>W</kbd></span>) o uno dei tuoi tasti viene rifiutato, e la finestra dice a cosa serve. Fai clic su un tasto nell’elenco per cambiarlo, sulla X accanto per rimuoverlo, oppure su <strong class="ui">«Rimuovi tutti i miei tasti»</strong> per ricominciare.</p>
+<ul><li>Il tasto avvia il comando proprio come la ricerca comandi. Se al momento non può partire, di solito perché non è selezionato nulla, lo dice la barra di stato.</li><li>I tuoi tasti compaiono accanto ai loro comandi nella ricerca comandi e nell’elenco stampato.</li><li>Restano in questo browser, come il tema. Un tasto per uno strumento dello schizzo funziona in modalità schizzo, uno per l’editor 3D fuori da essa.</li><li>Mentre scrivi in un campo, i tuoi tasti si fanno da parte come tutti gli altri.</li></ul>
+</section><section class="guide-part"><h2 id="guida-interattiva"><span class="heading-alias" id="interactive-help"></span>Guida interattiva</h2>
+<p>Non sai dove trovare le informazioni su un pulsante o un campo? Lascia che sia l’applicazione a indicartelo. Fai clic sul punto interrogativo nell’area <strong class="ui">«Aiuto»</strong> oppure premi <span dir="ltr"><kbd>Shift</kbd>+<kbd>F1</kbd></span>. Il puntatore diventa un punto interrogativo e l’elemento sotto di esso viene evidenziato.</p>
+<ul><li>Fai clic su un pulsante, un campo, un interruttore, una maniglia, un gruppo della barra o sulla barra del titolo di una finestra. L’elemento <strong>non</strong> esegue la sua normale funzione: si apre invece una piccola finestra con il nome dell’elemento, un breve riepilogo della sezione pertinente della guida, fino a due altri riferimenti e <strong class="ui">«Apri nella guida»</strong>.</li><li>La guida riguarda l’elemento che hai indicato, non l’intera finestra in cui si trova. Se un elemento non ha un nome proprio, viene usato quello dell’elemento più vicino; all’interno di una finestra, in mancanza di un riferimento specifico, viene usato il punto interrogativo della finestra.</li><li><strong class="ui">«Apri nella guida»</strong> apre la guida in una nuova scheda direttamente alla sezione pertinente, evidenziata a colori dal titolo fino alla fine: puoi vedere subito dove inizia e dove termina.</li><li>Se la guida non contiene informazioni sull’elemento, la finestra te lo segnala e propone <strong class="ui">«Cerca nella guida»</strong>.</li><li>Premi <kbd>Esc</kbd> o fai di nuovo clic sul punto interrogativo per uscire dalla modalità. Sugli schermi tattili non c’è il passaggio del puntatore: tocca un elemento per aprire direttamente la finestra informativa.</li></ul>
+<p>Come le altre finestre, anche questa si sposta trascinandola dalla barra del titolo. L’applicazione trova la sezione in base al nome dell’elemento — l’etichetta di un pulsante o il nome di un campo — perché nella guida i pulsanti sono indicati con lo stesso nome usato nell’applicazione. La ricerca avviene con la stessa funzione disponibile in cima alle pagine della guida, nella lingua selezionata, e tutto funziona nel browser.</p>
+</section><section class="guide-part"><h2 id="selezione">Selezione</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Esc</kbd></td><td>Deseleziona tutto</td></tr><tr><td><kbd>Canc</kbd> oppure <kbd>Backspace</kbd></td><td>Elimina la selezione</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span></td><td>Seleziona tutte le forme visibili</td></tr><tr><td><span dir="ltr"><kbd>Maiusc</kbd>+<kbd>Clic</kbd></span></td><td>Aggiungi o rimuovi elementi dalla selezione</td></tr><tr><td><kbd>Clic destro</kbd></td><td>Menu con i comandi più usati per la selezione</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="appunti">Appunti</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>C</kbd></span></td><td>Copia</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span></td><td>Taglia</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>V</kbd></span></td><td>Incolla</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span></td><td>Duplica</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="cronologia">Cronologia</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span></td><td>Annulla</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Maiusc</kbd>+<kbd>Z</kbd></span> oppure <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Y</kbd></span></td><td>Ripeti</td></tr><tr><td><kbd>← / →</kbd> oppure <kbd>Wheel</kbd></td><td>Nella cronologia: passa allo stato precedente o successivo</td></tr><tr><td><kbd>PgUp / PgDn</kbd></td><td>Nella vista cronologia: dieci stati prima o dopo</td></tr><tr><td><kbd>Home / End</kbd></td><td>Nella vista cronologia: stato più vecchio o quello attuale</td></tr><tr><td><kbd>Esc</kbd></td><td>Nella cronologia: torna allo stato corrente</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="file">File</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>I</kbd></span></td><td>Apri o chiudi la finestra di importazione</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>E</kbd></span></td><td>Apri o chiudi la finestra di esportazione</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>S</kbd></span></td><td>Salva il progetto nel relativo file</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="raggruppamento-e-visibilita">Raggruppamento e visibilità</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>G</kbd></span></td><td>Raggruppa</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>B</kbd></span></td><td>Crea insieme (mantiene unite le parti senza fonderle)</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Maiusc</kbd>+<kbd>G</kbd></span></td><td>Separa il gruppo o la raccolta</td></tr><tr><td><kbd>E</kbd></td><td>Modifica il gruppo selezionato</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span></td><td>Blocca o sblocca la selezione</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Maiusc</kbd>+<kbd>L</kbd></span></td><td>Blocca o sblocca solo la forma: il pezzo si sposta, ruota e raggruppa ancora</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>H</kbd></span></td><td>Nascondi la selezione</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Maiusc</kbd>+<kbd>H</kbd></span></td><td>Mostra tutti gli elementi nascosti</td></tr><tr><td><span dir="ltr"><kbd>Maiusc</kbd>+<kbd>N</kbd></span></td><td>Mostra o nascondi note e punti</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Maiusc</kbd>+<kbd>O</kbd></span></td><td>Mostra o nascondi l'elenco degli oggetti</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="modifica-della-forma-della-selezione">Modifica della forma della selezione</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>H</kbd></td><td>Trasforma la selezione in un foro</td></tr><tr><td><kbd>S</kbd></td><td>Ritrasforma la selezione in un solido</td></tr><tr><td><kbd>T</kbd></td><td>Rendi trasparente la selezione o ripristinane l'opacità</td></tr><tr><td><span dir="ltr"><kbd>Maiusc</kbd>+<kbd>M</kbd></span></td><td>Multicolore per il gruppo selezionato: ogni parte con il proprio colore oppure un unico colore per tutte</td></tr><tr><td><kbd>M</kbd></td><td>Modalità specchio</td></tr><tr><td><kbd>B</kbd></td><td>Strumento di arrotondamento per il corpo selezionato (premi di nuovo per chiuderlo)</td></tr><tr><td><span dir="ltr"><kbd>Maiusc</kbd>+<kbd>B</kbd></span></td><td>Strumento smusso per il corpo selezionato (premi di nuovo per chiuderlo)</td></tr><tr><td><kbd>L</kbd></td><td>Modalità allineamento</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>Clic</kbd></span></td><td>Su un punto di allineamento: uguaglia la dimensione invece di spostare</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>Clic</kbd></span></td><td>Sul punto della spaziatura uguale: digita la distanza</td></tr><tr><td><kbd>D</kbd></td><td>Posa la selezione sul piano di lavoro</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>D</kbd></span></td><td>Posa la selezione come un pezzo unico, le parti mantengono le altezze tra loro</td></tr><tr><td><kbd>C</kbd></td><td>Solleva la selezione e posala su una faccia (come Cruise in Tinkercad)</td></tr><tr><td><kbd>N</kbd></td><td>Inserisci una nota</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="spostamento-e-rotazione">Spostamento e rotazione</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>← / → / ↑ / ↓</kbd></td><td>Sposta di un passo della griglia, seguendo l'orientamento della vista</td></tr><tr><td><span dir="ltr"><kbd>Maiusc</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>Sposta di cinque passi della griglia</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>Sposta di 1/5 dell'intervallo della griglia</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>↑ / ↓</kbd></span></td><td>Solleva o abbassa la selezione</td></tr><tr><td><kbd>R</kbd></td><td>Ruota di 45°</td></tr><tr><td><span dir="ltr"><kbd>Maiusc</kbd>+<kbd>R</kbd></span></td><td>Ruota di 22,5°</td></tr><tr><td><kbd>Maiusc</kbd></td><td>Tieni premuto durante il trascinamento: sposta solo lungo X o Y</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>Trascina</kbd></span></td><td>Trascina una copia lasciando l'originale al suo posto</td></tr><tr><td><kbd>Alt</kbd></td><td>Premi una volta durante il trascinamento per sospendere l'aggancio alle altre forme</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>Enter</kbd></span></td><td>Inserendo una dimensione accanto alla forma, ingrandisce dal centro anziché dal bordo opposto</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="vista-e-piano-di-lavoro">Vista e piano di lavoro</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>1 – 6</kbd></td><td>Le sei viste standard</td></tr><tr><td><span dir="ltr"><kbd>Maiusc</kbd>+<kbd>1 – 6</kbd></span></td><td>Vista standard con zoom sulla selezione</td></tr><tr><td><kbd>7 / 8 / 9 / 0</kbd></td><td>Vai alla vista salvata sotto quel tasto</td></tr><tr><td><span dir="ltr"><kbd>Maiusc</kbd>+<kbd>7 / 8 / 9 / 0</kbd></span></td><td>Salva la vista - rotazione, spostamento e zoom - per questo progetto</td></tr><tr><td><kbd>← / → / ↑ / ↓</kbd></td><td>Ruota la vista di 15° quando non è selezionato nulla</td></tr><tr><td><span dir="ltr"><kbd>Maiusc</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>Ruota la vista di 90° quando non è selezionato nulla</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>Sposta la vista quando non è selezionato nulla</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Maiusc</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>Sposta la vista più lontano quando non è selezionato nulla</td></tr><tr><td><kbd>Home</kbd></td><td>Adatta l'intera scena alla vista</td></tr><tr><td><kbd>F</kbd> oppure <span dir="ltr"><kbd>Maiusc</kbd>+<kbd>F</kbd></span></td><td>Ingrandisci la selezione</td></tr><tr><td><kbd>O</kbd></td><td>Proiezione ortogonale o prospettica</td></tr><tr><td><kbd>Q</kbd></td><td>Nascondi o mostra le misure e le distanze attorno alla selezione</td></tr><tr><td><kbd>+</kbd> oppure <kbd>−</kbd></td><td>Ingrandisci o riduci</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>1 – 0</kbd></span></td><td>Scegliere il passo di aggancio: la voce con quel numero nel menu</td></tr><tr><td><kbd>,</kbd> oppure <kbd>.</kbd></td><td>Griglia di aggancio di un passo più fine o più grossa</td></tr><tr><td><kbd>Clic centrale</kbd></td><td>Menu della griglia di aggancio proprio sul puntatore</td></tr><tr><td><kbd>W</kbd></td><td>Posiziona un piano di lavoro</td></tr><tr><td><span dir="ltr"><kbd>Maiusc</kbd>+<kbd>W</kbd></span></td><td>Posizionalo sulla faccia selezionata</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>W</kbd></span></td><td>Riportalo sulla piastra di base</td></tr><tr><td><kbd>P</kbd></td><td>Guarda perpendicolarmente al piano di lavoro</td></tr><tr><td><kbd>Maiusc</kbd></td><td>Tieni premuto durante il posizionamento per invertire la direzione</td></tr><tr><td><kbd>Esc</kbd></td><td>Esci dalla modalità piano di lavoro o misurazione</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="guida">Guida</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span></td><td>Apri la ricerca comandi</td></tr><tr><td><span dir="ltr"><kbd>Maiusc</kbd>+<kbd>F1</kbd></span></td><td>Attiva o disattiva la guida interattiva</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="modalita-schizzo">Modalità schizzo</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span></td><td>Apri la ricerca comandi</td></tr><tr><td><span dir="ltr"><kbd>Maiusc</kbd>+<kbd>F1</kbd></span></td><td>Attiva o disattiva la guida interattiva</td></tr><tr><td><kbd>Esc</kbd></td><td>Posa lo strumento (torna a Seleziona), poi deseleziona tutto</td></tr><tr><td><kbd>Canc</kbd> oppure <kbd>Backspace</kbd></td><td>Elimina l'elemento selezionato</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>C</kbd></span></td><td>Copia</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span></td><td>Taglia</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>V</kbd></span></td><td>Incolla</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span></td><td>Duplica</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span></td><td>Annulla</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Maiusc</kbd>+<kbd>Z</kbd></span> oppure <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Y</kbd></span></td><td>Ripeti</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span></td><td>Seleziona tutti i punti e le linee</td></tr><tr><td><kbd>R</kbd></td><td>Ruota uno schizzo chiuso di 45°</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span></td><td>Blocca o sblocca il contorno selezionato o l'immagine di riferimento</td></tr><tr><td><kbd>N</kbd></td><td>Inserisci una nota</td></tr><tr><td><span dir="ltr"><kbd>Maiusc</kbd>+<kbd>N</kbd></span></td><td>Mostra o nascondi note e punti</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>Sposta la vista quando non è selezionato nulla</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Maiusc</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>Sposta la vista più lontano quando non è selezionato nulla</td></tr><tr><td><kbd>Home</kbd></td><td>Adatta l'intero schizzo alla vista</td></tr><tr><td><kbd>F</kbd> oppure <span dir="ltr"><kbd>Maiusc</kbd>+<kbd>F</kbd></span></td><td>Ingrandisci la selezione nello schizzo</td></tr><tr><td><kbd>+</kbd> oppure <kbd>−</kbd></td><td>Ingrandisci o riduci lo schizzo</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>1 – 0</kbd></span></td><td>Scegliere il passo di aggancio: la voce con quel numero nel menu</td></tr><tr><td><kbd>,</kbd> oppure <kbd>.</kbd></td><td>Griglia di aggancio di un passo più fine o più grossa</td></tr><tr><td><kbd>Clic centrale</kbd></td><td>Menu della griglia di aggancio proprio sul puntatore</td></tr><tr><td><span dir="ltr"><kbd>Alt</kbd>+<kbd>Enter</kbd></span></td><td>Nel campo della lunghezza di una linea: estendi in entrambe le direzioni</td></tr><tr><td><kbd>← / → / ↑ / ↓</kbd> oppure <span dir="ltr"><kbd>Maiusc</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>Sposta i punti, le linee o l'immagine selezionati di un passo della griglia (Maiusc: passo più ampio, Alt: un quinto)</td></tr><tr><td><kbd>← / → / ↑ / ↓</kbd> oppure <span dir="ltr"><kbd>Maiusc</kbd>+<kbd>← / → / ↑ / ↓</kbd></span></td><td>Sposta di un passo della griglia il punto di controllo della curva selezionato (Maiusc: passo più ampio)</td></tr><tr><td><kbd>1</kbd> oppure <kbd>2</kbd> oppure <kbd>3</kbd> oppure <kbd>4</kbd> oppure <kbd>5</kbd></td><td>Scegli uno strumento di disegno: 1 Linea, 2 Curva di Bézier, 3 Curva uniforme, 4 Aggiungi o rimuovi punti, 5 Mano libera (quando non stai disegnando una linea)</td></tr><tr><td><kbd>Maiusc</kbd></td><td>Durante il disegno: aggancia la nuova linea a incrementi di 15°</td></tr><tr><td><kbd>Maiusc</kbd></td><td>Durante il trascinamento: vincola lo spostamento a un solo asse</td></tr><tr><td><kbd>0-9</kbd> oppure <kbd>&lt;</kbd> oppure <kbd>Tab</kbd> oppure <kbd>Enter</kbd></td><td>Durante il disegno: digita la lunghezza, « &lt; » o Tab per l'angolo; Invio conferma il punto</td></tr></tbody></table></div>
+</section><section class="guide-part"><h2 id="smussi-e-raccordi">Smussi e raccordi</h2>
+<div class="table-scroll"><table class="keys"><tbody><tr><td><kbd>Enter</kbd></td><td>Applica l'anteprima</td></tr><tr><td><kbd>Esc</kbd></td><td>Annulla l'anteprima</td></tr></tbody></table></div></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/it/files-and-saving.html"><small>Capitolo precedente</small>File, salvataggio e condivisione</a><a class="next" href="/api/desktop/layerling/ui/it/ai-with-mcp.html"><small>Capitolo successivo</small>Progettare con un’IA (MCP)</a></div>
+      </main>
+    </div>
+    <footer class="note">Questa guida cresce insieme al programma. Se manca qualcosa o trovi un errore, segnalalo nelle <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussioni</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=it" rel="noopener">Sostieni il progetto</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussioni</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Scopri di più su GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Note di rilascio v1.154.1</a></div><p class="trademark">Tinkercad è un marchio di Autodesk, Inc. Layerling è un progetto indipendente, non affiliato ad Autodesk né approvato o sponsorizzato da essa.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Torna all'editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Apri l'editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

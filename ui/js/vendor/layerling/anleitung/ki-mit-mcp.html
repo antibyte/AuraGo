@@ -4,13 +4,25 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Mit einer KI bauen (MCP) - layerling Anleitung</title>
-    <meta name="description" content="Wie ein KI-Assistent wie Claude oder Codex in deinem geöffneten Editor Formen anlegt, ändert, gruppiert und Bilder der Ansicht aufnimmt.">
+    <meta name="description" content="Wie ein KI-Assistent wie Gemini, Claude oder Codex in deinem geöffneten Editor Formen anlegt, ändert, gruppiert und Bilder der Ansicht aufnimmt.">
     <link rel="canonical" href="https://layerling.com/anleitung/ki-mit-mcp.html">
     <link rel="alternate" hreflang="en" href="https://layerling.com/guide/ai-with-mcp.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/ai-with-mcp.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/ai-with-mcp.html">
     <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/ki-mit-mcp.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/ai-with-mcp.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/ai-with-mcp.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/ai-with-mcp.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/ai-with-mcp.html">
     <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/ai-met-mcp.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/ai-with-mcp.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/ai-z-mcp.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/ai-with-mcp.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/ai-with-mcp.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/ai-with-mcp.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/ai-with-mcp.html">
     <meta property="og:title" content="Mit einer KI bauen (MCP) - layerling Anleitung">
-    <meta property="og:description" content="Wie ein KI-Assistent wie Claude oder Codex in deinem geöffneten Editor Formen anlegt, ändert, gruppiert und Bilder der Ansicht aufnimmt.">
+    <meta property="og:description" content="Wie ein KI-Assistent wie Gemini, Claude oder Codex in deinem geöffneten Editor Formen anlegt, ändert, gruppiert und Bilder der Ansicht aufnimmt.">
     <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
     <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
     <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
@@ -60,6 +72,7 @@ a { color: var(--accent); }
 .guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
 .guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
 .guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
 .editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
 .editor-elsewhere[hidden] { display: none; }
 .bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
@@ -89,26 +102,51 @@ li { margin-bottom: 4px; }
 strong.ui { font-weight: 700; white-space: nowrap; }
 kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
 code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
-pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
 pre code { padding: 0; background: none; }
 figure { margin: 22px 0; }
 figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
 figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
 aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
 aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
 .table-scroll { overflow-x: auto; margin: 0 0 16px; }
 table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
 table.keys { table-layout: fixed; }
 table.keys td:first-child { width: 42%; }
-th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
 th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
 .toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
 .toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
-.toc ul { margin: 0; padding-left: 18px; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
 .pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
 .pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
 .pager a small { display: block; color: var(--muted); font-size: 12px; }
-.pager a.next { margin-left: auto; text-align: right; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
 .cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
 .cards a:hover { border-color: var(--accent); }
@@ -131,83 +169,159 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
   .bar-inner { flex-wrap: wrap; }
   .guide-search { order: 5; flex: 1 1 100%; }
 }
-@media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
 </style>
   </head>
   <body>
     <header class="bar"><div class="bar-inner">
       <a class="brand" href="/api/desktop/layerling/ui/anleitung/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Anleitung</span></span></a>
       <form class="guide-search" id="guide-search" role="search" data-index="/anleitung/search-index.json" data-nothing="Nichts gefunden." data-umlauts="true"><input type="search" id="guide-search-input" name="q" placeholder="Anleitung durchsuchen" aria-label="Anleitung durchsuchen" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
-      <details class="lang-menu"><summary aria-label="Sprache">Deutsch</summary><ul><li><a href="/api/desktop/layerling/ui/guide/ai-with-mcp.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ki-mit-mcp.html" hreflang="de" lang="de" aria-current="true">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/handleiding/ai-met-mcp.html" hreflang="nl" lang="nl">Nederlands</a></li></ul></details>
+      <details class="lang-menu"><summary aria-label="Sprache">Deutsch</summary><ul><li><a href="/api/desktop/layerling/ui/guide/ai-with-mcp.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/ai-with-mcp.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/ai-with-mcp.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ki-mit-mcp.html" hreflang="de" lang="de" aria-current="true">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/ai-with-mcp.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/ai-with-mcp.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/ai-with-mcp.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/ai-with-mcp.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/ai-met-mcp.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/ai-with-mcp.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/ai-with-mcp.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/ai-with-mcp.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/ai-z-mcp.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/ai-with-mcp.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/ai-with-mcp.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/ai-with-mcp.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/ai-with-mcp.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/ai-with-mcp.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/ai-with-mcp.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
       <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Zum Editor</a>
     </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Der Editor ist schon in einem anderen Tab offen - wechsle einfach dorthin.</p></header>
     <div class="shell">
-      <nav class="chapters" aria-label="Kapitel"><h2>Kapitel</h2><ol><li><a href="/api/desktop/layerling/ui/anleitung/erste-schritte.html">Erste Schritte</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html">Ansicht und Arbeitsebene</a></li><li><a href="/api/desktop/layerling/ui/anleitung/formen.html">Formen setzen und einstellen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html">Auswählen und Anordnen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html">Körper und Aussparungen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html">Kanten brechen und Körper aushöhlen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html">Skizzen: vom Umriss zum Körper</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html">Text und gebogene Schrift</a></li><li><a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html">Gewinde, Zahnräder und andere Bauteile</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html">Messen und Notizen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/drucken.html">Für den 3D-Druck vorbereiten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html">Dateien, Speichern und Weitergeben</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html">Tastenkürzel</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ki-mit-mcp.html" aria-current="page">Mit einer KI bauen (MCP)</a></li><li><a href="/api/desktop/layerling/ui/anleitung/offline-und-installieren.html">Als App installieren, ohne Internet arbeiten und selbst hosten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/videos.html">Videos über layerling</a></li></ol></nav>
+      <nav class="chapters" aria-label="Kapitel"><h2>Kapitel</h2><p class="print-link"><a href="/api/desktop/layerling/ui/anleitung/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Ganze Anleitung zum Drucken</span></a></p><ol><li><a href="/api/desktop/layerling/ui/anleitung/erste-schritte.html">Erste Schritte</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html">Ansicht und Arbeitsebene</a></li><li><a href="/api/desktop/layerling/ui/anleitung/formen.html">Formen setzen und einstellen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html">Auswählen und Anordnen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/koerper-und-aussparungen.html">Körper und Aussparungen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html">Kanten brechen und Körper aushöhlen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html">Skizzen: vom Umriss zum Körper</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html">Text und gebogene Schrift</a></li><li><a href="/api/desktop/layerling/ui/anleitung/gewinde-und-mechanik.html">Gewinde, Zahnräder und andere Bauteile</a></li><li><a href="/api/desktop/layerling/ui/anleitung/messen-und-notizen.html">Messen und Notizen</a></li><li><a href="/api/desktop/layerling/ui/anleitung/drucken.html">Für den 3D-Druck vorbereiten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/dateien-und-speichern.html">Dateien, Speichern und Weitergeben</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html">Tastenkürzel</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ki-mit-mcp.html" aria-current="page">Mit einer KI bauen (MCP)</a></li><li><a href="/api/desktop/layerling/ui/anleitung/offline-und-installieren.html">Als App installieren, ohne Internet arbeiten und selbst hosten</a></li><li><a href="/api/desktop/layerling/ui/anleitung/videos.html">Videos über layerling</a></li><li><a href="/api/desktop/layerling/ui/anleitung/tablet-und-touch.html">Tablet und Touch</a></li></ol></nav>
       <main>
 <h1>Mit einer KI bauen (MCP)</h1>
-<p class="lead">Wie ein KI-Assistent wie Claude oder Codex in deinem geöffneten Editor Formen anlegt, ändert, gruppiert und Bilder der Ansicht aufnimmt.</p>
-<div class="toc"><b>Auf dieser Seite</b><ul><li><a href="#einrichten">Einrichten</a></li><li><a href="#eine-kopie-auf-nas-oder-server">Eine Kopie auf NAS oder Server</a></li><li><a href="#was-die-ki-kann">Was die KI kann</a></li><li><a href="#ein-beispiel">Ein Beispiel</a></li></ul></div>
-<p>layerling bringt einen MCP-Server mit. MCP ist ein Standard, über den ein KI-Assistent Werkzeuge in anderen Programmen benutzen kann. Damit sieht ein KI-Client wie Claude oder Codex einen offenen Editor-Tab und arbeitet darin: Er legt Formen an, ändert Maße, gruppiert, schneidet, rundet Kanten, liest die Szene aus und nimmt Bilder der Ansicht auf. Du beschreibst das Teil, die KI baut es, du siehst zu und greifst jederzeit ein.</p>
+<p class="lead">Wie ein KI-Assistent wie Gemini, Claude oder Codex in deinem geöffneten Editor Formen anlegt, ändert, gruppiert und Bilder der Ansicht aufnimmt.</p>
+<div class="toc"><b>Auf dieser Seite</b><ul><li><a href="#schritt-fuer-schritt-fuer-einsteiger">Schritt für Schritt für Einsteiger</a></li><li><a href="#einrichten">Einrichten</a></li><li><a href="#eine-kopie-auf-nas-oder-server">Eine Kopie auf NAS oder Server</a></li><li><a href="#was-die-ki-kann">Was die KI kann</a></li><li><a href="#ein-beispiel">Ein Beispiel</a></li></ul></div>
+<p>layerling bringt einen MCP-Server mit. MCP ist ein Standard, über den ein KI-Assistent Werkzeuge in anderen Programmen benutzen kann. Damit sieht ein KI-Client wie Gemini, Claude oder Codex einen offenen Editor-Tab und arbeitet darin: Er legt Formen an, ändert Maße, gruppiert, schneidet, rundet Kanten, liest die Szene aus und nimmt Bilder der Ansicht auf. Du beschreibst das Teil, die KI baut es, du siehst zu und greifst jederzeit ein.</p>
 <p>Die Brücke zwischen KI-Client und Editor läuft <strong>lokal auf deinem Rechner</strong>. Bedenke aber: Was die KI liest, also die Szene und die Bilder der Ansicht, geht an den Anbieter deines KI-Clients, so wie jede andere Eingabe dort auch.</p>
 <aside class="tip"><p><strong>Wichtig:</strong> Die MCP-Brücke gibt es im Entwicklungsserver, den du selbst auf deinem Rechner startest. Auf layerling.com und in Installationen mit statischem Hosting ist sie abgeschaltet. Eine Kopie, die du selbst betreibst, etwa das Docker-Image auf einer NAS, kann sie mit einem Zugriffsschlüssel einschalten; siehe „Eine Kopie auf NAS oder Server“ unten.</p></aside>
-<h2 id="einrichten">Einrichten</h2>
+<section class="guide-part"><h2 id="schritt-fuer-schritt-fuer-einsteiger"><span class="heading-alias" id="step-by-step-for-beginners"></span>Schritt für Schritt für Einsteiger</h2>
+<p>Programmieren musst du dafür nicht können.</p>
+<p><strong>Der kürzeste Weg:</strong> Gib deiner Lieblings-KI die Adresse des Projekts, <code>https://github.com/henmedia/layerling</code>, und bitte sie: „Richte layerling auf meinem Computer ein, damit ich mit dir über seinen MCP-Server 3D-Modelle bauen kann.“ Sie lädt und installiert alles selbst und sagt dir, wenn sie fertig ist. Das geht mit einer KI, die auf deinem Computer arbeiten kann, etwa dem Code-Tab der Claude-App, Codex, Antigravity oder Gemini CLI. Ein Chat im Browser kann das nicht, weil er auf deinem Computer nichts installieren kann.</p>
+<p><strong>Oder mach es selbst, unter Windows mit der Claude-App, in fünf Schritten:</strong></p>
+<p><strong>1. layerling installieren.</strong> Öffne das Startmenü, tippe <code>PowerShell</code> und öffne Windows PowerShell. Kopiere diese Zeile, füge sie mit einem Rechtsklick in das Fenster ein und drücke Enter:</p>
+<pre><code>irm https://raw.githubusercontent.com/henmedia/layerling/main/scripts/windows-quickstart.ps1 | iex</code></pre>
+<p>Sie installiert, was layerling braucht, lädt layerling in den Ordner <code>layerling</code> in deinem Benutzerordner (<code>C:\Users\&lt;dein Name&gt;\layerling</code>) und öffnet es im Browser. Beim ersten Mal dauert das ein paar Minuten.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/ai-quickstart-powershell.webp" alt="Windows PowerShell mit der eingefügten Zeile. Enter drücken, und es geht los." width="1280" height="385" loading="lazy"><figcaption>Windows PowerShell mit der eingefügten Zeile. Enter drücken, und es geht los.</figcaption></figure>
+<p><strong>2. layerling laufen lassen.</strong> layerling läuft, solange das PowerShell-Fenster offen bleibt, und die KI kann nur bauen, während es läuft. Beim nächsten Mal doppelklickst du stattdessen auf „Start layerling“ auf dem Desktop.</p>
+<p><strong>3. Die Claude-App installieren.</strong> Installiere die Claude-App für Windows und melde dich an. Der Code-Tab aus dem nächsten Schritt gehört zu den bezahlten Claude-Tarifen.</p>
+<p><strong>4. Den layerling-Ordner im Code-Tab öffnen.</strong> Wechsle in der Claude-App oben zu Code und wähle den Ordner <code>layerling</code> in deinem Benutzerordner als Arbeitsordner. layerling bringt schon alles mit, was Claude braucht, um seine Werkzeuge zu finden. Fragt Claude, ob es den MCP-Server „layerling“ dieses Ordners benutzen darf, erlaube es.</p>
+<p><strong>5. Claude sagen, was es bauen soll.</strong> Zum Beispiel: „Nutze die layerling-Werkzeuge und bau mir eine runde Dose, 60 mm Durchmesser und 40 mm hoch, mit 2,5 mm Wand.“ Ist kein Editor offen, öffnet Claude einen in deinem Browser, baut die Dose dort Schritt für Schritt und macht Bilder, um seine Arbeit zu prüfen. Du schaust zu und kannst jederzeit selbst etwas ändern.</p>
+<p><strong>Auf dem Mac</strong> geht es genauso, mit diesen Änderungen. Öffne in Schritt 1 die App Terminal (Cmd+Leertaste drücken, <code>Terminal</code> tippen und Enter drücken), füge diese Zeile ein und drücke Enter:</p>
+<pre><code>curl -fsSL https://raw.githubusercontent.com/henmedia/layerling/main/scripts/mac-quickstart.sh | sh</code></pre>
+<p>Fehlt Git oder Node.js, sagt sie dir, was du installieren sollst (Git bietet macOS in einem Fenster an, Node.js gibt es als Installer auf nodejs.org); danach führst du dieselbe Zeile noch einmal aus. In Schritt 2 heißt die Verknüpfung auf dem Schreibtisch ebenfalls „Start layerling“. Installiere in Schritt 3 die Claude-App für den Mac.</p>
+<aside class="tip"><p><strong>Tipp:</strong> Wenn etwas nicht klappt, sag Claude, was du siehst. Es kann den Fehler lesen und behebt ihn meist selbst. Passiert im Editor nichts, prüfe zuerst, ob layerling noch läuft (Schritt 2).</p></aside>
+</section><section class="guide-part"><h2 id="einrichten"><span class="heading-alias" id="setting-up"></span>Einrichten</h2>
 <ol><li>Lade layerling von <a href="https://github.com/henmedia/layerling" rel="noopener">GitHub</a> und starte es im Projektordner mit <code>npm run dev</code>. Node.js muss installiert sein. Unter Windows erledigt das die Schnellstart-Zeile in der README.</li><li>Öffne einen Editor-Tab, zum Beispiel <code>http://127.0.0.1:3000/?editor=1</code>. Das kannst du auch der KI überlassen: Ist kein Editor offen, startet das erste Werkzeug, das einen braucht, deinen Browser mit einem Editor und wartet, bis er verbunden ist. Das geht bei einem layerling auf deinem eigenen Rechner; bei einer Kopie auf einem NAS oder Server öffnest du den Editor selbst. Mit <code>LAYERLING_MCP_OPEN_EDITOR=0</code> am MCP-Server schaltest du es ab.</li><li>Verbinde deinen KI-Client mit dem MCP-Server. Er wird vom Client selbst mit <code>node scripts/layerling-mcp-server.mjs</code> gestartet.</li></ol>
-<h3 id="claude-code">Claude Code</h3>
+<section class="guide-part"><h3 id="claude-code">Claude Code</h3>
 <p>Nichts zu installieren: Das Projekt bringt eine <code>.mcp.json</code> mit, die den Server einträgt, und den Skill unter <code>.claude/skills/layerling-mcp-skill</code>. Öffne den layerling-Ordner in Claude Code und bitte zum Beispiel: „Nutze die layerling-MCP-Werkzeuge, liste meine offenen Editoren auf und sieh dir die Szene an.“</p>
-<h3 id="claude-desktop">Claude Desktop</h3>
+</section><section class="guide-part"><h3 id="claude-desktop">Claude Desktop</h3>
 <p>Claude Desktop liest keine Projektdateien. Trage den Server in seiner eigenen Konfiguration ein. Als Vorlage dient <code>docs/mcp/claude-desktop-config.example.json</code> im Projekt, in der du den Skriptpfad durch den absoluten Pfad auf deinem Rechner ersetzt. Danach Claude Desktop neu starten.</p>
-<h3 id="codex">Codex</h3>
+</section><section class="guide-part"><h3 id="codex">Codex</h3>
 <p>Kopiere den Skill aus <code>docs/skills/layerling-mcp-skill</code> in deinen Codex-Skill-Ordner, trage den Server anhand von <code>docs/mcp/codex-config.example.toml</code> in deine Codex-Konfiguration ein und starte Codex neu.</p>
-<p>Die ausführliche Anleitung für alle drei steht in der <a href="https://github.com/henmedia/layerling/blob/main/README.de.md#layerling-mcp-skill" rel="noopener">README auf GitHub</a>.</p>
-<h2 id="eine-kopie-auf-nas-oder-server">Eine Kopie auf NAS oder Server</h2>
+</section><section class="guide-part"><h3 id="gemini-antigravity">Gemini &amp; Antigravity</h3>
+<p>Antigravity findet den Skill im Arbeitsordner unter <code>.agents/skills/layerling-mcp-skill</code> von selbst. Für die Gemini CLI kopierst du den Skill aus <code>docs/skills/layerling-mcp-skill</code> in deinen globalen Skill-Ordner (<code>~/.gemini/skills/</code>), trägst den Server anhand von <code>docs/mcp/gemini-config.example.json</code> in deine Einstellungen ein und startest den Client neu.</p>
+<p>Die ausführliche Anleitung für jeden Client steht in der <a href="https://github.com/henmedia/layerling/blob/main/README.de.md#layerling-mcp-skill" rel="noopener">README auf GitHub</a>.</p>
+</section></section><section class="guide-part"><h2 id="eine-kopie-auf-nas-oder-server"><span class="heading-alias" id="a-copy-on-a-nas-or-server"></span>Eine Kopie auf NAS oder Server</h2>
 <p>Eine Kopie, die du selbst betreibst, kann einen KI-Client ihre offenen Editoren übers Netz steuern lassen. Das ist standardmäßig aus, denn wer die Brücke steuern kann, kann die offenen Entwürfe lesen und ändern. Setze auf dem Server <code>LAYERLING_MCP_REMOTE</code> auf <code>true</code> und <code>LAYERLING_MCP_TOKEN</code> auf ein Geheimnis von mindestens 16 Zeichen (beim Docker-Image unter <code>environment:</code> der Compose-Datei; ein Neubau ist nicht nötig). Öffne einen Editor-Tab dieser Kopie und lass ihn offen, und gib dem MCP-Client die Adresse und denselben Schlüssel: <code>LAYERLING_URL=http://nas:3000</code> und <code>LAYERLING_MCP_TOKEN=&lt;der Schlüssel&gt;</code>.</p>
 <p>Nur ein Client mit dem Schlüssel kann die Editoren auflisten oder steuern. Die Editor-Seiten brauchen keinen, zählen aber nur unter einer Adresse oder einem Namen, den nur dein eigenes Netz benutzen kann (eine IP-Adresse, ein Name ohne Punkt oder einer auf <code>.local</code> oder <code>.lan</code>); eine echte Domain hinter einem Reverse-Proxy kommt in <code>LAYERLING_MCP_ALLOWED_HOSTS</code>. Nutze es in einem Netz, dem du vertraust, und HTTPS darüber hinaus. Die Einzelheiten stehen in der README.</p>
-<h2 id="was-die-ki-kann">Was die KI kann</h2>
+</section><section class="guide-part"><h2 id="was-die-ki-kann"><span class="heading-alias" id="what-the-ai-can-do"></span>Was die KI kann</h2>
 <p>Die KI arbeitet mit denselben Funktionen wie du, sie läuft über denselben Weg wie deine Bedienung im Editor. Neue Funktionen von layerling bekommen ihre MCP-Aktion gleich mit. Die Werkzeuge:</p>
-<div class="table-scroll"><table><thead><tr><th>Werkzeug</th><th>Was es tut</th></tr></thead><tbody><tr><td><code>layerling_list_editors</code></td><td>listet die offenen Editor-Tabs auf</td></tr><tr><td><code>layerling_open_editor</code></td><td>öffnet einen neuen Editor-Tab in deinem Standardbrowser und wartet, bis er verbunden ist (nur auf deinem eigenen Rechner)</td></tr><tr><td><code>layerling_read_scene</code></td><td>liest Szene, Auswahl, Einheiten und die genauen Maße aller Objekte</td></tr><tr><td><code>layerling_list_objects</code></td><td>listet alle Objekte mit Maßen, Lage, Drehung und Kennung</td></tr><tr><td><code>layerling_select_objects</code></td><td>wählt Objekte aus</td></tr><tr><td><code>layerling_delete_objects</code></td><td>löscht Objekte</td></tr><tr><td><code>layerling_create_shape</code></td><td>legt eine Form an: Quader, Zylinder, Text (auch gebogen), Gewinde, Zahnrad, Skizzenkörper und alle anderen</td></tr><tr><td><code>layerling_import_file</code></td><td>importiert eine Datei wie das Importfenster, eine farbige OBJ oder 3MF als ein Körper je Farbe, eine 3MF mit mehreren Objekten als ein Körper je Objekt</td></tr><tr><td><code>layerling_add_font</code></td><td>fügt eine eigene Schrift für Text hinzu, aus einer TrueType-, OpenType- oder WOFF-Datei; sie bleibt im Browser, ein Entwurf behält nur die benutzten Buchstaben</td></tr><tr><td><code>layerling_list_fonts</code></td><td>listet die mitgelieferten und die eigenen Schriften, mit Id und Name</td></tr><tr><td><code>layerling_import_mesh</code></td><td>bringt ein Dreiecksnetz in den Entwurf</td></tr><tr><td><code>layerling_update_object</code></td><td>ändert Maße, Lage, Farbe, Name, Körper oder Aussparung und alles, was die Form sonst ausmacht, bei einem Text auch die Buchstabenkante</td></tr><tr><td><code>layerling_align_objects</code></td><td>richtet Objekte aneinander aus</td></tr><tr><td><code>layerling_scale_objects</code></td><td>skaliert Objekte um einen Prozentwert, zusammen oder jedes für sich</td></tr><tr><td><code>layerling_lay_flat</code></td><td>legt ein Objekt mit einer Fläche auf die Platte</td></tr><tr><td><code>layerling_place_on_face</code></td><td>setzt Objekte auf eine Fläche eines anderen, auch schräg, wie die Taste C</td></tr><tr><td><code>layerling_perforate_face</code></td><td>schneidet ein Lochmuster in eine ebene Fläche, die Löcher bleiben als Aussparungen mit dem Körper gruppiert</td></tr><tr><td><code>layerling_mate_faces</code></td><td>legt eine Fläche eines Objekts an die Fläche eines anderen, gegeneinander oder bündig</td></tr><tr><td><code>layerling_open_group</code></td><td>öffnet eine Gruppe, damit ihre Teile einzeln änderbar sind, auch eine Gruppe in einer geöffneten</td></tr><tr><td><code>layerling_close_group</code></td><td>schließt sie wieder („Fertig“) oder bricht ab</td></tr><tr><td><code>layerling_group_objects</code></td><td>gruppiert Objekte</td></tr><tr><td><code>layerling_ungroup_objects</code></td><td>löst Gruppen auf</td></tr><tr><td><code>layerling_boolean_cut</code></td><td>schneidet Körper mit Aussparungen</td></tr><tr><td><code>layerling_intersect_objects</code></td><td>behält nur, was die Objekte gemeinsam haben (Schnittmenge)</td></tr><tr><td><code>layerling_separate_parts</code></td><td>zerlegt eine Form mit losen Teilen</td></tr><tr><td><code>layerling_split_objects</code></td><td>teilt Körper oder Aussparungen mit einer Ebene in zwei</td></tr><tr><td><code>layerling_list_edges</code></td><td>listet die echten CAD-Kanten eines Objekts</td></tr><tr><td><code>layerling_apply_edge_treatment</code></td><td>fast oder verrundet ausgewählte Kanten</td></tr><tr><td><code>layerling_hollow_object</code></td><td>höhlt einen Körper mit gleichmäßiger Wand aus</td></tr><tr><td><code>layerling_array_objects</code></td><td>vervielfältigt in einer Reihe oder auf einem Kreis</td></tr><tr><td><code>layerling_bundle_objects</code></td><td>bündelt Objekte wie Strg+B: sie bewegen sich zusammen, behalten Farbe und Art und gehen einzeln in den Export</td></tr><tr><td><code>layerling_layer_text</code></td><td>macht aus einem Text einen Stapel aus Schichten für den Mehrfarbdruck (Buchstaben, breitere Ränder, Platte ohne Löcher) oder baut einen Stapel neu, mit Loch für den Schlüsselring, Ecken je Schicht und gerundeter oder abgeschrägter Buchstabenkante; mit einer Namensliste ein Schild je Name</td></tr><tr><td><code>layerling_layer_icon</code></td><td>macht aus einem SVG-Symbol (dem Text der Datei oder einem extrudierten Skizzenkörper) ein Symbolschild in Schichten für den Mehrfarbdruck - Symbol, breitere Ränder, Platte ohne Löcher - oder baut eines mit neuer Breite oder neuen Schichten neu; mit einer Anzahl füllt es die Platte mit Kopien</td></tr><tr><td><code>layerling_measure_section</code></td><td>misst auf einer Schnittebene zwischen zwei Punkten, die am Umriss einrasten – Wandstärken, Spalte, Passungen</td></tr><tr><td><code>layerling_show_overhangs</code></td><td>schaltet die Überhang-Schraffur ein oder aus, setzt den Winkel und nennt je Körper die Fläche, die Stützen bräuchte</td></tr><tr><td><code>layerling_estimate_print</code></td><td>schätzt Volumen, Gewicht und Filament für die Auswahl oder den ganzen Entwurf, massiv gerechnet wie im Exportfenster</td></tr><tr><td><code>layerling_add_reference_points</code></td><td>setzt Bezugspunkte - auf Mitte, Ecken oder Kantenmitten von Objekten oder an genauen Stellen -, an denen Formen einrasten</td></tr><tr><td><code>layerling_list_reference_points</code></td><td>listet die Bezugspunkte mit Kennung und Lage auf</td></tr><tr><td><code>layerling_remove_reference_points</code></td><td>löscht Bezugspunkte nach Kennung oder alle</td></tr><tr><td><code>layerling_inspect_errors</code></td><td>zeigt die letzte Meldung und den letzten Fehler, dazu die Meldungen und Fehler der Sitzung</td></tr><tr><td><code>layerling_wrap_around_cylinder</code></td><td>wickelt einen flach liegenden Körper, etwa ein SVG oder Text, um einen Zylinder, nach außen oder als Gravur nach innen</td></tr><tr><td><code>layerling_simplify_mesh</code></td><td>verringert die Dreieckszahl eines importierten Netzes, auf einen Anteil in Prozent oder auf eine Anzahl Dreiecke</td></tr><tr><td><code>layerling_save_custom_shape</code></td><td>legt Körper als eigene Form ab, auf dem Server oder im Browser, um sie in andere Entwürfe einzusetzen</td></tr><tr><td><code>layerling_list_custom_shapes</code></td><td>listet die eigenen Formen auf dem Server und im Browser</td></tr><tr><td><code>layerling_insert_custom_shape</code></td><td>setzt eine eigene Form in den offenen Entwurf, wahlweise an eine Stelle x/z</td></tr><tr><td><code>layerling_delete_custom_shape</code></td><td>entfernt eine eigene Form; eingesetzte Körper bleiben</td></tr><tr><td><code>layerling_show_workplane</code></td><td>blendet die Platte mit ihrem Gitter aus und wieder ein, etwa für ein Bild der Unterseite (nur die Ansicht)</td></tr><tr><td><code>layerling_set_section_view</code></td><td>schneidet die Ansicht entlang einer Ebene auf, um ins Innere zu sehen (nur die Ansicht, nichts wird zerteilt)</td></tr><tr><td><code>layerling_clear_history</code></td><td>löscht jeden Rückgängig-Schritt endgültig, wie der Knopf „Verlauf löschen“ im Verlaufsblick; verlangt <code>confirm: true</code></td></tr><tr><td><code>layerling_set_history_view</code></td><td>schaut auf einen früheren Stand des Projekts zurück, wie die Verlaufsansicht (der echte Entwurf bleibt unberührt; ändernde Werkzeuge warten, bis sie geschlossen ist)</td></tr><tr><td><code>layerling_export_section_svg</code></td><td>liefert die Umrisse auf einer Schnittebene als SVG im Maßstab 1:1, aus denselben Körpern wie der Export</td></tr><tr><td><code>layerling_export_drawing</code></td><td>macht die Werkstattzeichnung des Exports „2D“: drei Ansichten im Maßstab 1:1 auf einem ISO-Blatt mit Gesamtmaßen und einer Tabelle der runden Bohrungen, als SVG-Text oder PDF</td></tr><tr><td><code>layerling_set_workplane</code></td><td>legt die Arbeitsebene auf eine Seite eines Körpers, setzt sie auf die Grundplatte zurück oder blendet sie aus und ein</td></tr><tr><td><code>layerling_capture_image</code></td><td>nimmt ein Bild der Ansicht auf, von vorn, oben, seitlich, schräg von einer Ecke und mehr</td></tr></tbody></table></div>
+<div class="table-scroll"><table><thead><tr><th>Werkzeug</th><th>Was es tut</th></tr></thead><tbody><tr><td><code>layerling_list_editors</code></td><td>listet die offenen Editor-Tabs auf</td></tr><tr><td><code>layerling_rename_project</code></td><td>gibt dem Projekt einen Namen, wie der Stift neben dem Projektnamen</td></tr><tr><td><code>layerling_open_editor</code></td><td>öffnet einen neuen Editor-Tab in deinem Standardbrowser und wartet, bis er verbunden ist (nur auf deinem eigenen Rechner)</td></tr><tr><td><code>layerling_read_scene</code></td><td>liest Szene, Auswahl, Einheiten und die genauen Maße aller Objekte</td></tr><tr><td><code>layerling_list_objects</code></td><td>listet alle Objekte mit Maßen, Lage, Drehung und Kennung</td></tr><tr><td><code>layerling_select_objects</code></td><td>wählt Objekte aus</td></tr><tr><td><code>layerling_hide_others</code></td><td>blendet alles außer der Auswahl oder den genannten Objekten aus, in einem Rückgängig-Schritt</td></tr><tr><td><code>layerling_delete_objects</code></td><td>löscht Objekte</td></tr><tr><td><code>layerling_move_object</code></td><td>verschiebt ein Objekt an eine andere Stelle der Objektliste</td></tr><tr><td><code>layerling_create_shape</code></td><td>legt eine Form an: Quader, Zylinder, Text (auch gebogen), Gewinde, Zahnrad, Skizzenkörper und alle anderen</td></tr><tr><td><code>layerling_import_file</code></td><td>importiert eine Datei wie das Importfenster, eine farbige OBJ oder 3MF als ein Körper je Farbe, eine 3MF mit mehreren Objekten als ein Körper je Objekt</td></tr><tr><td><code>layerling_add_font</code></td><td>fügt eine eigene Schrift für Text hinzu, aus einer TrueType-, OpenType- oder WOFF-Datei; sie bleibt im Browser, ein Entwurf behält nur die benutzten Buchstaben</td></tr><tr><td><code>layerling_list_fonts</code></td><td>listet die mitgelieferten und die eigenen Schriften, mit Id und Name</td></tr><tr><td><code>layerling_import_mesh</code></td><td>bringt ein Dreiecksnetz in den Entwurf</td></tr><tr><td><code>layerling_update_object</code></td><td>ändert Maße, Lage, Farbe, Name, Körper oder Aussparung und alles, was die Form sonst ausmacht, bei einem Text auch die Buchstabenkante</td></tr><tr><td><code>layerling_align_objects</code></td><td>richtet Objekte aneinander aus</td></tr><tr><td><code>layerling_scale_objects</code></td><td>skaliert Objekte um einen Prozentwert, zusammen oder jedes für sich</td></tr><tr><td><code>layerling_lay_flat</code></td><td>legt ein Objekt mit einer Fläche auf die Platte</td></tr><tr><td><code>layerling_place_on_face</code></td><td>setzt Objekte auf eine Fläche eines anderen, auch schräg, wie die Taste C</td></tr><tr><td><code>layerling_perforate_face</code></td><td>schneidet ein Lochmuster in eine ebene Fläche oder rund um die Wand eines Zylinders, Rohrs oder einer Bohrung, die Löcher bleiben als Aussparungen mit dem Körper gruppiert</td></tr><tr><td><code>layerling_sweep_sketch</code></td><td>zieht einen rechteckigen oder runden Querschnitt entlang eines Pfades aus Punkten als einen exakten Körper; ein geschlossener Pfad ergibt einen Ring</td></tr><tr><td><code>layerling_push_face</code></td><td>zieht eine ebene Fläche heraus oder schneidet eine Tasche hinein, mit Rand zur Kante und Eckenradius; das neue Teil ist ein Skizzenkörper, mit dem Körper gruppiert, oder mit <code>separate</code> ein freier eigener Körper</td></tr><tr><td><code>layerling_paint</code></td><td>bemalt Teile eines Körpers in eigenen Farben für den Mehrfarbdruck (Bemalen): eine Fläche bis an ihre scharfen Kanten füllen, ein runder Fleck oder ein Lasso in einer flachen Ansicht; radieren, alles abnehmen; mit dem Körper gespeichert und im 3MF als bemalte Flächen</td></tr><tr><td><code>layerling_support_rib</code></td><td>stellt eine dünne Stützrippe unter die untere Fläche eines schräg auf einer Kante gedruckten Teils, mit Brücken von einer Schicht Höhe (Stützrippe)</td></tr><tr><td><code>layerling_stencil_bridges</code></td><td>hält die Teile einer Platte mit durchgehendem Text, die herausfallen würden, mit Stegen, die mit der Platte gruppiert werden, so breit und hoch wie angegeben (Schablonenstege)</td></tr><tr><td><code>layerling_mate_faces</code></td><td>legt eine Fläche eines Objekts an die Fläche eines anderen, gegeneinander oder bündig, oder bringt zwei runde Flächen auf eine Achse</td></tr><tr><td><code>layerling_open_group</code></td><td>öffnet eine Gruppe, damit ihre Teile einzeln änderbar sind, auch eine Gruppe in einer geöffneten</td></tr><tr><td><code>layerling_close_group</code></td><td>schließt sie wieder („Fertig“) oder bricht ab</td></tr><tr><td><code>layerling_add_to_group</code></td><td>legt einzelne Objekte in eine Gruppe, ohne sie zu öffnen</td></tr><tr><td><code>layerling_take_out_of_group</code></td><td>nimmt ein Teil aus einer Gruppe, ohne sie zu öffnen</td></tr><tr><td><code>layerling_group_objects</code></td><td>gruppiert Objekte</td></tr><tr><td><code>layerling_ungroup_objects</code></td><td>löst Gruppen auf</td></tr><tr><td><code>layerling_boolean_cut</code></td><td>schneidet Körper mit Aussparungen</td></tr><tr><td><code>layerling_intersect_objects</code></td><td>behält nur, was die Objekte gemeinsam haben (Schnittmenge)</td></tr><tr><td><code>layerling_hull_objects</code></td><td>hüllt die Objekte in einen konvexen Körper, wie in Schrumpffolie (Hülle)</td></tr><tr><td><code>layerling_cookie_cutter</code></td><td>baut aus den Objekten eine Ausstechform: Wand mit Schneidkante und Rand um den gespiegelten Umriss (Ausstechform)</td></tr><tr><td><code>layerling_flexi_joints</code></td><td>teilt einen flachen Körper in Glieder mit mitgedruckten Gelenken, die zur Seite schwenken (Flexi-Gelenke)</td></tr><tr><td><code>layerling_make_lid</code></td><td>macht einen Deckel für einen oben offenen Körper: eingesteckt, übergestülpt oder flach, mit wählbarer Passung und auf Wunsch mit Magneten (Deckel)</td></tr><tr><td><code>layerling_make_cable_channel</code></td><td>legt einen runden Kanal für ein Kabel durch einen Körper, von einem Eingang zu einem Ausgang, und sucht den Weg mit sanften Bögen selbst (Kabelkanal)</td></tr><tr><td><code>layerling_loft_sketches</code></td><td>verbindet zwei Skizzenkörper zu einem Übergang von einem Umriss zum anderen (Übergang aus Skizzen)</td></tr><tr><td><code>layerling_separate_parts</code></td><td>zerlegt eine Form mit losen Teilen, einen Skizzenkörper in einen Körper je Umriss</td></tr><tr><td><code>layerling_split_objects</code></td><td>teilt Körper oder Aussparungen mit einer Ebene in zwei</td></tr><tr><td><code>layerling_list_edges</code></td><td>listet die echten CAD-Kanten eines Objekts</td></tr><tr><td><code>layerling_apply_edge_treatment</code></td><td>fast oder verrundet ausgewählte Kanten</td></tr><tr><td><code>layerling_hollow_object</code></td><td>höhlt einen Körper mit gleichmäßiger Wand aus</td></tr><tr><td><code>layerling_cut_out</code></td><td>schneidet einen Körper aus einem anderen aus, damit beide passen: das Teil bleibt, eine um das Spiel vergrößerte Kopie wird vom anderen Körper abgezogen</td></tr><tr><td><code>layerling_punch</code></td><td>stanzt den Umriss eines Körpers entlang x, y oder z gerade durch einen anderen; der Stempel bleibt und muss ihn nicht berühren</td></tr><tr><td><code>layerling_offset_object</code></td><td>versetzt alle Flächen eines Körpers, für das Spiel einer Passung: vergrößert oder verkleinert ihn, oder legt die vergrößerte Kopie als Loch an, oder verschiebt nur die Seiten</td></tr><tr><td><code>layerling_list_faces</code></td><td>listet die Flächen eines exakten Körpers</td></tr><tr><td><code>layerling_delete_faces</code></td><td>löscht Flächen und schließt die Lücke</td></tr><tr><td><code>layerling_array_objects</code></td><td>vervielfältigt in einer Reihe, einem Raster oder auf einem Kreis</td></tr><tr><td><code>layerling_bundle_objects</code></td><td>bündelt Objekte wie Strg+B: sie bewegen sich zusammen, behalten Farbe und Art und gehen einzeln in den Export</td></tr><tr><td><code>layerling_layer_text</code></td><td>macht aus einem Text einen Stapel aus Schichten für den Mehrfarbdruck (Buchstaben, breitere Ränder, Platte ohne Löcher) oder baut einen Stapel neu, mit Loch für den Schlüsselring, Ecken je Schicht und gerundeter oder abgeschrägter Buchstabenkante; mit einer Namensliste ein Schild je Name</td></tr><tr><td><code>layerling_text_block</code></td><td>macht einen Textblock: Ein Text wird die erste von mehreren Zeilen, jede ein eigener Text unter der darüber, links, mittig oder rechts ausgerichtet, jede Zeile gleich groß oder kleiner</td></tr><tr><td><code>layerling_layer_icon</code></td><td>macht aus einem SVG-Symbol (dem Text der Datei oder einem extrudierten Skizzenkörper) ein Symbolschild in Schichten für den Mehrfarbdruck - Symbol, breitere Ränder, Platte ohne Löcher - oder baut eines mit neuer Breite oder neuen Schichten neu; mit einer Anzahl füllt es die Platte mit Kopien</td></tr><tr><td><code>layerling_create_qr_code</code></td><td>erzeugt aus einem Text oder einer Webadresse einen QR-Code wie <strong class="ui">„QR-Code“</strong> in der Formenbibliothek - den Code allein, erhaben auf einer Platte oder graviert, mit Fehlerkorrektur, Breite, Höhe, Ruhezone und auf Wunsch als Aussparung; warnt, wenn ein Modul unter 0,8 mm kommt</td></tr><tr><td><code>layerling_create_sbc_board</code></td><td>setzt eine SBC-Platine in echter Größe, wie <strong class="ui">„SBC-Platine“</strong> in der Formenbibliothek - Raspberry Pi 5, 4, 3 B+, Zero 2 W oder BIGTREETECH Pi, mit Löchern und Anschlüssen, dem Spiel um die Randanschlüsse, der Position und als Aussparung für ein Gehäuse</td></tr><tr><td><code>layerling_reference_image</code></td><td>legt ein Referenzbild aus einem Bild an wie <strong class="ui">„Referenzbild“</strong> oder verschiebt, dreht, kalibriert (zwei Punkte des Bildes und ihr wirklicher Abstand), blendet oder sperrt eines - eine Hilfe, die nie exportiert oder gedruckt wird; <code>trace</code> macht aus dem dunklen oder hellen Teil einen Skizzenkörper, der darauf steht</td></tr><tr><td><code>layerling_measure_section</code></td><td>misst auf einer Schnittebene zwischen zwei Punkten, die am Umriss einrasten – Wandstärken, Spalte, Passungen</td></tr><tr><td><code>layerling_show_overhangs</code></td><td>schaltet die Überhang-Schraffur ein oder aus, setzt den Winkel und nennt je Körper die Fläche, die Stützen bräuchte</td></tr><tr><td><code>layerling_estimate_print</code></td><td>schätzt Volumen, Gewicht und Filament für die Auswahl oder den ganzen Entwurf: für einen massiven Körper und als grobe Schätzung mit Wänden und Füllung wie im Exportfenster</td></tr><tr><td><code>layerling_check_clearance</code></td><td>prüft vor dem Druck, welche Teile sich überschneiden, berühren oder näher kommen als ein Mindestspiel (Spiel prüfen), auch die getrennten Teile eines Objekts</td></tr><tr><td><code>layerling_printer_play</code></td><td>liest, setzt oder löscht das Spiel deines Druckers (<strong class="ui">„Spiel deines Druckers“</strong> in den Einstellungen) und legt die Passprobe an, die es misst</td></tr><tr><td><code>layerling_check_print</code></td><td>prüft vor dem Druck, was schiefginge: zu dünne Wände für die Düse, schwebende Teile, wenig Halt auf der Platte, Überhänge und offene Netze (Druck prüfen)</td></tr><tr><td><code>layerling_add_reference_points</code></td><td>setzt Bezugspunkte - auf Mitte, Ecken oder Kantenmitten von Objekten oder an genauen Stellen -, an denen Formen einrasten</td></tr><tr><td><code>layerling_list_reference_points</code></td><td>listet die Bezugspunkte mit Kennung und Lage auf</td></tr><tr><td><code>layerling_remove_reference_points</code></td><td>löscht Bezugspunkte nach Kennung oder alle</td></tr><tr><td><code>layerling_list_notes</code></td><td>liest die Notizen des Nutzers mit Text, dem Körper, an dem jede hängt, und ob sie ein Auftrag für die KI ist</td></tr><tr><td><code>layerling_wait_for_notes</code></td><td>wartet, bis du an einer Notiz <strong class="ui">„Für die KI“</strong> ankreuzt, und gibt den Auftrag sofort weiter</td></tr><tr><td><code>layerling_add_note</code></td><td>setzt eine Notiz ans Modell, an einen Körper geheftet oder frei auf der Arbeitsebene</td></tr><tr><td><code>layerling_update_note</code></td><td>ändert eine Notiz oder beantwortet sie; eine Antwort schließt den Auftrag</td></tr><tr><td><code>layerling_remove_notes</code></td><td>löscht Notizen nach Kennung</td></tr><tr><td><code>layerling_inspect_errors</code></td><td>zeigt die letzte Meldung und den letzten Fehler, dazu die Meldungen und Fehler der Sitzung</td></tr><tr><td><code>layerling_wrap_around_cylinder</code></td><td>wickelt einen flach liegenden Körper, etwa ein SVG oder Text, um einen Zylinder, nach außen oder als Gravur nach innen</td></tr><tr><td><code>layerling_texture_surface</code></td><td>bringt eine Oberfläche auf einen Körper: Rillen, Rändel, Waben oder Noppen, für besseren Halt oder fürs Auge, und ändert oder entfernt sie später</td></tr><tr><td><code>layerling_simplify_mesh</code></td><td>verringert die Dreieckszahl eines importierten Netzes, auf einen Anteil in Prozent oder auf eine Anzahl Dreiecke</td></tr><tr><td><code>layerling_make_exact</code></td><td>macht aus einem importierten Netz einen exakten CAD-Körper: Ebenen, Zylinder, Kegel, Kugeln und Tori werden echte Flächen, damit Kanten sauber abrunden und STEP sie trägt</td></tr><tr><td><code>layerling_save_custom_shape</code></td><td>legt Körper als eigene Form ab, auf dem Server oder im Browser, um sie in andere Entwürfe einzusetzen</td></tr><tr><td><code>layerling_list_custom_shapes</code></td><td>listet die eigenen Formen auf dem Server und im Browser</td></tr><tr><td><code>layerling_insert_custom_shape</code></td><td>setzt eine eigene Form in den offenen Entwurf, wahlweise an eine Stelle x/z</td></tr><tr><td><code>layerling_delete_custom_shape</code></td><td>entfernt eine eigene Form; eingesetzte Körper bleiben</td></tr><tr><td><code>layerling_show_workplane</code></td><td>blendet die Platte mit ihrem Gitter aus und wieder ein, etwa für ein Bild der Unterseite (nur die Ansicht)</td></tr><tr><td><code>layerling_set_section_view</code></td><td>schneidet die Ansicht entlang einer Ebene auf, um ins Innere zu sehen (nur die Ansicht, nichts wird zerteilt)</td></tr><tr><td><code>layerling_measurements</code></td><td>blendet die Messungen des Maßbands ein oder aus und listet sie mit ihren Längen auf; dazu die Maße um die Auswahl, wie <kbd>Q</kbd>; tippt auch eine Länge für eine Messung ein, die den Körper an ihrem Ende verschiebt wie ein Klick auf ihre Zahl</td></tr><tr><td><code>layerling_measure_angle</code></td><td>misst einen Winkel wie der Winkelmesser: an der Ecke von drei Punkten oder zwischen zwei ebenen Flächen, und zeigt ihn in der Ansicht</td></tr><tr><td><code>layerling_saved_view</code></td><td>speichert die aktuelle Ansicht unter der Taste 7, 8, 9 oder 0 und holt sie zurück, wie Umschalt+Taste und die Taste (nur die Ansicht); setzt auch die Startansicht neuer Entwürfe</td></tr><tr><td><code>layerling_build_plates</code></td><td>listet, fügt hinzu, benennt, sortiert und entfernt die Druckplatten, setzt Objekte auf eine Platte und verteilt sie auf die Platten, wie die Plattenleiste</td></tr><tr><td><code>layerling_clear_history</code></td><td>löscht jeden Rückgängig-Schritt endgültig, wie der Knopf „Verlauf löschen“ im Verlaufsblick; verlangt <code>confirm: true</code></td></tr><tr><td><code>layerling_set_history_view</code></td><td>schaut auf einen früheren Stand des Projekts zurück, wie die Verlaufsansicht (der echte Entwurf bleibt unberührt; ändernde Werkzeuge warten, bis sie geschlossen ist)</td></tr><tr><td><code>layerling_restore_from_history</code></td><td>holt Objekte (auch Teile in Gruppen) aus einem früheren Stand als Kopien in den Entwurf zurück, wie „In den Entwurf holen“ in der Verlaufsansicht - ein Schritt, den Rückgängig zurücknimmt</td></tr><tr><td><code>layerling_export_section_svg</code></td><td>liefert die Umrisse auf einer Schnittebene als SVG im Maßstab 1:1, aus denselben Körpern wie der Export</td></tr><tr><td><code>layerling_sketch_from_section</code></td><td>macht aus den Umrissen auf einer Schnittebene eine Skizze, die auf dem Schnitt liegt: im Editor geöffnet zum Ändern, oder gleich als Körper mit einer angegebenen Höhe gebaut</td></tr><tr><td><code>layerling_export_drawing</code></td><td>macht die Werkstattzeichnung des Exports „2D“: drei Ansichten im Maßstab 1:1 auf einem ISO-Blatt mit Gesamtmaßen und einer Tabelle der runden Bohrungen, als SVG-Text oder PDF</td></tr><tr><td><code>layerling_export_mesh</code></td><td>schreibt die Datei des Exportfensters als STL, 3MF, OBJ, SVG (Draufsicht, Aufstandsfläche oder sichtbare Kanten) oder DXF für den Laserschnitt, aus denselben Körpern; an einen Pfad auf diesem Rechner oder als Base64</td></tr><tr><td><code>layerling_save_project</code></td><td>speichert den ganzen bearbeitbaren Entwurf als .lyl-Datei an einem Pfad auf dem Rechner, auf dem der MCP-Server läuft, ohne Dialog; eine vorhandene Datei wird nur mit <code>overwrite</code> ersetzt, geschrieben wird über eine temporäre Datei, und das Ziel von Strg+S im Editor bleibt, wie es war</td></tr><tr><td><code>layerling_list_attachments</code></td><td>listet die an den Entwurf angehängten Dateien (Name, Art, Größe), wie das Fenster Anhänge sie zeigt</td></tr><tr><td><code>layerling_get_attachment</code></td><td>liest eine angehängte Datei, ihre Bytes als base64, wie Herunterladen im Fenster</td></tr><tr><td><code>layerling_add_attachment</code></td><td>hängt eine als base64 übergebene Datei an, mit den Prüfungen des Fensters; ein schon vorhandener Name wird nur mit <code>replace</code> überschrieben</td></tr><tr><td><code>layerling_rename_attachment</code></td><td>gibt einer angehängten Datei einen anderen Namen; der Inhalt bleibt</td></tr><tr><td><code>layerling_remove_attachment</code></td><td>entfernt eine angehängte Datei endgültig; braucht <code>confirm: true</code></td></tr><tr><td><code>layerling_set_workplane</code></td><td>legt die Arbeitsebene auf eine Seite eines Körpers, setzt sie auf die Grundplatte zurück oder blendet sie aus und ein</td></tr><tr><td><code>layerling_capture_image</code></td><td>nimmt ein Bild der Ansicht auf, von vorn, oben, seitlich, schräg von einer Ecke und mehr</td></tr></tbody></table></div>
 <p>Die KI kann sich damit selbst kontrollieren: Sie legt etwas an, macht ein Bild, sieht nach und verbessert.</p>
-<h2 id="ein-beispiel">Ein Beispiel</h2>
+</section><section class="guide-part"><h2 id="ein-beispiel"><span class="heading-alias" id="an-example"></span>Ein Beispiel</h2>
 <p>Du sagst: „Baue mir eine runde Dose mit 60 mm Durchmesser, 40 mm Höhe und 2,5 mm Wand, oben offen, dazu einen flachen Deckel, auf dem ‚Tee‘ im Bogen steht.“ Die KI legt Zylinder an, höhlt einen aus, setzt den gebogenen Text auf den Deckel und nimmt zum Schluss Bilder auf, damit sie sieht, ob es passt.</p>
-<aside class="tip"><p><strong>Tipp:</strong> Gib der KI konkrete Maße und sag ihr, wofür das Teil gedacht ist („Halter für eine 12-mm-Stange, passt auf ein Bambu Lab A1“). Dann trifft sie sinnvollere Entscheidungen. Und schau ihr beim Bauen zu: Du kannst jederzeit selbst eingreifen, denn es ist derselbe Editor.</p></aside>
+<aside class="tip"><p><strong>Tipp:</strong> Gib der KI konkrete Maße und sag ihr, wofür das Teil gedacht ist („Halter für eine 12-mm-Stange, passt auf ein Bambu Lab A1“). Dann trifft sie sinnvollere Entscheidungen. Und schau ihr beim Bauen zu: Du kannst jederzeit selbst eingreifen, denn es ist derselbe Editor.</p></aside></section>
 <div class="pager"><a href="/api/desktop/layerling/ui/anleitung/tastenkuerzel.html"><small>Vorheriges Kapitel</small>Tastenkürzel</a><a class="next" href="/api/desktop/layerling/ui/anleitung/offline-und-installieren.html"><small>Nächstes Kapitel</small>Als App installieren, ohne Internet arbeiten und selbst hosten</a></div>
       </main>
     </div>
     <footer class="note">Diese Anleitung wächst mit dem Programm. Fehlt dir etwas oder stimmt etwas nicht, sag es im <a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a>.</footer>
-    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=de" rel="noopener">Projekt unterstützen</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mehr Informationen zum Projekt auf GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Versionshinweise v1.71.0</a></div><p class="trademark">Tinkercad ist eine Marke von Autodesk, Inc. layerling ist ein unabhängiges Projekt und steht in keiner Verbindung zu Autodesk, wird nicht von Autodesk unterstützt oder gesponsert.</p></footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=de" rel="noopener">Projekt unterstützen</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://forum.drucktipps3d.de/forum/board/127-layerling/" rel="noopener">Forum</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mehr Infos auf GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Versionshinweise v1.154.1</a></div><p class="trademark">Tinkercad ist eine Marke von Autodesk, Inc. layerling ist ein unabhängiges Projekt und steht in keiner Verbindung zu Autodesk, wird nicht von Autodesk unterstützt oder gesponsert.</p></footer>
     <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Zurück zum Editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Zum Editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
     <script>
-function guideFold(text){var out="";for(var i=0;i<text.length;i++){out+=text.charAt(i).toLowerCase().normalize("NFD").charAt(0);}return out;}
-function guideForms(word,umlauts){
-  var forms=[word];
-  if(umlauts){var plain=word.split("ae").join("a").split("oe").join("o").split("ue").join("u");if(plain!==word)forms.push(plain);}
-  if(word.indexOf("ss")>=0)forms.push(word.split("ss").join(String.fromCharCode(223)));
-  if(word.indexOf(String.fromCharCode(223))>=0)forms.push(word.split(String.fromCharCode(223)).join("ss"));
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
   return forms;
 }
-function guideFind(text,forms,from){
-  var best=null;
-  for(var i=0;i<forms.length;i++){var k=text.indexOf(forms[i],from);if(k>=0&&(!best||k<best.at))best={at:k,len:forms[i].length};}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
   return best;
 }
-function guidePrepare(entries){return entries.map(function(e){return {e:e,c:guideFold(e.c),h:guideFold(e.h),t:guideFold(e.t)};});}
-function guideTokens(query){return guideFold(query).split(" ").filter(function(w){return w.length>0;});}
-function guideSearch(prepared,query,limit,umlauts){
-  var tokens=guideTokens(query);if(!tokens.length)return [];
-  var forms=tokens.map(function(w){return guideForms(w,umlauts);}),phrase=guideForms(tokens.join(" "),umlauts),found=[];
-  prepared.forEach(function(p){
-    var score=0;
-    for(var i=0;i<tokens.length;i++){
-      var inH=guideFind(p.h,forms[i],0),inC=guideFind(p.c,forms[i],0),at=guideFind(p.t,forms[i],0);
-      if(!inH&&!inC&&!at)return;
-      if(inH)score+=10;
-      if(inC)score+=3;
-      if(at){score+=1;var n=0,k=at;while(k&&n<5){n++;k=guideFind(p.t,forms[i],k.at+k.len);}score+=n*0.3;}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
     }
-    if(tokens.length>1&&(guideFind(p.h,phrase,0)||guideFind(p.t,phrase,0)))score+=6;
-    found.push({entry:p.e,score:score,folded:p.t,forms:forms});
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
   });
-  found.sort(function(a,b){return b.score-a.score;});
-  return found.slice(0,limit||8);
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
 }
 
 function guideSnippet(hit){
@@ -225,20 +339,57 @@ function guideSnippet(hit){
   if(end<text.length)parts.push({text:" ...",mark:false});
   return parts;
 }
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
 (function(){
   var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
   var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
   function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
   function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
   function render(){
     if(!guideTokens(input.value).length){close();return;}
     if(!prepared){load().then(function(){if(prepared)render();});return;}
-    var hits=guideSearch(prepared,input.value,8,form.getAttribute("data-umlauts")==="true");
+    var hits=guideSearch(prepared,input.value,8,umlauts);
     box.textContent="";
     if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
     hits.forEach(function(hit){
       var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
-      link.href=hit.entry.u;
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
       title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
       guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
       link.appendChild(title);link.appendChild(line);box.appendChild(link);
@@ -251,7 +402,7 @@ function guideSnippet(hit){
     if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
     else if(e.key==="Escape"){input.value="";close();}
   });
-  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first)window.location.href=first.href;});
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
   box.addEventListener("keydown",function(e){
     var current=document.activeElement;
     if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}

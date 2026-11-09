@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>草圖：從輪廓到實體 - layerling 使用者指南</title>
+    <meta name="description" content="畫出平面輪廓，為角點做圓角或倒角，再將它擠出或旋轉成實體。">
+    <link rel="canonical" href="https://layerling.com/zh-tw/sketches.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/sketches.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/sketches.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/sketches.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/skizzen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/sketches.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/sketches.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/sketches.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/sketches.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/schetsen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/sketches.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/skice.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/sketches.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/sketches.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/sketches.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/sketches.html">
+    <meta property="og:title" content="草圖：從輪廓到實體 - layerling 使用者指南">
+    <meta property="og:description" content="畫出平面輪廓，為角點做圓角或倒角，再將它擠出或旋轉成實體。">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/zh-tw/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">使用者指南</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/zh-tw/search-index.json" data-nothing="找不到結果。" data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="搜尋指南" aria-label="搜尋指南" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="語言">繁體中文</summary><ul><li><a href="/api/desktop/layerling/ui/guide/sketches.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/sketches.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/sketches.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/sketches.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/sketches.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/sketches.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/sketches.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/sketches.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/sketches.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/sketches.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/skice.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/sketches.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/sketches.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/sketches.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/sketches.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/sketches.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/sketches.html" hreflang="zh-TW" lang="zh-TW" aria-current="true">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">開啟編輯器</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>編輯器已在另一個分頁中開啟，請切換到那裡。</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="章節"><h2>章節</h2><p class="print-link"><a href="/api/desktop/layerling/ui/zh-tw/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>列印完整指南</span></a></p><ol><li><a href="/api/desktop/layerling/ui/zh-tw/getting-started.html">快速上手</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/view-and-workplane.html">檢視與工作平面</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/shapes.html">放置與調整形狀</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/select-and-arrange.html">選取與排列</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/solids-and-holes.html">實體與孔</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/edges-and-hollowing.html">邊的修整與實體抽殼</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/sketches.html" aria-current="page">草圖：從輪廓到實體</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/text.html">文字與弧形文字</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/threads-and-mechanics.html">螺紋、齒輪與其他零件</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/measuring-and-notes.html">量測與備註</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/printing.html">為 3D 列印做準備</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/files-and-saving.html">檔案、儲存與分享</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/shortcuts.html">鍵盤快速鍵</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/ai-with-mcp.html">用 AI 建模（MCP）</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/offline-and-install.html">安裝為應用程式、離線使用與自架</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/videos.html">關於 layerling 的影片</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/tablet-and-touch.html">平板與觸控</a></li></ol></nav>
+      <main>
+<h1>草圖：從輪廓到實體</h1>
+<p class="lead">畫出平面輪廓，為角點做圓角或倒角，再將它擠出或旋轉成實體。</p>
+<div class="toc"><b>本頁內容</b><ul><li><a href="#starting-a-sketch">開始草圖</a></li><li><a href="#drawing">繪製</a></li><li><a href="#lines-by-numbers">用數字畫線</a></li><li><a href="#curving-a-straight-side">讓直邊彎曲</a></li><li><a href="#reading-and-typing-angles">讀取與鍵入角度</a></li><li><a href="#rounding-or-chamfering-corners">圓角與倒角</a></li><li><a href="#mirroring">鏡像</a></li><li><a href="#construction-lines">構造線</a></li><li><a href="#making-a-body-from-it">用它生成實體</a></li><li><a href="#sweeping-along-a-path">沿路徑掃掠</a></li><li><a href="#building-as-a-stroke">以描邊建構</a></li><li><a href="#fill-and-silhouette">填色與剪影</a></li><li><a href="#slanted-walls-for-stamps">斜壁，用於印章</a></li><li><a href="#a-picture-as-template">用圖片當模板</a></li><li><a href="#keys-in-sketch-mode">草圖模式下的按鍵</a></li></ul></div>
+<p>並非所有東西都能用基本形狀拼出來。像支架、齒形或花瓶這類有自己輪廓的零件，要先畫出<strong>輪廓</strong>，再由它做出實體。草圖模式就是為此而生。</p>
+<section class="guide-part"><h2 id="starting-a-sketch">開始草圖</h2>
+<p>在上方從 <strong class="ui">「3D 編輯器」</strong> 切換到 <strong class="ui">「草圖」</strong>。功能區的 <strong class="ui">「建立」</strong> 組裡有三個按鈕並排，決定輪廓要變成什麼：</p>
+<ul><li><strong><strong class="ui">「擠出草圖」</strong>：</strong>輪廓向上拉起，像餅乾壓模。</li><li><strong><strong class="ui">「旋轉草圖」</strong>：</strong>輪廓繞一條軸旋轉，如同車床。花瓶、杯子、圓錐和所有圓形的東西都這樣做。</li><li><strong><strong class="ui">「掃掠草圖」</strong>：</strong>輪廓沿一條路徑擠出：轉彎的線槽、導管、繞在某個形狀上的環。見下方沿路徑掃掠一節。</li></ul>
+<p>編輯器接著會顯示一張帶網格的圖板。那就是你的繪圖面。</p>
+</section><section class="guide-part"><h2 id="drawing"><span class="heading-alias" id="drawing-tools"></span><span class="heading-alias" id="shapes"></span><span class="heading-alias" id="select-and-change"></span><span class="heading-alias" id="clipboard-and-history"></span><span class="heading-alias" id="notes"></span><span class="heading-alias" id="view-and-dimensions"></span>繪製</h2>
+<p>草圖模式的功能區分成幾個區域：</p>
+<ul><li><strong>繪製：</strong><strong class="ui">「直線」</strong> 畫直線段：依序點擊各點；按住 <kbd>Shift</kbd> 時，新線會以 15° 步距吸附，水平和垂直也算在內。新線的長度和角度會顯示在游標旁。也可以鍵入長度，見<a href="#lines-by-numbers">用數字畫線</a>。<strong class="ui">「圓弧」</strong> 通過三個點畫出真正的圓弧：先點擊它的兩個端點，再點圓弧經過的第三個點；在第三次點擊之前，預覽會跟著游標走，提示訊息會說出半徑。端點若點在既有的點上就會與它相連，因此圓弧可以封閉輪廓。<kbd>Esc</kbd> 會放棄目前點過的點，回到 <strong class="ui">「選取」</strong>。之後圓弧就是由點和曲線組成的普通幾何：像其他線條一樣移動、剪下或擦除。<strong class="ui">「貝茲曲線」</strong> 用控點塑形：點擊一個點，並朝線條應繼續的方向拖曳，就像 Illustrator 或 Inkscape 的鋼筆工具。拖得越遠，彎得越多；拖向新點的那一段會在拖曳時跟著彎曲，所以看得到結果。放點時拖曳會讓曲線彎曲；如果你來自 Tinkercad，只想點幾個點，就用 <strong class="ui">「平滑曲線」</strong>。<strong class="ui">「平滑曲線」</strong> 會在你點擊的各點之間鋪出一條流暢的路徑。要封閉輪廓，最後再點一次第一個點。若不想封閉輪廓而結束連續畫線，不移動游標按一下右鍵，或雙擊最後一個點。</li><li><strong><strong class="ui">「手繪」</strong>：</strong> 用筆、手指或滑鼠像在紙上一樣繪製。抬起後，線條會變成一般的點：急轉處是角點，中間是平滑點，只用形狀所需的數量，之後每個點都能拖曳。要畫細節就放大檢視：看得越近，線條越貼合你的手。終點回到起點的線條會閉合成輪廓，可以變成實體；開放的線條仍是線，可用於 <strong class="ui">「描邊」</strong> 或作為掃掠路徑。它也可以從線條和範本圖片上開始，因此能用手描摹圖片。從開放端點開始或結束的筆畫會接續那條線，因此可以分幾筆畫出一個形狀。</li><li><strong>形狀：</strong><strong class="ui">「新增草圖形狀」</strong> 提供現成的輪廓：<strong class="ui">「矩形」</strong>、<strong class="ui">「圓形」</strong>、<strong class="ui">「橢圓」</strong>、<strong class="ui">「半圓」</strong>、<strong class="ui">「扇形」</strong>、<strong class="ui">「螺栓圓」</strong>（帶孔的圓盤）、<strong class="ui">「三角形」</strong>、<strong class="ui">「六邊形」</strong>、<strong class="ui">「多邊形」</strong> 和 <strong class="ui">「星形」</strong>。點擊其中一個即可放到草圖原點，也可以從選單把它拖到想要的位置。在選單底部，<strong class="ui">「邊數 / 角數」</strong> 設定多邊形的邊數和星形的角數，<strong class="ui">「星形內徑」</strong> 設定星形的凹谷向中心伸入多深（外半徑的 10% 到 90%）；兩者都套用在你下一個加入的形狀。和所有草圖形狀一樣，之後它們就是普通的角點，可以逐一移動、做圓角或倒角。 矩形以設定中 <strong class="ui">「形狀預設值」</strong> 為長方體設定的寬度和深度開始，圓和橢圓以那裡圓柱體的寬度開始；沒有自訂值時，以及其他形狀，大小為 20 公釐。</li><li><strong>重疊：</strong>把兩個閉合輪廓疊在一起，它們仍是兩個實體，在 3D 編輯器中合併；重疊部分不算孔。只有完全位於另一個輪廓內部的輪廓才會形成孔。移動不會在交叉處連接線條，所以可以再把形狀拉開。不過，如果你畫一條線穿過其他線，layerling 會在每個交叉處放一個點。</li><li><strong>選取：</strong><strong class="ui">「選取」</strong> 移動點和線。在閉合輪廓內部點擊會選取整個輪廓，可以直接拖曳或調整大小；在孔內部點擊則選取孔。選取框有八個控點：角上的控點同時改變寬度和高度，按住 <kbd>Shift</kbd> 時保持比例。邊上的控點只改變一個方向。出現的工具列中的 <strong class="ui">「保持比例」</strong> 不需 <kbd>Shift</kbd> 也能保持比例：這時角上和邊上的控點都會以相同比例拉伸，鍵入寬度或高度也會同時改變另一個。layerling 會記住這個開關。旁邊的 <strong class="ui">「鎖定」</strong> 會鎖定選取的輪廓，就像 3D 編輯器中鎖定實體一樣（<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> 效果相同）：它不能再被移動、調整大小、旋轉或修改，線條會變淡，點會變成灰色，選取框的控點也會變灰且不再回應。選取時，點擊其角落的鎖頭圖示即可解除鎖定。線條仍可以從它的角點開始。<strong class="ui">「解鎖」</strong> 或再按 <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> 即可解除鎖定。選取框四角外的弧形箭頭會讓整個選取範圍繞中心旋轉：指標上方的數字會顯示角度，按住 <kbd>Shift</kbd> 時以 15° 為步進。旋轉時會出現一個圓環：指標在環內時以 22.5° 為步進吸附，在環外則以整度旋轉，不受格線影響。每按一次 <kbd>R</kbd>，整個閉合輪廓就旋轉 45°。點擊寬度或高度的尺寸標籤可鍵入新尺寸，也可以輸入算式（「60+12.5」）或百分比（「150%」）。按住 <kbd>Shift</kbd> 時，點擊一個點或一條線會將它加入或移出選取範圍，這樣就能選取多個一起移動。在空白處拖出框選，可選取框內所有東西。線條也能拖曳（它隨兩端移動；若它屬於某個選取範圍，則整個選取範圍一起移動）。方向鍵會將選取範圍移動一個網格步距，同時按 <kbd>Shift</kbd> 則步距更大；拖曳時按住 <kbd>Shift</kbd> 可讓移動保持在單一軸上。<strong class="ui">「新增或移除點」</strong>：點擊一段線會加入一個點，點擊一個點則將它移除。此外還有 <strong class="ui">「擦除」</strong>（點擊一個點或一條線就移除它，拖出框選經過多個則移除框內全部，已有選取範圍時按鈕會清除選取範圍）以及插入模板圖片（<strong class="ui">「新增圖片」</strong>）。移除一個點時，layerling 會把它兩側的相鄰點連接起來，讓輪廓維持閉合。要補上缺口，例如擦掉六邊形的一邊之後，把一個開放端拖到另一個上：它會吸附過去，兩點合成一點，輪廓就重新閉合。在交叉處，例如一條線穿過一個圓的地方，直通的一側會彼此連接：弧接弧、線接線，圓仍保持圓形。若只想移除圓的一小段，例如做一個圓角，就用橡皮擦精確點擊兩點之間的那段弧；其餘部分會保留。草圖上方工具列中的 X 和 Y 欄位顯示選取範圍中心的位置，以距草圖原點的公釐計；輸入數值，它就會精確移到那裡，例如距中心 12 mm 的孔。Y 向上增大，與 3D 編輯器一致。</li><li><strong>剪貼簿：</strong><strong class="ui">「複製」</strong>、<strong class="ui">「貼上」</strong>、<strong class="ui">「建立副本」</strong> 和 <strong class="ui">「刪除」</strong> 作用於選取的點、線和圖片，與 3D 編輯器一樣；<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span> 為剪下。貼上與複製的幾何會落在原圖形旁邊，相隔 10 mm，位於不碰到任何既有線條的空位，因此絕不會與既有內容連在一起。它會保持選取，可以直接拖到定位。</li><li><strong>歷史記錄：</strong><strong class="ui">「草圖復原」</strong> 和 <strong class="ui">「草圖重做」</strong>。</li><li><strong><strong class="ui">「草圖視圖控制項」</strong>:</strong> <strong class="ui">「備註」</strong>（或 <kbd>N</kbd>）在草圖上放置備註，與 3D 編輯器中相同：下一次點擊即放置備註，可以放在任何位置，也可以放在線條上。拖曳圖釘可移動備註；點擊圖釘會收起卡片。草圖的備註屬於它的實體：在 3D 檢視中，它們位於用 <strong class="ui">「擠出草圖」</strong> 或 <strong class="ui">「掃掠草圖」</strong> 產生的實體頂面上，以及用 <strong class="ui">「旋轉草圖」</strong> 產生的實體所繪製的輪廓上，並隨實體一起移動。再次開啟草圖會顯示該實體的所有備註，包括在 3D 中放置的備註。<strong class="ui">「草圖復原」</strong> 會像復原線條一樣復原備註，<strong class="ui">「取消」</strong> 會捨棄對備註的變更。詳見「量測與備註」一章。</li><li><strong>檢視：</strong>用中鍵平移，或按住 <kbd>Shift</kbd> 或 <kbd>Ctrl</kbd> 加右鍵拖曳，與 3D 編輯器一樣。沒有選取任何東西時，<kbd>Ctrl</kbd> 加方向鍵也能平移檢視：每按一次移動畫面的十分之一，同時按 <kbd>Shift</kbd> 則為一半，草圖會依所指的方向移動。<kbd>Home</kbd> 讓整張草圖符合檢視範圍，<kbd>F</kbd> 縮放到選取範圍（沒有選取任何東西時，縮放到整張草圖），<kbd>+</kbd> 和 <kbd>−</kbd> 放大與縮小，與 3D 編輯器一樣。沒有選取任何東西時，雙擊空白處會平移檢視，讓該處移到中間，與 3D 編輯器一樣；設定中的 <strong class="ui">「按兩下工作平面，視圖以該處為中心」</strong> 可關閉此功能。草圖工具列上的 <strong class="ui">「捲尺」</strong> 可量測兩點之間的距離。只要點擊某個東西，草圖就會顯示尺寸：一條線的長度，或某個點上相交各線的長度。當這些尺寸礙事時，例如在塑造曲線時，草圖工具列上的 <strong class="ui">「顯示量測」</strong> 按鈕可以隱藏與顯示這些尺寸；捲尺仍可照常使用。在直線上可以點擊尺寸標籤，鍵入以公釐計的長度；<kbd>Enter</kbd> 套用，<kbd>Esc</kbd> 取消。線條會保持方向，起點留在原處，另一端的線條會跟著移動。若選取的是端點，則該端點移動。<span dir="ltr"><kbd>Alt</kbd>+<kbd>Enter</kbd></span> 會讓線條以中點為中心向兩側伸長。在曲線上，標籤只顯示長度。</li></ul>
+<p>只有<strong>閉合</strong>的輪廓才能生成實體。</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-outline.webp" alt="一個 L 形輪廓。在左上方選取的角點處，兩條線的長度以公釐顯示，它們之間的角度以度顯示。" width="1280" height="800" loading="lazy"><figcaption>一個 L 形輪廓。在左上方選取的角點處，兩條線的長度以公釐顯示，它們之間的角度以度顯示。</figcaption></figure>
+<p>按鍵 <kbd>1</kbd> 到 <kbd>4</kbd> 可選擇繪圖工具，順序與工具列一致：<strong class="ui">「直線」</strong>、<strong class="ui">「貝茲曲線」</strong>、<strong class="ui">「平滑曲線」</strong> 和 <strong class="ui">「新增或移除點」</strong>。只要沒有正在畫線，它們就有效；正在畫線時，數字代表線的長度（見下文）。 按 <kbd>5</kbd> 選擇 <strong class="ui">「手繪」</strong>。</p>
+</section><section class="guide-part"><h2 id="lines-by-numbers">用數字畫線</h2>
+<p>用 <strong class="ui">「直線」</strong> 或 <strong class="ui">「平滑曲線」</strong> 定下第一個點後，直接鍵入數字：線旁會開啟兩個欄位，<strong class="ui">「長度」</strong> 以公釐計，<strong class="ui">「角度」</strong> 以度計。<kbd>&lt;</kbd> 或 <kbd>Tab</kbd> 會移到角度，所以「50&lt;30」可得到一條長 50 mm、角度 30° 的線，與 AutoCAD 一樣。<kbd>Enter</kbd> 定下該點，隨即可以鍵入下一條線；<kbd>Esc</kbd> 會關閉欄位，但不會結束連續畫線。</p>
+<p>角度從右方起逆時針計算：0° 向右，90° 向上，180° 向左，270° 向下。留空的話，線條會跟著游標，因此只給長度，用滑鼠指出方向。兩個欄位都能輸入「40+12.5」這樣的算式。如果該點會落在平台之外，欄位會提示並等待另一個值。</p>
+</section><section class="guide-part"><h2 id="curving-a-straight-side">讓直邊彎曲</h2>
+<p>選取一條直線，點擊出現的工具列中的 <strong class="ui">「曲線化」</strong>：這條邊會彎成曲線，與 Tinkercad 一樣，並顯示兩個控點。拖曳控點來塑造曲線；控點拉得越遠，彎得越強。指標下的控點會變成橘色，並且也能接住緊挨著它的點擊，這樣下面的範本圖片不會被誤移。<strong class="ui">「直線化」</strong> 會讓這條邊重新變直。選取的點可以用 <strong class="ui">「平滑曲線」</strong> 變成圓滑的：它會獲得自己的控點，相鄰的線也會變成曲線。選取三個或更多點時，工具列中的 <strong class="ui">「過點曲線」</strong> 會從第一個點到最後一個點鋪一條平滑曲線，穿過中間的每個點，與 <strong class="ui">「平滑曲線」</strong> 工具畫出的一樣；兩端以外的線保持不變。其他軟體稱之為「Fit curve」或「Fit point spline」。兩者的差別：<strong class="ui">「曲線化」</strong> 會把每條選取的邊單獨彎曲，保留邊與邊之間的轉角，適合在一條邊上做拱形；<strong class="ui">「過點曲線」</strong> 讓一條曲線穿過這些點，不留轉角，適合把描出的鋸齒狀邊緣變平滑。點擊一個控點，它會亮起：此時方向鍵會以一個網格步距移動它，配合 <kbd>Shift</kbd> 則步距更大，因此可以精確設定曲線。</p>
+<p>數值也可以直接輸入。選取一個點時，工具列顯示 <strong class="ui">「X」</strong> 和 <strong class="ui">「Y」</strong>：它的位置，以距草圖原點的公釐計，Y 向上為正。點擊一個控點，工具列改為顯示 <strong class="ui">「控點 X」</strong> 和 <strong class="ui">「控點 Y」</strong>：控點相對於其所屬點的位置。在平滑點上，對側控點會隨之轉動。給另一側對應的控點相同的 Y 和符號相反的 X，曲線就會精確鏡像；<strong class="ui">「鏡像」</strong> 可一次鏡像整半邊。</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-curve.webp" alt="L 形輪廓的底邊彎成曲線，兩個控點位於兩端。" width="1280" height="800" loading="lazy"><figcaption>L 形輪廓的底邊彎成曲線，兩個控點位於兩端。</figcaption></figure>
+</section><section class="guide-part"><h2 id="reading-and-typing-angles">讀取與鍵入角度</h2>
+<p>點擊<strong>兩條直線</strong>相交的角點：在長度旁邊，layerling 會以小圓弧顯示兩者之間的<strong>角度</strong>，單位為度。在閉合輪廓上，這是形狀內側的角度，所以凹口讀到的是大於 180° 的值。點擊該數值並鍵入新角度。兩條線中的一條會繞角點轉動並保持長度，另一條留在原處。轉動的線以虛線繪製；<kbd>Tab</kbd> 切換到另一條，<kbd>Enter</kbd> 套用，<kbd>Esc</kbd> 取消。轉動線遠端連著的東西會隨之移動。</p>
+<p>鎖定的點會保持不動，輸入的數值會顧及這一點：長度會移動線的自由端，角度會轉動遠端自由的那條線。單一點也可以鎖定：選取它並按 <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span>。這樣就能一個角一個角地把輪廓做準：鎖定一個角，輸入下一條線的長度和角度，鎖定它的端點，然後繼續。</p>
+<p>移動一個點會改變三個角度：該點本身，以及它兩條線遠端相鄰的兩個角。因此 layerling 也會顯示那兩個角，每一個都可以點擊並鍵入。這樣一來，就能在選取會隨之移動的左上點時，把左下角設成例如 75.5°。這裡也能做運算，例如「90-14.5」。</p>
+<p>曲線與角點相接處，或超過兩條線交會的角點，不會顯示角度。草圖工具列上的 <strong class="ui">「顯示量測」</strong> 按鈕會連同長度一起隱藏角度。</p>
+</section><section class="guide-part"><h2 id="rounding-or-chamfering-corners">圓角與倒角</h2>
+<p>點擊一個角點，選擇 <strong class="ui">「圓角化角點」</strong> 或 <strong class="ui">「倒角化角點」</strong>。會出現一個小欄位，用於 <strong class="ui">「半徑」</strong> 或 <strong class="ui">「距離」</strong>。輸入尺寸並按打勾按鈕確認。這適用於兩條直線之間的角。</p>
+<p>也可以一次處理多個角：按住 <kbd>Shift</kbd> 逐一點擊選取，或框選它們，然後從出現的工具列選擇 <strong class="ui">「圓角化角點」</strong> 或 <strong class="ui">「倒角化角點」</strong>。它們都會得到相同的半徑或距離。若兩個選取的角共用一條邊，每個角最多佔這條邊的 45%，這樣四角都做圓角的長方形，每個角看起來都一樣。不是兩條直線夾角的點會被略過，提示訊息會說明略過了幾個。框住整個形狀，或在形狀內部點擊，會同時選取它的角點和線條，此時工具列會在角工具旁邊，為所有選取的線提供 <strong class="ui">「曲線化」</strong> 和 <strong class="ui">「直線化」</strong>。</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-fillet.webp" alt="左上角的角已做成半徑 12 mm 的圓角。" width="1280" height="800" loading="lazy"><figcaption>左上角的角已做成半徑 12 mm 的圓角。</figcaption></figure>
+</section><section class="guide-part"><h2 id="mirroring">鏡像</h2>
+<p>選取點和線（點擊、<kbd>Shift</kbd> 加點擊，或框選），然後點擊工具列中的 <strong class="ui">「鏡像」</strong>。接著選擇軸：<strong class="ui">「左右」</strong> 沿穿過平台中央的垂直軸鏡像，<strong class="ui">「上下」</strong> 沿水平軸鏡像，<strong class="ui">「沿直線」</strong> 沿你接下來點擊的草圖直線鏡像。副本會加在另一側，原圖形保留；兩者沒有任何連結，因此可以各自修改。位於軸上的點是共用的，所以兩端落在軸上的半個輪廓會變成一個閉合輪廓：畫出半個支架，選取、鏡像，然後生成實體。構造線很適合當軸。<kbd>Esc</kbd> 取消。</p>
+</section><section class="guide-part"><h2 id="construction-lines">構造線</h2>
+<p>構造線能幫你放置點，又不會成為實體的一部分。它以虛線繪製，永遠不算輪廓：想拉出形狀多遠都可以，實體不會因此變大。</p>
+<ul><li>在 <strong class="ui">「繪製」</strong> 組中開啟 <strong class="ui">「建構線」</strong>。之後新畫的線，包括按尺寸鍵入的線，都是構造線。再按該按鈕可切回普通線。</li><li>已經畫好的線，點擊它並選擇 <strong class="ui">「建構線」</strong> 就會變成構造線。<strong class="ui">「設為一般線」</strong> 會讓它變回普通線。</li><li>新點會吸附到構造線與其他線的交叉處（會顯示藍色圓環），也會吸附到構造線的端點。這樣不必計算，就能把角點放在中點、距某條邊固定距離處，或交叉處。</li><li>新點也會吸附到草圖中每條直線的中點、每個圓和圓角的中心，以及下方顯示的實體各邊中點（#624）。正在拖曳的點會忽略它自己線條的中點。</li><li>拖曳選取範圍時，其中心會吸附 (#1236)：圓或矩形的中心會落在其他線條的端點、角點和中點、圓心、輔助線的交點以及下方物體的角點上，藍色圓環顯示位置。從 <strong class="ui">「新增草圖形狀」</strong> 拖入的形狀也會以中心落在這些點上。按住 <kbd>Alt</kbd> 則只吸附網格。</li><li><strong class="ui">「繪製」</strong> 組中的 <strong class="ui">「從中點畫線」</strong> 會從線的中點開始畫線：先點擊中點，再點擊端點，線條會向另一側延伸同樣的長度。中點會成為獨立的一個點。再按該按鈕可畫普通線。</li><li>構造線穿過輪廓時，不會把它切開。旋轉時，它也可以位於軸的右側。</li></ul>
+</section><section class="guide-part"><h2 id="making-a-body-from-it">用它生成實體</h2>
+<p>點擊 <strong class="ui">「完成草圖」</strong>。輪廓會立在工作平面上，成為實體。在它的設定中，可以像其他形狀一樣修改高度、顏色和其他一切。調整它的大小時，layerling 會在片刻之後從草圖重建它，草圖也會跟著變大。因此它仍是精確實體，可以倒角與圓角，下次編輯時草圖的尺寸就是實體的尺寸。</p>
+<p>如果工作平面位於實體的側面，你就按看那一面的方向來畫：草圖中的上方，就是完成後實體上的上方。草圖檢視中實體淡淡的輪廓會顯示它所在的位置。如果工作平面切過實體，草圖檢視會改為顯示那個切面的輪廓，因此抽殼實體看起來像一個環，你可以讓草圖與它的壁對齊。你設定或拖曳的點靠近這些輪廓的角點時，會精確吸附到角點上；會出現一個小藍環。這樣就能把其他實體的邊帶進草圖，即使工作平面並不恰好落在這些邊上。要描摹既有的作品，請開啟 <strong class="ui">「以透視方式顯示零件：它們在草圖平面上的所有邊」</strong>（左側檢視按鈕中的圖層按鈕）：之後實體的所有邊都會畫在草圖平面上，細而淡，彷彿能看穿它們，無論它們位於什麼高度。直立的平面，例如設在正面的平面，就會以這種方式顯示正視圖。這個選擇會儲存在瀏覽器中。</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-result.webp" alt="輪廓已經變成實體，角也做成圓角。" width="1280" height="800" loading="lazy"><figcaption>輪廓已經變成實體，角也做成圓角。</figcaption></figure>
+<p>用 <strong class="ui">「編輯草圖」</strong> 可以隨時回到草圖修改。雙擊實體也有同樣效果，與 Tinkercad 一樣（鎖定的實體不會開啟）；設定中的 <strong class="ui">「按兩下開啟草圖」</strong> 可以關閉這個行為。不過，你已經在實體上做過的邊緣處理會消失，因為邊會重新生成。在 3D 編輯器中旋轉或移動過的物體，會在它於平台上的位置開啟，方向與你在那裡看到的一致，並使用平台的格線；只有傾斜或鏡像的物體才會以它自身的方向開啟。</p>
+<p>包含多個輪廓的草圖會生成一個實體，重疊的輪廓會在其中合併。若想讓每個輪廓各自獨立，選取實體並點擊 <strong class="ui">「分離部件」</strong>：每個外側輪廓會連同位於其中的孔成為獨立實體，並保持實體的高度、顏色和位置。每個部件都有自己的草圖可編輯，構造線也在其中，因此可以逐一抬高或降低各部件，之後再合併或切除它們。邊緣處理會阻止這個操作，之後被拉伸過的實體也不行：那樣它會以網格拆開。</p>
+<p><strong>用同一張草圖做另一種實體：</strong>草圖上方的標記會說明它會變成什麼，<strong class="ui">「擠出草圖」</strong>、<strong class="ui">「旋轉草圖」</strong> 或 <strong class="ui">「掃掠草圖」</strong>。點擊它並選擇另一個，編輯既有實體時也可以：匯入的 SVG 原本是擠出的，切換到 <strong class="ui">「旋轉草圖」</strong> 就會變成花瓶或旋鈕。跨越軸的輪廓會向左移動，直到右邊緣落在軸上，於是 SVG 的半個橫截面就會繞它的直邊旋轉；<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> 可復原這次移動。完成時，新實體會接替舊實體的位置、名稱和顏色，底部高度相同。邊緣處理會消失，這與每次編輯草圖時一樣。</p>
+<section class="guide-part"><h3 id="revolving">旋轉</h3>
+<p>旋轉時，把半個橫截面畫在草圖中所示<strong>軸的左側</strong>。旁邊會看到旋轉的 3D 預覽，立刻顯示實體將會是什麼樣子。輪廓必須閉合，或者把開放線條建成描邊，見下文。最後點擊 <strong class="ui">「完成旋轉」</strong>。設計中的其他實體會以正面顯示，與輪廓採用同一檢視，軸位於中央：把輪廓畫在它們旁邊或上方。實體會立在你畫它的位置，而穿過草圖中央的水平線是地面：畫在它上方的輪廓會得到立得更高的實體，其最低點就是實體的底部。</p>
+<p>旋轉實體和擠出實體一樣是精確實體：可以倒角與圓角，也可以抽殼，做成杯子或花瓶。用舊版 layerling 旋轉出的實體是網格；開啟 <strong class="ui">「編輯草圖」</strong> 再完成一次，就能讓它變精確。跨越軸的輪廓無法精確建構，和以前一樣會變成網格。</p>
+<p><strong>更平滑的圓面：<strong class="ui">「平滑度」</strong>。</strong> 精確的旋轉體在顯示、匯出和列印時會被分成小平面，在大花盆上這些稜面可能在列印件上看得出來。選取物體，在屬性面板中把 <strong class="ui">「平滑度」</strong> 設為 <strong class="ui">「精細」</strong> 或 <strong class="ui">「超精細」</strong>：圓面分得更細，代價是更多三角形和更慢的設計。螺旋或網格旋轉體則用 <strong class="ui">「邊數」</strong> 來調整。</p>
+<p><strong>一根連續的條：<strong class="ui">「螺距」</strong>。</strong>旋轉會把輪廓變成閉合的環。選取旋轉實體，在屬性面板中給它一個大於 0 的 <strong class="ui">「螺距」</strong>，也就是每圈上升的距離，輪廓就會改為纏繞成螺旋：一根連續的條，像線軸上的線材或彈簧。<strong class="ui">「掃掠」</strong> 則會變成 <strong class="ui">「圈數」</strong>，最大 200；負數會左旋。相鄰圈距小於輪廓高度時會融成一個實體，因此細螺距的實心核心也能做。螺旋是以網格建構的，所以圓角、倒角和抽殼對它無效；圈數多時把 <strong class="ui">「邊數」</strong> 設低。螺距為 0 又會變回環。</p>
+</section></section><section class="guide-part"><h2 id="sweeping-along-a-path">沿路徑掃掠</h2>
+<p><strong class="ui">「掃掠草圖」</strong> 會把輪廓沿一條路徑擠出：轉彎的線槽、導管、皮帶周圍的護罩、繞六邊形的環。它位於 <strong class="ui">「建立」</strong> 組中，就在 <strong class="ui">「擠出草圖」</strong> 和 <strong class="ui">「旋轉草圖」</strong> 旁邊。</p>
+<ul><li><strong>截面</strong>：和平常一樣是一個封閉輪廓。依從路徑起點沿路徑望去所看到的樣子畫它：橫跨路徑的是草圖的左右，向上就是成品實體的上方。空心截面（槽或管）是一個輪廓裡套著另一個輪廓。預設情況下截面以路徑為中心。頂部模式標記旁的選單可以改為把它的左邊緣或右邊緣放在路徑上（<strong class="ui">「在路徑上：左邊緣」</strong>、<strong class="ui">「在路徑上：右邊緣」</strong>，沿路徑望去），這樣導軌可以位於線的一側，或沿零件的邊緣走。實體以截面的最低點立在草圖平面上。</li></ul>
+<p>在同一張圖板上畫兩樣東西：</p>
+<ul><li><strong>橫截面</strong>照常作為閉合輪廓。按你從路徑起點沿路徑看過去的樣子來畫：橫向是草圖的左右，向上就是完成實體上的上方。空心截面，例如槽或管，是輪廓裡再套一個輪廓。截面會以路徑為中心，實體則以截面的最低點立在草圖平面上。</li></ul>
+<ul><li><strong>路徑</strong>作為 <strong class="ui">「建構線」</strong>：開啟它，畫出線或曲線，構成單一鏈條，開放或閉合（閉合鏈條會得到環）。路徑平躺在草圖平面內。</li></ul>
+<p>把截面畫在路徑應該開始的那一端附近；路徑會從離它最近的端點開始。然後點擊 <strong class="ui">「完成掃掠」</strong>。直線段的拐角會變成斜接，曲線保持平滑，截面全程保持直立。實體和擠出的一樣精確：圓角、倒角和 STEP 匯出都能用。如果缺少閉合輪廓或路徑，或者有多條彼此分離的路徑，layerling 會提示。用 <strong class="ui">「編輯草圖」</strong> 可以回到草圖，修改截面或路徑。</p>
+</section><section class="guide-part"><h2 id="building-as-a-stroke">以描邊建構</h2>
+<p>通常，閉合輪廓內部的區域會成為實體。用 <strong class="ui">「完成」</strong> 區段中的 <strong class="ui">「描邊」</strong>，改成建構線條本身，寬度由你設定。在描邊視窗中勾選 <strong class="ui">「以描邊建立」</strong>；草圖會立刻顯示結果。</p>
+<ul><li><strong>閉合輪廓</strong>會變成一個邊框。<strong class="ui">「位置」</strong> 說明壁落在哪裡：<strong class="ui">「置中」</strong> 在畫出的線上，<strong class="ui">「內側」</strong> 在其內側，<strong class="ui">「外側」</strong> 在其外側。外側對齊在留公差時很方便：畫出孔的輪廓，例如燕尾，給它 0.2 mm 的外側描邊，就能得到列印所需的間隙。</li><li><strong>開放線條</strong>會變成一條條帶，以線為中心。<strong class="ui">「端點」</strong> 決定端點樣式：<strong class="ui">「平頭」</strong>、<strong class="ui">「方頭」</strong>（長出半個寬度）或 <strong class="ui">「圓頭」</strong>。</li><li><strong class="ui">「轉角」</strong> 對兩者都適用：<strong class="ui">「尖角」</strong>、<strong class="ui">「圓角」</strong> 或 <strong class="ui">「斜角」</strong>。</li></ul>
+<p>草圖會保留畫出的線。再次開啟後，可以繼續修改線條和描邊；取消勾選，區域就會重新建構。曲線會為此拆成短的直線段。</p>
+<p>在旋轉中，描邊是一層薄壁：把花瓶或杯子的壁，畫成軸左側的<strong>一條開放線</strong>，勾選 <strong class="ui">「描邊」</strong> 並設定寬度，旋轉就會把這條帶子轉出來。越過軸的部分會在軸處被切掉。</p>
+</section><section class="guide-part"><h2 id="fill-and-silhouette">填色與剪影</h2>
+<p>不用開啟草圖也能設定描邊：在草圖實體的屬性中，於 <strong class="ui">「填充」</strong> 下選擇 <strong class="ui">「面積」</strong>、<strong class="ui">「描邊在外」</strong>、<strong class="ui">「描邊在內」</strong> 或 <strong class="ui">「描邊置中」</strong>，並設定 <strong class="ui">「線寬」</strong> 和 <strong class="ui">「轉角」</strong>。實體會立刻在原地重建。這些對應 Tinkercad 匯入 SVG 的填色模式：預設、外線和內線。<strong class="ui">「加寬」</strong> 會保持區域填滿，並向四周擴展一個線寬，角可以是尖角、圓角或斜角：這是多色列印時標誌下方的一層底色，單靠外側描邊只會得到一個環。<strong class="ui">「收窄」</strong> 則相反：區域保持填滿，邊緣向四周內縮一個線寬，孔也算在內（孔會變大）。在同一張草圖的副本上兩者都用，可以做配合：孔保持畫出的尺寸，穿過它的零件用 <strong class="ui">「收窄」</strong> 縮 0.5 mm，或者在同一輪廓切出的形狀裡做一層壁。寬度超過輪廓允許的範圍就什麼都不剩。在草圖的描邊視窗中，這兩個選項位於 <strong class="ui">「位置」</strong> 下。 使用外側、內側或置中的線時，<strong class="ui">「刃口」</strong> 會讓壁的頂部變鋒利：頂部以兩側各 45° 的倒角收窄到該寬度，就像餅乾模一樣。0 保持平頂；變更線寬時刃口保持不變。</p>
+<p><strong class="ui">「剪影（無孔）」</strong> 會略過所有位於其他輪廓內部的輪廓：孔以及孔裡的東西。只保留外側輪廓。與 <strong class="ui">「描邊在外」</strong> 一起，就能做出餅乾壓模：把同一個 SVG 匯入兩次，一次用剪影作為底部的面，一次用剪影加上外側 1 到 2 mm 的描邊作為壁。在草圖模式下，這個開關也在 <strong class="ui">「描邊」</strong> 視窗裡。</p>
+<p>實體重建時，邊上的圓角和倒角會消失，與編輯草圖時一樣。</p>
+</section><section class="guide-part"><h2 id="slanted-walls-for-stamps">斜壁，用於印章</h2>
+<p>擠出的草圖是垂直的壁。印章、壓花模或沖頭需要斜壁，外側和內側都要，而且壁厚處處相同。layerling 的擠出沒有拔模角，但對於單純的輪廓，可以用 <strong class="ui">「錐度」</strong> 達到目的。一種可行的做法：</p>
+<ol><li>畫出帶有所需孔的輪廓，並生成實體。複製該實體（<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span>）。</li><li>在第一個實體上開啟 <strong class="ui">「剪影（無孔）」</strong>，讓孔被填上，再用 <strong class="ui">「錐度」</strong> 讓底部比頂部寬。</li><li>在副本上再次開啟它的草圖，刪除外側輪廓，只留下孔的輪廓。完成草圖，把實體切換為 <strong class="ui">「孔」</strong>，再用 <strong class="ui">「錐度」</strong> 讓底部比頂部窄。</li><li>把孔移到第一個實體中原本孔的位置，並將兩者群組。</li></ol>
+<p>現在外側和內側的壁都傾斜了。錐度會縮放整個輪廓，所以對單純的形狀是精確的（可以選擇尺寸讓壁平行），對文字之類的細節則只是近似。</p>
+</section><section class="guide-part"><h2 id="a-picture-as-template">用圖片當模板</h2>
+<p>用 <strong class="ui">「新增圖片」</strong> 把照片或圖樣放到草圖下面，照著描。可以設定它的大小、不透明度和位置。圖片放好後，用 <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> 鎖定它，以免繪圖時不小心移動。鎖定的圖片不會擋路：點擊會穿過它，因此能選取它上面的線和點，也能在上面框選。點擊它角落的鎖頭圖示即可解鎖；<kbd>Alt</kbd>+點擊則會選取它而不解鎖。如果右側邊緣的設定擋住了圖片，抓住標題列把它們拖開；雙擊可重新停靠。</p>
+<p>在 <strong class="ui">「對齊」</strong> 下，可以校正拍歪的照片：</p>
+<ul><li><strong><strong class="ui">「旋轉」</strong>：</strong>繞圖片中心旋轉，可用四角外的弧形箭頭，或輸入以度計的數字。按住 <kbd>Shift</kbd> 時，箭頭會以 15° 步距吸附。旋轉時出現的圓環內以 22.5° 步距吸附，環外則以整度。</li><li><strong><strong class="ui">「至 X = 0」</strong></strong> 和 <strong><strong class="ui">「至 Y = 0」</strong>：</strong>把圖片中心放到 X = 0 或 Y = 0。對旋轉來說，X = 0 就是軸，圖片因此會對稱於軸。</li><li><strong><strong class="ui">「校正」</strong>：</strong>按鈕在頂部，緊接在預覽圖下方。在圖片中點擊距離已知的兩點，例如直尺的兩端或已知直徑，然後鍵入實際距離。圖片會等比縮放，使該距離正確；第一個點會留在原處。</li><li><strong><strong class="ui">「裁切」</strong>：</strong>框上的控點此時會裁剪圖片，而不是縮放；裁掉的部分仍會保留，用 <strong class="ui">「顯示完整圖片」</strong> 或再次向外拉控點即可讓它回來。</li></ul>
+<p>這四項都只會影響參考圖，絕不會影響草圖。</p>
+<p>圖片設定中的 <strong><strong class="ui">「描摹」</strong></strong> 會替你放置點：它描繪圖片中形狀的輪廓——剪影、標誌、文字——並以紅色顯示在圖片上，方點表示角點，圓點表示平滑點。<strong class="ui">「深色形狀」</strong> 或 <strong class="ui">「淺色形狀」</strong> 選擇圖片的哪一部分是形狀，<strong class="ui">「閾值」</strong> 決定深色在哪裡變為淺色，<strong class="ui">「點數」</strong> 決定所有輪廓一共有多少個點（點少曲線更平滑，點多更貼合圖片），<strong class="ui">「角點起始角度」</strong> 決定轉彎多大時一個點算作角點，<strong class="ui">「忽略不超過此大小的斑點」</strong> 決定忽略多小的斑點，<strong class="ui">「保留孔」</strong> 保留 A 或 O 的中間部分。<strong class="ui">「套用」</strong> 把輪廓放進草圖中圖片所在的位置，帶著它的大小、旋轉和裁切，並選取它們：它們是一般的點，可以移動、彎曲或刪除，<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> 一步復原。對比清楚時效果最好；背景雜亂的照片請先去背。被去掉的部分——輪廓周圍、孔裡、被裁掉的——預覽會用平台的顏色蓋住，所以圖片上只顯示留下的部分。靠得太近、寬鬆曲線會相交的輪廓會自動得到更多的點；卡片會說明。要在輪廓外側或內側加一圈邊，給草圖實體在線條外側或內側加描邊，或偏移完成的實體。</p>
+<p>對於照片——例如白色桌面上的玩具——在 <strong class="ui">「形狀」</strong> 下選擇 <strong><strong class="ui">「物體」</strong></strong>：背景是圖片邊緣的顏色，所有與之不同的部分都會成為一個輪廓，不論顏色；此時 <strong class="ui">「閾值」</strong> 決定它要多明顯地與背景區分。純色背景上的彩色圖片預設就這樣開始。<strong class="ui">「選取區域」</strong> 可以勾出更多：在圖片上點擊一個區域，例如窗戶，點擊處周圍顏色相近的一塊就會被勾出輪廓（<strong class="ui">「顏色容許度」</strong> 決定多相近）。孔和點選的區域列在 <strong class="ui">「孔和區域」</strong> 下；指向其中一個會在預覽中顯示，✕ 將其移除，關閉 <strong class="ui">「挖空」</strong> 時它畫成構造線而不是孔。碰到圖片邊緣的區域是背景，不會被採用。沒有任何臨界值或顏色能區分的部分——例如和上方車輪一樣深的陰影——用 <strong class="ui">「裁掉」</strong> 去掉：圍繞它點擊角點（點擊第一個角點、按兩下或按 <kbd>Enter</kbd> 閉合），輪廓就沿著裁切線走；它列為「裁切 1」。</p>
+<p>房子旁的樹、雜亂背景前的人物——沒有顏色能把形狀與其他部分分開時，用 <strong><strong class="ui">「磁性套索」</strong></strong> 抓住它：沿著它的邊緣大致點擊，兩次點擊之間線條會自動沿邊緣走，轉彎處也一樣；移動指標時，預覽已經顯示它將經過哪裡。點擊第一個點、按兩下或按 <kbd>Enter</kbd> 閉合，按 <kbd>Esc</kbd> 放棄。它列為「套索 1」，可選 <strong class="ui">「納入」</strong>（該區域併入形狀）或 <strong class="ui">「裁掉」</strong>（被去掉）；每個裁切都有同樣的選擇。在 <strong class="ui">「形狀」</strong> 下，<strong><strong class="ui">「僅套索」</strong></strong> 只用這樣抓住的部分做形狀——圖片的其他部分都不要。</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/trace-house.webp" alt="把一幅畫的房子作為物件描摹，臨界值調低以照顧它淺色的牆：磁性套索已把樹切掉，八塊窗玻璃被選為孔。" width="1280" height="800" loading="lazy"><figcaption>把一幅畫的房子作為物件描摹，臨界值調低以照顧它淺色的牆：磁性套索已把樹切掉，八塊窗玻璃被選為孔。</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/trace-house-body.webp" alt="作為實體的房子：沒有樹，窗戶穿透。" width="1280" height="800" loading="lazy"><figcaption>作為實體的房子：沒有樹，窗戶穿透。</figcaption></figure>
+</section><section class="guide-part"><h2 id="keys-in-sketch-mode">草圖模式下的按鍵</h2>
+<div class="table-scroll"><table><thead><tr><th>按鍵</th><th>效果</th></tr></thead><tbody><tr><td><kbd>Esc</kbd></td><td>放下備註工具；否則放下工具（回到 <strong class="ui">「選取」</strong>），然後清除選取範圍</td></tr><tr><td><kbd>Delete</kbd></td><td>刪除選取的元素</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>C</kbd></span></td><td>複製選取範圍</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span></td><td>剪下選取範圍</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>V</kbd></span></td><td>貼上</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span></td><td>複製選取範圍（建立副本）</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span></td><td>復原</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span></td><td>選取所有點和線</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>I</kbd></span></td><td><strong class="ui">「新增圖片」</strong></td></tr><tr><td><kbd>Shift</kbd></td><td>畫線時：讓線以 15° 步距吸附；拖曳時：讓移動保持在單一軸上</td></tr><tr><td>數字、<kbd>&lt;</kbd>、<kbd>Tab</kbd>、<kbd>Enter</kbd></td><td>畫線時：鍵入並設定下一條線的長度與角度</td></tr><tr><td><kbd>R</kbd></td><td>讓閉合草圖旋轉 45°</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span></td><td>鎖定或解除鎖定選取的輪廓，或模板圖片</td></tr><tr><td><kbd>N</kbd></td><td>放置備註：下一次點擊會將其放在草圖上</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span></td><td>顯示或隱藏備註</td></tr></tbody></table></div>
+<aside class="tip"><p><strong>提示：</strong>點畫得越少越好。點少而位置恰當的輪廓，做出來的實體會比一團雜亂的點更平滑。</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/zh-tw/edges-and-hollowing.html"><small>上一章</small>邊的修整與實體抽殼</a><a class="next" href="/api/desktop/layerling/ui/zh-tw/text.html"><small>下一章</small>文字與弧形文字</a></div>
+      </main>
+    </div>
+    <footer class="note">本指南隨程式一同完善。如有缺漏或錯誤，請到 <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">討論區告訴我們</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=zh-tw" rel="noopener">支援專案</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">討論區</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">在 GitHub 上了解更多</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">版本說明 v1.154.1</a></div><p class="trademark">Tinkercad 是 Autodesk, Inc. 的商標。layerling 是獨立專案，與 Autodesk 無關聯，也未獲其認可或贊助。</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="返回編輯器";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="開啟編輯器";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

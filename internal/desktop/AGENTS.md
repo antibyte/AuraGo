@@ -75,13 +75,16 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 
 ## Work Guidance
 
-- NASSCAD 4.7.0 is pinned to upstream `279da7c0f0ca28dfae19c11c8be231f326dfda4f`.
-  Rebuild with `node scripts/vendor-nasscad.mjs --source=<release source>` and
-  verify with `--check` and `scripts/test-nasscad-browser.mjs`. Preserve the
-  CC BY-NC license, local Manifold/IFC/OCCT runtimes and authenticated sibling
-  URLs. The seeder publishes the monolithic entry last and preserves existing
-  user workspace apps; its lazy assets, guides and license files must all be
-  included in `assets/web-assets.json`.
+- NASSCAD 4.7.0 is pinned to upstream `ba7cc40362c75c74165af5d6732d810cceda86cc`
+  (main after tag `v4.7.0-agpl`). Rebuild with
+  `node scripts/vendor-nasscad.mjs --source=<release source>` and verify with
+  `--check` and `scripts/test-nasscad-browser.mjs`. NassLab's code is
+  AGPL-3.0-only; bundled third-party runtimes keep their own notices. Preserve
+  the local Manifold/IFC/OCCT runtimes, the license page, the PDF manual and
+  authenticated sibling URLs, including the license stylesheet. The seeder
+  publishes the monolithic entry last and preserves existing user workspace
+  apps; its lazy assets, guides and license files must all be included in
+  `assets/web-assets.json`.
 - The reproducible NASSCAD email adaptation is shared by `scripts/nasscad-email-adapter.mjs` and `ui/js/desktop/apps/nasscad-email-frame.js`; the provenance input hash includes both. The Desktop wrapper loads that version-bound frame adapter for existing workspace copies as well. Preserve their files and the exclusive-create seeder. Email capture restores native download/picker behavior after its task; cancelled exports must never fall through to a browser download.
 
 - Code Studio's managed image includes GCC, libc development headers and make;

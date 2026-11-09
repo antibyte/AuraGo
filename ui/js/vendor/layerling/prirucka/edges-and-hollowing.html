@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Úpravy hran a vytváření dutin - Uživatelská příručka Layerlingu</title>
+    <meta name="description" content="Zkosení a zaoblení vybraných hran a rovnoměrné stěny krabiček, nádob a krytů.">
+    <link rel="canonical" href="https://layerling.com/prirucka/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/kanten-und-aushoehlen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/randen-en-uithollen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/robovi-in-izdolbljenje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/edges-and-hollowing.html">
+    <meta property="og:title" content="Úpravy hran a vytváření dutin - Uživatelská příručka Layerlingu">
+    <meta property="og:description" content="Zkosení a zaoblení vybraných hran a rovnoměrné stěny krabiček, nádob a krytů.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/prirucka/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Uživatelská příručka</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/prirucka/search-index.json" data-nothing="Nic nenalezeno." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Hledat v příručce" aria-label="Hledat v příručce" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Jazyk">Čeština</summary><ul><li><a href="/api/desktop/layerling/ui/guide/edges-and-hollowing.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/edges-and-hollowing.html" hreflang="cs" lang="cs" aria-current="true">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/edges-and-hollowing.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/edges-and-hollowing.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/edges-and-hollowing.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/edges-and-hollowing.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/edges-and-hollowing.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/randen-en-uithollen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/edges-and-hollowing.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/edges-and-hollowing.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/edges-and-hollowing.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/robovi-in-izdolbljenje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/edges-and-hollowing.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/edges-and-hollowing.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/edges-and-hollowing.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/edges-and-hollowing.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/edges-and-hollowing.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/edges-and-hollowing.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Otevřít editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Editor už je otevřený v jiné kartě. Přepněte se do ní.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Kapitoly"><h2>Kapitoly</h2><p class="print-link"><a href="/api/desktop/layerling/ui/prirucka/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Vytisknout celou příručku</span></a></p><ol><li><a href="/api/desktop/layerling/ui/prirucka/getting-started.html">Začínáme</a></li><li><a href="/api/desktop/layerling/ui/prirucka/view-and-workplane.html">Pohled a pracovní rovina</a></li><li><a href="/api/desktop/layerling/ui/prirucka/shapes.html">Vkládání a úpravy tvarů</a></li><li><a href="/api/desktop/layerling/ui/prirucka/select-and-arrange.html">Výběr a uspořádání</a></li><li><a href="/api/desktop/layerling/ui/prirucka/solids-and-holes.html">Tělesa a výřezy</a></li><li><a href="/api/desktop/layerling/ui/prirucka/edges-and-hollowing.html" aria-current="page">Úpravy hran a vytváření dutin</a></li><li><a href="/api/desktop/layerling/ui/prirucka/sketches.html">Náčrty: od obrysu k tělesu</a></li><li><a href="/api/desktop/layerling/ui/prirucka/text.html">Text a nápisy po oblouku</a></li><li><a href="/api/desktop/layerling/ui/prirucka/threads-and-mechanics.html">Závity, ozubení a další mechanické díly</a></li><li><a href="/api/desktop/layerling/ui/prirucka/measuring-and-notes.html">Měření a poznámky</a></li><li><a href="/api/desktop/layerling/ui/prirucka/printing.html">Příprava pro 3D tisk</a></li><li><a href="/api/desktop/layerling/ui/prirucka/files-and-saving.html">Soubory, ukládání a sdílení</a></li><li><a href="/api/desktop/layerling/ui/prirucka/shortcuts.html">Klávesové zkratky</a></li><li><a href="/api/desktop/layerling/ui/prirucka/ai-with-mcp.html">Modelování s AI pomocí MCP</a></li><li><a href="/api/desktop/layerling/ui/prirucka/offline-and-install.html">Instalace, práce bez internetu a vlastní hosting</a></li><li><a href="/api/desktop/layerling/ui/prirucka/videos.html">Videa o Layerlingu</a></li><li><a href="/api/desktop/layerling/ui/prirucka/tablet-and-touch.html">Tablet a dotyk</a></li></ol></nav>
+      <main>
+<h1>Úpravy hran a vytváření dutin</h1>
+<p class="lead">Zkosení a zaoblení vybraných hran a rovnoměrné stěny krabiček, nádob a krytů.</p>
+<div class="toc"><b>Na této stránce</b><ul><li><a href="#zkoseni-a-zaobleni-hran">Zkosení a zaoblení hran</a></li><li><a href="#vytvareni-dutin">Vytváření dutin</a></li><li><a href="#viko-pro-otevrene-teleso">Víko pro otevřené těleso</a></li><li><a href="#kabelovy-kanal-telesem">Kabelový kanál tělesem</a></li><li><a href="#odsazeni-teles">Odsazení těles</a></li><li><a href="#mazani-ploch">Mazání ploch</a></li></ul></div>
+<section class="guide-part"><h2 id="zkoseni-a-zaobleni-hran"><span class="heading-alias" id="chamfering-and-filleting-edges"></span>Zkosení a zaoblení hran</h2>
+<p>Ostré hrany na výtisku často nevypadají dobře a nejsou ani příliš odolné. <strong>Zkosení</strong> hranu seřízne pod úhlem, <strong>zaoblení</strong> ji nahradí oblou plochou. Oba nástroje upravují hrany, které vyberete kliknutím.</p>
+<ol><li>Vyberte těleso nebo sloučený celek.</li><li>Zvolte <strong class="ui">„Zaoblení“</strong> nebo <strong class="ui">„Zkosení“</strong> v pásu nástrojů. Zaoblení otevřete také klávesou <kbd>B</kbd>, zkosení pomocí <span dir="ltr"><kbd>Shift</kbd>+<kbd>B</kbd></span>. Obě volby jsou i v nabídce pravého tlačítka na tělese.</li><li>Hrany se zvýrazní. Kliknutím je přidáváte do výběru nebo z něj odebíráte. Se <kbd>Shift</kbd> změníte výběr jediné hrany.</li><li>Nastavte velikost a potvrďte pomocí <strong class="ui">„Použít“</strong> nebo <kbd>Enter</kbd>. Potom zůstane okno otevřené na novém tělese se stejnou velikostí, takže může hned následovat další zaoblení nebo zkosení; zavře ho <strong class="ui">„Hotovo“</strong>, <kbd>Esc</kbd> nebo křížek. S <kbd>Shift</kbd> nebo <kbd>Ctrl</kbd> kliknutí na <strong class="ui">„Horní hrany“</strong>, <strong class="ui">„Dolní hrany“</strong>, <strong class="ui">„Svislé hrany“</strong> nebo <strong class="ui">„Vodorovné hrany“</strong> tyto hrany přidá k vybraným místo jejich nahrazení.</li></ol>
+<figure><img src="/api/desktop/layerling/ui/guide/img/fillet-preview.webp" alt="Nástroj pro zaoblení hran: vybrané všechny ostré hrany a náhled poloměru 4 mm." width="1280" height="800" loading="lazy"><figcaption>Nástroj pro zaoblení hran: vybrané všechny ostré hrany a náhled poloměru 4 mm.</figcaption></figure>
+<p>Okno nástroje se otevře vpravo nahoře. Překáží-li při výběru hran, přetáhněte jej za záhlaví. Příště se otevře na stejném místě; platí to i pro <strong class="ui">„Vytvořit dutinu“</strong> a <strong class="ui">„Opakování“</strong>. Dvojklik na záhlaví vrátí původní polohu.</p>
+<p>Vyberete-li při otevřeném okně jiný tvar z knihovny, nástroj se zavře bez použití úpravy a zapomene vybrané hrany. Následující kliknutí pak umístí nový tvar.</p>
+<p>Okno nabízí:</p>
+<ul><li><strong class="ui">„Všechny ostré hrany“</strong> vybere všechny hrany, <strong class="ui">„Vymazat“</strong> výběr vyprázdní.</li><li><strong><strong class="ui">„Poloměr“</strong></strong> určuje poloměr zaoblení. U zkosení zadáváte <strong class="ui">„Vzdálenost“</strong> nebo <strong class="ui">„Úhel“</strong>.</li><li><strong class="ui">„Proměnný poloměr“</strong> (jen zaoblení) nechá poloměr měnit se podél jedné hrany: malý na jednom konci, větší na druhém, rovnoměrně mezi nimi, jako tam, kde rovná stěna potkává šikmou. Klikněte na jednu hranu a nastavte <strong class="ui">„Poloměr na začátku“</strong> a <strong class="ui">„Poloměr na konci“</strong>. Který konec je začátek, vyplývá z toho, jak byla hrana postavena; vyjde-li větší poloměr na špatném konci, <strong class="ui">„Prohodit konce“</strong> ho obrátí. Funguje to vždy na jedné hraně, proto zaoblujte více hran jednu po druhé. <strong class="ui">„Upravit“</strong> vrátí obě hodnoty.</li><li><strong class="ui">„Konkávní (vyříznout)“</strong> (jen zaoblení) zaoblení obrátí: místo zakulacení hrany z ní vyřízne žlábek ve tvaru čtvrtkruhu, jako vyřezané rohy krabičky. Žlábek je válec zvoleného <strong class="ui">„Poloměr“</strong> ležící podél hrany, takže funguje při jakémkoli úhlu mezi plochami, ale jen na rovných hranách a ne spolu s <strong class="ui">„Proměnný poloměr“</strong>. <strong class="ui">„Upravit“</strong> ho vrátí.</li><li><strong class="ui">„Mezní úhel ostrých hran“</strong> rozhoduje, které hrany se považují za ostré. Hodnota 25° zachytí zřetelné zlomy a vynechá téměř rovinné přechody.</li><li><strong class="ui">„Horní hrany“</strong> vybere pouze hrany na horním obvodu tělesa. Hodí se pro vykrajovátko: vytvořte obrys náčrtem jako rozšířenou čáru a pak zkoste jeho horní hrany. <strong class="ui">„Úhel“</strong> určuje sklon zkosení; to nesmí zasahovat dále než do tloušťky stěny.</li><li><strong class="ui">„Dolní hrany“</strong> vybere pouze hrany úplně dole na tělese, protějšek tlačítka <strong class="ui">„Horní hrany“</strong>. Je to rychlý způsob, jak zaoblit nebo zkosit jen patu součásti.</li><li><strong class="ui">„Zkosení s obloukem“</strong>, zvolené nahoře v okně zkosení vedle <strong class="ui">„Zkosení“</strong>, vytvoří tisknutelnou patu dílu: zkosení u podložky, které tečně přechází v zaoblení ke stěně, takže první vrstvy nepotřebují podpěry a hrana přesto končí měkce. <strong class="ui">„Vzdálenost“</strong> je výška, kterou pata zabírá, <strong class="ui">„Úhel“</strong> (15° až 75°) strmost zkosení u podložky. Hrany vyberete tlačítkem <strong class="ui">„Dolní hrany“</strong>.</li><li><strong class="ui">„Pouze viditelné hrany“</strong> skryje hrany za tělesem. Ve výchozím stavu prosvítají všechny, což může být u složitého dílu nepřehledné. Po zapnutí vybíráte pouze hrany obrácené k vám; pro ostatní otočte pohled. Chybová červená hrana se zobrazuje vždy.</li><li><strong class="ui">„Kliknutí vybere i plynule navazující hrany“</strong> přidává po kliknutí i plynule navazující hrany, například celý obvod plochy se zaoblenými rohy. Volba ovlivňuje jen výběr kliknutím. CAD jádro vždy pokračuje v úpravě podél tečně navazujících hran. Okno uvádí, kolik dalších hran se tím upraví.</li><li><strong class="ui">„Zachovat rozměr úpravy hran při změně velikosti“</strong> zachová velikost zkosení či zaoblení i při pozdější změně velikosti tělesa.</li><li><strong class="ui">„Kvalita náhledu“</strong> nabízí <strong class="ui">„Hrubý“</strong>, <strong class="ui">„Standardní“</strong> nebo <strong class="ui">„Jemný“</strong>. U složitých dílů poskytuje <strong class="ui">„Hrubý“</strong> rychlejší výpočet.</li><li>Okno si pamatuje svá nastavení v tomto prohlížeči, zvlášť pro sražení, zaoblení a sražení se zaoblením: velikost, úhel, práh, kvalita náhledu a přepínače zůstanou po <strong class="ui">„Použít“</strong>, po vrácení zpět i při dalším otevření nástroje tak, jak jste je nechali. Velikost, kterou těleso nepojme, ustoupí velikosti spočtené z tělesa. Znovu začíná jen <strong class="ui">„Kliknutí vybere i plynule navazující hrany“</strong>: zapnuto při prvním sražení nebo zaoblení tělesa, potom vypnuto.</li></ul>
+<p>Při změně velikosti se náhled přepočítává. Výpočet může chvíli trvat. Hodnotu můžete dál upravovat; použije se poslední zadaná.</p>
+<p>Pokud je úprava pro danou hranu příliš velká, Layerling navrhne menší hodnotu. Často stačí ubrat jeden nebo dva milimetry. V ostrých úhlech potřebuje zaoblení více prostoru, než by naznačoval samotný poloměr. Na malém displeji okno samo posune obsah tak, aby bylo hlášení vidět.</p>
+<p>Jestliže dříve funkční výběr přestane fungovat po přidání další hrany, tato hrana zčervená a zesílí. Při dané velikosti ji nelze upravit společně s ostatními. Odeberte ji dalším kliknutím nebo zmenšete velikost. Přidáváte-li při zobrazené chybě další hrany, červeně zůstává první problémová. Neexistuje-li předchozí funkční výběr, například při prvním kliknutí nebo po zvětšení poloměru, zčervenají hrany selhávající samostatně, případně celý výběr, pokud vadí až jejich kombinace. A tam, kde se vybrané hrany stýkají v ostrém vnitřním rohu, jako dva kotouče „mráčku“, nemá zaoblení místo při žádné velikosti: layerling pak tyto rohy nejdřív zaoblí stejnou nebo menší velikostí a hlášení řekne kolik a o kolik (u zkosení je zkosí).</p>
+<p>Zaoblení podél zakřivené hrany má ještě jedno omezení. Tam, kde se hrana ohýbá navenek tělesa těsněji než poloměr, například na špičce kapky nakreslené ve skice nebo načtené jako SVG, zaoblení ohyb nesleduje. layerling pak uvede, jak těsný je nejtěsnější ohyb, a hrany s ním nakreslí červeně. Zvolte menší poloměr nebo nakreslete ohyb oblejší. Ostrý roh takový ohyb není: setkávají se v něm dvě hrany a každá se zaobluje zvlášť. Proto zaoblete horní hrany dřív, než zaoblíte roh malým poloměrem: zaoblený roh by byl pro horní hranu těsným ohybem.</p>
+<p>Než to vzdá, zkusí to layerling ještě jednou s krátkými hranami na koncích vybraných, dlouhými nejvýš dvojnásobek velikosti. Taková hrana je tam, kde dřívější sražení končí na stěně, která je ještě ostrá: krátká šikmá hrana v rohu, a dokud zůstane ostrá, roh nejde upravit. Pokud to pomůže, jsou tyto hrany potom vybrané také a zpráva řekne, kolik jich bylo přibráno.</p>
+<p>Hrana pod ukazatelem se také kreslí silněji, abyste věděli, kterou kliknutí vybere.</p>
+<p>Také díra přijme <strong class="ui">„Zkosení“</strong> a <strong class="ui">„Zaoblení“</strong>, stejně jako <strong class="ui">„Vytvořit dutinu“</strong>, <strong class="ui">„Odsazení“</strong> a <strong class="ui">„Smazat plochu“</strong>: zůstane dírou a řeže svým novým tvarem. Zaoblením čtyř svislých hran díry ve tvaru kvádru vznikne kapsa se zaoblenými vnitřními rohy a díra zvětšená pomocí <strong class="ui">„Odsazení“</strong> řeže s o tolik větší vůlí. Hranu, kde se díra setkává s dílem, upravte raději na hotové skupině: tato hrana patří jí.</p>
+<section class="guide-part"><h3 id="vraceni-upravy-hran"><span class="heading-alias" id="taking-an-edge-treatment-back"></span>Vrácení úpravy hran</h3>
+<p>Upravené těleso lze upravovat znovu. Vyberte je a otevřete zaoblení, zkosení nebo vytvoření dutiny. Všechna tato okna zobrazují <strong class="ui">„Odstranit úpravu hrany“</strong>. Příkaz <strong class="ui">„Zpět“</strong> vrátí konkrétní úpravu. Pokud na ni navazují novější úpravy, odstraní se také; okno předem uvede jejich počet.</p>
+<p>Vedle úpravy je i <strong class="ui">„Upravit“</strong>. Původní úpravu vrátí stejným způsobem, ale rovnou otevře její nástroj s původním výběrem hran a hodnotou. Zaoblení 3 mm tak změníte na 5 mm bez opakovaného výběru. I zde se zruší navazující úpravy. Možnost platí pro nově vytvořené úpravy; u starších a u jednotlivých částí sloučeného celku lze úpravu pouze vrátit.</p>
+<p>Na sloučeném celku, například válci s otvorem, patří upravovaná hrana výslednému tělesu, nikoli některé jeho části. Celek se proto změní na jediné těleso. <strong class="ui">„Rozdělit sloučení“</strong> přesto funguje: nejdřív vrátí úpravy hran a pak skupinu rozpustí, jedním krokem, který <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> vrátí zpět. Vrácením úpravy se obnoví i původní části. Nejjednodušší je upravovat hrany až nakonec. Platí to i pro závity: nástroj pracuje s jejich přesnou geometrií, takže lze zaoblit kvádr se závitovým otvorem a závit zachovat. Příprava hran závitu trvá déle než u jednoduchého tvaru, u M6 několik sekund, u trubkového G1/2 přibližně půl minuty.</p>
+<aside class="tip"><p><strong>Dobré vědět:</strong> Layerling při zkosení a zaoblení používá skutečnou CAD geometrii. Zaoblená hrana proto zůstává oblou plochou i při exportu STEP.</p></aside>
+<p>Přesnou geometrii si zachová i import STEP. Úpravy hran a dutiny pracují s tělesem ze souboru bez ohledu na jemnost zobrazení. STL, OBJ a 3MF obsahují pouze trojúhelníky a příliš hustá síť může překročit možnosti nástroje. Je-li díl dostupný i jako STEP, použijte jej. <strong class="ui">„Udělat přesným“</strong> z takového dílu nejdřív udělá přesné těleso se skutečnými rovinami a válci, viz <a href="/api/desktop/layerling/ui/prirucka/files-and-saving.html">Soubory, ukládání a sdílení</a>, „Převod importované sítě na přesné těleso“.</p>
+</section></section><section class="guide-part"><h2 id="vytvareni-dutin"><span class="heading-alias" id="hollowing-bodies"></span>Vytváření dutin</h2>
+<p>Krabičky, nádoby a kryty mají uvnitř prázdný prostor a rovnoměrně silné stěny. Právě k tomu slouží <strong class="ui">„Vytvořit dutinu“</strong>.</p>
+<ol><li>Vyberte těleso a zvolte <strong class="ui">„Vytvořit dutinu“</strong> v pásu nástrojů nebo nabídce pravého tlačítka.</li><li>Nastavte <strong class="ui">„Tloušťka stěny“</strong>.</li><li>V části <strong class="ui">„Otevřené strany“</strong> zapněte otevřené strany: <strong class="ui">„Nahoře“</strong>, <strong class="ui">„Dole“</strong>, <strong class="ui">„Vpředu“</strong>, <strong class="ui">„Vzadu“</strong>, <strong class="ui">„Vlevo“</strong> a <strong class="ui">„Vpravo“</strong>. Lze kombinovat libovolný počet. Samotná <strong class="ui">„Vpředu“</strong> vytvoří otvor pro zásuvku, <strong class="ui">„Vlevo“</strong> a <strong class="ui">„Vpravo“</strong> průchozí tunel. Bez otevřené strany vznikne uzavřené těleso s vnitřní dutinou. <strong class="ui">„Uzavřené (dutina uvnitř)“</strong> vypne všechny strany jedním kliknutím. <strong class="ui">„Nahoře“</strong> je při otevření okna už zapnuté; kliknutím na něj se horní strana zase zavře. Těleso uzavřené ze všech stran vypadá zvenku beze změny: dutinu ukáže řez.</li><li>Zvolte, zda mají být <strong class="ui">„Vnitřní hrany“</strong> nastavené na <strong class="ui">„Zaoblené“</strong> nebo <strong class="ui">„Ostré“</strong>.</li><li>Potvrďte <strong class="ui">„Vytvořit dutinu“</strong>.</li></ol>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-panel.webp" alt="Okno pro vytvoření dutiny: tloušťka stěny, otevřené strany a nastavení vnitřních hran." width="1280" height="800" loading="lazy"><figcaption>Okno pro vytvoření dutiny: tloušťka stěny, otevřené strany a nastavení vnitřních hran.</figcaption></figure>
+<p>Stěny vznikají směrem dovnitř. Vnější povrch zůstává zachovaný.</p>
+<p>Volba <strong class="ui">„Vnitřní hrany“</strong> se projeví pouze tam, kde se vnitřní stěny rozestupují, například u stupně nebo kolem otvoru. Rohy dutiny jednoduchého kvádru zůstávají v obou režimech ostré. Pro zaoblený vnitřek nejprve zaoblete vnější hrany a poté vytvořte dutinu. Vnitřní poloměr odpovídá vnějšímu poloměru zmenšenému o tloušťku stěny. Pokud takový vnitřek nelze sestavit, například u obrysu z mnoha krátkých úseček, vytvoří Layerling stejnou dutinu s ostrými rohy.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-result.webp" alt="Výsledný kryt se stěnou 3 mm a otevřenou horní stranou." width="1280" height="800" loading="lazy"><figcaption>Výsledný kryt se stěnou 3 mm a otevřenou horní stranou.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-sides.webp" alt="Stejná krabička s otevřenou přední stranou jako prostor pro zásuvku." width="1280" height="800" loading="lazy"><figcaption>Stejná krabička s otevřenou přední stranou jako prostor pro zásuvku.</figcaption></figure>
+<p>Na každé otevřené straně potřebuje těleso rovinnou plochu na svém krajním povrchu. Koule a volně tvarovaná tělesa proto nelze tímto způsobem otevřít. Je-li stěna pro těleso příliš silná, program požádá o menší tloušťku. Takovým případem je zaoblená krabice, jejíž horní a dolní hrany jsou také zaoblené: její stěna musí být zřetelně tenčí než toto zaoblení, nebo nejdřív nastavte zaoblení na 0.</p>
+<p>Vytvořit dutinu lze i v tělese s kapsou, tedy kvádru se slepým otvorem vzniklým sloučením s nadzvednutým výřezem. Při otevřené horní straně se vytvoří stěny i kolem kapsy. Mezi kapsou a vnějším pláštěm zůstane prstencová dutina otevřená nahoře a pod dnem kapsy tenká dutina.</p>
+<p><strong>Tělesa zakončená špičkou</strong>, například kužel nebo rotační těleso z trojúhelníku, nemají nahoře rovinnou plochu, kterou by šlo otevřít. Nefunguje ani zcela uzavřená dutina, protože špičku nelze rovnoměrně odsadit dovnitř. I při stěně 1 mm se proto může zobrazit hlášení o příliš silné stěně. V takovém případě vytvořte stěnu už v profilu před rotací: obrys zkopírujte, kopii rovnoměrně zmenšete a vystřeďte v původním obrysu, odečtěte ji a výsledek otočte kolem osy. Viz kapitola Náčrty, část o rotaci. Odstup mezi obrysy určuje tloušťku stěny.</p>
+<p>Při pozdější změně velikosti se dutina ihned přepočítá. Zadaná tloušťka stěn zůstává zachovaná i u oblých těles. Válec protažený v jednom směru více než v druhém se změní na elipsu. Zaoblení a sražení, která jste přidali po vytvoření dutiny, se pak znovu použijí na stejné hrany.</p>
+<aside class="tip"><p><strong>Tip:</strong> Pro trysku 0,4 mm je vhodným výchozím rozsahem stěna 1,2 až 2 mm: šetří materiál a přitom poskytuje dostatečně pevný díl.</p></aside>
+</section><section class="guide-part"><h2 id="viko-pro-otevrene-teleso"><span class="heading-alias" id="a-lid-for-an-open-body"></span>Víko pro otevřené těleso</h2>
+<p><strong class="ui">„Víko“</strong> vytvoří víko pro těleso otevřené nahoře: krabičku vydlabanou s otevřenou horní stranou, nádobu, misku. Vyber těleso a klikni na <strong class="ui">„Víko“</strong>. V okně zvolíš druh:</p>
+<ul><li><strong class="ui">„Zasunuté“</strong>: deska velká jako těleso a pod ní límec, který zapadne do otvoru.</li><li><strong class="ui">„Nasazené“</strong>: deska o stěnu širší než těleso a pod ní okraj, který obejme vnějšek.</li><li><strong class="ui">„Z obou stran“</strong>: deska o stěnu širší než těleso a pod ní obojí: límec do otvoru a okraj kolem vnějšku. Stěna tělesa sedí mezi nimi v drážce, jako u dózy na potraviny.</li><li><strong class="ui">„Ploché“</strong>: jen deska, k položení nebo přilepení.</li><li><strong class="ui">„Našroubované“</strong>: víko, které se našroubuje jako u sklenice, pro kulaté těleso; víc níže.</li><li><strong class="ui">„Zašroubované“</strong>: deska s čepem se závitem, který se zašroubuje do otvoru kulatého tělesa; víc níže.</li><li><strong class="ui">„Bajonetové“</strong>: otočný uzávěr pro kulaté těleso, víko, které se nasadí přes ozuby a pootočí; víc níže.</li><li><strong class="ui">„Posuvné“</strong>: deska, která se do krabičky zasouvá jednou stěnou, jako víko dřevěného penálu; víc o něm níže.</li></ul>
+<p>Pak nastavíš <strong class="ui">„Tloušťka víka“</strong>, <strong class="ui">„Uložení“</strong> (<strong class="ui">„Vůle na stranu“</strong> mezi víkem a tělesem: 0,1 mm těsné, 0,2 mm běžné, 0,3 mm volné, nebo jakákoli hodnota do 1 mm) a jak hluboko límec nebo okraj sahá a jak silná je jeho stěna. Klikni na <strong class="ui">„Vytvořit víko“</strong>: víko leží vedle tělesa, otočené deskou dolů, takže se tiskne bez podpěr. Těleso zůstane, jak je. Víko sleduje jakýkoli obrys, kulatý i hranatý, protože se odebírá ze samotného tělesa těsně pod jeho okrajem. Těleso bez otvoru nahoře dostane jen ploché víko; pro ostatní druhy ho nejdřív vydlab s otevřenou horní stranou.</p>
+<aside class="tip"><p><strong>Tip:</strong> Jak těsně víko sedí, záleží na tiskárně. Nejdřív vytiskni malou krabičku s víkem; je-li víko příliš těsné, zvol další volnější uložení.</p></aside>
+<p>Když zapneš <strong class="ui">„Magnety v rozích“</strong>, drží víko čtyři kulaté magnety místo těsného uložení. Vyber <strong class="ui">„Magnet“</strong> (6 × 2, 8 × 3 nebo 10 × 3 mm) nebo nastav <strong class="ui">„Průměr magnetu“</strong> a <strong class="ui">„Výška magnetu“</strong> sám, k tomu <strong class="ui">„Vůle kolem magnetu“</strong>: 0,1 mm k zalisování magnetů, 0,2 až 0,3 mm k vlepení. Layerling vyřízne do každého rohu okraje tělesa kapsu a naproti ní další do desky víka, o něco hlubší než magnet, aby nikdy nevyčníval. Kde je stěna na kapsu příliš tenká, vyplní roh od dna po okraj sloupek a lem víka ho obejde. Těleso se seskupí se svými kapsami a sloupky: když skupinu zrušíš, máš ho zpátky, jak bylo. Deska musí být silná alespoň jako výška magnetu plus 0,8 mm; zapnutím magnetů se na tuto sílu nastaví.</p>
+<p>Když zapneš <strong class="ui">„Pant“</strong>, víko se otevírá kolem čepu podél rovné strany těla: zadní, nebo té, kterou zvolíš v <strong class="ui">„Strana pantu“</strong> (jako ve výchozím pohledu, kde zadní strana směřuje od tebe). Tam se střídají kloubky, krajní na těle a ty mezi nimi na víku, s mezerou <strong class="ui">„Vůle v pantu“</strong>, a všemi prochází otvor pro čep: při <strong class="ui">„Průměr čepu“</strong> 1,75 mm poslouží jako čep kousek filamentu; zapni <strong class="ui">„Vytisknout i čep“</strong>, chceš-li silnější čep tištěný zvlášť. V části pantu na těle sedí čep pevně, takže zatlačený kousek filamentu zůstane na místě, a v části víka se otáčí: <strong class="ui">„Vůle čepu (na každé straně)“</strong> je jeho místo tam na každé straně, zpočátku 0,2 mm; přidej, když se víko otáčí ztuha. Tištěný čep má v části na těle 0,15 mm na každé straně, protože vyjde v plné tloušťce: sedí tam stále pevně, ale dá se zatlačit. Kloubky těla stojí na šikmině 45°, takže tělo se tiskne nastojato bez podpor; kloubky víka lícují s jeho horní plochou, takže se dál tiskne obrácené. <strong class="ui">„Kloubky (0 = automaticky)“</strong> na 0 dá zhruba jeden kloubek na 10 mm. Pant jde s vkládacím nebo plochým víkem; okraj kolem dokola by při otevírání narazil do zadní stěny. Na kulaté straně, u dózy nebo trubky, vede pant tam, kde stěna ustupuje od jeho osy nejvýš o poloměr kloubku, a kloubky těla stojí na malém bloku, který sahá až do stěny. <strong class="ui">„Otvory pro čep ve tvaru kapky (při tisku neprověsí)“</strong> (zpočátku zapnuto) dá otvorům pro čep nahoře špičku podle toho, jak se každý díl tiskne, aby neprověsily; tištěný čep leží na malé ploše. V <strong class="ui">„Druh pantu“</strong> dá <strong class="ui">„Zapuštěný“</strong> kloubky do stěny místo za ni: krabička si zachová rozměry, každý díl má výřezy kolem kloubků toho druhého a víko se otevře asi na 140°. <strong class="ui">„Otočné čepy“</strong> udělá víko, které leží na malém osazení v otvoru a otáčí se na dvou čepech skrz boční stěny, asi do 95°; i tak si krabička zachová rozměry. Obojí potřebuje rovnou stranu a jde bez magnetů.</p>
+<p>U pantu <strong class="ui">„Zapuštěný“</strong> zapni <strong class="ui">„Koncové zátky“</strong> a otvor pro čep se na obou koncích uzavře: čep zůstane skrytý a nemůže vyklouznout. Posledních 4 mm otvoru je pak na každém konci čtvercových, postavených na roh, aby i ony měly nahoře špičku a při tisku neprověsily, a právě tak velkých, aby čep prošel: nejdřív zasuň čep, pak do každého konce zatlač zátku. Čtvercové zátky se nemohou otočit a sedí stejně pevně jako čep v těle; každá je seříznutá v rovině s vnější stranou krabičky, i na zaoblených rozích (u takové krabičky vede pant až do rohů, se zátkami i bez nich). Leží vedle víka, na rovné straně. Čep je kvůli nim kratší a stavový řádek řekne, jak dlouhý.</p>
+<aside class="tip"><p><strong>Tip:</strong> Nejdřív zalisuj magnety do tělesa. Pak na každý polož ještě jeden magnet, který se na něm sám otočí správně, a přitlač na ně víko (s kapkou lepidla v kapsách, pokud sedí volně): každý magnet tak skončí ve víku naproti svému protějšku a budou se přitahovat.</p></aside>
+<p>Když zapneš <strong class="ui">„Zacvakávací výstupky“</strong>, víko zacvakne: malé kulaté výstupky na vnější straně jeho límce (u nasazeného víka na vnitřní straně okraje) zapadnou do důlků, které Layerling na stejných místech vyřízne do stěny tělesa, jeden uprostřed každé rovné strany od 12 mm, dva na straně delší než 80 mm, čtyři kolem kulatého otvoru a žádný na straně pantu. <strong class="ui">„Výška výstupků“</strong> určuje, jak hluboko každý výstupek zasahuje do stěny, zpočátku 0,4 mm: méně pro malou krabičku nebo tuhý límec, více pro pevnější zacvaknutí. V části <strong class="ui">„Úchyt“</strong> dá <strong class="ui">„Jazýček“</strong> desce jazýček silný jako deska, který přesahuje 6 mm za její přední hranu (nebo hranu naproti pantu), takže se víko dál tiskne otočené, a <strong class="ui">„Prohlubeň pro prst“</strong> vyřízne těsně pod hranou víka prohlubeň pro prst do přední stěny tělesa a vždy nechá 0,8 mm stěny; ani jedno nejde s otočným víkem a výstupky ani s plochým.</p>
+<p>Když zvolíš <strong class="ui">„Našroubované“</strong>, víko se našroubuje jako u sklenice: těleso dostane závit zvenku na svém horním okraji a víko stejný závit uvnitř svého okraje. K tomu je potřeba kulaté těleso, třeba válec, trubka nebo kulatá nádoba vydlabaná s otevřenou horní stranou, se stěnou aspoň 0,8 mm silnou; krabička nebo ovál se odmítne. Zaoblený nebo zkosený okraj, jaký má nádoba vytočená z čáry s kulatými konci, může zůstat, jak je, u tohoto víka i u <strong class="ui">„Bajonetové“</strong> níže: závit nebo ozuby přijdou na rovnou stěnu pod zaoblením a víko sahá přes něj. Závit se přidá na stěnu zvenku, místo aby se do ní vyřízl, takže i tenká stěna si zachová pevnost, a seskupí se s tělesem: když skupinu zrušíš, máš těleso zase jako dřív. <strong class="ui">„Stoupání závitu“</strong> říká, o kolik závit stoupne za jednu otáčku, na začátku 3 mm jako u sklenice; závit je hluboký tři desetiny této hodnoty (nejvýš 1,5 mm) a jeho boky jsou skloněné o 45°, takže se těleso tiskne nastojato a víko na své desce, obojí bez podpěr. <strong class="ui">„Otáčky“</strong> říkají, kolikrát závit obejde dokola, a spolu se stoupáním, jak daleko dolů sahá okraj víka. <strong class="ui">„Vůle na stranu“</strong> je místo v závitu na každé straně, měřené v poloměru jako u matice; když se víko točí ztuha, vezmi volnější uložení. Víko zavřeš otáčením po směru hodinových ručiček. Víko i závit jsou z trojúhelníků a magnety, pant, zacvakávací výstupky ani úchyt k šroubovacímu víku nepatří.</p>
+<p>V části <strong class="ui">„Závit“</strong> můžeš místo možnosti <strong class="ui">„Vlastní“</strong> zvolit závit normované lahve nebo sklenice: PCO 1881 je hrdlo 28 mm většiny lahví na vodu a limonády, PCO 1810 starší hrdlo s vyšším závitem, GL 45 závit laboratorních lahví (DIN 168), Mason 70 a Mason 86 běžné a široké hrdlo zavařovacích sklenic Mason. Víko se pak udělá podle normy a pasuje na takovou lahev nebo sklenici z obchodu; stoupání a to, jak daleko víko sahá dolů, určuje norma a <strong class="ui">„Vůle na stranu“</strong> je místo kolem jejího závitu. Závit hrdla dostane těleso jen tehdy, když je nahoře právě takovým hrdlem: kulaté a široké jako hrdlo pod závitem, což ti řekne okno (u PCO 1881 24,94 mm); pak na něj pasuje i koupené víko. Každé jiné těleso zůstane, jak je, a vytvoří se jen víko; řekne ti to stavový řádek. Chceš-li víko k lahvi, kterou máš, vyber válec zhruba tak široký jako její hrdlo, klikni na <strong class="ui">„Víko“</strong> a zvol <strong class="ui">„Našroubované“</strong> a závit lahve. Boky závitu podle normy jsou strmější než 45° vlastního závitu, takže spodek závitu na tělese a závity ve víku při tisku víc převisají; jsou hluboké jen asi milimetr, ale nejdřív vytiskni jedno víko a podívej se, jak si s tím tvoje tiskárna poradí. Výkres závitu sklenic Mason není zveřejněný a rozměry jsou naměřené: víko vyzkoušej na své sklenici.</p>
+<p>Ještě než klikneš na <strong class="ui">„Vytvořit víko“</strong>, okno změří horní část tělesa a řekne, zda je hrdlem: jak je široká, jak široké musí být hrdlo pod závitem a zda těleso dostane závit, nebo se vytvoří jen víko. Pokud jím není a těleso je stojící válec, trubka nebo dutý válec, <strong class="ui">„Přizpůsobit těleso hrdlu“</strong> ho udělá široké jako hrdlo, uprostřed toho, co se počítá (u Mason 70 65,85 mm), a ponechá jeho výšku; duté těleso si ponechá stěny tak silné, jaké byly. <strong class="ui">„Vytvořit víko“</strong> mu pak dá závit hrdla a jedno Zpět přizpůsobení vrátí. U každého jiného tělesa, třeba skupiny nebo načtené sítě, ti okno řekne, jak široké ho nahoře udělat.</p>
+<p>Když zvolíš <strong class="ui">„Zašroubované“</strong>, závit je obráceně, třeba pro stojánek na tužky, který má zvenku zůstat hladký: těleso dostane závit uvnitř svého otvoru, jako matice, a víko je deska velká jako těleso s čepem pod ní, který má stejný závit a zašroubuje se, až deska dosedne na okraj. Těleso i jeho otvor musí být kulaté se stejným středem, třeba válec, trubka nebo kulatá nádoba vydlabaná s otevřenou horní stranou, se stěnou aspoň 0,8 mm silnou; krabička, ovál nebo hranatý otvor se odmítne, stejně jako otvor, který je na čep příliš úzký nebo málo hluboký. I tady se závit přidá na stěnu, místo aby se do ní vyřízl: stěna si zachová pevnost, zvenku zůstane vše jako dřív a otvor se nahoře zúží jen o hloubku závitu. <strong class="ui">„Stoupání závitu“</strong>, <strong class="ui">„Otáčky“</strong> a <strong class="ui">„Vůle na stranu“</strong> fungují jako u šroubovacího víka; stoupání a otáčky také určují, jak daleko dolů čep sahá. Čep je dutý, prstenec se stěnou (<strong class="ui">„Stěna čepu“</strong>) na začátku 1,6 mm (aspoň 0,8 mm), a zůstane plný tam, kde otvor nenechá místo na díru. Těleso se tiskne nastojato a víko na své desce čepem nahoru, obojí bez podpěr. Víko zavřeš otáčením po směru hodinových ručiček. Stejně jako u šroubovacího víka jsou víko i závit z trojúhelníků a magnety, pant, zacvakávací výstupky ani úchyt k němu nepatří.</p>
+<p>Když zvolíš <strong class="ui">„Bajonetové“</strong>, víko se zajistí pootočením jako žárovka v objímce, třeba ke spojení dílů lampy nebo k zavření kulaté dózy: těleso dostane ozuby, které vyčnívají zvenku na jeho horním okraji (<strong class="ui">„Ozuby“</strong>: na začátku tři, dva až čtyři), a víko pro každý drážku tvaru L uvnitř svého okraje. Nasaď víko drážkami nad ozuby, zatlač ho dolů a otoč jím po směru hodinových ručiček, dokud necvakne, o 40° při třech ozubech (o 45° při dvou, o 30° při čtyřech): pod každým ozubem pak leží osazení víka a drží ho, a doraz otáčení ukončí. V poli <strong class="ui">„Úhel otočení (0 = automaticky)“</strong> si otočení nastavíš sám, až do čtvrt otáčky (90°), třeba pro víko se dvěma ozuby, které se zavírá otočením o 90°; na 0 je to otočení, které dávají ozuby. Drážka každého ozubu, jeho otočení a doraz před další drážkou se musí vejít kolem tělesa: při více ozubech nebo na malém tělese se úhel, který se nevejde, upraví na to, co se vejde, a stavový řádek to oznámí. Dva ozuby dosáhnou 90° na všech tělesech kromě těch nejmenších; čtyři se na tělese o průměru 40 až 80 mm otočí nejvýš asi o 65°. Stejně jako šroubovací víko potřebuje kulaté těleso se stěnou aspoň 0,8 mm a ozuby se s tělesem seskupí. Jejich velikost se řídí jeho průměrem: vyčnívají ze stěny o čtyřicetinu průměru (1,2 až 2,5 mm); jejich spodek i osazení jsou skloněné o 45°, takže se těleso tiskne nastojato a víko na své desce, obojí bez podpěr. <strong class="ui">„Hloubka okraje“</strong> říká, jak daleko víko sahá dolů, na začátku 8 mm; pod ozuby vede víko podél stěny. <strong class="ui">„Vůle na stranu“</strong> je místo kolem ozubů a podél stěny a začíná vůlí tvé tiskárny, jakmile ji změříš; <strong class="ui">„Vůle na výšku“</strong> je místo nad osazením, tedy o kolik se zajištěné víko může nadzvednout, na začátku 0,3 mm. <strong class="ui">„Výška západky“</strong> říká, jak daleko malé žebro za každým zajištěným ozubem zasahuje do jeho cesty: ozub přes něj cvakne, takže se víko samo neotočí zpět. Vezmi méně, když se víko otáčí příliš ztuha, 0 pro žádné. Otevřeš ho otočením zpět a zvednutím. Víko i ozuby jsou z trojúhelníků a magnety, pant, zacvakávací výstupky ani úchyt k bajonetovému víku nepatří.</p>
+<p>Když u šroubovacího nebo bajonetového víka zapneš <strong class="ui">„Poutko“</strong>, zůstane otevřené víko u tělesa jako u lahve s nápojem. Poutko je jeden díl, který leží naplocho vedle víka: dva otevřené kroužky spojené páskem. Větší kroužek se nacvakne na víko zespodu a sedí pod límcem nahoře na víku, kde ho drží val. Menší obepíná těleso těsně pod víkem, na valu, který tam těleso dostane, a závit nebo ozuby nad ním ho drží: trochu ho rozevři a nasuň přes ně, nebo zespodu přes val. Oba kroužky se volně otáčejí, takže víko jde dál otáčením otevřít i zavřít, a pásek je dost dlouhý, aby otevřené víko viselo vedle hrdla. Poutko tiskni z PETG nebo TPU; z PLA vydrží jen pár ohnutí. Valy jsou skloněné o 45°, takže víko i těleso se dál tisknou bez podpěr, a kroužky si drží vůli (<strong class="ui">„Vůle na stranu“</strong>) od toho, na čem se otáčejí. Poutko potřebuje pár milimetrů tělesa pod víkem, kulatého a stejně širokého jako nahoře, a okraj víka hluboký asi 4 mm; když chybí, nástroj to řekne.</p>
+<p>Šroubovací i bajonetové víko může mít odklápěcí klapku jako lahev šamponu nebo kečupu: zaškrtni <strong class="ui">„Odklápěcí klapka“</strong> a deska víka dostane uprostřed kulatý otvor (<strong class="ui">„Otvor“</strong>: jeho průměr, zpočátku 8 mm) a v něm klapku zarovnanou s horní stranou, která ho zavírá. Víko zůstává nasazené, otevíráš jen klapku. Víko se tiskne na své desce, takže klapka přiklopená z boku by ležela vzhůru nohama, zátkou k podložce. Proto se klapka tiskne přímo v otvoru, s vůlí (<strong class="ui">„Vůle na stranu“</strong>) dokola, a sama je zátkou: její okraj se těsně pod horní stranou zužuje pod 45°, takže leží na desce a nedá se zatlačit dovnitř, a vpředu zapadá západka pod okraj otvoru, takže se zavírá cvaknutím. Na její rovné zadní straně ji s deskou spojuje pásek silný 0,4 mm a dlouhý 3 mm, ležící na podložce, který se ohýbá jako pant, takže se klapka nikdy neztratí; pod páskem se klapka a deska k sobě sklánějí do V. Nic není skloněné víc než o 45° a víko se tiskne v jednom kuse bez podpěr. Klapku otevřeš tak, že dáš nehet do drážky napříč klapkou a zvedneš ji; zavřeš ji zatlačením, až cvakne. Odklápěcí klapku tiskni z PETG nebo PP: z PLA se pásek po několika ohnutích zlomí. Deska musí být silná alespoň 1,8 mm (při vůli 0,2 mm) a otvor i s pantem se musí vejít do otvoru tělesa; příliš velký otvor se odmítne a uvede se největší, který se vejde.</p>
+<p>Šroubovací a bajonetová víčka mohou mít horní okraj zaoblený nebo zkosený: v <strong class="ui">„Horní hrana“</strong> zvolte <strong class="ui">„Zaoblená“</strong> nebo <strong class="ui">„Zkosená“</strong> a nastavte <strong class="ui">„Velikost hrany“</strong>, nejprve 1 mm, nejvýše tolik, kolik je deska tlustá. Hrana vzniká spolu s víčkem, protože potom jsou víčko a závit jedna síť s příliš mnoha trojúhelníky pro nástroj hran. Víčko se tiskne obrácené, takže tato hrana leží na podložce: zkosení se vytiskne čistě a zaoblení 1 nebo 2 mm také.</p>
+<p>Zvol <strong class="ui">„Posuvné“</strong> pro víko, které se zasouvá jako u dřevěného penálu: deska v otvoru, nahoře zarovnaná s okrajem, jejíž okraje jedou v drážkách tří stěn. Čtvrtá stěna, kterou zvolíš v části <strong class="ui">„Strana zasouvání“</strong> (zpočátku přední, jako ve výchozím pohledu), se tam, kudy víko prochází, sníží až ke spodní straně víka, takže víko po ní zajede dovnitř a jeho konec vyplní výřez, zarovnaný s vnější stranou stěny. Víko dostane i krabička postavená na pracovní rovině natočeně: zvolenou stěnou je pak ta, která do té strany míří nejvíc. Potřebuješ k tomu krabičku se svislými rovnými stěnami, klidně i se zaoblenými rohy; kulaté těleso se odmítne. Drážky jsou tak hluboké, jak dovolí <strong class="ui">„Tloušťka víka“</strong>, kousek pod 1 mm u víka silného 2 mm a až 1,5 mm u silnějšího, a za sebou vždy nechají 0,8 mm stěny; nahoře jsou zkosené pod 45°, takže krabička se tiskne nastojato a víko na své horní straně, obojí bez podpěr. Jsou-li stěny nebo víko na drážky příliš tenké, okno řekne, jak silné musí být. <strong class="ui">„Vůle na stranu“</strong> je vůle víka v drážkách na každé straně; když jede ztuha, zvol volnější uložení. Vnitřní stěny krabičky se pod víkem také sníží. Když zapneš <strong class="ui">„Zacvakávací výstupky“</strong>, malý výstupek pod koncem víka zacvakne za sníženou stěnu, aby víko samo nevyjelo; <strong class="ui">„Výška výstupků“</strong> říká, jak hluboko sahá pod horní hranu stěny. V části <strong class="ui">„Úchyt“</strong> dá <strong class="ui">„Prohlubeň pro prst“</strong> víku u tohoto konce čtyři drážky napříč horní stranou pro palec a <strong class="ui">„Jazýček“</strong> tam jazýček. Drážky a výřez se seskupí s krabičkou jako díra: když skupinu zrušíš, máš krabičku zpět takovou, jaká byla. Magnety a pant k posuvnému víku nepatří.</p>
+<p>Chceš-li víko zapustit pod okraj, nastav <strong class="ui">„Rámeček nad víkem“</strong> (zpočátku 0). Víko i jeho drážky pak leží o tolik níž a stěny nad nimi si nechají plnou výšku jako rámeček kolem víka. Ani stěna, kterou se víko zasouvá, se pak nesnižuje: zůstane v plné výšce a tam, kde víko prochází, má štěrbinu, kterou konec víka vyplní, zarovnaný s vnější stranou. Nad víkem nechává štěrbina stejnou vůli jako po stranách (<strong class="ui">„Vůle na stranu“</strong>) a s <strong class="ui">„Zacvakávací výstupky“</strong> ještě výšku výstupku, aby se víko při vysouvání mohlo nad ním trochu prohnout nahoru; nad ní musí zůstat aspoň 1 mm stěny a nižší rámeček se odmítne s potřebnou výškou (1,2 mm při vůli 0,2 mm). Krabička se dál tiskne nastojato: jen horní strana štěrbiny se tiskne do vzduchu, jako krátký vodorovný most přes šířku víka, který většina tiskáren zvládne bez podpěr. Drážky pro palec pak leží hned za touto stěnou a jazýček vyčnívá ze štěrbiny.</p>
+</section><section class="guide-part"><h2 id="kabelovy-kanal-telesem"><span class="heading-alias" id="a-cable-channel-through-a-body"></span>Kabelový kanál tělesem</h2>
+<p><strong class="ui">„Kabelový kanál“</strong> vede tělesem kulatý průchod pro kabel nebo vodič LED, od místa, kde vstupuje, k místu, kde vychází, a cestu najde sám. Vyberte těleso a klikněte na <strong class="ui">„Kabelový kanál“</strong>, pak klikněte na těleso tam, kde kabel vstupuje (<strong class="ui">„Vstup“</strong>), a kde vychází (<strong class="ui">„Výstup“</strong>). Cesta začíná a končí rovně, kolmo k povrchu, vede rovně, kde to jde, a ohýbá se, kde musí, nikdy ostřeji než <strong class="ui">„Nejmenší oblouk“</strong>, a drží se co nejdál od vnějšího povrchu, nikdy blíž než <strong class="ui">„Nejmenší stěna“</strong>. Kabel se dá protlačit obloukem o poloměru asi pětinásobku jeho průměru; <strong class="ui">„Průměr“</strong> je průměr kanálu.</p>
+<p>Dokud je panel otevřený, těleso je průhledné, s kanálem uvnitř a značkou na každém konci. Panel ukáže délku kanálu, nejostřejší oblouk a nejtenčí stěnu, červeně, když musel být oblouk nebo stěna menší, než bylo žádáno; pak pomůže menší hodnota u <strong class="ui">„Nejmenší oblouk“</strong> nebo jiný vstup či výstup. <strong class="ui">„Nastavit znovu“</strong> přesune konec. <strong class="ui">„Vytvořit kanál“</strong> kanál vyřízne: stane se z něj <strong class="ui">„Ohnutá trubka“</strong> jako výřez, seskupená s tělesem, takže těleso zůstane přesné, a po zrušení skupiny se trubka dá ještě změnit. Ohnutá trubka má nejvýš jedenáct oblouků; cesta, která jich potřebuje víc, chce jiný vstup nebo výstup.</p>
+</section><section class="guide-part"><h2 id="odsazeni-teles"><span class="heading-alias" id="offsetting-bodies"></span>Odsazení těles</h2>
+<p>Každou plochu tělesa lze posunout o stejnou vzdálenost ven nebo dovnitř. To potřebuje lícovaný spoj, víko nebo zacvakávací spoj: mezera 0,1 až 0,3 mm dokola, zatímco prvky zůstanou na místě, což změna měřítka nedá.</p>
+<ol><li>Vyber jedno těleso a klikni na <strong class="ui">„Odsazení“</strong>, nebo na těleso klikni pravým tlačítkem a vyber to tam.</li><li>Zvol <strong class="ui">„Zvětšit“</strong> nebo <strong class="ui">„Zmenšit“</strong> a nastav <strong class="ui">„Vzdálenost“</strong>.</li><li><strong class="ui">„Vnější rohy“</strong> rozhodují o vnějších rozích: zaoblené drží odsazený povrch kulatý, ostré nechá plochy pokračovat, dokud se nepotkají.</li><li>Zaškrtni <strong class="ui">„Ponechat originál a přidat odsazené těleso jako díru“</strong>, aby díl zůstal, jak je, a zvětšené těleso vzniklo jako kopie, která už je dírou. Seskup tuto díru s protikusem a vyřízne přesně vůli, kterou jsi zvolil.</li><li>Klikni na <strong class="ui">„Odsadit“</strong>.</li></ol>
+<p>Zaškrtni <strong class="ui">„Jen do stran: rovné horní a spodní plochy zůstanou ve své výšce“</strong>, když se má zvětšit nebo zmenšit jen obrys: boky se posunou o vzdálenost, každá rovná horní a spodní plocha zůstane ve své výšce. Cedule dostane okraj dokola, podstavec se rozšíří a těleso nebude vyšší. U stupňovitého tělesa si každý stupeň ponechá svou výšku. Text, který se odsazuje přes své obrysy, si pak také ponechá svou výšku.</p>
+<p>Bez zaškrtnutí se odsadí samotné těleso. Stane se pevným přesným tělesem, jako po zkosení: seznam nahoře v okně odsazení vezme zpět a <strong class="ui">„Upravit“</strong> znovu otevře nástroj se starou vzdáleností. Odsadit lze jen přesná CAD tělesa - kvádry, válce a další tvary, jejich skupiny, importované díly STEP. Těleso, které je jen trojúhelníková síť, jako mnoho importů STL, často nejde. Vzdálenost příliš velká pro těleso, například zmenšení za nejtenčí stěnu, se odmítne.</p>
+<p>Text, jehož písmena jádro nedokáže odsadit jako těleso - v některých písmech A, B, M, N, W nebo 9 -, se místo toho odsadí přes své obrysy: dostane výplň <strong class="ui">„Rozšířený podklad pro vícebarevný tisk“</strong> o danou vzdálenost (užší, když se zmenšuje) a o stejně tolik naroste nahoře i dole. Zůstane textem, který můžete dál upravovat. Funguje to pro text s plnými písmeny bez zaoblení; text, který už režim výplně má, se odmítne jako dosud.</p>
+</section><section class="guide-part"><h2 id="mazani-ploch"><span class="heading-alias" id="deleting-faces"></span>Mazání ploch</h2>
+<p>Zaoblení, které překáží, otvor na špatném místě, výstupek, který už nepotřebujete: <strong class="ui">„Smazat plochu“</strong> je z tělesa zase odstraní, aniž byste ho museli stavět znovu.</p>
+<ol><li>Vyberte těleso a zvolte <strong class="ui">„Smazat plochu“</strong> v pásu nástrojů nebo nabídce pravého tlačítka.</li><li>Klikněte na každou plochu toho, co má zmizet: plochy zaoblené hrany, stěnu otvoru, bok a vršek výstupku. Vybraná plocha se zvýrazní; dalším kliknutím ji z výběru odeberete. Okno plochy počítá.</li><li>Klikněte na <strong class="ui">„Smazat“</strong> nebo stiskněte <kbd>Delete</kbd>. <kbd>Esc</kbd> nástroj zavře, aniž by se cokoli změnilo.</li></ol>
+<p>Okolní plochy se rozšíří, až se mezera uzavře. Kvádr se zaoblenými horními hranami dostane zpět ostré hrany, otvor se zaplní, výstupek zmizí. Těleso zůstane přesné: lze ho znovu zaoblit a zkosit a export do STEP zachová jeho skutečné plochy. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> smazání vrátí jedním krokem. Smazání je také v části <strong class="ui">„Odstranit úpravu hrany“</strong> stejně jako zaoblení a zkosení, kde ho <strong class="ui">„Zpět“</strong> vrátí; <strong class="ui">„Upravit“</strong> pro něj není. Sloučený celek se přitom změní na jediné těleso, stejně jako při úpravě hran.</p>
+<p>Vyberte všechny plochy toho, co má zmizet, a jen ty. Pokud okolní plochy mezeru uzavřít nedokážou, layerling to oznámí a nic se nezmění: například hlavní strana kvádru nemá sousední plochu, která by zaujala její místo. Smažete-li jen dno kapsy, vznikne průchozí otvor, protože stěny kapsy pokračují až na druhou stranu.</p>
+<p><strong class="ui">„Smazat plochu“</strong> potřebuje přesné plochy: funguje u dílů importovaných jako STEP a u tvarů layerlingu. Co layerling vede jako síť, je nemá: importovaný STL, OBJ nebo 3MF, rozdělené, kolem válce obtočené nebo zjednodušené těleso či velmi podrobný tvar, například dlouhý text. Pokud můžete, importujte díl jako STEP. U podrobného importovaného dílu mohou být některé plochy pro CAD jádro příliš náročné: po 45 sekundách se mazání zastaví a nic se nezmění. Těleso, jehož velikost se změnila po úpravě hran se zachovanou velikostí hran, nemá v nové velikosti přesné plochy, dokud se změna velikosti nevrátí.</p>
+<p>Importovaná síť převedená na přesné těleso nástrojem <strong class="ui">„Udělat přesným“</strong> si může tam, kde byly trojúhelníky souboru vadné, ponechat vlasově tenké plochy mezi plochami ležícími v jedné rovině, takže jedna strana vyjde jako pruhy, které nejde smazat samostatně. Taková tenká plocha, příliš úzká na kliknutí, zmizí s vybranou plochou, když se jí dotýká a vede dál k další ploše v rovině vybrané plochy, spolu s tenkými plochami, které na ni navazují a které se také dotýkají plochy v rovině vybrané plochy; okno je započítá jako přibrané.</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/prirucka/solids-and-holes.html"><small>Předchozí kapitola</small>Tělesa a výřezy</a><a class="next" href="/api/desktop/layerling/ui/prirucka/sketches.html"><small>Další kapitola</small>Náčrty: od obrysu k tělesu</a></div>
+      </main>
+    </div>
+    <footer class="note">Příručka se rozšiřuje spolu s aplikací. Pokud něco chybí nebo je nesprávně, napište do <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">diskuze</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=cs" rel="noopener">Podpořit projekt</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Diskuze</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Více na GitHubu</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Poznámky k vydání v1.154.1</a></div><p class="trademark">Tinkercad je ochranná známka společnosti Autodesk, Inc. Layerling je nezávislý projekt a není se společností Autodesk propojen, podporován ani sponzorován.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Zpět do editoru";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Otevřít editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

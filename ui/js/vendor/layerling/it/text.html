@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Testo e scritte curve - Guida utente di layerling</title>
+    <meta name="description" content="Testo in rilievo o inciso, con otto caratteri tipografici o uno personalizzato, anche disposto lungo un arco circolare, per esempio su una moneta, un coperchio o un anello.">
+    <link rel="canonical" href="https://layerling.com/it/text.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/text.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/text.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/text.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/text.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/text.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/text.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/text.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/text.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/tekst.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/text.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/besedilo.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/text.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/text.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/text.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/text.html">
+    <meta property="og:title" content="Testo e scritte curve - Guida utente di layerling">
+    <meta property="og:description" content="Testo in rilievo o inciso, con otto caratteri tipografici o uno personalizzato, anche disposto lungo un arco circolare, per esempio su una moneta, un coperchio o un anello.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/it/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Guida utente</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/it/search-index.json" data-nothing="Nessun risultato." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Cerca nella guida" aria-label="Cerca nella guida" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Lingua">Italiano</summary><ul><li><a href="/api/desktop/layerling/ui/guide/text.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/text.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/text.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/text.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/text.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/text.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/text.html" hreflang="it" lang="it" aria-current="true">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/text.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/text.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/text.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/text.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/besedilo.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/text.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/text.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/text.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/text.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/text.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/text.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Apri l'editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>L'editor è già aperto in un'altra scheda: passa semplicemente a quella.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Capitoli"><h2>Capitoli</h2><p class="print-link"><a href="/api/desktop/layerling/ui/it/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Guida completa da stampare</span></a></p><ol><li><a href="/api/desktop/layerling/ui/it/getting-started.html">Primi passi</a></li><li><a href="/api/desktop/layerling/ui/it/view-and-workplane.html">Vista e piano di lavoro</a></li><li><a href="/api/desktop/layerling/ui/it/shapes.html">Inserire e modificare le forme</a></li><li><a href="/api/desktop/layerling/ui/it/select-and-arrange.html">Selezionare e disporre</a></li><li><a href="/api/desktop/layerling/ui/it/solids-and-holes.html">Solidi e fori</a></li><li><a href="/api/desktop/layerling/ui/it/edges-and-hollowing.html">Smussare gli spigoli e svuotare i corpi</a></li><li><a href="/api/desktop/layerling/ui/it/sketches.html">Schizzi: dal contorno al corpo</a></li><li><a href="/api/desktop/layerling/ui/it/text.html" aria-current="page">Testo e scritte curve</a></li><li><a href="/api/desktop/layerling/ui/it/threads-and-mechanics.html">Filettature, ingranaggi e altri componenti</a></li><li><a href="/api/desktop/layerling/ui/it/measuring-and-notes.html">Misurazioni e annotazioni</a></li><li><a href="/api/desktop/layerling/ui/it/printing.html">Preparare la stampa 3D</a></li><li><a href="/api/desktop/layerling/ui/it/files-and-saving.html">File, salvataggio e condivisione</a></li><li><a href="/api/desktop/layerling/ui/it/shortcuts.html">Scorciatoie da tastiera</a></li><li><a href="/api/desktop/layerling/ui/it/ai-with-mcp.html">Progettare con un’IA (MCP)</a></li><li><a href="/api/desktop/layerling/ui/it/offline-and-install.html">Installare come app, lavorare offline e ospitare layerling</a></li><li><a href="/api/desktop/layerling/ui/it/videos.html">Video su layerling</a></li><li><a href="/api/desktop/layerling/ui/it/tablet-and-touch.html">Tablet e comandi touch</a></li></ol></nav>
+      <main>
+<h1>Testo e scritte curve</h1>
+<p class="lead">Testo in rilievo o inciso, con otto caratteri tipografici o uno personalizzato, anche disposto lungo un arco circolare, per esempio su una moneta, un coperchio o un anello.</p>
+<div class="toc"><b>In questa pagina</b><ul><li><a href="#aggiungere-testo">Aggiungere testo</a></li><li><a href="#caratteri-tipografici-personalizzati">Caratteri tipografici personalizzati</a></li><li><a href="#testo-in-rilievo-o-inciso">Testo in rilievo o inciso</a></li><li><a href="#stencil-ponticelli-per-il-centro-delle-lettere">Stencil: ponticelli per il centro delle lettere</a></li><li><a href="#contorno-sagoma-e-spessore">Contorno, sagoma e spessore</a></li><li><a href="#livelli-e-cartellini-con-nome">Livelli e cartellini con nome</a></li><li><a href="#cartellini-con-icona">Cartellini con icona</a></li><li><a href="#codici-qr">Codici QR</a></li><li><a href="#testo-su-un-arco-circolare">Testo su un arco circolare</a></li></ul></div>
+<section class="guide-part"><h2 id="aggiungere-testo"><span class="heading-alias" id="adding-text"></span>Aggiungere testo</h2>
+<p>Scegli <strong class="ui">«Testo»</strong> nella libreria delle forme e posizionalo. Nel campo <strong class="ui">«Testo»</strong> a destra, digita il testo desiderato. Sotto trovi queste impostazioni:</p>
+<ul><li><strong><strong class="ui">«Carattere»</strong>:</strong> sono disponibili otto caratteri tipografici: Multilingua, Sans, Serif, Script, Monospazio, Arrotondato, Stencil (lettere composte da linee rette) e Giapponese (Zen Maru Gothic). Il nuovo testo usa inizialmente Sans. Tutti includono lettere accentate come ä, ö, ü ed é e il simbolo €, oltre ai kana, ai kanji più comuni e a molti kanji rari presenti in nomi come 澤, 槇 e 檜: un nome giapponese funziona con qualsiasi carattere tipografico e su un cartellino. I caratteri giapponesi vengono scaricati la prima volta che servono (i kanji rari sono in un secondo file, scaricato solo quando il testo ne contiene uno), quindi per qualche istante potrebbero apparire punti interrogativi. In seguito restano salvati sul computer e da quel momento il giapponese funziona anche offline. Puoi aggiungere caratteri tipografici personalizzati; vedi <a href="#caratteri-tipografici-personalizzati">Caratteri tipografici personalizzati</a>.</li><li><strong><strong class="ui">«Dimensione delle lettere»</strong>:</strong> dimensione delle lettere vista dall’alto; <strong class="ui">«Altezza»</strong> ne imposta lo spessore.</li><li><strong><strong class="ui">«Altezza»</strong>:</strong> quanto il testo sporge dalla superficie.</li><li><strong><strong class="ui">«Smusso»</strong>:</strong> arrotonda i bordi delle lettere per renderli più morbidi. Con <strong class="ui">«Segmenti»</strong> scegli il numero di passaggi.</li><li><strong><strong class="ui">«Bordo delle lettere»</strong>:</strong> arrotonda o smussa il bordo superiore delle lettere, come su un cartellino: <strong class="ui">«Nessuno»</strong>, <strong class="ui">«Arrotondato»</strong> o <strong class="ui">«Smussato»</strong>, con <strong class="ui">«Dimensione del bordo»</strong> (inizialmente 0,4 mm, al massimo pari all’altezza del testo). Può arrivare più lontano di <strong class="ui">«Smusso»</strong>, ma solo fino alla larghezza dei tratti: dove un tratto è più sottile del doppio della misura, il bordo termina con una sommità più stretta. La parte inferiore resta piatta, così puoi incollare le singole lettere in seguito. Quando scegli un trattamento del bordo, questo sostituisce <strong class="ui">«Smusso»</strong>.</li><li><strong>Lunghezza:</strong> Un testo può avere fino a 250 caratteri. Le lettere mantengono la loro dimensione e la riga diventa lunga quanto serve; per accorciarla, rimpicciolisci le lettere. <strong class="ui">«Bordo delle lettere»</strong> funziona su un testo fino a 40 caratteri, perché su uno più lungo il calcolo richiederebbe minuti.</li><li><strong>Dimensioni:</strong> imposta lunghezza e larghezza come per qualsiasi altra forma, trascinando le maniglie o digitando i valori.</li><li><strong><strong class="ui">«Spaziatura lettere (%)»</strong>:</strong> distanza aggiuntiva tra le lettere, espressa in percentuale della dimensione delle lettere. 0 mantiene la spaziatura del carattere tipografico; un valore positivo allontana le lettere, mentre un valore negativo (fino a -50) le avvicina, cosa spesso necessaria con un carattere personalizzato. Le lettere mantengono la propria dimensione e il riquadro segue il testo, sia diritto sia curvo. La spaziatura non si applica all’arabo e all’ebraico, perché le lettere si uniscono tra loro.</li><li><strong><strong class="ui">«Adatta le lettere alla cornice»</strong>:</strong> inizialmente disattivato; le lettere mantengono le proporzioni e restano al centro del riquadro, che può quindi essere più largo o profondo della parola. Se lo attivi, le lettere vengono allungate in entrambe le direzioni per riempire tutto il riquadro: puoi rendere le maiuscole più basse o più strette, come in Tinkercad. Si applica al testo diritto; il testo curvo ha una propria impostazione per la dimensione delle lettere.</li><li><strong><strong class="ui">«Crenatura automatica»</strong>:</strong> avvicina le coppie di lettere che lasciano troppo spazio tra loro, come AY, AV, LT o To, misurando la forma delle lettere stesse, in ogni carattere, anche nei tuoi. I testi nuovi la hanno attiva; i testi creati prima la hanno disattivata, così in un progetto salvato non si sposta nulla. Le lettere mantengono la loro dimensione e il riquadro si adatta. Funziona sul testo dritto e curvo, non sul testo verticale, l'arabo, l'ebraico o il giapponese.</li><li><strong><strong class="ui">«Lettere dall'alto in basso»</strong>:</strong> impila le lettere dall'alto in basso, ognuna al centro di una riga verticale, per un'insegna su uno stipite o un nome lungo una penna. Il riquadro si mette in verticale e le lettere mantengono la loro dimensione; <strong class="ui">«Spaziatura lettere (%)»</strong> imposta la distanza tra di esse. Su un testo curvo le lettere formano una colonna lungo il lato sinistro del cerchio, ognuna in piedi; <strong class="ui">«Sul lato destro»</strong> mette la colonna sul lato destro.</li></ul>
+<p>Inizialmente il testo è un unico corpo. Se vuoi modificare le lettere singolarmente, fai clic su <strong class="ui">«Separa le parti»</strong>: ogni lettera diventa una forma separata.</p>
+<p><strong>Più righe:</strong> Un testo ha una riga. Per un cartello o una targa con più righe, apri la scheda <strong class="ui">«Blocco di testo»</strong> sotto le impostazioni: scrivi le righe in <strong class="ui">«Righe»</strong>, scegli <strong class="ui">«Allineamento»</strong> (<strong class="ui">«Sinistra»</strong>, <strong class="ui">«Centro»</strong> o <strong class="ui">«Destra»</strong>), <strong class="ui">«Interlinea»</strong> e <strong class="ui">«Riga successiva (%)»</strong>: all'80 % ogni riga è più piccola di un quinto rispetto a quella sopra. Il pulsante rende ogni riga un testo a sé sotto quella sopra, con il carattere, l'altezza e il riempimento di questo testo; la prima prende il posto di questo testo. Poi ogni riga può avere dimensione, carattere o colore propri.</p>
+<p>Puoi applicare smussi e raccordi anche agli spigoli del testo, diritto o curvo; vedi <a href="/api/desktop/layerling/ui/it/edges-and-hollowing.html">Smussare gli spigoli e svuotare i corpi</a>. Usa misure piccole, per esempio da 0,2 a 0,5 mm, perché i tratti delle lettere sono stretti.</p>
+</section><section class="guide-part"><h2 id="caratteri-tipografici-personalizzati"><span class="heading-alias" id="your-own-fonts"></span>Caratteri tipografici personalizzati</h2>
+<p>Oltre agli otto caratteri inclusi puoi usare qualsiasi font personalizzato: un file dal tuo computer oppure, in Chrome ed Edge, un font installato nel sistema. Scegli <strong class="ui">«Gestisci i tuoi caratteri …»</strong> in fondo a <strong class="ui">«Carattere»</strong>. Si apre la finestra <strong class="ui">«I tuoi caratteri»</strong>.</p>
+<ul><li><strong><strong class="ui">«Scegli un file di carattere …»</strong></strong> importa un file TrueType (<code>.ttf</code>), OpenType (<code>.otf</code>) o WOFF (<code>.woff</code>). Puoi anche trascinare il file direttamente nella finestra.</li><li><strong>Su Windows</strong>, i font installati si trovano nella cartella Fonts (<code>C:\Windows\Fonts</code>), che il selettore di file del browser nasconde. Aprila invece in Esplora file e trascina il font nella finestra <strong class="ui">«I tuoi caratteri»</strong>. I font installati solo per il tuo account si trovano in <code>%LOCALAPPDATA%\Microsoft\Windows\Fonts</code>, visibile anche nel selettore di file. Su Mac, i font si trovano in <code>/Library/Fonts</code> e <code>~/Library/Fonts</code>.</li><li><strong><strong class="ui">«Carattere dal computer …»</strong></strong> mostra i font installati sul computer. Al primo utilizzo, il browser chiede il permesso di leggerli. Il campo di ricerca trova rapidamente un font; fai clic per aggiungerlo.</li></ul>
+<p>Se hai selezionato del testo, il nuovo font viene applicato subito. Altrimenti compare nel gruppo <strong class="ui">«I tuoi caratteri»</strong> sotto <strong class="ui">«Carattere»</strong>; il pulsante <strong class="ui">«Usa»</strong> nella finestra lo applica ai testi selezionati. I font personalizzati funzionano come quelli inclusi: testo su arco circolare, smussi e raccordi degli spigoli ed esportazione STEP sono disponibili allo stesso modo. Le lettere non presenti nel font vengono prese da Sans.</p>
+<section class="guide-part"><h3 id="arabo-ed-ebraico"><span class="heading-alias" id="arabic-and-hebrew"></span>Arabo ed ebraico</h3>
+<p>Arabo, persiano, urdu ed ebraico si scrivono da destra a sinistra: la prima lettera si trova a destra e, in un testo misto come “Name عربي”, solo la parola araba procede in direzione inversa; le cifre mantengono l’ordine normale. Le lettere arabe si uniscono alle vicine secondo le regole della scrittura e lam-alif diventa una legatura. Serve un font che contenga questi caratteri; quelli inclusi non li hanno. Aggiungine uno personalizzato, come Arial, Tahoma o Segoe UI su Windows, oppure uno gratuito come Noto Naskh Arabic, Noto Sans Arabic o Amiri. I segni vocalici si dispongono sulla lettera corrispondente. Testo su arco circolare, contorno, sagoma, livelli e cartellini funzionano come per qualsiasi altro testo.</p>
+</section><section class="guide-part"><h3 id="funzioni-disponibili-nei-diversi-browser"><span class="heading-alias" id="what-works-in-which-browser"></span>Funzioni disponibili nei diversi browser</h3>
+<div class="table-scroll"><table><thead><tr><th>Browser</th><th>Scegliere un file di font</th><th>Usare un font dal computer</th></tr></thead><tbody><tr><td>Chrome ed Edge su computer, anche nell’app di layerling installata</td><td>sì</td><td>sì, dopo aver concesso il permesso</td></tr><tr><td>Firefox</td><td>sì</td><td>no</td></tr><tr><td>Safari su Mac</td><td>sì</td><td>no</td></tr><tr><td>Tablet e telefono</td><td>sì, dai file del dispositivo</td><td>no</td></tr></tbody></table></div>
+<p>Le pagine web non possono leggere liberamente i font installati. Solo Chrome ed Edge consentono di farlo, e solo sulle pagine sicure, con indirizzo <code>https</code>, come layerling.com. Se layerling viene aperto tramite <code>http</code>, per esempio sul tuo server o con un’installazione Docker nella rete di casa, <strong class="ui">«Carattere dal computer …»</strong> non è disponibile: puoi trascinare il font da Esplora file. Negli altri browser scegli il file del font dalla cartella in cui si trova; il risultato è lo stesso. Se hai rifiutato la richiesta di Chrome o Edge, puoi concedere di nuovo il permesso nelle impostazioni del sito, aprendo il lucchetto a sinistra dell’indirizzo.</p>
+<p>layerling non può leggere i file WOFF2 (di solito è disponibile anche una versione TTF o OTF), le raccolte di font (<code>.ttc</code>, che contengono più font in un solo file) o i font emoji a colori. Dei font molto grandi, come quelli cinesi, layerling carica i primi 8000 caratteri. Un font variabile viene letto con la propria impostazione predefinita, che di solito corrisponde allo spessore normale.</p>
+<p>Alcuni font, soprattutto quelli corsivi e variabili, disegnano le lettere con tratti sovrapposti. Quando li importa, layerling unisce i tratti in un contorno pulito affinché il corpo resti stampabile. In questi casi le lettere sono composte da segmenti rettilinei molto brevi invece che da curve; la differenza non è visibile.</p>
+</section><section class="guide-part"><h3 id="dove-vengono-conservati-i-font"><span class="heading-alias" id="where-the-fonts-are-kept"></span>Dove vengono conservati i font</h3>
+<p>Un font personalizzato resta <strong>in questo browser e su questo computer</strong>. Un altro browser o computer non lo conosce finché non lo aggiungi anche lì. Cancellando i dati del sito nel browser, elimini anche i font. Nella finestra <strong class="ui">«I tuoi caratteri»</strong>, il cestino rimuove un font dal browser. I progetti non perdono nulla, come spiega la sezione seguente.</p>
+</section><section class="guide-part"><h3 id="condividere-progetti-che-usano-font-personalizzati"><span class="heading-alias" id="passing-on-designs-with-a-font-of-your-own"></span>Condividere progetti che usano font personalizzati</h3>
+<p>Un progetto <strong>non contiene il file del font</strong>, ma solo i contorni delle lettere usate nei testi, compresi quelli registrati nei passaggi precedenti della cronologia. Se un testo dice “Hello”, vengono conservate solo le lettere H, e, l e o. Vale per qualsiasi modalità di salvataggio: nel browser, sul tuo server, come file <code>.lyl</code> e in <strong class="ui">«Forme personalizzate»</strong>.</p>
+<p>Di conseguenza:</p>
+<ul><li><strong>Il progetto si apre correttamente ovunque</strong>, anche su un computer che non ha il font. Il testo mantiene lo stesso aspetto e puoi spostarlo, ruotarlo, ridimensionarlo e raccordarne gli spigoli.</li><li><strong>Per le nuove lettere serve il font.</strong> Se qualcuno che non possiede il font digita una lettera non inclusa nel progetto, layerling la disegna usando Sans. Sotto <strong class="ui">«Carattere»</strong> il font viene indicato come <strong class="ui">«solo le lettere del progetto»</strong>. Aggiungendo il file del font ricompaiono tutte le lettere.</li><li><strong>Le esportazioni contengono solo la geometria.</strong> I file STL, 3MF, OBJ, STEP e SVG contengono corpi e contorni, non il font.</li><li><strong>Le versioni precedenti di layerling</strong> non supportano ancora i font personalizzati e visualizzano questi testi usando Multilingua.</li></ul>
+<p><strong>Licenze:</strong> i font sono protetti dal diritto d’autore e la relativa licenza stabilisce come possono essere usati. I contorni delle lettere incorporati nei progetti sono simili a quelli inclusi nei file PDF, pratica consentita dalla maggior parte delle licenze. Alcuni font commerciali, però, vietano la condivisione anche di singole lettere. Prima di condividere o pubblicare un progetto che usa un font personalizzato, controllane la licenza. I font gratuiti, come quelli di Google Fonts (perlopiù rilasciati con licenza SIL Open Font License), si possono condividere liberamente. Per un pezzo stampato o un file STL esportato non ci sono problemi: non contengono più il font, ma solo la geometria.</p>
+</section></section><section class="guide-part"><h2 id="testo-in-rilievo-o-inciso"><span class="heading-alias" id="raised-or-engraved"></span>Testo in rilievo o inciso</h2>
+<ul><li><strong>In rilievo:</strong> posiziona il testo sulla superficie e raggruppalo con il corpo. Le lettere sporgono come un rilievo.</li><li><strong>Inciso:</strong> imposta il testo come <strong class="ui">«Foro»</strong>, fallo penetrare leggermente nella superficie e raggruppalo con il corpo. Le lettere vengono incise.</li></ul>
+<p>Per scrivere su una faccia laterale, prima posiziona il piano di lavoro su quella faccia; vedi <a href="/api/desktop/layerling/ui/it/view-and-workplane.html">Vista e piano di lavoro</a>.</p>
+</section><section class="guide-part"><h2 id="stencil-ponticelli-per-il-centro-delle-lettere"><span class="heading-alias" id="stencils-bridges-for-the-middle-of-letters"></span>Stencil: ponticelli per il centro delle lettere</h2>
+<p>Tagliate attraverso una piastra, lettere come O, A e B perdono il loro centro: resta libero dentro la lettera e cade. <strong class="ui">«Ponticelli per stencil»</strong> lo trattiene alla piastra con piccoli ponticelli, come su uno stencil.</p>
+<ol><li>Imposta il testo su <strong class="ui">«Foro»</strong>, fallo passare attraverso la piastra e seleziona entrambi, raggruppati o no.</li><li>Fai clic su <strong class="ui">«Ponticelli per stencil»</strong> nel gruppo <strong class="ui">«Modifica»</strong> della barra, fai clic destro sulla selezione o cercalo con <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>. I ponticelli appaiono in arancione dove andranno.</li><li>Imposta <strong class="ui">«Larghezza dei ponticelli»</strong> e <strong class="ui">«Ponticelli per parte»</strong>. <strong class="ui">«Altezza dei ponticelli»</strong> parte dallo spessore della piastra; i ponticelli più bassi stanno a filo con il fondo, al centro o a filo con la cima della piastra, come indica <strong class="ui">«Posizione»</strong>. Su uno stencil per vernice spray, i ponticelli in alto lasciano passare la vernice sotto.</li><li><strong class="ui">«Crea»</strong> raggruppa i ponticelli con la piastra.</li></ol>
+<p>Ogni ponticello è un normale parallelepipedo: apri il gruppo per spostarne uno, eliminarne uno o aggiungerne uno tuo. Se in seguito cambi il testo, seleziona il gruppo e fai di nuovo clic su <strong class="ui">«Ponticelli per stencil»</strong>; i nuovi ponticelli prendono il posto dei vecchi. Un testo solo inciso, che non attraversa, non riceve ponticelli, perché lì non cade nulla. Per un laser o un plotter, l'esportazione DXF e SVG aggiunge gli stessi ponticelli, vedi <a href="/api/desktop/layerling/ui/it/files-and-saving.html">File, salvataggio e condivisione</a>.</p>
+</section><section class="guide-part"><h2 id="contorno-sagoma-e-spessore"><span class="heading-alias" id="outline-silhouette-and-wider"></span>Contorno, sagoma e spessore</h2>
+<p>Il testo non deve per forza essere composto da lettere piene. <strong class="ui">«Riempimento»</strong> nelle proprietà offre le stesse opzioni di Tinkercad:</p>
+<ul><li><strong><strong class="ui">«Pieno»</strong>:</strong> lettere piene, come sono disegnate.</li><li><strong><strong class="ui">«Contorno»</strong>:</strong> una linea lungo il contorno delle lettere, per metà all’interno e per metà all’esterno.</li><li><strong><strong class="ui">«Linea esterna»</strong>:</strong> una linea attorno al contorno esterno delle lettere.</li><li><strong><strong class="ui">«Linea interna»</strong>:</strong> una linea lungo il contorno interno delle lettere.</li></ul>
+<p>Quando scegli una linea, subito sotto compaiono due impostazioni: <strong class="ui">«Spessore della linea»</strong> determina lo spessore della linea e <strong class="ui">«Angoli»</strong> la forma degli angoli (<strong class="ui">«Arrotondati»</strong>, <strong class="ui">«Smussati»</strong> o <strong class="ui">«A punta»</strong>). Le opzioni meno usate si trovano sotto <strong class="ui">«Altro»</strong>: <strong class="ui">«Silhouette (senza fori)»</strong> esclude i fori in lettere come O, A o e; <strong class="ui">«Allargamento (base per stampa multicolore)»</strong> mantiene le lettere piene e le ispessisce in ogni direzione della larghezza della linea. Le lettere che si toccano si fondono in un unico pezzo.</p>
+<p>Con una linea esterna, centrata o con l’opzione “Più spesso”, il riquadro del testo si allarga, mentre le lettere mantengono la propria dimensione. <strong class="ui">«Smusso»</strong> e <strong class="ui">«Segmenti»</strong> sono disponibili solo per le lettere piene.</p>
+</section><section class="guide-part"><h2 id="livelli-e-cartellini-con-nome"><span class="heading-alias" id="layers-and-name-tags"></span>Livelli e cartellini con nome</h2>
+<p>Un cartellino per una stampa multicolore è composto da più livelli di testo: le lettere in cima, sotto lo stesso testo un po’ più largo in un secondo colore e, in basso, una piastra senza fori in un terzo colore. layerling lo crea con un solo comando:</p>
+<ul><li><strong>Nuovo cartellino:</strong> scegli <strong class="ui">«Targhetta identificativa»</strong> nella libreria delle forme e posizionalo. Mostra la parola “Name” con lettere bianche, un bordo rosso e una piastra scura.</li><li><strong>Da un testo:</strong> seleziona il testo e fai clic su <strong class="ui">«Crea strati»</strong> in cima alle sue impostazioni.</li></ul>
+<p>Tutte le impostazioni del cartellino si trovano nel riquadro <strong class="ui">«Targhetta identificativa»</strong>, in cima alle impostazioni:</p>
+<ul><li><strong><strong class="ui">«Testo»</strong></strong> e <strong><strong class="ui">«Carattere»</strong></strong>, anche con font personalizzati. Il cartellino si adatta alle parole.</li><li><strong><strong class="ui">«Dimensione delle lettere»</strong>:</strong> altezza delle lettere maiuscole, in millimetri. Tutti i livelli si adattano e restano allineati.</li><li><strong><strong class="ui">«Lettere dall'alto in basso»</strong>:</strong> mette la targhetta in verticale con le lettere una sotto l'altra, tutti i livelli insieme.</li><li><strong><strong class="ui">«Strati»</strong>:</strong> una riga per ogni livello, dall’alto verso il basso. Ogni riga contiene il colore (fai clic sul quadratino colorato), quanto il livello supera la larghezza delle lettere, la sua altezza e <strong class="ui">«Senza fori»</strong>, che riempie i fori di lettere come O e A. <strong class="ui">«Angoli»</strong> determina come il livello più largo gira attorno agli angoli delle lettere: <strong class="ui">«Arrotondati»</strong>, <strong class="ui">«Smussati»</strong> o <strong class="ui">«Vivi»</strong>. La riga superiore corrisponde alle lettere. <strong>+</strong> aggiunge un livello in fondo; <strong>–</strong> rimuove il livello inferiore. Un cartellino può avere da due a sei livelli.</li><li><strong><strong class="ui">«Foro per portachiavi»</strong>:</strong> aggiunge al livello inferiore una linguetta rettilinea con estremità arrotondata e un foro per l’anello portachiavi; la linguetta si allarga insieme al foro. Il foro da 3 mm, predefinito, crea una linguetta larga 6,5 mm che sporge di 6,75 mm; il bordo del foro dista 2 mm dal bordo del livello inferiore. Scegli <strong class="ui">«Diametro del foro»</strong> e <strong class="ui">«Lato»</strong>: <strong class="ui">«Sinistra»</strong>, <strong class="ui">«Destra»</strong> o <strong class="ui">«Alto»</strong>. <strong class="ui">«Libero»</strong> separa il foro dal cartellino e crea accanto una <strong class="ui">«Linguetta portachiavi»</strong> autonoma, dello stesso colore e altezza del livello inferiore: una forma normale che puoi spostare e ruotare con le maniglie nel punto desiderato. Quando è posizionata, <strong class="ui">«Fissa alla targhetta»</strong> nelle sue proprietà la integra nel cartellino più vicino, esattamente dov’è: il foro attraversa tutti i livelli che incontra, la linguetta si unisce al livello inferiore e entrambi restano associati a quell’angolo delle lettere anche se cambiano parole o dimensioni. <strong class="ui">«Libero»</strong> stacca di nuovo la linguetta e la lascia dov’era, così puoi spostarla ancora. Il foro attraversa ogni livello che incontra; la linguetta si sposta con le modifiche al testo, alla dimensione delle lettere o al font. <strong class="ui">«Posizione lungo il lato»</strong> sposta la linguetta verso l’alto o il basso lungo il lato (a destra o a sinistra se si trova sul bordo superiore), fino al punto in cui uscirebbe dal lato; 0 corrisponde al centro. Usalo se al centro del lato c’è uno spazio, per esempio accanto a una J, e sposta la linguetta verso la parte sporgente della lettera.</li><li><strong><strong class="ui">«Bordo delle lettere»</strong>:</strong> arrotonda o smussa il bordo superiore delle lettere del livello più alto, come nella finitura di un cartellino stampato: <strong class="ui">«Nessuno»</strong>, <strong class="ui">«Arrotondato»</strong> o <strong class="ui">«Smussato»</strong>, con <strong class="ui">«Dimensione del bordo»</strong> (inizialmente 0,4 mm, al massimo pari all’altezza del livello). Funziona con qualsiasi font e parola. Il bordo fa parte della mesh delle lettere, quindi lo strumento per gli spigoli considera il testo una mesh, troppo complessa per un testo così fine; scegli qui il trattamento del bordo.</li></ul>
+<p>Ogni modifica si vede subito. Il cartellino è un insieme: si sposta come un unico oggetto, ma ciascun livello resta un corpo indipendente del proprio colore, come serve allo slicer per una stampa multicolore. Per arrotondare o smussare gli spigoli di un singolo livello, fai clic su <strong class="ui">«Modifica insieme»</strong> e selezionalo; vedi <a href="/api/desktop/layerling/ui/it/edges-and-hollowing.html">Smussare gli spigoli e svuotare i corpi</a>.</p>
+<section class="guide-part"><h3 id="creare-molti-cartellini-insieme"><span class="heading-alias" id="many-name-tags-at-once"></span>Creare molti cartellini insieme</h3>
+<p>Digita i nomi in <strong class="ui">«Elenco dei nomi»</strong>, uno per riga, fino a un massimo di cento. Il pulsante sottostante indica quanti cartellini verranno creati, per esempio “Crea 12 cartellini”. Ogni cartellino ha gli stessi livelli, dimensione delle lettere e foro per l’anello ed è un oggetto indipendente; vengono disposti in righe sotto al primo, con 5 mm di distanza. Anche un testo semplice offre l’elenco dei nomi, più in basso nelle proprie impostazioni.</p>
+</section></section><section class="guide-part"><h2 id="cartellini-con-icona"><span class="heading-alias" id="icon-tags"></span>Cartellini con icona</h2>
+<p>Un cartellino con icona è uguale a un cartellino con nome, ma al posto delle lettere ha un’icona SVG, per esempio un cuore, una nuvola o il logo di un club. In cima c’è l’icona, sotto la stessa sagoma leggermente più larga in un secondo colore e, in basso, una piastra senza fori.</p>
+<ul><li><strong>Nuovo cartellino con icona:</strong> scegli <strong class="ui">«Targhetta con icona»</strong> nella libreria delle forme. Si apre una piccola finestra: fai clic su <strong class="ui">«Sfoglia…»</strong>, scegli un file SVG, PNG o JPG, controlla l’anteprima, inserisci <strong class="ui">«Larghezza (mm)»</strong> dell’icona e fai clic su <strong class="ui">«OK»</strong>. Il cartellino appare al centro della piastra con gli stessi livelli di un nuovo cartellino con nome.</li><li><strong>Da un corpo creato con uno schizzo:</strong> un SVG importato o uno schizzo disegnato da te offre <strong class="ui">«Crea strati»</strong> in cima alle impostazioni.</li></ul>
+<p>Il riquadro <strong class="ui">«Targhetta con icona»</strong>, in cima alle impostazioni, contiene:</p>
+<ul><li><strong><strong class="ui">«Un altro file…»</strong>:</strong> sostituisce l’icona con quella di un altro file SVG, PNG o JPG, mantenendo livelli e larghezza.</li><li><strong><strong class="ui">«Larghezza»</strong>:</strong> larghezza in millimetri dell’icona superiore. Tutti i livelli si adattano e restano allineati.</li><li><strong><strong class="ui">«Strati»</strong>:</strong> le stesse righe dei cartellini con nome: colore, larghezza aggiuntiva, <strong class="ui">«Angoli»</strong>, altezza e <strong class="ui">«Senza fori»</strong>, più <strong>+</strong> e <strong>–</strong>, da due a sei livelli. La riga superiore contiene l’icona.</li><li><strong><strong class="ui">«Foro per portachiavi»</strong>:</strong> come per i cartellini con nome, crea un foro per l’anello attraverso tutti i livelli e una linguetta con estremità arrotondata sul livello inferiore, oltre l’icona. <strong class="ui">«Diametro del foro»</strong> e <strong class="ui">«Lato»</strong> ne impostano dimensioni e posizione; <strong class="ui">«Libero»</strong> crea una linguetta autonoma, come per un cartellino con nome. La linguetta segue il contorno dell’icona: se è molto irregolare, controlla come si unisce alla piastra. <strong class="ui">«Posizione lungo il lato»</strong> sposta la linguetta lungo il lato, come per il cartellino con nome.</li><li><strong><strong class="ui">«Quantità»</strong>:</strong> numero di cartellini da creare, da 1 a 100. <strong class="ui">«Il massimo numero possibile»</strong> calcola quanti ne entrano sul piatto della stampante scelta nelle impostazioni; per loghi piccoli riempie l’intera piastra. Il pulsante sottostante li crea al centro della piastra, a 5 mm di distanza; il primo è il cartellino originale.</li></ul>
+<p>L’SVG deve avere contorni chiusi: un disegno composto solo da linee aperte non può diventare un cartellino. Un corpo creato da uno schizzo con riempimento a linea mantiene la forma; l’icona è l’area occupata dalla linea.</p>
+<p><strong>Immagini PNG o JPG:</strong> vengono ricalcate per crearne un contorno, mostrato nell’anteprima. In <strong class="ui">«Tracciato da»</strong> scegli se usare la parte <strong class="ui">«Parte scura»</strong> o <strong class="ui">«Parte chiara»</strong> come icona; inizialmente viene scelta la parte che non corrisponde allo sfondo. I pixel trasparenti non fanno parte dell’icona. Anche un SVG che contiene solo un’immagine, come quando Inkscape salva una bitmap importata, viene ricalcato allo stesso modo. Il contorno segue i pixel, quindi un’immagine piccola avrà bordi irregolari: funzionano meglio immagini di almeno alcune centinaia di pixel. <strong class="ui">«Un altro file…»</strong> seleziona la parte dell’immagine che non corrisponde allo sfondo.</p>
+</section><section class="guide-part"><h2 id="codici-qr"><span class="heading-alias" id="qr-codes"></span>Codici QR</h2>
+<p>Un codice QR trasforma un testo o un indirizzo web in un motivo leggibile dalla fotocamera di un telefono: per esempio un link al tuo negozio su un cartello, il nome della rete Wi-Fi su un sottobicchiere o un numero di telefono su un portachiavi.</p>
+<p>Scegli <strong class="ui">«Codice QR»</strong> nella libreria delle forme. Si apre una finestra con il cursore già nel campo di testo:</p>
+<ul><li><strong><strong class="ui">«Testo o indirizzo»</strong>:</strong> contenuto del codice. Premi Invio per generarlo; Maiusc+Invio inserisce una nuova riga. Sotto il campo puoi vedere quanto spazio è stato usato; dieresi e altri caratteri speciali occupano due byte. Se il testo è troppo lungo, il campo te lo segnala.</li><li><strong><strong class="ui">«Correzione d'errore»</strong>:</strong> livello L, M, Q o H. Un livello più alto permette di leggere il codice anche se una parte è sporca o graffiata (L circa 7%, M 15%, Q 25%, H 30%), ma per lo stesso testo richiede più moduli e quindi ciascun modulo diventa più piccolo. Inizialmente è selezionato M.</li><li><strong><strong class="ui">«Costruisci come»</strong>:</strong> <strong class="ui">«Solo codice»</strong> crea il solo codice, alto 4 mm. <strong class="ui">«In rilievo su piastra»</strong> lo mette in rilievo per 1 mm su una piastra bianca spessa 3 mm, come insieme a due colori, così una stampa multicolore realizza il codice scuro e la piastra chiara. <strong class="ui">«Inciso»</strong> incide il codice per 1 mm nella piastra.</li><li><strong><strong class="ui">«Dimensione per»</strong>:</strong> inserisci <strong class="ui">«Larghezza»</strong>, cioè la larghezza totale del codice (inizialmente 40 mm), oppure la dimensione di un singolo modulo; l’altro valore compare sotto. Se i moduli sono più piccoli di 0,8 mm, appare un avviso. È una regola pratica per un ugello da 0,4 mm, non una garanzia: stampante, materiale, colori e telefono influiscono tutti sul risultato.</li><li><strong><strong class="ui">«Zona di rispetto (4 moduli)»</strong>:</strong> gli scanner hanno bisogno di un bordo vuoto largo quattro moduli attorno al codice. Su una piastra, il bordo fa parte della piastra; disattivalo solo se la piastra poggia su una superficie chiara più grande. Il codice semplice non ha un bordo proprio: lascia libero lo spazio attorno.</li><li><strong>Altezze:</strong> altezza del codice oppure, se è applicato a una piastra, altezza del rilievo o profondità dell’incisione e spessore della piastra.</li></ul>
+<p>L’anteprima mostra il codice così come verrà creato. <strong class="ui">«OK»</strong> lo posiziona al centro della piastra.</p>
+<p>Il codice è un corpo come qualsiasi altro: puoi spostarlo, ruotarlo, ridimensionarlo (mantieni uguali larghezza e profondità, altrimenti il codice si deforma), raggrupparlo oppure trasformarlo in un foro e raggrupparlo con un tuo pezzo per inciderlo. Quando ridimensioni il codice, si ridimensiona l’intero motivo e ogni modulo resta quadrato.</p>
+<p>Il riquadro <strong class="ui">«Codice QR»</strong> in cima alle impostazioni contiene il testo. Modificalo e fai clic su <strong class="ui">«Ricrea»</strong>: il codice viene ricreato nella posizione e con la larghezza correnti. Livello di correzione, zona libera e tipo di rilievo o incisione restano invariati; per scegliere altre opzioni, crea un nuovo codice dalla libreria.</p>
+<p>Scansiona il codice con il telefono prima di stamparlo e di nuovo dopo la stampa. I codici scuri su uno sfondo chiaro sono più facili da leggere; non tutti i telefoni riescono a leggere un codice chiaro su una piastra scura.</p>
+</section><section class="guide-part"><h2 id="testo-su-un-arco-circolare"><span class="heading-alias" id="text-on-a-circular-arc"></span>Testo su un arco circolare</h2>
+<p>Vuoi che il testo segua il bordo di una moneta, un coperchio o un anello invece di procedere in linea retta? Usa l’impostazione <strong class="ui">«Su arco»</strong>.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/curved-text.webp" alt="Il testo segue un cerchio. Tutte le lettere poggiano sulla stessa linea." width="1280" height="800" loading="lazy"><figcaption>Il testo segue un cerchio. Tutte le lettere poggiano sulla stessa linea.</figcaption></figure>
+<p>Attivandola, il testo segue il cerchio. Tutte le lettere poggiano sulla stessa linea di base e hanno una spaziatura uniforme, come nel testo normale. Ci sono cinque impostazioni:</p>
+<ul><li><strong><strong class="ui">«Raggio dell'arco»</strong></strong> (da 5 a 500 mm): raggio del cerchio su cui si dispone la linea di base delle lettere. Le lettere restano al loro posto; cambia solo la loro curvatura.</li><li><strong><strong class="ui">«Larghezza lettere (%)»</strong></strong> (da 25 a 400 %): quanto è larga ogni lettera, in percentuale rispetto alla sua larghezza originale. Sotto 100 le lettere si stringono, sopra si allargano; l'altezza resta, e l'arco che occupano si allunga o si accorcia con loro. Per esempio per una scritta alta e stretta su una moneta. Nel testo dritto lo fa <strong class="ui">«Adatta le lettere alla cornice»</strong> con la cornice.</li><li><strong><strong class="ui">«Dimensione delle lettere»</strong>:</strong> altezza delle lettere. Non dipende più dalla larghezza della forma.</li><li><strong><strong class="ui">«Lungo il bordo inferiore»</strong>:</strong> sposta il testo dalla parte superiore a quella inferiore del cerchio. Le lettere sono rivolte verso il centro.</li><li><strong><strong class="ui">«Capovolto»</strong>:</strong> capovolge solo le lettere, per renderle leggibili dall’altro lato. Il testo resta nella stessa posizione sul cerchio.</li></ul>
+<p><strong>Il centro del cerchio coincide con il centro della forma.</strong> Per questo l’allineamento funziona come al solito: centrando il testo con un cilindro o un anello, si dispone esattamente in modo concentrico. Quando trascini una maniglia, raggio e dimensione delle lettere aumentano insieme, così il testo non si deforma.</p>
+<aside class="tip"><p><strong>Suggerimento:</strong> nella parte superiore del cerchio, le lettere si trovano all’esterno della linea di base; con <strong class="ui">«Lungo il bordo inferiore»</strong> si spostano all’interno, rivolte verso il centro. Per far stare il testo su un disco, la somma del raggio e dell’altezza delle lettere deve essere inferiore al raggio del disco.</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/it/sketches.html"><small>Capitolo precedente</small>Schizzi: dal contorno al corpo</a><a class="next" href="/api/desktop/layerling/ui/it/threads-and-mechanics.html"><small>Capitolo successivo</small>Filettature, ingranaggi e altri componenti</a></div>
+      </main>
+    </div>
+    <footer class="note">Questa guida cresce insieme al programma. Se manca qualcosa o trovi un errore, segnalalo nelle <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussioni</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=it" rel="noopener">Sostieni il progetto</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussioni</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Scopri di più su GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Note di rilascio v1.154.1</a></div><p class="trademark">Tinkercad è un marchio di Autodesk, Inc. Layerling è un progetto indipendente, non affiliato ad Autodesk né approvato o sponsorizzato da essa.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Torna all'editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Apri l'editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

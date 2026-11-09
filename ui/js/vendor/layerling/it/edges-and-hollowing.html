@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Smussare gli spigoli e svuotare i corpi - Guida utente di layerling</title>
+    <meta name="description" content="Smussi e raccordi sugli spigoli scelti, pareti di spessore uniforme per scatole, tazze e involucri.">
+    <link rel="canonical" href="https://layerling.com/it/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/kanten-und-aushoehlen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/randen-en-uithollen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/robovi-in-izdolbljenje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/edges-and-hollowing.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/edges-and-hollowing.html">
+    <meta property="og:title" content="Smussare gli spigoli e svuotare i corpi - Guida utente di layerling">
+    <meta property="og:description" content="Smussi e raccordi sugli spigoli scelti, pareti di spessore uniforme per scatole, tazze e involucri.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/it/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Guida utente</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/it/search-index.json" data-nothing="Nessun risultato." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Cerca nella guida" aria-label="Cerca nella guida" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Lingua">Italiano</summary><ul><li><a href="/api/desktop/layerling/ui/guide/edges-and-hollowing.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/edges-and-hollowing.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/edges-and-hollowing.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/kanten-und-aushoehlen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/edges-and-hollowing.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/edges-and-hollowing.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/edges-and-hollowing.html" hreflang="it" lang="it" aria-current="true">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/edges-and-hollowing.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/randen-en-uithollen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/edges-and-hollowing.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/edges-and-hollowing.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/edges-and-hollowing.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/robovi-in-izdolbljenje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/edges-and-hollowing.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/edges-and-hollowing.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/edges-and-hollowing.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/edges-and-hollowing.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/edges-and-hollowing.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/edges-and-hollowing.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Apri l'editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>L'editor è già aperto in un'altra scheda: passa semplicemente a quella.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Capitoli"><h2>Capitoli</h2><p class="print-link"><a href="/api/desktop/layerling/ui/it/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Guida completa da stampare</span></a></p><ol><li><a href="/api/desktop/layerling/ui/it/getting-started.html">Primi passi</a></li><li><a href="/api/desktop/layerling/ui/it/view-and-workplane.html">Vista e piano di lavoro</a></li><li><a href="/api/desktop/layerling/ui/it/shapes.html">Inserire e modificare le forme</a></li><li><a href="/api/desktop/layerling/ui/it/select-and-arrange.html">Selezionare e disporre</a></li><li><a href="/api/desktop/layerling/ui/it/solids-and-holes.html">Solidi e fori</a></li><li><a href="/api/desktop/layerling/ui/it/edges-and-hollowing.html" aria-current="page">Smussare gli spigoli e svuotare i corpi</a></li><li><a href="/api/desktop/layerling/ui/it/sketches.html">Schizzi: dal contorno al corpo</a></li><li><a href="/api/desktop/layerling/ui/it/text.html">Testo e scritte curve</a></li><li><a href="/api/desktop/layerling/ui/it/threads-and-mechanics.html">Filettature, ingranaggi e altri componenti</a></li><li><a href="/api/desktop/layerling/ui/it/measuring-and-notes.html">Misurazioni e annotazioni</a></li><li><a href="/api/desktop/layerling/ui/it/printing.html">Preparare la stampa 3D</a></li><li><a href="/api/desktop/layerling/ui/it/files-and-saving.html">File, salvataggio e condivisione</a></li><li><a href="/api/desktop/layerling/ui/it/shortcuts.html">Scorciatoie da tastiera</a></li><li><a href="/api/desktop/layerling/ui/it/ai-with-mcp.html">Progettare con un’IA (MCP)</a></li><li><a href="/api/desktop/layerling/ui/it/offline-and-install.html">Installare come app, lavorare offline e ospitare layerling</a></li><li><a href="/api/desktop/layerling/ui/it/videos.html">Video su layerling</a></li><li><a href="/api/desktop/layerling/ui/it/tablet-and-touch.html">Tablet e comandi touch</a></li></ol></nav>
+      <main>
+<h1>Smussare gli spigoli e svuotare i corpi</h1>
+<p class="lead">Smussi e raccordi sugli spigoli scelti, pareti di spessore uniforme per scatole, tazze e involucri.</p>
+<div class="toc"><b>In questa pagina</b><ul><li><a href="#smussare-e-raccordare-gli-spigoli">Smussare e raccordare gli spigoli</a></li><li><a href="#svuotare-i-corpi">Svuotare i corpi</a></li><li><a href="#un-coperchio-per-un-corpo-aperto">Un coperchio per un corpo aperto</a></li><li><a href="#un-canale-per-cavo-attraverso-un-corpo">Un canale per cavo attraverso un corpo</a></li><li><a href="#offset-dei-corpi">Offset dei corpi</a></li><li><a href="#eliminare-facce">Eliminare facce</a></li></ul></div>
+<section class="guide-part"><h2 id="smussare-e-raccordare-gli-spigoli"><span class="heading-alias" id="chamfering-and-filleting-edges"></span>Smussare e raccordare gli spigoli</h2>
+<p>Gli spigoli vivi raramente stanno bene su un pezzo stampato e non sono particolarmente resistenti. Uno <strong>smusso</strong> taglia lo spigolo in diagonale; un <strong>raccordo</strong> lo arrotonda. Entrambi agiscono sugli spigoli che selezioni.</p>
+<ol><li>Seleziona il corpo (o il gruppo).</li><li>Fai clic su <strong class="ui">«Arrotonda»</strong> o <strong class="ui">«Smusso»</strong> nella barra multifunzione, premi <kbd>B</kbd> per il raccordo o <span dir="ltr"><kbd>Shift</kbd>+<kbd>B</kbd></span> per lo smusso, oppure fai clic destro sul corpo e scegli il comando dal menu.</li><li>Gli spigoli del corpo si illuminano. Fai clic su quelli da modificare; un altro clic li rimuove dalla selezione. Tieni premuto <kbd>Shift</kbd> per aggiungere o rimuovere un singolo spigolo.</li><li>Imposta la dimensione e conferma con <strong class="ui">«Applica»</strong> o <kbd>Enter</kbd>. Dopo l’applicazione, la finestra resta aperta sul nuovo corpo e mantiene la stessa dimensione, così puoi aggiungere subito un altro raccordo o smusso. <strong class="ui">«Fine»</strong>, <kbd>Esc</kbd> o la croce chiudono la finestra. Tenendo premuto <kbd>Shift</kbd> o <kbd>Ctrl</kbd>, un clic su <strong class="ui">«Spigoli superiori»</strong>, <strong class="ui">«Spigoli inferiori»</strong>, <strong class="ui">«Spigoli verticali»</strong> o <strong class="ui">«Spigoli orizzontali»</strong> aggiunge quegli spigoli a quelli già selezionati invece di sostituirli.</li></ol>
+<figure><img src="/api/desktop/layerling/ui/guide/img/fillet-preview.webp" alt="Lo strumento “Raccorda spigoli”: sono selezionati tutti gli spigoli vivi e l’anteprima mostra un raggio di 4 mm." width="1280" height="800" loading="lazy"><figcaption>Lo strumento “Raccorda spigoli”: sono selezionati tutti gli spigoli vivi e l’anteprima mostra un raggio di 4 mm.</figcaption></figure>
+<p>La finestra dello strumento si trova in alto a destra. Se copre gli spigoli che vuoi selezionare, spostala trascinando la barra del titolo; la prossima volta si aprirà nello stesso punto. Lo stesso vale per <strong class="ui">«Svuota»</strong> e <strong class="ui">«Crea schema ripetuto»</strong>. Fai doppio clic sulla barra del titolo per riportarlo nella posizione iniziale.</p>
+<p>Se, mentre la finestra è aperta, scegli una forma dalla libreria, la finestra si chiude senza applicare la modifica e gli spigoli selezionati vengono dimenticati. Il clic inserisce la nuova forma invece di selezionare uno spigolo.</p>
+<p>Nella finestra trovi:</p>
+<ul><li><strong class="ui">«Tutti gli spigoli vivi»</strong> seleziona tutti gli spigoli in una volta; <strong class="ui">«Cancella»</strong> svuota la selezione.</li><li><strong><strong class="ui">«Raggio»</strong></strong> imposta il raggio del raccordo. Per lo smusso, imposta <strong class="ui">«Distanza»</strong> oppure <strong class="ui">«Angolo»</strong>.</li><li><strong class="ui">«Raggio variabile»</strong> (solo per i raccordi) permette di variare il raggio lungo uno spigolo: piccolo a un’estremità, più grande all’altra e uniforme tra le due, per esempio nel punto in cui una parete verticale incontra una parete inclinata. Fai clic su un singolo spigolo e imposta <strong class="ui">«Raggio iniziale»</strong> e <strong class="ui">«Raggio finale»</strong>. L’estremità iniziale dipende da come è stato creato lo spigolo; se il raggio più grande finisce dalla parte sbagliata, <strong class="ui">«Scambia le estremità»</strong> inverte le estremità. Lo strumento agisce su un solo spigolo alla volta, quindi applica i raggi variabili a ciascuno separatamente. <strong class="ui">«Modifica»</strong> ripristina entrambi i valori.</li><li><strong class="ui">«Raccordo concavo (scavo)»</strong> (solo per i raccordi) capovolge il raccordo: invece di arrotondare lo spigolo, ne asporta una gola a quarto di cerchio, come gli angoli intagliati di una scatola. La gola è un cilindro del <strong class="ui">«Raggio»</strong> scelto disteso lungo lo spigolo, quindi funziona con qualsiasi angolo tra le facce, ma solo su spigoli diritti e non insieme a <strong class="ui">«Raggio variabile»</strong>. <strong class="ui">«Modifica»</strong> lo ripristina.</li><li><strong class="ui">«Soglia degli spigoli vivi»</strong> decide quali spigoli sono considerati vivi. Un valore di 25° seleziona solo gli angoli più marcati e ignora le transizioni piatte.</li><li><strong class="ui">«Spigoli verticali»</strong> seleziona gli spigoli verticali, come gli angoli di una scatola: con un solo raccordo puoi arrotondarli tutti insieme.</li><li><strong class="ui">«Spigoli superiori»</strong> seleziona solo gli spigoli sul bordo superiore del corpo. È una scorciatoia per creare un tagliabiscotti: disegna il contorno in uno schizzo come traccia e poi smussa il bordo superiore. <strong class="ui">«Angolo»</strong> imposta l’inclinazione dello smusso, che non può essere più profondo dello spessore della parete.</li><li><strong class="ui">«Spigoli inferiori»</strong> seleziona solo gli spigoli sul bordo inferiore del corpo, l’opposto di <strong class="ui">«Spigoli superiori»</strong>. È un modo rapido per arrotondare o smussare solo la base di un pezzo.</li><li><strong class="ui">«Smusso-raccordo»</strong>, selezionato in cima alla finestra dello smusso accanto a <strong class="ui">«Smusso»</strong>, crea una base adatta alla stampa: uno smusso sulla piastra che sfuma in modo tangenziale in un raccordo verso la parete. Così i primi strati non hanno bisogno di supporti e il bordo resta morbido. <strong class="ui">«Distanza»</strong> imposta l’altezza occupata dalla base e <strong class="ui">«Angolo»</strong> (da 15° a 75°) l’inclinazione dello smusso sulla piastra. Seleziona gli spigoli con <strong class="ui">«Spigoli inferiori»</strong>.</li><li><strong class="ui">«Solo spigoli visibili»</strong> nasconde gli spigoli sul lato opposto del corpo rispetto alla vista. Inizialmente tutti gli spigoli sono visibili attraverso il corpo, cosa che può confondere nei pezzi complessi; attivando l’opzione puoi vedere e selezionare solo quelli rivolti verso di te. Ruota la vista per raggiungere gli altri. Gli spigoli evidenziati in rosso (vedi sotto) restano sempre visibili.</li><li><strong class="ui">«Un clic seleziona anche gli spigoli che proseguono senza interruzioni»</strong> fa sì che un clic selezioni anche gli spigoli che proseguono in modo uniforme, per esempio tutti quelli attorno a una faccia con angoli arrotondati. L’opzione decide solo quali spigoli vengono selezionati con il clic: il kernel CAD estende comunque smussi e raccordi agli spigoli che proseguono senza interruzioni. La finestra indica quanti altri spigoli vengono coinvolti.</li><li><strong class="ui">«Mantieni la dimensione degli spigoli durante il ridimensionamento»</strong> mantiene inalterata la dimensione dello smusso o del raccordo anche se in seguito ridimensioni il corpo.</li><li><strong class="ui">«Qualità dell'anteprima»</strong> (<strong class="ui">«Bozza»</strong>, <strong class="ui">«Standard»</strong> o <strong class="ui">«Fine»</strong>) regola il livello di dettaglio dell’anteprima. Per i pezzi complessi, <strong class="ui">«Bozza»</strong> è più veloce.</li><li>La finestra conserva le sue impostazioni in questo browser, una serie ciascuno per smusso, raccordo e smusso con raccordo: dimensione, angolo, soglia, qualità dell'anteprima e interruttori restano come li hai lasciati dopo <strong class="ui">«Applica»</strong>, dopo un annullamento e alla prossima apertura dello strumento. Una dimensione che il corpo non può accogliere lascia il posto a quella calcolata dal corpo. Solo <strong class="ui">«Un clic seleziona anche gli spigoli che proseguono senza interruzioni»</strong> riparte da capo: attivo al primo smusso o raccordo di un corpo, disattivo dopo.</li></ul>
+<p>Mentre modifichi la dimensione, layerling ricalcola l’anteprima. Può volerci qualche istante; puoi continuare a cambiare i valori e verrà calcolato quello scelto per ultimo.</p>
+<p>Se la dimensione è eccessiva per lo spigolo, layerling te lo segnala e suggerisce un valore più piccolo. Spesso basta ridurlo di uno o due millimetri. Con angoli molto acuti, un raccordo richiede più spazio di quanto suggerisca il suo raggio. Sugli schermi piccoli, la finestra scorre automaticamente verso il basso per mostrare il messaggio.</p>
+<p>Se una selezione che funzionava smette di funzionare quando aggiungi un altro spigolo, quello spigolo diventa rosso e viene disegnato più largo: con la dimensione impostata non è possibile lavorarlo insieme agli altri. Fai di nuovo clic per rimuoverlo oppure riduci la dimensione. Se selezioni altri spigoli mentre il messaggio è visibile, il primo resta rosso. Se invece non c’è una selezione precedente che funziona — per esempio al primo clic o dopo aver aumentato la dimensione — diventano rossi gli spigoli che non possono essere lavorati neppure da soli, oppure tutti se il problema è la loro combinazione. E dove gli spigoli scelti si incontrano in un angolo interno acuto, come due dischi di una nuvola, un raccordo non ha spazio a nessuna misura: layerling allora raccorda prima quegli angoli, con la stessa misura o con una più piccola, e il messaggio dice quanti e di quanto (uno smusso li smussa).</p>
+<p>Un raccordo lungo un bordo curvo ha un limite in più. Dove il bordo curva verso l'esterno del corpo più stretto del raggio, come sulla punta di una goccia disegnata in uno schizzo o importata come SVG, l'arrotondamento non può seguire la curva. layerling indica allora il raggio della curva più stretta e disegna in rosso i bordi che la hanno. Scegli un raggio più piccolo o disegna la curva più ampia. Uno spigolo vivo non è una curva del genere: lì si incontrano due bordi, e ognuno viene arrotondato per conto suo. Arrotonda quindi i bordi superiori prima di arrotondare uno spigolo con un raggio piccolo: lo spigolo arrotondato sarebbe una curva stretta per il bordo superiore.</p>
+<p>Prima di arrendersi, layerling ritenta aggiungendo gli spigoli corti alle estremità di quelli scelti, lunghi al massimo il doppio della misura. Uno così si trova dove uno smusso precedente finisce su una parete ancora viva: uno spigolo corto e obliquo nell'angolo, e finché resta vivo l'angolo non si può lavorare. Se aiuta, quegli spigoli risultano scelti anche loro e un messaggio dice quanti ne sono stati aggiunti.</p>
+<p>Anche lo spigolo sotto il puntatore viene disegnato più largo, così puoi vedere quale selezionerai con il clic.</p>
+<p>Anche un foro accetta <strong class="ui">«Smusso»</strong> e <strong class="ui">«Arrotonda»</strong>, così come <strong class="ui">«Svuota»</strong>, <strong class="ui">«Offset»</strong> e <strong class="ui">«Elimina faccia»</strong>: resta un foro e taglia con la sua nuova forma. Arrotondando i quattro spigoli verticali di un foro a parallelepipedo si ottiene una tasca con angoli interni arrotondati, e un foro ingrandito con <strong class="ui">«Offset»</strong> taglia con altrettanto gioco in più. Per smussare lo spigolo dove un foro incontra il pezzo, tratta invece il gruppo finito: quello spigolo appartiene a lui.</p>
+<section class="guide-part"><h3 id="annullare-un-trattamento-degli-spigoli"><span class="heading-alias" id="taking-an-edge-treatment-back"></span>Annullare un trattamento degli spigoli</h3>
+<p>Puoi sempre modificare di nuovo un corpo su cui hai applicato uno strumento per gli spigoli. Selezionalo e apri Raccordo, Smusso o Svuota: in ciascuno trovi l’elenco dei trattamenti già applicati sotto <strong class="ui">«Annulla una lavorazione sugli spigoli»</strong>. <strong class="ui">«Annulla»</strong> annulla un singolo trattamento. Se sopra ce ne sono di più recenti, verranno annullati insieme; la finestra ti indica quanti.</p>
+<p>Accanto a uno smusso, un raccordo o uno svuotamento trovi anche <strong class="ui">«Modifica»</strong>. Annulla il trattamento allo stesso modo, ma riapre subito lo strumento con gli stessi spigoli e il valore precedente. Puoi cambiare il valore e applicarlo di nuovo: per esempio, portare un raccordo da 3 mm a 5 mm senza riselezionare gli spigoli. Anche in questo caso vengono annullati i trattamenti successivi. Questo vale per i trattamenti degli spigoli che applichi da ora in poi; quelli precedenti permettono solo di essere annullati, così come i trattamenti applicati alle singole parti di un gruppo.</p>
+<p>Su un gruppo, per esempio un cilindro con un foro, lo spigolo trattato appartiene al corpo finito, non a una delle parti che lo compongono. Il gruppo diventa quindi un corpo unico. <strong class="ui">«Separa gruppo»</strong> continua a funzionare: prima annulla i trattamenti degli spigoli e poi scioglie il gruppo, tutto in un solo passaggio, annullabile con <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span>. Annullando il trattamento come descritto sopra, il gruppo torna a contenere tutte le parti. È più semplice applicare i trattamenti agli spigoli per ultimi. Questo vale anche per le filettature: lo strumento usa la geometria esatta della filettatura, quindi puoi raccordare gli spigoli di un blocco con un foro filettato senza rimuovere la filettatura. Calcolare gli spigoli di una filettatura richiede più tempo che per una forma semplice: qualche secondo per un M6 e circa mezzo minuto per una filettatura per tubo G1/2.</p>
+<aside class="tip"><p><strong>Da sapere:</strong> per raccordi e smussi layerling usa la vera geometria CAD, non solo una mesh di triangoli. Perciò nell’esportazione STEP uno spigolo arrotondato resta uno spigolo arrotondato.</p></aside>
+<p>Anche una parte importata da STEP conserva la propria geometria CAD: smussi, raccordi e svuotamento agiscono sul corpo del file, indipendentemente dal livello di dettaglio con cui viene disegnato sullo schermo. I file STL, OBJ e 3MF contengono solo triangoli e, se la mesh è molto dettagliata, lo strumento per gli spigoli potrebbe non riuscire a elaborarla. Se la parte è disponibile anche in formato STEP, importa quel file. <strong class="ui">«Rendi esatto»</strong> trasforma prima un pezzo simile in un corpo esatto con piani e cilindri veri, vedi <a href="/api/desktop/layerling/ui/it/files-and-saving.html">File, salvataggio e condivisione</a>, «Rendere esatta una mesh importata».</p>
+</section></section><section class="guide-part"><h2 id="svuotare-i-corpi"><span class="heading-alias" id="hollowing-bodies"></span>Svuotare i corpi</h2>
+<p>Scatole, tazze, involucri e coperchi hanno una caratteristica in comune: sono vuoti all’interno e hanno pareti di spessore uniforme. È proprio quello che fa <strong class="ui">«Svuota»</strong>.</p>
+<ol><li>Seleziona il corpo e fai clic su <strong class="ui">«Svuota»</strong>, oppure fai clic destro sul corpo e scegli il comando dal menu.</li><li>Imposta <strong class="ui">«Spessore delle pareti»</strong>.</li><li>In <strong class="ui">«Lati aperti»</strong>, attiva i lati che vuoi lasciare aperti: <strong class="ui">«Superiore»</strong>, <strong class="ui">«Inferiore»</strong>, <strong class="ui">«Anteriore»</strong>, <strong class="ui">«Posteriore»</strong>, <strong class="ui">«Sinistro»</strong> o <strong class="ui">«Destro»</strong>, anche più di uno. Solo <strong class="ui">«Anteriore»</strong> crea un’apertura per un cassetto; <strong class="ui">«Sinistro»</strong> e <strong class="ui">«Destro»</strong> creano un tunnel. Se non attivi nessun lato, il corpo resta chiuso su tutti i lati con una cavità al centro. <strong class="ui">«Chiuso (cavità interna)»</strong> disattiva tutti i lati con un clic. <strong class="ui">«Superiore»</strong> è già attivo quando si apre la finestra; facendo clic lo disattivi e richiudi la parte superiore. Un corpo chiuso su tutti i lati appare invariato dall’esterno: la vista in sezione mostra la cavità.</li><li>Scegli se gli <strong class="ui">«Bordi interni»</strong> devono essere <strong class="ui">«Arrotondati»</strong> oppure <strong class="ui">«Spigolosi»</strong>.</li><li>Fai clic su <strong class="ui">«Svuota»</strong>.</li></ol>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-panel.webp" alt="La finestra Svuota, con lo spessore della parete, un interruttore per ogni lato da lasciare aperto e le opzioni per gli spigoli interni." width="1280" height="800" loading="lazy"><figcaption>La finestra Svuota, con lo spessore della parete, un interruttore per ogni lato da lasciare aperto e le opzioni per gli spigoli interni.</figcaption></figure>
+<p>Le pareti si sviluppano verso l’interno. L’esterno resta invariato.</p>
+<p><strong class="ui">«Bordi interni»</strong> conta solo nei punti in cui le pareti interne si allontanano, cioè in corrispondenza di un gradino del corpo o attorno a un’apertura. Gli angoli interni di una scatola semplice restano sempre vivi con entrambe le impostazioni. Per ottenere un interno arrotondato, arrotonda prima gli spigoli esterni del corpo (vedi sopra) e poi svuotalo: all’interno il raggio sarà quello esterno meno lo spessore della parete. Se non è possibile creare il raccordo interno — può capitare con un contorno composto da moltissimi brevi segmenti, per esempio un disegno ricalcato — layerling crea lo stesso corpo cavo con angoli interni vivi.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-result.webp" alt="Il risultato: un guscio con pareti spesse 3 mm e apertura superiore." width="1280" height="800" loading="lazy"><figcaption>Il risultato: un guscio con pareti spesse 3 mm e apertura superiore.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/hollow-sides.webp" alt="La stessa scatola con il solo lato anteriore aperto: un’apertura per un cassetto." width="1280" height="800" loading="lazy"><figcaption>La stessa scatola con il solo lato anteriore aperto: un’apertura per un cassetto.</figcaption></figure>
+<p>Per ogni lato aperto, il corpo deve avere una faccia piatta proprio sul bordo di quel lato. Perciò sfere e forme libere non possono essere svuotate con questo strumento. Se la parete è troppo spessa per il corpo, layerling te lo segnala e chiede di ridurla. Una scatola arrotondata anche sugli spigoli superiori e inferiori è un caso di questo tipo: la parete deve essere molto più sottile del raccordo oppure puoi impostare prima il raccordo su 0.</p>
+<p>Puoi svuotare anche un corpo con una cavità, per esempio un blocco con un foro che non lo attraversa, ottenuto raggruppando una scatola e un foro sollevato. Aprendo la parte superiore, vengono svuotate anche le pareti attorno alla cavità: resta un’intercapedine anulare tra la parete esterna e quella interna, aperta in alto, oltre a una cavità sottile sotto il fondo della cavità.</p>
+<p><strong>I corpi che terminano a punta,</strong> come un cono o un triangolo ruotato, non hanno una faccia piatta superiore da lasciare aperta. Non è possibile neppure creare una cavità completamente chiusa, perché la punta non può essere spostata verso l’interno: anche con una parete di 1 mm, layerling segnala che è troppo spessa. Disegna invece lo spessore nel profilo prima di ruotarlo: duplica il contorno, riduci uniformemente la copia, posizionala al centro del contorno più grande e sottraila; poi ruota l’intero profilo (capitolo Schizzi, sezione Rotazione). La distanza tra i due contorni determina lo spessore della parete.</p>
+<p>Se in seguito ridimensioni un corpo svuotato, layerling lo svuota di nuovo subito, usando la nuova dimensione. Lo spessore della parete resta quello scelto, anche sui corpi rotondi. Se allunghi un cilindro più in una direzione che nell’altra, diventa un’ellisse.</p>
+<aside class="tip"><p><strong>Suggerimento:</strong> con un ugello da 0,4 mm, uno spessore tra 1,2 e 2 mm è un buon punto di partenza: abbastanza sottile da risparmiare materiale e abbastanza spesso da creare un pezzo robusto.</p></aside>
+</section><section class="guide-part"><h2 id="un-coperchio-per-un-corpo-aperto"><span class="heading-alias" id="a-lid-for-an-open-body"></span>Un coperchio per un corpo aperto</h2>
+<p><strong class="ui">«Coperchio»</strong> crea il coperchio per un corpo aperto in alto: una scatola svuotata con il lato superiore aperto, un vaso, un vassoio. Seleziona il corpo e fai clic su <strong class="ui">«Coperchio»</strong>. Nella finestra scegli il tipo:</p>
+<ul><li><strong class="ui">«A infilare»</strong>: una piastra grande quanto il corpo con sotto un labbro che entra nell'apertura.</li><li><strong class="ui">«Sovrapposto»</strong>: una piastra più larga del corpo di una parete con sotto un bordo che avvolge l'esterno.</li><li><strong class="ui">«Su entrambi i lati»</strong>: una piastra più larga del corpo di una parete con sotto entrambi: un labbro nell'apertura e un bordo all'esterno. La parete del corpo sta in una scanalatura tra i due, come su un contenitore per alimenti.</li><li><strong class="ui">«Piatto»</strong>: solo la piastra, da appoggiare o incollare.</li><li><strong class="ui">«A vite»</strong>: un coperchio che si avvita come quello di un barattolo, per un corpo rotondo; più dettagli sotto.</li><li><strong class="ui">«A vite interna»</strong>: una piastra con un tappo filettato che si avvita nell'apertura di un corpo rotondo; più dettagli sotto.</li><li><strong class="ui">«A baionetta»</strong>: una chiusura a rotazione per un corpo rotondo, un coperchio che si spinge sopra dei nottolini e si gira; più dettagli sotto.</li><li><strong class="ui">«Scorrevole»</strong>: una piastra che entra scorrendo in una scatola attraverso una parete, come il coperchio di un astuccio di legno; maggiori dettagli più sotto.</li></ul>
+<p>Poi imposti lo spessore (<strong class="ui">«Spessore del coperchio»</strong>), l'accoppiamento (<strong class="ui">«Accoppiamento»</strong>, il <strong class="ui">«Gioco per lato»</strong> per lato tra coperchio e corpo: 0,1 mm stretto, 0,2 mm normale, 0,3 mm largo, o qualsiasi valore fino a 1 mm) e quanto scende il labbro o il bordo e quanto è spessa la sua parete. Fai clic su <strong class="ui">«Crea coperchio»</strong>: il coperchio si trova accanto al corpo, capovolto con la piastra in basso, così si stampa senza supporti. Il corpo resta com'è. Il coperchio segue qualsiasi contorno, tondo o spigoloso, perché viene preso dal corpo stesso appena sotto il suo bordo. Un corpo senza apertura in alto riceve solo un coperchio piatto; per gli altri, svuotalo prima con il lato superiore aperto. Per un corpo che è un corpo CAD esatto, come una scatola arrotondata svuotata con Svuota, anche il coperchio lo è, con angoli arrotondati che restano tondi: arrotonda o smussa i suoi spigoli con lo strumento per gli spigoli come per qualsiasi altro corpo. Gli altri corpi, e i coperchi con colonnine per i magneti, ricevono un coperchio fatto di triangoli.</p>
+<aside class="tip"><p><strong>Suggerimento:</strong> Quanto un coperchio è stretto dipende dalla stampante. Stampa prima una piccola scatola con il suo coperchio; se è troppo stretto, scegli l'accoppiamento successivo, più largo.</p></aside>
+<p>Spunta <strong class="ui">«Magneti agli angoli»</strong> e il coperchio si tiene con quattro magneti rotondi invece che con un accoppiamento stretto. Scegli <strong class="ui">«Magnete»</strong> (6 × 2, 8 × 3 o 10 × 3 mm) oppure imposta <strong class="ui">«Diametro del magnete»</strong> e <strong class="ui">«Altezza del magnete»</strong>, e <strong class="ui">«Gioco attorno al magnete»</strong>: 0,1 mm per inserire i magneti a pressione, 0,2-0,3 mm per incollarli. layerling ricava una sede in ogni angolo del bordo del corpo e una di fronte nella piastra del coperchio, un po' più profonda del magnete, così non sporge mai. Dove la parete è troppo sottile per una sede, una colonnina riempie l'angolo dal fondo fino al bordo e il labbro del coperchio le gira intorno. Il corpo viene raggruppato con le sue sedi e colonnine: separa il gruppo e lo riavrai com'era. La piastra deve essere spessa almeno quanto l'altezza del magnete più 0,8 mm; attivando i magneti diventa così.</p>
+<p>Spunta <strong class="ui">«Cerniera»</strong> e il coperchio si apre ruotando attorno a un perno lungo un lato dritto del corpo: quello posteriore, o il lato che scegli in <strong class="ui">«Lato della cerniera»</strong> (come nella vista iniziale, dove il retro è rivolto lontano da te). Lungo di esso si alternano le nocche, quelle esterne sul corpo e quelle in mezzo sul coperchio, distanti <strong class="ui">«Gioco della cerniera»</strong>, e un foro per il perno le attraversa tutte: con <strong class="ui">«Diametro del perno»</strong> di 1,75 mm il perno è un pezzo di filamento; spunta <strong class="ui">«Stampa anche il perno»</strong> per uno più spesso stampato a parte. Nella parte della cerniera sul corpo il perno resta stretto, così un pezzo di filamento inserito a pressione non si sfila, e in quella del coperchio gira: <strong class="ui">«Gioco del perno (per lato)»</strong> è il suo spazio lì per ogni lato, 0,2 mm all'inizio; aumentalo se il coperchio gira a fatica. Un perno stampato ha 0,15 mm per lato nella parte del corpo, perché esce con tutto il suo spessore: resta comunque stretto, ma si può inserire a pressione. Le nocche del corpo poggiano su una rampa di 45°, così il corpo si stampa in piedi senza supporti; quelle del coperchio sono a filo con il suo lato superiore, così si stampa ancora capovolto. <strong class="ui">«Nocche (0 = automatico)»</strong> a 0 dà circa una nocca ogni 10 mm. Una cerniera va con un coperchio a incastro o piatto; un bordo esterno urterebbe la parete posteriore all'apertura. Su un lato rotondo, un vaso o un tubo, la cerniera corre dove la parete resta entro il raggio di una nocca dalla linea della cerniera, e le nocche del corpo poggiano su un piccolo blocco che arriva fino alla parete. <strong class="ui">«Fori del perno a goccia (non cedono in stampa)»</strong> (attivo all'inizio) dà ai fori del perno una punta in alto nel verso di stampa di ciascun pezzo, così non si afflosciano; un perno stampato poggia su un piccolo piano. In <strong class="ui">«Tipo di cerniera»</strong>, <strong class="ui">«A filo»</strong> mette le nocche dentro la parete invece che dietro: la scatola mantiene le sue misure, ogni parte è incavata attorno alle nocche dell'altra e il coperchio si apre fino a circa 140°. <strong class="ui">«Perni girevoli»</strong> fa un coperchio che sta nell'apertura su un piccolo gradino e gira su due perni attraverso le pareti laterali, fino a circa 95°; anche qui la scatola mantiene le sue misure. Entrambi richiedono un lato dritto e non usano magneti.</p>
+<p>Con la cerniera <strong class="ui">«A filo»</strong>, spunta <strong class="ui">«Tappi alle estremità»</strong> per chiudere il foro del perno a entrambe le estremità: così il perno resta nascosto e non può sfilarsi. Gli ultimi 4 mm del foro sono allora quadrati a ogni estremità, appoggiati su uno spigolo perché abbiano anch'essi una punta in alto e non si affloscino in stampa, e grandi quanto basta per far passare il perno: inserisci prima il perno, poi premi un tappo in ogni estremità. I tappi quadrati non possono girare e stanno stretti quanto il perno nel corpo; ognuno è tagliato a filo con l'esterno della scatola, anche sugli angoli arrotondati (su una scatola così la cerniera arriva fin dentro gli angoli, con i tappi o senza). Stanno accanto al coperchio, sdraiati su un lato piatto. Il perno si accorcia per far posto ai tappi, e la barra di stato dice quanto è lungo.</p>
+<aside class="tip"><p><strong>Suggerimento:</strong> Inserisci prima i magneti nel corpo. Poi appoggia su ciascuno un altro magnete, dove si attacca dal verso giusto, e premi il coperchio su di essi (con una goccia di colla nelle sedi se sono larghe): ogni magnete entra nel coperchio rivolto verso il suo partner, così si attraggono.</p></aside>
+<p>Spunta <strong class="ui">«Dentini a scatto»</strong> e il coperchio si chiude a scatto: piccoli dentini rotondi sul lato esterno del suo bordo di inserimento (su un coperchio sovrapposto, sul lato interno del bordo) scattano in incavi che Layerling ricava negli stessi punti nella parete del corpo, uno al centro di ogni lato dritto di 12 mm o più, due su un lato di oltre 80 mm, quattro intorno a un'apertura rotonda e nessuno sul lato della cerniera. <strong class="ui">«Altezza dei dentini»</strong> indica quanto ogni dentino entra nella parete, 0,4 mm all'inizio: meno per una scatola piccola o un bordo rigido, di più per uno scatto più deciso. In <strong class="ui">«Presa»</strong>, <strong class="ui">«Linguetta»</strong> dà alla piastra una linguetta spessa come la piastra che sporge 6 mm oltre il suo bordo anteriore (o il bordo opposto alla cerniera), così il coperchio si stampa ancora capovolto, e <strong class="ui">«Incavo per il dito»</strong> ricava appena sotto il bordo del coperchio un incavo per il dito nella parete anteriore del corpo, lasciando sempre 0,8 mm di parete; nessuno dei due va con un coperchio girevole, e i dentini nemmeno con uno piatto.</p>
+<p>Scegli <strong class="ui">«A vite»</strong> e il coperchio si avvita come quello di un barattolo: il corpo riceve una filettatura all'esterno della sua parte superiore e il coperchio la stessa filettatura dentro il suo bordo. Serve un corpo rotondo, per esempio un cilindro, un tubo o un vaso rotondo svuotato con la parte superiore aperta, con una parete di almeno 0,8 mm; una scatola o un ovale vengono rifiutati. Un bordo arrotondato o smussato, come quello di un vaso ottenuto ruotando una linea con estremità arrotondate, può restare com'è, con questo coperchio e con <strong class="ui">«A baionetta»</strong> più sotto: la filettatura o i nottolini vanno sulla parete dritta sotto l'arrotondamento e il coperchio lo scavalca. La filettatura viene aggiunta all'esterno della parete invece di esservi incisa, così anche una parete sottile resta robusta, e viene raggruppata con il corpo: separa il gruppo e ritrovi il corpo com'era. Il passo (<strong class="ui">«Passo della filettatura»</strong>) indica di quanto sale la filettatura in un giro, 3 mm all'inizio, come su un barattolo; la filettatura è profonda tre decimi di questo valore (al massimo 1,5 mm) e i suoi fianchi sono inclinati di 45°, così il corpo si stampa in piedi e il coperchio sulla sua piastra, entrambi senza supporti. I giri (<strong class="ui">«Giri»</strong>) indicano quante volte gira attorno e, insieme al passo, fin dove scende il bordo del coperchio. Il gioco (<strong class="ui">«Gioco per lato»</strong>) è lo spazio su ogni lato nella filettatura, misurato sul raggio come per un dado; se il coperchio gira a fatica, scegli un accoppiamento più lasco. Per chiuderlo, gira il coperchio in senso orario. Coperchio e filettatura sono fatti di triangoli, e magneti, cerniera, dentini a scatto e presa non vanno con un coperchio a vite.</p>
+<p>In <strong class="ui">«Filettatura»</strong> puoi scegliere, al posto di <strong class="ui">«Personalizzata»</strong>, la filettatura di una bottiglia o di un barattolo normalizzati: PCO 1881 è il collo da 28 mm della maggior parte delle bottiglie d'acqua e delle bibite, PCO 1810 quello più vecchio con la filettatura più alta, GL 45 la filettatura delle bottiglie da laboratorio (DIN 168), Mason 70 e Mason 86 la bocca normale e la bocca larga dei barattoli Mason. Il coperchio viene allora fatto secondo la norma e si avvita su una bottiglia o un barattolo così, comprati in negozio; la norma stabilisce il passo e fin dove scende il coperchio, e il <strong class="ui">«Gioco per lato»</strong> è lo spazio tutto intorno alla sua filettatura. Il corpo riceve la filettatura del collo solo se in alto è proprio quel collo: rotondo e largo quanto il collo sotto la filettatura, come ti dice la finestra (24,94 mm per PCO 1881); allora ci si avvita anche un coperchio comprato. Ogni altro corpo resta com'è e viene creato solo il coperchio, come dice la barra di stato. Per fare un coperchio per una bottiglia che hai, seleziona un cilindro largo più o meno quanto il suo collo, fai clic su <strong class="ui">«Coperchio»</strong> e scegli <strong class="ui">«A vite»</strong> e la filettatura della bottiglia. I fianchi di una norma sono più ripidi dei 45° della filettatura personalizzata, quindi il lato inferiore della filettatura sul corpo e i filetti nel coperchio sporgono di più in stampa; sono profondi solo un millimetro circa, ma stampa prima un coperchio per vedere come se la cava la tua stampante. Della filettatura dei barattoli Mason non è pubblicato alcun disegno e le misure sono rilevate su barattoli veri: prova il coperchio sul tuo.</p>
+<p>Prima che tu clicchi su <strong class="ui">«Crea coperchio»</strong>, la finestra misura la parte alta del corpo e dice se è il collo: quanto è largo, quanto dev'essere largo il collo sotto la filettatura e se il corpo riceve la filettatura o viene creato solo il coperchio. Se non lo è e il corpo è un cilindro, un tubo o un cilindro svuotato in piedi, <strong class="ui">«Adatta il corpo al collo»</strong> lo rende largo quanto il collo, a metà di ciò che vale (65,85 mm per Mason 70), e ne mantiene l'altezza; un corpo svuotato tiene le pareti spesse com'erano. <strong class="ui">«Crea coperchio»</strong> gli dà poi la filettatura del collo, e un solo annulla toglie l'adattamento. Per ogni altro corpo, come un gruppo o una mesh importata, la finestra ti dice quanto renderlo largo in alto.</p>
+<p>Scegli <strong class="ui">«A vite interna»</strong> e la filettatura va al contrario, per esempio per un portapenne che fuori deve restare liscio: il corpo riceve la filettatura all'interno della sua apertura, come un dado, e il coperchio è una piastra grande quanto il corpo con sotto un tappo che ha la stessa filettatura e si avvita finché la piastra non poggia sul bordo. Il corpo e la sua apertura devono essere entrambi rotondi, con lo stesso centro, per esempio un cilindro, un tubo o un vaso rotondo svuotato con la parte superiore aperta, con una parete di almeno 0,8 mm; una scatola, un ovale o un'apertura quadrata vengono rifiutati, così come un'apertura troppo stretta o non abbastanza profonda per il tappo. Anche qui la filettatura viene aggiunta alla parete invece di esservi incisa: la parete resta robusta, fuori tutto resta com'era e l'apertura si restringe in alto solo della profondità della filettatura. Il passo (<strong class="ui">«Passo della filettatura»</strong>), i giri (<strong class="ui">«Giri»</strong>) e il gioco (<strong class="ui">«Gioco per lato»</strong>) funzionano come per un coperchio a vite; passo e giri decidono anche fin dove scende il tappo. Il tappo è cavo, un anello la cui parete (<strong class="ui">«Spessore del tappo»</strong>) è di 1,6 mm all'inizio (almeno 0,8 mm), e resta pieno dove l'apertura non lascia spazio per un foro. Il corpo si stampa in piedi e il coperchio sulla sua piastra con il tappo verso l'alto, entrambi senza supporti. Per chiuderlo, gira il coperchio in senso orario. Come per un coperchio a vite, coperchio e filettatura sono fatti di triangoli, e magneti, cerniera, dentini a scatto e presa non vanno con esso.</p>
+<p>Scegli <strong class="ui">«A baionetta»</strong> e il coperchio si blocca girandolo, come una lampadina nel suo portalampada, per unire le parti di una lampada o chiudere una scatola rotonda: il corpo riceve dei nottolini che sporgono all'esterno della sua parte superiore (<strong class="ui">«Nottolini»</strong>: tre all'inizio, da due a quattro), e il coperchio una scanalatura a L dentro il suo bordo per ciascuno. Appoggia il coperchio con le scanalature sopra i nottolini, spingilo giù e giralo in senso orario finché scatta, di 40° con tre nottolini (45° con due, 30° con quattro): sotto ogni nottolino c'è allora un gradino del coperchio che lo trattiene, e un fermo termina la rotazione. Con <strong class="ui">«Angolo di rotazione (0 = automatico)»</strong> scegli tu la rotazione, fino a un quarto di giro di 90°, per esempio per un coperchio con due nottolini che si chiude con un giro di 90°; a 0 è la rotazione data dai nottolini. La scanalatura di ogni nottolino, la sua rotazione e un fermo prima della scanalatura successiva devono starci attorno al corpo: con più nottolini o su un corpo piccolo, un angolo che non ci sta viene adattato a ciò che ci sta, e la barra di stato lo dice. Due nottolini arrivano a 90° su tutti i corpi tranne i più piccoli; quattro girano al massimo di circa 65° su un corpo di 40-80 mm di diametro. Come un coperchio a vite, serve un corpo rotondo con una parete di almeno 0,8 mm, e i nottolini vengono raggruppati con il corpo. La loro misura segue il suo diametro: sporgono dalla parete di un quarantesimo di esso (da 1,2 a 2,5 mm); il loro lato inferiore e il gradino sono inclinati di 45°, così il corpo si stampa in piedi e il coperchio sulla sua piastra, entrambi senza supporti. <strong class="ui">«Profondità del bordo di sovrapposizione»</strong> indica fin dove scende il coperchio, 8 mm all'inizio; sotto i nottolini guida il coperchio lungo la parete. Il <strong class="ui">«Gioco per lato»</strong> è lo spazio intorno ai nottolini e lungo la parete, e parte dal gioco della tua stampante, una volta misurato; <strong class="ui">«Gioco in altezza»</strong> è lo spazio sopra il gradino, quanto può sollevarsi il coperchio bloccato, 0,3 mm all'inizio. <strong class="ui">«Altezza dello scatto»</strong> indica quanto una piccola nervatura dietro ogni nottolino bloccato entra nel suo percorso: il nottolino la supera con uno scatto, così il coperchio non torna indietro da solo. Riducilo se gira troppo duro, 0 per nessuna. Per aprirlo, gira indietro il coperchio e sollevalo. Coperchio e nottolini sono fatti di triangoli, e magneti, cerniera, dentini a scatto e presa non vanno con un coperchio a baionetta.</p>
+<p>Spunta <strong class="ui">«Laccio»</strong> con un coperchio a vite o a baionetta e il coperchio resta unito al corpo quando è aperto, come il tappo di una bottiglia. Il laccio è un pezzo unico, in piano accanto al coperchio: due anelli aperti uniti da una fascetta. L'anello grande si aggancia al coperchio dal basso e sta sotto un colletto in cima al coperchio, trattenuto da un cordolo. Quello piccolo cinge il corpo appena sotto il coperchio, su un cordolo che il corpo riceve lì, e la filettatura o i nottolini sopra lo trattengono: aprilo un poco e infilalo sopra di essi, oppure dal basso sopra il cordolo. Entrambi gli anelli girano liberamente, quindi il coperchio si apre e si chiude ancora girandolo, e la fascetta è abbastanza lunga perché il coperchio aperto penda accanto al collo. Stampa il laccio in PETG o TPU; in PLA regge solo poche piegature. I cordoli sono inclinati di 45°, quindi coperchio e corpo si stampano ancora senza supporti, e gli anelli mantengono il loro gioco (<strong class="ui">«Gioco per lato»</strong>) rispetto a ciò su cui girano. Il laccio richiede qualche millimetro di corpo sotto il coperchio, rotondo e largo come in cima, e un bordo del coperchio di circa 4 mm; se manca, lo strumento lo dice.</p>
+<p>Un coperchio a vite o a baionetta può avere uno sportellino a scatto, come un flacone di shampoo o di ketchup: spunta <strong class="ui">«Sportellino a scatto»</strong> e la piastra del coperchio riceve al centro un'apertura rotonda (<strong class="ui">«Apertura»</strong>: il suo diametro, 8 mm all'inizio) con dentro uno sportellino che la chiude, a filo con la superficie. Il coperchio resta al suo posto e apri solo lo sportellino. Un coperchio si stampa sulla sua piastra, quindi uno sportellino ribaltato dal lato starebbe capovolto, con il tappo contro il piano di stampa. Per questo lo sportellino si stampa nell'apertura stessa, con il gioco (<strong class="ui">«Gioco per lato»</strong>) tutto intorno, ed è esso stesso il tappo: il suo bordo si restringe a 45° appena sotto la superficie, così poggia sulla piastra e non si può spingere dentro, e davanti un dentino entra sotto il bordo dell'apertura, così si chiude con uno scatto. Sul suo retro dritto una striscia spessa 0,4 mm e lunga 3 mm, distesa sul piano di stampa, lo unisce alla piastra e si piega come una cerniera, così lo sportellino non si stacca mai; sotto la striscia sportellino e piastra si inclinano l'uno verso l'altra a V. Niente è inclinato più di 45° e il coperchio si stampa in un pezzo solo senza supporti. Per aprirlo, infila un'unghia nella scanalatura che lo attraversa e sollevalo; per chiuderlo, premilo finché non scatta. Stampa uno sportellino a scatto in PETG o PP: in PLA la striscia si rompe dopo poche piegature. La piastra deve essere spessa almeno 1,8 mm (con un gioco di 0,2 mm), e l'apertura con la cerniera deve stare dentro l'apertura del corpo; un'apertura troppo grande viene rifiutata indicando la più grande che ci sta.</p>
+<p>I tappi a vite e a baionetta possono avere il bordo superiore arrotondato o smussato: in <strong class="ui">«Bordo superiore»</strong> scegli <strong class="ui">«Arrotondato»</strong> o <strong class="ui">«Smusso»</strong> e imposta <strong class="ui">«Dimensione del bordo»</strong>, 1 mm all'inizio, al massimo quanto è spessa la piastra. Il bordo si crea insieme al tappo, perché dopo tappo e filetto sono un'unica mesh con troppi triangoli per lo strumento spigoli. Il tappo si stampa capovolto, quindi questo bordo poggia sul piatto: uno smusso si stampa pulito, e così un arrotondamento di 1 o 2 mm.</p>
+<p>Scegli <strong class="ui">«Scorrevole»</strong> per un coperchio che entra scorrendo come quello di un astuccio di legno: una piastra nell'apertura, con la faccia superiore a filo del bordo, i cui bordi corrono in scanalature in tre pareti. La quarta parete, quella scelta in <strong class="ui">«Lato di inserimento»</strong> (all'inizio quella anteriore, come nella vista iniziale), viene abbassata fino alla faccia inferiore del coperchio dove questo passa, così il coperchio vi scorre sopra per entrare e la sua estremità riempie l'intaglio, a filo della faccia esterna della parete. Anche una scatola appoggiata ruotata sul piano di lavoro ne riceve uno: la parete scelta è allora quella rivolta più verso quel lato. Serve una scatola con pareti verticali e dritte, anche con angoli arrotondati; un corpo rotondo viene rifiutato. Le scanalature sono profonde quanto lo <strong class="ui">«Spessore del coperchio»</strong> permette, poco meno di 1 mm per un coperchio di 2 mm e fino a 1,5 mm per uno più spesso, e lasciano sempre 0,8 mm di parete dietro di sé; in alto sono inclinate a 45°, così la scatola si stampa in piedi e il coperchio sulla sua faccia superiore, entrambi senza supporti. Se le pareti o il coperchio sono troppo sottili per le scanalature, la finestra dice quanto devono essere spessi. Il <strong class="ui">«Gioco per lato»</strong> è il gioco del coperchio nelle scanalature su ogni lato; se scorre a fatica, scegli un accoppiamento più lasco. Anche le pareti interne della scatola vengono abbassate sotto il coperchio. Spunta <strong class="ui">«Dentini a scatto»</strong> e un piccolo dentino sotto l'estremità del coperchio scatta oltre la parete abbassata, così il coperchio non scivola fuori da solo; l'<strong class="ui">«Altezza dei dentini»</strong> dice quanto scende sotto la sommità della parete. In <strong class="ui">«Presa»</strong>, <strong class="ui">«Incavo per il dito»</strong> dà al coperchio quattro scanalature di traverso sulla faccia superiore vicino a quell'estremità, per il pollice, e <strong class="ui">«Linguetta»</strong> una linguetta in quel punto. Scanalature e intaglio vengono raggruppati con la scatola come un foro: separa il gruppo e ritrovi la scatola com'era. Magneti e cerniera non vanno con un coperchio scorrevole.</p>
+<p>Per incassare il coperchio sotto il bordo, imposta <strong class="ui">«Cornice sopra il coperchio»</strong> (all'inizio 0). Il coperchio e le sue scanalature stanno allora più in basso di tanto, e le pareti sopra di essi mantengono tutta la loro altezza, come una cornice intorno al coperchio. Nemmeno la parete da cui entra viene allora abbassata: mantiene tutta la sua altezza, con una fessura dove passa il coperchio, e l'estremità del coperchio riempie la fessura, a filo con l'esterno. Sopra il coperchio la fessura lascia lo stesso gioco che ai lati (<strong class="ui">«Gioco per lato»</strong>), e con <strong class="ui">«Dentini a scatto»</strong> anche l'altezza del dentino, così il coperchio può flettersi un po' verso l'alto sopra di esso uscendo; sopra deve restare almeno 1 mm di parete, e una cornice più bassa viene rifiutata indicando quella necessaria (1,2 mm con un gioco di 0,2 mm). La scatola si stampa sempre in piedi: solo la parte superiore della fessura è stampata nel vuoto, un ponte corto e piano sulla larghezza del coperchio che la maggior parte delle stampanti fa senza supporti. Le scanalature per il pollice stanno allora subito dietro quella parete, e una linguetta sporge dalla fessura.</p>
+</section><section class="guide-part"><h2 id="un-canale-per-cavo-attraverso-un-corpo"><span class="heading-alias" id="a-cable-channel-through-a-body"></span>Un canale per cavo attraverso un corpo</h2>
+<p><strong class="ui">«Canale per cavo»</strong> apre un passaggio rotondo attraverso un corpo per un cavo o il filo di un LED, da dove entra a dove esce, e trova la strada da solo. Seleziona il corpo e fai clic su <strong class="ui">«Canale per cavo»</strong>, poi fai clic sul corpo dove entra il cavo (<strong class="ui">«Entrata»</strong>) e dove esce (<strong class="ui">«Uscita»</strong>). La strada inizia e finisce dritta, perpendicolare alla superficie, va dritta dove può e curva dove deve, mai più stretta di <strong class="ui">«Curva minima»</strong>, e resta il più lontano possibile dall'esterno, mai più vicina di <strong class="ui">«Parete minima»</strong>. Un cavo passa da una curva di circa cinque volte il suo diametro; <strong class="ui">«Diametro»</strong> è quello del canale stesso.</p>
+<p>Finché il pannello è aperto il corpo si vede in trasparenza, con il canale all'interno e un segno a ogni estremità. Il pannello indica quanto è lungo il canale, la sua curva più stretta e la parete più sottile, in rosso quando una curva o la parete hanno dovuto essere più piccole del richiesto; allora aiuta un valore più piccolo per <strong class="ui">«Curva minima»</strong> o un altro ingresso o un'altra uscita. <strong class="ui">«Imposta di nuovo»</strong> sposta un'estremità. <strong class="ui">«Crea canale»</strong> taglia il canale: diventa un <strong class="ui">«Tubo curvo»</strong> come foro, raggruppato con il corpo, che resta così esatto, e dopo aver separato il gruppo il tubo si può ancora modificare. Un tubo curvo ha al massimo undici curve; un percorso che ne richiede di più chiede un altro ingresso o un'altra uscita.</p>
+</section><section class="guide-part"><h2 id="offset-dei-corpi"><span class="heading-alias" id="offsetting-bodies"></span>Offset dei corpi</h2>
+<p>Ogni faccia di un corpo può essere spostata della stessa distanza, verso l'esterno o l'interno. È ciò che serve a un accoppiamento, a un coperchio o a un incastro a scatto: un gioco di 0,1-0,3 mm tutto intorno mentre i dettagli restano dove sono, cosa che il ridimensionamento non dà.</p>
+<ol><li>Seleziona un corpo e clicca su <strong class="ui">«Offset»</strong>, oppure fai clic destro sul corpo e sceglilo lì.</li><li>Scegli <strong class="ui">«Ingrandisci»</strong> o <strong class="ui">«Riduci»</strong> e imposta la <strong class="ui">«Distanza»</strong>.</li><li>Gli <strong class="ui">«Angoli esterni»</strong> decidono gli angoli esterni: arrotondato mantiene tonda la superficie, netto lascia proseguire le facce finché non si incontrano.</li><li>Spunta <strong class="ui">«Tieni l'originale e aggiungi il corpo con offset come vuoto»</strong> per tenere il pezzo com'è e ottenere il corpo ingrandito come copia che è già un vuoto. Raggruppa quel vuoto con il pezzo da accoppiare e taglia esattamente il gioco scelto.</li><li>Clicca su <strong class="ui">«Applica offset»</strong>.</li></ol>
+<p>Spunta <strong class="ui">«Solo lati: le superfici superiori e inferiori mantengono la loro altezza»</strong> quando deve crescere o restringersi solo il contorno: i lati si spostano della distanza, mentre ogni faccia piana sopra e sotto resta alla sua altezza. Un'insegna riceve un bordo tutto intorno, una base si allarga e il corpo non diventa più alto. In un corpo a gradini ogni gradino mantiene la propria altezza. Anche un testo spostato tramite i suoi contorni mantiene allora la sua altezza.</p>
+<p>Senza la spunta viene spostato il corpo stesso. Diventa un corpo esatto fisso, come dopo uno smusso: l'elenco in alto nella finestra annulla l'offset e <strong class="ui">«Modifica»</strong> riapre lo strumento con la distanza precedente. Si possono spostare solo corpi CAD esatti - scatole, cilindri e le altre forme, i loro gruppi, parti STEP importate. Un corpo che è solo una maglia di triangoli, come molte importazioni STL, spesso non può. Una distanza troppo grande per il corpo, ad esempio una riduzione oltre la parete più sottile, viene rifiutata.</p>
+<p>Un testo le cui lettere il kernel non riesce a scostare come corpo - in alcuni caratteri una A, B, M, N, W o 9 - viene invece scostato attraverso i suoi contorni: riceve il riempimento <strong class="ui">«Allargamento (base per stampa multicolore)»</strong> della distanza (più stretto quando si restringe) e cresce altrettanto in alto e in basso. Resta un testo che puoi continuare a modificare. Funziona per un testo con lettere piene e senza arrotondamenti; uno che ha già una modalità di riempimento viene rifiutato come prima.</p>
+</section><section class="guide-part"><h2 id="eliminare-facce"><span class="heading-alias" id="deleting-faces"></span>Eliminare facce</h2>
+<p>Un raccordo che intralcia, un foro nel posto sbagliato o una sporgenza che non serve più: <strong class="ui">«Elimina faccia»</strong> rimuove queste parti dal corpo senza ricostruirlo da zero.</p>
+<ol><li>Seleziona il corpo e fai clic su <strong class="ui">«Elimina faccia»</strong>, oppure fai clic destro sul corpo e scegli il comando dal menu.</li><li>Fai clic su tutte le facce della parte da eliminare: quelle di uno spigolo arrotondato, la parete di un foro oppure il lato e la sommità di una sporgenza. Le facce selezionate si illuminano; un altro clic le deseleziona. La finestra mostra il numero di facce selezionate.</li><li>Fai clic su <strong class="ui">«Elimina»</strong> o premi <kbd>Delete</kbd>. <kbd>Esc</kbd> chiude lo strumento senza modificare nulla.</li></ol>
+<p>Le facce attorno a quelle eliminate si estendono fino a chiudere il vuoto. Una scatola con i bordi superiori arrotondati riacquista gli spigoli vivi; un foro viene riempito e una sporgenza scompare. Il corpo resta una geometria esatta: puoi applicare di nuovo raccordi e smussi e l’esportazione STEP ne conserva le facce reali. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> annulla l’eliminazione in un solo passaggio. L’operazione compare anche in <strong class="ui">«Annulla una lavorazione sugli spigoli»</strong> insieme a raccordi e smussi; <strong class="ui">«Annulla»</strong> la annulla. Per questa operazione non è disponibile <strong class="ui">«Modifica»</strong>. Su un gruppo, il risultato è un corpo unico, come con un trattamento degli spigoli.</p>
+<p>Seleziona tutte e sole le facce della parte da eliminare. Se non è possibile chiudere il vuoto estendendo le facce vicine, layerling te lo segnala e non modifica nulla: per esempio, un lato principale di una scatola non ha una faccia vicina che possa sostituirlo. Eliminando solo il fondo di una cavità, questa diventa un foro passante perché le pareti proseguono fino all’altro lato.</p>
+<p><strong class="ui">«Elimina faccia»</strong> richiede facce esatte: funziona sulle parti importate da STEP e sulle forme create in layerling. Non è disponibile per gli oggetti che layerling conserva come mesh: STL, OBJ o 3MF importati, corpi divisi, avvolti o semplificati, oppure forme molto dettagliate come un testo lungo. Se puoi, importa la parte in formato STEP. Su una parte importata e molto dettagliata, anche poche facce possono essere troppe per il kernel CAD: dopo 45 secondi l’eliminazione viene interrotta e non cambia nulla. Un corpo ridimensionato dopo un trattamento degli spigoli con l’opzione per mantenere la dimensione attiva non ha facce esatte alla nuova dimensione finché non annulli il ridimensionamento.</p>
+<p>Una mesh importata resa esatta con <strong class="ui">«Rendi esatto»</strong> può conservare facce sottili come un capello dove i triangoli del file erano difettosi, tra facce che stanno su uno stesso piano, così un lato risulta in strisce che non si possono eliminare da sole. Una faccia sottile di questo tipo, troppo stretta per farci clic, se ne va con una faccia scelta quando la tocca e porta a un'altra faccia nel piano della faccia scelta, insieme alle facce sottili collegate a essa che toccano anch'esse una faccia nel piano della faccia scelta; la finestra le conta come prese insieme.</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/it/solids-and-holes.html"><small>Capitolo precedente</small>Solidi e fori</a><a class="next" href="/api/desktop/layerling/ui/it/sketches.html"><small>Capitolo successivo</small>Schizzi: dal contorno al corpo</a></div>
+      </main>
+    </div>
+    <footer class="note">Questa guida cresce insieme al programma. Se manca qualcosa o trovi un errore, segnalalo nelle <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussioni</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=it" rel="noopener">Sostieni il progetto</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussioni</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Scopri di più su GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Note di rilascio v1.154.1</a></div><p class="trademark">Tinkercad è un marchio di Autodesk, Inc. Layerling è un progetto indipendente, non affiliato ad Autodesk né approvato o sponsorizzato da essa.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Torna all'editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Apri l'editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

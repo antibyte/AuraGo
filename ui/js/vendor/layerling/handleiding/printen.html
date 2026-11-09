@@ -7,8 +7,21 @@
     <meta name="description" content="Je eigen printer kiezen, een waarschuwing krijgen als iets niet past, en het onderdeel goed neerleggen.">
     <link rel="canonical" href="https://layerling.com/handleiding/printen.html">
     <link rel="alternate" hreflang="en" href="https://layerling.com/guide/printing.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/printing.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/printing.html">
     <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/drucken.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/printing.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/printing.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/printing.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/printing.html">
     <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/printen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/printing.html">
+    <link rel="alternate" hreflang="pt-BR" href="https://layerling.com/guia/printing.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/tiskanje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/printing.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/printing.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/printing.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/printing.html">
     <meta property="og:title" content="Voorbereiden op 3D-printen - layerling handleiding">
     <meta property="og:description" content="Je eigen printer kiezen, een waarschuwing krijgen als iets niet past, en het onderdeel goed neerleggen.">
     <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
@@ -60,6 +73,7 @@ a { color: var(--accent); }
 .guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
 .guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
 .guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
 .editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
 .editor-elsewhere[hidden] { display: none; }
 .bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
@@ -89,26 +103,51 @@ li { margin-bottom: 4px; }
 strong.ui { font-weight: 700; white-space: nowrap; }
 kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
 code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
-pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
 pre code { padding: 0; background: none; }
 figure { margin: 22px 0; }
 figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
 figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
 aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
 aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
 .table-scroll { overflow-x: auto; margin: 0 0 16px; }
 table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
 table.keys { table-layout: fixed; }
 table.keys td:first-child { width: 42%; }
-th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
 th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
 .toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
 .toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
-.toc ul { margin: 0; padding-left: 18px; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
 .pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
 .pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
 .pager a small { display: block; color: var(--muted); font-size: 12px; }
-.pager a.next { margin-left: auto; text-align: right; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
 .cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
 .cards a:hover { border-color: var(--accent); }
@@ -131,83 +170,157 @@ footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: va
   .bar-inner { flex-wrap: wrap; }
   .guide-search { order: 5; flex: 1 1 100%; }
 }
-@media print { .bar, nav.chapters, .pager { display: none; } .shell { display: block; } }
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
 </style>
   </head>
   <body>
     <header class="bar"><div class="bar-inner">
       <a class="brand" href="/api/desktop/layerling/ui/handleiding/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Handleiding</span></span></a>
       <form class="guide-search" id="guide-search" role="search" data-index="/handleiding/search-index.json" data-nothing="Niets gevonden." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Handleiding doorzoeken" aria-label="Handleiding doorzoeken" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
-      <details class="lang-menu"><summary aria-label="Taal">Nederlands</summary><ul><li><a href="/api/desktop/layerling/ui/guide/printing.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/anleitung/drucken.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/handleiding/printen.html" hreflang="nl" lang="nl" aria-current="true">Nederlands</a></li></ul></details>
+      <details class="lang-menu"><summary aria-label="Taal">Nederlands</summary><ul><li><a href="/api/desktop/layerling/ui/guide/printing.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/printing.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/printing.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/drucken.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/printing.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/printing.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/printing.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/printing.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/printen.html" hreflang="nl" lang="nl" aria-current="true">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/printing.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/printing.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/printing.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/tiskanje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/printing.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/printing.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/printing.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/printing.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/printing.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/printing.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
       <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Naar de editor</a>
     </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>De editor is al open in een ander tabblad - schakel daar gewoon naartoe.</p></header>
     <div class="shell">
-      <nav class="chapters" aria-label="Hoofdstukken"><h2>Hoofdstukken</h2><ol><li><a href="/api/desktop/layerling/ui/handleiding/aan-de-slag.html">Aan de slag</a></li><li><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html">Weergave en werkvlak</a></li><li><a href="/api/desktop/layerling/ui/handleiding/vormen.html">Vormen plaatsen en aanpassen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html">Selecteren en schikken</a></li><li><a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html">Lichamen en gaten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/randen-en-uithollen.html">Randen breken en lichamen uithollen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html">Schetsen: van omtrek naar lichaam</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html">Tekst en gebogen belettering</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schroefdraad-en-mechanica.html">Schroefdraad, tandwielen en andere onderdelen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html">Meten en notities</a></li><li><a href="/api/desktop/layerling/ui/handleiding/printen.html" aria-current="page">Voorbereiden op 3D-printen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html">Bestanden, opslaan en delen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/sneltoetsen.html">Sneltoetsen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/ai-met-mcp.html">Bouwen met een AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/handleiding/offline-en-installeren.html">Installeren als app, offline werken en zelf hosten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/videos.html">Video's over layerling</a></li></ol></nav>
+      <nav class="chapters" aria-label="Hoofdstukken"><h2>Hoofdstukken</h2><p class="print-link"><a href="/api/desktop/layerling/ui/handleiding/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Hele handleiding, om af te drukken</span></a></p><ol><li><a href="/api/desktop/layerling/ui/handleiding/aan-de-slag.html">Aan de slag</a></li><li><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html">Weergave en werkvlak</a></li><li><a href="/api/desktop/layerling/ui/handleiding/vormen.html">Vormen plaatsen en aanpassen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html">Selecteren en schikken</a></li><li><a href="/api/desktop/layerling/ui/handleiding/lichamen-en-gaten.html">Lichamen en gaten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/randen-en-uithollen.html">Randen breken en lichamen uithollen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html">Schetsen: van omtrek naar lichaam</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tekst.html">Tekst en gebogen belettering</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schroefdraad-en-mechanica.html">Schroefdraad, tandwielen en andere onderdelen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html">Meten en notities</a></li><li><a href="/api/desktop/layerling/ui/handleiding/printen.html" aria-current="page">Voorbereiden op 3D-printen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html">Bestanden, opslaan en delen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/sneltoetsen.html">Sneltoetsen</a></li><li><a href="/api/desktop/layerling/ui/handleiding/ai-met-mcp.html">Bouwen met een AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/handleiding/offline-en-installeren.html">Installeren als app, offline werken en zelf hosten</a></li><li><a href="/api/desktop/layerling/ui/handleiding/videos.html">Video's over layerling</a></li><li><a href="/api/desktop/layerling/ui/handleiding/tablet-en-touch.html">Tablet en touch</a></li></ol></nav>
       <main>
 <h1>Voorbereiden op 3D-printen</h1>
 <p class="lead">Je eigen printer kiezen, een waarschuwing krijgen als iets niet past, en het onderdeel goed neerleggen.</p>
-<div class="toc"><b>Op deze pagina</b><ul><li><a href="#je-printer-kiezen">Je printer kiezen</a></li><li><a href="#als-iets-niet-past">Als iets niet past</a></li><li><a href="#het-onderdeel-goed-neerleggen">Het onderdeel goed neerleggen</a></li><li><a href="#overhangen-vinden">Overhangen vinden</a></li><li><a href="#wanddikte-speling-en-afschuiningen">Wanddikte, speling en afschuiningen</a></li><li><a href="#als-je-klaar-bent">Als je klaar bent</a></li></ul></div>
-<h2 id="je-printer-kiezen">Je printer kiezen</h2>
-<p>Open de instellingen (het tandwiel in het lint, <strong class="ui">“Werkruimte-instellingen”</strong>) en ga naar het onderdeel <strong class="ui">“Werkvlak”</strong>. Onder <strong class="ui">“Printer”</strong> kies je je printer uit een lijst van meer dan vijftig gangbare modellen, waaronder Bambu Lab, Prusa, Creality, Anycubic, Elegoo en nog veel meer.</p>
-<figure><img src="/api/desktop/layerling/ui/handleiding/img/settings-workplane.webp" alt="De werkvlakinstellingen met een gekozen printer. Printbed en maximale printhoogte komen uit het slicerprofiel." width="1280" height="800" loading="lazy"><figcaption>De werkvlakinstellingen met een gekozen printer. Printbed en maximale printhoogte komen uit het slicerprofiel.</figcaption></figure>
+<div class="toc"><b>Op deze pagina</b><ul><li><a href="#je-printer-kiezen">Je printer kiezen</a></li><li><a href="#als-iets-niet-past">Als iets niet past</a></li><li><a href="#het-onderdeel-goed-neerleggen">Het onderdeel goed neerleggen</a></li><li><a href="#overhangen-vinden">Overhangen vinden</a></li><li><a href="#steunribben-voor-een-schuin-onderdeel">Steunribben voor een schuin onderdeel</a></li><li><a href="#wanddikte-speling-en-afschuiningen">Wanddikte, speling en afschuiningen</a></li><li><a href="#de-speling-van-je-printer-de-pastest">De speling van je printer: de pastest</a></li><li><a href="#de-print-controleren">De print controleren</a></li><li><a href="#als-je-klaar-bent">Als je klaar bent</a></li></ul></div>
+<section class="guide-part"><h2 id="je-printer-kiezen"><span class="heading-alias" id="choosing-your-printer"></span>Je printer kiezen</h2>
+<p>Open de instellingen (het tandwiel in de titelrij, <strong class="ui">“Werkruimte-instellingen”</strong>) en ga naar het onderdeel <strong class="ui">“Werkvlak”</strong>. Onder <strong class="ui">“Printer”</strong> kies je je printer uit een lijst van meer dan 230 gangbare modellen, waaronder Bambu Lab, Prusa, Creality, Anycubic, Elegoo en nog veel meer.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/settings-workplane.webp" alt="De werkvlakinstellingen met een gekozen printer. Printbed en maximale printhoogte komen uit het slicerprofiel." width="1280" height="800" loading="lazy"><figcaption>De werkvlakinstellingen met een gekozen printer. Printbed en maximale printhoogte komen uit het slicerprofiel.</figcaption></figure>
 <p>Er gebeuren drie dingen:</p>
 <ul><li>Het werkvlak krijgt de maat van het printbed.</li><li>In de hoek van het werkvlak verschijnen de naam van de printer en zijn printvolume. Zit de tekst in de weg, zet hem dan uit met <strong class="ui">“Plaatlabels”</strong> onder <strong class="ui">“Werkvlak”</strong>; dat geldt ook voor de naam van het ontwerp linksvoor.</li><li>layerling <strong>waarschuwt</strong> als iets niet past.</li></ul>
 <p>De printerprofielen komen uit OrcaSlicer, dus het zijn dezelfde die je slicer kent. Werk je liever zonder printer, kies dan <strong class="ui">“Geen printer - vrije grootte”</strong>. Je kunt de maat van het werkvlak ook met de hand instellen.</p>
-<h2 id="als-iets-niet-past">Als iets niet past</h2>
+<p>Deltaprinters zoals die van FLSun of SeeMeCNC of de Anycubic Predator printen op een rond bed. Met een van hen is het werkvlak ook rond, even breed als het bed, en een lichaam is te groot zodra het over de rand steekt. Een rond lichaam wordt gemeten aan zijn eigen omtrek, niet aan de doos eromheen, dus een cilinder die bijna zo breed is als het bed past nog.</p>
+</section><section class="guide-part"><h2 id="als-iets-niet-past"><span class="heading-alias" id="when-something-does-not-fit"></span>Als iets niet past</h2>
 <p>Een lichaam dat over de rand van de printplaat steekt, wordt gemarkeerd. Een melding vertelt welke kanten uitsteken en hoeveel. Hetzelfde geldt als het onderdeel <strong>te hoog</strong> is: de hoogte telt vanaf het laagste lichaam, net zoals de slicer het model neerzet.</p>
-<figure><img src="/api/desktop/layerling/ui/handleiding/img/printer-overhang.webp" alt="Het blok is breder dan het printbed van de Bambu Lab A1 mini. De melding onderaan zegt hoeveel." width="1280" height="800" loading="lazy"><figcaption>Het blok is breder dan het printbed van de Bambu Lab A1 mini. De melding onderaan zegt hoeveel.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/printer-overhang.webp" alt="Het blok is breder dan het printbed van de Bambu Lab A1 mini. De melding onderaan zegt hoeveel." width="1280" height="800" loading="lazy"><figcaption>Het blok is breder dan het printbed van de Bambu Lab A1 mini. De melding onderaan zegt hoeveel.</figcaption></figure>
 <p>De waarschuwing houdt je niet tegen om verder te werken. Het is een hint, zodat je niet pas in de slicer ontdekt dat het onderdeel te groot is. Een onderdeel dat te groot is, kun je vaak splitsen: snijd het in tweeën met <strong class="ui">“Splitsen”</strong> en print beide helften apart.</p>
-<h2 id="het-onderdeel-goed-neerleggen">Het onderdeel goed neerleggen</h2>
+</section><section class="guide-part"><h2 id="het-onderdeel-goed-neerleggen"><span class="heading-alias" id="laying-the-part-right"></span>Het onderdeel goed neerleggen</h2>
 <p>Hoe een onderdeel op de plaat ligt, bepaalt zijn sterkte en uiterlijk. Twee gereedschappen in het gebied <strong class="ui">“Schikken”</strong> helpen daarbij:</p>
 <ul><li><strong class="ui">“Plat leggen op vlak”</strong>: klik op een vlak en het onderdeel ligt met die kant naar beneden. De beste printrichting in één klik.</li><li><strong class="ui">“Laten zakken naar werkvlak”</strong> (<kbd>D</kbd>): zet het onderdeel op het werkvlak als het ergens in de lucht zweeft.</li></ul>
 <p>Een paar vuistregels voor de richting:</p>
 <ul><li>Grote platte vlakken naar beneden. Die hechten het best.</li><li>Leg lange, belaste onderdelen zo neer dat de lagen niet loodrecht op de belasting lopen. Tussen de lagen is een onderdeel het zwakst.</li><li>Vermijd overhangen die steiler zijn dan 45°, of geef ze support in de slicer.</li></ul>
-<h2 id="overhangen-vinden">Overhangen vinden</h2>
+</section><section class="guide-part"><h2 id="overhangen-vinden"><span class="heading-alias" id="finding-overhangs"></span>Overhangen vinden</h2>
 <p>In het menu naast het oog (<strong class="ui">“Zichtbaarheid”</strong>) zet <strong>Overhang tonen</strong> de overhangen aan. Elk vlak dat steiler dan 45° naar beneden wijst, wordt dan rood-wit gearceerd: daar zou de printer support nodig hebben. Wat op de plaat rust, blijft vrij. Zo zie je al tijdens het ontwerpen of een bol, een boog of een liggend gat zonder support te printen is; het <a href="/api/desktop/layerling/ui/handleiding/schroefdraad-en-mechanica.html">druppelgat</a> is precies daarvoor gemaakt. Draai het onderdeel of leg het op een ander vlak met <strong class="ui">“Plat leggen op vlak”</strong>, en de arcering volgt meteen.</p>
 <p>Hoe steil jouw printer aankan, stel je in bij de instellingen onder <strong class="ui">“Weergave”</strong>: van 30° (voorzichtig) tot 70° (voor printers met goede koeling). Een vlak dat op een ander lichaam rust, wordt toch gemarkeerd: layerling kijkt alleen naar het vlak zelf.</p>
-<h2 id="wanddikte-speling-en-afschuiningen">Wanddikte, speling en afschuiningen</h2>
+</section><section class="guide-part"><h2 id="steunribben-voor-een-schuin-onderdeel"><span class="heading-alias" id="support-ribs-for-a-tilted-part"></span>Steunribben voor een schuin onderdeel</h2>
+<p>Een onderdeel dat schuin op een rand wordt geprint, bijvoorbeeld onder 45°, heeft vaak geen steun nodig: de vlakken zijn steil genoeg. Maar het staat op een smalle rand en kan omvallen. De <strong class="ui">“Steunrib”</strong> houdt het vast: onder het onderste vlak staat op kleine afstand een dunne rib op een ovale voet, en piepkleine bruggen houden het onderdeel vast. Kantel het onderdeel eerst op zijn rand en laat het op de plaat staan.</p>
+<ol><li>Selecteer het onderdeel en klik in het lint in de groep <strong class="ui">“Bewerken”</strong> op <strong class="ui">“Steunrib”</strong>, klik met rechts op het onderdeel of zoek het met <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</li><li>Klik op het onderste vlak waar de rib moet staan. Het vlak moet naar beneden kijken, tussen 15° en 75° hellen en tot op de plaat reiken; de rib staat vanaf je klik recht langs het vlak omlaag. Is de onderrand van het onderdeel afgerond of afgeschuind, dan mag het vlak tot 3 mm boven de plaat eindigen: klik op het platte vlak boven de afronding.</li><li>Stel <strong class="ui">“Nozzle”</strong>, <strong class="ui">“Laaghoogte”</strong> en <strong class="ui">“Eerste laag”</strong> in zoals in je slicer. De rib is twee nozzlebanen dik, de spleet tot het onderdeel een halve baan; elke brug is één baan breed en precies één laag hoog en ligt op een laag van de print, zodat de slicer hem als één dunne baan print die er netjes af breekt. <strong class="ui">“Hoogte van de rib”</strong> zegt hoe ver de rib langs het vlak omhoog reikt (eerst tot halverwege), <strong class="ui">“Bruggen om de”</strong> hoe ver de bruggen uit elkaar liggen, in hele lagen.</li><li>Onder <strong class="ui">“Meer instellingen”</strong> stel je de dikte, de spleet, de breedte van de bruggen en de dikte van de voet met de hand in (tot dan volgen ze de nozzle en de lagen), en ook de breedte van de voet en de afrondingen aan de voet en bovenaan.</li><li><strong class="ui">“Maken”</strong> voegt de rib toe. Met <strong class="ui">“Bundelen met het onderdeel”</strong> (eerst aan) zijn rib en onderdeel gebundeld: ze bewegen samen en gaan als twee lichamen naast elkaar naar de slicer, in de print verbonden door de bruggen.</li></ol>
+<p>De rib is een meshlichaam: om hem te veranderen verwijder je hem en maak je hem opnieuw. Elke klik maakt één rib; voor meer klik je op <strong class="ui">“Ander vlak”</strong> of herhaal je hem met <strong class="ui">“Patroon”</strong>. De rib mag nergens in het onderdeel lopen en het onderdeel moet op de plaat staan - anders zegt het venster waarom. Je instellingen blijven in deze browser bewaard voor de volgende rib.</p>
+<p><strong class="ui">“Speling controleren”</strong> en <strong class="ui">“Print controleren”</strong> kennen de rib: dat de bruggen in het onderdeel reiken en dat rib en bruggen dun zijn en één laag hoog over de spleet liggen, is zo bedoeld en wordt niet gemeld. Een rib uit layerling 1.148.0 heeft dit kenmerk nog niet; maak hem opnieuw, dan laten de controles hem weg.</p>
+</section><section class="guide-part"><h2 id="wanddikte-speling-en-afschuiningen"><span class="heading-alias" id="wall-thickness-clearance-and-chamfers"></span>Wanddikte, speling en afschuiningen</h2>
 <ul><li>Wanden moeten minstens twee extrusielijnen breed zijn, dus 0,8 mm bij een spuitmond van 0,4 mm. Stevige onderdelen hebben 1,2 tot 2 mm nodig.</li><li>Waar twee onderdelen in elkaar passen, heb je speling nodig: meestal 0,2 tot 0,4 mm, afhankelijk van de printer. Maak een klein testpaar voordat je het grote onderdeel print.</li><li>Veel mensen schuinen de onderste rand die op de plaat ligt licht af. Zo loopt de eerste laag niet uit (&quot;olifantenvoet&quot;).</li></ul>
-<h2 id="als-je-klaar-bent">Als je klaar bent</h2>
-<p>Kies <strong class="ui">“Exporteren”</strong> en daarna <strong>STL</strong> of <strong>3MF</strong>. STL is het eenvoudigste formaat. 3MF bewaart namen en kleuren van de afzonderlijke lichamen en is daarom handig als je in meerdere kleuren print. Het exportvenster laat ook zien hoeveel gram en meter filament het onderdeel massief geprint zou kosten. Meer in <a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html">Bestanden en opslaan</a>.</p>
+</section><section class="guide-part"><h2 id="de-speling-van-je-printer-de-pastest"><span class="heading-alias" id="your-printer-s-play-the-fit-test"></span>De speling van je printer: de pastest</h2>
+<p>Elke printer print gaten iets kleiner en pennen iets dikker dan ze getekend zijn, elk met een eigen maat. De speling die twee geprinte onderdelen nodig hebben, is daarom eerst een gok. Meet hem liever één keer: in de instellingen onder <strong class="ui">“Werkvlak”</strong> legt <strong class="ui">“Pastest maken”</strong> een pastest op de plaat. Dat is een plaatje van 60 × 20 × 4 mm met zeven gaten voor één pen van 5 mm, elk getekend als 5 mm plus twee keer 0,05, 0,10, 0,15, 0,20, 0,25, 0,30 of 0,40 mm, met de waarde in reliëf ernaast, en de pen van 5 mm zelf, die naast het plaatje staat met een kleine afschuining bovenop. Hij bestaat uit gewone vormen, dus hij wordt met de rest van de plaat geprint, zonder support.</p>
+<p>Op een printer waarvan het bed heen en weer beweegt, kan de hoge, dunne pen gaan wiebelen, loskomen of onderaan golvend worden, met of zonder brim. Vink dan <strong class="ui">“Testpen op een afbreekbare voet”</strong> aan voordat je de pasproef maakt: de pen staat zo op een plaatje van 10 mm dat aan het bed blijft hangen. De wand van de houder raakt hij niet, hij staat op een klein nokje in de bodem; buig de pen na het printen heen en weer en hij breekt af.</p>
+<p>Print hem zoals hij ligt en steek dan de pen, met de afschuining eerst, in de gaten, te beginnen bij het nauwste. <strong>Het nauwste gat waarin de pen nog draait</strong> geeft de speling van je printer. Typ dat getal in bij <strong class="ui">“Speling van je printer”</strong> of klik het aan bij de waarden onder het veld. De speling geldt per kant, in millimeters, en de browser bewaart hem voor elk ontwerp; een leeg veld betekent: niet gemeten. Met meerdere printers kies je eerst onder <strong class="ui">“Printer”</strong> de printer waarop je print: elke printer houdt een eigen speling, en nieuw gebruik start van de speling van de printer waarop het ontwerp staat. Een printer zonder eigen speling neemt de speling die is ingesteld toen er geen printer gekozen was.</p>
+<p>Vanaf dan beginnen nieuwe toepassingen met de speling in plaats van met de ingebouwde waarde: <strong class="ui">“Speling per kant”</strong> en <strong class="ui">“Speling van de pen (per kant)”</strong> in het gereedschap <strong class="ui">“Deksel”</strong>, de speling van een nieuwe <strong class="ui">“Zwaluwstaart”</strong> en <strong class="ui">“Klikhaak”</strong>, <strong class="ui">“Speling (XY)”</strong> van een nieuwe moer of een nieuw getapt gat – twee keer de speling, want dat is de ruimte over de hele diameter – en <strong class="ui">“Minimale speling”</strong> bij <strong class="ui">“Speling controleren”</strong>. Net zo de <strong class="ui">“Speling per kant”</strong> van de deuvels, tappen en zwaluwstaarten bij <strong class="ui">“Splitsen”</strong>. Zolang zo'n veld die waarde nog heeft, zegt &quot;<strong class="ui">“Uit je pastest”</strong>&quot; ernaast waar het getal vandaan komt. Een scharnier dat in één stuk geprint wordt en de gewrichten van het gereedschap <strong class="ui">“Flexi-scharnieren”</strong> houden hun 0,4 mm: in één stuk geprint moeten hun spleten ook tussen de lagen open blijven, en dat meet een los geprinte pen niet. Ruimte om een magneet of een Gridfinity-sleutel in te drukken en ruimte voor een gekochte aansluiting of printplaat houden ook hun eigen waarden. Lichamen die al in een ontwerp staan, veranderen nooit, en een ontwerp dat je opent ook niet.</p>
+</section><section class="guide-part"><h2 id="de-print-controleren"><span class="heading-alias" id="checking-the-print"></span>De print controleren</h2>
+<p><strong class="ui">“Print controleren”</strong>, naast <strong class="ui">“Speling controleren”</strong> onder <strong class="ui">“Combineren”</strong>, bekijkt de geselecteerde objecten, of alle zichtbare als niets geselecteerd is, en zegt in één venster wat er bij het printen mis zou gaan. Elk van de vijf regels is groen als hij niets vond, en oranje met wat en waar als hij wel iets vond:</p>
+<ul><li><strong><strong class="ui">“Dunne wanden”</strong></strong>: plekken dunner dan twee lijnen van de nozzle - 0,8 mm bij een nozzle van 0,4 mm. De slicer laat zo'n wand weg of print hem als één zwakke lijn. Kies bovenaan het venster onder <strong class="ui">“Nozzle”</strong> je nozzle (0,2 tot 0,8 met één klik, elke andere in het veld). De dunne plekken worden rood met een licht raster op de lichamen geschilderd, en de regel noemt de dunste plek en hoeveel oppervlak te dun is. Plekken kleiner dan 1 mm² en scherpe randen, zoals die van een wig, tellen niet mee.</li><li><strong><strong class="ui">“Zwevende delen”</strong></strong>: een lichaam, of een los deel ervan, dat de plaat noch een ander deel raakt (op 0,05 mm na). Het zou in de lucht geprint worden. Een deel dat op een staand deel ligt, is in orde.</li><li><strong><strong class="ui">“Weinig houvast op de plaat”</strong></strong>: een deel op de plaat waarvan de eerste laag erg klein is voor zijn hoogte, zoals een bol of een kegel op zijn punt. Het kan tijdens het printen loskomen. De controle waarschuwt onder 0,5 mm² standvlak, 0,1 mm boven de plaat gemeten, per millimeter hoogte: een bol zit daar altijd onder, een kubus van 10 mm heeft 10.</li><li><strong><strong class="ui">“Overhangen”</strong></strong>: dezelfde getallen als bij <strong>Overhang tonen</strong>, met de hoek die daar is ingesteld.</li><li><strong><strong class="ui">“Open mesh”</strong></strong>: een geïmporteerde mesh met open randen, of randen waar drie of meer vlakken aan zitten. De slicer moet dan raden waar binnen is.</li></ul>
+<figure><img src="/api/desktop/layerling/ui/guide/img/print-check.webp" alt="Een bak waarvan de rechterwand maar 0,6 mm dik is: Print controleren kleurt hem rood en noemt hem in het venster." width="1280" height="800" loading="lazy"><figcaption>Een bak waarvan de rechterwand maar 0,6 mm dik is: Print controleren kleurt hem rood en noemt hem in het venster.</figcaption></figure>
+<p><strong class="ui">“Tonen”</strong> bij een regel brengt de camera erheen; het selecteert de zwevende delen, die met weinig houvast en de open meshes, en bij de overhangen zet het <strong>Overhang tonen</strong> aan. Lichamen die overlappen worden samengevoegd gecontroleerd, zoals de slicer ze samenvoegt. Verander je het ontwerp terwijl het venster open is, dan staat er <strong class="ui">“Gewijzigd – opnieuw controleren”</strong>; klik daarop of op <strong class="ui">“Opnieuw controleren”</strong>. <kbd>Esc</kbd> sluit het venster. Aan het ontwerp verandert niets. Een AI doet dezelfde controle met <code>layerling_check_print</code>.</p>
+</section><section class="guide-part"><h2 id="als-je-klaar-bent"><span class="heading-alias" id="when-you-are-ready"></span>Als je klaar bent</h2>
+<p>Kies <strong class="ui">“Exporteren”</strong> en daarna <strong>STL</strong> of <strong>3MF</strong>. STL is het eenvoudigste formaat. 3MF bewaart namen en kleuren van de afzonderlijke lichamen en is daarom handig als je in meerdere kleuren print. Het exportvenster laat ook zien hoeveel gram en meter filament het onderdeel massief geprint zou kosten. Meer in <a href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html">Bestanden en opslaan</a>.</p></section>
 <div class="pager"><a href="/api/desktop/layerling/ui/handleiding/meten-en-notities.html"><small>Vorig hoofdstuk</small>Meten en notities</a><a class="next" href="/api/desktop/layerling/ui/handleiding/bestanden-en-opslaan.html"><small>Volgend hoofdstuk</small>Bestanden, opslaan en delen</a></div>
       </main>
     </div>
     <footer class="note">Deze handleiding groeit mee met het programma. Mis je iets of klopt er iets niet, laat het ons weten in de <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussies</a>.</footer>
-    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=nl" rel="noopener">Steun het project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussies</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Meer over het project op GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.71.0</a></div><p class="trademark">Tinkercad is een handelsmerk van Autodesk, Inc. layerling is een onafhankelijk project en is niet gelieerd aan, goedgekeurd of gesponsord door Autodesk.</p></footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=nl" rel="noopener">Steun het project</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussies</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Meer op GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Release notes v1.154.1</a></div><p class="trademark">Tinkercad is een handelsmerk van Autodesk, Inc. layerling is een onafhankelijk project en is niet gelieerd aan, goedgekeurd of gesponsord door Autodesk.</p></footer>
     <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Terug naar de editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Naar de editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
     <script>
-function guideFold(text){var out="";for(var i=0;i<text.length;i++){out+=text.charAt(i).toLowerCase().normalize("NFD").charAt(0);}return out;}
-function guideForms(word,umlauts){
-  var forms=[word];
-  if(umlauts){var plain=word.split("ae").join("a").split("oe").join("o").split("ue").join("u");if(plain!==word)forms.push(plain);}
-  if(word.indexOf("ss")>=0)forms.push(word.split("ss").join(String.fromCharCode(223)));
-  if(word.indexOf(String.fromCharCode(223))>=0)forms.push(word.split(String.fromCharCode(223)).join("ss"));
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
   return forms;
 }
-function guideFind(text,forms,from){
-  var best=null;
-  for(var i=0;i<forms.length;i++){var k=text.indexOf(forms[i],from);if(k>=0&&(!best||k<best.at))best={at:k,len:forms[i].length};}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
   return best;
 }
-function guidePrepare(entries){return entries.map(function(e){return {e:e,c:guideFold(e.c),h:guideFold(e.h),t:guideFold(e.t)};});}
-function guideTokens(query){return guideFold(query).split(" ").filter(function(w){return w.length>0;});}
-function guideSearch(prepared,query,limit,umlauts){
-  var tokens=guideTokens(query);if(!tokens.length)return [];
-  var forms=tokens.map(function(w){return guideForms(w,umlauts);}),phrase=guideForms(tokens.join(" "),umlauts),found=[];
-  prepared.forEach(function(p){
-    var score=0;
-    for(var i=0;i<tokens.length;i++){
-      var inH=guideFind(p.h,forms[i],0),inC=guideFind(p.c,forms[i],0),at=guideFind(p.t,forms[i],0);
-      if(!inH&&!inC&&!at)return;
-      if(inH)score+=10;
-      if(inC)score+=3;
-      if(at){score+=1;var n=0,k=at;while(k&&n<5){n++;k=guideFind(p.t,forms[i],k.at+k.len);}score+=n*0.3;}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
     }
-    if(tokens.length>1&&(guideFind(p.h,phrase,0)||guideFind(p.t,phrase,0)))score+=6;
-    found.push({entry:p.e,score:score,folded:p.t,forms:forms});
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
   });
-  found.sort(function(a,b){return b.score-a.score;});
-  return found.slice(0,limit||8);
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
 }
 
 function guideSnippet(hit){
@@ -225,20 +338,57 @@ function guideSnippet(hit){
   if(end<text.length)parts.push({text:" ...",mark:false});
   return parts;
 }
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
 (function(){
   var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
   var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
   function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
   function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
   function render(){
     if(!guideTokens(input.value).length){close();return;}
     if(!prepared){load().then(function(){if(prepared)render();});return;}
-    var hits=guideSearch(prepared,input.value,8,form.getAttribute("data-umlauts")==="true");
+    var hits=guideSearch(prepared,input.value,8,umlauts);
     box.textContent="";
     if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
     hits.forEach(function(hit){
       var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
-      link.href=hit.entry.u;
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
       title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
       guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
       link.appendChild(title);link.appendChild(line);box.appendChild(link);
@@ -251,7 +401,7 @@ function guideSnippet(hit){
     if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
     else if(e.key==="Escape"){input.value="";close();}
   });
-  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first)window.location.href=first.href;});
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
   box.addEventListener("keydown",function(e){
     var current=document.activeElement;
     if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}

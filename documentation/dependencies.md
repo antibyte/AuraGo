@@ -160,15 +160,18 @@ upstream tag.
 
 ## Browser resources
 
-NASSCAD uses the v4.7.0-desktop release at
-`279da7c0f0ca28dfae19c11c8be231f326dfda4f`. Reproduce its browser adaptation with
+NASSCAD 4.7.0 is the main commit `ba7cc40362c75c74165af5d6732d810cceda86cc`
+after tag `v4.7.0-agpl`. Reproduce its browser adaptation with
 `node scripts/vendor-nasscad.mjs --source=<upstream checkout>` and verify it with
 `--check`. Provenance records each original and adapted file. The adaptation removes
-Google Analytics from the main page and the NassScript guide and drops the guide's Google
-Fonts link; its font stacks fall back to local fonts. The local browser
-test is `node scripts/test-nasscad-browser.mjs`; existing workspace entry files
-remain user-owned. Layerling 1.71.0 has its own pinned build and complete source
-archive, documented in `scripts/layerling/README.md`.
+Google Analytics from the main page and the NassScript guide, drops the guide's Google
+Fonts link, keeps the license stylesheet and the license-page link on the signed
+workspace URL, and points that page back at `index.html`. Font stacks fall back to
+local fonts. The local browser test is `node scripts/test-nasscad-browser.mjs`;
+existing workspace entry files remain user-owned. Layerling 1.154.1
+(commit `bdf50b068f7b0475dece5307e1b2019aa10d5305`, tag `v1.154.1`) has its own
+pinned build and complete source archive, documented in `scripts/layerling/README.md`.
+Its Japanese text face is Zen Maru Gothic, rebuilt locally under SIL OFL-1.1.
 
 Synth Studio vendors `@tonejs/midi` 2.0.28 (MIT) and only the factory synthesis
 tables from `webaudio-tinysynth` 1.1.4 (Apache-2.0) under

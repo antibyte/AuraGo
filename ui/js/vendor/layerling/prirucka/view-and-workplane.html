@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Pohled a pracovní rovina - Uživatelská příručka Layerlingu</title>
+    <meta name="description" content="Pohyb ve scéně, kolmé pohledy a umísťování nových tvarů na libovolnou plochu.">
+    <link rel="canonical" href="https://layerling.com/prirucka/view-and-workplane.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/view-and-workplane.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/view-and-workplane.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/view-and-workplane.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/ansicht-und-arbeitsebene.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/view-and-workplane.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/view-and-workplane.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/view-and-workplane.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/view-and-workplane.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/weergave-en-werkvlak.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/view-and-workplane.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/pogled-in-delovna-ravnina.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/view-and-workplane.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/view-and-workplane.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/view-and-workplane.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/view-and-workplane.html">
+    <meta property="og:title" content="Pohled a pracovní rovina - Uživatelská příručka Layerlingu">
+    <meta property="og:description" content="Pohyb ve scéně, kolmé pohledy a umísťování nových tvarů na libovolnou plochu.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/prirucka/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Uživatelská příručka</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/prirucka/search-index.json" data-nothing="Nic nenalezeno." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Hledat v příručce" aria-label="Hledat v příručce" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Jazyk">Čeština</summary><ul><li><a href="/api/desktop/layerling/ui/guide/view-and-workplane.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/view-and-workplane.html" hreflang="cs" lang="cs" aria-current="true">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/view-and-workplane.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/view-and-workplane.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/view-and-workplane.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/view-and-workplane.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/view-and-workplane.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/view-and-workplane.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/view-and-workplane.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/view-and-workplane.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/pogled-in-delovna-ravnina.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/view-and-workplane.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/view-and-workplane.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/view-and-workplane.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/view-and-workplane.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/view-and-workplane.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/view-and-workplane.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Otevřít editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Editor už je otevřený v jiné kartě. Přepněte se do ní.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Kapitoly"><h2>Kapitoly</h2><p class="print-link"><a href="/api/desktop/layerling/ui/prirucka/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Vytisknout celou příručku</span></a></p><ol><li><a href="/api/desktop/layerling/ui/prirucka/getting-started.html">Začínáme</a></li><li><a href="/api/desktop/layerling/ui/prirucka/view-and-workplane.html" aria-current="page">Pohled a pracovní rovina</a></li><li><a href="/api/desktop/layerling/ui/prirucka/shapes.html">Vkládání a úpravy tvarů</a></li><li><a href="/api/desktop/layerling/ui/prirucka/select-and-arrange.html">Výběr a uspořádání</a></li><li><a href="/api/desktop/layerling/ui/prirucka/solids-and-holes.html">Tělesa a výřezy</a></li><li><a href="/api/desktop/layerling/ui/prirucka/edges-and-hollowing.html">Úpravy hran a vytváření dutin</a></li><li><a href="/api/desktop/layerling/ui/prirucka/sketches.html">Náčrty: od obrysu k tělesu</a></li><li><a href="/api/desktop/layerling/ui/prirucka/text.html">Text a nápisy po oblouku</a></li><li><a href="/api/desktop/layerling/ui/prirucka/threads-and-mechanics.html">Závity, ozubení a další mechanické díly</a></li><li><a href="/api/desktop/layerling/ui/prirucka/measuring-and-notes.html">Měření a poznámky</a></li><li><a href="/api/desktop/layerling/ui/prirucka/printing.html">Příprava pro 3D tisk</a></li><li><a href="/api/desktop/layerling/ui/prirucka/files-and-saving.html">Soubory, ukládání a sdílení</a></li><li><a href="/api/desktop/layerling/ui/prirucka/shortcuts.html">Klávesové zkratky</a></li><li><a href="/api/desktop/layerling/ui/prirucka/ai-with-mcp.html">Modelování s AI pomocí MCP</a></li><li><a href="/api/desktop/layerling/ui/prirucka/offline-and-install.html">Instalace, práce bez internetu a vlastní hosting</a></li><li><a href="/api/desktop/layerling/ui/prirucka/videos.html">Videa o Layerlingu</a></li><li><a href="/api/desktop/layerling/ui/prirucka/tablet-and-touch.html">Tablet a dotyk</a></li></ol></nav>
+      <main>
+<h1>Pohled a pracovní rovina</h1>
+<p class="lead">Pohyb ve scéně, kolmé pohledy a umísťování nových tvarů na libovolnou plochu.</p>
+<div class="toc"><b>Na této stránce</b><ul><li><a href="#pohyb-ve-scene">Pohyb ve scéně</a></li><li><a href="#pohled-dovnitr-rez">Pohled dovnitř: řez</a></li><li><a href="#pracovni-rovina">Pracovní rovina</a></li><li><a href="#tiskove-podlozky">Tiskové podložky</a></li><li><a href="#mrizka-a-prichytavani">Mřížka a přichytávání</a></li><li><a href="#kdyz-je-layerling-pomaly">Když je Layerling pomalý</a></li></ul></div>
+<section class="guide-part"><h2 id="pohyb-ve-scene"><span class="heading-alias" id="moving-around"></span>Pohyb ve scéně</h2>
+<p>Ovládání myší:</p>
+<div class="table-scroll"><table><thead><tr><th>Ovládání</th><th>Výsledek</th></tr></thead><tbody><tr><td>tažení pravým tlačítkem</td><td>otáčení pohledu</td></tr><tr><td>kliknutí pravým tlačítkem</td><td>na tělese nabídka nejčastějších příkazů: duplikování, plné těleso/výřez, sloučení, skrytí, zamknutí, smazání a další; na prázdném místě vložení a výběr všeho</td></tr><tr><td>tažení prostředním tlačítkem</td><td>posun pohledu</td></tr><tr><td>kolečko</td><td>přiblížení a oddálení</td></tr><tr><td><kbd>Ctrl</kbd> / <kbd>Cmd</kbd> a tažení levým tlačítkem</td><td>také posun pohledu</td></tr><tr><td>dvojklik na prázdné místo pracovní roviny nebo mimo podložku</td><td>posune pohled tak, aby to místo bylo uprostřed; pohled se pak otáčí kolem něj</td></tr></tbody></table></div>
+<p>Rychlost přiblížení nastavuje <strong class="ui">„Rychlost přiblížení“</strong> v části <strong class="ui">„Vzhled“</strong>. Posuvník má rozsah 1 až 14, výchozí je 5; nad 10 se zrychluje jen kolečko.</p>
+<p><strong>Tlačítka myši jako ve sliceru.</strong> Pokud jste zvyklí na Bambu Studio nebo OrcaSlicer, nastavte v nastavení, v <strong class="ui">„Vzhled“</strong>, <strong class="ui">„Tlačítka myši“</strong> na <strong class="ui">„Jako Bambu Studio a OrcaSlicer“</strong>. Tažení levým tlačítkem po prázdném místě pak otáčí pohled, pravé tlačítko ho posouvá jako prostřední a Shift s tažením levým kreslí výběrový rámeček. Tažení tělesa ho stále posouvá a krátké kliknutí pravým stále otevře nabídku. V náčrtu posouvá pohled i pravé tlačítko.</p>
+<p><strong>3D myš.</strong> SpaceMouse nebo jiná 3D myš otáčí, posouvá a přibližuje 3D pohled: odtlačte čepičku od sebe pro přiblížení, posuňte ji pro posun pohledu, nakloňte ji pro naklonění pohledu a otočte ji pro otočení pohledu. V nastavení, v <strong class="ui">„Vzhled“</strong>, klikněte na <strong class="ui">„Připojit 3D myš“</strong> a vyberte zařízení v okně, které prohlížeč otevře; volbu si zapamatuje, takže to stačí udělat jednou. Funguje to v Chrome a Edge, které k takovým zařízením mají přístup; Firefox a Safari ne. Pokud je některý směr obráceně, zaškrtni ho pod tlačítkem: posun do stran, posun nahoru a dolů, přiblížení, náklon nebo otočení.</p>
+<p>Na tabletu nebo telefonu dvěma prsty přibližujete a oddalujete a společným posunem prstů posouváte pohled. Jeden prst pracuje s modelem jako levé tlačítko myši. Pro otáčení jedním prstem zapněte <strong class="ui">„Otáčet pohled jedním prstem“</strong> v liště pohledu. Volba se zobrazuje jen na dotykových zařízeních.</p>
+<p>Grafický tablet s perem se chová jako myš: hrot zastupuje levé tlačítko, boční tlačítko pravé, tedy otáčení a místní nabídku. Tlačítkům tabletu lze v jeho ovladači přiřadit <a href="/api/desktop/layerling/ui/prirucka/shortcuts.html">klávesové zkratky</a> Layerlingu.</p>
+<p><strong>Na tabletu používejte pokud možno dotykové pero.</strong> Jeho hrot je přesnější než prst a nezakrývá cíl. Snáze tak zasáhnete malé body, tenké čáry, úchyty náčrtu, měřicí body i hrany a delší práce je méně únavná. Layerling sice pro prst zvětšuje oblast, ve které se tyto prvky dají zachytit, pero však zůstává přesnější.</p>
+<section class="guide-part"><h3 id="orientacni-krychle"><span class="heading-alias" id="the-view-cube"></span>Orientační krychle</h3>
+<p>Krychle vlevo nahoře ukazuje směr pohledu. Kliknutí na její stranu přepne na pohled shora, zdola, zepředu, zezadu, zleva nebo zprava. Kliknutí na roh zobrazí šikmý pohled z tohoto rohu, kliknutí u hrany pohled mezi dvěma stranami. Místo pod ukazatelem se zvýrazňuje. Kolmé pohledy mají také klávesy <kbd>1</kbd> až <kbd>6</kbd>. Se <kbd>Shift</kbd> se navíc přiblíží výběr, stejně jako při <span dir="ltr"><kbd>Shift</kbd>+<kbd>F</kbd></span>.</p>
+<p>Tažením krychle otáčíte pohledem jako pravým tlačítkem myši. Není-li nic vybráno, otáčejí pohledem i šipky: o 15° na stisknutí, se <kbd>Shift</kbd> o 90°. Model se otáčí ve směru šipky, tedy <kbd>→</kbd> obrací přední stranu doprava a <kbd>↑</kbd> ji naklání vzhůru. S podrženou klávesou <kbd>Ctrl</kbd> šipky místo toho posouvají pohled po obrazovce: o desetinu obrazu na stisknutí, se <kbd>Shift</kbd> navíc o polovinu. Model se posouvá ve směru šipky. Při aktivním výběru šipky přesouvají objekty; pro otáčení nejprve klikněte na prázdné místo. Dotykem lze krychli otáčet jedním prstem i bez <strong class="ui">„Otáčet pohled jedním prstem“</strong>.</p>
+</section><section class="guide-part"><h3 id="lista-pohledu"><span class="heading-alias" id="the-view-bar"></span>Lišta pohledu</h3>
+<p>U levého okraje je úzká lišta. Shora obsahuje:</p>
+<ul><li><strong class="ui">„Výchozí pohled“</strong> zobrazí celou scénu; klávesa <kbd>Home</kbd>; <kbd>F</kbd> to udělá také, když není nic vybráno.</li><li><strong class="ui">„Vystředit pohled na výběr“</strong> přiblíží výběr, <kbd>F</kbd> nebo <span dir="ltr"><kbd>Shift</kbd>+<kbd>F</kbd></span>.</li><li><strong class="ui">„Přiblížit“</strong> a <strong class="ui">„Oddálit“</strong> mění přiblížení po krocích, stejně jako <kbd>+</kbd> a <kbd>−</kbd>.</li><li><strong class="ui">„Ortografický pohled“</strong> zapne rovnoběžné promítání bez perspektivy. Rovnoběžné hrany zůstávají rovnoběžné, což usnadňuje měření a zarovnávání. Přepíná je i <kbd>O</kbd>; dalším kliknutím se vrátíte.</li><li><strong class="ui">„Otevřít druhý pohled“</strong> otevře druhý pohled na projekt ve vlastním okně, popsaném níže. Druhé kliknutí ho zavře.</li><li><strong class="ui">„Zobrazit posuvníky“</strong> zobrazí posuvník u dolního okraje pohledu a druhý podél pravého okraje. Tažením posuvníku se pohled plynule posouvá, klik na šipku na jeho konci jím posune o kousek (podržením pokračuje) a klik vedle posuvníku o téměř celý pohled. Nic se neotáčí a na rozdíl od šipek na klávesnici posuvníky fungují i s vybraným dílem - šikovné zblízka u drobných detailů. Druhý klik je skryje; zda se návrh otevře s nimi, určuje <strong class="ui">„Spouštět editor s posuvníky“</strong> v nastavení. Tento prohlížeč si volbu navíc pamatuje.</li><li><strong class="ui">„Skrýt pracovní rovinu“</strong>, oko nad mřížkou, skryje podložku, aby bylo vidět spodní strany modelu. Mění pouze zobrazení; nové tvary stále dopadají na pracovní rovinu. Další kliknutí ji ukáže.</li><li><strong class="ui">„Umístit pracovní rovinu“</strong>, měření vzdáleností a úhelník jsou samostatné nástroje popsané níže a v kapitole <a href="/api/desktop/layerling/ui/prirucka/measuring-and-notes.html">Měření a poznámky</a>.</li></ul>
+<p>Malá šipka úplně nahoře lištu skryje, pokud překáží.</p>
+<p>Projekt se otevírá s naposledy použitým úhlem, přiblížením a polohou pohledu. Pokračujete tak na stejném místě i po návratu na přehled projektů či zavření stránky. Pohled se přenáší také v souboru <code>.lyl</code>. Není součástí historie kroků zpět.</p>
+<p>V každém projektu si také můžete uložit čtyři vlastní pohledy. <span dir="ltr"><kbd>Shift</kbd>+<kbd>7</kbd></span>, <span dir="ltr"><kbd>Shift</kbd>+<kbd>8</kbd></span>, <span dir="ltr"><kbd>Shift</kbd>+<kbd>9</kbd></span> nebo <span dir="ltr"><kbd>Shift</kbd>+<kbd>0</kbd></span> uloží pohled přesně tak, jak je - úhel, polohu, přiblížení a kolmé či perspektivní zobrazení - pod tuto klávesu, a samotná klávesa (<kbd>7</kbd>, <kbd>8</kbd>, <kbd>9</kbd> nebo <kbd>0</kbd>) ho vrátí. Uložení potvrdí zpráva dole; nové uložení pod stejnou klávesu pohled nahradí. Stejně jako pohled výše zůstávají uložené pohledy s projektem v tomto prohlížeči a přenášejí se v uloženém souboru <code>.lyl</code>. Nejsou součástí historie kroků zpět.</p>
+</section><section class="guide-part"><h3 id="druhy-pohled-ve-vlastnim-okne"><span class="heading-alias" id="a-second-view-in-its-own-window"></span>Druhý pohled ve vlastním okně</h3>
+<p><strong class="ui">„Otevřít druhý pohled“</strong> otevře okno, které ukazuje tentýž projekt vlastní kamerou, takže ho vidíte ze dvou stran naráz - třeba zepředu, zatímco pracujete shora. Každá změna v editoru se tam hned projeví; projekt se mění jen v hlavním okně a úchyty zůstávají také tam. Ve druhém okně myš a pohledová kostka otáčejí jeho pohledem stejně jako zde, a stejně tak klávesy: <kbd>1</kbd> až <kbd>6</kbd>, <kbd>F</kbd>, <kbd>Home</kbd>, <kbd>O</kbd>, <kbd>+</kbd> a <kbd>−</kbd>, šipky pro otáčení a <kbd>Ctrl</kbd> se šipkami pro posun. <kbd>F</kbd> tam přiblíží to, co je vybrané v editoru. Fungují tam i čtyři uložené pohledy projektu: <kbd>7</kbd>, <kbd>8</kbd>, <kbd>9</kbd> a <kbd>0</kbd> je vrátí a <kbd>Shift</kbd> s jednou z těchto kláves pod ni uloží pohled tohoto okna - pro obě okna. Jeho vlastní lišta kamery má <strong class="ui">„Výchozí pohled“</strong>, <strong class="ui">„Vystředit pohled na výběr“</strong>, <strong class="ui">„Přiblížit“</strong>, <strong class="ui">„Oddálit“</strong>, <strong class="ui">„Ortografický pohled“</strong> a <strong class="ui">„Skrýt pracovní rovinu“</strong>, které působí jen na toto okno. Okno se otevře tam, kde jste ho nechali, ve stejné velikosti, a zavře se spolu s editorem. Na telefonech a tabletech se tlačítko nezobrazuje.</p>
+</section></section><section class="guide-part"><h2 id="pohled-dovnitr-rez"><span class="heading-alias" id="looking-inside-the-section-view"></span>Pohled dovnitř: řez</h2>
+<p><strong class="ui">„Pohled v řezu“</strong>, poslední tlačítko lišty, zobrazí model proříznutý rovinou. Můžete kontrolovat stěny, dutiny i vzájemné uložení dílů. Skutečnou geometrii nemění: projekt, soubory i exporty zůstávají celé. Tam, kde rovina prochází tělesem, je řez vyplněn o něco tmavší barvou tělesa a otvor v něm zůstane prázdný, takže poznáš plné od dutého; vyplněná plocha se objeví chvíli poté, co se rovina zastaví. V části <strong class="ui">„Plocha řezu“</strong> zvolíš, jak řez vypadá: <strong class="ui">„Šrafovaná“</strong>, výchozí volba, ho šrafuje jako výkres a těleso uvnitř jiného je šrafované opačně, takže se od sebe odliší; <strong class="ui">„Vyplněná“</strong> ho vyplní jednou barvou; <strong class="ui">„Otevřená“</strong> ho nechá otevřený a díváš se do skořepiny tělesa. Volba platí pro každý návrh.</p>
+<ul><li>Zvolte osu kolmou k rovině: X pro šířku, Y pro hloubku a Z pro výšku, stejně jako u polohy. Rovina začíná uprostřed modelu.</li><li><strong class="ui">„Osy podle“</strong> určuje, čím se tyto osy řídí. <strong class="ui">„Návrh“</strong> bere osy návrhu. <strong class="ui">„Pracovní rovina“</strong> bere osy pracovní roviny: Z pak řeže rovnoběžně s ní, X a Y kolmo na ni a poloha se počítá od jejího počátku. Leží-li pracovní rovina na šikmé ploše, řežeš tak rovnoběžně s touto plochou a řez se posune, když pracovní rovinu přemístíš. <strong class="ui">„Pohled“</strong> natočí rovinu k obrazovce: odebere to, co leží před ní, a posuvníkem ji posouváš ve směru pohledu hlouběji do návrhu, třeba abys dosáhl na zakrytý díl a klikl na něj. Po otočení pohledu na něj klikni znovu a řez se řídí novým pohledem.</li><li><strong class="ui">„Hrubé nastavení“</strong> posouvá rovinu přes celý model, <strong class="ui">„Jemné nastavení“</strong> jemně kolem současné polohy po desetinách milimetru. Polohu lze i zadat.</li><li>Tlačítko vedle os obrátí zobrazovanou stranu řezu, <strong class="ui">„Vystředit“</strong> vrátí rovinu doprostřed a <strong class="ui">„Zobrazit řeznou rovinu“</strong> skryje modrou rovinu.</li><li>Odkryté části včetně vnitřních stěn lze vybírat kliknutím.</li><li><strong class="ui">„Pracovní rovina zde“</strong> umístí pracovní rovinu na rovinu řezu.</li><li><strong class="ui">„Náčrt z řezu“</strong> začne nový náčrt přímo na řezu, ve kterém už jsou obrysy řezu jako čáry: díra přijde jako skutečná kružnice, zaoblený roh jako oblouk. Upravte je, smažte, co nepotřebujete, kreslete dál a dokončete: těleso vyroste z řezu na stranu, která je odříznutá, takže díl, který musí sedět na jiný, například víko, vložka nebo těsnění, začíná přímo obrysem toho dílu. Tlačítko vedle os volí tuto stranu. Stejně jako u SVG se počítají jen viditelná tělesa a díry jsou už odečtené.</li><li><strong class="ui">„Měření“</strong> měří v řezu dvěma kliknutími. Body se přichytávají k obrysu, přednostně k rohům. Druhý bod na protější stěně se umístí kolmo proti prvnímu. Bez přesného míření tak změříte tloušťku stěny, mezeru nebo vůli. Třetí kliknutí začne další měření, <kbd>Esc</kbd> měření ukončí. Posun řezné roviny měření vymaže.</li><li><strong class="ui">„Řez jako SVG“</strong> uloží obrysy v řezu jako SVG v měřítku 1:1 pro laser, plotr, šablonu nebo těsnění. Řez X je viděn zprava, Y zepředu a Z shora. Zahrnou se jen viditelná tělesa s již odečtenými výřezy. Tělesa stejné barvy se sjednotí do jednoho obrysu. Každá barva zůstává samostatnou nevyplněnou cestou pro oddělené vrstvy v laserovém programu.</li></ul>
+<p>Křížek a <kbd>Esc</kbd> zavřou okno nástroje; probíhá-li měření, <kbd>Esc</kbd> nejdřív ukončí to. Řez zůstane, dokud ho nevypnete přes <strong class="ui">„Řez je aktivní“</strong>, nekliknete na jeho tlačítko v liště, zatímco je okno otevřené, nebo se nevrátíte do přehledu projektů. Dokud je zapnutý, jeho tlačítko zůstává zvýrazněné. Co postavíte na odříznuté straně, se ukáže až po vypnutí řezu. Tablet nemá <kbd>Esc</kbd>, proto má okno nástroje na něm dvě tlačítka navíc: <strong class="ui">„Zpět“</strong> ukončí měření, pokud probíhá, a jinak zavře okno nástroje, a <strong class="ui">„Zavřít“</strong> zavře okno nástroje jedním krokem. Počítač je nezobrazuje.</p>
+<p>Okno nástroje je u svého tlačítka. Přetažením záhlaví ho přesunete kamkoliv na pracovní plochu a příště se tam otevře znovu. Dvojklik nebo vrácení k tlačítku obnoví jeho ukotvení.</p>
+<p><kbd>Esc</kbd> okno zavře, ale řez zůstane aktivní do vypnutí nebo návratu do přehledu projektů. Tlačítko řezu zůstává zvýrazněné. Objekty vložené do odříznuté části uvidíte až po vypnutí řezu.</p>
+</section><section class="guide-part"><h2 id="pracovni-rovina"><span class="heading-alias" id="the-workplane"></span>Pracovní rovina</h2>
+<p>Nové tvary se orientují podle pracovní roviny. Zpočátku jde o základní podložku s mřížkou, ale můžete ji položit na libovolnou plochu a modelovat na boku či šikmé stěně.</p>
+<ol><li>Stiskněte <kbd>W</kbd> nebo zvolte <strong class="ui">„Umístit pracovní rovinu“</strong>.</li><li>Najeďte na plochu tělesa; zvýrazní se.</li><li>Kliknutím na ni položíte pracovní rovinu. Nové tvary budou umístěny na této ploše.</li></ol>
+<p>Kliknete-li místo toho na prázdnou podložku, rovina se vodorovně položí do zvoleného místa přichyceného k mřížce. Nové tvary i dokončený náčrt, včetně rotačního, se pak objeví tam místo středu podložky. Při takto vodorovně položené rovině se u původní podložky zobrazí jen obrys, protože dvě překryté mřížky by blikaly.</p>
+<p>Na ploše se počátek roviny běžně přichytává k mřížce. Kliknutím poblíž rohu jej umístíte přesně do rohu. U hrany se přichytí na hranu a mřížka se s ní zarovná. Tak můžete záměrně zvolit její natočení. Mimo rohy a hrany je mřížka vodorovné plochy rovnoběžná s tělesem; natočení kvádru tedy přebírá.</p>
+<p>Kliknutí mimo podložku nebo <kbd>Esc</kbd> vrátí rovinu na základní podložku. Rychlejší je <strong class="ui">„Vrátit pracovní rovinu na podložku“</strong>, tlačítko se šipkou dolů pod okem, dostupné při umístění roviny na ploše. <span dir="ltr"><kbd>Shift</kbd>+<kbd>W</kbd></span> ji položí přímo na právě vybranou plochu. <span dir="ltr"><kbd>Alt</kbd>+<kbd>W</kbd></span> ji kdykoli vrátí na základní podložku, ať je něco vybráno, nebo ne. Přidržení <kbd>Shift</kbd> při kliknutí obrátí směr roviny.</p>
+<p>Při umístění na ploše se vedle <strong class="ui">„Umístit pracovní rovinu“</strong> objeví oko. Skryje rovinu bez zrušení jejího umístění: nové tvary dál dopadají na příslušnou plochu a otáčení používá její orientaci. Znovu ji ukáže oko nebo nastavení nové roviny.</p>
+<p>Chceš-li se na pracovní rovinu podívat kolmo, stiskni <kbd>P</kbd> nebo klikni na <strong class="ui">„Pohled kolmo na pracovní rovinu“</strong> vedle <strong class="ui">„Umístit pracovní rovinu“</strong> v liště pohledu. Pohled se otočí, až rovinu vidíš zpříma, ze strany, kam rostou nové tvary, s jejím počátkem uprostřed. Na základní desce je to pohled shora.</p>
+</section><section class="guide-part"><h2 id="tiskove-podlozky"><span class="heading-alias" id="build-plates"></span>Tiskové podložky</h2>
+<p>Když se návrh nevejde na jednu podložku, třeba krabička s víkem a vložkami, může mít více tiskových podložek. Klikněte na <strong class="ui">„Tiskové podložky“</strong> ve skupině <strong class="ui">„Uspořádání“</strong> nebo zvolte <strong class="ui">„Na podložku…“</strong> v nabídce pravého kliknutí na těleso. Dole v pohledu se objeví lišta s tlačítkem pro každou podložku; číslo na něm udává, kolik těles na podložce stojí.</p>
+<ul><li>Každá podložka je velká jako pracovní plocha a podložky leží vedle sebe vpravo od první, 20 mm od sebe. Těleso patří k podložce, na které stojí střed jeho půdorysu, takže přetažením na druhou stranu se dostane na jinou podložku. Návrh má nejvýše 12 podložek.</li><li>Kliknutí na podložku v liště ji ukáže a nové tvary i importované soubory pak přistanou na ní. <strong class="ui">„Zobrazit všechny podložky“</strong> ukáže všechny. Dvojklik na podložku nebo <strong class="ui">„Přejmenovat podložku“</strong> jí dá název, třeba „Víko“, který je na podložce napsán.</li><li><strong class="ui">„Posunout podložku doleva“</strong> a <strong class="ui">„Posunout podložku doprava“</strong> mění pořadí, tělesa se posouvají se svou podložkou. <strong class="ui">„Odebrat podložku (její tělesa přejdou na první podložku)“</strong> odebere aktivní podložku; její tělesa přejdou na první podložku na stejné místo.</li><li><strong class="ui">„Rozmístit na podložky“</strong> rozloží vybraná tělesa, nebo všechna, řadu po řadě na podložky, největší první, 5 mm od sebe, a přidává podložky, dokud jsou potřeba. Těleso větší než podložka zůstane na místě.</li><li>Se zvolenou tiskárnou se každé těleso kontroluje proti své podložce a výška tisku se počítá od nejnižšího tělesa na ní. Podložka s tělesem, které se nevejde, ukáže své číslo červeně.</li><li>Ve vlastnostech se X počítá od středu vlastní podložky tělesa.</li></ul>
+<p>Okno exportu pak nabízí <strong class="ui">„Podložky“</strong>: všechny podložky v jednom souboru, vedle sebe jako v návrhu; jeden soubor na podložku, zabalené v ZIP (STL, 3MF a OBJ); nebo jedinou podložku, umístěnou na místo první. Slicer otevře každý soubor jako jednu podložku, takže pro tisk podložek jedné po druhé použijte soubory po podložkách. Přesun těles mezi podložkami a jejich rozmístění lze vrátit zpět; přidání, pojmenování, řazení a odebrání podložek se ukládá s návrhem, ale nevrací se.</p>
+</section><section class="guide-part"><h2 id="mrizka-a-prichytavani"><span class="heading-alias" id="grid-and-snapping"></span>Mřížka a přichytávání</h2>
+<p>Mřížka usnadňuje odhad rozměrů podložky. Vpravo dole se nastavuje <strong>krok přichytávání</strong>: posun a změna velikosti se provádějí v násobcích tohoto rozměru, například 1 mm. Pro jemnou práci krok zmenšete, pro hrubé rozmístění zvětšete. <strong class="ui">„Přichytit k mřížce“</strong> dodatečně přesune vybrané tvary na nejbližší průsečík mřížky. Při přesouvání se přichytávají také k jiným tvarům, viz <a href="/api/desktop/layerling/ui/prirucka/select-and-arrange.html">Výběr a uspořádání</a>. Bez myši: <span dir="ltr"><kbd>Alt</kbd>+<kbd>1</kbd></span> až <span dir="ltr"><kbd>Alt</kbd>+<kbd>0</kbd></span> vyberou položku s tímto číslem v nabídce (<span dir="ltr"><kbd>Alt</kbd>+<kbd>1</kbd></span> přichytávání vypne) a <kbd>,</kbd> a <kbd>.</kbd> krok o stupeň zjemní nebo zhrubí. Funguje to i v náčrtu. Krátké kliknutí prostředním tlačítkem myši, bez pohybu myší, otevře nabídku kroku přichytávání přímo u ukazatele, i ve skice; tažení se stisknutým prostředním tlačítkem dál posouvá pohled.</p>
+<aside class="tip"><p><strong>Tip:</strong> Při přesném lícování dílů přestaňte pohledem otáčet. Číselnou klávesou zvolte pohled shora nebo zepředu a <kbd>O</kbd> přepněte na rovnoběžné promítání. Snadněji pak poznáte, zda jsou hrany skutečně v jedné rovině.</p></aside>
+<section class="guide-part"><h3 id="okno-nastaveni"><span class="heading-alias" id="the-settings-window"></span>Okno nastavení</h3>
+<p>Ozubené kolo v titulním řádku (<strong class="ui">„Nastavení pracovní plochy“</strong>) otevře nastavení. Vlevo je pět oblastí: <strong class="ui">„Vzhled“</strong>, <strong class="ui">„Měření“</strong>, <strong class="ui">„Pracovní rovina“</strong>, <strong class="ui">„Výchozí hodnoty tvarů“</strong> a <strong class="ui">„Historie“</strong>. Změna platí okamžitě. <strong class="ui">„Nastavit jako výchozí“</strong> dole uloží současné nastavení jako výchozí, takže nový projekt začne s ním. Otevřený soubor si přinese vlastní nastavení; <strong class="ui">„Použít moji výchozí“</strong> vedle něj použije na otevřený projekt vaše uložené barvy, mřížku a ostatní, přičemž zachová jeho jednotky. Pokud vaše výchozí nastavení obsahuje tiskárnu, přijde i s velikostí své podložky; bez tiskárny si projekt ponechá svou podložku a tiskárnu. <strong class="ui">„Zavřít nastavení“</strong> vpravo nahoře okno zavře. Tato část prochází nastavení jedno po druhém.</p>
+<p><strong class="ui">„Exportovat nastavení“</strong> uloží nastavení okna do souboru (layerling-settings-&lt;datum&gt;.json): barvy, mřížku, stíny, kameru a výchozí hodnoty tvarů spolu s motivem, velikostí panelu nástrojů, rohem kostky pohledu, barvami tvarů a vůlí každé tiskárny. Na jiném počítači nebo po ztrátě dat prohlížeče <strong class="ui">„Importovat nastavení“</strong> soubor znovu načte: stane se vaším výchozím nastavením pro nové návrhy a použije se na otevřený návrh jako <strong class="ui">„Použít moji výchozí“</strong>. Vaše vlastní klávesy z klávesových zkratek jdou do souboru také.</p>
+</section><section class="guide-part"><h3 id="vzhled-motiv-pas-nastroju-a-krychle"><span class="heading-alias" id="appearance-theme-toolbar-and-view-cube"></span>Vzhled: motiv, pás nástrojů a krychle</h3>
+<p><strong class="ui">„Barevný motiv“</strong> určuje barevné schéma celého programu: <strong class="ui">„Podle systému“</strong> se řídí počítačem, další jsou <strong class="ui">„Světlý“</strong>, <strong class="ui">„Tmavý“</strong> a <strong class="ui">„Grafitový (neutrální tmavý)“</strong>. Změnit ho lze i vpravo nahoře v editoru.</p>
+<p><strong class="ui">„Velikost ovládacích prvků“</strong> v <strong class="ui">„Vzhled“</strong> mění velikost pásu nástrojů, nabídky tvarů, lišty pohledu vlevo a panelu vlastností vpravo: <strong class="ui">„Malá“</strong>, <strong class="ui">„Střední“</strong> nebo <strong class="ui">„Velká“</strong>. Malé ovládání nechá více místa na notebooku, velké usnadňuje dotyk i použití na velké obrazovce. Nevejdou-li se velká tlačítka, skupiny pásu se zalomí do dalšího řádku. Nastavení je na kartě <strong class="ui">„Pás nástrojů“</strong> v nastavení, uchovává se v tomto prohlížeči a platí pro všechny projekty.</p>
+<p><strong class="ui">„Tvary v barvě“</strong> zobrazí na obrázcích knihovny tvarů barvu, se kterou nový tvar začíná (barvu jeho druhu, nebo tu, kterou jste uložili přes <strong class="ui">„Uložit jako výchozí“</strong>). Pokud dáváte přednost šedým obrázkům, vypněte to; prohlížeč si volbu zapamatuje.</p>
+<p><strong class="ui">„Umístění orientační krychle“</strong> v <strong class="ui">„Vzhled“</strong> přesune orientační krychli do jiného rohu pracovní plochy: <strong class="ui">„Vlevo nahoře“</strong> (jako dosud), <strong class="ui">„Vpravo nahoře“</strong>, <strong class="ui">„Vlevo dole“</strong> nebo <strong class="ui">„Vpravo dole“</strong>. V každém rohu kromě levého horního se lišta pohledu posune nahoru na místo, které krychle uvolnila. Vpravo dole stojí krychle těsně nad ovládáním <strong class="ui">„Krok přichytávání“</strong>. Dokud jsou vpravo otevřené vlastnosti tvaru, krychle na pravé straně uhne vlevo od nich. Roh se uchovává v tomto prohlížeči pro všechny projekty. V úzkém okně, třeba na telefonu, je nastavení skryté a krychle zůstává vlevo nahoře.</p>
+</section><section class="guide-part"><h3 id="vzhled-tlacitka-na-pasu-nastroju"><span class="heading-alias" id="appearance-buttons-in-the-ribbon"></span>Vzhled: tlačítka na pásu nástrojů</h3>
+<p><strong class="ui">„Tlačítka na pásu nástrojů“</strong> odebere z pásu nástrojů skupiny a tlačítka, které nikdy nepoužíváte. Kliknutím na skupinu otevřete její seznam: <strong class="ui">„Zobrazit tuto skupinu“</strong> odebere celou skupinu, zaškrtnutí u tlačítka jen to tlačítko. <strong class="ui">„Zobrazit vše“</strong> vrátí vše zpět. Skupina bez tlačítek zmizí a ostatní se posunou, takže se do jednoho řádku vejde víc pásu.</p>
+<p>Co odeberete, chybí jen na pásu: vyhledávání příkazů (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>) to dál najde a jeho klávesa to dál spustí. Šipky u skupiny ji posouvají v seznamu nahoru nebo dolů, a tím i po pásu; <strong class="ui">„Obnovit pořadí“</strong> vrátí pořadí z výroby. Šipky u tlačítka ho posouvají stejně uvnitř jeho skupiny; ve skupině <strong class="ui">„Úpravy“</strong> zůstane ve svém pojmenovaném oddílu. Skupina Tvary a Nápověda zůstanou vždy a Tvary si drží místo za prvními dvěma skupinami. Volbu si pamatuje tento prohlížeč a jde i do souboru z <strong class="ui">„Exportovat nastavení“</strong>. Platí pro 3D editor; náčrt má vlastní lištu.</p>
+</section><section class="guide-part"><h3 id="vzhled-rychly-rezim"><span class="heading-alias" id="appearance-fast-mode"></span>Vzhled: rychlý režim</h3>
+<p><strong class="ui">„Rychlý režim“</strong> je pro pomalejší počítače. Vypne stíny, obrysy na všech tělesech a setrvačnost kamery a vykresluje pohled jen v rozlišení obrazovky. Vaše vlastní nastavení zůstanou uložená na později a přepínače, které přebírá, ukazují <strong class="ui">„V rychlém režimu vypnuto“</strong>, dokud je zapnutý. Co dalšího pomáhá na pomalém počítači, najdete níže v části „Když je Layerling pomalý“.</p>
+</section><section class="guide-part"><h3 id="vzhled-barvy-pracovni-plochy-a-nacrtu"><span class="heading-alias" id="appearance-colours-of-the-work-area-and-the-sketch"></span>Vzhled: barvy pracovní plochy a náčrtu</h3>
+<p>Barvy pracovní plochy se nastavují v <strong class="ui">„Vzhled“</strong>: <strong class="ui">„Pozadí okna (světlý motiv)“</strong> a <strong class="ui">„Pracovní rovina pod mřížkou (světlý motiv)“</strong> pro světlý motiv (tmavé motivy mají vlastní), vedle barvy mřížky v <strong class="ui">„Pracovní rovina“</strong>. Každá barva je tlačítko, které ji ukazuje. Kliknutí otevře malé okno s barevným polem, řadou hotových barev, polem pro hexadecimální hodnotu a šipkou, která barvu vrátí na výchozí hodnotu Layerlingu. <kbd>Enter</kbd> převezme zadanou hexadecimální hodnotu, stejně jako kliknutí mimo okno.</p>
+<p>Pohled náčrtu má vlastní barvy: <strong class="ui">„Náčrt: pozadí okna (světlý motiv)“</strong> pro okno kolem listu, <strong class="ui">„Náčrt: plocha pod mřížkou (světlý motiv)“</strong> pro list pod mřížkou a <strong class="ui">„Náčrt: barva mřížky (světlý motiv)“</strong>, vše pro světlý motiv. <strong class="ui">„Stejný vzhled náčrtu a pracovní plochy“</strong> převezme jedním kliknutím tři barvy pracovní plochy.</p>
+<p><strong class="ui">„Klasický vzhled“</strong> nastaví pracovní plochu tak, jak ji ukazuje Tinkercad: bílý podklad, světle modrá milimetrová mřížka s tmavší čarou po každém centimetru, černé obrysy, světlo shora s měkkými stíny. Každou hodnotu lze potom ještě změnit zvlášť. Všechny začínají tak, jak Layerling vždy vypadal, a co vám vyhovuje, záleží na vašem monitoru.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/settings-appearance.webp" alt="Nastavení vzhledu: barvy pozadí a pracovní roviny pro světlý motiv a zapnutí obrysů těles." width="1280" height="800" loading="lazy"><figcaption>Nastavení vzhledu: barvy pozadí a pracovní roviny pro světlý motiv a zapnutí obrysů těles.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/editor-dark.webp" alt="Editor v tmavém motivu. Vpravo nahoře lze vybrat systémový, světlý, tmavý nebo grafitový motiv." width="1280" height="800" loading="lazy"><figcaption>Editor v tmavém motivu. Vpravo nahoře lze vybrat systémový, světlý, tmavý nebo grafitový motiv.</figcaption></figure>
+</section><section class="guide-part"><h3 id="vzhled-sipky-os-a-obrysy"><span class="heading-alias" id="appearance-axis-arrows-and-edge-lines"></span>Vzhled: šipky os a obrysy</h3>
+<p><strong class="ui">„Šipky os“</strong>, výchozí zapnuto, kreslí v rohu podložky tři šipky: <strong>X</strong> červeně doprava, <strong>Y</strong> zeleně dozadu a <strong>Z</strong> modře vzhůru, podle údajů polohy. Jde o pravotočivou soustavu jako v Tinkercadu, CAD programech a slicerech. Na pracovní rovině umístěné na ploše se osy přizpůsobí její orientaci. Pokud překážejí, vypněte je.</p>
+<p><strong class="ui">„Hrany všech těles“</strong> kreslí obrys na každém tělese barvou <strong class="ui">„Barva hran“</strong> (nejprve černou, jako v Tinkercadu): pomáhá, když tmavé barvy splývají. Ve výchozím stavu je vypnuto a velmi velké importované sítě se vynechávají.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/edge-lines.webp" alt="Tři tmavá tělesa se zapnutými obrysy, které je navzájem oddělují." width="1280" height="800" loading="lazy"><figcaption>Tři tmavá tělesa se zapnutými obrysy, které je navzájem oddělují.</figcaption></figure>
+<p><strong class="ui">„Zobrazit díry výrazněji“</strong> vykreslí díry tmavší šedou, méně průhledně a s tmavou čarou kolem. Pomůže, když se díra mezi průhlednými tělesy špatně hledá. Na rozdíl od hran zůstává zapnuté i v rychlém režimu.</p>
+</section><section class="guide-part"><h3 id="vzhled-svetlo-a-stiny"><span class="heading-alias" id="appearance-light-and-shadows"></span>Vzhled: světlo a stíny</h3>
+<p><strong class="ui">„Zobrazit stíny“</strong> zapíná a vypíná vržené stíny. Dva posuvníky určují, jak jsou tělesa osvětlena. <strong class="ui">„Intenzita stínů“</strong> říká, jak tmavé jsou vržené stíny, a <strong class="ui">„Kontrast stínování“</strong> přesouvá světlo z rovnoměrného okolního světla na hlavní světlo: směrem k „výraznému“ jsou stinné strany tmavší a stíny výraznější, směrem k „jemnému“ je vše plošší. Úplně nahoře je kontrast velmi silný, takže stinné strany i stíny jsou opravdu tmavé. <strong class="ui">„Měkkost stínů“</strong> změkčí okraje stínů místo ostrých. <strong class="ui">„Směr světla“</strong> otáčí hlavní světlo kolem podložky (0° zepředu, 90° zprava) a <strong class="ui">„Výška světla“</strong> ho zvedá; při 90° stojí přímo nad podložkou jako v Tinkercadu a stíny padají přímo pod tělesa. <strong class="ui">„Měkké světlo“</strong> přivádí většinu světla odtud, odkud se díváte, a otáčí se s pohledem: žádná plocha nezůstane tmavá a plocha tmavé barvy obrácená vzhůru už se nepřepálí do bílé. Hlavní světlo zůstává trochu pro stíny a posuvník kontrastu stále funguje. Pokud je při nízkém světle ještě vidět jasný odlesk, zvedněte <strong class="ui">„Výška světla“</strong> na 90°: pak to vypadá jako Tinkercad. <strong class="ui">„Obnovit světlo a stíny“</strong> vše vrátí zpět.</p>
+</section><section class="guide-part"><h3 id="vzhled-rozmery-na-pracovni-rovine"><span class="heading-alias" id="appearance-measures-on-the-workplane"></span>Vzhled: rozměry na pracovní rovině</h3>
+<p><strong class="ui">„Zobrazit rozměry posunu“</strong> ukazuje, o kolik posouváte při tažení, <strong class="ui">„Zobrazit vzdálenosti od počátku souřadnic“</strong> vzdálenosti výběru od počátku podložky, i při více vybraných tělesech. S <strong class="ui">„Rozměry vždy viditelné“</strong> zůstávají tyto rozměry vidět trvale, ne jen při tažení. Dokud je vybráno natočené těleso, jeho úhly se zobrazují pod ním na pracovní rovině; <strong class="ui">„Zobrazit úhly natočených těles“</strong> to vypne. Více v kapitole <a href="/api/desktop/layerling/ui/prirucka/measuring-and-notes.html">Měření a poznámky</a>.</p>
+</section><section class="guide-part"><h3 id="vzhled-vyber-a-presouvani"><span class="heading-alias" id="appearance-selecting-and-moving"></span>Vzhled: výběr a přesouvání</h3>
+<p><strong class="ui">„Před posunem vyžadovat výběr“</strong>: těleso je pak nutné nejprve vybrat a teprve další tažení ho posune. Pomáhá to, když na tělesa sahají děti nebo spěchající ruce, a na dotykové obrazovce.</p>
+<p><strong class="ui">„Směr rámečku rozhoduje“</strong>: rámeček tažený doprava vybere jen to, co leží celé uvnitř, tažený doleva vše, čeho se dotkne (kreslí se čárkovaně), jako ve SketchUpu.</p>
+<p><strong class="ui">„Dvojklik otevře náčrt“</strong> určuje, zda dvojklik na vysunutý náčrt znovu otevře náčrt jako v Tinkercadu, a <strong class="ui">„Dvojklik otevře sloučení nebo seskupení“</strong>, zda dvojklik na skupinu nebo svazek otevře úpravy. <strong class="ui">„Dvojklik na pracovní rovinu tam vystředí pohled“</strong> určuje, zda dvojklik na prázdnou pracovní rovinu posune pohled na toto místo.</p>
+<p><strong class="ui">„Při posunu přichytávat k jiným tvarům“</strong> nechá okraje a střed tvaru při tažení přichytávat k jiným tvarům; nabídka mřížky vpravo dole má stejný přepínač. <strong class="ui">„Pokládat nové tvary na plochy pod ukazatelem“</strong> nechá nový tvar viset na ukazateli myši a položí ho na plochu pod ním, jako Cruise v Tinkercadu; vypnuté znamená, že se nový tvar objeví uprostřed podložky. Více v kapitole <a href="/api/desktop/layerling/ui/prirucka/select-and-arrange.html">Výběr a uspořádání</a>.</p>
+</section><section class="guide-part"><h3 id="vzhled-pohled"><span class="heading-alias" id="appearance-the-view"></span>Vzhled: pohled</h3>
+<p><strong class="ui">„Spouštět editor v perspektivním pohledu“</strong>: editor se pak otevře v perspektivním pohledu, ne v plochém.</p>
+<p><strong class="ui">„Spouštět editor s posuvníky“</strong>: návrh se pak otevře se zobrazenými posuvníky pohledu. Nastavení se ukládá s návrhem i pomocí <strong class="ui">„Nastavit jako výchozí“</strong>.</p>
+<p><strong class="ui">„Úvodní pohled“</strong> určuje úhel, ve kterém se otevře nový projekt a ke kterému se vrací <strong class="ui">„Výchozí pohled“</strong>. Otočte a přibližte pohled, jak se vám líbí, a pak klikněte na <strong class="ui">„Použít aktuální pohled“</strong>; <strong class="ui">„Výchozí“</strong> vrátí obvyklý pohled zepředu zprava. Platí pro každý projekt v tomto prohlížeči. Projekt, který znovu otevřete, se stále otevře tak, jak jste ho opustili.</p>
+<p><strong class="ui">„Rychlost přiblížení“</strong> je posuvník od pomalého po rychlé: jak rychle přibližuje kolečko a touchpad; tlačítka a klávesy přiblížení si ponechávají vlastní malé kroky. <strong class="ui">„Setrvačnost pohledu“</strong>: po puštění myši se pohled ještě chvíli otáčí a jemně zpomalí. Vypnuté znamená, že se zastaví hned, jako v Tinkercadu a Fusion 360.</p>
+<p><strong class="ui">„Vyznačit převisy od {angle}°“</strong> je úhel, od kterého plocha platí za převis, když v nabídce viditelnosti zapnete zobrazení převisů: takové plochy jsou šrafované červeně a bíle. 30° je opatrné, 70° počítá s dobrým chlazením tisku; 45° je obvyklý začátek. Dokud se zobrazují, řádek pod pohledem uvádí nejstrmější převis a kolik cm² potřebuje podpěry.</p>
+<p><strong class="ui">„Řezat importované sítě nejvýše do“</strong> omezuje, kolik trojúhelníků smí mít importovaná síť, když ji řežete, sjednocujete nebo protínáte, protože se to počítá ve vašem prohlížeči. Síť nad limitem se nezpracuje; nejdřív síť zjednodušte, nebo limit zvyšte, pokud to počítač zvládne. Vyšší limit může editor na pár sekund zmrazit.</p>
+</section><section class="guide-part"><h3 id="mereni-jednotky-meritko-a-kroky-prichytavani"><span class="heading-alias" id="measurement-units-scale-and-snap-steps"></span>Měření: jednotky, měřítko a kroky přichytávání</h3>
+<p>V <strong class="ui">„Měření“</strong> nastavíte <strong class="ui">„Jednotky“</strong>, jednotku, ve které se rozměry zobrazují (<strong class="ui">„Měřítko“</strong>: milimetry, centimetry nebo metry v metrické soustavě, palce nebo stopy v imperiální), kolik desetinných míst číslo ukazuje (<strong class="ui">„Přesnost“</strong>), <strong class="ui">„Krok přichytávání“</strong>, ke kterému se přichytává přesouvání a změna velikosti, a vlastní kroky přichytávání v <strong class="ui">„Vlastní kroky přichytávání“</strong>.</p>
+<p>V části <strong class="ui">„Měření“</strong> nastavíte <strong class="ui">„Jednotky“</strong>. Při <strong class="ui">„Palcové“</strong> se rozměry na tělese, v nastavení, měření i pravítku zobrazují v palcích. Přichytávání nabízí kroky od 1/64 do 1 palce a mřížka rozteče od 1/8 do 1 palce, výchozí 1/4 palce, se silnější čárou po celém palci. <strong class="ui">„Zobrazit palce jako“</strong> přepíná zlomky jako v Tinkercadu, například 1 5/8 se zaokrouhlením na 1/64, nebo desetinný zápis 1.625 s přesností <strong class="ui">„Přesnost“</strong>. Zadávat lze oba formáty včetně „1 5/8“. Rychleji se mezi milimetry a palci přepíná malým přepínačem <strong>mm | in</strong> vedle <strong class="ui">„Krok přichytávání“</strong> dole v okně vlastností: změní jednotku, mřížku desky a krok přichytávání stejně jako nastavení, pro tento projekt.</p>
+<p>V <strong class="ui">„Vlastní kroky přichytávání“</strong> přidáte vlastní pojmenovanou rozteč v milimetrech, například „Rozteč vývodů 2,54 mm“ pro pouzdra DIP, kolíkové lišty a univerzální desky nebo „Jednotka klávesy MX“ s 19,05 mm. Nabídka přichytávání pak obsahuje celý krok, polovinu a čtvrtinu, tedy 1 ×, ½ × a ¼ ×. Chcete-li nabízet pouze celý krok, vypněte u příslušné rozteče <strong class="ui">„Také polovinu a čtvrtinu“</strong>. U již uložených roztečí zůstává volba zapnutá. Vlastní kroky se ukládají s projektem i přes <strong class="ui">„Nastavit jako výchozí“</strong>.</p>
+<p><strong class="ui">„Začínat nové návrhy s úhelníkem v počátku souřadnic“</strong>: každý nový návrh v tomto prohlížeči pak začne s úhelníkem v počátku souřadnic, viz <a href="/api/desktop/layerling/ui/prirucka/measuring-and-notes.html">Měření a poznámky</a>. Stávající návrhy zůstanou, jak jsou, a úhelník, který z návrhu odstraníte, se už nevrátí.</p>
+</section><section class="guide-part"><h3 id="pracovni-rovina-podlozka-a-tiskarna"><span class="heading-alias" id="workplane-plate-and-printer"></span>Pracovní rovina: podložka a tiskárna</h3>
+<p><strong class="ui">„Tiskárna“</strong> přizpůsobí pracovní rovinu tiskové podložce vaší tiskárny a označí tělesa, která přes ni přesahují, viz <a href="/api/desktop/layerling/ui/prirucka/printing.html">Tisk</a>. <strong class="ui">„Popisky podložky“</strong> napíše na podložku název projektu, a při zvolené tiskárně i její název a tiskový prostor.</p>
+<p><strong class="ui">„Vůle vaší tiskárny“</strong> je místo na stranu, které vytištěný čep potřebuje, aby se otáčel ve vytištěném otvoru na vaší tiskárně. <strong class="ui">„Vytvořit test vůle“</strong> položí na podložku test vůle, který ji změří; nová víka, rybinové spoje, zaklapávací háčky, matice a kontrola vůle pak začínají s ní, viz <a href="/api/desktop/layerling/ui/prirucka/printing.html">Tisk</a>. Ukládá se v tomto prohlížeči, ne v projektu.</p>
+<p><strong class="ui">„Rozměry pracovní roviny“</strong> dá podložce vlastní velikost, <strong class="ui">„Šířka“</strong> a <strong class="ui">„Délka“</strong> v milimetrech nebo zvolené jednotce. Mřížka vždy prochází počátkem, takže silnější čáry leží na osách bez ohledu na rozměr podložky.</p>
+</section><section class="guide-part"><h3 id="pracovni-rovina-mrizka"><span class="heading-alias" id="workplane-grid"></span>Pracovní rovina: mřížka</h3>
+<p><strong class="ui">„Zobrazit mřížku“</strong> zobrazí nebo skryje mřížku na podložce. <strong class="ui">„Velikost buňky mřížky“</strong> nastavuje rozestup jejích čar a <strong class="ui">„Tmavší čára mřížky po“</strong>, zda tmavší čára přijde po každých 5, nebo 10 krocích mřížky; <strong class="ui">„Barva tmavší čáry“</strong> dá této čáře vlastní barvu, kterou převezme i středový kříž a okraj podložky. <strong class="ui">„Barva mřížky“</strong> je barva běžných čar.</p>
+<p>Každá čára mřížky se při přiblížení rozšiřuje jako v Tinkercadu a při oddálení zůstává viditelná. Je-li to na vás moc, vypněte <strong class="ui">„Zesilovat čáry mřížky při přiblížení“</strong> a čáry zůstanou při každém přiblížení široké jeden pixel, jako v náčrtu.</p>
+<p>Pokud mřížka zmizela, třeba proto, že byla barva nastavena na barvu podložky, <strong class="ui">„Obnovit mřížku“</strong> na konci oblasti <strong class="ui">„Pracovní rovina“</strong> vrátí její viditelnost, barvy, rozestup a tloušťku čar na standard, zde i ve výchozím nastavení uloženém přes <strong class="ui">„Nastavit jako výchozí“</strong>.</p>
+</section><section class="guide-part"><h3 id="vychozi-hodnoty-tvaru"><span class="heading-alias" id="shape-defaults"></span>Výchozí hodnoty tvarů</h3>
+<p>V <strong class="ui">„Výchozí hodnoty tvarů“</strong> vyberete tvar v <strong class="ui">„Tvar“</strong> a nastavíte, s čím začne, když ho přidáte: jeho šířku, délku a výšku. <strong class="ui">„Použít výchozí hodnoty aplikace“</strong> vrátí tvar na hodnoty, se kterými ho začíná aplikace. Tvary s vlastním nastavením ho ukazují v <strong class="ui">„Podrobnosti tvaru“</strong>. Hodnoty platí pro nové tvary, ne pro ty, které už na podložce stojí. <strong class="ui">„Vlastní limit rozměrů“</strong> nastaví vlastní horní mez toho, jak velký mohou tento tvar udělat úchyty a vlastnosti; ponecháte-li prázdné, platí obvyklé meze.</p>
+</section><section class="guide-part"><h3 id="ulozena-historie"><span class="heading-alias" id="saved-history"></span>Uložená historie</h3>
+<p>V <strong class="ui">„Historie“</strong> posuvník <strong class="ui">„Uložená historie“</strong> určuje, kolik dokončených akcí zůstane k dispozici pro Zpět po uložení nebo znovuotevření projektu. Výchozí hodnota je 100 akcí na projekt. Nižší limit starší kroky Zpět projektu natrvalo zahodí.</p>
+</section></section><section class="guide-part"><h2 id="kdyz-je-layerling-pomaly"><span class="heading-alias" id="when-layerling-feels-slow"></span>Když je Layerling pomalý</h2>
+<p>Vše se počítá a vykresluje v prohlížeči. Starší počítač, slabší grafika nebo více velkých monitorů mohou pohled zpomalit. Pomůže:</p>
+<ul><li><strong><strong class="ui">„Rychlý režim“</strong></strong> v <strong class="ui">„Vzhled“</strong> vypne stíny, obrysy všech těles a setrvačnost kamery. Navíc používá jen základní rozlišení displeje, což může na jemných obrazovkách znamenat až čtyřikrát méně pixelů. Vaše původní nastavení se zachová a po vypnutí rychlého režimu obnoví.</li><li><strong>Pohled se dál otáčí:</strong> krátké plynulé dobíhání po puštění myši je záměrné. Vypněte <strong class="ui">„Setrvačnost pohledu“</strong> v <strong class="ui">„Vzhled“</strong>, chcete-li okamžité zastavení jako v Tinkercadu nebo Fusion 360.</li><li><strong>Jednotlivé volby:</strong> bez rychlého režimu můžete vypnout pouze <strong class="ui">„Zobrazit stíny“</strong> nebo <strong class="ui">„Hrany všech těles“</strong>.</li><li><strong>Grafická karta:</strong> v Chrome otevřete <code>chrome://gpu</code>, v Edge <code>edge://gpu</code>. U WebGL má být „Hardware accelerated“. „Software only“ znamená vypnutou hardwarovou akceleraci. Ve Windows lze také v Nastavení → Systém → Obrazovka → Grafika nastavit pro prohlížeč vysoký výkon, aby používal samostatnou grafiku místo slabší integrované.</li><li><strong>Zjednodušení importované sítě:</strong> stovky tisíc trojúhelníků zpomalí každý pohled. Postup je v kapitole o souborech v části o zjednodušení sítě.</li><li><strong>Zavření ostatních karet:</strong> všechny otevřené karty Layerlingu i jiné 3D stránky sdílejí stejnou grafickou kartu.</li></ul></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/prirucka/getting-started.html"><small>Předchozí kapitola</small>Začínáme</a><a class="next" href="/api/desktop/layerling/ui/prirucka/shapes.html"><small>Další kapitola</small>Vkládání a úpravy tvarů</a></div>
+      </main>
+    </div>
+    <footer class="note">Příručka se rozšiřuje spolu s aplikací. Pokud něco chybí nebo je nesprávně, napište do <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">diskuze</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=cs" rel="noopener">Podpořit projekt</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Diskuze</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Více na GitHubu</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Poznámky k vydání v1.154.1</a></div><p class="trademark">Tinkercad je ochranná známka společnosti Autodesk, Inc. Layerling je nezávislý projekt a není se společností Autodesk propojen, podporován ani sponzorován.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Zpět do editoru";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Otevřít editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

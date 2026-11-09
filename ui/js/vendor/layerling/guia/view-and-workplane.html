@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>View and workplane - Guia do usuário do layerling</title>
+    <meta name="description" content="Moving around the scene, looking straight on, and placing new shapes on any surface you like.">
+    <link rel="canonical" href="https://layerling.com/guide/view-and-workplane.html">
+    <meta name="robots" content="noindex">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/view-and-workplane.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/view-and-workplane.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/view-and-workplane.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/ansicht-und-arbeitsebene.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/view-and-workplane.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/view-and-workplane.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/view-and-workplane.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/view-and-workplane.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/weergave-en-werkvlak.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/view-and-workplane.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/pogled-in-delovna-ravnina.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/view-and-workplane.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/view-and-workplane.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/view-and-workplane.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/view-and-workplane.html">
+    <meta property="og:title" content="View and workplane - Guia do usuário do layerling">
+    <meta property="og:description" content="Moving around the scene, looking straight on, and placing new shapes on any surface you like.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/guia/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Guia do usuário</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/guia/search-index.json" data-nothing="Nada encontrado." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Pesquisar no guia" aria-label="Pesquisar no guia" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Idioma">Português do Brasil</summary><ul><li><a href="/api/desktop/layerling/ui/guide/view-and-workplane.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/view-and-workplane.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/view-and-workplane.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/ansicht-und-arbeitsebene.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/view-and-workplane.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/view-and-workplane.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/view-and-workplane.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/view-and-workplane.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/weergave-en-werkvlak.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/view-and-workplane.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/view-and-workplane.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/view-and-workplane.html" hreflang="pt-BR" lang="pt-BR" aria-current="true">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/pogled-in-delovna-ravnina.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/view-and-workplane.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/view-and-workplane.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/view-and-workplane.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/view-and-workplane.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/view-and-workplane.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/view-and-workplane.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Abrir o editor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>O editor já está aberto em outra aba - é só mudar para ela.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Capítulos"><h2>Capítulos</h2><p class="print-link"><a href="/api/desktop/layerling/ui/guia/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Guia completo, para imprimir</span></a></p><ol><li><a href="/api/desktop/layerling/ui/guia/getting-started.html">Primeiros passos</a></li><li><a href="/api/desktop/layerling/ui/guia/view-and-workplane.html" aria-current="page">View and workplane</a></li><li><a href="/api/desktop/layerling/ui/guia/shapes.html">Placing and adjusting shapes</a></li><li><a href="/api/desktop/layerling/ui/guia/select-and-arrange.html">Selecting and arranging</a></li><li><a href="/api/desktop/layerling/ui/guia/solids-and-holes.html">Sólidos e buracos</a></li><li><a href="/api/desktop/layerling/ui/guia/edges-and-hollowing.html">Breaking edges and hollowing bodies</a></li><li><a href="/api/desktop/layerling/ui/guia/sketches.html">Sketches: from outline to body</a></li><li><a href="/api/desktop/layerling/ui/guia/text.html">Text and curved lettering</a></li><li><a href="/api/desktop/layerling/ui/guia/threads-and-mechanics.html">Threads, gears and other parts</a></li><li><a href="/api/desktop/layerling/ui/guia/measuring-and-notes.html">Measuring and notes</a></li><li><a href="/api/desktop/layerling/ui/guia/printing.html">Preparação para a impressão 3D</a></li><li><a href="/api/desktop/layerling/ui/guia/files-and-saving.html">Files, saving and sharing</a></li><li><a href="/api/desktop/layerling/ui/guia/shortcuts.html">Atalhos de teclado</a></li><li><a href="/api/desktop/layerling/ui/guia/ai-with-mcp.html">Building with an AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/guia/offline-and-install.html">Instalação como app, uso offline e hospedagem própria</a></li><li><a href="/api/desktop/layerling/ui/guia/videos.html">Vídeos sobre o layerling</a></li><li><a href="/api/desktop/layerling/ui/guia/tablet-and-touch.html">Tablet and touch</a></li></ol></nav>
+      <main>
+<h1>View and workplane</h1>
+<p class="lead">Moving around the scene, looking straight on, and placing new shapes on any surface you like.</p>
+<p class="not-translated" role="note" lang="pt-BR">Este capítulo ainda não foi traduzido para o português. Segue o texto em inglês.</p>
+<div class="toc"><b>Nesta página</b><ul><li><a href="#moving-around">Moving around</a></li><li><a href="#looking-inside-the-section-view">Looking inside: the section view</a></li><li><a href="#the-workplane">The workplane</a></li><li><a href="#build-plates">Build plates</a></li><li><a href="#grid-and-snapping">Grid and snapping</a></li><li><a href="#when-layerling-feels-slow">When layerling feels slow</a></li></ul></div>
+<section class="guide-part"><h2 id="moving-around">Moving around</h2>
+<p>With the mouse:</p>
+<div class="table-scroll"><table><thead><tr><th>What you do</th><th>What happens</th></tr></thead><tbody><tr><td>drag with the right button</td><td>rotate the view</td></tr><tr><td>click the right button</td><td>on a body, a menu with the most used commands: duplicate, hole or solid, group, hide, lock, delete and more; on empty space Paste and Select all</td></tr><tr><td>drag with the middle button</td><td>move the view</td></tr><tr><td>mouse wheel</td><td>zoom in and out</td></tr><tr><td>hold <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> and drag with the left button</td><td>also moves the view (on a MacBook trackpad: hold <kbd>Cmd</kbd>, press and drag); on a Mac, holding Control instead turns the view, as Control-click is the Mac's right click</td></tr><tr><td>double-click on empty workplane or beside the plate</td><td>moves the view so that the spot comes to the middle; the view then turns around it</td></tr></tbody></table></div>
+<p>How fast the wheel zooms is set with <strong class="ui">“Velocidade do zoom”</strong> in the settings, under <strong class="ui">“Aparência”</strong>: a slider from 1 to 14, 5 to begin with. It sets the wheel and the trackpad only: the buttons and the keys <kbd>+</kbd> and <kbd>−</kbd> always zoom in the same small steps. One notch of a mouse wheel zooms alike in every browser, a trackpad zooms with how far you stroke.</p>
+<p><strong>Mouse buttons as in your slicer.</strong> If you are used to Bambu Studio or OrcaSlicer, set <strong class="ui">“Botões do mouse”</strong> in the settings, under <strong class="ui">“Aparência”</strong>, to <strong class="ui">“Como no Bambu Studio e no OrcaSlicer”</strong>. A left drag on empty space then turns the view, the right button shifts it as the middle one does, and Shift with a left drag draws the selection box. A drag on a body still moves it, and a short right click still opens the menu. In a sketch the right button shifts the view too.</p>
+<p><strong>3D mouse.</strong> A SpaceMouse or another 3D mouse turns, shifts and zooms the 3D view: push the cap away to zoom in, slide it to shift the view, tilt it to tilt the view and twist it to turn the view round. In the settings, under <strong class="ui">“Aparência”</strong>, click <strong class="ui">“Conectar mouse 3D”</strong> and choose the device in the window the browser opens; it remembers the choice, so this is needed only once. This works in Chrome and Edge, which can reach such devices; Firefox and Safari cannot. If a direction feels the wrong way round, tick it under the button: shifting sideways, shifting up and down, zooming, tilting or twisting.</p>
+<p>On a tablet or phone, two fingers zoom (spread and pinch) and move the view (slide together). One finger on empty space turns the view, and a tap there clears the selection; on a shape or a handle it works on the design, just like the left mouse button. To turn the view with a finger that starts on a shape too, switch on <strong class="ui">“Girar a vista com um dedo”</strong> in the view bar. That switch shows on devices with a touch screen.</p>
+<p>A graphics tablet with a pen behaves like a mouse: the tip is the left button, the barrel button on the pen the right one, for turning the view and for the menu. The tablet's hotkeys can be set in its driver to layerling's <a href="/api/desktop/layerling/ui/guia/shortcuts.html">keyboard shortcuts</a>.</p>
+<p><strong>On a tablet, work with a stylus if you can.</strong> Its tip is far finer than a fingertip and does not cover what you aim at, so small points, thin lines and handles in a sketch, measuring points and edges are hit exactly, and longer work is less tiring. layerling already lets a finger reach a little further to points, lines, handles and edges than a mouse pointer does, but a stylus remains the more precise way. This holds for a pen that the tablet knows as a pen (an S Pen, an Apple Pencil and the like). A plain stylus with a rubber tip counts as a finger for the screen and is not finer than one.</p>
+<p>There is no right mouse button on a tablet: hold a finger still on a shape or on empty space for half a second, and the menu opens that a right click opens, with <strong>Select all</strong> on empty space. <strong>Select multiple</strong> in the same menu stands in for Shift on a tablet: each tap on a body then adds it to the selection or takes it out again, until you tap empty space or press <kbd>Esc</kbd>; a finger on empty space still turns the view. The handles around a selected shape can be caught by a finger from a little beside them.</p>
+<section class="guide-part"><h3 id="the-view-cube">The view cube</h3>
+<p>The cube in the top left shows where you are looking. A click on one of its sides jumps to the straight view from top, bottom, front, back, left or right. A click on a corner of the cube looks at the model diagonally from that corner, and a click near an edge looks from that edge, between two sides; the spot lights up while the pointer is on it. The number keys <kbd>1</kbd> to <kbd>6</kbd> give the straight views too. Hold <kbd>Shift</kbd> with them and the view also zooms to the selection, as <span dir="ltr"><kbd>Shift</kbd>+<kbd>F</kbd></span> does.</p>
+<p>Drag the cube to turn the view around, just like dragging with the right mouse button. With nothing selected, the arrow keys turn the view as well: 15° a press, 90° with <kbd>Shift</kbd>. They turn the model the way they point - <kbd>→</kbd> turns its front to the right, <kbd>↑</kbd> tilts its front upwards. With <kbd>Ctrl</kbd> held, the arrows slide the view across the screen instead: a tenth of the picture a press, half of it with <kbd>Shift</kbd> as well. The model moves the way they point. If something is selected, the arrows move it; click on empty space first to turn the view. On a touch screen this works with one finger, without switching on <strong class="ui">“Girar a vista com um dedo”</strong>.</p>
+</section><section class="guide-part"><h3 id="the-view-bar">The view bar</h3>
+<p>At the left edge is a narrow bar. From the top:</p>
+<ul><li><strong class="ui">“Visão inicial”</strong> brings the whole scene back into view. The key is <kbd>Home</kbd>; <kbd>F</kbd> does it too when nothing is selected.</li><li><strong class="ui">“Centralizar a vista na seleção”</strong> zooms to the selection (<kbd>F</kbd> or <span dir="ltr"><kbd>Shift</kbd>+<kbd>F</kbd></span>); with nothing selected it brings the whole scene into view, as <kbd>F</kbd> does.</li><li><strong class="ui">“Aproximar”</strong> and <strong class="ui">“Afastar”</strong> zoom step by step, as do the keys <kbd>+</kbd> and <kbd>−</kbd>.</li><li><strong class="ui">“Vista ortográfica”</strong> switches to a flat view in which parallel edges stay parallel. For measuring and lining up edges that is often more comfortable than the perspective view. <kbd>O</kbd> switches back and forth, and a second click returns.</li><li><strong class="ui">“Abrir uma segunda vista”</strong> opens a second view of the design in a window of its own, described below. A second click closes it.</li><li><strong class="ui">“Show scrollbars”</strong> puts a scrollbar along the bottom of the view and one down its right edge. Drag a bar to slide the view smoothly, click an arrow at its end to move it a little (hold it to keep going), or click beside the bar to move by most of the view. Nothing turns, and unlike the arrow keys the bars work while a part is selected - handy close up on small details. A second click hides them; <strong class="ui">“Abrir o editor com barras de rolagem”</strong> in the settings decides whether a design opens with them. This browser also remembers the switch.</li><li><strong class="ui">“Ocultar plano de trabalho”</strong> (the eye over a grid) hides the plate with its grid, so you can look at the underside of a design from below. Only the view changes: new shapes still land on the workplane. A second click shows it again.</li><li><strong class="ui">“Posicionar plano de trabalho”</strong>, the tape measure and the framing square are tools of their own, covered below and in <a href="/api/desktop/layerling/ui/guia/measuring-and-notes.html">Measuring and notes</a>.</li></ul>
+<p>The small arrow at the very top of the bar hides it if it gets in the way. That same button, dragged, moves the bar anywhere in the editor, in a sketch too; a double click puts it back. The 3D preview of a revolved sketch moves by its title in the same way.</p>
+<p>A design opens the way you left it: the angle, zoom and position of the view are kept with it in this browser, so you continue where you stopped, also after going Home or closing the page. A saved file (.lyl) carries the view along, so it opens in it elsewhere too. The view is not part of the undo history.</p>
+<p>You can also keep four views of your own in each design. <span dir="ltr"><kbd>Shift</kbd>+<kbd>7</kbd></span>, <span dir="ltr"><kbd>Shift</kbd>+<kbd>8</kbd></span>, <span dir="ltr"><kbd>Shift</kbd>+<kbd>9</kbd></span> or <span dir="ltr"><kbd>Shift</kbd>+<kbd>0</kbd></span> saves the view exactly as it is - angle, position, zoom, and flat or perspective - under that key, and the key alone (<kbd>7</kbd>, <kbd>8</kbd>, <kbd>9</kbd> or <kbd>0</kbd>) brings it back. A message at the bottom confirms the save; saving again under the same key replaces the view. Like the view above, the saved views stay with the design in this browser and travel in a saved file (.lyl), and they are not part of the undo history.</p>
+</section><section class="guide-part"><h3 id="a-second-view-in-its-own-window">A second view in its own window</h3>
+<p><strong class="ui">“Abrir uma segunda vista”</strong> opens a window that shows the same design through a camera of its own, so you can see it from two sides at once - from the front, say, while you work from above. Every change you make in the editor shows there straight away; the design is only changed in the main window, and the handles stay there too. In the second window the mouse and the view cube turn its view as they do here, and so do the keys: <kbd>1</kbd> to <kbd>6</kbd>, <kbd>F</kbd>, <kbd>Home</kbd>, <kbd>O</kbd>, <kbd>+</kbd> and <kbd>−</kbd>, the arrow keys to turn and <kbd>Ctrl</kbd> with the arrows to slide. <kbd>F</kbd> there zooms to what is selected in the editor. The design's four saved views work there too: <kbd>7</kbd>, <kbd>8</kbd>, <kbd>9</kbd> and <kbd>0</kbd> bring them back, and <kbd>Shift</kbd> with one of these keys saves that window's view under it - for both windows. Its own view bar has <strong class="ui">“Visão inicial”</strong>, <strong class="ui">“Centralizar a vista na seleção”</strong>, <strong class="ui">“Aproximar”</strong>, <strong class="ui">“Afastar”</strong>, <strong class="ui">“Vista ortográfica”</strong> and <strong class="ui">“Ocultar plano de trabalho”</strong>, and they act on that window alone. The window opens where you left it, at the same size, and closes with the editor. On phones and tablets the button is not shown.</p>
+</section></section><section class="guide-part"><h2 id="looking-inside-the-section-view">Looking inside: the section view</h2>
+<p><strong class="ui">“Vista em corte”</strong>, the last button in the bar (the cut tool), cuts the view open along a plane so you can check walls, cavities and parts that fit into each other. Nothing is cut for real: the design, its files and every export stay whole. Where the plane goes through a solid, the cut is filled with the colour of the body a little darker, and a hole inside it stays empty, so you can tell solid from hollow; the filled face appears a moment after the plane stops moving. Under <strong class="ui">“Face do corte”</strong> you choose how the cut looks: <strong class="ui">“Hachurada”</strong>, the start, hatches it like a drawing, and a body that lies inside another is hatched the other way, so the two stand apart; <strong class="ui">“Preenchida”</strong> fills it plain; <strong class="ui">“Aberta”</strong> leaves it open, and you look into the skin of the body. The choice holds for every design.</p>
+<ul><li>Choose the axis the plane stands across: X (width), Y (depth) or Z (height), as in the position fields. The plane starts in the middle of your design.</li><li><strong class="ui">“Eixos de referência”</strong> sets what these axes follow. <strong class="ui">“Projeto”</strong> takes the design's axes. <strong class="ui">“Plano de trabalho”</strong> takes the workplane's: Z then cuts parallel to it, X and Y square to it, and the position counts from its origin. With the workplane on a sloped face you cut parallel to that face, and the cut moves along when you move the workplane. <strong class="ui">“Vista”</strong> turns the plane to face the screen: it takes away what lies in front, and the slider pushes it deeper into the design along your line of sight, for example to reach a buried part and click it. After turning the view, click it again and the cut follows the new view.</li><li><strong class="ui">“Aproximado”</strong> moves the plane across the whole design, <strong class="ui">“Fino”</strong> moves it a little either side of where it stands, for tenths of a millimetre. You can also type the position.</li><li>The button beside the axes shows the other side of the cut, <strong class="ui">“Centralizar”</strong> puts the plane back in the middle, and <strong class="ui">“Mostrar plano de corte”</strong> hides the blue plane.</li><li>You can click and select what the cut lays open, inner walls included.</li><li><strong class="ui">“Plano de trabalho aqui”</strong> puts the workplane on the cut. It lies on the plane of the section and faces out of the body that stays, like the face a cut leaves. If you then switch to the sketch, it starts exactly there, and the faint outline shows the cut, which you can draw along and snap to. That is how you sketch a lid that fits the cavity you opened with the section, for example. The button beside the axes chooses which side stays, and with it which way the workplane faces. You put the workplane back on the base plate as usual.</li><li><strong class="ui">“Esboço a partir do corte”</strong> starts a new sketch right on the cut, with the cut's outlines already in it as lines: a hole comes in as a true circle, a rounded corner as an arc. Change them, delete what you don't need, draw more, and finish: the body grows out of the cut towards the side that is cut away, so a part that has to fit another one, such as a lid, an insert or a gasket, starts from that part's own outline. The button beside the axes chooses that side. As for the SVG, only visible bodies count and holes are already taken off.</li><li><strong class="ui">“Medir”</strong> measures right on the cut: the outline shows in blue, and two clicks on it give the distance, plus its parts along the plane's two axes. Both points snap to the outline, corners first. When the second click lands anywhere on the opposite wall, it snaps square to the first point - so you read wall thickness, gaps and clearance without aiming exactly. A third click starts the next measurement, <kbd>Esc</kbd> ends measuring. Moving the plane clears the measurement. On a round outline, such as the cut through a cylinder or a hole, a small cross marks the centre and the centre snaps too. Click a point on the circle, then go near the point across from it: the second click lands exactly across the centre, and the number reads Ø, the diameter. From the centre to a point on the circle you get R, the radius.</li><li><strong class="ui">“Corte como SVG”</strong> saves the outlines on the cutting plane as an SVG at 1:1, for a laser, a plotter, a template or a gasket. An X cut is seen from the right, a Y cut from the front, a Z cut from above. As in the export, only visible bodies go in, holes are already taken off, and bodies of the same colour are joined into one outline. Each colour stays its own path without a fill, so laser software keeps them apart as layers.</li></ul>
+<p>The tool window hangs on its button. If it covers something, drag it by its title bar anywhere on the workplane; it opens there next time too. Double-click the title bar or drop it at the button to put it back.</p>
+<p>The X and <kbd>Esc</kbd> close the tool window; with a measuring running, <kbd>Esc</kbd> ends it first. The cut stays until you switch it off with <strong class="ui">“Corte ativo”</strong>, click its button in the bar while the window is open, or go back to the design overview. While it is on, its button stays highlighted. Anything you place on the side that is cut away only shows once you switch the cut off. A tablet has no <kbd>Esc</kbd>, so there the tool window has two more buttons: <strong class="ui">“Voltar”</strong> ends the measuring if one is running and otherwise closes the tool window, and <strong class="ui">“Fechar”</strong> closes the tool window in one step. A computer does not show them.</p>
+</section><section class="guide-part"><h2 id="the-workplane">The workplane</h2>
+<p>New shapes align with the workplane. At first that is the base plate with the grid. But you can put it on any surface, to place something on a side or a sloped face.</p>
+<ol><li>Press <kbd>W</kbd> or click <strong class="ui">“Posicionar plano de trabalho”</strong>.</li><li>Move the mouse over a face of a body. It lights up.</li><li>A click puts the workplane there. Everything you add now sits on that face.</li></ol>
+<p>Click on the empty plate instead, and the workplane lies flat at the spot you clicked, on the snap grid. New shapes and a finished sketch, a revolved one too, then appear there rather than in the middle of the plate. While the workplane lies flat on the plate like this, the plate shows only its outline: two grids in the same plane would make a flickering pattern.</p>
+<p>On a face the origin of the workplane otherwise snaps to the grid. Click close to a corner of the face and it sits exactly on that corner. Close to an edge it lies on the edge, and the grid lines up with it; that is how you choose the angle of the grid on purpose. Without a corner or an edge, the grid on a lying face runs parallel to the body, so on a turned box it is turned with it.</p>
+<p>A click beside the plate or <kbd>Esc</kbd> returns the workplane to the base plate. Quicker still is <strong class="ui">“Plano de trabalho de volta à base”</strong>: the button with the downward arrow sits in the view bar below the eye while the workplane lies on a face. <span dir="ltr"><kbd>Shift</kbd>+<kbd>W</kbd></span> puts it directly on the currently selected face. <span dir="ltr"><kbd>Alt</kbd>+<kbd>W</kbd></span> puts it back on the base plate at any time, whether something is selected or not. If you hold <kbd>Shift</kbd> while clicking, the plane points the other way.</p>
+<p>While a workplane sits on a face, an eye appears next to <strong class="ui">“Posicionar plano de trabalho”</strong>. It hides the workplane without dropping it, for a clear look at the design: new shapes still land on that face, and rotating still turns about it. A click on the eye shows it again, and so does setting a new workplane. A box's size handles follow a workplane that stands on one of its sides too: the corner and edge handles lie on that face, and each one changes the box's own width, length or height that runs along it. The handle in the middle of the face changes the size across it.</p>
+<p>To look straight at the workplane, press <kbd>P</kbd> or click <strong class="ui">“Olhar de frente para o plano de trabalho”</strong> next to <strong class="ui">“Posicionar plano de trabalho”</strong> in the view bar. The view turns until you see the workplane square, from the side new shapes grow towards, with its origin in the middle. On the base plate that is the view from above.</p>
+</section><section class="guide-part"><h2 id="build-plates">Build plates</h2>
+<p>When a design holds more than one plate can print, a box with its lid and inserts for example, it can have several build plates. Click <strong class="ui">“Build plates”</strong> in the <strong class="ui">“Organizar”</strong> group, or choose <strong class="ui">“Onto plate…”</strong> in the menu of a right click on a body. A bar appears at the foot of the view with one button per plate; the number on it says how many bodies stand on the plate.</p>
+<ul><li>Every plate is as large as the workplane, and the plates lie side by side to the right of the first one, 20 mm apart. A body belongs to the plate the middle of its footprint stands on, so dragging it across puts it on the other plate. A design holds up to 12 plates.</li><li>A click on a plate in the bar looks at it, and new shapes and imported files then land on it. <strong class="ui">“Show all plates”</strong> looks at all of them. A double click on a plate, or <strong class="ui">“Rename plate”</strong>, gives it a name such as &quot;Lid&quot;, which is written on the plate.</li><li><strong class="ui">“Move plate left”</strong> and <strong class="ui">“Move plate right”</strong> change the order, the bodies moving with their plate. <strong class="ui">“Remove plate (its bodies go onto the first plate)”</strong> takes the active plate away; its bodies go onto the first plate at the same spot.</li><li><strong class="ui">“Arrange on plates”</strong> lays the selected bodies, or all of them, out row by row on the plates, the largest first, 5 mm apart, and adds plates while they are needed. A body larger than a plate stays where it is.</li><li>With a printer chosen, every body is checked against its own plate, and the build height counts from the lowest body on that plate. A plate with a body that does not fit shows its number in red.</li><li>In the properties, X counts from the middle of the body's own plate.</li></ul>
+<p>The export window then offers <strong class="ui">“Plates”</strong>: all plates in one file, side by side as in the design; one file per plate, packed in a ZIP (STL, 3MF and OBJ); or a single plate, set where the first plate is. A slicer opens every file as one plate, so to print the plates one after another, take the files per plate. Moving bodies between plates and arranging them can be undone; adding, naming, ordering and removing plates is kept with the design but not undone.</p>
+</section><section class="guide-part"><h2 id="grid-and-snapping">Grid and snapping</h2>
+<p>The grid shows the size of the plate. At the bottom right is the <strong>snap step</strong>: moving and scaling snap in steps of that size, for example 1 mm. Make it smaller for fine work and larger for rough arranging. <strong class="ui">“Encaixar na grade”</strong> in the ribbon moves the selected shapes afterwards onto the nearest grid crossing. While moving, shapes also snap to other shapes, see <a href="/api/desktop/layerling/ui/guia/select-and-arrange.html">Selecting and arranging</a>. Without the mouse: <span dir="ltr"><kbd>Alt</kbd>+<kbd>1</kbd></span> to <span dir="ltr"><kbd>Alt</kbd>+<kbd>0</kbd></span> pick that entry of the menu (<span dir="ltr"><kbd>Alt</kbd>+<kbd>1</kbd></span> turns snapping off), and <kbd>,</kbd> and <kbd>.</kbd> make the step one size finer or coarser. This works in a sketch too. A short click with the middle mouse button, without moving the mouse, opens the snap step menu right at the pointer, in a sketch too; holding the middle button and dragging still moves the view.</p>
+<aside class="tip"><p><strong>Tip:</strong> Stop rotating the view when you fit parts together exactly. Use the number keys to go to the straight view from top or front and press <kbd>O</kbd> for the flat display. Then you see at once whether two edges are really flush.</p></aside>
+<section class="guide-part"><h3 id="the-settings-window">The settings window</h3>
+<p>The cogwheel in the title row (<strong class="ui">“Configurações da área de trabalho”</strong>) opens the settings. On the left are five areas: <strong class="ui">“Aparência”</strong>, <strong class="ui">“Medidas”</strong>, <strong class="ui">“Plano de trabalho”</strong>, <strong class="ui">“Padrões das formas”</strong> and <strong class="ui">“Histórico”</strong>. A change counts at once. <strong class="ui">“Tornar padrão”</strong> at the bottom saves the current settings as the default, so that a new design starts with them. A file you open brings its own settings; <strong class="ui">“Usar minha configuração padrão”</strong> next to it puts your saved colours, grid and the rest on the open design, keeping its units. If your default has a printer, that printer comes along with its plate size; without one the design keeps its plate and printer. <strong class="ui">“Fechar configurações”</strong> at the top right closes the window. This part goes through the settings one by one.</p>
+<p><strong class="ui">“Export settings”</strong> next to it saves the settings of the window in a file (layerling-settings-&lt;date&gt;.json): the colours, grid, shadows, camera and shape defaults, together with the theme, toolbar size, view cube corner, shape colours and the play of each printer. On another computer, or after the browser lost its data, <strong class="ui">“Import settings”</strong> reads the file again: it becomes your default for new designs and goes onto the open design like <strong class="ui">“Usar minha configuração padrão”</strong>. Your own keys from the keyboard shortcuts go along too.</p>
+</section><section class="guide-part"><h3 id="appearance-theme-toolbar-and-view-cube">Appearance: theme, toolbar and view cube</h3>
+<p><strong class="ui">“Tema”</strong> sets the colour scheme of the whole program: <strong class="ui">“Sistema”</strong> follows your computer, the others are <strong class="ui">“Claro”</strong>, <strong class="ui">“Escuro”</strong> and <strong class="ui">“Grafite (escuro neutro)”</strong>. You can also change it at the top right of the editor.</p>
+<p><strong class="ui">“Tamanho dos controles”</strong> makes the buttons of the ribbon on top, its shape menu, the view bar on the left and the properties panel on the right smaller or larger: <strong class="ui">“Pequeno”</strong>, <strong class="ui">“Médio”</strong> (as it always was) or <strong class="ui">“Grande”</strong>. Small leaves more room for the workplane on a laptop; large is easier to hit on a big screen or with a finger. With large buttons the groups of the ribbon go onto a second row when the window is too narrow for them. The size sits in the <strong class="ui">“Ribbon”</strong> tab of the settings, is kept in this browser and holds for every design.</p>
+<p><strong class="ui">“Cor das formas”</strong> puts the colour a new shape starts with on the pictures of the shape library (the colour of its kind, or the one you saved with <strong class="ui">“Salvar como padrão”</strong>). Switch it off if you prefer grey pictures; your browser remembers the choice.</p>
+<p><strong class="ui">“Posição do cubo de visualização”</strong> puts the view cube in another corner of the workplane: <strong class="ui">“Superior esquerdo”</strong> (as it always was), <strong class="ui">“Superior direito”</strong>, <strong class="ui">“Inferior esquerdo”</strong> or <strong class="ui">“Inferior direito”</strong>. In any corner but the top left, the view bar moves up into the spot the cube left. In the bottom right the cube stands just above the <strong class="ui">“Grade de encaixe”</strong> control. While the properties of a shape are open on the right, a cube on the right steps to the left of them. The corner is kept in this browser and holds for every design. On a narrow window, such as a phone, the setting is hidden and the cube stays in the top left.</p>
+</section><section class="guide-part"><h3 id="appearance-buttons-in-the-ribbon">Appearance: buttons in the ribbon</h3>
+<p><strong class="ui">“Buttons in the ribbon”</strong> takes the groups and buttons you never use out of the ribbon. Click a group to open its list: <strong class="ui">“Show this group”</strong> takes the whole group out, the tick next to a button just that button. <strong class="ui">“Show all”</strong> brings everything back. A group with no button left disappears and the others move up, so more of the ribbon fits in one row.</p>
+<p>What you take out only leaves the ribbon: the command search (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>) still finds it, and its key still runs it. The arrows next to a group move it up or down the list, and so along the ribbon; <strong class="ui">“Reset order”</strong> brings back the order it came with. The arrows beside a button move it the same way inside its group; in <strong class="ui">“Modificar”</strong> it stays within its named section. The Shapes group and Help always stay, and Shapes keeps its place after the first two groups. The choice is kept in this browser and goes into the file of <strong class="ui">“Export settings”</strong>. It applies to the 3D editor; the sketch has a bar of its own.</p>
+</section><section class="guide-part"><h3 id="appearance-fast-mode">Appearance: fast mode</h3>
+<p><strong class="ui">“Modo rápido”</strong> is for slower computers. It turns off shadows, edge lines on all bodies and the camera's inertia, and draws the view at screen resolution only. Your own settings are kept for later, and the switches it overrides say <strong class="ui">“Desligado no modo rápido”</strong> while it is on. More about what helps on a slow computer is under &quot;When layerling feels slow&quot; below.</p>
+</section><section class="guide-part"><h3 id="appearance-colours-of-the-work-area-and-the-sketch">Appearance: colours of the work area and the sketch</h3>
+<p>The colours of the work area are set under <strong class="ui">“Aparência”</strong>: <strong class="ui">“Fundo da janela (tema claro)”</strong> and <strong class="ui">“Plano de trabalho sob a grade (tema claro)”</strong> for the light theme (the dark themes keep their own), next to the grid colour under <strong class="ui">“Plano de trabalho”</strong>. Each colour is a button that shows the colour. A click opens a small window with the colour field, a row of ready colours, a field for the hex value and an arrow that puts the colour back to what layerling started with. <kbd>Enter</kbd> takes a typed hex value, and so does a click outside the window.</p>
+<p>The sketch view has its own colours: <strong class="ui">“Esboço: fundo da janela (tema claro)”</strong> for the window round the sheet, <strong class="ui">“Esboço: área sob a grade (tema claro)”</strong> for the sheet under the grid, and <strong class="ui">“Esboço: cor da grade (tema claro)”</strong>, all for the light theme. <strong class="ui">“Esboço igual à área de trabalho”</strong> takes over the work area's three colours in one click.</p>
+<p><strong class="ui">“Visual clássico”</strong> sets the work area up as Tinkercad shows it: white ground, a pale blue millimetre grid with a darker line every centimetre, black edge lines, light from above with soft shadows. Every value can still be changed on its own afterwards. All of them start as layerling always looked, and what suits you depends on your monitor.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/settings-appearance.webp" alt="The settings under Appearance: background and workplane colours for the light theme, and the switch for edge lines on all bodies." width="1280" height="800" loading="lazy"><figcaption>The settings under Appearance: background and workplane colours for the light theme, and the switch for edge lines on all bodies.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/editor-dark.webp" alt="The editor in the dark colour scheme. You set the colour scheme at the top right: System, Light, Dark or Graphite." width="1280" height="800" loading="lazy"><figcaption>The editor in the dark colour scheme. You set the colour scheme at the top right: System, Light, Dark or Graphite.</figcaption></figure>
+</section><section class="guide-part"><h3 id="appearance-axis-arrows-and-edge-lines">Appearance: axis arrows and edge lines</h3>
+<p><strong class="ui">“Setas dos eixos”</strong> (on by default) draws three arrows at the back left corner of the plate: <strong>X</strong> in red to the right, <strong>Y</strong> in green to the back and <strong>Z</strong> in blue upwards, the way the position fields count. That is the right-hand rule Tinkercad, CAD programs and the slicers use too. With the workplane on a face they follow it. Switch them off here if they are in your way.</p>
+<p><strong class="ui">“Linhas de aresta em todos os sólidos”</strong> draws an outline on every body, in the colour of <strong class="ui">“Cor das linhas de aresta”</strong> (black to begin with, as in Tinkercad): it helps when dark colours run into each other. It is off by default, and very large imported meshes are left out.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/edge-lines.webp" alt="Three dark bodies with edge lines switched on: the outlines keep them apart." width="1280" height="800" loading="lazy"><figcaption>Three dark bodies with edge lines switched on: the outlines keep them apart.</figcaption></figure>
+<p><strong class="ui">“Destacar os buracos”</strong> draws holes in a darker grey, less see-through and with a dark line round them. It helps when a hole is hard to find among see-through bodies. Unlike the edge lines it stays on in fast mode.</p>
+</section><section class="guide-part"><h3 id="appearance-light-and-shadows">Appearance: light and shadows</h3>
+<p><strong class="ui">“Mostrar sombras”</strong> switches the cast shadows on and off. Two sliders set how the bodies are lit. <strong class="ui">“Intensidade da sombra”</strong> says how dark the cast shadows are, and <strong class="ui">“Contraste do sombreamento”</strong> moves light from the even ambient light to the main light: towards &quot;punchy&quot; the shaded sides get darker and the shadows show more, towards &quot;soft&quot; everything gets flatter. At the top end the contrast gets very strong, so shaded sides and shadows turn really dark. <strong class="ui">“Suavidade da sombra”</strong> makes the edges of the shadows soft instead of crisp. <strong class="ui">“Direção da luz”</strong> turns the main light round the plate (0° from the front, 90° from the right), and <strong class="ui">“Altura da luz”</strong> lifts it; at 90° it stands straight above the plate as in Tinkercad, and the shadows fall right under the bodies. <strong class="ui">“Luz suave”</strong> brings most of the light from where you look, turning with the view: no face is left dark, and a face of a dark colour that points up is no longer burnt out to white. The main light stays a little for the shadows, and the contrast slider still works. If a bright reflection still shows with the light set low, lift <strong class="ui">“Altura da luz”</strong> to 90°: it then looks like Tinkercad. <strong class="ui">“Restaurar luz e sombras”</strong> puts everything back.</p>
+</section><section class="guide-part"><h3 id="appearance-measures-on-the-workplane">Appearance: measures on the workplane</h3>
+<p><strong class="ui">“Mostrar dimensões do deslocamento”</strong> shows by how much you move while dragging or with the arrow keys, <strong class="ui">“Mostrar distâncias até a origem”</strong> the distances of the selection to the origin of the plate, also with several bodies selected. With <strong class="ui">“Dimensões sempre visíveis”</strong> these measures stay visible permanently, and not only while you drag. While a turned body is selected, its angles show below it on the workplane; <strong class="ui">“Mostrar os ângulos de sólidos girados”</strong> switches that off. More in <a href="/api/desktop/layerling/ui/guia/measuring-and-notes.html">Measuring and notes</a>.</p>
+</section><section class="guide-part"><h3 id="appearance-selecting-and-moving">Appearance: selecting and moving</h3>
+<p><strong class="ui">“Selecionar antes de mover”</strong>: a body then has to be selected first, and only the next drag moves it. That helps when children or hurried hands touch bodies, and on a touch screen.</p>
+<p><strong class="ui">“A direção da moldura define a seleção”</strong>: a frame dragged to the right selects only what lies completely inside it, one dragged to the left everything it touches (drawn dashed), as in SketchUp.</p>
+<p><strong class="ui">“Clique duplo abre o esboço”</strong> decides whether a double click on an extruded sketch opens the sketch again, as in Tinkercad, and <strong class="ui">“Clique duplo abre um grupo de união ou um conjunto”</strong> whether a double click on a group or a bundle opens it for editing. <strong class="ui">“Clique duplo no plano de trabalho centraliza a vista ali”</strong> decides whether a double click on empty workplane moves the view to that spot.</p>
+<p><strong class="ui">“Encaixar em outras formas ao mover”</strong> lets the edges and the centre of a shape snap to other shapes while you drag it; the grid menu at the bottom right has the same switch. <strong class="ui">“Cruise ao adicionar formas novas”</strong> makes a new shape hang on the mouse pointer and land on the face under it, like Cruise in Tinkercad; switched off, a new shape appears in the middle of the plate. More in <a href="/api/desktop/layerling/ui/guia/select-and-arrange.html">Selecting and arranging</a>.</p>
+</section><section class="guide-part"><h3 id="appearance-the-view">Appearance: the view</h3>
+<p><strong class="ui">“Abrir o editor na vista em perspectiva”</strong>: the editor then opens in the perspective view, not in the flat one.</p>
+<p><strong class="ui">“Abrir o editor com barras de rolagem”</strong>: a design then opens with the view's scrollbars shown. It is saved with the design and with <strong class="ui">“Tornar padrão”</strong>.</p>
+<p><strong class="ui">“Vista inicial”</strong> sets the angle a new design opens in and <strong class="ui">“Visão inicial”</strong> goes back to. Turn and zoom the view the way you like it, then click <strong class="ui">“Usar a vista atual”</strong>; <strong class="ui">“Padrão”</strong> brings back the usual view from the front right. It holds for every design in this browser. A design you open again still opens the way you left it.</p>
+<p><strong class="ui">“Velocidade do zoom”</strong> is a slider from slow to fast: how fast the wheel and the trackpad zoom; the zoom buttons and keys keep their own small steps. <strong class="ui">“Inércia da câmera”</strong>: after you let go of the mouse the view turns on for a moment and slows down gently. Switched off, it stops at once, as in Tinkercad and Fusion 360.</p>
+<p><strong class="ui">“Marcar saliências a partir de {angle}°”</strong> is the angle from which a face counts as an overhang when you switch on Show overhangs in the visibility menu: those faces are hatched red and white. 30° is careful, 70° counts on good cooling of the print; 45° is the usual start. While they are shown, a line under the view says the steepest overhang and how many cm² need supports.</p>
+<p><strong class="ui">“Cortar malhas importadas de até”</strong> limits how many triangles an imported mesh may have when you cut, merge or intersect it, because that is calculated in your browser. A mesh above the limit is not processed; simplify the mesh first, or raise the limit if your computer can take it. A higher limit can freeze the editor for a few seconds.</p>
+</section><section class="guide-part"><h3 id="measurement-units-scale-and-snap-steps">Measurement: units, scale and snap steps</h3>
+<p>Under <strong class="ui">“Medidas”</strong> you set the <strong class="ui">“Unidades”</strong>, the unit that measures are shown in (<strong class="ui">“Escala”</strong>: millimetres, centimetres or metres in metric, inches or feet in imperial), how many decimal places a number shows (<strong class="ui">“Precisão”</strong>), the <strong class="ui">“Grade de encaixe”</strong> that moving and resizing snap to and your own snap steps under <strong class="ui">“Grades de encaixe personalizadas”</strong>.</p>
+<p>Under <strong class="ui">“Medidas”</strong> in the settings you set the <strong class="ui">“Unidades”</strong>. With <strong class="ui">“Imperial”</strong>, layerling shows every measure in inches, on the shape, in the properties panel, on the tape measure and the ruler. The snap grid then offers steps from 1/64 to 1 inch, and the grid on the plate is drawn in inches (1/8 to 1 inch, 1/4 inch by default) with a stronger line on every whole inch. Under <strong class="ui">“Mostrar polegadas como”</strong> you choose whether inches appear as fractions like in Tinkercad (1 5/8, rounded to 1/64 inch) or as decimals (1.625) with as many decimal places as set under <strong class="ui">“Precisão”</strong>. You can type either, &quot;1 5/8&quot; included. A quick way between millimetres and inches is the small switch <strong>mm | in</strong> beside the <strong class="ui">“Grade de encaixe”</strong> at the bottom of the properties window: it changes the unit, the plate's grid and the snap step as the settings do, for this design.</p>
+<p>Under <strong class="ui">“Grades de encaixe personalizadas”</strong> in the same place you add snap steps of your own: a name and a size in millimetres, for example &quot;Pin pitch 2.54 mm&quot; for the spacing of DIP chips, pin headers and perfboard holes, or &quot;MX Key Unit&quot; with 19.05 mm for the spacing of keyboard keys. The snap step menu then offers that measure whole, halved and quartered (1 ×, ½ × and ¼ ×), so shapes can be moved by one pitch, half a pitch or a quarter pitch. If you want just the measure itself, untick <strong class="ui">“Também metade e quarto”</strong> beside it; the menu then has only that one step. Custom steps are kept with the design and go along with <strong class="ui">“Tornar padrão”</strong>.</p>
+<p><strong class="ui">“Começar novos projetos com um esquadro na origem”</strong>: every new design in this browser then starts with a framing square at the origin, see <a href="/api/desktop/layerling/ui/guia/measuring-and-notes.html">Measuring and notes</a>. Designs you already have stay as they are, and a square you remove from a design stays removed.</p>
+</section><section class="guide-part"><h3 id="workplane-plate-and-printer">Workplane: plate and printer</h3>
+<p><strong class="ui">“Impressora”</strong> sizes the workplane to the build plate of your printer and flags bodies that reach past it, see <a href="/api/desktop/layerling/ui/guia/printing.html">Printing</a>. <strong class="ui">“Textos na mesa”</strong> writes the design's name on the plate, and the printer's name and build volume when a printer is chosen.</p>
+<p><strong class="ui">“Printer play”</strong> is the room per side a printed pin needs to turn in a printed hole on your printer. <strong class="ui">“Make fit test”</strong> puts the fit test that measures it on the plate, and new lids, dovetails, snap-fits, nuts and the clearance check then start from it, see <a href="/api/desktop/layerling/ui/guia/printing.html">Printing</a>. It is kept in this browser, not in the design.</p>
+<p><strong class="ui">“Tamanho do plano de trabalho”</strong> gives the plate a size of your own, with <strong class="ui">“Largura”</strong> and <strong class="ui">“Comprimento”</strong> in millimetres or the unit you chose. The grid always runs through the origin, so the stronger lines lie on the axes whatever the plate measures.</p>
+</section><section class="guide-part"><h3 id="workplane-grid">Workplane: grid</h3>
+<p><strong class="ui">“Mostrar grade”</strong> shows or hides the grid on the plate. <strong class="ui">“Tamanho do bloco da grade”</strong> sets the spacing of its lines, and <strong class="ui">“Linha mais escura da grade a cada”</strong> whether the darker line comes every 5 or every 10 grid steps; <strong class="ui">“Cor da linha mais escura”</strong> gives that line a colour of its own, and the centre cross and the plate border take it too. <strong class="ui">“Cor da grade”</strong> is the colour of the ordinary lines.</p>
+<p>Every line of the grid grows wider as you zoom in, as in Tinkercad, and stays visible as you zoom out. If that is too much for you, switch off <strong class="ui">“Linhas da grade engrossam com o zoom”</strong> and the lines stay one pixel wide at every zoom, as in the sketch.</p>
+<p>If the grid has disappeared, say because a colour was set to that of the plate, <strong class="ui">“Restaurar grade”</strong> at the end of the <strong class="ui">“Plano de trabalho”</strong> area brings its visibility, colours, spacing and line weight back to the standard, here and in the default saved with <strong class="ui">“Tornar padrão”</strong>.</p>
+</section><section class="guide-part"><h3 id="shape-defaults">Shape defaults</h3>
+<p>Under <strong class="ui">“Padrões das formas”</strong> you choose a shape with <strong class="ui">“Forma”</strong> and set how it starts when you add it: its width, length and height. <strong class="ui">“Usar padrões do app”</strong> takes the shape back to what the app starts it with. Shapes with settings of their own show them under <strong class="ui">“Detalhes da forma”</strong>. The values apply to new shapes, not to those already on the plate. <strong class="ui">“Limite de tamanho personalizado”</strong> sets a ceiling of your own for how large the handles and the properties may make that shape; left blank, the usual limits stay.</p>
+</section><section class="guide-part"><h3 id="saved-history">Saved history</h3>
+<p>Under <strong class="ui">“Histórico”</strong> the slider <strong class="ui">“Histórico salvo”</strong> sets how many completed actions stay available for Undo after you save or reopen a design. The default is 100 actions in a design. A lower limit permanently discards the older undo steps of the design.</p>
+</section></section><section class="guide-part"><h2 id="when-layerling-feels-slow">When layerling feels slow</h2>
+<p>layerling calculates and draws everything in your browser. On an older computer, with a weak graphics card or on several large screens the view can therefore feel sluggish. This helps:</p>
+<ul><li><strong><strong class="ui">“Modo rápido”</strong></strong> under <strong class="ui">“Aparência”</strong> turns off at once everything that costs the view a lot: shadows, edge lines on all bodies and the camera's inertia. It also draws the view at the screen's own resolution only, which on high-resolution screens is up to four times fewer pixels. Your own settings are kept and apply again as soon as you turn it off.</li><li><strong>The camera keeps turning:</strong> When you let go of the mouse after turning, the view turns on for a moment and slows down gently. That is on purpose, not stutter. If you are used to Tinkercad or Fusion 360, turn off <strong class="ui">“Inércia da câmera”</strong> under <strong class="ui">“Aparência”</strong>, and the view stops at once.</li><li><strong>Single switches:</strong> Without fast mode you can also turn off just <strong class="ui">“Mostrar sombras”</strong> or <strong class="ui">“Linhas de aresta em todos os sólidos”</strong>.</li><li><strong>Use the graphics card:</strong> In Chrome open <code>chrome://gpu</code> (in Edge <code>edge://gpu</code>). Next to &quot;WebGL&quot; it should say &quot;Hardware accelerated&quot;. If it says &quot;Software only&quot;, hardware acceleration is off in the browser's settings. On Windows you can also pick &quot;High performance&quot; for the browser under Settings → System → Display → Graphics, so it uses the real graphics card and not the weaker one in the processor.</li><li><strong>Simplify large imported meshes:</strong> A model of many hundred thousand triangles slows any view down. How to thin it out is in the chapter on files, under &quot;Simplifying an imported mesh&quot;.</li><li><strong>Close other tabs:</strong> Every open layerling tab and every other 3D page shares the same graphics card.</li></ul></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/guia/getting-started.html"><small>Capítulo anterior</small>Primeiros passos</a><a class="next" href="/api/desktop/layerling/ui/guia/shapes.html"><small>Próximo capítulo</small>Placing and adjusting shapes</a></div>
+      </main>
+    </div>
+    <footer class="note">Este guia cresce junto com o programa. Se algo estiver faltando ou errado, avise nas <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussões</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=pt-br" rel="noopener">Apoie o projeto</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussões</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Mais no GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Notas da versão v1.154.1</a></div><p class="trademark">Tinkercad é uma marca comercial da Autodesk, Inc. layerling é um projeto independente, sem vínculo, endosso ou patrocínio da Autodesk.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Voltar ao editor";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Abrir o editor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

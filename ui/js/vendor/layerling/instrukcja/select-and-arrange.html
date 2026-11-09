@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Zaznaczanie i rozmieszczanie - Instrukcja layerling</title>
+    <meta name="description" content="Zaznaczanie kształtów, szukanie ich na liście obiektów, wyrównywanie, odbijanie, obracanie, kładzenie płasko na ścianie i powielanie w szykach.">
+    <link rel="canonical" href="https://layerling.com/instrukcja/select-and-arrange.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/select-and-arrange.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/select-and-arrange.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/select-and-arrange.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/auswaehlen-und-anordnen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/select-and-arrange.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/select-and-arrange.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/select-and-arrange.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/select-and-arrange.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/selecteren-en-schikken.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/select-and-arrange.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/izbiranje-in-razporejanje.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/select-and-arrange.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/select-and-arrange.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/select-and-arrange.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/select-and-arrange.html">
+    <meta property="og:title" content="Zaznaczanie i rozmieszczanie - Instrukcja layerling">
+    <meta property="og:description" content="Zaznaczanie kształtów, szukanie ich na liście obiektów, wyrównywanie, odbijanie, obracanie, kładzenie płasko na ścianie i powielanie w szykach.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/instrukcja/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Instrukcja</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/instrukcja/search-index.json" data-nothing="Nic nie znaleziono." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Szukaj w instrukcji" aria-label="Szukaj w instrukcji" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Język">Polski</summary><ul><li><a href="/api/desktop/layerling/ui/guide/select-and-arrange.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/select-and-arrange.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/select-and-arrange.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/auswaehlen-und-anordnen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/select-and-arrange.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/select-and-arrange.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/select-and-arrange.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/select-and-arrange.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/selecteren-en-schikken.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/select-and-arrange.html" hreflang="pl" lang="pl" aria-current="true">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/select-and-arrange.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/select-and-arrange.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/izbiranje-in-razporejanje.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/select-and-arrange.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/select-and-arrange.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/select-and-arrange.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/select-and-arrange.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/select-and-arrange.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/select-and-arrange.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Otwórz edytor</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>Edytor jest już otwarty w innej karcie - po prostu do niej przejdź.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Rozdziały"><h2>Rozdziały</h2><p class="print-link"><a href="/api/desktop/layerling/ui/instrukcja/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Cała instrukcja do wydruku</span></a></p><ol><li><a href="/api/desktop/layerling/ui/instrukcja/getting-started.html">Pierwsze kroki</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/view-and-workplane.html">Widok i płaszczyzna robocza</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/shapes.html">Umieszczanie i dopasowywanie kształtów</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/select-and-arrange.html" aria-current="page">Zaznaczanie i rozmieszczanie</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/solids-and-holes.html">Bryły i otwory</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/edges-and-hollowing.html">Łamanie krawędzi i drążenie brył</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/sketches.html">Szkice: od konturu do bryły</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/text.html">Tekst i napisy na łuku</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/threads-and-mechanics.html">Gwinty, koła zębate i inne części</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/measuring-and-notes.html">Pomiary i notatki</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/printing.html">Przygotowanie do druku 3D</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/files-and-saving.html">Pliki, zapis i udostępnianie</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/shortcuts.html">Skróty klawiszowe</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/ai-with-mcp.html">Budowanie z AI (MCP)</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/offline-and-install.html">Instalacja jako aplikacja, praca offline i własny serwer</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/videos.html">Filmy o layerling</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/tablet-and-touch.html">Tablet i dotyk</a></li></ol></nav>
+      <main>
+<h1>Zaznaczanie i rozmieszczanie</h1>
+<p class="lead">Zaznaczanie kształtów, szukanie ich na liście obiektów, wyrównywanie, odbijanie, obracanie, kładzenie płasko na ścianie i powielanie w szykach.</p>
+<div class="toc"><b>Na tej stronie</b><ul><li><a href="#zaznaczanie">Zaznaczanie</a></li><li><a href="#lista-obiektow">Lista obiektów</a></li><li><a href="#wpisywanie-pozycji">Wpisywanie pozycji</a></li><li><a href="#odkladanie-czesci-obok-plyty">Odkładanie części obok płyty</a></li><li><a href="#przyciaganie-podczas-przesuwania">Przyciąganie podczas przesuwania</a></li><li><a href="#wyrownywanie">Wyrównywanie</a></li><li><a href="#odbicie-lustrzane">Odbicie lustrzane</a></li><li><a href="#obracanie-i-ustawianie-punktu-obrotu">Obracanie i ustawianie punktu obrotu</a></li><li><a href="#kladzenie-plasko-na-scianie">Kładzenie płasko na ścianie</a></li><li><a href="#szyki-rzad-i-okrag">Szyki: rząd i okrąg</a></li><li><a href="#wzor-otworow-na-scianie">Wzór otworów na ścianie</a></li><li><a href="#wypychanie-sciany-na-zewnatrz-lub-do-srodka">Wypychanie ściany na zewnątrz lub do środka</a></li><li><a href="#zmiana-kilku-czesci-naraz">Zmiana kilku części naraz</a></li><li><a href="#skalowanie-o-procent">Skalowanie o procent</a></li><li><a href="#cofanie">Cofanie</a></li><li><a href="#spojrzenie-wstecz-widok-historii">Spojrzenie wstecz: widok historii</a></li></ul></div>
+<section class="guide-part"><h2 id="zaznaczanie"><span class="heading-alias" id="selecting"></span>Zaznaczanie</h2>
+<p>Kliknięcie kształtu go zaznacza. Z <kbd>Shift</kbd> dodajesz kolejne albo je odznaczasz. Gdy trzymasz <kbd>Shift</kbd>, a zaznaczone są dwa kształty lub więcej, mała liczba pod wskaźnikiem myszy pokazuje, ile ich jest. Kliknięcie pustego miejsca czyści zaznaczenie, podobnie jak <kbd>Esc</kbd>. Przeciągnij ramkę na pustej płaszczyźnie roboczej, aby zaznaczyć wszystko, czego dotyka. Z wciśniętym <kbd>Shift</kbd> ramka dodaje to, co nie było zaznaczone, i odznacza to, co było. Jeśli wolisz wyłowić jedną część z gąszczu, włącz w ustawieniach <strong class="ui">„Kierunek ramki decyduje”</strong> (sekcja <strong class="ui">„Wygląd”</strong>): ramka przeciągnięta w prawo bierze wtedy tylko to, co leży w niej w całości, przeciągnięta w lewo nadal wszystko, czego dotyka, a jej linia jest przerywana. Przytrzymaj <kbd>Alt</kbd> podczas przeciągania, aby na to jedno przeciągnięcie odwrócić działanie ramki, na przykład żeby zabrać całe bryły od strony, z której kierunek by na to nie pozwalał. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span> zaznacza wszystkie widoczne bryły. Gdy przeciągasz bryłę albo uchwyt ramki, <kbd>Esc</kbd> anuluje ruch, dopóki trzymasz przycisk myszy: wszystko wraca na miejsce, a do historii nic nie trafia.</p>
+<p>Do kształtu za innym, na przykład otworu wewnątrz bryły, dostaniesz się bez obracania widoku: kliknij to miejsce prawym przyciskiem i wybierz <strong class="ui">„Zaznacz inny…”</strong>. Menu pokazuje wtedy wszystkie kształty pod wskaźnikiem, od przodu do tyłu. Ten, na który wskazujesz, dostaje w widoku obrys, nawet przez kształty przed nim. Kliknięcie go zaznacza, a z <kbd>Shift</kbd> dodaje do zaznaczenia. Ta pozycja jest dostępna, gdy pod wskaźnikiem leży więcej niż jeden kształt. Na tablecie to samo menu otwiera długie przytrzymanie.</p>
+<p>To, co przeszkadza, ukrywasz (<strong class="ui">„Ukryj zaznaczone”</strong>, <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>H</kbd></span>). Ukryte kształty zostają w projekcie, po prostu ich nie widać i nie trafiają do eksportu. Okno eksportu mówi wcześniej, ile ich jest. <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></span> przywraca je wszystkie. To, co ma zostać na miejscu, blokujesz kłódką na górze ustawień albo przez <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span>. Zablokowanego kształtu nie da się przesunąć, zmienić jego rozmiaru, obrócić, przemalować ani usunąć: jego uchwyty robią się szare, obok strzałki na górze pojawia się kłódka, a narzędzia, które by go zmieniły, są wyszarzone. Najechanie na uchwyt nadal pokazuje wymiary, a klawisz, który by go zmienił, wyświetla „Obiekt zablokowany”. Dopóki w zaznaczeniu jest jeden zablokowany kształt, nic się nie zmienia także dla pozostałych. Ukrywanie, zmiana nazwy, kopiowanie i duplikowanie nadal działają. Aby zostawić część bez zmian i nadal z nią budować, zablokuj tylko jej kształt: tarcza obok kłódki, <strong class="ui">„Zablokuj kształt”</strong> w menu prawego przycisku albo <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd></span>. Nadal można ją przesuwać, obracać, podnosić, wyrównywać, kopiować i grupować z innymi, ale rozmiar, ustawienia i nazwa pozostają bez zmian: uchwyty rozmiaru znikają, ich pola są wyszarzone, a zmiana rozmiaru, odbicie lustrzane, rozgrupowanie, narzędzia krawędzi i usuwanie są odrzucane. Kopia zachowuje blokadę, podobnie jak część w grupie: grupę można przesuwać i rozgrupować, ale nie zmieniać jej rozmiaru. Tarcza odblokowuje kształt.</p>
+<p>Aby pracować nad kilkoma częściami głęboko w projekcie, zaznacz je i wybierz <strong class="ui">„Ukryj pozostałe”</strong> w menu prawego przycisku lub w <strong class="ui">„Opcje widoczności”</strong>: wszystko inne zostaje ukryte jednym krokiem, więc <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> lub <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></span> je przywraca. <strong class="ui">„Odwróć zaznaczenie”</strong> w menu prawego przycisku zaznacza każdy widoczny kształt, który nie był zaznaczony, i odznacza te, które były. Obie opcje są też w wyszukiwaniu poleceń (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>), gdzie możesz też przypisać im własny klawisz.</p>
+<p>Liczba na przycisku grupy <strong class="ui">„Widoczność”</strong> mówi, ile kształtów jest ukrytych, a kliknięcie jej pokazuje je wszystkie z powrotem. Projekt otwarty z ukrytymi kształtami mówi o tym raz, z przyciskiem, który je pokazuje. Część ukryta przy otwartej grupie pozostaje ukryta po zamknięciu grupy przyciskiem <strong class="ui">„Gotowe”</strong>: grupa zachowuje swój rozmiar, a pozostałe części zostają bez zmian, ukryta część nadal liczy się przy wyrównywaniu grupy, a pokazanie wszystkich ukrytych kształtów jej nie dotyczy. Aby ją pokazać, otwórz grupę ponownie.</p>
+</section><section class="guide-part"><h2 id="lista-obiektow"><span class="heading-alias" id="the-object-list"></span>Lista obiektów</h2>
+<p>Przy wielu częściach łatwo zgubić się w widoku. Lista obiektów (<strong class="ui">„Pokaż listę obiektów”</strong> albo <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd></span>) pokazuje wszystkie kształty jako listę. Zostaje otwarta lub zamknięta tak, jak ją zostawiłeś, w każdym projekcie, dopóki jej nie zamkniesz. Ten wybór zapamiętuje przeglądarka.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/object-list.webp" alt="Lista obiektów: grupa „Group” z dwiema częściami i kula obok niej. Ikona folderu otwiera grupę." width="1280" height="800" loading="lazy"><figcaption>Lista obiektów: grupa „Group” z dwiema częściami i kula obok niej. Ikona folderu otwiera grupę.</figcaption></figure>
+<ul><li>Kliknięcie wpisu zaznacza kształt, także części wewnątrz grupy. Z wciśniętym <kbd>Shift</kbd> dodajesz kolejne wpisy albo je odznaczasz, tak jak w widoku. Strzałki rozwijają i zwijają grupy.</li><li>Etykieta pokazuje, czy część jest <strong class="ui">„Bryła”</strong>, czy <strong class="ui">„Otwór”</strong>.</li><li>Pod nazwą widać, jaki to kształt. Bryła, która nie jest już prostym kształtem (zaokrąglona, wydrążona lub zaimportowana), pokazuje <strong class="ui">„Dokładna bryła”</strong>, gdy eksport STEP zapisuje ją dokładnie, i <strong class="ui">„Siatka”</strong>, gdy składa się tylko z trójkątów i trafia do STL. Zwężenie, pochylenie lub skręt dodane dopiero po zaokrągleniu lub wydrążeniu bryły wyginają tylko jej siatkę, więc wtedy pokazuje <strong class="ui">„Siatka”</strong>.</li><li>Kłódka i oko blokują i ukrywają pojedyncze części.</li><li><strong class="ui">„Zmień nazwę”</strong> nadaje części własną nazwę. Ołówek obok nazwy na górze ustawień robi to samo dla zaznaczonego kształtu. Sensowne nazwy bardzo pomagają w większych projektach.</li><li>Przycisk A–Z na pasku tytułu (<strong class="ui">„Sortuj nazwane kształty A–Z”</strong>) sortuje alfabetycznie kształty, którym nadano nazwy, licząc liczby jako liczby (Część 2 przed Częścią 10). Kształty z domyślną nazwą zostają poniżej w kolejności dodania, najnowszy na końcu, a części w grupach są sortowane tak samo. Zmienia się tylko lista, nigdy projekt. Drugie kliknięcie znów pokazuje wszystko w kolejności dodania, a przeglądarka zapamiętuje wybór.</li><li>Uchwyt po lewej stronie wiersza (sześć kropek) przenosi kształt na liście: przeciągnij go w górę lub w dół albo ustaw na nim fokus i naciśnij <kbd>↑</kbd> lub <kbd>↓</kbd>. To zmienia własną kolejność projektu, do której lista wraca bez sortowania A–Z, a Cofnij to przywraca. Przy sortowaniu A–Z lub wyszukiwaniu uchwyty są ukryte.</li><li>Aby włożyć kształt do grupy, rozwiń grupę jej strzałką i przeciągnij kształt za uchwyt na części grupy; grupa dostaje pomarańczową ramkę. Kształt zostaje na miejscu i zachowuje nazwę, tak samo grupa: grupa zostaje z nim ponownie scalona, pakiet po prostu go przyjmuje. Części rozwiniętej grupy mają własny uchwyt: wyciągnięta z grupy część znów leży osobno, w miejscu listy, w którym ją upuścisz, albo upuść ją na inną rozwiniętą grupę, by ją tam przenieść. Grupa, w której zostaje jedna część, znika i zostawia tę część. Cofnij wycofuje każdy z tych kroków naraz. Podczas edycji grupy nie jest to dostępne.</li><li>Pole wyszukiwania znajduje kształty po nazwie i po rodzaju, więc także „walec” albo „otwór”. Zagląda też do wnętrza grup, niezależnie od głębokości zagnieżdżenia: grupa zawierająca trafienie zostaje na liście i rozwija się, pokazując pasujące części i grupy, które do nich prowadzą. Grupa znaleziona po własnej nazwie po otwarciu pokazuje wszystkie swoje części.</li><li>Strzałka po lewej stronie paska tytułu zwija listę do samego paska i z powrotem.</li></ul>
+<p>Lista jest zadokowana tuż na prawo od kostki widoku. Przeciągnij ją za pasek tytułu, aby położyć ją w dowolnym miejscu na płaszczyźnie roboczej. Przechodzi pod kostką widoku i paskiem widoku. Upuść ją z powrotem obok kostki widoku albo kliknij dwukrotnie pasek tytułu, a znów się zadokuje. Przeglądarka zapamiętuje, gdzie była i czy była zwinięta.</p>
+</section><section class="guide-part"><h2 id="wpisywanie-pozycji"><span class="heading-alias" id="typing-a-position"></span>Wpisywanie pozycji</h2>
+<p>Karta <strong class="ui">„Pozycja”</strong> w panelu właściwości pokazuje, gdzie stoi zaznaczona bryła, i można tam wpisywać wartości: <strong class="ui">„X”</strong> i <strong class="ui">„Y”</strong> to środek jej prostopadłościanu otaczającego na płycie, z tymi samymi znakami co odległości pokazywane na płaszczyźnie roboczej, a <strong class="ui">„Z (wysokość)”</strong> to wysokość jej spodu. Przez <strong class="ui">„Mierzone od”</strong> na górze karty przełączasz na <strong class="ui">„Krawędzi”</strong>: X i Y pokazują wtedy lewą i przednią krawędź bryły, więc krawędź ustawisz dokładnie na wymiarze. To ustawienie zostaje, dopóki nie przełączysz z powrotem na <strong class="ui">„Środka”</strong>. X rośnie w prawo, Y do tyłu, a Z w górę, według reguły prawej dłoni, jak w Tinkercadzie i programach CAD. Kierunki pokazują strzałki osi na płycie. Wartości są w ustawionej jednostce, a suwaki sięgają tak daleko jak przeciąganie.</p>
+</section><section class="guide-part"><h2 id="odkladanie-czesci-obok-plyty"><span class="heading-alias" id="parking-parts-beside-the-plate"></span>Odkładanie części obok płyty</h2>
+<p>Kształt możesz przeciągnąć poza krawędź płyty i tam zostawić, mniej więcej na szerokość płyty za każdym bokiem, żeby go przechować na później. Klawisze strzałek przesuwają go dowolnie daleko. Odłożona część nadal należy do projektu i trafia do eksportu razem z resztą. Aby ją pominąć, ukryj ją albo eksportuj tylko zaznaczenie. Jeśli wybrałeś drukarkę, layerling przy eksporcie ostrzeże, gdy coś leży poza jej stołem.</p>
+</section><section class="guide-part"><h2 id="przyciaganie-podczas-przesuwania"><span class="heading-alias" id="snapping-while-moving"></span>Przyciąganie podczas przesuwania</h2>
+<p>Gdy przeciągasz kształt po płaszczyźnie roboczej, przyciąga się on do innych kształtów: jego lewa, prawa, przednia lub tylna krawędź albo środek ląduje dokładnie na krawędzi albo środku innego kształtu. Różowa linia pomocnicza pokazuje, czego się trzyma. Dzięki temu dwie części stają na równo obok siebie albo wyśrodkowane jedna za drugą bez wpisywania liczb. Działa to także przy wyłączonej siatce. Liczy się też środek płaszczyzny roboczej: różowe linie pokazują, kiedy kształt stoi na środku płyty wzdłuż X, Y albo obu.</p>
+<p>Przytrzymaj <kbd>Shift</kbd> podczas przeciągania, aby ruch został na jednej osi: kształt podąża w tym kierunku, X albo Y, w którym przeciągnąłeś dalej, a drugiego nie rusza. Najlepiej naciśnij <kbd>Shift</kbd> dopiero w trakcie przeciągania, bo na kształcie, który nie jest jeszcze zaznaczony, kliknięcie z <kbd>Shift</kbd> tylko dodaje go do zaznaczenia.</p>
+<p>Albo pociągnij czerwoną lub zieloną strzałkę na górze zaznaczenia: przesuwa tylko wzdłuż X albo tylko wzdłuż Y, a kształt podąża za myszą po tej linii także w niskim widoku, gdzie swobodne przeciąganie ucieka daleko. Strzałki przyciągają jak przy przeciąganiu, <kbd>Alt</kbd> to wyłącza, a przebytą odległość możesz potem kliknąć i wpisać dokładnie.</p>
+<p>Jeśli <kbd>Alt</kbd> jest wciśnięty już na początku przeciągania, przeciągasz kopię, jak w Tinkercadzie: kształt zostaje na miejscu, a kopia ląduje tam, gdzie ją puścisz. Naciśnięcie <kbd>Alt</kbd> dopiero w trakcie wstrzymuje przyciąganie i kształt podąża wtedy tylko za siatką. Także kopia przyciąga się dopiero wtedy, gdy w trakcie puścisz <kbd>Alt</kbd>. Aby wyłączyć przyciąganie na stałe, użyj menu siatki w prawym dolnym rogu (<strong class="ui">„Przyciągaj do kształtów”</strong>) albo ustawień. Na razie przyciąga tylko przesuwanie na zwykłej płaszczyźnie roboczej, a nie podnoszenie i nie zmiana rozmiaru.</p>
+</section><section class="guide-part"><h2 id="wyrownywanie"><span class="heading-alias" id="aligning"></span>Wyrównywanie</h2>
+<p>Dwa lub więcej zaznaczonych kształtów ustawiasz w linii przyciskiem <strong class="ui">„Wyrównaj”</strong> (<kbd>L</kbd> albo prawy klik na zaznaczeniu i wybór tej opcji): wokół zaznaczenia pojawiają się punkty dla lewej strony, środka i prawej strony, przodu, środka i tyłu oraz góry, środka i dołu. Kliknięcie punktu przesuwa tam wszystkie kształty. Jeśli najpierw klikniesz jeden z zaznaczonych kształtów, zostanie on na miejscu, a pozostałe wyrównają się do niego. Zablokowany kształt w zaznaczeniu sam staje się takim nieruchomym kształtem. Lewa, prawa, przód, tył, góra i dół liczą się według prostopadłościanu otaczającego kształt. Środek trójkąta, pięciokąta albo gwiazdy to ich własny środek, więc wyśrodkowany na nim otwór siedzi na środku kształtu, a nie jego prostopadłościanu otaczającego.</p>
+<p>Kształt obrócony pod kątem, na przykład o 45°, wyrównuje się według otaczającego go prostopadłościanu, a nie według własnych krawędzi. Aby wyrównać według krawędzi, najpierw połóż płaszczyznę roboczą na ścianie tego kształtu (<strong class="ui">„Umieść płaszczyznę roboczą”</strong>, potem kliknij ścianę): punkty staną wtedy na osiach tej płaszczyzny, a kształty będą mierzone i przesuwane wzdłuż nich, jak w Tinkercadzie. Przywróć płaszczyznę roboczą, aby znów wyrównywać wzdłuż płyty.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/align.webp" alt="Wyrównaj pokazuje możliwe cele jako kropki wokół zaznaczenia." width="1280" height="800" loading="lazy"><figcaption>Wyrównaj pokazuje możliwe cele jako kropki wokół zaznaczenia.</figcaption></figure>
+<p>Klawisz to <kbd>L</kbd>. <kbd>Esc</kbd> anuluje.</p>
+<section class="guide-part"><h3 id="dopasowywanie-rozmiarow"><span class="heading-alias" id="matching-sizes"></span>Dopasowywanie rozmiarów</h3>
+<p>Przytrzymaj <kbd>Alt</kbd> podczas wyrównywania, a kropki zmienią się w kwadraty: kliknięcie nie przesuwa już kształtów, tylko zmienia ich rozmiar. Kropka przy boku rozciąga każdy kształt do tego boku, a jego drugi bok zostaje na miejscu, tak jakbyś przeciągnął tam jego uchwyt. Kropka na środku zostawia każdy kształt na miejscu i nadaje mu szerokość, długość albo wysokość w tym kierunku. Tak na przykład zamienisz prostopadłościan na walec tej samej wielkości albo zastąpisz uszkodzony fragment siatki czystym kształtem. Najedź na kropkę z wciśniętym <kbd>Alt</kbd>, a zobaczysz wcześniej, jak duże staną się kształty.</p>
+<p>Odniesieniem jest kształt kliknięty jako pierwszy, a zmieniają się tylko pozostałe. Bez niego kropki przy bokach rozciągają wszystkie kształty do najdalszego boku, a kropka na środku nadaje im wszystkim rozmiar największego. Walec zostaje okrągły, więc rośnie też w drugim kierunku. Kształt obrócony pod kątem zostaje bez zmian, a kształty obrócone o 90° działają.</p>
+</section><section class="guide-part"><h3 id="rowne-odstepy"><span class="heading-alias" id="equal-gaps"></span>Równe odstępy</h3>
+<p>Obok środkowego punktu każdej linii stoi szerszy punkt z kreską po każdej stronie. Rozkłada on trzy lub więcej kształtów w tym kierunku tak, żeby odstęp między sąsiednimi krawędziami był wszędzie taki sam, niezależnie od rozmiaru każdego kształtu. Pierwszy i ostatni kształt zostają na miejscu, te pomiędzy się przesuwają. Rząd otworów różnej wielkości dostaje w ten sposób tę samą ściankę między nimi. Najedź na punkt, a zobaczysz wcześniej, dokąd trafią kształty; pasek stanu poda potem odstęp.</p>
+<p>Jeśli wśród zaznaczonych kształtów jest płyta (kształt bazowy, na którym stoją pozostałe, np. płaskie pudełko) dłuższa w tym kierunku niż wszystkie inne, kształty rozkładają się na niej: odstęp od jej brzegów jest taki sam jak między kształtami, a pojedynczy kształt trafia na jej środek. Kształty w kilku rzędach, jak zwierzęta z układanki z uchwytami, są rozkładane rząd po rzędzie; kształty, których prostopadłościany zachodzą na siebie w poprzek kierunku, tworzą jeden rząd. Gdzie kształty nie stoją w równych kolumnach, jak zwierzęta od przodu do tyłu, kształty stojące obok siebie przesuwają się zamiast tego jako cały rząd.</p>
+<p>Bez płyty przytrzymaj <kbd>Shift</kbd> i kliknij najpierw wolne miejsce stołu: stół staje się wtedy stałym kształtem, równe odstępy rozkładają kształty na całym stole z takim samym odstępem od brzegów, a pozostałe punkty wyrównują je do jego brzegów lub środka. Ponowne kliknięcie z <kbd>Shift</kbd> wolnego miejsca zwalnia go. Kliknięcie w puste miejsce bez <kbd>Shift</kbd> kończy wyrównywanie, tak jak <kbd>L</kbd> i <kbd>Esc</kbd>.</p>
+<p>Przytrzymaj <kbd>Alt</kbd> i kliknij punkt, żeby samemu wpisać odstęp, np. 5 mm: kształty ustawią się w takiej odległości, od pierwszego kształtu albo od tego, który kliknięto najpierw; na płycie rząd trafia na jej środek. Zablokowany kształt zostaje na miejscu, więc taki między skrajnymi kształtami uniemożliwia równe odstępy.</p>
+</section></section><section class="guide-part"><h2 id="odbicie-lustrzane"><span class="heading-alias" id="mirroring"></span>Odbicie lustrzane</h2>
+<p><strong class="ui">„Odbicie lustrzane”</strong> (<kbd>M</kbd> albo prawy klik na zaznaczeniu i wybór tej opcji) odbija zaznaczenie względem płaszczyzny: <strong class="ui">„lewo-prawo”</strong>, <strong class="ui">„przód-tył”</strong> albo <strong class="ui">„góra-dół”</strong>. Kliknij odpowiednią strzałkę osi. Przydaje się przy częściach symetrycznych: zbuduj jedną połowę, skopiuj ją i odbij kopię.</p>
+</section><section class="guide-part"><h2 id="obracanie-i-ustawianie-punktu-obrotu"><span class="heading-alias" id="rotating-and-setting-the-pivot"></span>Obracanie i ustawianie punktu obrotu</h2>
+<p>Obracasz zakrzywionymi strzałkami na kształcie, liczbami w ustawieniach albo klawiszem <kbd>R</kbd> co 45°. Gdy przeciągasz po okręgu obrotu, obrót przyciąga się do każdej kreski, czyli co 22,5°. Przytrzymaj <kbd>Shift</kbd>, aby uzyskać drobniejsze kroki, a pojawią się dodatkowe kreski co 11,25°. Przeciągaj poza okręgiem, aby obracać swobodnie co 1°, albo co 45° z <kbd>Shift</kbd>. Zwykle zaznaczenie obraca się wokół swojego środka. Czasem nie powinno, na przykład gdy pochyloną rurę trzeba obrócić dalej przy jej końcu. Do tego służy <strong class="ui">„Ustaw punkt obrotu”</strong>: potem kliknij ścianę. Płaska ściana daje swój środek, na przykład oś końca rury. Na grupie albo zestawie ściana przechodzi przez stykające się części jak na jednej bryle, a punkt obrotu trafia na środek całej ściany, gdy części zostaną połączone, z wyjątkiem grupy albo zestawu z tekstem i zestawu z otworem wśród części. Zaznaczenie obraca się teraz wokół tego punktu. Drugie kliknięcie narzędzia go usuwa.</p>
+<p>Kąty zostają przy bryle. W jej ustawieniach karta <strong class="ui">„Obrót”</strong> pokazuje je jako <strong class="ui">„Wokół X”</strong>, <strong class="ui">„Wokół Y”</strong> i <strong class="ui">„Wokół Z (wysokość)”</strong>, nazwane tak jak pozycja: Y biegnie w poprzek płyty, Z w górę. Wpisz tam kąt, a bryła obróci się do niego, wokół swojego środka albo wokół własnego punktu obrotu, jeśli go ma. Dopóki obrócona bryła jest zaznaczona, jej kąty widać też pod nią na płaszczyźnie roboczej. <strong class="ui">„Pokazuj kąty obróconych brył”</strong> w ustawieniach to wyłącza.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/rotation-card.webp" alt="Bryła obrócona wokół dwóch osi: jej kąty stoją pod nią, a karta Obrót w jej ustawieniach przyjmuje je jako liczby." width="1280" height="800" loading="lazy"><figcaption>Bryła obrócona wokół dwóch osi: jej kąty stoją pod nią, a karta Obrót w jej ustawieniach przyjmuje je jako liczby.</figcaption></figure>
+<p>Gdy zaznaczona jest <strong>jedna bryła</strong>, punkt obrotu należy do tej bryły: zaznacz inne części i wróć, a nadal tam będzie. Przesuwa się, obraca i skaluje razem z bryłą, zapisuje się w projekcie i wraca po Cofnij. W karcie <strong class="ui">„Pozycja”</strong> punkt obrotu ma własne X, Y i Z, które możesz wpisać albo dostroić, a <strong class="ui">„Usuń”</strong> go usuwa. Czerwony znacznik punktu obrotu możesz też przeciągać myszą: ślizga się po powierzchni brył i przyciąga się do narożników, środków krawędzi i krawędzi, więc oś zawiasu ląduje dokładnie na narożniku. Gdy zaznaczonych jest kilka brył, punkt obrotu obowiązuje tylko dla tego zaznaczenia, a nowe zaznaczenie go usuwa. Zgrupowanie albo połączenie ich w zestaw go zachowuje: grupa przejmuje punkt obrotu jako własny, z X, Y i Z w karcie <strong class="ui">„Pozycja”</strong>. Przytrzymaj <kbd>Shift</kbd> podczas przeciągania czerwonego znacznika, a przyciągnie się zamiast tego do środka ściany pod wskaźnikiem (osi okrągłej ściany, środka płaskiej albo wierzchołka stożka), patrząc przez przezroczyste bryły.</p>
+</section><section class="guide-part"><h2 id="kladzenie-plasko-na-scianie"><span class="heading-alias" id="laying-flat-on-a-face"></span>Kładzenie płasko na ścianie</h2>
+<p>Część ma leżeć do druku na swojej najlepszej stronie? Zaznacz ją, kliknij <strong class="ui">„Połóż płasko na ścianie”</strong>, a potem ścianę, która ma trafić na dół. Gdy przesuwasz wskaźnik nad częścią, ściana pod nim się podświetla, więc widzisz, którą zaraz wybierzesz. Obróć widok, żeby sprawdzić pozostałe strony. Część obraca się tak, że ta ściana opiera się na płaszczyźnie roboczej.</p>
+<p>Dwie części mają się zetknąć ścianami albo stanąć na równo? Zaznacz część, która ma się przesunąć, kliknij <strong class="ui">„Wyrównaj ściany”</strong>, potem kliknij jej ścianę, a następnie ścianę drugiej części. W oknie <strong class="ui">„Ściana do ściany”</strong> przykłada ściany do siebie (plecami, stykając się), a <strong class="ui">„Na równo”</strong> kładzie je w jednej płaszczyźnie obok siebie. <strong class="ui">„Szczelina”</strong> zostawia między nimi miejsce, na przykład na luz. <strong class="ui">„Wyrównaj”</strong> przesuwa część: obraca ją najkrótszą drogą, aż ściany będą równoległe (wcale, jeśli już są), a potem przesuwa ją tylko w stronę drugiej ściany, więc w bok zostaje na miejscu. Druga część zostaje tam, gdzie była, a jedno Cofnij cofa wszystko.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/mate-faces.webp" alt="Okno Wyrównaj ściany: część, która się przesuwa, jest wybrana, następna jest ściana drugiej części, potem ściana do ściany albo na równo i opcjonalna szczelina." width="1280" height="800" loading="lazy"><figcaption>Okno Wyrównaj ściany: część, która się przesuwa, jest wybrana, następna jest ściana drugiej części, potem ściana do ściany albo na równo i opcjonalna szczelina.</figcaption></figure>
+<p><strong>Otwory na jednej osi:</strong> <strong class="ui">„Koncentryczny”</strong> wyrównuje zamiast tego okrągłe ściany: otwór nad otworem, kołek w otworze, śrubę w jej otworze przelotowym. Wybierz tę opcję, zanim klikniesz ściany. Potem kliknij okrągłe wnętrze otworu (lub zewnętrzną stronę kołka) na części, która się przesuwa, i okrągłą ścianę drugiej części; cała okrągła ściana podświetla się pod wskaźnikiem. <strong class="ui">„Wyrównaj”</strong> obraca część najkrótszą drogą, aż obie osie będą równoległe, i przesuwa ją w poprzek na drugą oś. Wzdłuż osi zostaje tam, gdzie była, więc kołek zachowuje wysokość; wsuń go potem. Działa to też na zaimportowanych siatkach, o ile otwór składa się ze ścianek wokół jednej osi.</p>
+<p><strong>Punkt na punkt:</strong> <strong class="ui">„Punkt do punktu”</strong> przesuwa część prosto, bez obracania, tak aby jeden z jej punktów trafił na punkt innej części. Kliknij narożnik, miejsce na krawędzi, środek okrągłej krawędzi lub punkt odniesienia na przesuwanej części, a potem punkt, w którym ma się znaleźć; kropka pokazuje, który punkt złapałby wskaźnik. W <strong class="ui">„Przesuń wzdłuż”</strong> wyłącz osie, wzdłuż których nie ma się przesuwać: z samymi X i Y punkt ląduje dokładnie nad lub pod drugim, z samym Z na tej samej wysokości. Jedno Cofnij to odwraca.</p>
+<p><strong>Obracanie drugą i trzecią parą:</strong> po <strong class="ui">„Wyrównaj”</strong> panel zostaje otwarty dla drugiej pary punktów. Pierwszy punkt zostaje tam, gdzie trafił, oznaczony na niebiesko, a <strong class="ui">„Obróć”</strong> obraca część wokół niego, aż linia przez jej drugi punkt przejdzie przez punkt wybrany na drugiej części - dwie krawędzie leżą wtedy na jednej linii, nawet gdy części nie są równej długości. Trzecia para obraca część wokół linii przez dwa niebieskie punkty, aż jej trzeci punkt będzie skierowany na wybrany trzeci punkt, więc pasują też ściany - jak wyrównanie według trzech punktów w innych programach CAD. <strong class="ui">„Gotowe”</strong> kończy na każdym kroku; każdy krok to jedno Cofnij.</p>
+<p><strong>Dokładny kąt między dwiema ścianami:</strong> <strong class="ui">„Wyrównaj ściany”</strong> zostawia ściany równoległe. Nie ma osobnego narzędzia do kąta między nimi, ale da się to zrobić tak. Najpierw zetknij ściany przez <strong class="ui">„Wyrównaj ściany”</strong>, żeby były równoległe. Potem ustaw punkt obrotu na krawędzi, w której się stykają (<strong class="ui">„Ustaw punkt obrotu”</strong>, kliknij krawędź albo narożnik), i wpisz kąt, na przykład 15 albo 30, w karcie <strong class="ui">„Obrót”</strong> części. Obróci się wokół tego punktu. Osie tej karty to osie płyty, więc działa to, gdy krawędź biegnie wzdłuż X, Y albo Z.</p>
+<p>Równie proste są <strong class="ui">„Opuść na płaszczyznę roboczą”</strong> (<kbd>D</kbd>), który opuszcza zaznaczenie na płaszczyznę roboczą, i <strong class="ui">„Wyśrodkuj na płaszczyźnie roboczej”</strong>. Gdy płaszczyzna robocza leży na ścianie, wyśrodkowuje na punkcie wybranym klawiszem <kbd>W</kbd> i przesuwa zaznaczenie tylko wzdłuż tej ściany, więc to, co na niej stoi, na niej zostaje.</p>
+<p><span dir="ltr"><kbd>Alt</kbd>+<kbd>D</kbd></span> opuszcza kilka części jako całość: wszystkie przesuwają się w dół o tę samą odległość i zachowują wysokości względem siebie, a <kbd>D</kbd> opuszcza każdą część osobno.</p>
+<p><kbd>C</kbd> podnosi zaznaczenie, jak Cruise w Tinkercadzie: podąża ono za wskaźnikiem myszy i kładzie się na ścianie innej bryły, nad którą jesteś, także na skośnej. Kliknięcie je tam odkłada, a <kbd>Esc</kbd> zostawia je tam, gdzie było. Jego spód opiera się wtedy na ścianie, ustawiony wzdłuż krawędzi ściany, tak jak nowy kształt. Własny obrót wokół osi pionowej zachowuje. Kilka części wędruje razem i zachowuje odstępy. Nad pustą płytą <kbd>C</kbd> stawia pochyloną część z powrotem pionowo na płaszczyźnie roboczej. Przytrzymanie <kbd>Shift</kbd> podczas przenoszenia zatapia część w ścianie: zostaje pionowo, jej góra jest równo ze ścianą, a bryła pod nią, i tak właśnie pogłębienie stożkowe albo walcowe wchodzi w bryłę. Nowy kształt z biblioteki z wciśniętym <kbd>Shift</kbd> jest stawiany tak samo. <span dir="ltr"><kbd>Shift</kbd>+<kbd>D</kbd></span> opuszcza zaznaczenie górą na płaszczyznę roboczą zamiast spodem. Bez klawiatury to samo oferuje <strong class="ui">„Odłóż na ścianę”</strong> w menu długiego przytrzymania.</p>
+</section><section class="guide-part"><h2 id="szyki-rzad-i-okrag"><span class="heading-alias" id="patterns-row-and-circle"></span>Szyki: rząd i okrąg</h2>
+<p>Do siatek otworów, okręgów otworów pod śruby i wieńców zębów służy <strong class="ui">„Szyk”</strong>. Zaznacz kształty do powielenia i kliknij go na wstążce.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/pattern-tool.webp" alt="Szyk w trybie „Okrąg”: kopie pojawiają się najpierw jako podgląd." width="1280" height="800" loading="lazy"><figcaption>Szyk w trybie „Okrąg”: kopie pojawiają się najpierw jako podgląd.</figcaption></figure>
+<ul><li><strong><strong class="ui">„Rząd”</strong>:</strong> zaznaczenie powtarza się w równych odstępach. Rząd postępuje wzdłuż wszystkich trzech osi naraz, z wartościami <strong class="ui">„Odstęp X”</strong>, <strong class="ui">„Odstęp Y”</strong> i <strong class="ui">„Odstęp Z (wysokość)”</strong>: jedna z nich daje prosty rząd, dwie lub trzy rząd po skosie albo schody. Ujemny odstęp układa rząd w przeciwną stronę.</li><li><strong><strong class="ui">„Rozłóż na bryle”</strong>:</strong> Do otworów wzdłuż płyty, wieszaka na klucze lub na ubrania. Połóż pierwszy element na bryle lub w niej, wybierz <strong class="ui">„Wzdłuż X”</strong> albo <strong class="ui">„Wzdłuż Y”</strong> i ustaw <strong class="ui">„Odstęp od krawędzi”</strong>: oryginał przesunie się o tyle do środka od bliższego końca (od krawędzi do boku elementu), a ostatnia kopia zachowa taki sam odstęp od drugiego końca. Rozstaw wynika wtedy z wartości <strong class="ui">„Liczba (z oryginałem)”</strong>: pięć otworów czy dziewięć, zawsze wypełniają płytę równomiernie.</li><li><strong><strong class="ui">„Siatka”</strong>:</strong> na otwory blachy perforowanej albo pole jednakowych części. <strong class="ui">„Kolumny wzdłuż X (z oryginałem)”</strong> i <strong class="ui">„Odstęp X”</strong> układają kolumny obok siebie, <strong class="ui">„Rzędy wzdłuż Y (z oryginałem)”</strong> i <strong class="ui">„Odstęp Y”</strong> rzędy od przodu do tyłu. Jedna kolumna lub jeden rząd daje pojedynczą linię. Siatka ma najwyżej 100 części; powyżej rzędy są skracane, a okno o tym mówi.</li><li><strong><strong class="ui">„Okrąg”</strong>:</strong> zaznaczenie rozkłada się wokół środka. Ile jest kopii, ustawiasz w polu <strong class="ui">„Liczba (z oryginałem)”</strong>, a <strong class="ui">„Kąt całkowity”</strong> to 360° dla pełnego okręgu. Wybierz, czy kopie mają się obracać razem z okręgiem. <strong class="ui">„Wzniesienie na kopię”</strong> podnosi każdą kopię trochę wyżej niż poprzednią (śruba albo wznosząca się spirala), a <strong class="ui">„Zmiana promienia na kopię”</strong> odsuwa ją dalej od środka albo przybliża do niego (płaska spirala). Razem dają spiralę stożkową. Spirala zatacza najwyżej jedno okrążenie: kąt powyżej 360° liczy się jako pełny okrąg, a kopii jest najwyżej 100.</li></ul>
+<p>Wskazówka: najpierw ustaw punkt obrotu na ścianie przez <strong class="ui">„Ustaw punkt obrotu”</strong>, a środek okręgu wypadnie dokładnie tam.</p>
+<p>Potem elementy zachowują środek okręgu jako swój punkt obrotu, także po zgrupowaniu. Tam pasuje inna część, na przykład kula na środku trzech nóżek: środek prostopadłościanu otaczającego elementy nie jest środkiem okręgu, bo trzy nóżki wypełniają prostopadłościan szerszy w jedną stronę niż w drugą. Kliknij elementy prawym przyciskiem i wybierz <strong class="ui">„Zaznacz punkt obrotu”</strong>, a środek przeciąganej części się do niego przyciągnie.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/pattern-spiral.webp" alt="Szyk w trybie „Okrąg” ze wzniesieniem i zmianą promienia na kopię: kopie wspinają się i rozszerzają jak spirala." width="1280" height="800" loading="lazy"><figcaption>Szyk w trybie „Okrąg” ze wzniesieniem i zmianą promienia na kopię: kopie wspinają się i rozszerzają jak spirala.</figcaption></figure>
+<p>Kopie pojawiają się najpierw jako podgląd. Dopiero <strong class="ui">„Utwórz”</strong> je tworzy. Jeśli kopie są otworami, zgrupuj je potem z bryłą, w której mają wyciąć materiał.</p>
+<p>Gdy zaznaczone jest <strong class="ui">„Zgrupuj kopie”</strong>, <strong class="ui">„Utwórz”</strong> w tym samym kroku grupuje oryginał i wszystkie kopie w jeden obiekt, tak jak zrobiłby to <strong class="ui">„Grupuj”</strong>: pierścień z 36 elementów jest wtedy jedną częścią, którą możesz przesuwać, kolorować albo nią ciąć. Powyżej 5 elementów pole zaznacza się samo, a gdy sam je zaznaczysz albo odznaczysz, zostaje tak, jak ustawiłeś. <strong class="ui">„Rozgrupuj”</strong> przywraca elementy. Jeśli grupowanie się nie uda, szyk i tak trafia jako osobne elementy, a komunikat mówi dlaczego.</p>
+</section><section class="guide-part"><h2 id="wzor-otworow-na-scianie"><span class="heading-alias" id="hole-pattern-on-a-face"></span>Wzór otworów na ścianie</h2>
+<p>Do kratek wentylacyjnych, maskownic głośników, koszyków i obudów <strong class="ui">„Wzór otworów”</strong> rozkłada otwory równomiernie na płaskiej ścianie. Nie musisz już robić jednego otworu, powielać go i ustawiać na ściance. Zaznacz dokładnie jedną bryłę i kliknij <strong class="ui">„Wzór otworów”</strong> w grupie <strong class="ui">„Modyfikuj”</strong> paska narzędzi, obok szyku. Możesz też kliknąć bryłę prawym przyciskiem albo znaleźć narzędzie przez <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</p>
+<ol><li>Kliknij płaską ścianę bryły. Liczy się cała płaska ściana wokół kliknięcia, a nie tylko trójkąt pod wskaźnikiem. Działa też okrągła ścianka walca, rury lub otworu, zobacz niżej; inna zakrzywiona ściana nie: dostaniesz podpowiedź i klikniesz płaską. Na grupie albo zestawie ściana przechodzi przez stykające się części jak na jednej bryle, na zestawie tylko wtedy, gdy nie ma wśród nich otworu. Części są łączone chwilę po otwarciu narzędzia. Do tego czasu pod wskaźnikiem podświetla się tylko ściana jednej części, a kliknięcie czeka na połączenie. Na grupie albo zestawie z tekstem podświetla się tylko ściana jednej części, a kliknięcie łączy części.</li><li>W oknie ustaw, jak otwory wyglądają i jak leżą:</li></ol>
+<ul><li><strong><strong class="ui">„Kształt otworu”</strong>:</strong> <strong class="ui">„Okrągły”</strong>, <strong class="ui">„Kwadratowy”</strong>, <strong class="ui">„Prostokątny”</strong>, <strong class="ui">„Sześciokątny”</strong> albo <strong class="ui">„Podłużny”</strong>.</li><li><strong>Rozmiar:</strong> <strong class="ui">„Średnica (Ø)”</strong> okrągłego otworu, <strong class="ui">„Długość boku”</strong> kwadratowego, <strong class="ui">„Szerokość”</strong> i <strong class="ui">„Wysokość”</strong> dla prostokąta i otworu podłużnego. Dla sześciokąta rozmiar to <strong class="ui">„Średnica po narożnikach (Ø)”</strong>.</li><li><strong><strong class="ui">„Kąt otworów”</strong>:</strong> tylko dla prostokątów i otworów podłużnych: obraca każdy otwór na ścianie o tyle stopni, przeciwnie do ruchu wskazówek zegara patrząc na ścianę, od -90 do 90. Rzędy pozostają proste; gdyby obrócone otwory znalazły się za blisko, także po skosie, layerling zwiększa rozstaw i odstęp rzędów, aby między nimi została ścianka.</li><li><strong><strong class="ui">„Nachylenie przez ściankę”</strong>:</strong> tylko płaskie ściany, nie z pogłębieniem walcowym, stożkowym ani własnym kształtem: pochyla każdy otwór przez ściankę, od -60 do 60 stopni. Na stojącej ściance dodatnie nachylenie stawia wewnętrzny koniec wyżej, więc deszcz spływa z powrotem na zewnątrz. Rozmiar pozostaje rozmiarem samego otworu, więc na ścianie wygląda on na nieco dłuższy; oba końce każdego otworu zachowują margines. Nachylenie zasłania widok do środka dopiero, gdy grubość ścianki razy sin(kąt) wynosi co najmniej wysokość otworu, do tego użyj więc niskich otworów podłużnych albo grubszej ścianki.</li><li><strong><strong class="ui">„Własny kształt”</strong>:</strong> zamiast otworu powtarza kształt ze sceny: nit, wypustkę albo żeberko blachy ryflowanej. Wybierasz go w <strong class="ui">„Kształt ze sceny”</strong>. Jego szerokość i głębokość to miejsce, które zajmuje; stoi pionowo na powierzchni tak, jak go zrobiono, bez własnego obrotu. Bryła zostaje postawiona na powierzchni i połączona z nią, otwór zostaje wycięty tak głęboko, jak jest wysoki. Sam kształt zostaje na swoim miejscu.</li><li><strong><strong class="ui">„Rodzaj otworu”</strong>:</strong> tylko przy okrągłych otworach. <strong class="ui">„Zwykły”</strong> to prosty otwór, <strong class="ui">„Pogłębienie walcowe”</strong> dodaje gniazdo na łeb śruby z łbem walcowym, <strong class="ui">„Pogłębienie stożkowe”</strong> stożek 90° na śrubę z łbem stożkowym. Rozmiar to wtedy <strong class="ui">„Średnica trzpienia”</strong>; <strong class="ui">„Średnica łba”</strong> i przy pogłębieniu walcowym <strong class="ui">„Głębokość łba”</strong> ustawiają łeb. <strong class="ui">„Rozmiar śruby”</strong> wypełnia wszystko dla śruby metrycznej.</li><li><strong><strong class="ui">„Rozstaw od środka do środka”</strong>:</strong> odległość od środka jednego otworu do środka następnego. Jeśli jest mniejsza, niż pozwalają otwory, layerling podnosi ją do najmniejszej możliwej wartości, żeby między otworami została ścianka. Dla prostokątów i otworów podłużnych liczy się wzdłuż rzędu, od lewej do prawej.</li><li><strong><strong class="ui">„Rozstaw rzędów od środka do środka”</strong>:</strong> tylko dla prostokątów i otworów podłużnych: odległość od jednego rzędu do następnego. Dzięki temu wąskie, wysokie otwory stoją blisko siebie, a rzędy zachowują odstęp. Otwór szeroki na 2 mm i wysoki na 14 mm potrzebuje przy ściance 2 mm odstępu 4 mm wzdłuż rzędu i 16 mm od rzędu do rzędu.</li><li><strong><strong class="ui">„Ścianka między otworami”</strong>:</strong> ta sama odległość wyrażona inaczej: ścianka zostająca między dwoma sąsiednimi otworami, czyli grubość ścianki na wydruku. Ustaw ją, a rozstaw od środka do środka (dla prostokątów i otworów podłużnych także rozstaw rzędów) pójdzie za nią, i odwrotnie. Dla sześciokątów, prostokątów i otworów podłużnych layerling mierzy najmniejszą odległość między ich krawędziami.</li><li><strong><strong class="ui">„Układ”</strong>:</strong> <strong class="ui">„Siatka”</strong> ustawia otwory w rzędach i kolumnach. <strong class="ui">„Przestawiony”</strong> przesuwa co drugi rząd o pół rozstawu i zbliża rzędy, więc każdy otwór ma sąsiadów w tej samej odległości. Z sześciokątami daje to plaster miodu.</li><li><strong><strong class="ui">„Wzdłuż krawędzi”</strong>:</strong> zamiast tego wieniec otworów wzdłuż zewnętrznej krawędzi powierzchni, odsunięty do środka o <strong class="ui">„Margines od krawędzi ściany”</strong> - otwory na śruby wokół pokrywy lub płyty. <strong class="ui">„Rozmieść według”</strong> <strong class="ui">„Odstępu”</strong> trzyma mniej więcej odstęp, <strong class="ui">„Liczby”</strong> ustala <strong class="ui">„Liczba otworów”</strong>; w obu przypadkach odstęp jest wyrównywany, aby wieniec zamknął się bez luki. <strong class="ui">„Otwór w każdym narożniku”</strong> (na początku włączone) stawia otwór w każdym narożniku i dzieli każdy bok między nimi równo. Na okrągłej powierzchni lub bez zaznaczenia otwory biegną równo dookoła od góry, a <strong class="ui">„Początek na krawędzi”</strong> przesuwa cały wieniec wzdłuż krawędzi.</li><li><strong><strong class="ui">„Margines od krawędzi ściany”</strong>:</strong> wolna odległość między otworami a krawędzią ściany. Powstają tylko otwory, które leżą w całości wewnątrz ściany pomniejszonej o ten margines. Wszystko, co by poza nią wystawało, jest pomijane. Margines obowiązuje też wokół otworów w ścianie.</li><li><strong><strong class="ui">„Głębokość”</strong>:</strong> <strong class="ui">„Przez całą bryłę”</strong> (domyślnie) przecina całą ściankę. Z <strong class="ui">„Własna głębokość”</strong> podajesz głębokość w milimetrach, na przykład do wgłębień.</li></ul>
+<ol><li>Otwory od razu pokazują się jako podgląd na ścianie i podążają za każdą wartością. Okno mówi, ile otworów się zmieści. <strong class="ui">„Inna ściana”</strong> wybiera inną ścianę, <kbd>Esc</kbd> zamyka narzędzie, a okno, jak inne okna narzędzi, przesuwa się za pasek tytułu.</li><li>Dopiero <strong class="ui">„Utwórz”</strong> tworzy otwory.</li></ol>
+<p>Otwory to zwykłe otwory zgrupowane z bryłą, tak jak po <strong class="ui">„Grupuj”</strong>: nic nie jest wtopione na stałe. <strong class="ui">„Rozgrupuj”</strong> rozwiązuje grupę i uwalnia każdy otwór, który możesz potem osobno przesunąć, zmienić albo usunąć. Całość to jeden krok dla <strong class="ui">„Cofnij”</strong>. Narzędzie nie tworzy naraz więcej niż 400 otworów. W takim przypadku zwiększ otwory albo rozstaw.</p>
+<p>Otwory przyjmie też okrągła ścianka walca, rury lub otworu: przybornik na długopisy, klosz lampy, rura z wentylacją. Zamiast płaskiej ściany kliknij ściankę; pod wskaźnikiem podświetli się cała ścianka. Każdy otwór jest wtedy skierowany prosto na oś, a rzędy biegną dookoła ścianki. Na ściance, która obiega całe koło, każdy rząd ma całkowitą liczbę otworów, wyrównaną tak, by pierścień zamknął się bez przerwy, i nigdy gęściej niż rozstaw; okno podaje, ile otworów idzie dookoła i w jakim odstępie. Margines liczy się do krawędzi u góry i u dołu oraz do otworów w ściance, a na części ścianki (na przykład zaokrągleniu) także do jej boków. <strong class="ui">„Przez ściankę”</strong> przecina tylko klikniętą ściankę i zostawia całą drugą stronę rury; w pełnym walcu otwory sięgają do jego środka. Po kliknięciu wewnątrz otworu otwory idą na zewnątrz przez jego ściankę. <strong class="ui">„Wzdłuż krawędzi”</strong> jest dla płaskich ścian i przy ściance się nie pojawia.</p>
+<p>AI może zrobić to samo przez most MCP poleceniem <code>layerling_perforate_face</code> (zobacz rozdział <a href="/api/desktop/layerling/ui/instrukcja/ai-with-mcp.html">AI przez MCP</a>).</p>
+</section><section class="guide-part"><h2 id="wypychanie-sciany-na-zewnatrz-lub-do-srodka"><span class="heading-alias" id="pushing-a-face-out-or-in"></span>Wypychanie ściany na zewnątrz lub do środka</h2>
+<p>Do grubszej ścianki, wypukłej podkładki na ścianie albo wyciętej w niej kieszeni służy narzędzie <strong class="ui">„Ściana”</strong>, które działa na jednej płaskiej ścianie. Działa też na zaimportowanym STL, gdzie nie ma szkicu do zmiany. Zaznacz dokładnie jedną bryłę i kliknij <strong class="ui">„Ściana”</strong> w grupie <strong class="ui">„Modyfikuj”</strong> paska narzędzi, obok wzoru otworów. Możesz też kliknąć bryłę prawym przyciskiem albo znaleźć narzędzie przez <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</p>
+<ol><li>Kliknij płaską ścianę bryły. Jak przy wzorze otworów liczy się cała płaska ściana wokół kliknięcia, a zakrzywiona ściana, także okrągła ścianka, tu nie działa. Na grupie albo zestawie ściana przechodzi przez stykające się części, jak przy wzorze otworów.</li><li>W oknie:</li></ol>
+<ul><li><strong><strong class="ui">„Kierunek”</strong>:</strong> wybierz <strong class="ui">„Na zewnątrz: dodaj materiał”</strong>, aby materiał stał na ścianie, albo <strong class="ui">„Do środka: wytnij kieszeń”</strong>, aby wyciąć w niej kieszeń. Kieszeń nie sięga głębiej niż bryła za ścianą, ale w bryle wydrążonej może dojść do wnęki.</li><li><strong><strong class="ui">„Odsunięcie od krawędzi ściany”</strong>:</strong> jak daleko nowy kontur trzyma się wewnątrz krawędzi ściany. Na zewnątrz 0 bierze całą ścianę, co pogrubia ściankę. Otwory w ścianie rosną o tyle samo.</li><li><strong><strong class="ui">„Promień narożników”</strong>:</strong> zaokrągla każdy narożnik konturu, także wewnętrzne, więc ostry czubek kończy się łukiem. Wcięcie węższe niż dwa promienie się zamyka, a fragment ściany węższy niż dwa razy odsunięcie i promień razem jest pomijany.</li><li><strong><strong class="ui">„Głębokość”</strong>:</strong> jak daleko nowa część wystaje ze ściany albo jak głęboka jest kieszeń.</li><li><strong><strong class="ui">„Jako osobna bryła (bez grupowania)”</strong>:</strong> po włączeniu nowa część (albo otwór kieszeni) jest osobną bryłą obok bryły zamiast grupy z nią, więc od razu możesz zmienić jej rozmiar, przesunąć ją albo użyć jej do cięcia.</li></ul>
+<ol><li>Wynik od razu pokazuje się jako podgląd i podąża za każdą wartością. <strong class="ui">„Inna ściana”</strong> wybiera inną ścianę, <kbd>Esc</kbd> zamyka narzędzie.</li><li>Dopiero <strong class="ui">„Utwórz”</strong> to tworzy.</li></ol>
+<p>To, co dodaje narzędzie, to zwykła bryła ze szkicu, zgrupowana z bryłą, chyba że włączone jest <strong class="ui">„Jako osobna bryła (bez grupowania)”</strong> (wtedy <strong class="ui">„Edytuj grupę”</strong> nie ma czego otwierać, a część jest wolna): nic nie jest wtopione na stałe. <strong class="ui">„Edytuj grupę”</strong> otwiera grupę, a <strong class="ui">„Edytuj szkic”</strong> na nowej części pokazuje kontur, za którym podąża. Na górze lub spodzie zwykłej bryły ze szkicu (jedna powierzchnia, nie zgrupowana, nie odbita, nie zwężona, nie skręcona ani nie pochylona, bez obrysu, otworu na kółko do kluczy, zaokrąglenia ani fazki) jest to własny kontur bryły, wstawiany przy jej budowie, więc jej linie i łuki pozostają dokładne wszędzie tam, gdzie jądro CAD może je wstawić, dla narzędzi krawędzi i eksportu STEP. Po późniejszej zmianie rozmiaru część zachowuje odsunięcie. Na każdej innej ścianie i na każdej ścianie zaimportowanej siatki kontur podąża za trójkątami ściany, a krzywa składa się z krótkich prostych odcinków. Całość to jeden krok dla <strong class="ui">„Cofnij”</strong>. Aby później zmienić odsunięcie albo promień, cofnij i uruchom narzędzie ponownie. Aby potem zaokrąglić górną krawędź, użyj na grupie jako ostatniego kroku <strong class="ui">„Zaokrąglenie”</strong> z opcją <strong class="ui">„Górne krawędzie”</strong>: jak każda obróbka krawędzi na grupie łączy ona grupę w jedną bryłę.</p>
+<p>AI może zrobić to samo przez most MCP poleceniem <code>layerling_push_face</code> (zobacz rozdział <a href="/api/desktop/layerling/ui/instrukcja/ai-with-mcp.html">AI przez MCP</a>).</p>
+</section><section class="guide-part"><h2 id="zmiana-kilku-czesci-naraz"><span class="heading-alias" id="changing-several-parts-at-once"></span>Zmiana kilku części naraz</h2>
+<p>Gdy zaznaczonych jest kilka części, panel właściwości po prawej pokazuje, ile ich jest, i oferuje to, co dotyczy ich wszystkich razem: <strong class="ui">„Bryła”</strong> albo <strong class="ui">„Otwór”</strong>, jeden kolor dla wszystkich (kliknięcie <strong class="ui">„Bryła”</strong> otwiera kolory) i blokadę. Przy mieszanym zaznaczeniu jedno kliknięcie zmienia wszystkie w bryły albo wszystkie w otwory. Jeśli któraś z części jest zablokowana, można użyć tylko blokady. Rozmiary zmieniasz uchwytami, przez <strong class="ui">„Skaluj o procent”</strong> albo wpisując liczbę w etykietę wymiaru. Przy kilku częściach liczba to rozmiar całego zaznaczenia: każda część rośnie razem z nim, odstępy między nimi także, jak przy przeciąganiu uchwytu. Bryła i otwór działają też z prawego kliknięcia albo klawiszami <kbd>S</kbd> i <kbd>H</kbd>.</p>
+</section><section class="guide-part"><h2 id="skalowanie-o-procent"><span class="heading-alias" id="scaling-by-percent"></span>Skalowanie o procent</h2>
+<p>Aby powiększyć lub zmniejszyć jedną lub kilka części o ten sam odsetek, na przykład wszystkie części pliku do druku o 20 %, użyj <strong class="ui">„Skaluj o procent”</strong>. Zaznacz części, kliknij je prawym przyciskiem i wybierz <strong class="ui">„Skaluj o procent”</strong> albo znajdź to przez <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>.</p>
+<p>W polu <strong class="ui">„Nowy rozmiar”</strong> wpisujesz nowy rozmiar jako procent obecnego: 120 % to o jedną piątą więcej, 50 % to połowa rozmiaru. Szerokość, głębokość i wysokość zmieniają się jednakowo, więc proporcje zostają. Spód zostaje na miejscu, więc nic nie zapada się w płytę.</p>
+<p>Przy kilku częściach wybierasz, jak mają rosnąć:</p>
+<ul><li><strong><strong class="ui">„Razem”</strong>:</strong> części rosną wokół wspólnego środka, a odstępy rosną razem z nimi. Całość staje się większa, jakby była jedną częścią.</li><li><strong><strong class="ui">„Każda w miejscu”</strong>:</strong> każda część rośnie tam, gdzie stoi, a odstępy między nimi zostają takie same.</li></ul>
+<p>Pole procentów jest aktywne od razu po otwarciu okna, więc z klawiatury to <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>, procent, <kbd>Enter</kbd>, a <kbd>Esc</kbd> zamyka okno. Dopiero <strong class="ui">„Skaluj”</strong> (albo <kbd>Enter</kbd> w polu) zmienia projekt, a jeden krok wstecz to cofa. Gdy w zaznaczeniu jest zablokowana część, okno się nie otwiera.</p>
+</section><section class="guide-part"><h2 id="cofanie"><span class="heading-alias" id="undoing"></span>Cofanie</h2>
+<p><strong class="ui">„Cofnij”</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span>) i <strong class="ui">„Ponów”</strong> (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span> albo <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Y</kbd></span>) przechodzą przez Twoją historię. Ile kroków zapisuje się razem z projektem, ustawiasz w ustawieniach w sekcji <strong class="ui">„Historia”</strong>. Gdy wskażesz jeden z przycisków, jego podpowiedź nazwie krok, który cofnie lub ponowi, z wymiarem, jeśli krok go ma, na przykład „Zaokrąglono krawędzie: Box (5 mm)”; komunikat po kroku mówi to samo. Aby cofnąć się o kilka kroków naraz, użyj widoku historii poniżej. Komunikat o właśnie wykonanym kroku, np. „Usunięto 3 kształty”, ma przycisk Cofnij, który cofa dokładnie ten krok.</p>
+</section><section class="guide-part"><h2 id="spojrzenie-wstecz-widok-historii"><span class="heading-alias" id="looking-back-the-history-view"></span>Spojrzenie wstecz: widok historii</h2>
+<p><strong class="ui">„Historia”</strong>, obok Cofnij i Ponów, otwiera widok Twojej historii bez zmieniania czegokolwiek. Obszar roboczy pokazuje projekt takim, jaki był, a suwak na dole przechodzi przez każdy krok cofania: całkiem po prawej jest stan bieżący, każdy krok w lewo to jedno cofnięcie wcześniej, a stany, które cofnąłeś, leżą na prawo od bieżącego. Klawisze strzałek przechodzą przez stany, <kbd>Esc</kbd> wraca do stanu bieżącego. Kółko myszy nad suwakiem robi to samo, jeden stan na ząbek, w górę do wcześniejszego; <kbd>Page Up</kbd> i <kbd>Page Down</kbd> przeskakują o dziesięć stanów, <kbd>Home</kbd> przechodzi do najstarszego stanu, a <kbd>End</kbd> z powrotem do bieżącego. W tym czasie możesz obracać i przybliżać widok oraz klikać obiekty, aby je przywrócić (zobacz niżej), ale niczego nie da się przesunąć. Sam projekt zostaje dokładnie taki, jaki jest. Jeśli pasek coś zasłania, odsuń go za pasek tytułu, a dwukrotne kliknięcie go przywraca. Przycisk listy na pasku tytułu pokazuje wszystkie kroki z nazwami na liście, najnowszy na górze: kliknięcie kroku przechodzi do tego stanu, stan, w którym jest projekt, ma oznaczenie <strong class="ui">„teraz”</strong>, a cofnięte kroki są szare. Jeśli zostawisz listę otwartą, następnym razem też będzie otwarta. Dwa przyciski odtwarzania pod suwakiem puszczają historię jak film: ten skierowany w prawo odtwarza do przodu od pokazanego stanu, ten skierowany w lewo do tyłu, każdy stan przez chwilę, aż do końca. Ponowne naciśnięcie tego samego przycisku wstrzymuje odtwarzanie, a przesunięcie suwaka, kółko, klawisze albo lista przejmują sterowanie. Uruchomione na końcu swojej drogi zaczyna od drugiego końca. <strong class="ui">„Prędkość”</strong> ustala, jak długo trwa każdy stan (wolno, normalnie albo szybko), i jest zapamiętywana na następny raz. Nagraj ekran podczas odtwarzania, żeby pokazać, jak powstała część.</p>
+<p>Z wcześniejszego stanu możesz zabrać dwie rzeczy. <strong class="ui">„Nowy projekt z tego stanu”</strong> wstawia ten stan do nowego projektu w przeglądzie, nazwanego tak jak ten, z godziną tamtego stanu w nawiasie (projekt zapisany, zanim layerling zaczął zapisywać godziny, ma zamiast niej „kopia”), i z historią do tego momentu, więc cofanie dalej tam działa. <strong class="ui">„Eksportuj ten stan”</strong> otwiera zwykły eksport z tym stanem jako projektem, więc możesz zapisać go jako STL, 3MF, STEP, obraz albo plik LYL z historią do tego stanu.</p>
+<p>Możesz też przywrócić do projektu pojedyncze obiekty. Kliknij obiekt w pokazanym stanie (<kbd>Shift</kbd>+klik dodaje kolejne albo jeden odznacza, kliknięcie pustego miejsca nic nie wybiera) i wybierz <strong class="ui">„Przywróć do projektu”</strong>. Widok się zamyka, a kopia każdego obiektu ląduje w bieżącym projekcie dokładnie taka, jaka była w tamtym stanie, i w tym samym miejscu, zaznaczona, obok tego, co projekt ma teraz. Nic innego się nie zmienia. To jeden krok, więc Cofnij go wycofuje. Przydaje się dla wersji części, którą od tego czasu zmieniłeś, albo dla części, którą usunąłeś. Grupa wraca w całości, a notatki i punkty odniesienia na obiekcie zostają. Jego nazwa niesie godzinę tamtego stanu, na przykład „Prostopadłościan (12:32)”, więc łatwo go odróżnić od wersji, którą projekt ma teraz. Aby przywrócić część z wnętrza grupy, zaznacz grupę i wybierz <strong class="ui">„Otwórz grupę”</strong> albo naciśnij <kbd>E</kbd>, tak jak w projekcie: jej części zostają rozłożone tam, gdzie umieściłaby je edycja grupy, gotowe do wybrania, a pasek pokazuje, w której grupie jesteś. <strong class="ui">„Wyjdź”</strong> zamyka ją z powrotem. To służy tylko do oglądania - grupa, projekt i historia pozostają bez zmian.</p>
+<p><strong class="ui">„Usuń historię”</strong> stoi osobno w lewym dolnym rogu paska. Po pytaniu usuwa na dobre wszystkie wcześniejsze kroki: projekt zachowuje stan, który ma teraz (a nie ten pokazany), Cofnij nie ma już do czego wracać, a plik zapisany później nie zawiera historii. Użyj tego, aby udostępnić projekt bez jego przeszłości albo zacząć kroki cofania od nowa. Tego nie da się cofnąć. Aby udostępnić plik, nie ruszając własnego projektu, wybierz zamiast tego przy eksporcie <strong class="ui">„Brak”</strong>.</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/instrukcja/shapes.html"><small>Poprzedni rozdział</small>Umieszczanie i dopasowywanie kształtów</a><a class="next" href="/api/desktop/layerling/ui/instrukcja/solids-and-holes.html"><small>Następny rozdział</small>Bryły i otwory</a></div>
+      </main>
+    </div>
+    <footer class="note">Ta instrukcja rośnie razem z programem. Jeśli czegoś brakuje albo coś się nie zgadza, napisz w <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">dyskusjach</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=pl" rel="noopener">Wesprzyj projekt</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Dyskusje</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Więcej na GitHubie</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Informacje o wersji v1.154.1</a></div><p class="trademark">Tinkercad jest znakiem towarowym firmy Autodesk, Inc. layerling jest niezależnym projektem i nie jest powiązany z firmą Autodesk, ani przez nią wspierany czy sponsorowany.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Wróć do edytora";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Otwórz edytor";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

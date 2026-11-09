@@ -85,8 +85,8 @@ Diese Einträge binden enger als MIT.
 | --- | --- | --- |
 | Stockfish 19.0.1 | GPL-3.0 | Schach-Engine im Desktop, `ui/js/vendor/stockfish/`. Text: `texts/GPL-3.0-only.txt`. |
 | Papirus, WhiteSur | GPL-3.0 | Icon-Themes des virtuellen Desktops. Texte liegen auch in `ui/img/papirus/` und `ui/img/whitesur/`. |
-| Layerling 1.71.0 | AGPL-3.0-only | Optionale CAD-App. Lizenz und Quellarchiv (`source.zip`) liegen in `ui/js/vendor/layerling/`. |
-| NASSCAD v4.7.0-desktop | CC BY-NC 4.0 mit zusätzlichen Upstream-Erlaubnissen | NassLab-Code und fremde Komponenten haben getrennte Bedingungen. `LICENSE`, `THIRD-PARTY.md` und die IFC-Lizenz werden mit den CAD-Ressourcen ausgeliefert. |
+| Layerling 1.154.1 | AGPL-3.0-only | Optionale CAD-App. Lizenz und Quellarchiv (`source.zip`) liegen in `ui/js/vendor/layerling/`. Die japanische Schrift ist Zen Maru Gothic (SIL OFL-1.1), mit `OFL.txt` daneben. |
+| NASSCAD 4.7.0 | AGPL-3.0-only | NassLab-Code. Persönliche und kommerzielle Nutzung ist erlaubt; Modelle bleiben bei dir. Fremde Komponenten behalten ihre eigenen Lizenzen (`THIRD-PARTY.md`). `LICENSE`, die Lizenzseite und die IFC-Lizenz werden mitgeliefert. |
 | ByteStash, IT-Tools, AdGuard Home | GPL-3.0 | Store-Images, unverändert aus der Registry. |
 | OliveTin, RomM, MinIO, Garage | AGPL-3.0 | Store- oder Sidecar-Images. Änderungen an diesen Programmen bleiben AGPL, und Nutzer des laufenden Dienstes bekommen dessen Quellcode. |
 | SDRangel 7.27.2 | GPL-3.0 | Im RTL-SDR-Image zusammengesetzt. Hinweise bleiben im Image. |

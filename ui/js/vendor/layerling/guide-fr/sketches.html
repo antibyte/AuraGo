@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Esquisses : du contour au corps - Manuel d'utilisation layerling</title>
+    <meta name="description" content="Dessinez un contour plat, arrondissez ou chanfreinez ses coins et tirez-le ou faites-le tourner pour former un corps.">
+    <link rel="canonical" href="https://layerling.com/guide-fr/sketches.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/sketches.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/sketches.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/sketches.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/skizzen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/sketches.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/sketches.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/sketches.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/sketches.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/schetsen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/sketches.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/skice.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/sketches.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/sketches.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/sketches.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/sketches.html">
+    <meta property="og:title" content="Esquisses : du contour au corps - Manuel d'utilisation layerling">
+    <meta property="og:description" content="Dessinez un contour plat, arrondissez ou chanfreinez ses coins et tirez-le ou faites-le tourner pour former un corps.">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/guide-fr/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">Manuel d'utilisation</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/guide-fr/search-index.json" data-nothing="Aucun résultat trouvé." data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="Rechercher dans le manuel" aria-label="Rechercher dans le manuel" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="Langue">Français</summary><ul><li><a href="/api/desktop/layerling/ui/guide/sketches.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/sketches.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/sketches.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/skizzen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/sketches.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/sketches.html" hreflang="fr" lang="fr" aria-current="true">Français</a></li><li><a href="/api/desktop/layerling/ui/it/sketches.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/sketches.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/schetsen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/sketches.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/sketches.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/sketches.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/skice.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/sketches.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/sketches.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/sketches.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/sketches.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/sketches.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/sketches.html" hreflang="zh-TW" lang="zh-TW">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">Ouvrir l'éditeur</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>L'éditeur est déjà ouvert dans un autre onglet - basculez simplement vers lui.</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="Chapitres"><h2>Chapitres</h2><p class="print-link"><a href="/api/desktop/layerling/ui/guide-fr/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>Guide complet, à imprimer</span></a></p><ol><li><a href="/api/desktop/layerling/ui/guide-fr/getting-started.html">Premiers pas</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/view-and-workplane.html">Vue et plan de travail</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/shapes.html">Placer et ajuster les formes</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/select-and-arrange.html">Choisir et organiser</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/solids-and-holes.html">Solides et trous</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/edges-and-hollowing.html">Casser les bords et creuser les corps</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/sketches.html" aria-current="page">Esquisses : du contour au corps</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/text.html">Texte et lettres courbes</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/threads-and-mechanics.html">Filetages, engrenages et autres pièces</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/measuring-and-notes.html">Mesures et notes</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/printing.html">Préparation à l'impression 3D</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/files-and-saving.html">Fichiers, sauvegarde et partage</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/shortcuts.html">Raccourcis clavier</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/ai-with-mcp.html">Construire avec une IA (MCP)</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/offline-and-install.html">Installation en tant qu'application, travail hors ligne et auto-hébergement</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/videos.html">Vidéos sur layerling</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/tablet-and-touch.html">Tablette et tactile</a></li></ol></nav>
+      <main>
+<h1>Esquisses : du contour au corps</h1>
+<p class="lead">Dessinez un contour plat, arrondissez ou chanfreinez ses coins et tirez-le ou faites-le tourner pour former un corps.</p>
+<div class="toc"><b>Sur cette page</b><ul><li><a href="#demarrer-une-esquisse">Démarrer une esquisse</a></li><li><a href="#dessin">Dessin</a></li><li><a href="#lignes-par-numeros">Lignes par numéros</a></li><li><a href="#courber-un-cote-droit">Courber un côté droit</a></li><li><a href="#angles-de-lecture-et-de-frappe">Angles de lecture et de frappe</a></li><li><a href="#arrondir-ou-chanfreiner-les-coins">Arrondir ou chanfreiner les coins</a></li><li><a href="#symetrie">Symétrie</a></li><li><a href="#lignes-de-construction">Lignes de construction</a></li><li><a href="#en-faire-un-corps">En faire un corps</a></li><li><a href="#balayer-le-long-d-un-chemin">Balayer le long d'un chemin</a></li><li><a href="#construire-comme-un-trait">Construire comme un trait</a></li><li><a href="#remplissage-et-silhouette">Remplissage et silhouette</a></li><li><a href="#murs-inclines-pour-les-tampons">Murs inclinés, pour les tampons</a></li><li><a href="#une-image-comme-modele">Une image comme modèle</a></li><li><a href="#touches-en-mode-esquisse">Touches en mode esquisse</a></li></ul></div>
+<p>Tout ne peut pas être assemblé à partir de formes de base. Pour les pièces avec un contour propre, comme un support, un profil de dent ou un vase, vous dessinez d'abord le <strong>contour</strong>, puis vous en faites un corps. C'est à cela que sert le mode esquisse.</p>
+<section class="guide-part"><h2 id="demarrer-une-esquisse"><span class="heading-alias" id="starting-a-sketch"></span>Démarrer une esquisse</h2>
+<p>En haut, passez de <strong class="ui">« Editeur 3D »</strong> à <strong class="ui">« Esquisse »</strong>. Cliquez sur <strong class="ui">« Esquisse en 3D »</strong> dans le ruban et choisissez ce que doit devenir le contour :</p>
+<ul><li><strong><strong class="ui">« Extruder l'esquisse »</strong> :</strong> Le contour est tiré vers le haut, comme un emporte-pièce.</li><li><strong><strong class="ui">« Esquisse de révolution »</strong> :</strong> Le contour tourne autour d'un axe, comme sur un tour. Cela donne des vases, des coupes, des cônes et tout ce qui est rond.</li><li><strong><strong class="ui">« Esquisse le long d'un chemin »</strong> :</strong> Le contour est tiré le long d'un chemin : un chemin de câbles avec un coude, une conduite, un anneau autour d'une forme. Voir plus bas Balayer le long d'un chemin.</li></ul>
+<p>L'éditeur affiche alors une feuille avec une grille. C'est votre surface de dessin.</p>
+</section><section class="guide-part"><h2 id="dessin"><span class="heading-alias" id="drawing"></span><span class="heading-alias" id="drawing-tools"></span><span class="heading-alias" id="shapes"></span><span class="heading-alias" id="select-and-change"></span><span class="heading-alias" id="clipboard-and-history"></span><span class="heading-alias" id="notes"></span><span class="heading-alias" id="view-and-dimensions"></span>Dessin</h2>
+<p>Le ruban en mode esquisse est divisé en zones :</p>
+<ul><li><strong>Dessin :</strong> <strong class="ui">« Ligne »</strong> trace des segments droits : cliquez des points l'un après l'autre ; en maintenant <kbd>Shift</kbd>, la nouvelle ligne s'accroche par pas de 15°, horizontale et verticale comprises. La longueur et l'angle de la nouvelle ligne s'affichent au pointeur. Vous pouvez aussi taper sa longueur, voir <a href="#lignes-par-numeros">Lignes par numéros</a>. <strong class="ui">« Arc »</strong> trace un véritable arc de cercle par trois points : cliquez d'abord ses deux extrémités, puis un troisième point par lequel passe l'arc ; jusqu'à ce troisième clic, un aperçu suit le pointeur, et le message indique le rayon. Une extrémité cliquée sur un point existant s'y joint, si bien qu'un arc peut fermer un contour. <kbd>Esc</kbd> abandonne les points cliqués jusque-là et revient à <strong class="ui">« Sélectionnez »</strong>. Ensuite, l'arc est une géométrie ordinaire faite de points et de courbes : déplacez-le, coupez-le ou effacez-le comme toute autre ligne. La <strong class="ui">« Courbe de Bézier »</strong> se façonne avec ses poignées : cliquez un point et faites glisser dans la direction où la ligne doit continuer, comme avec l'outil plume d'Illustrator ou d'Inkscape. Plus vous tirez loin, plus elle se courbe ; le tronçon vers le nouveau point se courbe pendant que vous tirez, vous voyez donc ce que vous obtenez. Faire glisser pendant que vous placez un point plie la courbe ; si vous venez de Tinkercad et que vous souhaitez simplement cliquer sur des points, prenez le <strong class="ui">« Courbe douce »</strong>. Le <strong class="ui">« Courbe douce »</strong> trace un chemin fluide à travers les points sur lesquels vous cliquez. Pour fermer le contour, cliquez à nouveau sur le premier point à la fin. Pour terminer la suite de lignes sans fermer le contour, faites un clic droit sans bouger le pointeur, ou double-cliquez sur le dernier point.</li><li><strong><strong class="ui">« Main levée »</strong> :</strong> dessinez au stylet, au doigt ou à la souris, comme sur du papier. Quand vous le levez, la ligne devient des points ordinaires : un coin là où elle a tourné net, des points lisses entre les deux, juste autant que la forme en demande, si bien que chacun se déplace ensuite. Zoomez pour les détails fins : plus vous regardez de près, plus la ligne suit fidèlement votre main. Une ligne qui finit là où elle a commencé se ferme en contour qui peut devenir un corps ; une ligne ouverte reste une ligne, pour <strong class="ui">« Trait »</strong> ou comme trajectoire de balayage. Elle commence aussi sur des lignes et sur une image modèle, ce qui permet de décalquer une image à la main. Un trait qui commence ou finit sur une extrémité ouverte prolonge cette ligne, si bien qu'une forme se dessine en plusieurs traits.</li><li><strong>Formes :</strong> <strong class="ui">« Ajouter une forme d'esquisse »</strong> propose des contours prêts à l'emploi : <strong class="ui">« Rectangulaire »</strong>, <strong class="ui">« Cercle »</strong>, <strong class="ui">« Ovale »</strong>, <strong class="ui">« Demi-cercle »</strong>, <strong class="ui">« Tranche de tarte »</strong>, <strong class="ui">« Cercle de boulon »</strong> (un disque avec des trous), <strong class="ui">« Triangle »</strong>, <strong class="ui">« Hexagone »</strong>, un <strong class="ui">« Polygone »</strong> et un <strong class="ui">« Étoile »</strong>. Cliquez sur l'un d'entre eux pour le placer à l'origine de l'esquisse ou faites-le glisser du menu jusqu'à l'endroit souhaité. Au bas du menu, <strong class="ui">« Côtés / points »</strong> définit le nombre de côtés du polygone et de points de l'étoile, et <strong class="ui">« Taille intérieure de l'étoile »</strong> la profondeur des vallées de l'étoile vers le milieu (10 à 90 pour cent du rayon extérieur) ; les deux s’appliquent à la forme suivante que vous ajoutez. Comme toute forme d'esquisse, ce sont ensuite des points d'angle ordinaires, vous pouvez donc les déplacer, les arrondir ou les chanfreiner un par un. Le rectangle commence avec la largeur et la profondeur définies pour la <strong class="ui">« Boîte »</strong> sous <strong class="ui">« Valeurs par défaut de la forme »</strong> dans les paramètres, le cercle et l'ellipse avec la largeur du cylindre ; sans valeur personnelle, et pour les autres formes, elles mesurent 20 mm.</li><li><strong>Chevauchement :</strong> Poussez deux contours fermés l'un sur l'autre et ils restent deux corps, qui fusionnent dans l'éditeur 3D ; le chevauchement n'est pas un trou. Un trou ne vient que d’un contour entièrement inséré dans un autre. Le déplacement ne rejoint pas les lignes là où elles se croisent, vous pouvez donc séparer à nouveau les formes. Cependant, si vous tracez une ligne entre les autres, layerling place un point à chaque croisement.</li><li><strong>Sélection :</strong> <strong class="ui">« Sélectionnez »</strong> déplace les points et les lignes. Un clic à l'intérieur d'un contour fermé sélectionne tout le contour, vous pouvez donc le faire glisser ou le redimensionner immédiatement ; à l'intérieur d'un trou, il choisit le trou. Le cadre autour de la sélection comporte huit poignées : les coins changent la largeur et la hauteur ensemble, en gardant les proportions tant que vous maintenez <kbd>Shift</kbd>. Celles des côtés ne changent qu'une direction. <strong class="ui">« Garder les proportions »</strong> dans la barre qui apparaît garde les proportions sans <kbd>Shift</kbd> : les coins et les côtés étirent alors dans les deux sens pareil, et une largeur ou une hauteur tapée change l'autre aussi. layerling retient le commutateur. <strong class="ui">« Verrouiller »</strong> à côté verrouille le contour sélectionné, comme un corps verrouillé dans l'éditeur 3D (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> fait de même) : il ne peut plus être déplacé, redimensionné, tourné ni modifié, ses lignes pâlissent et ses points deviennent gris, et les poignées du cadre deviennent grises et ne réagissent plus. Tant qu'il est sélectionné, un cadenas dans son coin le déverrouille d'un clic. Des lignes peuvent encore partir de ses coins. <strong class="ui">« Déverrouiller »</strong> ou de nouveau <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> le libère. Les flèches courbes au-delà des coins du cadre font pivoter toute la sélection autour de son milieu : le chiffre au-dessus du pointeur indique l'angle, et avec <kbd>Shift</kbd> maintenu la rotation se fait par pas de 15°. Pendant la rotation, un anneau apparaît : avec le pointeur à l'intérieur, la rotation s'accroche à 22,5°, à l'extérieur elle avance par degrés entiers, quelle que soit la grille. <kbd>R</kbd> fait pivoter un contour fermé entier de 45° à chaque pression. Cliquez sur la pilule de largeur ou de hauteur pour saisir une nouvelle taille, aussi sous forme de somme (« 60+12.5 ») ou en pourcentage (« 150% »). Les champs X et Y de la barre au-dessus de l'esquisse montrent où se trouve le milieu de la sélection, en mm depuis l'origine de l'esquisse ; tapez une valeur pour l'y déplacer, par exemple pour un trou exactement à 12 mm du milieu. Y compte vers le haut, comme dans l'éditeur 3D. Avec <kbd>Shift</kbd> maintenu, un clic sur un point ou une ligne l'ajoute à la sélection ou l'en retire, vous pouvez donc en choisir plusieurs et les déplacer ensemble. Tirez un cadre sur un espace vide pour sélectionner tout ce qu'il contient. Avec deux contours ou plus sélectionnés, la barre les aligne aussi : à gauche, au centre ou à droite, et en haut, au centre ou en bas, sur le cadre qui les entoure tous. Chaque contour se déplace en entier et garde sa forme ; centrés dans les deux sens, deux cercles deviennent un anneau. Un contour verrouillé reste où il est, et les autres s'alignent sur lui. Une ligne peut aussi être tirée (elle se déplace par ses deux extrémités, ou toute la sélection si elle en fait partie). Les touches fléchées déplacent la sélection d'un pas de grille, <kbd>Shift</kbd> avec elles d'un pas plus grand, et <kbd>Shift</kbd> maintenu pendant le glissement garde le déplacement sur un axe. <strong class="ui">« Ajouter ou supprimer des points »</strong> : un clic sur une section ajoute un point, un clic sur un point le supprime. Il y a aussi <strong class="ui">« Effacer »</strong> (un clic sur un point ou une ligne l'enlève, une fenêtre tirée sur plusieurs enlève tout ce qu'elle contient, et avec une sélection le bouton efface la sélection) et l'insertion d'une image modèle (<strong class="ui">« Ajouter une image »</strong>). Quand vous supprimez un point, layerling relie ses deux voisins pour que le contour reste fermé. Pour fermer un écart, par exemple après avoir effacé un côté d'un hexagone, tirez une extrémité ouverte sur l'autre : elle s'y accroche et les deux deviennent un seul point, le contour est donc de nouveau fermé. À un croisement, comme là où une ligne coupe un cercle, les côtés qui continuent tout droit sont reliés : arc avec arc, ligne avec ligne, et le cercle reste rond. Pour enlever seulement un morceau de cercle, pour un coin arrondi par exemple, cliquez avec la gomme exactement sur ce morceau d'arc entre deux points ; le reste demeure.</li><li><strong>Presse-papiers :</strong> <strong class="ui">« Copier »</strong>, <strong class="ui">« Coller »</strong>, <strong class="ui">« Dupliquer »</strong> et <strong class="ui">« Supprimer »</strong> travaillent sur les points, lignes et images sélectionnés, comme dans l'éditeur 3D ; Coupes <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span>. La géométrie collée et dupliquée se pose à côté de l'original avec un espace de 10 mm, sur un endroit libre où elle ne touche aucune ligne existante, de sorte qu'elle ne soit jamais jointe à ce qui est déjà là. Il reste sélectionné, vous pouvez donc le faire glisser directement en place.</li><li><strong>Historique :</strong> <strong class="ui">« Annuler l'esquisse »</strong> et <strong class="ui">« Refaire l'esquisse »</strong>.</li><li><strong><strong class="ui">« Contrôles de la vue d'esquisse »</strong>:</strong> <strong class="ui">« Remarque »</strong> (ou <kbd>N</kbd>) pose une note sur l'esquisse, comme dans l'éditeur 3D : le clic suivant la place, n'importe où, même sur une ligne. Faites glisser l'épingle pour la déplacer ; un clic sur l'épingle replie la carte. Les notes d'une esquisse appartiennent à son corps : dans la vue 3D, elles se posent sur le dessus d'un corps créé avec <strong class="ui">« Extruder l'esquisse »</strong> ou <strong class="ui">« Esquisse le long d'un chemin »</strong> et sur le profil dessiné d'un corps créé avec <strong class="ui">« Esquisse de révolution »</strong>, et elles se déplacent avec lui. Rouvrir l'esquisse affiche toutes les notes du corps, y compris celles placées en 3D. <strong class="ui">« Annuler l'esquisse »</strong> annule une note comme une ligne, et <strong class="ui">« Annuler »</strong> abandonne ce qui a changé dans les notes. Plus de détails dans le chapitre Mesures et notes.</li><li><strong>Affichage :</strong> Effectuez un panoramique avec le bouton central de la souris ou avec <kbd>Shift</kbd> ou <kbd>Ctrl</kbd> plus le bouton droit de la souris, comme dans l'éditeur 3D. Quand rien n'est sélectionné, <kbd>Ctrl</kbd> et les flèches la font aussi glisser : un dixième de l'image par appui, la moitié avec <kbd>Shift</kbd> en plus ; l'esquisse se déplace dans la direction où elles pointent. <kbd>Home</kbd> ajuste l'intégralité de l'esquisse dans la vue, <kbd>F</kbd> effectue un zoom sur la sélection (sans sélection, sur toute l'esquisse), et <kbd>+</kbd> et <kbd>−</kbd> effectuent un zoom avant et arrière, comme dans l'éditeur 3D. Sans sélection, un double-clic sur un endroit vide fait glisser la vue pour amener cet endroit au milieu, comme dans l'éditeur 3D ; <strong class="ui">« Un double-clic sur le plan de travail y centre la vue »</strong> dans les réglages le désactive. Le <strong class="ui">« Ruban à mesurer »</strong> sur la barre d'outils d'esquisse mesure la distance entre deux points. L'esquisse affiche également les dimensions dès que vous cliquez sur quelque chose : la longueur d'une ligne, ou pour un point, la longueur des lignes qui s'y rejoignent. Le bouton <strong class="ui">« Afficher les mesures »</strong> sur la barre d'outils d'esquisse masque et affiche ces dimensions lorsqu'elles gênent, par exemple lors du façonnage de courbes ; le ruban à mesurer continue de fonctionner. Sur une ligne droite, vous pouvez cliquer sur la pilule de dimension et saisir la longueur en millimètres ; <kbd>Enter</kbd> l'applique, <kbd>Esc</kbd> l'annule. La ligne garde sa direction, son point de départ reste là où il se trouve et les lignes à l'autre extrémité suivent. Avec un point final sélectionné, celui-là se déplace. <span dir="ltr"><kbd>Alt</kbd>+<kbd>Enter</kbd></span> agrandit la ligne des deux côtés autour de son milieu. Dans les courbes, la pilule n'affiche que la longueur.</li></ul>
+<p>Un corps vient uniquement d'un contour <strong>fermé</strong>.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-outline.webp" alt="Un contour en forme de L. Au point d'angle sélectionné, en haut à gauche, les longueurs des deux lignes sont affichées en millimètres et l'angle entre elles en degrés." width="1280" height="800" loading="lazy"><figcaption>Un contour en forme de L. Au point d'angle sélectionné, en haut à gauche, les longueurs des deux lignes sont affichées en millimètres et l'angle entre elles en degrés.</figcaption></figure>
+<p>Les touches <kbd>1</kbd> à <kbd>4</kbd> choisissent les outils de dessin, dans l'ordre de la barre : <strong class="ui">« Ligne »</strong>, <strong class="ui">« Courbe de Bézier »</strong>, <strong class="ui">« Courbe douce »</strong> et <strong class="ui">« Ajouter ou supprimer des points »</strong>. Elles agissent tant qu'aucune ligne n'est en cours ; pendant une ligne, les chiffres sont sa longueur (voir ci-dessous). <kbd>5</kbd> choisit <strong class="ui">« Main levée »</strong>.</p>
+</section><section class="guide-part"><h2 id="lignes-par-numeros"><span class="heading-alias" id="lines-by-numbers"></span>Lignes par numéros</h2>
+<p>Une fois que vous avez défini le premier point avec <strong class="ui">« Ligne »</strong> ou <strong class="ui">« Courbe douce »</strong>, tapez simplement un nombre : deux champs s'ouvrent à côté de la ligne, <strong class="ui">« Longueur »</strong> en millimètres et <strong class="ui">« Angle »</strong> en degrés. <kbd>&lt;</kbd> ou <kbd>Tab</kbd> se déplace vers l'angle, donc &quot;50&lt;30&quot; donne une ligne de 50 mm de long à 30°, comme dans AutoCAD. <kbd>Enter</kbd> définit le point et vous pouvez taper la ligne suivante immédiatement ; <kbd>Esc</kbd> ferme les champs sans terminer la chaîne de lignes.</p>
+<p>L'angle compte dans le sens inverse des aiguilles d'une montre à partir de la droite : 0° vers la droite, 90° vers le haut, 180° vers la gauche, 270° vers le bas. Laissez-le vide et la ligne suit le pointeur, vous donnez donc uniquement la longueur et montrez la direction avec la souris. Des sommes comme « 40+12,5 » fonctionnent dans les deux domaines. Si le point devait sortir de la plaque, le champ l'indique et attend une autre valeur.</p>
+</section><section class="guide-part"><h2 id="courber-un-cote-droit"><span class="heading-alias" id="curving-a-straight-side"></span>Courber un côté droit</h2>
+<p>Sélectionnez une ligne droite et cliquez sur <strong class="ui">« Ligne de courbe »</strong> dans la barre qui apparaît : le côté s'incline en courbe, comme dans Tinkercad, et montre ses deux poignées. Faites-les glisser pour façonner la courbe ; plus une poignée est éloignée, plus la courbure est forte. Sous le pointeur, une poignée devient orange et attrape aussi un clic juste à côté, pour qu'une image modèle en dessous ne bouge pas par erreur. <strong class="ui">« Ligne droite »</strong> rend le côté droit. Un point que vous sélectionnez peut être arrondi avec <strong class="ui">« Courbe douce »</strong> : il obtient ses propres poignées et les lignes à côté deviennent des courbes. Avec trois points ou plus sélectionnés, <strong class="ui">« Courbe par points »</strong> dans la barre trace une seule courbe douce du premier au dernier, en passant par chaque point entre eux, comme le fait l'outil <strong class="ui">« Courbe douce »</strong> ; les lignes au-delà des deux extrémités restent telles quelles. D'autres logiciels l'appellent « Fit curve » ou « Fit point spline ». La différence : <strong class="ui">« Ligne de courbe »</strong> courbe chaque côté sélectionné séparément et garde les angles entre eux, pour un arc sur un côté ; <strong class="ui">« Courbe par points »</strong> fait passer une seule courbe par les points sans laisser d'angles, pour lisser un bord dentelé décalqué. Cliquez sur une poignée et elle s'allume : les touches fléchées la déplacent alors d'un pas de grille, avec <kbd>Shift</kbd> d'un pas plus grand, pour régler une courbe avec précision.</p>
+<p>Les valeurs se tapent aussi. Un point sélectionné affiche <strong class="ui">« X »</strong> et <strong class="ui">« Y »</strong> dans la barre : sa position, en mm depuis l'origine de l'esquisse, Y comptant vers le haut. Cliquez sur une poignée et la barre affiche à la place <strong class="ui">« Poignée X »</strong> et <strong class="ui">« Poignée Y »</strong> : la position de la poignée depuis son propre point. Sur un point lisse, la poignée opposée tourne avec elle. Donnez à la poignée correspondante de l'autre côté le même Y et le X de signe opposé, et la courbe sort exactement symétrique ; <strong class="ui">« Symétrie »</strong> reproduit toute une moitié d'un coup.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-curve.webp" alt="Le côté inférieur du contour en forme de L est plié en courbe, avec ses deux poignées aux extrémités." width="1280" height="800" loading="lazy"><figcaption>Le côté inférieur du contour en forme de L est plié en courbe, avec ses deux poignées aux extrémités.</figcaption></figure>
+</section><section class="guide-part"><h2 id="angles-de-lecture-et-de-frappe"><span class="heading-alias" id="reading-and-typing-angles"></span>Angles de lecture et de frappe</h2>
+<p>Cliquez sur un coin où <strong>deux lignes droites</strong> se rencontrent : à côté des longueurs, layerling affiche l'<strong>angle</strong> entre elles en degrés, avec un petit arc. Sur un contour fermé, c'est l'angle à l'intérieur de la forme, donc une bosse se lit au-dessus de 180°. Cliquez sur la valeur et saisissez un nouvel angle. L'une des deux lignes tourne alors autour du coin et garde sa longueur, et l'autre reste là où elle est. La ligne qui tourne est tracée en pointillés ; <kbd>Tab</kbd> passe à l'autre, <kbd>Enter</kbd> s'applique et <kbd>Esc</kbd> s'annule. Ce qui pend à l’extrémité de la ligne tournée va avec.</p>
+<p>Un point verrouillé reste où il est, et une valeur saisie en tient compte : une longueur déplace l'extrémité libre de la ligne, un angle fait tourner la ligne dont l'autre extrémité est libre. Un point seul peut aussi être verrouillé : sélectionnez-le et appuyez sur <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span>. Vous pouvez ainsi rendre un contour exact coin après coin : verrouillez un coin, saisissez la longueur et l'angle de la ligne suivante, verrouillez son extrémité, et ainsi de suite.</p>
+<p>Déplacer un point change trois angles : au point lui-même et aux deux coins voisins aux extrémités de ses lignes. Ainsi, layerling montre également ces deux éléments, et chacun peut être cliqué et saisi. De cette façon, vous réglez, par exemple, le coin inférieur gauche à 75,5° tandis que le point supérieur gauche, qui se déplace pour lui, est sélectionné. Ici aussi, vous pouvez calculer, par ex. &quot;90-14,5&quot;.</p>
+<p>Un coin ne montre aucun angle à l'endroit où une courbe le rencontre, ni à l'endroit où plus de deux lignes se rencontrent. Le bouton <strong class="ui">« Afficher les mesures »</strong> sur la barre d'outils d'esquisse masque l'angle ainsi que les longueurs.</p>
+</section><section class="guide-part"><h2 id="arrondir-ou-chanfreiner-les-coins"><span class="heading-alias" id="rounding-or-chamfering-corners"></span>Arrondir ou chanfreiner les coins</h2>
+<p>Cliquez sur un point d'angle et choisissez <strong class="ui">« Coin de congé »</strong> ou <strong class="ui">« Coin chanfreiné »</strong>. Un petit champ apparaît pour le <strong class="ui">« Rayon »</strong> ou le <strong class="ui">« Distance »</strong>. Saisissez la taille et confirmez avec la coche. Cela fonctionne pour les coins entre deux lignes droites.</p>
+<p>Plusieurs coins fonctionnent également : sélectionnez-les avec <kbd>Shift</kbd> et cliquez sur chacun, ou tracez un cadre autour d'eux et choisissez <strong class="ui">« Coin de congé »</strong> ou <strong class="ui">« Coin chanfreiné »</strong> dans la barre qui apparaît. Tous ont le même rayon ou distance. Lorsque deux coins sélectionnés partagent un côté, chacun en occupe au maximum 45 %, de sorte qu'un rectangle arrondi sur tout son pourtour ressort pareil à chaque coin. Les points qui ne constituent pas un coin entre deux lignes droites sont laissés de côté et le message indique leur nombre. Un cadre autour d'une forme entière, ou un clic à l'intérieur de celle-ci, sélectionne ses coins et ses lignes ensemble, et la barre propose alors <strong class="ui">« Ligne de courbe »</strong> et <strong class="ui">« Ligne droite »</strong> pour toutes les lignes sélectionnées à côté des outils de coin.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-fillet.webp" alt="Le coin en haut à gauche est arrondi avec un rayon de 12 mm." width="1280" height="800" loading="lazy"><figcaption>Le coin en haut à gauche est arrondi avec un rayon de 12 mm.</figcaption></figure>
+</section><section class="guide-part"><h2 id="symetrie"><span class="heading-alias" id="mirroring"></span>Symétrie</h2>
+<p>Sélectionnez des points et des lignes (clic, <kbd>Maj</kbd> et clic, ou un cadre tiré autour) et cliquez sur <strong class="ui">« Symétrie »</strong> dans la barre. Choisissez ensuite l'axe : <strong class="ui">« Gauche-droite »</strong> fait la symétrie par rapport à l'axe vertical passant par le milieu de la plaque, <strong class="ui">« Haut-bas »</strong> par rapport à l'horizontal, et <strong class="ui">« Selon une ligne »</strong> par rapport à une ligne droite de l'esquisse sur laquelle vous cliquez ensuite. La copie se place de l'autre côté et l'original reste ; rien n'est lié, vous pouvez modifier chacun séparément. Les points sur l'axe sont partagés : un demi-contour dont les extrémités sont sur l'axe devient un contour fermé. Dessinez la moitié d'une équerre, sélectionnez-la, faites la symétrie et créez le corps. Une ligne de construction fait un bon axe. <kbd>Échap</kbd> annule.</p>
+</section><section class="guide-part"><h2 id="lignes-de-construction"><span class="heading-alias" id="construction-lines"></span>Lignes de construction</h2>
+<p>Une ligne de construction vous aide à placer des points sans faire partie du corps. Il est dessiné en pointillés et ne compte jamais comme contour : vous pouvez le tirer aussi loin que vous le souhaitez au-delà de la forme et le corps ne grandit pas.</p>
+<ul><li>Allumez <strong class="ui">« Ligne de construction »</strong> dans le groupe <strong class="ui">« Dessiner »</strong>. Les nouvelles lignes, celles tapées par mesure également, sont alors des lignes de construction. Le bouton revient aux lignes normales.</li><li>Une ligne que vous avez tracée devient déjà une ligne de construction lorsque vous cliquez dessus et choisissez <strong class="ui">« Construction »</strong>. <strong class="ui">« Faire une ligne »</strong> en fait à nouveau une ligne normale.</li><li><strong class="ui">« Ligne depuis le milieu »</strong> dans le groupe <strong class="ui">« Dessiner »</strong> trace une ligne depuis son milieu : cliquez d'abord le milieu, puis l'extrémité, et la ligne s'étend de la même longueur de l'autre côté. Le milieu devient un point à part. Cliquez de nouveau sur le bouton pour tracer des lignes normales.</li><li>Les nouveaux points s'accrochent à l'endroit où une ligne de construction croise une autre ligne, un anneau bleu l'indique, ainsi qu'aux extrémités de la ligne de construction. C'est ainsi qu'on pose un coin sur un milieu, à distance fixe d'un bord ou sur un croisement, sans calculer.</li><li>Une ligne de construction ne coupe pas le contour là où elle le traverse. Lorsqu'il tourne, il peut également se trouver à droite de l'axe.</li></ul>
+</section><section class="guide-part"><h2 id="en-faire-un-corps"><span class="heading-alias" id="making-a-body-from-it"></span>En faire un corps</h2>
+<p>Cliquez sur <strong class="ui">« Terminer l'esquisse »</strong>. Le contour constitue un corps sur le plan de travail. Dans ses paramètres, vous modifiez la hauteur, la couleur et tout le reste comme pour toute autre forme. Lorsque vous le redimensionnez, layerling le reconstruit à partir de l'esquisse un instant plus tard, et l'esquisse grandit avec elle. Il reste donc un corps exact qui prend des chanfreins et des congés, et la prochaine fois que vous le modifierez, l'esquisse aura la taille du corps.</p>
+<p>Si le plan de travail se trouve sur le côté d'un corps, vous dessinez la façon dont vous regardez ce côté : le haut dans l'esquisse se trouve également sur le corps fini. Le léger contour du corps dans la vue d’esquisse montre où il se trouve. Si le plan de travail traverse un corps, la vue d'esquisse affiche à la place le contour de cette coupe, de sorte qu'un corps creux apparaît comme un anneau et que vous pouvez aligner l'esquisse avec ses parois. Un point que vous définissez ou faites glisser près d'un coin de ces contours s'aligne exactement dessus ; un petit anneau bleu le montre. De cette façon, vous incorporez les bords d'autres corps dans l'esquisse, même lorsque le plan de travail ne repose pas exactement sur eux. Pour tracer autour d'un travail existant, activez <strong class="ui">« Afficher les pièces en transparence : toutes leurs arêtes sur le plan d'esquisse »</strong> (le bouton des calques dans les boutons de vue à gauche) : toutes les arêtes des corps sont alors dessinées sur le plan de l'esquisse, fines et pâles, comme si vous regardiez à travers, à quelque hauteur qu'elles se trouvent. Un plan debout, posé sur une face avant par exemple, montre ainsi la vue de face. Le choix est gardé dans le navigateur.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/sketch-result.webp" alt="Le contour est devenu un corps. Le coin est arrondi." width="1280" height="800" loading="lazy"><figcaption>Le contour est devenu un corps. Le coin est arrondi.</figcaption></figure>
+<p>Avec <strong class="ui">« Modifier l'esquisse »</strong> vous pouvez revenir à l'esquisse à tout moment pour la modifier. Un double clic sur le corps fait la même chose, comme dans Tinkercad (un corps verrouillé reste fermé) ; <strong class="ui">« Un double-clic ouvre l'esquisse »</strong> dans les paramètres désactive cela. Les traitements de bord que vous avez déjà effectués sur le corps sont perdus, car les bords sont créés à nouveau. Un corps que vous avez tourné ou déplacé dans l'éditeur 3D s'ouvre là où il se trouve sur le plateau, tourné comme vous le voyez et sur la grille du plateau ; seul un corps incliné ou mis en miroir s'ouvre dans son propre repère.</p>
+<p>Une esquisse à plusieurs contours donne un seul corps, et les contours qui se chevauchent y fusionnent. Pour garder chaque contour à part, sélectionnez le corps et cliquez sur <strong class="ui">« Séparer les pièces »</strong> : chaque contour extérieur devient un corps à lui, avec les trous qui s'y trouvent, et garde la hauteur, la couleur et la place du corps. Chaque partie a sa propre esquisse à modifier, avec les lignes de construction, de sorte que vous pouvez monter ou descendre les parties une à une, puis les unir ou les soustraire. Les traitements d'arêtes l'empêchent, tout comme un corps étiré après coup : il est alors séparé comme un maillage.</p>
+<p><strong>Un autre type de corps à partir de la même esquisse :</strong> le badge en haut de l'esquisse indique ce qu'elle devient : <strong class="ui">« Esquisse extrudée »</strong>, <strong class="ui">« Esquisse de révolution »</strong> ou <strong class="ui">« Esquisse à chemin »</strong>. Cliquez dessus et choisissez-en un autre, aussi pendant que vous modifiez un corps existant : un SVG importé, qui arrive extrudé, devient un vase ou un bouton quand vous le passez en <strong class="ui">« Esquisse de révolution »</strong>. Un contour qui dépasse l'axe glisse vers la gauche jusqu'à ce que son bord droit soit sur l'axe ; <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> annule ce déplacement. À la fin, le nouveau corps prend la place de l'ancien, avec son nom et sa couleur, le pied à la même hauteur. Les traitements d'arêtes sont perdus, comme à chaque modification d'une esquisse.</p>
+<section class="guide-part"><h3 id="tournant"><span class="heading-alias" id="revolving"></span>Tournant</h3>
+<p>Lors d'une révolution, vous dessinez la moitié de la section <strong>à gauche de l'axe</strong> indiqué dans l'esquisse. À côté, vous voyez un aperçu 3D de la révolution. Cela montre immédiatement à quoi ressemblera le corps. Le contour doit être fermé. À la fin, cliquez sur <strong class="ui">« Terminer la révolution »</strong>. Les autres corps du dessin sont montrés de face, dans la même vue que le profil, avec l'axe au milieu : dessinez le profil à côté ou au-dessus d'eux. Le corps se tient là où vous l'avez dessiné, et la ligne horizontale au milieu de l'esquisse est le sol : un profil au-dessus donne un corps plus haut, et son point le plus bas est le pied du corps.</p>
+<p>Un corps de révolution est un corps exact, comme un corps extrudé : il prend des chanfreins et des congés, et on peut le creuser, pour une tasse ou un vase. Un corps tourné avec une version plus ancienne de layerling est un maillage ; ouvrez <strong class="ui">« Modifier l'esquisse »</strong> et terminez-le à nouveau pour le rendre exact. Un profil qui traverse l'axe ne peut pas être construit exactement et devient un maillage, comme auparavant.</p>
+<p><strong>Faces rondes plus lisses : <strong class="ui">« Finesse »</strong>.</strong> Un corps de révolution exact est découpé en petites facettes planes pour la vue, l'export et l'impression, et sur un grand pot elles peuvent se voir à l'impression. Sélectionnez le corps et réglez <strong class="ui">« Finesse »</strong> dans le panneau des propriétés sur <strong class="ui">« Fine »</strong> ou <strong class="ui">« Très fine »</strong> : les faces rondes sont découpées plus finement, au prix de plus de triangles et d'un modèle plus lent. Une hélice ou une révolution en maillage a <strong class="ui">« Côtés »</strong> pour cela.</p>
+<p><strong>Un seul brin continu : <strong class="ui">« Emplacement »</strong>.</strong> Une révolution fait du contour des anneaux fermés. Sélectionnez le corps de révolution et donnez-lui dans le panneau des propriétés un <strong class="ui">« Emplacement »</strong> supérieur à 0, la hauteur dont il monte à chaque tour : le contour s'enroule alors en hélice, un seul brin continu comme le filament sur une bobine ou un ressort. <strong class="ui">« Balayage »</strong> devient alors <strong class="ui">« Virages »</strong>, jusqu'à 200 ; un nombre négatif enroule à gauche. Des tours plus rapprochés que la hauteur du contour fusionnent en un seul corps : un noyau plein avec un pas fin fonctionne aussi. Une hélice est construite en maillage : congé, chanfrein et creusage ne s'y appliquent pas ; gardez <strong class="ui">« Côtés »</strong> bas pour beaucoup de tours. Un pas de 0 refait des anneaux.</p>
+</section></section><section class="guide-part"><h2 id="balayer-le-long-d-un-chemin"><span class="heading-alias" id="sweeping-along-a-path"></span>Balayer le long d'un chemin</h2>
+<p><strong class="ui">« Esquisse le long d'un chemin »</strong> tire un contour le long d'un chemin : un chemin de câbles qui tourne à l'angle, une conduite, une protection autour d'une courroie, un anneau autour d'un hexagone. Le bouton se trouve à côté de <strong class="ui">« Extruder l'esquisse »</strong> et <strong class="ui">« Esquisse de révolution »</strong> dans le groupe <strong class="ui">« Créer »</strong>.</p>
+<ul><li><strong>La section</strong> comme contour fermé, comme d'habitude. Dessinez-la comme vous la verriez en regardant le long du chemin depuis son début : en travers du chemin, c'est la gauche et la droite de l'esquisse, le haut est le haut du corps fini. Une section creuse, une goulotte ou un tube, est un contour avec un autre à l'intérieur. Par défaut, la section est centrée sur le chemin. Le menu à côté de l'insigne du mode en haut permet de mettre plutôt son bord gauche ou droit sur le chemin (<strong class="ui">« Sur le chemin : bord gauche »</strong>, <strong class="ui">« Sur le chemin : bord droit »</strong>, vus en regardant le long du chemin), si bien qu'un rail peut se tenir d'un côté de la ligne ou suivre le bord d'une pièce. Le corps repose sur le plan de l'esquisse par le point le plus bas de la section.</li></ul>
+<p>Vous dessinez deux choses sur la même feuille :</p>
+<ul><li><strong>La section</strong> comme contour fermé, comme d'habitude. Dessinez-la telle que vous la verriez en regardant le long du chemin depuis son début : en travers du chemin, c'est la gauche et la droite de l'esquisse, le haut est le haut du corps terminé. Une section creuse, un profilé en U ou un tube, est un contour avec un second à l'intérieur. La section est centrée en travers sur le chemin, et le corps repose sur le plan de l'esquisse par le point le plus bas de la section.</li></ul>
+<ul><li><strong>Le chemin</strong> comme <strong class="ui">« Ligne de construction »</strong> : activez-la et dessinez des lignes ou des courbes, une seule chaîne, ouverte ou fermée (une chaîne fermée donne un anneau). Le chemin est à plat dans le plan de l'esquisse.</li></ul>
+<p>Dessinez la section près de l'extrémité du chemin où elle doit commencer ; le chemin commence par l'extrémité la plus proche. Cliquez ensuite sur <strong class="ui">« Terminer le balayage »</strong>. Un angle de segments droits devient une coupe d'onglet, une courbe reste lisse, et la section reste droite tout du long. Le corps est exact, comme un corps extrudé : congé, chanfrein et export STEP fonctionnent. S'il manque un contour fermé ou un chemin, ou s'il y a plusieurs chemins séparés, layerling le dit. Avec <strong class="ui">« Modifier l'esquisse »</strong>, vous revenez à l'esquisse pour changer la section ou le chemin.</p>
+</section><section class="guide-part"><h2 id="construire-comme-un-trait"><span class="heading-alias" id="building-as-a-stroke"></span>Construire comme un trait</h2>
+<p>Normalement, la zone située à l’intérieur d’un contour fermé devient le corps. Avec <strong class="ui">« Trait »</strong> dans la section <strong class="ui">« Terminer »</strong>, vous construisez la ligne elle-même, avec une largeur que vous définissez. Cochez <strong class="ui">« Construire comme un trait »</strong> dans la fenêtre du trait ; le croquis montre d'emblée ce qui en ressort.</p>
+<ul><li>Un <strong>contour fermé</strong> devient un cadre. <strong class="ui">« Position »</strong> indique où se trouve le mur : <strong class="ui">« Centré »</strong> sur la ligne tracée, <strong class="ui">« À l'intérieur »</strong> à l'intérieur ou <strong class="ui">« À l'extérieur »</strong> à l'extérieur. L'extérieur est pratique pour une tolérance : dessinez le contour d'un trou, une queue d'aronde par exemple, et donnez-lui un trait de 0,2 mm à l'extérieur pour obtenir l'espace dont l'impression a besoin.</li><li>Une <strong>ligne ouverte</strong> devient une bande, centrée sur la ligne. <strong class="ui">« Extrémités »</strong> définit l'apparence de ses extrémités : <strong class="ui">« Plat »</strong>, <strong class="ui">« Carré »</strong> (plus longue de la moitié de la largeur) ou <strong class="ui">« Rond »</strong>.</li><li><strong class="ui">« Coins »</strong> s'applique aux deux : <strong class="ui">« Pointu »</strong>, <strong class="ui">« Rond »</strong> ou <strong class="ui">« Biseau »</strong>.</li></ul>
+<p>L'esquisse conserve la ligne tracée. Ouvrez-le à nouveau et vous continuez à changer de ligne et de trait ; décochez la case et la zone est à nouveau construite. Les courbes sont divisées en petits morceaux droits. Une révolution n'a pas de trait.</p>
+</section><section class="guide-part"><h2 id="remplissage-et-silhouette"><span class="heading-alias" id="fill-and-silhouette"></span>Remplissage et silhouette</h2>
+<p>Vous pouvez également définir le trait sans ouvrir l'esquisse : dans les propriétés d'un corps d'esquisse, choisissez <strong class="ui">« Zone »</strong>, <strong class="ui">« AVC à l'extérieur »</strong>, <strong class="ui">« AVC à l'intérieur »</strong> ou <strong class="ui">« Centré sur le trait »</strong> sous <strong class="ui">« Remplir »</strong>, avec <strong class="ui">« Largeur de ligne »</strong> et <strong class="ui">« Coins »</strong>. Le corps est immédiatement reconstruit, là où il se trouve. Ceux-ci correspondent aux modes de remplissage de l'importation SVG de Tinkercad : par défaut, ligne extérieure et ligne intérieure. <strong class="ui">« Plus large »</strong> maintient la zone remplie et l'agrandit de la largeur du trait tout autour, avec des coins pointus, ronds ou biseautés : une couche de base sous un logo pour une impression multicolore, que le trait extérieur seul ne donnerait que comme un anneau. <strong class="ui">« Plus étroit »</strong> fait l'inverse : la zone reste remplie et son bord rentre de la largeur du trait tout autour, trous compris (ils grandissent). Utilisez les deux sur des copies d'une même esquisse pour un ajustement : le trou à sa taille dessinée, la pièce qui le traverse <strong class="ui">« Plus étroit »</strong> de 0,5 mm, ou une paroi à l'intérieur d'une forme découpée du même contour. Une largeur plus grande que ce que permet le contour ne laisse rien. Dans la fenêtre du trait de l'esquisse, les deux mêmes choix se trouvent sous <strong class="ui">« Position »</strong>. Avec une ligne extérieure, intérieure ou centrée, <strong class="ui">« Tranchant »</strong> rend la paroi tranchante en haut : son sommet se rétrécit à cette largeur avec un chanfrein de 45° des deux côtés, comme sur un emporte-pièce. 0 laisse le dessus plat ; le tranchant reste quand vous changez la largeur du trait.</p>
+<p><strong class="ui">« Silhouette (pas de trous) »</strong> laisse de côté tous les contours qui se trouvent à l'intérieur d'un autre : les trous et tout ce qui s'y trouve. Seul le contour extérieur reste. Avec <strong class="ui">« AVC à l'extérieur »</strong>, cela crée un emporte-pièce : importez un SVG deux fois, une fois avec la silhouette comme zone pour la base et une fois avec la silhouette et 1 à 2 mm de trait à l'extérieur comme mur. Le commutateur se trouve également dans la fenêtre <strong class="ui">« Trait »</strong> en mode esquisse.</p>
+<p>Les congés et les chanfreins sur les arêtes disparaissent lorsque le corps est reconstruit, comme lorsque l'esquisse est modifiée.</p>
+</section><section class="guide-part"><h2 id="murs-inclines-pour-les-tampons"><span class="heading-alias" id="slanted-walls-for-stamps"></span>Murs inclinés, pour les tampons</h2>
+<p>Une esquisse extrudée comporte des parois verticales. Un tampon, une matrice de gaufrage ou un poinçon doivent être inclinés, à l'extérieur comme à l'intérieur, avec la même épaisseur de paroi sur toute la longueur. Layerling n'a pas d'angle de dépouille pour une extrusion, mais pour des contours simples, <strong class="ui">« Galbage »</strong> vous y amène. Une méthode qui fonctionne :</p>
+<ol><li>Dessinez le contour avec le trou dont il a besoin et faites-en un corps. Dupliquez le corps (<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span>).</li><li>Sur le premier corps, activez <strong class="ui">« Silhouette (pas de trous) »</strong> pour que le trou soit rempli et donnez-lui un fond plus large que le haut avec <strong class="ui">« Galbage »</strong>.</li><li>Sur la copie, ouvrez à nouveau son esquisse et supprimez le contour extérieur, de sorte qu'il ne reste que le contour du trou. Terminez l'esquisse, changez le corps en <strong class="ui">« Trou »</strong> et donnez-lui un bas plus étroit que le haut avec <strong class="ui">« Galbage »</strong>.</li><li>Déplacez le trou dans le premier corps, là où se trouvait le trou, et regroupez les deux.</li></ol>
+<p>Les murs sont désormais inclinés vers l'extérieur et l'intérieur. Taper met à l'échelle tout le contour, ce qui est donc exact pour les formes simples, où vous pouvez choisir les tailles pour que les murs soient parallèles, et seulement une approximation pour les détails fins tels que le lettrage.</p>
+</section><section class="guide-part"><h2 id="une-image-comme-modele"><span class="heading-alias" id="a-picture-as-template"></span>Une image comme modèle</h2>
+<p>Avec <strong class="ui">« Ajouter une image »</strong> vous mettez une photo ou un dessin sous le croquis et vous le tracez. Vous pouvez définir sa taille, son opacité et sa position. Une fois l'image bien placée, verrouillez-la avec <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span> afin de ne pas la déplacer accidentellement pendant le dessin. Une image verrouillée n'est pas gênante : les clics la traversent, vous pouvez donc sélectionner des lignes et des points dessus et faire glisser un cadre dessus. Un clic sur le cadenas dans son coin le déverrouille ; <kbd>Alt</kbd>+clic le sélectionne sans le déverrouiller. Si ses paramètres sur le bord droit couvrent l'image, faites-les glisser par leur barre de titre ; un double-clic dessus les ancre à nouveau.</p>
+<p>Sous <strong class="ui">« Aligner »</strong> vous alignez une photo qui n'a pas été prise directement :</p>
+<ul><li><strong><strong class="ui">« Rotation »</strong> :</strong> Tournez l'image autour de son centre, avec les flèches courbes à ses coins ou sous forme de nombre en degrés. Avec <kbd>Shift</kbd>, les flèches s'enclenchent par pas de 15°. Dans l'anneau qui apparaît pendant la rotation, elles s'enclenchent par pas de 22,5°, à l'extérieur par degrés entiers.</li><li><strong><strong class="ui">« À X = 0 »</strong></strong> et <strong><strong class="ui">« À Y = 0 »</strong> :</strong> placent le centre de l'image sur X = 0 ou Y = 0. Pour une révolution, X = 0 est l'axe, donc l'image est alors symétrique par rapport à lui.</li><li><strong><strong class="ui">« Calibrer »</strong> :</strong> Son bouton se trouve en haut, juste sous l'aperçu. Cliquez sur deux points de l'image dont vous connaissez la distance, les extrémités d'une règle ou un diamètre connu, et saisissez la distance réelle. L'image est mise à l'échelle uniformément afin que la distance soit correcte ; le premier point reste là où il était.</li><li><strong><strong class="ui">« Recadrer »</strong> :</strong> Les poignées du cadre recadrent désormais l'image au lieu de la redimensionner ; ce qui est coupé reste stocké et revient avec <strong class="ui">« Afficher l'image entière »</strong> ou lorsqu'une poignée est à nouveau retirée.</li></ul>
+<p>Tous les quatre touchent uniquement à la référence, jamais au croquis.</p>
+<p><strong><strong class="ui">« Vectoriser »</strong></strong>, dans les réglages de l'image, place les points pour toi : il suit le contour de la forme dans l'image – une silhouette, un logo, un mot – et l'affiche en rouge sur l'image, des points carrés pour les angles, ronds pour les points lisses. <strong class="ui">« Forme sombre »</strong> ou <strong class="ui">« Forme claire »</strong> choisit quelle partie de l'image est la forme, <strong class="ui">« Seuil »</strong> où le sombre devient clair, <strong class="ui">« Points »</strong> combien de points les contours reçoivent en tout (moins donnent des courbes plus douces, plus suivent l'image de plus près), <strong class="ui">« Angle à partir de »</strong> à partir de quel virage un point est un angle, <strong class="ui">« Ignorer les taches jusqu'à »</strong> jusqu'à quelle taille les taches disparaissent, et <strong class="ui">« Garder les trous »</strong> garde le milieu d'un A ou d'un O. <strong class="ui">« Appliquer »</strong> place les contours dans l'esquisse exactement là où se trouve l'image, à sa taille, sa rotation et son recadrage, et les sélectionne : ce sont des points ordinaires à déplacer, courber ou supprimer, et <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> les retire en une étape. Cela marche le mieux avec un contraste net ; détoure d'abord une photo au fond chargé. Ce qui disparaît – autour des contours, dans les trous, ce qui est découpé – l'aperçu le couvre de la couleur du plateau, si bien qu'on ne voit de l'image que ce qui reste. Des contours si proches que des courbes lâches se croiseraient reçoivent d'eux-mêmes plus de points ; la carte le signale. Pour une bordure à l'extérieur ou à l'intérieur du contour, donnez au corps d'esquisse un trait à l'extérieur ou à l'intérieur de ses lignes, ou décalez le corps terminé.</p>
+<p>Pour une photo – un jouet sur une table blanche par exemple – choisis <strong><strong class="ui">« Objet »</strong></strong> sous <strong class="ui">« Forme »</strong> : le fond est la couleur au bord de l'image, et tout ce qui s'en détache devient un seul contour, quelles que soient ses couleurs ; <strong class="ui">« Seuil »</strong> fixe alors avec quelle netteté. Une image colorée sur un fond uni commence ainsi. <strong class="ui">« Cliquer des zones »</strong> détoure davantage : clique sur une zone de l'image, une fenêtre par exemple, et la zone de même couleur autour du point est détourée (<strong class="ui">« Tolérance de couleur »</strong> fixe à quel point même). Les trous et les zones cliquées sont listés sous <strong class="ui">« Trous et zones »</strong> ; pointer l'un d'eux le fait ressortir dans l'aperçu, ✕ le retire, et avec <strong class="ui">« Découper »</strong> désactivé il est tracé en ligne de construction au lieu d'un trou. Une zone qui touche le bord de l'image est le fond et n'est pas prise. Ce qu'aucun seuil ni aucune couleur ne sépare – une ombre aussi sombre que les roues au-dessus – <strong class="ui">« Découper »</strong> l'enlève : clique des coins autour (un clic sur le premier coin, un double clic ou <kbd>Enter</kbd> la ferme), et le contour suit la découpe ; elle figure dans la liste comme « Découpe 1 ».</p>
+<p>L'arbre à côté d'une maison, une figure devant un fond chargé – là où aucune couleur ne sépare la forme du reste, le <strong><strong class="ui">« Lasso magnétique »</strong></strong> la capture : clique à peu près le long de son bord, et entre deux clics la ligne suit d'elle-même le bord, même dans les courbes ; pendant que tu bouges, l'aperçu montre déjà où elle passera. Un clic sur le premier point, un double clic ou <kbd>Enter</kbd> la ferme, <kbd>Esc</kbd> l'abandonne. Elle figure dans la liste comme « Lasso 1 », avec le choix <strong class="ui">« Ajouter »</strong> (la zone rejoint la forme) ou <strong class="ui">« Découper »</strong> (elle est enlevée) ; chaque découpe a le même choix. Sous <strong class="ui">« Forme »</strong>, <strong><strong class="ui">« Lasso seul »</strong></strong> ne fait de la forme que ce que tu captures ainsi – rien d'autre de l'image.</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/trace-house.webp" alt="Une maison dessinée vectorisée comme objet, le seuil abaissé pour son mur clair : le lasso magnétique a découpé l’arbre, et les huit vitres sont choisies comme trous." width="1280" height="800" loading="lazy"><figcaption>Une maison dessinée vectorisée comme objet, le seuil abaissé pour son mur clair : le lasso magnétique a découpé l’arbre, et les huit vitres sont choisies comme trous.</figcaption></figure>
+<figure><img src="/api/desktop/layerling/ui/guide/img/trace-house-body.webp" alt="La maison en corps : sans l’arbre, les fenêtres percées." width="1280" height="800" loading="lazy"><figcaption>La maison en corps : sans l’arbre, les fenêtres percées.</figcaption></figure>
+</section><section class="guide-part"><h2 id="touches-en-mode-esquisse"><span class="heading-alias" id="keys-in-sketch-mode"></span>Touches en mode esquisse</h2>
+<div class="table-scroll"><table><thead><tr><th>Clé</th><th>Effet</th></tr></thead><tbody><tr><td><kbd>Esc</kbd></td><td>reposer l'outil de note ; sinon reposer l'outil (retour à <strong class="ui">« Sélectionnez »</strong>), puis effacer la sélection</td></tr><tr><td><kbd>Delete</kbd></td><td>supprimer l'élément sélectionné</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>C</kbd></span></td><td>copier la sélection</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>X</kbd></span></td><td>couper la sélection</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>V</kbd></span></td><td>coller</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span></td><td>dupliquer la sélection</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span></td><td>annuler</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>A</kbd></span></td><td>sélectionner tous les points et toutes les lignes</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>I</kbd></span></td><td><strong class="ui">« Ajouter une image »</strong></td></tr><tr><td><kbd>Shift</kbd></td><td>pendant le dessin : tracez la ligne par pas de 15° ; tout en faisant glisser : conserver le mouvement sur un axe</td></tr><tr><td>chiffre, <kbd>&lt;</kbd>, <kbd>Tab</kbd>, <kbd>Enter</kbd></td><td>pendant le dessin : tapez et définissez la longueur et l'angle de la ligne suivante</td></tr><tr><td><kbd>R</kbd></td><td>faire pivoter l'esquisse fermée de 45°</td></tr><tr><td><span dir="ltr"><kbd>Ctrl</kbd>+<kbd>L</kbd></span></td><td>verrouiller ou déverrouiller l'image du modèle</td></tr><tr><td><kbd>N</kbd></td><td>poser une note : le clic suivant la place sur l'esquisse</td></tr><tr><td><span dir="ltr"><kbd>Shift</kbd>+<kbd>N</kbd></span></td><td>afficher ou masquer les notes</td></tr></tbody></table></div>
+<aside class="tip"><p><strong>Conseil :</strong> Dessinez autant de points que nécessaire. Un contour avec quelques points bien placés donne un corps plus lisse qu’un enchevêtrement de plusieurs.</p></aside></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/guide-fr/edges-and-hollowing.html"><small>Chapitre précédent</small>Casser les bords et creuser les corps</a><a class="next" href="/api/desktop/layerling/ui/guide-fr/text.html"><small>Chapitre suivant</small>Texte et lettres courbes</a></div>
+      </main>
+    </div>
+    <footer class="note">Ce manuel grandit avec le programme. Si quelque chose manque ou est inexact, dites-le nous dans les <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">discussions</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=fr" rel="noopener">Soutenir le projet</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">Discussions</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">Le projet sur GitHub</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">Notes de version v1.154.1</a></div><p class="trademark">Tinkercad est une marque commerciale d'Autodesk, Inc. Layerling est un projet indépendant et n'est pas affilié, approuvé ou sponsorisé par Autodesk.</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="Retour à l'éditeur";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="Ouvrir l'éditeur";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

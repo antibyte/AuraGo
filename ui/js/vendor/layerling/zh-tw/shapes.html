@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>放置與調整形狀 - layerling 使用者指南</title>
+    <meta name="description" content="形狀庫、以數字與控制點設定尺寸、顏色、旋轉、錐度與扭曲。">
+    <link rel="canonical" href="https://layerling.com/zh-tw/shapes.html">
+    <link rel="alternate" hreflang="en" href="https://layerling.com/guide/shapes.html">
+    <link rel="alternate" hreflang="cs" href="https://layerling.com/prirucka/shapes.html">
+    <link rel="alternate" hreflang="da" href="https://layerling.com/vejledning/shapes.html">
+    <link rel="alternate" hreflang="de" href="https://layerling.com/anleitung/formen.html">
+    <link rel="alternate" hreflang="es-ES" href="https://layerling.com/guia-es/shapes.html">
+    <link rel="alternate" hreflang="fr" href="https://layerling.com/guide-fr/shapes.html">
+    <link rel="alternate" hreflang="it" href="https://layerling.com/it/shapes.html">
+    <link rel="alternate" hreflang="hu" href="https://layerling.com/utmutato/shapes.html">
+    <link rel="alternate" hreflang="nl" href="https://layerling.com/handleiding/vormen.html">
+    <link rel="alternate" hreflang="pl" href="https://layerling.com/instrukcja/shapes.html">
+    <link rel="alternate" hreflang="sl" href="https://layerling.com/navodila/oblike.html">
+    <link rel="alternate" hreflang="ru" href="https://layerling.com/ru/shapes.html">
+    <link rel="alternate" hreflang="ar" href="https://layerling.com/dalil/shapes.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://layerling.com/zh-cn/shapes.html">
+    <link rel="alternate" hreflang="zh-TW" href="https://layerling.com/zh-tw/shapes.html">
+    <meta property="og:title" content="放置與調整形狀 - layerling 使用者指南">
+    <meta property="og:description" content="形狀庫、以數字與控制點設定尺寸、顏色、旋轉、錐度與扭曲。">
+    <meta property="og:image" content="https://layerling.com/assets/layerling/layerling-social.png">
+    <link rel="icon" href="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg">
+    <script>try{var t=localStorage.getItem("layerling.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;else if(t==="graphite"){document.documentElement.dataset.theme="dark";document.documentElement.dataset.palette="graphite"}}catch(e){}</script>
+    <style>
+:root {
+  color-scheme: light;
+  --ground: #fbf8f0; --card: #ffffff; --ink: #231a11; --muted: #7a6650; --edge: #ede4d4;
+  --accent: #ad6206; --accent-ink: #ffffff; --tint: #f6ecd9; --code: #f3ece0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+    --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17130e; --card: #201a13; --ink: #f1e9dc; --muted: #b3a48d; --edge: #362d21;
+  --accent: #f0a23a; --accent-ink: #1c1408; --tint: #2b2116; --code: #2a2218;
+}
+/* Graphite is the dark theme with the warm browns turned grey (the program's own Graphite, see scripts/generate-graphite-theme.mjs); the orange accent stays. */
+:root[data-theme="dark"][data-palette="graphite"] {
+  --ground: #1a1a1a; --card: #202020; --ink: #e7e7e7; --muted: #8d8d8d; --edge: #303030;
+  --accent-ink: #191919; --tint: #262626; --code: #272727;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.7 "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--accent); }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--ground); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin-right: auto; }
+.brand img { width: 34px; height: 34px; }
+.brand b { font-size: 19px; letter-spacing: -0.03em; }
+.brand-text { display: flex; align-items: baseline; gap: 10px; }
+.brand-note { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-search { position: relative; flex: 0 1 280px; min-width: 0; margin: 0; }
+.guide-search input { width: 100%; padding: 7px 12px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+.guide-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 460px); overflow-y: auto; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); z-index: 7; }
+.guide-results[hidden] { display: none; }
+.guide-results a { display: block; padding: 8px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--edge); }
+.guide-results a:last-child { border-bottom: 0; }
+.guide-results a:hover, .guide-results a:focus-visible { background: var(--tint); outline: none; }
+.guide-results b { display: block; font-size: 14px; }
+.guide-results span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.guide-results mark { background: transparent; color: var(--accent); font-weight: 800; }
+.guide-results p { margin: 0; padding: 10px 12px; color: var(--muted); font-size: 14px; }
+mark.guide-hit { background: #ffd54a; color: #231a11; border-radius: 2px; padding: 0 1px; cursor: pointer; }
+.editor-elsewhere { max-width: 1100px; margin: 0 auto; padding: 0 16px 10px; color: var(--muted); font-size: 14px; text-align: right; }
+.editor-elsewhere[hidden] { display: none; }
+.bar a.button { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; text-decoration: none; }
+.bar .lang-menu { position: relative; font-size: 14px; font-weight: 600; }
+.bar .lang-menu summary { color: var(--muted); cursor: pointer; list-style: none; }
+.bar .lang-menu summary::-webkit-details-marker { display: none; }
+.bar .lang-menu summary::after { content: " \25BE"; font-size: 11px; }
+.bar .lang-menu ul { position: absolute; right: 0; margin: 8px 0 0; padding: 4px; list-style: none; min-width: 9em; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); }
+.bar .lang-menu a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+.bar .lang-menu a:hover { background: var(--tint); }
+.bar .lang-menu a[aria-current] { font-weight: 800; }
+.not-translated { margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; background: var(--tint); color: var(--ink); font-size: 15px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 16px 72px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; align-items: start; }
+nav.chapters { position: sticky; top: 76px; font-size: 14px; }
+nav.chapters h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+nav.chapters ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.chapters a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--ink); text-decoration: none; line-height: 1.35; }
+nav.chapters a:hover { background: var(--tint); }
+nav.chapters a[aria-current="page"] { background: var(--tint); color: var(--accent); font-weight: 700; }
+main { min-width: 0; max-width: 760px; }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+h2 { margin: 40px 0 8px; font-size: 23px; letter-spacing: -0.015em; text-wrap: balance; }
+h3 { margin: 26px 0 6px; font-size: 17px; }
+.lead { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+p, ul, ol { margin: 0 0 14px; }
+li { margin-bottom: 4px; }
+strong.ui { font-weight: 700; white-space: nowrap; }
+kbd { padding: 1px 6px; border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 5px; background: var(--card); font: 600 0.86em/1.5 ui-monospace, Consolas, monospace; }
+code { padding: 1px 5px; border-radius: 5px; background: var(--code); font: 0.9em ui-monospace, Consolas, monospace; }
+pre { overflow-x: auto; padding: 14px 16px; border-radius: 8px; background: var(--code); direction: ltr; text-align: left; }
+pre code { padding: 0; background: none; }
+figure { margin: 22px 0; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); }
+figcaption { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+aside.tip { margin: 18px 0; padding: 12px 16px; border-radius: 8px; background: var(--tint); border: 1px solid var(--edge); }
+aside.tip > :last-child { margin-bottom: 0; }
+/* A card: one tool, one step to a line (#1322). The picture sits on a light tile in every theme, as the
+   toolbar button shows it; the steps line up under the tool's name. */
+.tool-card { margin: 12px 0; padding: 12px 16px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--card); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.card-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #ffffff; border: 1px solid var(--edge); }
+.card-icon img { width: 30px; height: 30px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-icon { background: #ece4d6; border-color: transparent; } }
+:root[data-theme="dark"] .card-icon { background: #ece4d6; border-color: transparent; }
+:root[data-theme="dark"][data-palette="graphite"] .card-icon { background: #e4e4e4; }
+.card-title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.card-title strong.ui { white-space: normal; }
+.card-keys { margin-inline-start: auto; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.card-steps { list-style: none; margin: 0; padding: 0; }
+.tool-card:not(.no-icon) .card-steps { padding-inline-start: 52px; }
+.card-steps li { position: relative; margin: 0; padding: 3px 0; padding-inline-start: 20px; }
+.card-steps li.step::before { content: ""; position: absolute; inset-inline-start: 5px; top: 0.82em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
+.card-steps li.result::before { content: "\2192"; position: absolute; inset-inline-start: 0; top: 3px; color: var(--accent); font-weight: 700; }
+[dir="rtl"] .card-steps li.result::before { content: "\2190"; }
+.card-steps li.result { color: var(--accent); }
+.card-steps li.result a { text-decoration: underline; }
+.card-steps li.tip { margin: 6px 0 4px; padding: 7px 12px; border-radius: 8px; background: var(--tint); font-size: 15px; }
+@media (max-width: 560px) { .tool-card:not(.no-icon) .card-steps { padding-inline-start: 0; } }
+.table-scroll { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; font-size: 15px; min-width: 100%; }
+table.keys { table-layout: fixed; }
+table.keys td:first-child { width: 42%; }
+th, td { padding: 7px 12px; border-bottom: 1px solid var(--edge); text-align: start; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* Where a link from the program lands, the section is outlined from its heading to its end. */
+.guide-part:has(> :is(h2, h3):target) { outline: 3px solid var(--accent); outline-offset: 10px; border-radius: 6px; }
+:is(h2, h3):target { scroll-margin-top: 24px; }
+.toc { margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); font-size: 14.5px; }
+.toc b { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.toc ul { margin: 0; padding-inline-start: 18px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--edge); }
+.pager a { display: block; max-width: 48%; padding: 10px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.pager a small { display: block; color: var(--muted); font-size: 12px; }
+.pager a.next { margin-inline-start: auto; text-align: end; }
+.cards { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cards a { display: block; height: 100%; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); text-decoration: none; color: var(--ink); }
+.cards a:hover { border-color: var(--accent); }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 14px; line-height: 1.45; display: block; }
+footer.note { max-width: 1100px; margin: 0 auto; padding: 0 16px 12px; color: var(--muted); font-size: 14px; }
+.site-footer { max-width: 1100px; margin: 0 auto; padding: 14px 16px 40px; border-top: 1px solid var(--edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; color: var(--muted); font-size: 13px; }
+.site-footer .trademark { flex: 1 0 100%; margin: 0; font-size: 12px; line-height: 1.45; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--accent); text-decoration: underline; }
+.site-footer .dot { margin: 0 8px; }
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  nav.chapters { position: static; }
+  nav.chapters ol { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  h1 { font-size: 28px; }
+  .brand-note { display: none; }
+}
+@media (max-width: 720px) {
+  .bar-inner { flex-wrap: wrap; }
+  .guide-search { order: 5; flex: 1 1 100%; }
+}
+.print-link { margin: 0 0 14px; }
+.print-link a, nav.chapters .print-link a { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--tint); color: var(--accent); font-weight: 700; line-height: 1.3; text-decoration: none; }
+.print-link a:hover, .print-link a:focus-visible, nav.chapters .print-link a:hover, nav.chapters .print-link a:focus-visible { background: var(--accent); color: var(--accent-ink); }
+.print-link svg { flex: none; }
+.print-link.in-page { margin: 0 0 22px; max-width: 360px; }
+.print-actions { margin: 0 0 24px; }
+.print-actions button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.print-chapter { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--edge); }
+.print-chapter > h2 { margin-top: 20px; font-size: 28px; }
+.print-contents { margin: 0 0 24px; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.print-contents li { break-inside: avoid; }
+@media (max-width: 560px) { .print-contents { columns: 1; } }
+@media print {
+  @page { margin: 16mm 14mm; }
+  :root, :root[data-theme="dark"], :root[data-theme="dark"][data-palette="graphite"] {
+    color-scheme: light;
+    --ground: #ffffff; --card: #ffffff; --ink: #1a1a1a; --muted: #5c5c5c; --edge: #cfcfcf;
+    --accent: #8a4d04; --tint: #f1f1f1; --code: #f1f1f1;
+  }
+  body { font-size: 11pt; line-height: 1.55; }
+  .bar, nav.chapters, .pager, .print-actions { display: none; }
+  mark.guide-hit { background: none; color: inherit; padding: 0; }
+  .shell { display: block; padding: 0; }
+  main { max-width: none; }
+  h2, h3, h4 { break-after: avoid; }
+  figure, table, pre, aside.tip, .tool-card { break-inside: avoid; }
+  figure img { max-height: 120mm; width: auto; max-width: 100%; }
+  .print-all .site-footer, .print-all footer.note { display: none; }
+  .print-chapter { margin-top: 0; padding-top: 0; border-top: 0; break-before: page; }
+}
+</style>
+  </head>
+  <body>
+    <header class="bar"><div class="bar-inner">
+      <a class="brand" href="/api/desktop/layerling/ui/zh-tw/index.html"><img src="/api/desktop/layerling/ui/assets/layerling/layerling-logo.svg" alt=""><span class="brand-text"><b>layerling</b><span class="brand-note">使用者指南</span></span></a>
+      <form class="guide-search" id="guide-search" role="search" data-index="/zh-tw/search-index.json" data-nothing="找不到結果。" data-umlauts="false"><input type="search" id="guide-search-input" name="q" placeholder="搜尋指南" aria-label="搜尋指南" aria-controls="guide-results" aria-expanded="false" autocomplete="off" spellcheck="false"><div class="guide-results" id="guide-results" hidden></div></form>
+      <details class="lang-menu"><summary aria-label="語言">繁體中文</summary><ul><li><a href="/api/desktop/layerling/ui/guide/shapes.html" hreflang="en" lang="en">English</a></li><li><a href="/api/desktop/layerling/ui/prirucka/shapes.html" hreflang="cs" lang="cs">Čeština</a></li><li><a href="/api/desktop/layerling/ui/vejledning/shapes.html" hreflang="da" lang="da">Dansk</a></li><li><a href="/api/desktop/layerling/ui/anleitung/formen.html" hreflang="de" lang="de">Deutsch</a></li><li><a href="/api/desktop/layerling/ui/guia-es/shapes.html" hreflang="es-ES" lang="es-ES">Español</a></li><li><a href="/api/desktop/layerling/ui/guide-fr/shapes.html" hreflang="fr" lang="fr">Français</a></li><li><a href="/api/desktop/layerling/ui/it/shapes.html" hreflang="it" lang="it">Italiano</a></li><li><a href="/api/desktop/layerling/ui/utmutato/shapes.html" hreflang="hu" lang="hu">Magyar</a></li><li><a href="/api/desktop/layerling/ui/handleiding/vormen.html" hreflang="nl" lang="nl">Nederlands</a></li><li><a href="/api/desktop/layerling/ui/instrukcja/shapes.html" hreflang="pl" lang="pl">Polski</a></li><li><a href="/api/desktop/layerling/ui/guia-pt-pt/shapes.html" hreflang="pt-PT" lang="pt-PT">Português de Portugal</a></li><li><a href="/api/desktop/layerling/ui/guia/shapes.html" hreflang="pt-BR" lang="pt-BR">Português do Brasil</a></li><li><a href="/api/desktop/layerling/ui/navodila/oblike.html" hreflang="sl" lang="sl">Slovenščina</a></li><li><a href="/api/desktop/layerling/ui/kilavuz/shapes.html" hreflang="tr" lang="tr">Türkçe</a></li><li><a href="/api/desktop/layerling/ui/ru/shapes.html" hreflang="ru" lang="ru">Русский</a></li><li><a href="/api/desktop/layerling/ui/dalil/shapes.html" hreflang="ar" lang="ar">العربية</a></li><li><a href="/api/desktop/layerling/ui/guide-ja/shapes.html" hreflang="ja" lang="ja">日本語</a></li><li><a href="/api/desktop/layerling/ui/zh-cn/shapes.html" hreflang="zh-CN" lang="zh-CN">简体中文</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/shapes.html" hreflang="zh-TW" lang="zh-TW" aria-current="true">繁體中文</a></li></ul></details>
+      <a class="button" id="open-editor" href="/api/desktop/layerling/ui/">開啟編輯器</a>
+    </div><p class="editor-elsewhere" id="editor-elsewhere" role="status" hidden>編輯器已在另一個分頁中開啟，請切換到那裡。</p></header>
+    <div class="shell">
+      <nav class="chapters" aria-label="章節"><h2>章節</h2><p class="print-link"><a href="/api/desktop/layerling/ui/zh-tw/print-all.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span>列印完整指南</span></a></p><ol><li><a href="/api/desktop/layerling/ui/zh-tw/getting-started.html">快速上手</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/view-and-workplane.html">檢視與工作平面</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/shapes.html" aria-current="page">放置與調整形狀</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/select-and-arrange.html">選取與排列</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/solids-and-holes.html">實體與孔</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/edges-and-hollowing.html">邊的修整與實體抽殼</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/sketches.html">草圖：從輪廓到實體</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/text.html">文字與弧形文字</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/threads-and-mechanics.html">螺紋、齒輪與其他零件</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/measuring-and-notes.html">量測與備註</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/printing.html">為 3D 列印做準備</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/files-and-saving.html">檔案、儲存與分享</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/shortcuts.html">鍵盤快速鍵</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/ai-with-mcp.html">用 AI 建模（MCP）</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/offline-and-install.html">安裝為應用程式、離線使用與自架</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/videos.html">關於 layerling 的影片</a></li><li><a href="/api/desktop/layerling/ui/zh-tw/tablet-and-touch.html">平板與觸控</a></li></ol></nav>
+      <main>
+<h1>放置與調整形狀</h1>
+<p class="lead">形狀庫、以數字與控制點設定尺寸、顏色、旋轉、錐度與扭曲。</p>
+<div class="toc"><b>本頁內容</b><ul><li><a href="#adding-a-shape">新增形狀</a></li><li><a href="#the-shape-s-settings">形狀的設定</a></li><li><a href="#how-round-is-round-the-side-count">圓有多圓？邊數</a></li><li><a href="#working-with-the-handles">使用控制點</a></li><li><a href="#copying-and-duplicating">複製與重複</a></li><li><a href="#custom-shapes">自訂形狀</a></li><li><a href="#wrapping-around-a-cylinder">包覆到圓柱</a></li><li><a href="#a-surface-texture">表面紋理</a></li><li><a href="#painting-in-several-colours">多色上色</a></li><li><a href="#a-vase">花瓶</a></li></ul></div>
+<p>layerling 的每個零件都從一個形狀開始。其餘一切都是由形狀搭建而成：形狀彼此互補、互相挖空，或合併成一個新形狀。</p>
+<section class="guide-part"><h2 id="adding-a-shape">新增形狀</h2>
+<p>形狀庫是一份分成若干部分的清單，從 <strong class="ui">「基本形狀」</strong> 到 <strong class="ui">「輔助工具」</strong>，每部分旁邊標有其中形狀的數量。點擊某部分的名稱會把它摺疊起來，瀏覽器會記住你摺疊了哪些；第一次時全部展開。最上方的 <strong class="ui">「最近使用」</strong> 保存你最近放入的四個形狀。搜尋框可以依名稱與其他相關詞尋找形狀，英文與德文也可以：輸入 &quot;USB&quot; 會找到 <strong class="ui">「接頭開孔」</strong>。輸入時只顯示有符合結果的部分；清空搜尋框後，你摺疊的部分會恢復原樣。頂部的 <strong class="ui">「自訂形狀」</strong> 在你保存形狀之前只占一行。</p>
+<p>點擊功能區的 <strong class="ui">「新增形狀」</strong>。形狀庫隨即開啟。</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/shape-menu.webp" alt="形狀庫。每一張小圖都是由形狀的真實幾何渲染而成。" width="1280" height="800" loading="lazy"><figcaption>形狀庫。每一張小圖都是由形狀的真實幾何渲染而成。</figcaption></figure>
+<p>每選取一個形狀，形狀庫就會關閉。拖曳它的標題列可以移動它，讓你把它放到不會擋住目標位置的地方，例如屬性面板上方；按兩下標題列會讓它回到按鈕下方，你上次留下的位置會儲存在瀏覽器中。標題列的圖釘可讓形狀庫保持開啟，方便你連續放置多個形狀。拖曳它的邊緣與角落可調整大小，最大到螢幕允許的寬高；尺寸同樣儲存在瀏覽器中，按兩下邊緣即可還原。拉窄之後，形狀庫會省略名稱、只顯示圖片；把指標移到形狀上時才會出現名稱。</p>
+<p>選一個形狀。它會跟著滑鼠指標，並在你點擊的位置落下。把它移到實體上方，它會貼在指標底下的面上，斜面也一樣，就像 Tinkercad 的 Cruise；移到空白平台上方，則落在工作平面。<kbd>Esc</kbd> 取消放置。等待點擊的工具（例如捲尺、角尺、備註、<strong class="ui">「放置工作平面」</strong>、<strong class="ui">「平放於面」</strong> 或邊緣工具）在你選取形狀時會被關掉，因此那一下點擊就是放置形狀。反過來，開啟其中一個工具也會把形狀放下。如果你希望形狀直接出現在平台中央，可以在設定中關閉點擊放置（<strong class="ui">「外觀」</strong> 區域的 <strong class="ui">「新增形狀時啟用巡航」</strong> 開關）。</p>
+<p>在一個面上,指標靠近面中心時形狀會吸附到該面的中心,就像吸附到角或邊一樣;按住 <kbd>Alt</kbd> 可放在任意位置。如果從形狀庫把它拖到一個面上,它總是落在面的中心,按住 <kbd>Alt</kbd> 則落在放開的位置。</p>
+<p>形狀庫提供：</p>
+<ul><li><strong><strong class="ui">「基本形狀」</strong>：</strong> <strong class="ui">「長方體」</strong>、<strong class="ui">「圓角長方體」</strong>、<strong class="ui">「圓柱體」</strong>、<strong class="ui">「膠囊」</strong>、<strong class="ui">「橢圓」</strong>、<strong class="ui">「多邊形」</strong>（三到二十四邊）、<strong class="ui">「楔形」</strong>、<strong class="ui">「球體」</strong>、<strong class="ui">「圓錐」</strong>、<strong class="ui">「彎曲圓錐」</strong>（側面向內彎成像偽球面那樣的喇叭形，或向外鼓成圓頂；由 <strong class="ui">「頂部直徑」</strong> 與 <strong class="ui">「彎曲」</strong> 設定，並且像所有精確實體一樣可以薄殼與導圓角）、<strong class="ui">「角錐」</strong>（三到二十四邊，因此也有三角錐）、<strong class="ui">「圓形屋頂」</strong>、<strong class="ui">「半球」</strong>、<strong class="ui">「拋物面」</strong>（收窄成圓頭的穹頂，高度隨離軸距離的平方下降）和 <strong class="ui">「圓環」</strong>。</li><li><strong><strong class="ui">「容器、管與過渡」</strong>：</strong> 從一個輪廓過渡到另一個輪廓的 <strong class="ui">「放樣」</strong>，例如從方形到圓形，<strong class="ui">「管」</strong>，由最多十二段直管與其間的彎角組成的 <strong class="ui">「彎管」</strong>，以及 <strong class="ui">「花瓶」</strong>。</li><li><strong><strong class="ui">「孔與開口」</strong>：</strong> 用於螺絲頭的 <strong class="ui">「沉頭孔」</strong> 與 <strong class="ui">「錐形沉頭孔」</strong>、用於水平孔的 <strong class="ui">「淚滴孔」</strong>，以及用於 USB、HDMI、DisplayPort 與 RJ45 插座的 <strong class="ui">「接頭開孔」</strong>。</li><li><strong><strong class="ui">「連接件」</strong>：</strong> <strong class="ui">「螺紋」</strong>（螺桿、螺絲、螺帽與螺紋孔）、沉頭螺絲下的 <strong class="ui">「裝飾墊圈」</strong>、可一體列印的 <strong class="ui">「鉸鏈」</strong> 與 <strong class="ui">「燕尾」</strong>。更多內容見<a href="/api/desktop/layerling/ui/zh-tw/threads-and-mechanics.html">螺紋與機械件</a>。</li><li><strong><strong class="ui">「外殼部件」</strong>：</strong> 用於熱熔螺母與自攻螺絲的 <strong class="ui">「螺絲柱」</strong>、附卡座的 <strong class="ui">「卡扣」</strong>，以及 <strong class="ui">「加強肋」</strong> 或角撐板。更多內容見<a href="/api/desktop/layerling/ui/zh-tw/threads-and-mechanics.html">螺紋與機械件</a>。</li><li><strong><strong class="ui">「機械與活動部件」</strong>：</strong> <strong class="ui">「彈簧」</strong>、<strong class="ui">「齒輪」</strong>、<strong class="ui">「Hirth 齒盤」</strong> 與 <strong class="ui">「GT2 同步輪」</strong>。</li><li><strong><strong class="ui">「系統與範本」</strong>：</strong> <strong class="ui">「Gridfinity」</strong> 收納盒與底板，以及 <strong class="ui">「SBC 主機板」</strong>，一塊依實際尺寸製作的單板電腦，用來圍繞它設計外殼。</li><li><strong><strong class="ui">「文字與標牌」</strong>：</strong> <strong class="ui">「文字」</strong>，也可沿圓弧排列，以及 <strong class="ui">「名牌」</strong>、<strong class="ui">「圖示牌」</strong> 與 <strong class="ui">「QR Code」</strong>。更多內容見<a href="/api/desktop/layerling/ui/zh-tw/text.html">文字</a>。</li><li><strong><strong class="ui">「裝飾輪廓」</strong>：</strong> <strong class="ui">「星形」</strong>、<strong class="ui">「心形」</strong>、<strong class="ui">「月牙」</strong>，以及用於握持的 <strong class="ui">「滾花」</strong>。</li><li><strong><strong class="ui">「輔助工具」</strong>：</strong> <strong class="ui">「標尺」</strong>，它只是量測工具，永遠不會出現在匯出檔案中。</li></ul>
+<p>要得到三角形有兩種方式：三邊的 <strong class="ui">「多邊形」</strong> 是等腰三角形，也就是 Tinkercad 的「Roof」；<strong class="ui">「楔形」</strong> 則是直角三角形。兩者都是真正的三角柱。想挖出三角形孔，可複製該形狀、把副本縮小、標記為孔，再用 <strong class="ui">「置中於工作平面」</strong> 或 <strong class="ui">「對齊」</strong> 對齊。兩者都按形狀的邊界框運作，也就是包住它的最小方框，所以切掉一半的正方形仍算作完整正方形。命令搜尋（<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>）在「triangle」或「roof」下也找得到這兩種形狀。</p>
+<p><strong class="ui">「膠囊」</strong> 可以一端比另一端窄，例如用在兩顆皮帶輪之間的皮帶護罩。在 <strong class="ui">「屬性」</strong> 下設定 <strong class="ui">「小端（直徑）」</strong>；大端與膠囊同寬，兩側從一段圓弧直通到另一段圓弧。<strong class="ui">「中心距」</strong> 是兩段圓弧圓心之間的距離，也就是兩顆皮帶輪的間距。改變小端時圓心距保持不變，膠囊會變長或變短。錐形膠囊同樣是精確實體，可套用圓角並匯出 STEP。</p>
+</section><section class="guide-part"><h2 id="the-shape-s-settings">形狀的設定</h2>
+<p>選取形狀後，它的設定會立刻出現在右側。最上方是名稱，旁邊的鉛筆（<strong class="ui">「重新命名」</strong>）可讓你輸入新名稱。按 <kbd>Enter</kbd> 保留，按 <kbd>Esc</kbd> 取消，名稱為空則還原形狀的預設名稱。再往右，掛鎖可鎖住形狀、避免誤移動，眼睛圖示則可隱藏它。最左側的箭頭會把設定收合到只剩標題列。下方的卡片點擊標題即可展開與收起（<strong class="ui">「屬性」</strong>、<strong class="ui">「位置」</strong>、<strong class="ui">「旋轉」</strong>、<strong class="ui">「錐度」</strong>、<strong class="ui">「扭曲與傾斜」</strong> 以及特殊形狀的卡片）；layerling 會記住你留下哪些展開的卡片，下一個形狀與下次造訪都適用。</p>
+<p>設定停靠在右側邊緣。如果它擋住你想看的內容，拖曳標題列就能讓它浮動到你放下的位置；下一個形狀也會留在那裡。把它拖回右上角，或按兩下標題列，它就會重新停靠。浮動或收合時，吸附步距會從設定底部移到工作平面的右下角。</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/editor-overview.webp" alt="圓柱的設定：實體或孔、直徑與高度，可用數字和滑桿設定。" width="1280" height="800" loading="lazy"><figcaption>圓柱的設定：實體或孔、直徑與高度，可用數字和滑桿設定。</figcaption></figure>
+<ul><li><strong><strong class="ui">「實體」</strong> 或 <strong class="ui">「孔」</strong>：</strong> 實體保留材料，孔則移除材料。點擊 <strong class="ui">「實體」</strong> 會開啟顏色；你在那裡調出的自訂顏色之後會留在 <strong class="ui">「最近使用」</strong> 下，最多最近八個。更多內容見<a href="/api/desktop/layerling/ui/zh-tw/solids-and-holes.html">實體與孔</a>。<strong class="ui">「已保留」</strong> 那一列的圖釘可永久保留你選的顏色：它獨佔一列，較新的顏色永遠不會把它擠掉，再按同一枚圖釘即可取消保留；這個瀏覽器最多保留 21 種顏色。</li><li><strong><strong class="ui">「透明」</strong>：</strong> 讓你能看穿實體，例如看清它後面的形狀。</li><li><strong><strong class="ui">「多色」</strong>：</strong> 僅適用於群組；<span dir="ltr"><kbd>Shift</kbd>+<kbd>M</kbd></span> 可切換。開啟後，群組中的每個部件都顯示自己的顏色，被孔挖成單一實體的群組也一樣（孔留下的壁會採用被挖入實體的顏色）。為群組選顏色會關閉這個選項，並為整個群組上色。綁定則一律保留各部件自己的顏色。匯出 3MF 時每個部件都保留顏色，切片軟體便能據此把各部件對應到線材；OBJ 把顏色記錄在頂點上，因此那裡兩種顏色的交界會稍微粗糙一些。</li><li><strong><strong class="ui">「屬性」</strong>：</strong> 尺寸以及屬於這個形狀的一切。圓柱有直徑、高度與邊數。圓管或圓環則有 <strong class="ui">「外徑」</strong>、<strong class="ui">「內徑」</strong>（用於已知軸徑的襯套）與壁厚：任意兩個值可得出第三個，輸入順序不拘。設定外徑時內孔保持不變、壁厚隨之改變；設定內徑時外徑保持不變、壁厚隨之改變；內孔比管更寬時，外徑會按壁厚增大。管的長度就是它的高度。被拉過一邊、不再是圓形的管，會以長度與寬度兩個值取代原本的單一外徑；在那裡改變寬度時壁厚保持不變。齒輪有齒數，彈簧有圈數。離開預設值的數值，名稱旁會出現一個小箭頭：點擊它只還原該數值，無論你之後還做了什麼，這點與復原不同。按兩下滑桿也一樣，這裡以及工作區設定中的滑桿都是如此。用滑鼠拖曳時，長度滑桿會吸附到吸附步距，因此高度會落在整數公釐（格線關閉時與短滑桿上不會）；輸入的值與滑桿上的方向鍵仍保持精確。底部的 <strong class="ui">「儲存為預設值」</strong> 會把目前的值設為這類形狀的起始值（等同設定中的 <strong class="ui">「形狀預設值」</strong>），<strong class="ui">「重設預設值」</strong> 則還原為應用程式自己的預設值。 開啟<strong class="ui">「群組時孔作為空洞切除」</strong>後，管子群組時其孔算作空洞：它也會切開與管子群組在一起的物體的壁，於是T形相接的兩根管子彼此貫通。</li><li><strong><strong class="ui">「設為橢圓」</strong>：</strong> 僅適用於圓柱。圓柱一律是圓的：只有一個直徑，每個控制點都會同時改變兩側。想要橢圓，點擊這個選項，它就會變成 <strong class="ui">「橢圓」</strong>——同一個實體，之後你可以分別設定長度與寬度。帶有倒角、圓角或壁的圓柱，以及轉過或群組過的圓柱，不能這樣轉換；這些情況請一開始就選用 <strong class="ui">「橢圓」</strong>。</li><li><strong><strong class="ui">「錐度」</strong>：</strong> 頂部與底部尺寸不同，例如做斜面或漏斗。開啟 <strong class="ui">「保持比例」</strong> 後，同一端的長度與寬度會依目前比例一起變化，方形頂部仍維持方形；頂部與底部互不影響。</li><li><strong><strong class="ui">「扭曲與傾斜」</strong>：</strong> 讓頂部相對底部扭轉，或往側邊偏移。這樣就能做出扭轉的柱子與傾斜的高塔。</li><li><strong><strong class="ui">「沿長度傾斜」</strong>：</strong> 讓頂部朝一端傾斜下降。<strong class="ui">「較低的一端」</strong> 選擇哪一端，<strong class="ui">「末端高度」</strong> 或 <strong class="ui">「坡度 (°)」</strong> 決定降多低，<strong class="ui">「弧度 (%)」</strong> 決定頂部是直的（0）、向上鼓起（大於 0）還是下凹（小於 0）。另一端保持物體的高度；低端頂部的橘色圓點可拖曳調整其高度。適合沿長度方向降低的屋頂、坡道或斜切的管端。可用於：<strong class="ui">「長方體」</strong>、<strong class="ui">「圓角長方體」</strong>、<strong class="ui">「圓柱體」</strong>、<strong class="ui">「橢圓」</strong>、<strong class="ui">「多邊形」</strong>、<strong class="ui">「管」</strong>、環、<strong class="ui">「楔形」</strong>、<strong class="ui">「圓形屋頂」</strong>。物體仍是精確實體，可倒角、圓角並匯出 STEP。</li><li><strong><strong class="ui">「沿長度收窄」</strong>：</strong> 從上方看，讓兩條長邊均勻地朝一端收攏。<strong class="ui">「收窄的一端」</strong> 選擇哪一端，<strong class="ui">「末端寬度」</strong> 設定該端寬度（0 為尖端），<strong class="ui">「起始位置 (%)」</strong> 設定收窄從哪裡開始（寬端為 0 %，中間為 50 %），<strong class="ui">「弧度 (%)」</strong> 決定兩側是直的（0）、像船頭一樣向外鼓（大於 0）還是向內收（小於 0）。窄端側面的橘色圓點可拖曳調整其寬度。可用於除管和環以外的相同形狀。保持精確的有：<strong class="ui">「長方體」</strong>、<strong class="ui">「楔形」</strong>、<strong class="ui">「圓形屋頂」</strong>；其餘以網格顯示。</li></ul>
+<figure><img src="/api/desktop/layerling/ui/guide/img/group-multicolor.webp" alt="一個由橘色方塊、藍色銷釘和孔組成的群組，被挖成單一實體。開啟多色後，銷釘保持藍色、方塊保持橘色，孔壁則採用方塊的顏色。" width="1280" height="800" loading="lazy"><figcaption>一個由橘色方塊、藍色銷釘和孔組成的群組，被挖成單一實體。開啟多色後，銷釘保持藍色、方塊保持橘色，孔壁則採用方塊的顏色。</figcaption></figure>
+<p>錐度與扭曲幾乎適用於每個形狀。只有齒輪、螺紋、彈簧、Gridfinity、鉸鏈、角錐、彎管、淚滴孔、螺絲頭刀具與標尺不支援：它們有自己固定的尺寸，或者像角錐那樣本來就有自己的頂部。</p>
+<figure><img src="/api/desktop/layerling/ui/guide/img/property-reset.webp" alt="一個改過頂部半徑與高度的圓錐：每個數值旁的小箭頭可把該值還原，底部的兩個按鈕則儲存或重設這個形狀的預設值。" width="1280" height="1180" loading="lazy"><figcaption>一個改過頂部半徑與高度的圓錐：每個數值旁的小箭頭可把該值還原，底部的兩個按鈕則儲存或重設這個形狀的預設值。</figcaption></figure>
+<p><strong class="ui">「儲存為預設值」</strong> 會把你在這個形狀上的改動存成同類型每個新形狀的起點：尺寸、形狀的設定與顏色。把一個圓柱塗成綠色，按下按鈕，之後新增的每個圓柱都是綠色；其他類型則各自保留自己的顏色。<strong class="ui">「重設預設值」</strong> 會把該類型還原成應用程式最初的設定。有自己預設值的類型，會在設定中的 <strong class="ui">「形狀預設值」</strong> 下標出。從起始頁新建的設計也會以這些預設值開始；數值儲存在這個瀏覽器中。</p>
+<p>錐形或傾斜的長方體、圓柱、橢圓、多邊形、管或圓環都會保持精確形狀；膠囊、星形、心形、月牙、燕尾、頂部與底部邊緣未倒圓的圓角長方體，以及直式或圓式滾花（其倒角端也會跟著收窄）同樣如此：倒角與圓角可以像在一般形狀上一樣套用，STEP 匯出也會寫出它。扭曲的形狀也一樣：它的斷面隨高度精確旋轉，側面從底部到頂部均勻盤繞。</p>
+<p>輸入比拖曳更精確。所有數字欄位都接受公釐，也接受百分比：在 40 mm 的寬度欄位輸入「50 %」，就會得到 20 mm。它們也會計算：「15*3」、「120-2*4」或「(40+2)/2」分別得到 45、112 和 21；也可以用 x 代替 *。欄位會記住算式，屬性面板與選取實體周圍尺寸框中的欄位都是如此：之後再次點入，只要數值仍與算式吻合，那裡顯示的就是算式而不是數字，你可以就地修改，把「(140+2)/2」改成「(40+6)/2」。用手把拖曳實體或縮放之後，算式不再吻合，欄位就只顯示數字。 在點擊過的數字欄中，滑鼠滾輪和 <kbd>↑</kbd>、<kbd>↓</kbd> 鍵會依一步改變數值，按住 <kbd>Shift</kbd> 步長較大，按住 <kbd>Alt</kbd> 步長較細。在尺寸或位置欄位中，<kbd>Shift</kbd> 改為依格線步長變化；格線關閉時依十個步長。 不點進輸入框也可以：在數值的名稱（例如「寬度」）上按住滑鼠，向左或向右拖曳，數值隨拖曳而變化，按鍵與滾輪相同。</p>
+<section class="guide-part"><h3 id="choosing-colours">選擇顏色</h3>
+<p>點擊實體屬性中的 <strong class="ui">「實體」</strong> 會開啟顏色卡片，標題為 <strong class="ui">「形狀顏色」</strong>。最上方顯示實體目前顏色的十六進位值。下方是色盤中的現成顏色；點擊其中一種就會為實體上色並關閉卡片。</p>
+<p><strong class="ui">「自訂」</strong> 會開啟瀏覽器的選色器，讓你選自訂顏色。它提供什麼取決於瀏覽器：在 Chrome 與 Edge 中，它有顏色欄位、色相滑桿、可從螢幕任何位置取色的滴管，以及可切換為 HEX、RGB 或 HSL 的色值（用旁邊的箭頭切換）。關閉選色器或在它外面點擊時，顏色才會生效。</p>
+<p>你在那裡調出的自訂顏色之後會留在 <strong class="ui">「最近使用」</strong> 下，最多最近八個。<strong class="ui">「已保留」</strong> 那一列的圖釘可永久保留你選的顏色：它獨佔一列，較新的顏色永遠不會把它擠掉，再按同一枚圖釘即可取消保留；這個瀏覽器最多保留 21 種顏色。圖釘是給自訂顏色用的，色盤中的顏色則一直都在。選取了多種顏色，或選取的是孔時，沒有單一顏色可保留。</p>
+<p>設定中工作區的顏色有自己較簡單的選色器，包含顏色欄位、一排現成顏色與十六進位值欄位；見<a href="/api/desktop/layerling/ui/zh-tw/view-and-workplane.html">設定</a>。</p>
+</section></section><section class="guide-part"><h2 id="how-round-is-round-the-side-count">圓有多圓？邊數</h2>
+<p>圓柱、圓錐、管、橢圓或內孔等圓形形狀，屬性中有 <strong class="ui">「邊數隨尺寸變化」</strong> 開關與 <strong class="ui">「邊數」</strong> 滑桿。<strong class="ui">「圓環」</strong> 有兩個滑桿：沿圓環的 <strong class="ui">「環向邊數」</strong> 與沿管身的 <strong class="ui">「管向步數」</strong>。它們在那裡也會跟著尺寸變動，直到你手動固定，因此大型圓環不會出現切面。原因在於：在檢視以及 STL、3MF 與 OBJ 中，layerling 把圓畫成由許多小邊組成的多邊形。邊越多越平滑，佔用的三角形也越多。</p>
+<p><strong class="ui">「管粗」</strong>設定從上方看時管有多粗。高度只會壓扁或拉伸管，所以扁平的圓環會保留中間的孔；當管粗達到外徑的一半時孔會閉合。拖曳控點時，管會隨形狀一起縮放。只有管粗等於圓環高度的圓環，才會在倒角、圓角與 STEP 中保持為精確實體。</p>
+<p><strong>邊數在哪些地方重要</strong></p>
+<ul><li><strong>匯出給切片軟體時</strong>（STL、3MF、OBJ）。邊數少的圓柱到了那裡就是多邊形。</li><li><strong>合併實體與孔時。</strong> 由邊數少的孔挖出的內孔，在成品中會帶有稜角。螺絲孔也包括在內。</li><li><strong>在檢視中。</strong> 大量非常精細的形狀會拖慢編輯器。</li></ul>
+<p><strong>邊數在哪些地方不重要</strong></p>
+<ul><li><strong>匯出 STEP 時。</strong> 它寫出的是圓形，而不是多邊形。</li><li><strong>套用倒角與圓角時</strong>（<strong class="ui">「倒角」</strong>、<strong class="ui">「圓角」</strong>），只要形狀保持圓形。未設定邊數、邊數不少於該形狀的預設值，或多邊形與圓的偏差最多 0.05 mm 時，就是這種情況。預設值為 96 邊（圓柱、橢圓、管與圓錐）、64 邊的 <strong class="ui">「圓形屋頂」</strong>、24 段的 <strong class="ui">「球體」</strong>、32 段的 <strong class="ui">「半球」</strong> 與 <strong class="ui">「拋物面」</strong>、96 邊與 24 段的 <strong class="ui">「圓環」</strong>，以及 <strong class="ui">「品質」</strong> 為 32 的圓形 <strong class="ui">「彎管」</strong>。</li><li><strong>螺紋、彈簧、斜齒輪或人字齒輪。</strong> 邊緣工具與 STEP 匯出採用它的精確實體；<strong class="ui">「品質」</strong> 只決定繪製得多精細。</li></ul>
+<p><strong>邊數又變得重要的情況</strong></p>
+<ul><li><strong>在邊數少的形狀上套用倒角與圓角時。</strong> 如果把邊數設得低於預設值，邊緣工具會按形狀繪製出來的樣子處理：6 邊的圓柱仍是六角柱，圓角會沿它的六條邊延伸。這樣你就能做出例如帶圓角的螺帽槽。圓形形狀請保持 <strong class="ui">「邊數隨尺寸變化」</strong> 開啟。</li></ul>
+<p><strong>如何使用</strong></p>
+<ul><li><strong>保持 <strong class="ui">「邊數隨尺寸變化」</strong> 開啟。</strong> 這樣 layerling 會依直徑選擇邊數，使多邊形與真實圓的偏差最多 0.005 mm，遠低於印表機解析得到的程度。小形狀至少有 24 邊，大形狀則更多。</li><li><strong>減少邊數</strong>：只在你刻意想要多邊形時（不過那種情況有 <strong class="ui">「多邊形」</strong>），或是編輯器因大量圓形形狀而變慢時。</li><li><strong>增加邊數</strong>：幾乎不需要。只有在非常大的圓形零件上、在 STL 中看到稜邊時才需要。</li><li><strong>對於只用邊緣工具處理，或以 STEP 交付的零件，</strong> 邊數無關緊要。</li></ul>
+</section><section class="guide-part"><h2 id="working-with-the-handles">使用控制點</h2>
+<p>除了設定之外，形狀本身也有控制點：</p>
+<ul><li><strong>角與邊</strong>可把形狀放大或縮小。把其中一個拖過對面，形狀會在那條邊的另一側繼續增大。頂端的箭頭在底面下方做同樣的事。拖曳角時按住 <kbd>Shift</kbd> 可同時縮放寬度、深度與高度並保持比例；按住 <kbd>Alt</kbd> 則從中心縮放，而不是從對角縮放。沒有鍵盤，或不想一直按著鍵時，可開啟屬性面板頂端的 <strong class="ui">「保持比例」</strong>：此後拖曳角一律保持比例，輸入寬度、深度或高度其中之一，另外兩項會按相同比例縮放。這項設定會被記住。</li><li>形狀<strong>上方的黑色箭頭</strong>抬高或降低形狀；從一開始按住 <kbd>Alt</kbd>，會在放開處產生一個副本，方便疊放。<strong>頂面上的白色控制點</strong>改變高度。</li><li>頂部的<strong>紅色和綠色箭頭</strong>只沿 X 或只沿 Y 移動形狀。形狀會沿這條線跟隨滑鼠，即使從很低的角度看平台也是如此，而自由拖曳在那裡會跑得很遠。它像拖曳時一樣吸附到其他形狀，之後可以點擊移動的距離並輸入精確值。</li><li><strong>弧形箭頭</strong>旋轉它。</li><li><strong>形狀旁的數字</strong>顯示尺寸。點擊其中一個會開啟欄位，讓你輸入想要的數字。按 <kbd>Enter</kbd> 時，形狀從該數字對面的邊開始增大，跟拖曳時一樣；按 <span dir="ltr"><kbd>Alt</kbd>+<kbd>Enter</kbd></span> 則繞著自己的中心增大，因此先前與其他形狀對齊過的形狀仍保持對齊。這適用於寬度與長度；高度一律從底面往上增大。右側屬性面板中的欄位不需按鍵就會保持中心。<kbd>Tab</kbd> 保留數字並開啟下一個欄位（寬度、深度、高度）；<span dir="ltr"><kbd>Shift</kbd>+<kbd>Tab</kbd></span> 返回上一個。在屬性面板中已點入的欄位，滑鼠滾輪也能改變數值：每一格一個單位，按住 <kbd>Shift</kbd> 為十倍，<kbd>Ctrl</kbd> 為十分之一，<kbd>Alt</kbd> 為百分之一。沒點入的欄位則把滾輪留給面板捲動。</li><li><strong>點擊一個角</strong>（不拖曳）會同時開啟寬度與深度。輸入第一個，按 <kbd>Tab</kbd> 切到第二個，再按 <kbd>Enter</kbd> 套用兩者。<kbd>Esc</kbd> 取消。</li></ul>
+<p>形狀一旦轉過直角，例如用 <strong class="ui">「平放於面」</strong> 側放，屬性面板中的欄位就會按每項尺寸目前的方向命名：<strong class="ui">「高度」</strong> 是往上的尺寸，<strong class="ui">「寬度」</strong> 沿 X 方向，<strong class="ui">「長度」</strong> 沿 Y 方向。因此對躺下的形狀輸入高度，改的是垂直方向的尺寸，而它的底面仍留在平台上。以其他角度傾斜的形狀，欄位中顯示的是它自己的尺寸，下方會有備註說明。</p>
+<p>不用滑鼠時，可以用鍵盤：方向鍵把選取項移動一個吸附步距（格線關閉時為 0.01 mm），按住 <kbd>Shift</kbd> 為五個，若把 <strong class="ui">「加深網格線間隔」</strong> 設為 <strong class="ui">「10 個網格間距」</strong>（在設定中的 <strong class="ui">「外觀」</strong> 下），則為十個：移動到下一條較深的格線，跟 Tinkercad 一樣。方向鍵跟隨檢視：<kbd>→</kbd> 往螢幕右側，<kbd>↑</kbd> 遠離你，即使轉過平台也一樣。把形狀推出畫面，檢視也會跟著移動。<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>↑</kbd></span> 與 <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>↓</kbd></span> 升高與降低它。連續按方向鍵在歷史記錄中算一步：只要下一次按鍵在 1.5 秒內接上，復原就會收回整串操作，而不是一次一下。<kbd>R</kbd> 旋轉 45°，<span dir="ltr"><kbd>Shift</kbd>+<kbd>R</kbd></span> 旋轉 22.5°。<kbd>D</kbd> 把選取項放到工作平面上。</p>
+<p>控制點可把形狀拉到和你的平台一樣大，寬與深至少 220 mm。在屬性面板輸入數字則可超過，而這樣放大的形狀再次抓取時不會縮回。在設定中的 <strong class="ui">「形狀預設值」</strong> 下，可用 <strong class="ui">「自訂尺寸上限」</strong> 為每種形狀設定自己的上限。</p>
+<p>吸附步距位於編輯器右下角，隨時可以更改。</p>
+</section><section class="guide-part"><h2 id="copying-and-duplicating">複製與重複</h2>
+<p><strong class="ui">「複製」</strong>、<strong class="ui">「貼上」</strong> 與 <strong class="ui">「建立副本」</strong> 位於功能區（<strong class="ui">「剪貼簿」</strong>）。<span dir="ltr"><kbd>Ctrl</kbd>+<kbd>D</kbd></span> 會重複選取項。layerling 會記住你上次如何移動或旋轉副本，並在下次重複時再套用相同的方式。這樣幾個按鍵就能做出一排孔或一排階梯。規則排列還可以使用陣列，說明見<a href="/api/desktop/layerling/ui/zh-tw/select-and-arrange.html">選取與排列</a>。 如果你也調整了副本的大小，之後的每個副本都會再按相同比例縮放，和 Tinkercad 一樣。</p>
+<aside class="tip"><p><strong>提示：</strong> 如果某個形狀不肯接受你想要的尺寸，通常是新形狀的限制所致。在設定中的 <strong class="ui">「形狀預設值」</strong> 下，你可以決定每種形狀如何開始，以及最大能有多大。</p></aside>
+</section><section class="guide-part"><h2 id="custom-shapes">自訂形狀</h2>
+<p>需要反覆使用的支架、握把或底板，可以放進 <strong class="ui">「自訂形狀」</strong>。它們位於形狀庫最上方、<strong class="ui">「基本形狀」</strong> 之上，可用箭頭收起。</p>
+<ol><li>選取一個或多個實體、孔、群組，也可以包含匯入的模型。</li><li>開啟形狀庫並點擊 <strong class="ui">「儲存選取範圍」</strong>。輸入名稱，再按 <strong class="ui">「儲存」</strong> 確認。</li><li>在任何設計中，點擊圖磚即可插入該形狀，跟其他形狀一樣。你也可以把圖磚拖到工作平面；它會在你鬆手的位置落下。接著形狀會跟著指標，和其他形狀一樣：它跟著指標移動，經過其他實體的面時也一樣，點擊即可放下；<kbd>Esc</kbd> 把它收走。</li></ol>
+<p>多個實體會一起回來，保持彼此原本的相對位置，而且仍可逐一選取。釘在已儲存實體上的<a href="/api/desktop/layerling/ui/zh-tw/measuring-and-notes.html">備註</a>會一起存下，插入時以收合狀態回來、仍釘在插入的實體上；自由備註與參考點則留在設計中。圖磚上的鉛筆可重新命名，垃圾桶會先詢問再刪除。已插入設計中的形狀則保持原樣。</p>
+<p><strong class="ui">「自訂形狀」</strong> 儲存在這個瀏覽器中，與設計分開，下次啟動時仍然存在。起始頁的 <strong class="ui">「全部備份」</strong> 會把它們和設計一起備份，開啟備份就會把兩者一起還原。若只想把形狀帶到另一個瀏覽器，<strong class="ui">「備份自訂形狀」</strong>（向下的箭頭）會把它們儲存成 ZIP 檔案，<strong class="ui">「載入形狀」</strong>（向上的箭頭）再把它們帶回那裡。<strong class="ui">「載入形狀」</strong> 也接受單一的 <code>.lyl</code> 設計；每一個都會變成一個形狀。已存在的形狀不會重複新增。</p>
+<section class="guide-part"><h3 id="folders">資料夾</h3>
+<p>自訂形狀一多，用資料夾分類會更清楚。<strong class="ui">「新增資料夾」</strong>（帶加號的資料夾，位於 <strong class="ui">「儲存選取範圍」</strong> 旁）會要求輸入名稱，並在最上層建立資料夾；資料夾上的加號 <strong class="ui">「在其中新增資料夾」</strong> 則會在其中建立子資料夾。資料夾最多三層：第三層的資料夾可以放形狀，但不能再放資料夾。資料夾依名稱順序排在未歸類的形狀上方，可用箭頭展開與收起；資料夾上的數字統計它本身及內部資料夾中的形狀數量。儲存時，在名稱旁的清單中選擇資料夾；<strong class="ui">「無資料夾」</strong> 會把形狀留在最上層。</p>
+<p>圖磚上帶箭頭的資料夾可把該形狀移到另一個資料夾，或用 <strong class="ui">「無資料夾」</strong> 移回最上層。資料夾上的鉛筆可重新命名，垃圾桶會先詢問再刪除它連同其中的資料夾與形狀。資料夾本身不能移動：在想要的位置新建一個，再把形狀移過去。備份會保留資料夾，載入後形狀會回到相同的位置。</p>
+</section><section class="guide-part"><h3 id="custom-shapes-on-the-server">伺服器上的自訂形狀</h3>
+<p>開啟<a href="/api/desktop/layerling/ui/zh-tw/files-and-saving.html">共用伺服器儲存</a>後，這一區會顯示兩組：<strong class="ui">「伺服器上」</strong> 與 <strong class="ui">「此瀏覽器中」</strong>。儲存時你可以選擇形狀要放在哪裡；預設選取伺服器。在那裡，它以獨立的 <code>.lyl</code> 檔案（附有圖片）存放在 <code>Custom shapes</code> 資料夾中，任何能連上伺服器的裝置都能使用；它的資料夾就是 <code>Custom shapes</code> 內的資料夾。兩邊各有自己的資料夾，形狀只會在所屬那一邊的資料夾之間移動。瀏覽器圖磚上的雲端圖示會把該形狀放到伺服器；之後它就不再保留兩份。</p>
+<p><code>Custom shapes</code> 資料夾也會顯示在起始頁上。在那裡像設計一樣開啟形狀、修改後，它會像伺服器上的任何設計一樣自動儲存；下次插入時用的就是新版本。由於伺服器儲存沒有登入機制，所有能連上伺服器的人看到的都是相同的形狀。</p>
+</section></section><section class="guide-part"><h2 id="wrapping-around-a-cylinder">包覆到圓柱</h2>
+<p>想把圖案、標誌或文字放到杯子、罐子或管子上嗎？先把它平放在平台上，例如匯入的 SVG 或文字，並按照從上方看應有的樣子擺好。然後在形狀設定中的 <strong class="ui">「包覆到圓柱」</strong> 下把它包覆到圓柱：</p>
+<ol><li>開啟 <strong class="ui">「包覆到圓柱」</strong>，輸入圓柱壁的 <strong class="ui">「直徑」</strong>，例如杯子的外徑。也可以精確到小數一位，例如 63.5。</li><li>點擊 <strong class="ui">「包覆」</strong>。原本由左往右延伸的內容現在繞著圓柱延伸，後緣變成頂部，厚度則從壁面往外突出。</li><li>選取包覆後的形狀與圓柱，讓兩者在左右與前後方向都置中。包覆後形狀的中線就是圓柱的軸線，因此它會正好貼在壁上。</li></ol>
+<p>任何實體都可以包覆，庫中的形狀也可以：例如要放在圓塔牆壁上的圓頂。把它平放在平台上，擺成它在牆上應有的樣子，圓頂朝後。</p>
+<p>若要雕刻，請開啟 <strong class="ui">「向內（雕刻）」</strong>：厚度此時會陷入壁內。把形狀設為孔、置中，然後與圓柱群組。</p>
+<p>已經包覆過的形狀是包覆後物件的網格，不能再次包覆：復原這次包覆，或用另一個直徑重新包覆原來的平面形狀。</p>
+<p>結果像匯入的模型一樣是網格。復原會把形狀重新攤平；想換直徑，先復原再重新包覆。包覆範圍不能超過圓柱一圈；超過時 layerling 會指出能夠容納的最小直徑。</p>
+</section><section class="guide-part"><h2 id="a-surface-texture">表面紋理</h2>
+<p>在實體上加凹槽、滾花、蜂巢或凸點，讓它更好握或更好看：在形狀設定中開啟 <strong class="ui">「表面紋理」</strong>。上方 <strong class="ui">「修改」</strong> 群組裡的 <strong class="ui">「表面紋理」</strong> 按鈕作用相同：它為選取的實體開啟或關閉這張卡片，卡片開啟時按鈕保持亮起。</p>
+<ol><li>選擇 <strong class="ui">「圖樣」</strong>、它的 <strong class="ui">「間距」</strong> 和 <strong class="ui">「深度」</strong>。<strong class="ui">「方向」</strong> 決定紋理是壓進實體還是凸出實體。對於 <strong class="ui">「凸點」</strong>，<strong class="ui">「凸起形狀」</strong> 可在 <strong class="ui">「半球」</strong>、<strong class="ui">「圓錐（尖頭）」</strong>、<strong class="ui">「圓潤」</strong> 和 <strong class="ui">「頂部平坦」</strong> 之間選擇。在 <strong class="ui">「排列」</strong> 下，它們可以 <strong class="ui">「交錯」</strong>（每隔一列錯開半個間距），或排成 <strong class="ui">「直排」</strong>。</li><li>在 <strong class="ui">「鋪設於」</strong> 下，杯子、旋鈕或把手等圓形實體選 <strong class="ui">「繞軸」</strong>。圖案繞 <strong class="ui">「軸」</strong> 一圈，間距會略作取整，使一圈正好是整數個凹槽或單元：圖案閉合，沒有接縫。<strong class="ui">「四周環繞」</strong> 適合不是圓形的實體，<strong class="ui">「平面，沿軸」</strong> 適合從上方看的蓋子或平板。保持 <strong class="ui">「自動」</strong>，Layerling 會替你選擇：圓形實體以及像盒子這樣直立的稜角實體用 <strong class="ui">「繞軸」</strong>（圖案沿外輪廓走，無接縫地繞過稜邊，凸起的圖案會順著稜邊彎過去），其他稜角實體用 <strong class="ui">「四周環繞」</strong>。</li><li>點擊 <strong class="ui">「套用紋理」</strong>。大的實體需要幾秒鐘，期間可以繼續工作。</li></ol>
+<p>如果只想給部分面加圖案，例如只給盒子的頂面，點擊 <strong class="ui">「選取面」</strong>，再在檢視中點擊這些面：頂面、底面或某個側面。一個面一直延伸到實體的銳利稜邊；圓柱的側面是一個面，頂面和底面各是一個面。選取的面會亮起，再點擊一次可以取消，<strong class="ui">「恢復所有面」</strong> 讓圖案重新覆蓋整個實體。只有選取的面得到圖案，其他面保持原樣，三角形也很少。在頂面或底面上圖案是平鋪的；在圓形頂面上，凹槽、繩紋和針織紋繞中心排成一圈圈，像樹的年輪。<strong class="ui">「頂面/底面方向（°）」</strong> 轉動頂面和底面上的圖案：0° 時各列沿前緣，90° 時沿側緣。<strong class="ui">「頂面與底面」</strong> 讓那裡的凹槽、繩紋和針織紋在列與環之間切換；在稜角實體上，環會沿外輪廓走。<strong class="ui">「頂面與底面的邊緣處理」</strong> 決定側面與帶圖案的頂面或底面之間的稜邊怎麼處理：<strong class="ui">「銳邊」</strong> 讓兩者都止於稜邊。選 <strong class="ui">「側面越過邊緣」</strong> 時，側面的圖案繞過稜邊鋪滿整個頂面：繩紋、針織紋和水平凹槽的各列以環的形式延續，垂直和斜向的凹槽則作為射線幾乎延伸到中心。<strong class="ui">「短翻摺」</strong> 效果相同，但只作為一圈邊；裡面是頂面自己的圖案，依 <strong class="ui">「頂面與底面」</strong> 的設定。<strong class="ui">「邊框」</strong> 為任何圖案在稜邊加一圈飾邊：一條繩、一道收針鏈或一道圓珠邊。較窄的圓角也會結束一個面：杯緣有圓角的杯子，其外側、圓角、杯緣、內側和杯底各自是獨立的面，所以點擊外側只會選到外側。較寬的圓角（約占實體四分之一或更多）屬於該面，就像球是一個面。選了面時，<strong class="ui">「外壁」</strong> 和 <strong class="ui">「內壁」</strong> 不起作用。</p>
+<p>一個實體上的多種圖案——四周是磚牆，頂面是滾花——就是圖層：第一個旁邊的 <strong class="ui">「圖層」</strong> 會新增一層，並立即為它開啟選面；點擊它應覆蓋的面。之後的每一層只作用於它自己的面，第一層作用於其餘所有面。分頁一次顯示一個圖層及其設定，<strong class="ui">「移除此圖層」</strong> 刪除一層。所有圖層都在紋理下方的實體上一起產生，因此修改其中一層或移除紋理，和單一圖案時一樣。文字作為圖層不需要選面：放在哪裡就在哪裡。</p>
+<p>在 <strong class="ui">「更多」</strong> 下選擇圖案鋪在哪裡：外壁和內壁，底部和頂部各留多少光滑（光滑的底部讓實體平穩地放在熱床上），高度上的一條帶，以及銳利稜邊是否保持光滑。在所有保持光滑的地方旁邊，圖案會柔和地過渡出現；<strong class="ui">「漸入距離」</strong> 設定過渡的毫米數。數值越小，圖案越靠近稜邊；凸起的圖案會一直延伸到稜邊。在立方體這類稜角實體的平面上，圖案則在這個距離處以一條直邊結束：凹槽和菱形以一小段壁收尾，只保留完整的凸點。<strong class="ui">「輪廓」</strong> 決定凹槽或接縫的截面：尖形和平形是精確的，圓形則依 <strong class="ui">「細節」</strong> 給出的級數分段。</p>
+<p>除了 <strong class="ui">「溝槽」</strong>、<strong class="ui">「滾花」</strong>、<strong class="ui">「蜂巢」</strong> 和 <strong class="ui">「凸點」</strong>，還有更多圖案。<strong class="ui">「胞狀」</strong> 是像鋪路石或乾裂泥土那樣的不規則單元；接縫像蜂巢一樣切得乾淨，換一個 <strong class="ui">「排列」</strong> 就重新排布。<strong class="ui">「針織」</strong>、<strong class="ui">「繩索」</strong> 和 <strong class="ui">「籃編」</strong> 模仿針織線圈、纏繞的繩子以及由立條和編條編成的籃子；它們預設凸起、圓潤，大小與原物相當。<strong class="ui">「木紋」</strong> 讓表面變得細微粗糙，像噴砂過一樣；顆粒分布在空間中，沒有接縫，也不會拉伸。<strong class="ui">「圖片」</strong> 把一張灰階圖當作高度圖：可用現成的木紋、地形或磨石子，也可用 <strong class="ui">「載入你自己的圖片……」</strong> 載入自己的圖。亮處成為完整深度；<strong class="ui">「貼片寬度」</strong> 設定一塊拼貼的寬度，在 <strong class="ui">「貼片」</strong> 下，拼貼可以重複、鏡像或錯位。透明背景上的深色圖畫（例如 SVG 裡的黑色線條）按其線條計算：線條變成最大深度。選擇 <strong class="ui">「一次」</strong> 時，圖片像標籤一樣只壓印一次：<strong class="ui">「環繞（°）」</strong> 和 <strong class="ui">「高度（%）」</strong> 像文字一樣決定它的中心，<strong class="ui">「圖片寬度」</strong> 設定它的寬度，旁邊的表面保持平滑。選了面時，它總是落在這些面上，即使 <strong class="ui">「環繞（°）」</strong> 和 <strong class="ui">「高度（%）」</strong> 指向別處。</p>
+<p><strong class="ui">「碳纖維（斜紋）」</strong> 在實體上鋪斜紋編織的碳纖維：直向帶和橫向帶互相上下穿插，每條帶錯開一條帶的位置，於是出現熟悉的斜紋。<strong class="ui">「編織方式」</strong> 可選 <strong class="ui">「斜紋 2/2」</strong>（大多數碳纖維件的均勻編織），或 <strong class="ui">「斜紋 2/1」</strong> 和 <strong class="ui">「斜紋 3/1」</strong>，後兩者直向帶顯得長、橫向帶顯得短。<strong class="ui">「帶寬」</strong> 設定直向帶的寬度；<strong class="ui">「橫向帶寬」</strong> 讓橫向帶更寬或更窄，得到不均勻的編織（0：一樣寬）。繞實體一圈時，帶寬會略作取整，使編織無接縫地閉合。單根纖維對列印來說太細了：看得見的是帶和它們的交叉。</p>
+<p><strong class="ui">「磚紋」</strong> 在實體上鋪一面磚牆，接縫像砂漿一樣凹下。<strong class="ui">「砌法」</strong> 選擇磚的砌法：大多數牆用的 <strong class="ui">「順砌」</strong>、<strong class="ui">「疊砌」</strong>，或在長磚之間夾短磚（<strong class="ui">「英式砌法」</strong>、<strong class="ui">「英式交叉砌法」</strong>、<strong class="ui">「弗拉芒砌法」</strong>）。<strong class="ui">「磚長」</strong> 和 <strong class="ui">「磚層高度」</strong> 從接縫量到接縫，並略作取整，使整塊磚正好排下：繞杯子一圈、盒子側面從稜到稜、從底到頂；<strong class="ui">「縫寬」</strong> 設定接縫寬度。在 <strong class="ui">「更多」</strong> 下，<strong class="ui">「磚的不均勻（%）」</strong> 讓每塊磚凹得深淺略有不同，像舊牆一樣。</p>
+<p><strong class="ui">「正方形」</strong> 和 <strong class="ui">「三角形」</strong> 在實體上鋪出大小相同的網格磁磚，凸起或壓入，側壁陡直、切得乾淨；三角形排成列，尖角輪流朝上和朝下。<strong class="ui">「正方形尺寸」</strong> 或 <strong class="ui">「三角形尺寸」</strong> 以及 <strong class="ui">「間距」</strong> 嚴格保持你設定的值 – 3.2 mm 的正方形、間距 3.2 mm，各是 0.4 mm 噴嘴的八條線，列印得很乾淨。網格在每個面上置中；繞圓形實體時間距會略微取整，好讓整數個剛好繞一圈。開啟 <strong class="ui">「從底邊開始」</strong> 後，第一排緊貼底邊開始，一直延伸到第一層，由裙邊（Brim）固定。若只想在兩個側面的下半部分鋪磁磚，請選取這兩個面，並在上半部分放一個輔助實體，在 <strong class="ui">「紋理遮罩」</strong> 下選 <strong class="ui">「讓紋理避開」</strong>（見下文）。在 <strong class="ui">「更多」</strong> 下，<strong class="ui">「輪廓」</strong> 選 <strong class="ui">「尖頭」</strong> 會做成金字塔，選 <strong class="ui">「圓形」</strong> 或 <strong class="ui">「半圓」</strong> 則做成軟墊。</p>
+<p><strong class="ui">「半木結構」</strong>和<strong class="ui">「天然石牆」</strong>是為模型製作準備的，例如鐵道模型或場景模型裡的房子。<strong class="ui">「半木結構」</strong>讓木樑凸出牆面，樑間的灰泥較低：立柱間距為<strong class="ui">「格寬」</strong>，每層（<strong class="ui">「層高」</strong>）都有底樑和頂樑，中間橫穿<strong class="ui">「每層橫檔」</strong>。<strong class="ui">「支撐」</strong>決定格裡放多少木料：<strong class="ui">「斜撐」</strong>從兩端向中間傾斜，<strong class="ui">「交叉撐（X 形）」</strong>位於最低橫檔下面，<strong class="ui">「角撐」</strong>在上方兩角，<strong class="ui">「混合」</strong>則在兩端放斜撐、中間放交叉撐和角撐，就像許多老房子那樣。<strong class="ui">「樑寬」</strong>和<strong class="ui">「樑高」</strong>決定樑的寬度和凸出高度，<strong class="ui">「木紋（%）」</strong>給樑加上木紋：0 % 沒有，低於 50 % 紋線更多更細，高於 50 % 是兩道又寬又深的紋槽——從刨光的木料到粗糙的厚板。和磚紋一樣，格寬和層高會略微取整，好讓整格放得下，從底邊開始向上。<strong class="ui">「天然石牆」</strong>砌出一面老牆：大小不一的石塊排成粗略的層，灰縫較低，每塊石頭都略微隆起，各不相同。<strong class="ui">「圓潤度（%）」</strong>從稜角鋒利的碎石（0 %）到圓潤的卵石（100 %）；<strong class="ui">「大小差異（%）」</strong>、<strong class="ui">「縫寬」</strong>和<strong class="ui">「排列」</strong>決定石塊差異多大、縫有多寬以及怎樣排列。兩者都只是形狀、只有一種顏色，所以<strong class="ui">「圖樣作為獨立零件」</strong>可以把木樑或石塊做成單獨的部件，用第二種顏色列印。</p>
+<p><strong class="ui">「裂紋（金繕）」</strong> 圖案讓裂紋像金繕那樣在表面蔓延，帶有轉折、分岔，寬度往末端逐漸變細。<strong class="ui">「起點」</strong> 決定裂紋從哪裡開始：花瓶或杯子的上緣、底部、從盤子邊緣往中心，或任意位置；在 <strong class="ui">「類型」</strong> 下它們會變成閃電。選 <strong class="ui">「金色填充物作為獨立零件」</strong> 時，凹痕由一個獨立的金色零件填滿，可用第二種線材列印；更改或移除紋理時它會一起變化。在 <strong class="ui">「更多」</strong> 下設定分岔、鋸齒和崩邊，換一個 <strong class="ui">「隨機種子」</strong> 就重新產生裂紋。</p>
+<p><strong class="ui">「樹皮」</strong> 在原木上包一層樹皮：<strong class="ui">「橡木」</strong>、<strong class="ui">「松木」</strong>、<strong class="ui">「雲杉」</strong>、<strong class="ui">「樺木」</strong> 或 <strong class="ui">「山毛櫸」</strong>，各有自己的大小和深度。<strong class="ui">「木紋」</strong> 把實體變成一塊木頭：在 <strong class="ui">「木材」</strong> 下選橡木、白蠟木、山毛櫸、松木或胡桃木，在 <strong class="ui">「切法」</strong> 下選去皮原木或木板，弦切帶拱形花紋，徑切則是直紋。<strong class="ui">「年輪寬度」</strong> 讓木紋細或粗。選 <strong class="ui">「兩端的年輪」</strong> 時，原木兩端顯示年輪，並與側面的木紋對得上：年輪像真木頭一樣貫穿整個實體。在 <strong class="ui">「更多」</strong> 下加入 <strong class="ui">「節疤」</strong>，年輪會繞著它們彎曲。</p>
+<p>用 <strong class="ui">「文字（貼上去的）」</strong> 圖案可以像壓貼標籤一樣把文字貼到實體上：表面在該位置周圍展開，所以字母在花瓶的鼓肚上、在斜壁上或跨過盒子的稜邊時都保持大小。「環繞」（0° 是正面，90° 是右側）和沿軸的「高度」（%）決定位置；軸設在 X 或 Y 時，0° 是頂部，這樣文字就落在平板上。<strong class="ui">「方向」</strong> 讓文字刻入或凸起。遇到真正的尖角時，它會像貼紙一樣撕開；狀態訊息會提示。<strong class="ui">「文字直排」</strong> 在這裡同樣讓字母由上往下排列。選了面時，文字總是落在這些面上，即使 <strong class="ui">「環繞（°）」</strong> 和 <strong class="ui">「高度（%）」</strong> 指向別處。</p>
+<p>要讓實體的一部分保持光滑，或只給一部分加紋理，請用輔助實體：把盒子、圓柱或球放到相應位置，選取它，在 <strong class="ui">「紋理遮罩」</strong> 下選 <strong class="ui">「讓紋理避開」</strong> 或 <strong class="ui">「僅此處有紋理」</strong>。它會變成透明，在另一個實體產生紋理時起作用，隱藏時也一樣。列印前請隱藏或刪除它。</p>
+<p>結果是一個網格，就像匯入的模型一樣，並保留產生它時所用的實體。之後再選取它（儲存後也可以），卡片會顯示產生時的設定：修改後點擊 <strong class="ui">「修改紋理」</strong>，紋理會在該實體上重新產生，位置和大小與紋理實體現在的一致。<strong class="ui">「移除紋理」</strong> 恢復光滑的實體。更改紋理時遮罩實體會再次起作用：如果之後可能還要改，請隱藏而不是刪除它們。復原同樣可以撤回其中每一步。</p>
+<p>要用兩種顏色列印，請開啟 <strong class="ui">「圖樣作為獨立零件」</strong>，適用於任何圖樣：圖樣會成為獨立零件，<strong class="ui">「圖樣顏色」</strong> 決定它的顏色——第一次是與實體形成對比的顏色，下一次是你上次選的顏色。凸出實體時，零件就是凸出的部分，實體保持原樣；凹入實體時，實體被刻入圖樣，零件把凹槽一直填到表面，就像裂紋裡的金色填充。兩者一起放在綁定中：它們會一起移動，各自保留顏色，3MF 檔案中它們是交給切片軟體的兩個零件。像往常一樣修改或取下紋理；圖樣零件會隨之一起變化。有多個圖層時，它們必須朝同一方向，凸出或凹入實體；兩側置中的圖樣仍與實體為一體。</p>
+</section><section class="guide-part"><h2 id="painting-in-several-colours">多色上色</h2>
+<p>為了多色列印，<strong class="ui">「上色」</strong> 直接在設計中為實體的部分表面上色：一個面、一圈圓柱壁、孔的內壁、一個圓斑，或者你圈出的一塊區域。它和切片軟體裡的上色工具類似，但顏色會隨設計一起儲存。選取一個實體，在 <strong class="ui">「修改」</strong> 群組中點擊 <strong class="ui">「上色」</strong>（在 <strong class="ui">「表面紋理」</strong> 旁邊）。面板會列出設計中用到的顏色，<strong class="ui">「自訂顏色」</strong> 可以調出自己的顏色。然後在檢視中用三種工具之一上色：</p>
+<ul><li><strong class="ui">「填色」</strong>：點擊一下，把面一直填色到它的銳利邊緣，就像繪圖軟體裡的油漆桶：長方體的頂面、圓柱的側壁、凹槽的底面或孔的內壁，各點一下即可。<strong class="ui">「在大於此角度的邊緣停止」</strong> 決定邊緣要多銳利才會讓填色停下；設為 90° 時會越過長方體的稜邊。</li><li><strong class="ui">「圓」</strong>：點擊一下，在表面上放一個設定 <strong class="ui">「直徑」</strong> 的圓斑，圓心就在點擊處，曲面上也可以。它會在實體的銳利邊緣停下，也不會透到壁的背面。</li><li><strong class="ui">「套索」</strong>：按住滑鼠鍵圈出一塊區域。區域內看得見的部分會被上色，實體後面的背面不會。</li></ul>
+<figure><img src="/api/desktop/layerling/ui/guide/img/paint.webp" alt="用三種工具上色的長方體：頂面填色為黃色，正面一個白色圓，側面一個用套索圈出的綠色星形；旁邊是上色面板。" width="1280" height="800" loading="lazy"><figcaption>用三種工具上色的長方體：頂面填色為黃色，正面一個白色圓，側面一個用套索圈出的綠色星形；旁邊是上色面板。</figcaption></figure>
+<p><strong class="ui">「橡皮擦」</strong> 用同樣的工具把顏色去掉，<strong class="ui">「全部清除」</strong> 一次去掉全部顏色。每一筆都是獨立的一步，所以 <span dir="ltr"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span> 會復原最後一筆。兩筆之間仍然可以像平常一樣用滑鼠右鍵旋轉檢視；<strong class="ui">「完成」</strong> 或 <kbd>Esc</kbd> 關閉面板。</p>
+<p>圓和套索的邊緣會切進實體的網格：長方體面上的圓是圓的，而不是幾個三角形，實體也保持封閉。顏色屬於實體：它隨實體移動和旋轉，調整尺寸時隨之拉伸；修改後找不到位置的筆畫會被略過。匯出 3MF 時顏色會寫成已上色的面，OrcaSlicer、Bambu Studio 和 PrusaSlicer 會用各自的線材列印（見<a href="/api/desktop/layerling/ui/zh-tw/files-and-saving.html">檔案與儲存</a>）；OBJ 也保留顏色，STL 仍是單色。</p>
+<p>切成一個實體的群組（例如帶孔的長方體）按一個實體上色：請在切出孔之後再上色，打開群組修改後顏色仍會保留。集合中的零件要逐一上色。把已上色的實體和其他實體組成群組後，它作為零件保留顏色，取消群組後會再次顯示。不封閉的匯入網格會按它自己的三角形上色。</p>
+</section><section class="guide-part"><h2 id="a-vase">花瓶</h2>
+<p><strong class="ui">「花瓶」</strong> 是專為花瓶、花盆和燈罩準備的實體。它的尺寸在 <strong class="ui">「屬性」</strong> 中，形狀和圖案在 <strong class="ui">「造型與圖樣」</strong> 卡片上；所有設定隨時都能更改，儲存後也可以：</p>
+<ul><li><strong class="ui">「主體造型」</strong>：瓶形、鼓肚、帶頸的碗、桶形、圓柱或漏斗。高度和最大直徑是該形狀自己的尺寸：拖曳控制點，或輸入 <strong class="ui">「直徑」</strong> 和 <strong class="ui">「高度」</strong>。</li><li><strong class="ui">「截面」</strong>：圓、圓角多邊形或波浪（柔和、尖形、拱形或鰭形）。<strong class="ui">「扭轉（°）」</strong> 讓截面沿高度旋轉，<strong class="ui">「搖擺（°）」</strong> 讓它來回擺動。</li><li><strong class="ui">「建構」</strong>：<strong class="ui">「實心（花瓶模式）」</strong> 用於切片軟體的花瓶模式（也叫螺旋化）：切片軟體以螺旋方式只列印一層壁，省去頂部和填充，因此實體畫成實心。<strong class="ui">「帶壁的空心」</strong> 為一般列印產生真正的壁和底。<strong class="ui">「底部」</strong> 設為 0 mm 時，空心花瓶沒有底：兩端開口的管子，適合喇叭口、吹嘴和管道。</li><li><strong class="ui">「圖樣」</strong>：新花瓶是光面的。可選外側的凹槽、條紋、Voronoi 單元或切面（低多邊形），也可只放在高度上的一條帶裡；它們屬於花瓶，隨花瓶一起保持可編輯。</li></ul>
+<p><strong class="ui">「上部截面」</strong> 讓截面沿高度過渡到第二種截面，例如從底部的圓過渡到頂部的六邊形。</p>
+<p>花瓶設定上方的 <strong class="ui">「繪製花瓶」</strong> 會在工作區上方開啟一個獨立的大視窗：在裡面以真實毫米親手繪製花瓶。拖曳標題列可移動視窗，拖曳角落可放大；檢視中的花瓶會跟隨每一次更改。<strong class="ui">「主體造型」</strong> 從側面顯示花瓶：拖曳各點，最上面的點決定高度，最寬的點決定直徑；<strong class="ui">「手柄」</strong> 給點一個角度，<strong class="ui">「邊角」</strong> 讓它成為折角。<strong class="ui">「截面」</strong> 從上方顯示截面，<strong class="ui">「對稱」</strong> 會鏡像或重複你畫的內容。<strong class="ui">「扭轉」</strong> 把旋轉畫成一條沿高度的曲線。繪圖軟體的 SVG 檔案可以成為截面或瓶身形狀，樣品花瓶的網格（STL、3MF、OBJ）可以成為瓶身形狀。可以把花瓶照片放在繪圖後面描摹，或用 <strong class="ui">「取輪廓」</strong> 擷取它的輪廓。<strong class="ui">「描繪」</strong> 用設定做同樣的事：<strong class="ui">「臨界值」</strong> 決定物體要多明顯地與背景區分，<strong class="ui">「點數」</strong>（3 到 40）和 <strong class="ui">「角點起始角度」</strong>；新的瓶身形狀先以紅色顯示在照片上，按 <strong class="ui">「套用」</strong> 後成為花瓶的形狀。花瓶放在雜亂背景前（書架、房間）時，搜尋找不到它；這時用 <strong><strong class="ui">「磁性套索」</strong></strong> 抓住它：圍繞花瓶大致點擊，兩次點擊之間線條會自動沿邊緣走，點擊第一個點、按兩下或按 <kbd>Enter</kbd> 閉合。瓶身形狀隨後來自套索；<strong class="ui">「放棄套索」</strong> 讓搜尋重新尋找。滑鼠拖曳一次就是一步復原；拖曳時，檢視會粗略顯示花瓶。</p>
+<p><strong class="ui">「底部與壁」</strong> 卡片收納實體在形狀之外還需要的東西。空心花瓶上：帶有朝向排水孔坡度的排水孔、空心底腳、鏤空的壁（<strong class="ui">「開口壁」</strong>：Voronoi、蜂巢、菱形或圓形，適合燈籠和籃子），以及 <strong class="ui">「燈罩」</strong>：吊掛、裝在燈座上或罩在 LED 燈片上。實心花瓶上，<strong class="ui">「強化的花瓶模式」</strong> 會切出細縫，切片軟體在花瓶模式下藉此一次列印出內部加強肋或雙層壁。橡膠腳墊的凹槽兩種都可用。<strong class="ui">「必須能盛水」</strong> 把空心花瓶的壁和底加厚到至少 1.6 mm。</p>
+<p>在 <strong class="ui">「配件」</strong> 卡片上為花瓶加入配件。<strong class="ui">「支腿」</strong> 可以一體成型（成為花瓶的一部分），也可以做成插接式，在底部留插座；支架從下面托住花瓶。<strong class="ui">「接水盤」</strong> 接住水，或藏在底腳裡。空心花瓶可以放 <strong class="ui">「內嵌件」</strong>：植物內膽、帶儲水層的自動澆水內膽、花莖或試管架。<strong class="ui">「蓋子」</strong> 可以蓋在瓶口上、卡進凹槽，或旋在壁內的螺紋上。選擇 <strong class="ui">「茶壺蓋」</strong> 時，花瓶本身的頂部就成為蓋子，像茶壺那樣：<strong class="ui">「蓋子高度」</strong>（或從底部算起的 <strong class="ui">「瓶身到 · 蓋子從」</strong>）決定多少，圖案與扭轉會延續過接縫，一圈唇邊把它固定在開口裡，<strong class="ui">「蓋鈕（單獨列印）」</strong> 會加上一個黏進頂部孔裡的把手。<strong class="ui">「排布配件」</strong> 把這些零件作為獨立物件擺在花瓶旁邊，可直接列印，倒過來列印較好的會倒放。花瓶上已經有插座、凹槽或螺紋。更改設定後請重新擺放：之前的零件會被取代。如果某個零件不適合這個花瓶，編輯器會提示，例如內膽穿不過窄瓶頸時。</p>
+<p><strong class="ui">「列印」</strong> 卡片告訴你列印這個花瓶需要什麼：以所選 <strong class="ui">「材料」</strong> 計的重量和線材長度；實心花瓶依切片軟體的花瓶模式計算，即沿壁的一條線。下方是列印提示：超過 45° 的懸垂及其位置、太薄的壁、蓋子、燈具或支腳需要什麼，以及加強肋和雙層壁的切片設定。</p>
+<p><strong class="ui">「細節」</strong> 決定花瓶劃分三角形的精細程度：越細看起來越平滑，但大花瓶會讓編輯器變慢。</p></section>
+<div class="pager"><a href="/api/desktop/layerling/ui/zh-tw/view-and-workplane.html"><small>上一章</small>檢視與工作平面</a><a class="next" href="/api/desktop/layerling/ui/zh-tw/select-and-arrange.html"><small>下一章</small>選取與排列</a></div>
+      </main>
+    </div>
+    <footer class="note">本指南隨程式一同完善。如有缺漏或錯誤，請到 <a href="https://github.com/henmedia/layerling/discussions" rel="noopener">討論區告訴我們</a>.</footer>
+    <footer class="site-footer"><div><a href="https://layerling.com/support.html?lang=zh-tw" rel="noopener">支援專案</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/discussions" rel="noopener">討論區</a></div><div><a href="https://github.com/henmedia/layerling" rel="noopener">在 GitHub 上了解更多</a><span class="dot" aria-hidden="true">&middot;</span><a href="https://github.com/henmedia/layerling/releases" rel="noopener">版本說明 v1.154.1</a></div><p class="trademark">Tinkercad 是 Autodesk, Inc. 的商標。layerling 是獨立專案，與 Autodesk 無關聯，也未獲其認可或贊助。</p></footer>
+    <script>(function(){var b=document.getElementById("open-editor");if(!b||typeof BroadcastChannel==="undefined")return;var elsewhere=false,c=new BroadcastChannel("layerling-tabs"),id="guide-"+Math.random().toString(36).slice(2);c.onmessage=function(e){var m=e.data;if(m&&m.kind==="here"&&m.tabId!==id&&!elsewhere){elsewhere=true;b.textContent="返回編輯器";}};c.postMessage({kind:"ask",tabId:id});b.addEventListener("click",function(e){if(!elsewhere)return;e.preventDefault();window.close();setTimeout(function(){elsewhere=false;b.textContent="開啟編輯器";var n=document.getElementById("editor-elsewhere");if(n)n.hidden=false;},400);});})();</script>
+    <script>
+function guideFold(text        )         {
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var letter = text.charAt(i).toLowerCase().normalize("NFD").charAt(0);
+    // "ł" has no decomposition, so it is mapped by hand (Polish): one letter in, one letter out.
+    out += letter === "ł" ? "l" : letter;
+  }
+  return out;
+}
+function guideForms(word        , umlauts         )           {
+  var forms = [word];
+  if (umlauts) { var plain = word.split("ae").join("a").split("oe").join("o").split("ue").join("u"); if (plain !== word) forms.push(plain); }
+  if (word.indexOf("ss") >= 0) forms.push(word.split("ss").join(String.fromCharCode(223)));
+  if (word.indexOf(String.fromCharCode(223)) >= 0) forms.push(word.split(String.fromCharCode(223)).join("ss"));
+  return forms;
+}
+function guideFind(text        , forms          , from        )                    {
+  var best                    = null;
+  for (var i = 0; i < forms.length; i++) { var k = text.indexOf(forms[i], from); if (k >= 0 && (!best || k < best.at)) best = { at: k, len: forms[i].length }; }
+  return best;
+}
+function guidePrepare(entries                    )                  {
+  return entries.map(function (e) { return { e: e, c: guideFold(e.c), h: guideFold(e.h), t: guideFold(e.t) }; });
+}
+function guideTokens(query        )           {
+  return guideFold(query).split(" ").filter(function (w) { return w.length > 0; });
+}
+function guideSearch(prepared                 , query        , limit         , umlauts          )             {
+  var tokens = guideTokens(query); if (!tokens.length) return [];
+  var forms = tokens.map(function (w) { return guideForms(w, !!umlauts); }), phrase = guideForms(tokens.join(" "), !!umlauts), found             = [];
+  prepared.forEach(function (p) {
+    var score = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var inH = guideFind(p.h, forms[i], 0), inC = guideFind(p.c, forms[i], 0), at = guideFind(p.t, forms[i], 0);
+      if (!inH && !inC && !at) return;
+      if (inH) score += 10;
+      if (inC) score += 3;
+      if (at) { score += 1; var n = 0, k                    = at; while (k && n < 5) { n++; k = guideFind(p.t, forms[i], k.at + k.len); } score += n * 0.3; }
+    }
+    if (tokens.length > 1 && (guideFind(p.h, phrase, 0) || guideFind(p.t, phrase, 0))) score += 6;
+    found.push({ entry: p.e, score: score, folded: p.t, forms: forms });
+  });
+  found.sort(function (a, b) { return b.score - a.score; });
+  return found.slice(0, limit || 8);
+}
+function guideRanges(text        , query        , umlauts          )               {
+  var tokens = guideTokens(query), longer = tokens.filter(function (w) { return w.length > 1; });
+  if (longer.length) tokens = longer;
+  var all               = [];
+  tokens.forEach(function (w) {
+    var forms = guideForms(w, !!umlauts), f = guideFind(text, forms, 0);
+    while (f) { all.push(f); f = guideFind(text, forms, f.at + f.len); }
+  });
+  all.sort(function (a, b) { return a.at - b.at; });
+  var joined               = [];
+  all.forEach(function (f) {
+    var last = joined[joined.length - 1];
+    if (last && f.at <= last.at + last.len) last.len = Math.max(last.len, f.at + f.len - last.at);
+    else joined.push({ at: f.at, len: f.len });
+  });
+  return joined;
+}
+
+function guideSnippet(hit){
+  var text=hit.entry.t,first=-1;
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,0);if(f&&(first<0||f.at<first))first=f.at;});
+  var from=first>40?first-40:0;
+  if(from>0){var gap=text.indexOf(" ",from);if(gap>=0&&gap<first)from=gap+1;}
+  var end=Math.min(text.length,from+150),marked=[];
+  for(var i=from;i<end;i++)marked.push(false);
+  hit.forms.forEach(function(group){var f=guideFind(hit.folded,group,from);while(f&&f.at<end){for(var j=f.at;j<f.at+f.len&&j<end;j++)marked[j-from]=true;f=guideFind(hit.folded,group,f.at+f.len);}});
+  var parts=[],run="",state=false;
+  if(from>0)parts.push({text:"... ",mark:false});
+  for(var m=0;m<marked.length;m++){if(marked[m]!==state&&run){parts.push({text:run,mark:state});run="";}state=marked[m];run+=text.charAt(from+m);}
+  if(run)parts.push({text:run,mark:state});
+  if(end<text.length)parts.push({text:" ...",mark:false});
+  return parts;
+}
+function guideUnmarkPage(){
+  Array.prototype.forEach.call(document.querySelectorAll("mark.guide-hit"),function(mark){var parent=mark.parentNode;parent.replaceChild(document.createTextNode(mark.textContent),mark);parent.normalize();});
+}
+function guideMarkPage(query,umlauts,anchor){
+  var main=document.querySelector("main");if(!main)return;
+  guideUnmarkPage();
+  var walker=document.createTreeWalker(main,NodeFilter.SHOW_TEXT,null),nodes=[],node,marks=[];
+  while((node=walker.nextNode()))if(node.nodeValue.trim()&&!node.parentNode.closest("script,style"))nodes.push(node);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,ranges=guideRanges(guideFold(text),query,umlauts);if(!ranges.length)return;
+    var piece=document.createDocumentFragment(),pos=0;
+    ranges.forEach(function(r){
+      if(r.at>pos)piece.appendChild(document.createTextNode(text.slice(pos,r.at)));
+      var mark=document.createElement("mark");mark.className="guide-hit";mark.textContent=text.slice(r.at,r.at+r.len);piece.appendChild(mark);marks.push(mark);pos=r.at+r.len;
+    });
+    if(pos<text.length)piece.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(piece,node);
+  });
+  if(!marks.length)return;
+  var target=anchor?document.getElementById(anchor):null,first=marks[0];
+  if(target)for(var i=0;i<marks.length;i++){if(target.compareDocumentPosition(marks[i])&Node.DOCUMENT_POSITION_FOLLOWING){first=marks[i];break;}}
+  first.scrollIntoView({block:"center"});
+}
+(function(){
+  var form=document.getElementById("guide-search");if(!form||!window.fetch)return;
+  var input=form.querySelector("input"),box=document.getElementById("guide-results"),prepared=null,loading=null;
+  var umlauts=form.getAttribute("data-umlauts")==="true";
+  function remember(link){
+    try{sessionStorage.setItem("layerling.guideHit",JSON.stringify({q:input.value,p:link.pathname}));}catch(e){}
+    if(link.pathname===location.pathname)setTimeout(markRemembered,0);
+  }
+  function markRemembered(){
+    var hit=null;try{hit=JSON.parse(sessionStorage.getItem("layerling.guideHit")||"null");sessionStorage.removeItem("layerling.guideHit");}catch(e){}
+    if(!hit||hit.p!==location.pathname||!guideTokens(hit.q||"").length)return;
+    var anchor="";try{anchor=decodeURIComponent(location.hash.slice(1));}catch(e){}
+    guideMarkPage(hit.q,umlauts,anchor);
+  }
+  if(document.readyState==="complete")markRemembered();else window.addEventListener("load",markRemembered);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")guideUnmarkPage();});
+  document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("mark.guide-hit"))guideUnmarkPage();});
+  function load(){if(!loading){loading=fetch(form.getAttribute("data-index")).then(function(r){return r.json();}).then(function(list){prepared=guidePrepare(list);}).catch(function(){loading=null;});}return loading;}
+  function close(){box.hidden=true;input.setAttribute("aria-expanded","false");}
+  function render(){
+    if(!guideTokens(input.value).length){close();return;}
+    if(!prepared){load().then(function(){if(prepared)render();});return;}
+    var hits=guideSearch(prepared,input.value,8,umlauts);
+    box.textContent="";
+    if(!hits.length){var none=document.createElement("p");none.textContent=form.getAttribute("data-nothing");box.appendChild(none);}
+    hits.forEach(function(hit){
+      var link=document.createElement("a"),title=document.createElement("b"),line=document.createElement("span");
+      link.href=hit.entry.u;link.addEventListener("click",function(){remember(link);});
+      title.textContent=hit.entry.h?hit.entry.c+" > "+hit.entry.h:hit.entry.c;
+      guideSnippet(hit).forEach(function(part){if(part.mark){var mark=document.createElement("mark");mark.textContent=part.text;line.appendChild(mark);}else line.appendChild(document.createTextNode(part.text));});
+      link.appendChild(title);link.appendChild(line);box.appendChild(link);
+    });
+    box.hidden=false;input.setAttribute("aria-expanded","true");
+  }
+  input.addEventListener("input",render);
+  input.addEventListener("focus",function(){load();if(input.value)render();});
+  input.addEventListener("keydown",function(e){
+    if(e.key==="ArrowDown"){var first=box.querySelector("a");if(first){e.preventDefault();first.focus();}}
+    else if(e.key==="Escape"){input.value="";close();}
+  });
+  form.addEventListener("submit",function(e){e.preventDefault();var first=box.querySelector("a");if(first){remember(first);window.location.href=first.href;}});
+  box.addEventListener("keydown",function(e){
+    var current=document.activeElement;
+    if(e.key==="ArrowDown"&&current.nextElementSibling){e.preventDefault();current.nextElementSibling.focus();}
+    else if(e.key==="ArrowUp"){e.preventDefault();if(current.previousElementSibling)current.previousElementSibling.focus();else input.focus();}
+    else if(e.key==="Escape"){input.focus();close();}
+  });
+  box.addEventListener("click",close);
+  document.addEventListener("click",function(e){if(!form.contains(e.target))close();});
+})();
+</script>
+  </body>
+</html>

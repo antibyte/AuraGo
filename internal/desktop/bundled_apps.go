@@ -14,7 +14,7 @@ import (
 
 var bundledAppAssets = webassets.Namespace("desktop")
 
-const nasscadBundledVersion = "4.7.0-github.279da7c0"
+const nasscadBundledVersion = "4.7.0-github.ba7cc403"
 
 func (s *Service) seedBundledBuiltinAppsLocked(ctx context.Context) error {
 	if err := s.seedNasscadAppLocked(ctx); err != nil {
@@ -33,6 +33,7 @@ func (s *Service) seedNasscadAppLocked(ctx context.Context) error {
 		"nasscad_occt_wasm.js", "opencascade.wasm.wasm", "nasscad-manifold-wasm.js",
 		"web-ifc-api-iife.js", "nasscad-ifc-wasm.js", "nass-demo-engine.js", "nass-demo-solar.js",
 		"nasscad_user_manual.html", "nasscript_doc.html", "nassscript-engine-preview.png", "solar-system-snapshot.png",
+		"nasscad-license.css", "license.html", "NASSCAD_User_Manual_EN.pdf",
 		"LICENSE", "THIRD-PARTY.md", "web-ifc-LICENSE.md",
 	}
 
