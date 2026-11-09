@@ -14,9 +14,12 @@ type AgentReview struct {
 	Scenes int    `json:"scenes"`
 }
 
-// SaveReviewSheet stores the contact sheet of the latest agent check. It replaces the previous one.
+// SaveReviewSheet stores the contact sheet of the latest agent check. It replaces the previous one. A missing project wraps
+// fs.ErrNotExist: the store creates the folders of a file it writes, so a check that finishes after its project was deleted
+// would otherwise bring back <root>/<id>/review/ with nothing else in it. The check narrows that window; it does not lock
+// against a delete in the same instant.
 func (p *ProjectStore) SaveReviewSheet(ctx context.Context, id string, data []byte) error {
-	if err := p.checkID(id); err != nil {
+	if _, err := p.Get(ctx, id); err != nil {
 		return err
 	}
 	_, err := p.st.WriteFile(ctx, p.file(id, "review", ReviewSheetName), data, "")

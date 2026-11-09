@@ -449,25 +449,40 @@ func storymakerAgentVoiceReady(providers []storymaker.VoiceProvider, voice *stor
 }
 
 // withReview saves the contact sheet of a compile check as the project's review evidence, records it in the job document and
-// drops it from the summary, so the Studio does not cache a picture per story version. A failed save is logged and costs the
-// link only.
+// drops it from the summary, so the Studio does not cache a picture per story version. The link in the job document always
+// belongs to the latest check that ran: a check without a sheet (no stills were taken, or the sheet was too large) and a failed
+// save clear it, so the job card never links the picture of an earlier story. A failed save is logged and costs the link only.
+// A check that returns an error says nothing about the story and leaves the link as it is.
 func (j *storymakerAgentJob) withReview(inner func(context.Context, string) (storymaker.CompileSummary, error)) func(context.Context, string) (storymaker.CompileSummary, error) {
 	return func(ctx context.Context, projectID string) (storymaker.CompileSummary, error) {
 		summary, err := inner(ctx, projectID)
-		if err != nil || len(summary.Sheet) == 0 {
+		if err != nil {
 			return summary, err
 		}
-		if saveErr := j.rt.projects.SaveReviewSheet(ctx, projectID, summary.Sheet); saveErr != nil {
-			j.logger.Warn("[Storymaker] The contact sheet could not be saved", "job_id", j.job.ID, "error", saveErr)
-		} else {
-			scenes := len(summary.Stills)
-			j.update(func(info *storymaker.AgentJobInfo) {
-				info.Review = &storymaker.AgentReview{Sheet: storymaker.ReviewSheetName, Scenes: scenes}
-			})
+		var review *storymaker.AgentReview
+		if len(summary.Sheet) > 0 {
+			if saveErr := j.rt.projects.SaveReviewSheet(ctx, projectID, summary.Sheet); saveErr != nil {
+				j.logger.Warn("[Storymaker] The contact sheet could not be saved", "job_id", j.job.ID, "error", saveErr)
+			} else {
+				review = &storymaker.AgentReview{Sheet: storymaker.ReviewSheetName, Scenes: len(summary.Stills)}
+			}
 		}
+		j.setReview(review)
 		summary.Sheet = nil
 		return summary, nil
 	}
+}
+
+// setReview records the review of the latest check in the job document, or clears it with nil. A job that has no review and
+// gets none changes nothing, so a check without stills does not announce a new job state.
+func (j *storymakerAgentJob) setReview(review *storymaker.AgentReview) {
+	j.mu.Lock()
+	unchanged := j.info.Review == nil && review == nil
+	j.mu.Unlock()
+	if unchanged {
+		return
+	}
+	j.update(func(info *storymaker.AgentJobInfo) { info.Review = review })
 }
 
 // storymakerAgentCompile runs the compile check with settings of its own: storymakerSettings fails
