@@ -412,6 +412,8 @@ func storymakerFacadeNextAction(state string, checks []storymaker.AgentCheck, re
 		return "Tell the user the error_code. Call revise if the story has scenes, otherwise create again."
 	case state == storymaker.OutcomeIncomplete:
 		return "Call revise to finish the open scenes, or call open to show the project."
+	case state == storymaker.OutcomeReady:
+		return "The film was checked; call render to export it."
 	}
 	for _, check := range checks {
 		if strings.HasPrefix(check.Code, "narration_") {

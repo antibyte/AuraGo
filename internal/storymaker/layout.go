@@ -60,7 +60,8 @@ const (
 	layoutScaleMax      = 2.0  // the validated range of a beat scale
 )
 
-// LayoutOptions say which rules apply. CaptionRule is true for a composition v2 film with captions on.
+// LayoutOptions say which rules apply. CaptionRule is true for a composition v2 film with captions on in 16:9 or 1:1: the
+// player does not lift the feet in 9:16, so the finding could never be cleared there.
 type LayoutOptions struct {
 	CaptionRule bool
 }
@@ -102,9 +103,16 @@ func LayoutIssues(scenes []LayoutScene, opts LayoutOptions) []Issue {
 		}
 		for _, p := range sc.Props {
 			if p.Hero && p.Box[3] < layoutHeroMinHeight {
-				scale := min(layoutScaleMax, round1(max(p.Scale, 0.5)*layoutHeroTarget/max(p.Box[3], 0.01)))
-				add(CodePropTooSmall, fmt.Sprintf("The prop %s in scene %s is only %.0f percent of the frame height.", p.ID, sc.ID, p.Box[3]*100),
-					fmt.Sprintf(`Make it bigger: send patch_scene with the whole beats list and "scale":%.1f on the show beat of %s (scale takes 0.5 to 2).`, scale, p.Item))
+				need := round1(max(p.Scale, 0.5) * layoutHeroTarget / max(p.Box[3], 0.01))
+				message := fmt.Sprintf("The prop %s in scene %s is only %.0f percent of the frame height.", p.ID, sc.ID, p.Box[3]*100)
+				if need > layoutScaleMax {
+					// The scale range cannot reach the target: asking for scale 2 would never clear the finding.
+					add(CodePropTooSmall, message,
+						fmt.Sprintf(`Even scale 2 is not enough for %s. Show the prop at a nearer spot, lower on the stage (for example "center" or "right" instead of "board") with patch_scene and the whole beats list, or pick a bigger item with storymaker_catalog.`, p.Item))
+					continue
+				}
+				add(CodePropTooSmall, message,
+					fmt.Sprintf(`Make it bigger: send patch_scene with the whole beats list and "scale":%.1f on the show beat of %s (scale takes 0.5 to 2).`, need, p.Item))
 			}
 		}
 		for _, a := range sc.Actors {

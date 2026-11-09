@@ -21,6 +21,19 @@ func storymakerFacadeCode(err error) string {
 	return ""
 }
 
+// A checked film (ready) goes straight to the export; a film with something left open still asks for a look first.
+func TestStorymakerFacadeNextActionForReady(t *testing.T) {
+	if got := storymakerFacadeNextAction(storymaker.OutcomeReady, nil, false); got != "The film was checked; call render to export it." {
+		t.Errorf("ready = %q", got)
+	}
+	if got := storymakerFacadeNextAction(storymaker.OutcomeReadyUnverified, nil, false); !strings.Contains(got, "watch the film once") {
+		t.Errorf("ready_unverified = %q", got)
+	}
+	if got := storymakerFacadeNextAction(storymaker.OutcomeReady, nil, true); !strings.Contains(got, "An export is running") {
+		t.Errorf("a running export wins over ready: %q", got)
+	}
+}
+
 func TestStorymakerFacadeDailyLimitFailsClosedAndReadOnly(t *testing.T) {
 	s, _, writeToken := storymakerAPIFixture(t)
 	on := *s.ConfigSnapshot()

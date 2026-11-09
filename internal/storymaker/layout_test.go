@@ -2,6 +2,7 @@ package storymaker
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -65,6 +66,30 @@ func TestLayoutIssuesHeroPropTooSmall(t *testing.T) {
 	sc.Props[0].Box = LayoutBox{0.5, 0.5, 0.1, 0.13}
 	if got := LayoutIssues([]LayoutScene{sc}, LayoutOptions{}); len(got) != 0 {
 		t.Fatalf("13 percent of the height is big enough: %v", layoutCodes(got))
+	}
+}
+
+// A scale of 2 is the most a beat takes. When even that does not reach the target height, the fix must not ask for a scale
+// that can never clear the finding.
+func TestLayoutIssuesHeroPropBeyondTheScaleRange(t *testing.T) {
+	prop := func(height float64) Issue {
+		sc := layoutScene("s2", 1)
+		sc.Props = []LayoutProp{{ID: "key", Item: "prop.key", Hero: true, Scale: 1, Box: LayoutBox{0.5, 0.6, 0.05, height}}}
+		got := LayoutIssues([]LayoutScene{sc}, LayoutOptions{})
+		if !slices.Equal(layoutCodes(got), []string{CodePropTooSmall}) {
+			t.Fatalf("height %v: issues = %v", height, layoutCodes(got))
+		}
+		return got[0]
+	}
+	// 0.05 at scale 1 needs 4.0: scale 2 is not enough, the fix names another spot or a bigger item.
+	far := prop(0.05)
+	if !strings.Contains(far.Fix, "Even scale 2 is not enough") || !strings.Contains(far.Fix, "nearer spot") || !strings.Contains(far.Fix, "storymaker_catalog") || strings.Contains(far.Fix, `"scale":`) {
+		t.Errorf("a prop that scale 2 cannot fix: %q", far.Fix)
+	}
+	// 0.1 at scale 1 needs exactly 2.0: the old text with the scale applies.
+	edge := prop(0.1)
+	if !strings.Contains(edge.Fix, `"scale":2.0`) || strings.Contains(edge.Fix, "Even scale 2") {
+		t.Errorf("a prop that scale 2 reaches: %q", edge.Fix)
 	}
 }
 
