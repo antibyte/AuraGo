@@ -52,6 +52,7 @@ type AgentJobInfo struct {
 	DurationSeconds float64      `json:"duration_seconds,omitempty"`
 	Request         string       `json:"request,omitempty"`
 	Tokens          int          `json:"tokens,omitempty"`
+	Repairs         int          `json:"repairs,omitempty"` // umlauts restored in the stored text of this job
 	ChangedScenes   []string     `json:"changed_scenes,omitempty"`
 	UnchangedScenes []string     `json:"unchanged_scenes,omitempty"`
 	RemovedScenes   []string     `json:"removed_scenes,omitempty"`

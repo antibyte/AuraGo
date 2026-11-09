@@ -31,6 +31,12 @@
         incomplete: { title: 'storymaker.agent.outcome_incomplete_title', text: 'storymaker.agent.outcome_incomplete_text' },
         failed: { title: 'storymaker.agent.outcome_failed_title', text: 'storymaker.agent.outcome_failed_text' }
     };
+    // The reason of an unavailable compile check (open check compile_unverified, field detail); any other code adds nothing.
+    const COMPILE_REASON_KEYS = {
+        browser_unavailable: 'storymaker.agent.compile_reason_browser_unavailable',
+        compile_timeout: 'storymaker.agent.compile_reason_compile_timeout',
+        browser_crashed: 'storymaker.agent.compile_reason_browser_crashed'
+    };
     const CHECK_KEYS = {
         layout_unverified: 'storymaker.agent.check_layout_unverified',
         compile_unverified: 'storymaker.agent.check_compile_unverified',
@@ -348,7 +354,7 @@
             const key = CHECK_KEYS[check.code] || 'storymaker.agent.check_unknown';
             return el('li', { class: 'stm-agent-check', dataset: { stm: 'agent-check', code: String(check.code || '') } },
                 check.scene_id ? el('code', { text: String(check.scene_id) }) : null,
-                el('span', { text: t(key) }));
+                el('span', { text: t(key) + (check.code === 'compile_unverified' && COMPILE_REASON_KEYS[check.detail] ? ' ' + t(COMPILE_REASON_KEYS[check.detail]) : '') }));
         }
 
         function outcomeText(outcome, checks) {

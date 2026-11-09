@@ -774,6 +774,7 @@ func (j *storymakerAgentJob) publishOutcome(ctx context.Context, in storymaker.O
 	j.emit(agentEventOutcome, map[string]any{"outcome": outcome})
 	j.update(func(info *storymaker.AgentJobInfo) {
 		info.Outcome, info.OpenChecks = outcome, checks
+		info.Repairs = j.studio.Repairs()
 		info.Phase, info.SceneID = "", ""
 		info.ScenesTotal, info.ScenesDone, info.StoryETag = progress.ScenesTotal, progress.ScenesDone, progress.ETag
 		info.DurationSeconds = in.Check.TotalSeconds
