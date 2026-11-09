@@ -5605,6 +5605,19 @@ registration lives in `internal/desktop/types.go`.
   List fields stack into readable rows; the separate detail overlay preserves
   the browse scroll position on close. Never hide the only filter controls on
   phones. Verify touch access with `TestDesktopMobileRegressionsBrowser`.
+  Cards and list rows are `role="button"` with a tab stop: Enter and Space open
+  the contact, Escape closes the detail panel and returns focus to the card
+  without scrolling it. The relationship filter and the search query combine;
+  a query without hits shows `desktop.people_no_results_title` with a
+  `desktop.people_clear_search` reset, not the empty address book. The result
+  counter, the sidebar counts and the birthday notice use
+  `desktop.people_results_count`, `desktop.people_results_count_one`,
+  `desktop.people_results_filtered` and `desktop.people_no_birthdays` in all
+  sixteen locales. Knowledge-graph persons are read only: they show
+  `desktop.people_kg_readonly` instead of the edit and delete actions. The
+  add/edit dialog traps Tab, closes on Escape, marks the name field invalid
+  when it is empty and disables the save button while the request runs.
+  Verify with `TestDesktopPeopleUxBrowser` and `TestContactPrivacyControlsBrowser`.
   No child DOX file needed.
 - `chess.js` / `chess-fx.js` - Chess app and board FX. Result-modal
   fallbacks use `desktop.chess_new_game` and `desktop.ok`; pass `t`
