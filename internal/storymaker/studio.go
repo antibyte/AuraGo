@@ -183,6 +183,8 @@ type Studio struct {
 	outlineRefusals int
 	template        string
 	castSaved       bool
+	pendingRepairs  []UmlautFix // umlaut repairs of the call in progress; takeRepairs hands them out
+	repairs         int         // umlaut repairs of the job so far, for the job report
 
 	// Scene budget, keyed by scene id.
 	drafts         map[string]map[string]any

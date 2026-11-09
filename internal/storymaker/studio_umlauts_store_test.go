@@ -1,0 +1,102 @@
+package storymaker
+
+import (
+	"context"
+	"testing"
+)
+
+func storedScene(t *testing.T, ps *ProjectStore, projectID, sceneID string) Scene {
+	t.Helper()
+	raw, _, err := ps.LoadStory(context.Background(), projectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := mustDecode(t, string(raw))
+	for _, sc := range s.Scenes {
+		if sc.ID == sceneID {
+			return sc
+		}
+	}
+	t.Fatalf("no scene %s", sceneID)
+	return Scene{}
+}
+
+func TestSceneWriteRepairsUmlautsAndTellsTheModel(t *testing.T) {
+	studio, ps, projectID := newStudioWriteRig(t, nil)
+	studio.SetPhase(PhaseFill, "s1")
+	put := studioWriteCall(t, studio, ToolStory, "put_scene",
+		`{"scene_id":"s1","data":{"environment":"env.office","speaker":"anna","narration":"Eine {1}Firewall pruft jedes Paket.","actors":[{"cast":"anna","at":"left","pose":"present"}],"beats":[{"do":"show","text":"Pruft alles","at":"right","entry":"pop","cue":1}]}}`)
+	if put["status"] != "ok" {
+		t.Fatalf("put_scene = %v", put)
+	}
+	fixes, _ := put["repaired"].([]any)
+	if len(fixes) != 2 || put["repaired_note"] == nil {
+		t.Fatalf("the answer must carry repaired and a note: %v", put)
+	}
+	sc := storedScene(t, ps, projectID, "s1")
+	if sc.Narration != "Eine {1}Firewall prüft jedes Paket." || sc.Beats[0].Text != "Prüft alles" {
+		t.Fatalf("stored narration %q, beat text %q", sc.Narration, sc.Beats[0].Text)
+	}
+	if studio.Repairs() != 2 {
+		t.Fatalf("Repairs = %d, want 2", studio.Repairs())
+	}
+
+	// patch_scene repairs the new narration too.
+	patch := studioWriteCall(t, studio, ToolStory, "patch_scene", `{"scene_id":"s1","data":{"narration":"Sie durfen {1}wahrend der Zeit durch."}}`)
+	if patch["status"] != "ok" || patch["repaired"] == nil {
+		t.Fatalf("patch_scene = %v", patch)
+	}
+	if got := storedScene(t, ps, projectID, "s1").Narration; got != "Sie dürfen {1}während der Zeit durch." {
+		t.Fatalf("stored narration %q", got)
+	}
+	if studio.Repairs() != 4 {
+		t.Fatalf("Repairs = %d, want 4", studio.Repairs())
+	}
+
+	// A text without a loss has no repair note and does not change the count.
+	clean := studioWriteCall(t, studio, ToolStory, "patch_scene", `{"scene_id":"s1","data":{"narration":"Eine {1}Firewall prüft jedes Paket."}}`)
+	if clean["repaired"] != nil {
+		t.Fatalf("no repair expected: %v", clean)
+	}
+	if studio.Repairs() != 4 {
+		t.Fatalf("Repairs = %d, want 4", studio.Repairs())
+	}
+}
+
+func TestSceneWriteLeavesOtherLanguagesAndUeSpellingsAlone(t *testing.T) {
+	studio, ps, projectID := newStudioWriteRig(t, nil)
+	studio.SetPhase(PhaseFill, "s1")
+	studio.job.Language = "en"
+	put := studioWriteCall(t, studio, ToolStory, "put_scene",
+		`{"scene_id":"s1","data":{"environment":"env.office","speaker":"anna","narration":"The firewall pruft each {1}packet.","actors":[{"cast":"anna","at":"left","pose":"present"}],"beats":[{"do":"show","item":"prop.lock","at":"right","entry":"pop","cue":1}]}}`)
+	if put["status"] != "ok" || put["repaired"] != nil {
+		t.Fatalf("an English job repairs nothing: %v", put)
+	}
+	if got := storedScene(t, ps, projectID, "s1").Narration; got != "The firewall pruft each {1}packet." {
+		t.Fatalf("stored narration %q", got)
+	}
+	studio.job.Language = "de"
+	put = studioWriteCall(t, studio, ToolStory, "patch_scene", `{"scene_id":"s1","data":{"narration":"Eine {1}Firewall prueft und schuetzt das Netz."}}`)
+	if put["repaired"] != nil {
+		t.Fatalf("the ue spelling is left alone: %v", put)
+	}
+}
+
+func TestOutlineRepairsUmlautsBeforeTheWordCount(t *testing.T) {
+	studio, ps, projectID := newStudioWriteRig(t, nil)
+	studio.SetPhase(PhaseOutline, "")
+	out := studioWriteCall(t, studio, ToolStory, "outline",
+		`{"data":{"template":"concept_explainer","target_seconds":60,"scenes":[{"id":"s1","narration":"Eine Firewall pruft jedes Paket."},{"id":"s2","narration":"Sie darf Pakete durchlassen, die erlaubt sind."},{"id":"s3","narration":"Das schutzt dich wahrend des ganzen Tages."}]}}`)
+	if out["status"] != "ok" || out["repaired"] == nil {
+		t.Fatalf("outline = %v", out)
+	}
+	if got := storedScene(t, ps, projectID, "s1").Narration; got != "Eine Firewall prüft jedes Paket." {
+		t.Fatalf("stored outline narration %q", got)
+	}
+	if got := storedScene(t, ps, projectID, "s3").Narration; got != "Das schutzt dich während des ganzen Tages." {
+		t.Fatalf("stored outline narration %q (schutzt is a word of its own and stays)", got)
+	}
+	if studio.Repairs() != 2 {
+		t.Fatalf("Repairs = %d, want 2", studio.Repairs())
+	}
+}

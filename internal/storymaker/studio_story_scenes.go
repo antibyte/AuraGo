@@ -38,7 +38,8 @@ func (s *Studio) runSceneOp(ctx context.Context, op string, args map[string]any)
 	}
 	switch op {
 	case "put_scene", "patch_scene":
-		return s.writeScene(ctx, op, sceneID, args)
+		res := s.writeScene(ctx, op, sceneID, args)
+		return withRepairs(res, s.takeRepairs())
 	case "dry_run":
 		return s.dryRunScene(ctx, sceneID, args)
 	case "remove_scene":
@@ -105,6 +106,7 @@ func (s *Studio) writeScene(ctx context.Context, op, sceneID string, args map[st
 	if refused != nil {
 		return *refused
 	}
+	s.repairSceneFields(fields)
 	ev := s.evaluateSceneWrite(story, sceneID, fields)
 	if ev.errors == 0 {
 		if ev.scene.Kind == "code" {

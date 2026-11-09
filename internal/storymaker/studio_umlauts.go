@@ -103,3 +103,69 @@ func addUmlautFix(list []UmlautFix, fix UmlautFix) []UmlautFix {
 	}
 	return append(list, fix)
 }
+
+// repairText restores the umlauts of one text in the job's language and remembers what it repaired for the call's answer.
+func (s *Studio) repairText(text string) string {
+	fixed, fixes := RepairUmlauts(text, s.job.Language)
+	for _, f := range fixes {
+		s.pendingRepairs = addUmlautFix(s.pendingRepairs, f)
+	}
+	return fixed
+}
+
+// repairSceneFields repairs the narration and the text of show and say beats in the fields of a scene write, in place.
+func (s *Studio) repairSceneFields(fields map[string]any) {
+	if narration, ok := fields["narration"].(string); ok {
+		fields["narration"] = s.repairText(narration)
+	}
+	beats, _ := fields["beats"].([]any)
+	for _, item := range beats {
+		beat, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		if do, _ := beat["do"].(string); do != "show" && do != "say" {
+			continue
+		}
+		if text, ok := beat["text"].(string); ok {
+			beat["text"] = s.repairText(text)
+		}
+	}
+}
+
+// takeRepairs hands out the repairs of the call in progress and counts them for the job. A refused call leaves its repairs
+// pending, and the next call that takes them is the one that saved the text.
+func (s *Studio) takeRepairs() []UmlautFix {
+	fixes := s.pendingRepairs
+	s.pendingRepairs = nil
+	for _, f := range fixes {
+		s.repairs += f.Count
+	}
+	return fixes
+}
+
+// Repairs is the number of umlauts restored in this job's stored text so far.
+func (s *Studio) Repairs() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.repairs
+}
+
+// withRepairs adds the repairs to a tool answer so that the model sees what changed in its text.
+func withRepairs(res StudioResult, fixes []UmlautFix) StudioResult {
+	if len(fixes) == 0 {
+		return res
+	}
+	var body map[string]any
+	if json.Unmarshal(res.JSON, &body) != nil {
+		return res
+	}
+	body["repaired"] = fixes
+	body["repaired_note"] = umlautNote
+	data, err := json.Marshal(body)
+	if err != nil {
+		return res
+	}
+	res.JSON = data
+	return res
+}

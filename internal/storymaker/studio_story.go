@@ -190,6 +190,7 @@ type outlineRow struct {
 
 // studioOutline replaces the scenes of a story that has no filled scene yet.
 func studioOutline(ctx context.Context, s *Studio, args map[string]any) StudioResult {
+	s.pendingRepairs = nil
 	raw, refused := studioDataJSON(args, outlineExample)
 	if refused != nil {
 		return *refused
@@ -219,7 +220,7 @@ func studioOutline(ctx context.Context, s *Studio, args map[string]any) StudioRe
 			return studioRefused("invalid_data", fmt.Sprintf("The scene %q has no narration in letters or digits.", id), "Write the narration of every scene in real words, not dots or placeholders.")
 		}
 		seen[id] = true
-		scenes = append(scenes, Scene{ID: id, Narration: strings.TrimSpace(row.Narration)})
+		scenes = append(scenes, Scene{ID: id, Narration: s.repairText(strings.TrimSpace(row.Narration))})
 	}
 
 	st, etag, err := s.loadStory(ctx)
@@ -283,6 +284,10 @@ func studioOutline(ctx context.Context, s *Studio, args map[string]any) StudioRe
 		answer["issues"] = CapIssues(warnings, MaxModelIssues)
 	}
 	answer["rev"] = studioRev(newTag)
+	if fixes := s.takeRepairs(); len(fixes) > 0 {
+		answer["repaired"] = fixes
+		answer["repaired_note"] = umlautNote
+	}
 	answer["next_action"] = "The outline is saved. This phase is done: stop."
 	return studioOK(answer)
 }
