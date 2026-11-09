@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/url"
 	"os"
+	"slices"
 	"time"
 
 	"aurago/internal/security"
@@ -34,12 +35,15 @@ const (
 
 // compileCheckReport is the part of the report a compile check keeps. parseReport validates the same body.
 type compileCheckReport struct {
-	FrameCount int                 `json:"frame_count"`
-	Scenes     []compileCheckScene `json:"scenes"`
-	Issues     []storymaker.Issue  `json:"issues"`
+	FrameCount  int                      `json:"frame_count"`
+	Scenes      []compileCheckScene      `json:"scenes"`
+	Issues      []storymaker.Issue       `json:"issues"`
+	Layout      []storymaker.LayoutScene `json:"layout"`
+	LayoutError string                   `json:"layout_error"`
 }
 
 type compileCheckScene struct {
+	Kind       string            `json:"kind"`
 	ID         string            `json:"id"`
 	StartFrame int               `json:"start_frame"`
 	EndFrame   int               `json:"end_frame"`
@@ -121,7 +125,7 @@ func (r *Runner) compileInBrowser(ctx, checkCtx context.Context, plan *Plan, bin
 	reports := make(chan []byte, 1)
 	pageErrors := make(chan PageError, 1)
 	// No workers: helper workers would only start up for frames that never come.
-	listener, err := StartListener(prefix, snap, PageParams{Width: width, Height: height, FPS: fps, Transport: DefaultTransport, FrameLimit: frameLimit, FrameDeadlineMS: frameDeadlineMS, Token: token, AudioInfo: plan.AudioJSON},
+	listener, err := StartListener(prefix, snap, PageParams{Width: width, Height: height, FPS: fps, Transport: DefaultTransport, FrameLimit: frameLimit, FrameDeadlineMS: frameDeadlineMS, Layout: true, Token: token, AudioInfo: plan.AudioJSON},
 		Hooks{
 			Report: func(body []byte) ReportAnswer {
 				select {
@@ -193,7 +197,11 @@ func (r *Runner) compileInBrowser(ctx, checkCtx context.Context, plan *Plan, bin
 		shutdownCtx, stop := context.WithTimeout(context.Background(), compileShutdownWait)
 		_ = listener.srv.Shutdown(shutdownCtx)
 		stop()
-		return summarizeCompileReport(body, want, frameLimit), nil
+		summary := summarizeCompileReport(body, want, frameLimit)
+		if summary.LayoutError != "" {
+			r.deps.Logger.Warn("[Storymaker] The layout measurement of the compile check failed", "issue", summary.LayoutError)
+		}
+		return summary, nil
 	}
 }
 
@@ -219,6 +227,23 @@ func summarizeCompileReport(body []byte, want reportExpect, frameLimit int) stor
 		})
 	}
 	scenes := make([]storymaker.CompileScene, 0, len(rep.Scenes))
+	storyboard, code := 0, 0
+	known := map[string]bool{}
+	for _, sc := range rep.Scenes {
+		known[sc.ID] = true
+		if sc.Kind == "code" {
+			code++
+		} else {
+			storyboard++
+		}
+	}
+	var layout []storymaker.LayoutScene
+	for _, block := range rep.Layout {
+		// The page is trusted for geometry only: a block for a scene the story does not have, or a second one, is dropped.
+		if known[block.ID] && !slices.ContainsFunc(layout, func(l storymaker.LayoutScene) bool { return l.ID == block.ID }) {
+			layout = append(layout, block)
+		}
+	}
 	for _, sc := range rep.Scenes {
 		scene := storymaker.CompileScene{ID: sc.ID, StartMS: compileFrameMS(sc.StartFrame, want.FPS), EndMS: compileFrameMS(sc.EndFrame, want.FPS)}
 		for _, cue := range sc.Cues {
@@ -226,7 +251,10 @@ func summarizeCompileReport(body []byte, want reportExpect, frameLimit int) stor
 		}
 		scenes = append(scenes, scene)
 	}
-	return storymaker.CompileSummary{Available: true, DurationMS: compileFrameMS(rep.FrameCount, want.FPS), Scenes: scenes, Issues: issues}
+	return storymaker.CompileSummary{
+		Available: true, DurationMS: compileFrameMS(rep.FrameCount, want.FPS), Scenes: scenes, Issues: issues,
+		Layout: layout, StoryboardScenes: storyboard, CodeScenes: code, LayoutError: clip(rep.LayoutError, 200),
+	}
 }
 
 // cleanCompileIssues removes the render secrets from the page's text and bounds it. An error issue becomes compile_failed

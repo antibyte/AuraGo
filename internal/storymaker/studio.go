@@ -150,6 +150,12 @@ type CompileSummary struct {
 	DurationMS int64
 	Scenes     []CompileScene
 	Issues     []Issue
+	// Layout is the measured layout of the storyboard scenes (empty when the player did not measure). StoryboardScenes and
+	// CodeScenes count the scenes of each kind; LayoutError is the player's reason when the measurement failed.
+	Layout           []LayoutScene
+	StoryboardScenes int
+	CodeScenes       int
+	LayoutError      string
 }
 
 // CompileScene is the measured timing of one scene.

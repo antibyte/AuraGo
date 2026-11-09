@@ -73,6 +73,8 @@ type PageParams struct {
 	// so it is far above the 250 ms of the app preview. A page that does not know the field keeps its
 	// own deadline.
 	FrameDeadlineMS int
+	// Layout asks the page to measure the layout of every storyboard scene and to add it to the report (only the compile check).
+	Layout bool
 	// Token authorises the page's POSTs (32 hex characters). boot.json hands it out once, before any
 	// scene worker exists, so a scene worker that knows the base still cannot forge a report.
 	Token string
@@ -376,6 +378,7 @@ type bootDoc struct {
 	Workers         int               `json:"workers,omitempty"`
 	Chunk           int               `json:"chunk,omitempty"`
 	PreRoll         int               `json:"pre_roll,omitempty"`
+	Layout          bool              `json:"layout,omitempty"`
 }
 
 func (l *Listener) boot(w http.ResponseWriter, r *http.Request) {
@@ -394,6 +397,7 @@ func (l *Listener) boot(w http.ResponseWriter, r *http.Request) {
 		AssetsBase: base + "/catalog/", CodeBundles: map[string]string{}, Fonts: []bootFont{}, AudioInfo: audioInfo,
 	}
 	doc.Workers, doc.Chunk, doc.PreRoll = l.params.Workers, l.params.Chunk, l.params.PreRoll
+	doc.Layout = l.params.Layout
 	ids := make([]string, 0, len(l.snap.CodeBundles))
 	for id := range l.snap.CodeBundles {
 		ids = append(ids, id)
