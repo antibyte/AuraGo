@@ -27,7 +27,7 @@ const storymakerHouseRules = `## House rules
 4. When an on-stage cast member speaks the scene narration, set "speaker" to their cast id so their mouth lip-syncs automatically.
 5. Never place a prop or text card on the same spot ("at") as an on-stage actor; use a free spot (for example actor at "left" or "desk", prop/text at "right", "center" or "board").
 6. On-screen text is at most five words and never repeats the narration. No bullet lists, no three equal cards in a row.
-7. Vary the entries (pop, slide-up, fade, draw, stamp) across scenes. Text stops moving after it lands.
+7. Vary the entries (pop, fade, slide) across scenes. Text stops moving after it lands.
 8. Never fade between different environments: use wipe, slide-left or cut. Inside one environment use fade or cut.`
 
 const storymakerHouseStyle = `## House style
@@ -38,11 +38,12 @@ const storymakerHouseStyle = `## House style
 - Choose each transition for a reason. A scene that changes environment never crossfades: use wipe, slide-left or cut. When staying in previous_scene.environment, keep spatial continuity or walk the actor purposefully.
 - Banned: stacked bullet points as on-screen text; three cards or labels in a row with the same entry; a narrator reading the on-screen text word for word; every element fading in and sliding up; glow, neon and glass-card looks; a title that keeps moving after it has landed.
 - Write one idea per scene and keep on-screen text to a few words. Let actors act: pair a cue-bound show or walk beat with simultaneous ("with":"prev") look, gesture, expression, emote or highlight beats.
-- Vary the show entries (pop, slide-up, fade, draw, stamp) across scenes (check used_entries in the context) and use the camera sparingly, for one reason per scene.`
+- Vary the show entries (pop, fade, slide) across scenes (check used_entries in the context). Use the camera for a reason: framing medium follows the speaker.
+- A film looks alike when every scene has the same environment, the same framing, the same gesture and the same person. Plan the film as three acts (hook and problem, solution and how, benefit and close) and change the environment between acts.`
 
 const storymakerOutlineWorkflow = `## Outline
 1. Choose one template: product_explainer, how_to, concept_explainer, dialogue_story, data_story or onboarding.
-2. Build the arc hook, problem, solution, how, benefit, close, using suggested_scenes and the stageable environments from the context. The dialogue_story template uses one scene per speaker turn.
+2. Build the arc hook, problem, solution, how, benefit, close, using suggested_scenes. The context lists the environments with a line about each in environment_guide. The dialogue_story template uses one scene per speaker turn.
 - Write the narration of the last scene first, so that the first scenes set up the ending.
 - Narration adds what the picture cannot show. It never describes what is on screen, and you may place {1} markers before key reveal words.
 - Read it once more and cut every word the film does not need.
@@ -59,7 +60,9 @@ const storymakerFillWorkflow = `## Fill one scene
 The context names one scene, plus previous_scene, next_scene, suggested_props and used_entries when available. Call storymaker_story with operation put_scene, its scene_id and data.
 - data needs environment, actors and beats. Send narration with {1}, {2} markers before the key words that trigger beats, or leave narration out if it already has markers.
 - Set speaker to an on-stage actor's cast id when that character speaks the narration (enabling automatic lip-sync).
-- Use spot names from the context for at, from and to. Keep actors and shown props/text on separate spots so they never overlap, and maintain visual continuity with previous_scene when staying in the same environment.
+- The context has a direction for this scene: its role, a suggested environment, framing, pose, gesture, entry, actor and the spots of the actor and the prop. Follow it unless the narration needs something else. The example in the context is built from it.
+- Keep the same environment only while the scene's role stays the same, and do not repeat the gesture of previous_scene. The server checks the whole film: at least three environments in a long film, a framing other than wide in at least one scene, varied gestures, and every cast member on stage in some scene.
+- Use spot names from the context for at, from and to. Keep actors and shown props/text on separate spots so they never overlap.
 - Prefer suggested_props from the context or search storymaker_catalog once or twice for props the narration names. If nothing fits, use the nearest alternative, or a show beat with short text. Vary show entry styles against used_entries and layer actor reactions with "with":"prev".
 - If the answer is a draft, fix the listed issues with patch_scene and the same scene_id. An optional dry_run checks without saving.
 A saved scene ends this phase: stop.`
@@ -78,6 +81,7 @@ const storymakerCheckWorkflow = `## Check and fix
 1. The context lists issues; storymaker_check gives the current list after a change.
 2. Fix each issue with storymaker_story operation patch_scene. Each issue has a fix with an example.
 3. Items in advice are optional. Fix them only if it is one small patch.
+   Film items (environment_monotony, framing_monotony, gesture_monotony, cast_unused) are about the whole film. Fix them with patch_scene on the scenes the fix text names. A patch replaces a list that you send (actors, beats), so send the whole list.
 4. Environment items are not yours to fix.
 When nothing is left to fix, answer with one short sentence for the user about the film, in the user's language, and stop.`
 
@@ -176,7 +180,7 @@ func storymakerAgentProfile(phase string, compact, text bool, names agent.Storym
 	if compact {
 		house, variant = storymakerHouseRules, "compact"
 	}
-	name := "storymaker/v2/" + phase + "/" + variant
+	name := "storymaker/v3/" + phase + "/" + variant
 	sections := []string{storymakerGroundRules, house}
 	if phase == storymaker.PhaseFill || phase == storymaker.PhaseCheck || phase == storymaker.PhaseRevise {
 		sections = append(sections, storymakerAnimationGuide)

@@ -31,9 +31,9 @@ func TestStorymakerProfilesNamesToolsAndTextGuide(t *testing.T) {
 				if err != nil {
 					t.Fatalf("%s compact=%v text=%v: %v", phase, compact, text, err)
 				}
-				wantName, house, otherHouse := "storymaker/v2/"+phase+"/normal", "## House style", "## House rules"
+				wantName, house, otherHouse := "storymaker/v3/"+phase+"/normal", "## House style", "## House rules"
 				if compact {
-					wantName, house, otherHouse = "storymaker/v2/"+phase+"/compact", "## House rules", "## House style"
+					wantName, house, otherHouse = "storymaker/v3/"+phase+"/compact", "## House rules", "## House style"
 				}
 				if text {
 					wantName += "/text"
@@ -116,5 +116,30 @@ func TestStorymakerProfilesNamesToolsAndTextGuide(t *testing.T) {
 	}
 	if _, err := storymakerAgentProfile("unknown", false, false, names); err == nil {
 		t.Fatal("an unknown phase must be refused")
+	}
+}
+
+// The prompt names only entry styles the validator accepts (pop, fade, slide, none) and mentions the direction.
+func TestStorymakerProfilesNameOnlyValidEntriesAndTheDirection(t *testing.T) {
+	names := agent.StorymakerNames{Poses: []string{"stand"}, Gestures: []string{"point"}, Expressions: []string{"neutral"}}
+	for _, phase := range []string{storymaker.PhaseOutline, storymaker.PhaseCast, storymaker.PhaseFill, storymaker.PhaseCheck, storymaker.PhaseRevise} {
+		for _, compact := range []bool{false, true} {
+			profile, err := storymakerAgentProfile(phase, compact, false, names)
+			if err != nil {
+				t.Fatal(err)
+			}
+			system := profile.SystemPrompt()
+			for _, banned := range []string{"slide-up", "draw, stamp", "stageable environments", "maintain visual continuity"} {
+				if strings.Contains(system, banned) {
+					t.Errorf("%s compact=%v still says %q", phase, compact, banned)
+				}
+			}
+			if phase == storymaker.PhaseFill && !strings.Contains(system, "direction") {
+				t.Errorf("the fill prompt must mention the direction")
+			}
+			if phase == storymaker.PhaseCheck && !strings.Contains(system, "cast_unused") {
+				t.Errorf("the check prompt must mention the film items")
+			}
+		}
 	}
 }
