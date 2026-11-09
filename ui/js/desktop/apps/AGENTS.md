@@ -4630,11 +4630,23 @@ registration lives in `internal/desktop/types.go`.
 - Code Studio recognizes C source/header files and reuses the bundled CodeMirror
   C/C++ parser. Run compiles `.c` as C17 with GCC into a private temporary
   directory, executes only a successful build and cleans up afterward. Rust
-  uses that same `mktemp` directory and `"$cs_run_dir/program"`. Headers,
-  TypeScript, TSX, JSX, and other files stay editable and do not run. With no
-  restored tabs or launch path, open available `hello.go`, `hello.py` and
-  `hello.c` samples as tabs.
+  uses that same `mktemp` directory and `"$cs_run_dir/program"`. Headers and
+  other files stay editable and do not run. With no
+  restored tabs or launch path, open available `hello.go`, `hello.py`,
+  `hello.c`, `hello.js` and `hello.ts` samples as tabs.
   Verify `TestDesktopCodeStudioC` and the CodeContainer sample/runtime tests.
+- The JavaScript family is a first-class language in Code Studio. `languageForPath`
+  returns `javascript` for `.js`, `.mjs` and `.cjs`, `jsx` for `.jsx`, `typescript`
+  for `.ts` and `tsx` for `.tsx`; the editor picks the CodeMirror dialect from
+  that id and the textarea fallback maps `jsx` to `javascript` and `tsx` to
+  `typescript` for highlight.js. Run executes `.js`, `.mjs` and `.cjs` with
+  `node` and `.jsx`, `.ts` and `.tsx` with `tsx`. The problems panel checks
+  JavaScript with `node --check` and TypeScript with the project compiler when
+  the project has one, otherwise the runtime compiler; `npx --no-install` never
+  resolves a global binary and must not be used for it. The outline shares the
+  JavaScript rules with JSX and adds the TypeScript `interface`, `type` and
+  `enum` declarations for TypeScript and TSX.
+  Verify `TestDesktopCodeStudioNode`.
 - System World loads `sysworld-data.js`, `sysworld-hud.js`, `sysworld-controls.js`,
   then `sysworld.js`.
   The first two expose `window.SysWorld.data/createHud`; the entry owns per-window
@@ -5727,11 +5739,29 @@ registration lives in `internal/desktop/types.go`.
   handoff (see Camera above). Narrow action rows wrap controls and labels while
   retaining 44px targets. A session-only recents strip (max 12, data-URL thumbnails)
   re-opens captures. Camera network access is limited to `/api/desktop/upload`
-  and `/api/desktop/chat/stream`; preview state does not persist across windows. `dispose()` must stop tracks, cancel countdown/record clocks,
-  stop the recorder (discarding the clip), revoke the clip object URL and
-  detach `devicechange`. Loaded lazily by `module-loader.js` and exposes
-  `window.CameraApp { render, dispose }`. Visible strings use
-  `desktop.camera_*` keys in all `ui/lang/desktop/*.json` locales. No child
+  and `/api/desktop/chat/stream`; preview state does not persist across windows.
+  `dispose()` must stop tracks, cancel countdown/record clocks, stop the recorder
+  (discarding the clip), revoke the clip object URL and detach `devicechange`.
+  Exposes `window.CameraApp { render, dispose }`.
+- `module-loader.js` loads `camera-creative.js` before `camera.js`. The creative
+  module owns the photo-only options panel (five looks, five zoom steps,
+  `auto`/`1:1`/`4:3`/`16:9` framing), the crop mask and the recording pause
+  button. Its DOM-free `sourceRect(video, viewport, ratio, zoom)` mirrors
+  `object-fit: cover`: the mask, the CSS zoom transform and the captured canvas
+  all use the same source rectangle, so a photo shows exactly what the live
+  view framed. `capture()` bakes the look through `CanvasRenderingContext2D.filter`.
+  Looks are disabled with a translated reason when canvas filters are missing;
+  pause is disabled with a translated reason when MediaRecorder lacks
+  `pause()`/`resume()`. Paused time stays out of the REC clock and the badge
+  switches to the paused label. Controls are session-only, close on video mode,
+  preview and outside clicks, and disconnect their `ResizeObserver` on dispose.
+  Without `window.CameraCreative` the app falls back to full-frame, unfiltered
+  captures, so Node and browser fixtures loading `camera.js` alone keep working.
+  The error banner offers a retry button and toggles expose `aria-pressed`.
+- Visible strings use `desktop.camera_*` keys in all sixteen
+  `ui/lang/desktop/*.json` locales. Verify `go test ./ui -run 'DesktopCamera'`,
+  `npm run test:camera` (also chained into `test:ui-regressions`) and the
+  `apps/camera.js` case of `scripts/test-desktop-email-adapters.mjs`. No child
   DOX file needed.
 - `network-cameras.js` implements the Network Cameras app with a bounded
   snapshot grid, one selected live viewer, an optional four-stream live grid,

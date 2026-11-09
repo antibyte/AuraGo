@@ -328,7 +328,7 @@
         },
         'camera': {
             styles: appStyles('/css/camera.css'),
-            scripts: ['/js/desktop/apps/camera.js']
+            scripts: ['/js/desktop/apps/camera-creative.js', '/js/desktop/apps/camera.js']
         },
         'game-maker-studio': {
             styles: appStyles('/css/desktop-app-game-maker-studio.css', '/css/learnings.css'),

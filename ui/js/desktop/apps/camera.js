@@ -28,6 +28,10 @@
             recordChunks: [],
             recordStart: 0,
             recordClock: null,
+            paused: false,
+            pauseStart: 0,
+            pausedTotal: 0,
+            pauseSupported: false,
             discardClip: false,
             timerSeconds: 0,
             countdownLeft: 0,
@@ -49,7 +53,8 @@
         };
 
         host.innerHTML = '<div class="camera-app" data-camera-app="' + esc(windowId) + '" data-state="live" data-mode="photo">' +
-            '<div class="camera-error" data-error hidden></div>' +
+            '<div class="camera-error" data-error hidden><span data-error-text></span>' +
+                '<button class="camera-error-retry" type="button" data-action="retry">' + esc(t('desktop.camera_retry')) + '</button></div>' +
             '<div class="camera-viewport" data-viewport>' +
                 '<video class="camera-video" data-video autoplay playsinline muted></video>' +
                 '<img class="camera-preview" data-preview alt="" hidden>' +
@@ -58,7 +63,7 @@
                 '<div class="camera-overlay" data-overlay aria-hidden="true"></div>' +
                 '<div class="camera-flash" data-flash aria-hidden="true"></div>' +
                 '<div class="camera-status" data-status hidden><span class="camera-status-dot"></span><span data-status-text></span></div>' +
-                '<div class="camera-rec-badge" data-rec hidden role="status"><span class="camera-rec-dot"></span><span data-rec-time>00:00</span><span class="camera-rec-label">' + esc(t('desktop.camera_recording')) + '</span></div>' +
+                '<div class="camera-rec-badge" data-rec hidden role="status"><span class="camera-rec-dot"></span><span data-rec-time>00:00</span><span class="camera-rec-label" data-rec-label>' + esc(t('desktop.camera_recording')) + '</span></div>' +
                 '<div class="camera-countdown" data-countdown hidden><span data-countdown-num></span></div>' +
                 '<div class="camera-recents" data-recents hidden role="group" aria-label="' + esc(t('desktop.camera_recent')) + '"></div>' +
             '</div>' +
@@ -175,6 +180,17 @@
         var hintEl = host.querySelector('[data-hint]');
         var reduceMotion = typeof window.matchMedia === 'function'
             && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var errorText = host.querySelector('[data-error-text]');
+        var recLabel = host.querySelector('[data-rec-label]');
+        var retryBtn = host.querySelector('[data-action="retry"]');
+        var viewportEl = host.querySelector('[data-viewport]');
+        var creative = window.CameraCreative ? window.CameraCreative.create({
+            t: t, esc: esc, iconMarkup: iconMarkup, notify: notify,
+            video: video, viewport: viewportEl, dock: host.querySelector('[data-dock]'),
+            toolsHost: host.querySelector('.camera-dock-cluster.is-right'),
+            pauseHost: host.querySelector('.camera-dock-cluster.is-left'),
+            onChange: updateUI, onPause: togglePause
+        }) : null;
 
         function isClipPreview() {
             return !!state.videoURL;
@@ -186,7 +202,7 @@
 
         function showError(msg) {
             state.error = msg;
-            errorEl.textContent = msg;
+            errorText.textContent = msg;
             errorEl.hidden = !msg;
         }
 
@@ -215,7 +231,7 @@
                         { id: 'mirror', labelKey: 'desktop.camera_mirror', icon: 'columns', disabled: anyPreview, action: function () { toggleMirror(); } },
                         { id: 'grid', labelKey: 'desktop.camera_grid', icon: 'grid', disabled: anyPreview, action: function () { toggleGrid(); } },
                         { id: 'timer', labelKey: 'desktop.camera_timer', icon: 'clock', disabled: anyPreview, action: function () { cycleTimer(); } }
-                    ]
+                    ].concat(creative ? creative.menuItems() : [])
                 }
             ]);
         }
@@ -225,12 +241,15 @@
             if (isPreview()) {
                 hints.push(['R', t('desktop.camera_hint_retake')]);
                 if (!isClipPreview()) hints.push(['C', t('desktop.camera_hint_copy')]);
+            } else if (state.recording) {
+                hints.push(['Space', t('desktop.camera_record_stop')]);
             } else {
                 hints.push(['Space', t('desktop.camera_hint_capture')]);
                 hints.push(['V', t('desktop.camera_hint_video')]);
                 hints.push(['M', t('desktop.camera_hint_mirror')]);
                 hints.push(['G', t('desktop.camera_hint_grid')]);
             }
+            if (creative) hints = hints.concat(creative.hintPairs(isPreview(), state.recording));
             hintEl.innerHTML = hints.map(function (pair) {
                 return '<span><kbd>' + esc(pair[0]) + '</kbd>' + esc(pair[1]) + '</span>';
             }).join('');
@@ -242,6 +261,8 @@
             appRoot.setAttribute('data-state', previewActive ? 'preview' : 'live');
             appRoot.setAttribute('data-mode', state.mode);
             appRoot.classList.toggle('is-recording', state.recording);
+            appRoot.classList.toggle('is-paused', state.paused);
+            recLabel.textContent = t(state.paused ? 'desktop.camera_paused' : 'desktop.camera_recording');
 
             preview.hidden = !(previewActive && !clipActive);
             if (previewActive && !clipActive && preview.src !== state.capturedDataURL) {
@@ -292,9 +313,13 @@
             timerLabel.textContent = state.timerSeconds > 0 ? t('desktop.camera_timer_seconds', { seconds: state.timerSeconds }) : '';
             mirrorBtn.classList.toggle('is-active', state.mirror);
             gridBtn.classList.toggle('is-active', state.grid);
+            mirrorBtn.setAttribute('aria-pressed', String(state.mirror));
+            gridBtn.setAttribute('aria-pressed', String(state.grid));
+            timerBtn.setAttribute('aria-pressed', String(state.timerSeconds > 0));
             video.classList.toggle('is-mirrored', state.mirror);
 
             recentsEl.hidden = state.recents.length === 0;
+            if (creative) creative.setContext({ mode: state.mode, preview: previewActive, recording: state.recording, paused: state.paused, locked: locked, mirror: state.mirror, pauseSupported: state.pauseSupported });
             renderHints();
             setWindowMenus();
         }
@@ -435,15 +460,19 @@
         function capture() {
             if (!state.stream || !video.videoWidth) return;
             triggerFlash();
+            var rect = creative ? creative.sourceRect() : null;
             var canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+            canvas.width = rect ? Math.max(1, Math.round(rect.w)) : video.videoWidth;
+            canvas.height = rect ? Math.max(1, Math.round(rect.h)) : video.videoHeight;
             var ctx2 = canvas.getContext('2d');
+            var filter = creative ? creative.lookFilter() : 'none';
+            if (filter && filter !== 'none' && typeof ctx2.filter === 'string') ctx2.filter = filter;
             if (state.mirror) {
                 ctx2.translate(canvas.width, 0);
                 ctx2.scale(-1, 1);
             }
-            ctx2.drawImage(video, 0, 0);
+            if (rect) ctx2.drawImage(video, rect.x, rect.y, rect.w, rect.h, 0, 0, canvas.width, canvas.height);
+            else ctx2.drawImage(video, 0, 0);
             clearClip();
             forgetCaptureStore();
             state.capturedDataURL = canvas.toDataURL('image/jpeg', 0.9);
@@ -511,6 +540,10 @@
             state.recorder = recorder;
             state.recordChunks = [];
             state.discardClip = false;
+            state.paused = false;
+            state.pauseStart = 0;
+            state.pausedTotal = 0;
+            state.pauseSupported = typeof recorder.pause === 'function' && typeof recorder.resume === 'function';
             recorder.addEventListener('dataavailable', function (event) {
                 if (event.data && event.data.size) state.recordChunks.push(event.data);
             });
@@ -540,19 +573,44 @@
             state.recordStart = Date.now();
             recTime.textContent = '00:00';
             state.recordClock = setInterval(function () {
-                recTime.textContent = formatDuration(Date.now() - state.recordStart);
+                var held = state.paused ? Date.now() - state.pauseStart : 0;
+                recTime.textContent = formatDuration(Date.now() - state.recordStart - state.pausedTotal - held);
             }, 500);
             updateUI();
         }
 
         function stopRecording(discard) {
             if (!state.recording || !state.recorder) return;
+            if (state.paused && typeof state.recorder.resume === 'function') {
+                try { state.recorder.resume(); } catch (err) { /* recorder already inactive */ }
+            }
+            state.paused = false;
             state.discardClip = !!discard;
             state.finalizing = !discard;
             state.recording = false;
             if (state.recordClock) clearInterval(state.recordClock);
             state.recordClock = null;
             try { state.recorder.stop(); } catch (err) { state.recorder = null; state.finalizing = false; }
+            updateUI();
+        }
+
+        function togglePause() {
+            if (!state.recording || !state.recorder) return;
+            if (!state.pauseSupported) { notify(t('desktop.camera_pause_unsupported')); return; }
+            try {
+                if (state.paused) {
+                    state.recorder.resume();
+                    state.pausedTotal += Date.now() - state.pauseStart;
+                    state.paused = false;
+                } else {
+                    state.recorder.pause();
+                    state.pauseStart = Date.now();
+                    state.paused = true;
+                }
+            } catch (err) {
+                notify(t('desktop.camera_pause_unsupported'));
+                return;
+            }
             updateUI();
         }
 
@@ -872,6 +930,11 @@
 
         function handleKeydown(e) {
             if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) return;
+            if (e.key === 'Escape' && creative && creative.isOpen()) {
+                e.preventDefault();
+                creative.close();
+                return;
+            }
             if (e.key === 'Escape' && state.countdownLeft > 0) {
                 e.preventDefault();
                 cancelCountdown();
@@ -894,6 +957,16 @@
             } else if ((e.key === 'c' || e.key === 'C') && isPreview() && !isClipPreview()) {
                 e.preventDefault();
                 copyCapture();
+            } else if ((e.key === 't' || e.key === 'T') && creative && !isPreview()) {
+                e.preventDefault(); creative.toggle();
+            } else if ((e.key === 'l' || e.key === 'L') && creative && !isPreview()) {
+                e.preventDefault(); creative.cycleLook();
+            } else if ((e.key === '+' || e.key === '=') && creative && !isPreview()) {
+                e.preventDefault(); creative.zoomBy(1);
+            } else if (e.key === '-' && creative && !isPreview()) {
+                e.preventDefault(); creative.zoomBy(-1);
+            } else if ((e.key === 'p' || e.key === 'P') && state.recording) {
+                e.preventDefault(); togglePause();
             }
         }
 
@@ -915,8 +988,9 @@
                 { type: 'separator' },
                 { labelKey: 'desktop.camera_switch', icon: 'refresh', disabled: !captured || state.recording, action: function () { switchCamera(); } },
                 { labelKey: 'desktop.camera_mirror', icon: 'columns', disabled: !captured, action: function () { toggleMirror(); } },
-                { labelKey: 'desktop.camera_grid', icon: 'grid', disabled: !captured, action: function () { toggleGrid(); } }
-            ]);
+                { labelKey: 'desktop.camera_grid', icon: 'grid', disabled: !captured, action: function () { toggleGrid(); } },
+                { type: 'separator' }
+            ].concat(creative ? creative.menuItems() : []));
             return true;
         }
         if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
@@ -925,6 +999,7 @@
         });
 
         captureBtn.addEventListener('click', beginCapture);
+        retryBtn.addEventListener('click', startCamera);
         switchBtn.addEventListener('click', switchCamera);
         deviceSelect.addEventListener('change', selectDevice);
         timerBtn.addEventListener('click', cycleTimer);
@@ -975,6 +1050,7 @@
                 navigator.mediaDevices.removeEventListener('devicechange', deviceChangeHandler);
             }
             host.removeEventListener('keydown', handleKeydown);
+            if (creative) creative.dispose();
         });
 
         updateUI();
