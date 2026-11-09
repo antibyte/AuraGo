@@ -5,6 +5,7 @@ import fs from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import * as THREE from 'three';
 import {KINDS, WINDOWS, windowSeeds, createSurfaces} from '../ui/js/desktop/apps/sysworld-surfaces.js';
+import {sharedMaterialKey, kitPlacements} from '../ui/js/desktop/apps/sysworld-scene.js';
 
 const dir = 'ui/3d/system-world/textures/v1/';
 const manifest = JSON.parse(await fs.readFile(dir + 'manifest.json', 'utf8'));
@@ -26,8 +27,9 @@ assert.ok(total < 1.5 * 1024 * 1024, 'Surface textures exceed 1.5 MiB: ' + total
 // dim the glow instead of adding detail.
 const untextured = new Set(['city.glass', 'city.garden-glass', 'city.cyan', 'city.jade', 'city.lantern-glow']);
 const names = new Set();
-for (const kit of ['v1', 'v2']) {
-  for (const file of await fs.readdir(`ui/3d/system-world/${kit}`)) {
+for (const kit of ['v1', 'v2', 'v3']) {
+  const files = await fs.readdir(`ui/3d/system-world/${kit}`).catch(() => []);
+  for (const file of files) {
     if (!file.endsWith('.glb')) continue;
     const bytes = await fs.readFile(`ui/3d/system-world/${kit}/${file}`);
     const json = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString('utf8'));
@@ -89,5 +91,19 @@ surfaces.update(1, true);
 const easing = surfaces.stats().wet;
 surfaces.update(0, false);
 assert.ok(easing > 0 && easing < 1 && surfaces.stats().wet === 1, 'Wetness easing or reduced-motion snap broken');
+// Kit v3 street materials: every new key is a projected surface, the marking wets like the road.
+for (const name of ['city.kerb', 'city.setts', 'city.iron', 'city.marking', 'city.tactile']) assert.ok(KINDS[name], 'Kit v3 kind missing: ' + name);
+assert.deepEqual(KINDS['city.marking'].puddle, KINDS['city.road'].puddle);
+assert.equal(KINDS['city.marking'].top, 'asphalt');
+// Vertex-coloured (baked AO) materials keep the surface injection and never share with plain ones.
+{
+  const ao = new THREE.MeshStandardMaterial({ name: 'city.kerb', vertexColors: true });
+  surfaces.apply(ao);
+  const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.standard.vertexShader, fragmentShader: THREE.ShaderLib.standard.fragmentShader };
+  ao.onBeforeCompile(shader);
+  assert.ok(shader.fragmentShader.includes('diffuseColor.rgb*=swAlbedoF'), 'AO material keeps the surface maps');
+  assert.notEqual(sharedMaterialKey(ao), sharedMaterialKey(new THREE.MeshStandardMaterial({ name: 'city.kerb' })), 'AO and plain materials never share');
+}
+assert.ok(Array.isArray(kitPlacements));
 surfaces.dispose();
 console.log(`System World surfaces: ${Object.keys(KINDS).length} kinds, ${names.size} kit materials mapped, ${total} texture bytes, pane seeds and shader hooks verified.`);

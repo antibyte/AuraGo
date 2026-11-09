@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
@@ -67,6 +68,11 @@ class SceneCapturePass extends Pass {
 const homeTarget = new THREE.Vector3(0, 22, -12);
 // Architectural scale reference: skyline uses the same compact building kit. The placement
 // list is static so the robot navigator and tests derive the same street obstacles.
+// Shared kit materials are keyed by name plus vertex colours: a v3 material with baked AO
+// (COLOR_0) must never be reused by a v1/v2 mesh without that attribute.
+export function sharedMaterialKey(material) { return material.name + (material.vertexColors ? '|vertex-colours' : ''); }
+// Kit v3 placements, instanced like `placements` but loaded from ui/3d/system-world/v3/.
+export const kitPlacements = [];
 export const placements = [];
 {
   const place = (asset, x, z, y = 0, angle = 0, scale = [1, 1, 1]) => placements.push({ asset, x, z, y, angle, scale });
@@ -226,6 +232,13 @@ export async function createCity(host, options) {
     manifest = await manifestResponse.json();
   } catch (error) { dispose(); throw error; }
   const catalog = new Map(manifest.assets.map(a => [a.id, a]));
+  // Kit v3 is optional until its designs ship: an absent or empty manifest leaves the catalog empty.
+  const catalog3 = new Map();
+  try {
+    const response = await fetch(options.resourceURL('/3d/system-world/v3/manifest.json'), { signal: abort.signal });
+    const kit = response.ok ? await response.json() : null;
+    if (kit?.schema_version === 3 && Array.isArray(kit.assets)) for (const a of kit.assets) catalog3.set(a.id, a);
+  } catch (error) { if (abort.signal.aborted) { dispose(); throw error; } }
   installCityColliders(traffic,catalog,districts,placements);
   experience=createExperience(scene,{
     camera,districts,tier,traffic,reduced:()=>reduced,active:()=>visible&&!failed&&mode!=='map'&&!reduced&&!options.replaying?.(),
@@ -235,19 +248,24 @@ export async function createCity(host, options) {
     onEnvironment:indoor=>{weather.setIndoor(indoor);options.onEnvironment?.(indoor);},
     onError:options.onError,onReady:()=>{renderer.shadowMap.needsUpdate=true;},
   });
-  async function model(id, lod) {
-    const key = id + ':' + lod;
+  const kits = {
+    v1: { catalog, url: file => options.assetURL(file), loader: () => new GLTFLoader() },
+    v3: { catalog: catalog3, url: file => options.resourceURL('/3d/system-world/v3/' + file), loader: () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder) },
+  };
+  async function model(id, lod, kit = 'v1') {
+    const key = kit + ':' + id + ':' + lod;
     if (!cache.has(key)) cache.set(key, (async () => {
-      const item = catalog.get(id)?.lods.find(l => l.level === lod);
+      const kitSource = kits[kit], item = kitSource.catalog.get(id)?.lods.find(l => l.level === lod);
       if (!item || !/^[a-z0-9-]+\.lod[0-2]\.glb$/.test(item.file)) throw Error('Invalid city asset');
       const controller = new AbortController(); requests.add(controller);
       const timer = setTimeout(() => controller.abort(), 15000);
       try {
-        const response = await fetch(options.assetURL(item.file), { signal: controller.signal });
+        const response = await fetch(kitSource.url(item.file), { signal: controller.signal });
         if (!response.ok) throw Error('City asset unavailable');
         const bytes = await response.arrayBuffer();
         if (disposed) throw Error('Disposed');
-        const gltf = await new GLTFLoader().parseAsync(bytes, '');
+        if (kit === 'v3') await MeshoptDecoder.ready;
+        const gltf = await kitSource.loader().parseAsync(bytes, '');
         if (disposed) { gltf.scene.traverse(n => { if(n.isMesh) { n.geometry.dispose(); n.material.dispose(); } }); throw Error('Disposed'); }
         loadBytes += bytes.byteLength; reportProgress();
         gltf.scene.traverse(n => {
@@ -255,8 +273,9 @@ export async function createCity(host, options) {
           geoSet.add(n.geometry); n.castShadow = true; n.receiveShadow = true;
           const source = Array.isArray(n.material) ? n.material : [n.material];
           const shared = source.map(m => {
-            if (materials.has(m.name)) { const original = m; m = materials.get(m.name); original.dispose(); }
-            else { materials.set(m.name, m); matSet.add(m); }
+            const name = sharedMaterialKey(m);
+            if (materials.has(name)) { const original = m; m = materials.get(name); original.dispose(); }
+            else { materials.set(name, m); matSet.add(m); }
             return m;
           });
           n.material = Array.isArray(n.material) ? shared : shared[0];
@@ -274,26 +293,30 @@ export async function createCity(host, options) {
   async function rebuild() {
     const token = ++generation, config = tiers[tier], lod = config.lod;
     const ids = [...new Set([...placements.map(p => p.asset), ...districts.map(d => d.asset), 'service-drone'])];
+    const kitIds = [...new Set(kitPlacements.map(p => p.asset))];
     const size = (id, level) => catalog.get(id)?.lods.find(l => l.level === level)?.bytes || 0;
-    expectedBytes = ids.reduce((sum, id) => sum + (cache.has(id + ':' + lod) ? 0 : size(id, lod)), loadBytes) + (lod === 2 ? 0 : ['data-tower-a', 'data-tower-b'].reduce((sum, id) => sum + (cache.has(id + ':2') ? 0 : size(id, 2)), 0));
+    expectedBytes = ids.reduce((sum, id) => sum + (cache.has('v1:' + id + ':' + lod) ? 0 : size(id, lod)), loadBytes) + (lod === 2 ? 0 : ['data-tower-a', 'data-tower-b'].reduce((sum, id) => sum + (cache.has('v1:' + id + ':2') ? 0 : size(id, 2)), 0))
+      + kitIds.reduce((sum, id) => sum + (cache.has('v3:' + id + ':' + lod) ? 0 : (catalog3.get(id)?.lods.find(l => l.level === lod)?.bytes || 0)), 0);
     try {
       const loaded = new Map(await Promise.all(ids.map(async id => [id, await model(id, lod)])));
       // Skyline deliberately uses low LOD even on Ultra.
       const distant = new Map(await Promise.all(['data-tower-a','data-tower-b'].map(async id => [id, await model(id, 2)])));
+      const kit = new Map(await Promise.all(kitIds.map(async id => [id, await model(id, lod, 'v3')])));
       if (disposed || token !== generation) return;
       clearGroup(staticCity); clearGroup(landmarks); objects = [];
       const batches = new Map();
-      for (const p of placements) {
-        const template = (p.z < -100 ? distant : loaded).get(p.asset); template.updateMatrixWorld(true);
+      const add = (p, template) => {
+        template.updateMatrixWorld(true);
         const matrix = new THREE.Matrix4().compose(new THREE.Vector3(p.x, p.y, p.z),
           new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.angle), new THREE.Vector3(...p.scale));
         template.traverse(n => {
           if (!n.isMesh) return;
-          const key = n.uuid;
-          if (!batches.has(key)) batches.set(key, { node: n, matrices: [] });
-          batches.get(key).matrices.push(new THREE.Matrix4().multiplyMatrices(matrix, n.matrixWorld));
+          if (!batches.has(n.uuid)) batches.set(n.uuid, { node: n, matrices: [] });
+          batches.get(n.uuid).matrices.push(new THREE.Matrix4().multiplyMatrices(matrix, n.matrixWorld));
         });
-      }
+      };
+      for (const p of placements) add(p, (p.z < -100 ? distant : loaded).get(p.asset));
+      for (const p of kitPlacements) add(p, kit.get(p.asset));
       for (const { node, matrices } of batches.values()) {
         const mesh = new THREE.InstancedMesh(node.geometry, node.material, matrices.length);
         matrices.forEach((m, i) => mesh.setMatrixAt(i, m));

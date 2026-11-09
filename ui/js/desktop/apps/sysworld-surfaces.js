@@ -19,6 +19,12 @@ export const KINDS = {
   'city.robot-rubber': {top: 'panels', side: 'panels', albedo: .3, rough: .75, bump: .008, wet: .25},
   'city.ceramic': {top: 'concrete', side: 'concrete', albedo: .3, rough: .4, bump: .008, wet: .8, puddle: [.464, .460]},
   'city.leaf': {top: 'foliage', side: 'foliage', albedo: .7, rough: .3, bump: .03, wet: .5},
+  // Kit v3 street materials (baked AO in COLOR_0 multiplies the albedo).
+  'city.kerb': {top: 'concrete', side: 'concrete', albedo: .45, rough: .55, bump: .01, wet: 1},
+  'city.setts': {top: 'pavers', side: 'concrete', albedo: .5, rough: .6, bump: .014, wet: 1, topScale: 2, puddle: [.523, .516]},
+  'city.iron': {top: 'panels', side: 'panels', albedo: .25, rough: .45, bump: .008, wet: .9},
+  'city.marking': {top: 'asphalt', side: 'concrete', albedo: .25, rough: .5, bump: .006, wet: 1, puddle: [.447, .442]},
+  'city.tactile': {top: 'concrete', side: 'concrete', albedo: .4, rough: .6, bump: .02, wet: 1},
   ground: {top: 'pavers', side: 'concrete', albedo: .55, rough: .6, bump: .014, wet: 1, topScale: .5, puddle: [.523, .516], waterline: true},
 };
 export const WINDOWS = new Set(['city.ivory', 'city.warm']);

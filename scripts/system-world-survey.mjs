@@ -78,6 +78,7 @@ function replaceOnce(text, find, replacement, label) {
 }
 
 const EXPOSE = 'globalThis.__sw = { THREE, camera, controls, scene, renderer, composer, experience, traffic, weather, atmosphere, surfaces, sun, bloom, drones, '
+  + 'model, catalogV3: () => catalog3, '
   + 'cancelFlight: () => { flight = null; }, mode: () => mode };\n  ';
 
 async function buildBundle() {
