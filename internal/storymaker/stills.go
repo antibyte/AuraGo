@@ -120,9 +120,12 @@ func BuildStills(sceneIDs []string, indexes []int, pngs [][]byte) (sheet []byte,
 	return sheet, stills, nil
 }
 
-// LookAlikeIssues finds runs of three or more consecutive stills whose neighbours differ in at most lookAlikeMaxDistance bits
-// and reports each run once, at its third scene: that is the one to change. The fix asks for another environment, another
-// framing and the actor on the other side, at every second scene of the run.
+// LookAlikeIssues finds runs of three or more stills of neighbouring scenes whose neighbours differ in at most
+// lookAlikeMaxDistance bits and reports each run once, at its third scene: that is the one to change. The fix asks for another
+// environment, another framing and the actor on the other side, at every second scene of the run. The list of stills leaves out
+// the scenes without a measured layout (code scenes, scenes whose hold frame is out of range), so two successive stills are
+// neighbours only when their story indexes are consecutive: a gap ends the run, because the scenes across it are not seen next
+// to each other in the film.
 func LookAlikeIssues(stills []StillInfo) []Issue {
 	var out []Issue
 	start := 0
@@ -147,7 +150,7 @@ func LookAlikeIssues(stills []StillInfo) []Issue {
 		})
 	}
 	for i := 1; i <= len(stills); i++ {
-		if i == len(stills) || HashDistance(stills[i-1].Hash, stills[i].Hash) > lookAlikeMaxDistance {
+		if i == len(stills) || stills[i].Index != stills[i-1].Index+1 || HashDistance(stills[i-1].Hash, stills[i].Hash) > lookAlikeMaxDistance {
 			flush(i)
 			start = i
 		}

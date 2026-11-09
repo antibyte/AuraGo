@@ -44,6 +44,32 @@ func TestSummarizeCompileReportKeepsTheLayoutOfTheStoryScenes(t *testing.T) {
 	}
 }
 
+// The index of a layout block decides which scene a finding points at (/scenes/<index>), so the page does not get to choose it:
+// Go takes it from the order of the story, whatever the block says.
+func TestSummarizeCompileReportTakesTheLayoutIndexFromTheStoryOrder(t *testing.T) {
+	block := func(id string, index any) map[string]any {
+		return map[string]any{"id": id, "index": index, "hold_s": 1, "actors": []any{}, "props": []any{}, "texts": []any{}}
+	}
+	m := goodReport()
+	m["layout"] = []any{block("s2", 0), block("s1", 2), block("s3", -4)}
+	body, err := json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := summarizeCompileReport(body, reportExpectation(), 0)
+	if !got.Available || len(got.Layout) != 3 {
+		t.Fatalf("summary = %+v", got)
+	}
+	for i, want := range []struct {
+		id    string
+		index int
+	}{{"s2", 1}, {"s1", 0}, {"s3", 2}} {
+		if got.Layout[i].ID != want.id || got.Layout[i].Index != want.index {
+			t.Errorf("block %d is %s with index %d, want %s with index %d", i, got.Layout[i].ID, got.Layout[i].Index, want.id, want.index)
+		}
+	}
+}
+
 func TestSummarizeCompileReportWithoutLayoutOrWithAnError(t *testing.T) {
 	plain, _ := json.Marshal(goodReport())
 	got := summarizeCompileReport(plain, reportExpectation(), 0)

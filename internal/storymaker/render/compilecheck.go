@@ -244,21 +244,26 @@ func summarizeCompileReport(body []byte, want reportExpect, frameLimit int) stor
 	}
 	scenes := make([]storymaker.CompileScene, 0, len(rep.Scenes))
 	storyboard, code := 0, 0
-	known := map[string]bool{}
 	for _, sc := range rep.Scenes {
-		known[sc.ID] = true
 		if sc.Kind == "code" {
 			code++
 		} else {
 			storyboard++
 		}
 	}
+	// The story order is Go's: parseReport has checked that the page lists the scenes of the story in this order.
+	storyIndex := make(map[string]int, len(want.SceneIDs))
+	for i, id := range want.SceneIDs {
+		storyIndex[id] = i
+	}
 	var layout []storymaker.LayoutScene
 	kept := map[string]bool{}
 	for _, block := range rep.Layout {
-		// The page is trusted for geometry only: a block for a scene the story does not have, or a second one, is dropped.
-		if known[block.ID] && !kept[block.ID] {
+		// The page is trusted for geometry only: a block for a scene the story does not have, or a second one, is dropped, and
+		// the index of the scene is the story's, whatever the page wrote. Findings and stills point at /scenes/<index>.
+		if index, ok := storyIndex[block.ID]; ok && !kept[block.ID] {
 			kept[block.ID] = true
+			block.Index = index
 			layout = append(layout, cleanLayoutScene(block, want))
 		}
 	}

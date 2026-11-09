@@ -2,9 +2,11 @@ package storymaker
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -134,4 +136,54 @@ func TestLookAlikeIssuesFindsRunsOfThreeOrMore(t *testing.T) {
 	if LookAlikeIssues(stills[:2]) != nil || LookAlikeIssues(nil) != nil {
 		t.Error("fewer than three stills never make a run")
 	}
+}
+
+// The list of stills has no entry for a scene without a measured layout (a code scene, say): identical pictures on both sides of
+// such a gap are not neighbours in the film.
+func TestLookAlikeIssuesBreaksTheRunAtAnIndexGap(t *testing.T) {
+	same := func(indexes ...int) []StillInfo {
+		out := make([]StillInfo, len(indexes))
+		for i, index := range indexes {
+			out[i] = StillInfo{SceneID: fmt.Sprintf("s%d", index+1), Index: index}
+		}
+		return out
+	}
+	for _, tc := range []struct {
+		name    string
+		indexes []int
+		want    []string // the path of each reported run
+	}{
+		{"a code scene between", []int{0, 2, 3}, nil},
+		{"neighbours after the gap", []int{2, 3, 4}, []string{"/scenes/4"}},
+		{"a run after a lone scene", []int{0, 2, 3, 4}, []string{"/scenes/4"}},
+		{"two gaps", []int{0, 2, 4, 5, 7}, nil},
+		{"a run on each side of a gap", []int{0, 1, 2, 4, 5, 6}, []string{"/scenes/2", "/scenes/6"}},
+		{"no gap", []int{0, 1, 2}, []string{"/scenes/2"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := LookAlikeIssues(same(tc.indexes...))
+			var paths []string
+			for _, is := range got {
+				paths = append(paths, is.Path)
+			}
+			if !reflect.DeepEqual(paths, tc.want) {
+				t.Fatalf("indexes %v: runs reported at %v, want %v (%+v)", tc.indexes, paths, tc.want, got)
+			}
+			for _, is := range got {
+				if want := fmt.Sprintf("s%d", mustIndex(t, is.Path)+1); is.SceneID != want {
+					t.Errorf("the issue at %s names scene %s, want %s", is.Path, is.SceneID, want)
+				}
+			}
+		})
+	}
+}
+
+// mustIndex reads the scene index of a "/scenes/<n>" path.
+func mustIndex(t *testing.T, path string) int {
+	t.Helper()
+	var n int
+	if _, err := fmt.Sscanf(path, "/scenes/%d", &n); err != nil {
+		t.Fatalf("path %q: %v", path, err)
+	}
+	return n
 }
