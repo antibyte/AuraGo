@@ -10,8 +10,9 @@
     var HERO_MIN = 0.5, HERO_MAX = 3;       // the scale that makes it so is clamped to this range
     var PUSH_IN = 1.08, PUSH_IN_CALM = 1.04;
     // Medium framing under captions: the speaker's feet stand at this share of the window height, above the caption box
-    // (79.4 percent). The actor is about 0.72 of the window height at zoom 1.35, so the head ends up about 6 percent below the
-    // top edge. Plain medium framing puts the feet at about 86 percent, inside the caption.
+    // (79.4 percent). Measured on the real run (contact sheet of task E6): the actor is about 0.62 of the window height at zoom
+    // 1.35, so the head ends up about 15 percent below the top edge. Plain medium framing puts the feet at about 86 percent,
+    // inside the caption.
     var MEDIUM_FEET_ON_SCREEN = 0.78;
 
     // isV2(story): true for style.compose "v2".
