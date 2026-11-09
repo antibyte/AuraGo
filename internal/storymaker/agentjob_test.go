@@ -28,6 +28,11 @@ func TestDecideOutcomeTable(t *testing.T) {
 		{name: "compile failed", in: OutcomeInput{Progress: done, Check: CheckReport{Compile: "failed"}}, outcome: OutcomeIncomplete, checks: []AgentCheck{layout, {Code: CodeCompileFailed}}},
 		{name: "environment never downgrades", in: OutcomeInput{Progress: done, Narration: "narration_unavailable", Check: CheckReport{Compile: "unavailable", Environment: []Issue{{Severity: SeverityWarning, Code: CodeOverTarget}}}}, outcome: OutcomeReadyUnverified, checks: []AgentCheck{layout, {Code: "compile_unverified"}, {Code: "narration_unavailable"}, {Code: CodeOverTarget}}},
 		{name: "environment error blocks by its code", in: OutcomeInput{Progress: done, Check: CheckReport{Compile: "ok", Environment: []Issue{{Severity: SeverityError, Code: CodeDeadline}}}}, outcome: OutcomeIncomplete, checks: []AgentCheck{layout, {Code: CodeDeadline}}},
+		{name: "ready when the layout was measured and nothing is open", in: OutcomeInput{Progress: done, Check: CheckReport{Compile: "ok", StoryboardScenes: 3, LayoutScenes: 3}}, outcome: OutcomeReady, checks: nil},
+		{name: "a code scene keeps layout_unverified", in: OutcomeInput{Progress: done, Check: CheckReport{Compile: "ok", StoryboardScenes: 2, CodeScenes: 1, LayoutScenes: 2}}, outcome: OutcomeReadyUnverified, checks: []AgentCheck{layout}},
+		{name: "an unmeasured scene keeps layout_unverified", in: OutcomeInput{Progress: done, Check: CheckReport{Compile: "ok", StoryboardScenes: 3, LayoutScenes: 2}}, outcome: OutcomeReadyUnverified, checks: []AgentCheck{layout}},
+		{name: "a layout finding that is left is listed and never blocks", in: OutcomeInput{Progress: done, Check: CheckReport{Compile: "ok", StoryboardScenes: 2, LayoutScenes: 2, Issues: []Issue{{Severity: SeverityWarning, Code: CodeCaptionOverlap, SceneID: "s2"}}}}, outcome: OutcomeReadyUnverified, checks: []AgentCheck{{Code: CodeCaptionOverlap, SceneID: "s2"}}},
+		{name: "an open narration check keeps the film from ready", in: OutcomeInput{Progress: done, Narration: "narration_pending", Check: CheckReport{Compile: "ok", StoryboardScenes: 2, LayoutScenes: 2}}, outcome: OutcomeReadyUnverified, checks: []AgentCheck{{Code: "narration_pending"}}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

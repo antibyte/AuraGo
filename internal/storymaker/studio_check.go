@@ -34,6 +34,9 @@ type CheckReport struct {
 	TargetSeconds               int
 	Compile                     string
 	CompileReason               string // the closed code of why the compile check was unavailable, "" otherwise
+	StoryboardScenes            int    // storyboard scenes of the film, from the compile run
+	CodeScenes                  int    // code scenes of the film (their layout is never measured)
+	LayoutScenes                int    // storyboard scenes whose layout the player measured
 	RoundsLeft                  int
 }
 
@@ -318,6 +321,7 @@ func (s *Studio) runCheck(ctx context.Context) (CheckReport, string, error) {
 	}
 	summary, state, environment := s.compileForCheck(ctx, etag)
 	found = append(found, checkCompileIssues(summary.Issues)...)
+	found = append(found, LayoutIssues(summary.Layout, LayoutOptions{CaptionRule: story.Style.Compose == "v2" && story.Style.Captions})...)
 	found = append(found, LintForJob(&story)...)
 	found = append(found, s.craftIssues(ctx, &story)...)
 	found = append(found, LintWords(&story, s.job.Language)...)
@@ -330,6 +334,7 @@ func (s *Studio) runCheck(ctx context.Context) (CheckReport, string, error) {
 	report := CheckReport{
 		Environment: environment, Scenes: scenes, TotalSeconds: total,
 		TargetSeconds: s.job.TargetSeconds, Compile: state, CompileReason: compileReasonCode(summary, state),
+		StoryboardScenes: summary.StoryboardScenes, CodeScenes: summary.CodeScenes, LayoutScenes: len(summary.Layout),
 	}
 	for _, is := range found {
 		switch {

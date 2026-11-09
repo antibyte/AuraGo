@@ -69,8 +69,8 @@ type OutcomeInput struct {
 }
 
 // DecideOutcome applies the outcome rule. failed: no outline was saved. incomplete: a timeout, a model error, or an
-// unfilled scene, a model-fixable issue (craft findings excepted), a compile failure or an environment error is left. Otherwise ready_unverified:
-// layout is never verified, so this slice never answers ready. Advice is not listed. Environment items are listed.
+// unfilled scene, a model-fixable issue (craft and layout findings excepted), a compile failure or an environment error is left.
+// Otherwise ready when nothing is left open, else ready_unverified. Advice is not listed. Environment items are listed.
 func DecideOutcome(in OutcomeInput) (outcome string, checks []AgentCheck) {
 	seen := map[AgentCheck]bool{}
 	add := func(code, sceneID string) {
@@ -80,7 +80,12 @@ func DecideOutcome(in OutcomeInput) (outcome string, checks []AgentCheck) {
 			checks = append(checks, check)
 		}
 	}
-	add(CodeLayoutUnverified, "")
+	// The layout counts as verified only when the compile ran, the player measured every storyboard scene and no code scene
+	// exists (the layout inside a code scene is never measured).
+	layoutChecked := in.Check.Compile == "ok" && in.Check.StoryboardScenes > 0 && in.Check.CodeScenes == 0 && in.Check.LayoutScenes == in.Check.StoryboardScenes
+	if !layoutChecked {
+		add(CodeLayoutUnverified, "")
+	}
 	if in.Check.Compile == "unavailable" {
 		add(outcomeCheckCompileUnverified, "")
 		for i := range checks {
@@ -122,6 +127,10 @@ func DecideOutcome(in OutcomeInput) (outcome string, checks []AgentCheck) {
 		return OutcomeFailed, checks
 	case blocked || compileFailed:
 		return OutcomeIncomplete, checks
+	}
+	// ready means nothing is left open: the film was checked, every item is closed, and the narration is done.
+	if len(checks) == 0 {
+		return OutcomeReady, checks
 	}
 	return OutcomeReadyUnverified, checks
 }

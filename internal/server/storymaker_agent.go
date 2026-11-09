@@ -647,7 +647,7 @@ func (j *storymakerAgentJob) emitCheck(report storymaker.CheckReport) {
 }
 
 // keepAnswer remembers the last text reply. A revise job keeps the reply of its revise loop, because the
-// per-request lines live there. It is released only with the outcome ready_unverified.
+// per-request lines live there. It is released only with the outcome ready or ready_unverified.
 func (j *storymakerAgentJob) keepAnswer(answer string) {
 	if answer == "" || (j.payload.Kind == storymaker.AgentKindRevise && j.summary != "") {
 		return
@@ -791,7 +791,7 @@ func (j *storymakerAgentJob) publishOutcome(ctx context.Context, in storymaker.O
 		info.ScenesTotal, info.ScenesDone, info.StoryETag = progress.ScenesTotal, progress.ScenesDone, progress.ETag
 		info.DurationSeconds = in.Check.TotalSeconds
 		info.ChangedScenes, info.UnchangedScenes, info.RemovedScenes = changed, unchanged, removed
-		if outcome == storymaker.OutcomeReadyUnverified {
+		if outcome == storymaker.OutcomeReadyUnverified || outcome == storymaker.OutcomeReady {
 			info.Summary = storymakerAgentSummary(j.summary)
 		}
 	})
