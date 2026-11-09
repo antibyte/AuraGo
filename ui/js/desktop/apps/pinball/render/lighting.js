@@ -20,10 +20,10 @@ export function createEnvironment(renderer, palette) {
         m.position.set(...pos); m.rotation.set(...rot); s.add(m);
     };
     const acc = palette.accent || '#37d9ff', sec = palette.secondary || '#ff48c4';
-    panel(9, 1.4, [0, 5.6, -4.6], [0, 0, 0], '#e8f1ff', 2.3);                   // back-high soft box (glossy sheen in the play view)
-    panel(8, 1.1, [0, 5.4, 4.8], [0, 0, 0], '#fff0dc', 3.2);
-    panel(0.5, 5, [-6, 2.6, 0], [0, Math.PI / 2, 0], acc, 5);                  // neon strips on both sides
-    panel(0.5, 5, [6, 2.6, 0], [0, Math.PI / 2, 0], sec, 5);
+    panel(9, 1.4, [0, 5.6, -4.6], [0, 0, 0], '#e8f1ff', 1.3);                   // back-high soft box (glossy sheen in the play view)
+    panel(8, 1.1, [0, 5.4, 4.8], [0, 0, 0], '#fff0dc', 1.6);
+    panel(0.5, 5, [-6, 2.6, 0], [0, Math.PI / 2, 0], acc, 3);                  // neon strips on both sides
+    panel(0.5, 5, [6, 2.6, 0], [0, Math.PI / 2, 0], sec, 3);
     panel(6, 0.4, [0, 1.6, -7], [0, 0, 0], acc, 3);
     panel(4, 0.3, [0, 1.2, 6.8], [0, Math.PI, 0], sec, 2.2);
     s.children.forEach(o => { if (o.isMesh && o.geometry.type === 'PlaneGeometry') o.lookAt(0, 0.5, 0); });
@@ -56,7 +56,7 @@ function autoBulbs(layout, group) {
 export function createLights({ scene, tableRoot, layout, tier, palette, shadows }) {
     const accent = palette.accent || '#37d9ff', secondary = palette.secondary || '#ff48c4';
     const hemi = new THREE.HemisphereLight('#9db6dc', '#0b0d14', 0.5);
-    const key = new THREE.DirectionalLight('#fff4e6', 1.9);
+    const key = new THREE.DirectionalLight('#fff4e6', 1.1);
     key.position.set(-0.55, 1.9, 0.35);
     const target = new THREE.Object3D(); target.position.set(0, 0.05, -0.5); scene.add(target); key.target = target;
     const rim = new THREE.DirectionalLight(secondary, 0.55); rim.position.set(0.7, 0.6, -1.6); rim.target = target;
@@ -105,7 +105,7 @@ export function createLights({ scene, tableRoot, layout, tier, palette, shadows 
     function update(lamps, reduced) {
         const fl = lamps && lamps.flashLevel, gl = lamps && lamps.giLevel;
         const giAvg = gl && gl.length ? gl.reduce((a, v) => a + v, 0) / gl.length : 1;
-        hemi.intensity = 0.12 + 0.55 * giAvg; rim.intensity = 0.2 + 0.4 * giAvg; fill.intensity = 0.08 + 0.22 * giAvg;
+        hemi.intensity = 0.25 + 0.65 * giAvg; rim.intensity = 0.2 + 0.4 * giAvg; fill.intensity = 0.08 + 0.22 * giAvg;
         const n = points.length;
         for (let p = 0; p < n; p++) {
             let best = -1, level = 0;

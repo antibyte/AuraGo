@@ -128,7 +128,7 @@ const gridlock = () => {
     P(g).kickbackLit = false;
     neon(g);
     assert.equal(P(g).kickbackLit, true);
-    assert.equal(lamp(g, 'neonN'), LAMP_MODES.off);
+    assert.equal(lamp(g, 'neonN'), LAMP_MODES.dim);
     ev(g, 'standup', 'neonE');
     assert.equal(lamp(g, 'neonE'), LAMP_MODES.on);
 }
@@ -171,7 +171,7 @@ const gridlock = () => {
     const upl = () => ['uplinkU', 'uplinkP', 'uplinkL'].forEach(id => ev(g, 'standup', id));
     ev(g, 'standup', 'uplinkP');
     assert.equal(lamp(g, 'uplinkP'), LAMP_MODES.on);
-    assert.equal(lamp(g, 'uplinkU'), LAMP_MODES.off);
+    assert.equal(lamp(g, 'uplinkU'), LAMP_MODES.dim);
     take(g);
     let s = P(g).score;
     ev(g, 'standup', 'uplinkU'); ev(g, 'standup', 'uplinkL');
@@ -180,7 +180,7 @@ const gridlock = () => {
     assert.equal(P(g).ebLit, true);
     assert.ok(q.some(c => c.type === 'dmd' && c.scene === 'big' && c.params.text === 'UPLINK' && c.params.score === 250000));
     assert.ok(q.some(c => c.type === 'cue' && c.name === 'combo'));
-    assert.equal(lamp(g, 'uplinkU'), LAMP_MODES.off, 'the letters reset');
+    assert.equal(lamp(g, 'uplinkU'), LAMP_MODES.dim, 'the letters reset');
     s = P(g).score;
     upl();
     assert.equal(P(g).score - s, 3 * 5010 + 250000 + 500000, 'level 2 adds 500k');

@@ -1,5 +1,5 @@
 // Cyber Neon Metropolis 3D toys (plan 6.1 / T16): skyline along the top arc, holographic Data Core spire, subway cap
-// and flying traffic. buildToys(THREE, kit, layout) -> {group, update(dt, t, snap, toyState, lamps), dispose}.
+// and flying traffic. buildToys(THREE, kit, layout, opts) -> {group, update(dt, t, snap, toyState, lamps, events), dispose}.
 // Local frame is the table root: X = x, Y = h (above the playfield), Z = -y. Draw calls: high 14, low 11.
 import { rngNext } from '../../config.js';
 
@@ -38,7 +38,7 @@ function signAtlas(THREE) {
         g.fillStyle = 'rgba(0,0,0,.0)';
         g.strokeStyle = col; g.lineWidth = 5; g.shadowColor = col; g.shadowBlur = 14;
         g.strokeRect(x - 58, 28, 116, 72);
-        g.font = '900 38px "Segoe UI",Arial,sans-serif'; g.fillStyle = '#fff'; g.shadowBlur = 16;
+        g.font = '900 38px "Segoe UI",Arial,sans-serif'; g.fillStyle = col; g.shadowBlur = 12;
         g.fillText(w, x, 66, 100);
     });
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
@@ -118,15 +118,22 @@ void main(){
   float scan = 0.55 + 0.45 * sin(vP.y * 900.0 - uTime * 6.0);
   float rise = smoothstep(0.0, 0.18, t) * (1.0 - smoothstep(0.85, 1.0, t));
   float wave = smoothstep(0.92, 1.0, sin(t * 9.0 - uTime * 2.2));
-  float a = (0.45 + 0.9 * fres + 0.5 * wave + 0.6 * uPulse) * scan * rise;
-  vec3 c = uColor * (1.1 + 1.4 * uPulse) + vec3(0.25) * wave;
+  float a = (0.34 + 0.7 * fres + 0.4 * wave + 0.9 * uPulse) * scan * rise;
+  vec3 c = uColor * (0.7 + 1.8 * uPulse) + vec3(0.1) * wave;
   gl_FragColor = vec4(c * a, a);
 }`;
 
+// Data Core hits: the VUK capture/eject, the core tube, or the core flasher firing.
+function coreEvent(e) {
+    if (e.source === 'presentation') return e.type === 'flash' && (e.id === 'flCore' || e.id === 'all');
+    return (e.id === 'dataCore' && (e.type === 'hole' || e.type === 'eject')) || (e.id === 'coreTube' && (e.type === 'pathEnter' || e.type === 'pathMade'));
+}
+
 function colorOf(THREE, v, fallback) { try { return new THREE.Color(v || fallback); } catch { return new THREE.Color(fallback); } }
 
-export function buildToys(THREE, kit, layout) {
-    const low = !!(kit && kit.W && kit.W <= 1024);
+// opts = {tier, low} from the scene (the quality tier name and whether it is the low one); falls back to the art size.
+export function buildToys(THREE, kit, layout, opts) {
+    const low = opts && typeof opts.low === 'boolean' ? opts.low : !!(kit && kit.W && kit.W <= 1024);
     const group = new THREE.Group(); group.name = 'neonToys';
     const disposables = [];
     const own = o => { disposables.push(o); return o; };
@@ -202,17 +209,20 @@ export function buildToys(THREE, kit, layout) {
     let pulse = 0, hue = new THREE.Color('#37d9ff');
     return {
         group,
-        update(dt, t, snap, toyState, lamps) {
+        // events: this frame's physics events and presentation commands [{source, type, id}]; the spire pulses on Data Core activity.
+        update(dt, t, snap, toyState, lamps, events) {
             const st = toyState && toyState.spire ? toyState.spire : { speed: 0.4, color: '#37d9ff' };
             const speed = Number.isFinite(st.speed) ? st.speed : 0.4;
             hue.lerp(target.set(colorOf(THREE, st.color, '#37d9ff')), Math.min(1, dt * 4));
-            const flash = lamps && lamps.flashLevel && lamps.flashLevel.length ? lamps.flashLevel[0] : 0;
-            pulse = Math.max(flash || 0, pulse - dt * 2.2);
+            let hit = 0;
+            if (events) { for (const e of events) if (coreEvent(e)) hit = 1; }
+            else if (lamps && lamps.flashLevel && lamps.flashLevel.length) hit = lamps.flashLevel[0] || 0;   // engine harness: no event feed
+            pulse = Math.max(hit, pulse - dt * 2.2);
             holoU.uTime.value = t; holoU.uPulse.value = Math.min(1, pulse); holoU.uColor.value.copy(hue);
             prism.rotation.y = t * speed * 0.9;
             crystal.rotation.y = -t * speed * 1.3; crystal.rotation.x = t * speed * 0.7;
             crystalMat.color.copy(hue).lerp(hot, 0.4 + 0.5 * pulse);
-            emitterMat.color.copy(hue).multiplyScalar(1.1 + pulse);
+            emitterMat.color.copy(hue).multiplyScalar(0.8 + 1.1 * pulse);
             rings.forEach((r, i) => { r.rotation.z = t * speed * (i % 2 ? -1.2 : 1.2) * (1 + i * 0.4); r.material.color.copy(hue); r.position.y = 0.04 + i * 0.03 + Math.sin(t * speed * 0.6 + i * 2) * 0.004; });
             if (motes) {
                 const a = motes.geometry.attributes.position;
@@ -225,9 +235,9 @@ export function buildToys(THREE, kit, layout) {
             // signs follow the skyline lamps (fallback: gentle flicker)
             let dirty = false;
             for (let i = 0; i < 6; i++) {
-                let lv = 0.5 + 0.12 * Math.sin(t * 1.7 + i * 2.1);
+                let lv = 0.4 + 0.1 * Math.sin(t * 1.7 + i * 2.1);
                 const idx = lamps && lamps.index && lamps.index.get ? lamps.index.get(signLamp[i]) : undefined;
-                if (idx !== undefined && lamps.intensity) lv = 0.25 + 0.95 * lamps.intensity[idx];
+                if (idx !== undefined && lamps.intensity) lv = 0.16 + 0.62 * lamps.intensity[idx];
                 if (i === 2 && Math.sin(t * 9.0) > 0.96) lv *= 0.55;     // a faulty tube
                 signLevel[i] += (lv - signLevel[i]) * Math.min(1, dt * 12);
                 for (let k = 0; k < 4; k++) signCol.setXYZ(i * 4 + k, signLevel[i], signLevel[i], signLevel[i]);

@@ -160,3 +160,32 @@ export function plungerParts(low) {
     const spring = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), turns * (low ? 6 : 10), 0.00085, 4, false);
     return { rod, tip, spring };
 }
+
+// Printed sling plastic: a colour gradient with a neon edge line and a light sheen, mapped planar over the plate bounds.
+export function slingBounds(pts) {
+    const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+    return { x0: Math.min(...xs), y0: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs) || 1, h: Math.max(...ys) - Math.min(...ys) || 1 };
+}
+export function planarUV(geo, b) {
+    const p = geo.attributes.position, uv = new Float32Array(p.count * 2);
+    for (let i = 0; i < p.count; i++) { uv[2 * i] = (p.getX(i) - b.x0) / b.w; uv[2 * i + 1] = (-p.getZ(i) - b.y0) / b.h; }
+    geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    return geo;
+}
+export function slingArtTexture(tri, b, secondary, accent) {
+    const S = 256, c = document.createElement('canvas'); c.width = c.height = S;
+    const g = c.getContext('2d'), P = tri.map(q => [(q[0] - b.x0) / b.w * S, (1 - (q[1] - b.y0) / b.h) * S]);
+    const path = () => { g.beginPath(); P.forEach((q, i) => (i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]))); g.closePath(); };
+    const gr = g.createLinearGradient(0, 0, S, S);
+    gr.addColorStop(0, '#12051d'); gr.addColorStop(0.55, secondary); gr.addColorStop(1, '#ffd0ef');
+    g.fillStyle = gr; path(); g.fill();
+    g.save(); path(); g.clip(); g.globalAlpha = 0.28; g.strokeStyle = '#ffffff'; g.lineWidth = 7;
+    for (let i = -2; i < 6; i++) { g.beginPath(); g.moveTo(i * 60, S); g.lineTo(i * 60 + S, 0); g.stroke(); }
+    g.restore();
+    const cx = P.reduce((a, q) => a + q[0], 0) / 3, cy = P.reduce((a, q) => a + q[1], 0) / 3;
+    g.shadowColor = accent; g.shadowBlur = 10; g.strokeStyle = accent; g.lineWidth = 5; g.lineJoin = 'round';
+    g.beginPath(); P.forEach((q, i) => { const x = cx + (q[0] - cx) * 0.8, y = cy + (q[1] - cy) * 0.8; if (i) g.lineTo(x, y); else g.moveTo(x, y); }); g.closePath(); g.stroke();
+    g.shadowBlur = 0; g.strokeStyle = '#ffffff'; g.lineWidth = 1.6; g.globalAlpha = 0.85; g.stroke();
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+    return t;
+}

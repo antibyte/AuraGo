@@ -69,7 +69,11 @@ func TestDesktopPinballSurvey(t *testing.T) {
 				t.Fatalf("harness failed: %s", msg)
 			}
 			time.Sleep(400 * time.Millisecond)
-			base := table + "-" + strings.NewReplacer(":", "-", ",", "_", ".", "p").Replace(scene)
+			if js := os.Getenv("AURAGO_PINBALL_EVAL"); js != "" {
+				page.MustEval(js)
+				time.Sleep(500 * time.Millisecond)
+			}
+			base := table + "-" + strings.NewReplacer(":", "-", ",", "_", ".", "p", ";", "_").Replace(scene) + "-" + quality
 			shot := func(suffix string) {
 				path := filepath.Join(dir, base+suffix+".png")
 				if err := os.WriteFile(path, page.MustScreenshot(), 0o644); err != nil {
@@ -78,6 +82,7 @@ func TestDesktopPinballSurvey(t *testing.T) {
 				t.Logf("wrote %s", path)
 			}
 			shot("")
+			t.Logf("graphics %s", page.MustEval(`()=>{const h=window.pinballHarness;const g=h.game?h.game.inspect().graphics:(h.engine?h.engine.scene.stats():null);return g?JSON.stringify({q:g.quality,calls:g.drawCalls,tris:g.triangles,lights:g.lights,tex:g.textures}):""}`).Str())
 			if scene == "2d" {
 				checkPinball2D(t, page)
 				time.Sleep(200 * time.Millisecond)

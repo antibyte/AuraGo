@@ -5,9 +5,9 @@ import { rngNext } from '../config.js';
 
 // DPR cap, bloom, shadow map size (0 = none), art size, point lights, MSAA samples, anisotropy.
 export const TIERS = Object.freeze({
-    low: { dpr: 1, bloom: null, shadow: 0, art: [1024, 2048], lights: 2, samples: 2, aniso: 1, lampGain: 3.4 },
-    medium: { dpr: 1.25, bloom: { strength: 0.55, radius: 0.4, threshold: 0.85, half: true }, shadow: 1024, art: [2048, 4096], lights: 6, samples: 4, aniso: 4, lampGain: 2.6 },
-    high: { dpr: 1.5, bloom: { strength: 0.7, radius: 0.45, threshold: 0.85, half: false }, shadow: 2048, art: [2048, 4096], lights: 6, samples: 4, aniso: 8, lampGain: 2.6 }
+    low: { dpr: 1, bloom: null, shadow: 0, art: [1024, 2048], lights: 2, samples: 2, aniso: 1, lampGain: 1.9 },
+    medium: { dpr: 1.25, bloom: { strength: 0.42, radius: 0.38, threshold: 1.3, half: true }, shadow: 1024, art: [2048, 4096], lights: 6, samples: 4, aniso: 4, lampGain: 1.4 },
+    high: { dpr: 1.5, bloom: { strength: 0.5, radius: 0.4, threshold: 1.3, half: false }, shadow: 2048, art: [2048, 4096], lights: 6, samples: 4, aniso: 8, lampGain: 1.45 }
 });
 export const tierOf = q => TIERS[q] || TIERS.high;
 
@@ -109,10 +109,12 @@ export function createMaterials({ envMap, palette, aniso = 1 }) {
     const std = (o, env = 1) => new THREE.MeshStandardMaterial({ envMap, envMapIntensity: env, ...o });
     const woodTex = canvasTexture(woodCanvas(), { aniso, repeat: true });
     const mats = {
-        chrome: std({ color: '#c9d3df', metalness: 0.85, roughness: 0.22 }, 1.15),
+        chrome: std({ color: '#c9d3df', metalness: 0.85, roughness: 0.42 }, 0.9),
         steel: std({ color: '#76818f', metalness: 1, roughness: 0.4 }, 0.85),
         darkMetal: std({ color: '#232832', metalness: 0.9, roughness: 0.42 }, 0.9),
-        wood: std({ color: '#b98a62', map: woodTex, metalness: 0.0, roughness: 0.42 }, 0.7),
+        wood: new THREE.MeshPhysicalMaterial({ color: '#a8754c', map: woodTex, metalness: 0, roughness: 0.46, clearcoat: 0.7, clearcoatRoughness: 0.16, envMap, envMapIntensity: 0.7 }),
+        rail: std({ color: '#ffffff', vertexColors: true, metalness: 0.88, roughness: 0.55 }, 0.34),
+        plasticWall: new THREE.MeshPhysicalMaterial({ color: '#ffffff', vertexColors: true, transparent: true, opacity: 0.55, roughness: 0.12, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.08, envMap, envMapIntensity: 0.7, depthWrite: false }),
         laminate: std({ color: '#0c0f16', metalness: 0.15, roughness: 0.38 }, 0.5),
         apron: std({ color: '#10141d', metalness: 0.1, roughness: 0.3 }, 0.9),
         rubberBlack: std({ color: '#0a0a0c', metalness: 0, roughness: 0.8 }, 0.1),

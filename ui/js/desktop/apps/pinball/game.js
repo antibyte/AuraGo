@@ -26,7 +26,7 @@ export function mountGame(host, context = {}) {
     };
     const read = key => { try { return JSON.parse(localStorage.getItem(key)); } catch (_) { return null; } };
     let settings = normalizeSettings(read(STORAGE.settings)), scores = normalizeScores(read(STORAGE.scores)), tableId = TABLES[context.table] ? context.table : 'neon';
-    let session = null, scene = null, audio = null, lamps = null, dmd = null, presenter = null, loadController = null, modes = null, blend = null, autoplay = null;
+    let recent = [], session = null, scene = null, audio = null, lamps = null, dmd = null, presenter = null, loadController = null, modes = null, blend = null, autoplay = null;
     let disposed = false, loading = false, generation = 0, raf = 0, last = 0, accumulator = 0, clock = 0, paused = true, visible = true, wasActive = true;
     let camera = settings.camera, count = 1, names = [], returnPanel = 'lobby', saved = false, overFor = 0;
     const life = new AbortController(), view = createView(host, tr, assetURL, TABLES), root = view.root;
@@ -135,7 +135,7 @@ export function mountGame(host, context = {}) {
             scene = next; session = createSession(table, { seed }); lamps = createLamps(layout, { seed });
             dmd = createDmd({ raster, tr, locale }); audio = createAudio({ tableId, settings, assetURL, locale, tr });
             presenter = createPresenter({ layout, lamps, dmd, audio, scene, callouts: () => settings.callouts !== false, reduced: reducedNow });
-            session.onPresentation(command => presenter.handle(command)); session.onEvent(ev => presenter.event(ev));
+            session.onPresentation(command => { presenter.handle(command); note('presentation', command); }); session.onEvent(ev => { presenter.event(ev); note('physics', ev); });
             session.setScores(scores[tableId]); modes = new Uint8Array(layout.lamps.length);
             loading = false; camera = settings.camera; applyReduced(); applyCamera(); panel('lobby'); schedule();
         } catch (error) {
@@ -144,6 +144,8 @@ export function mountGame(host, context = {}) {
         }
     }
 
+    // Small ring of what just happened (physics events + presentation commands) for scene toys; drained once per frame.
+    function note(source, ev) { if (recent.length < 48) recent.push({ source, type: ev.type, id: ev.id ?? ev.name ?? null }); }
     function doTicks(time, dt) {
         accumulator += dt;
         let steps = 0;
@@ -162,7 +164,7 @@ export function mountGame(host, context = {}) {
     function updateHud(snap, g, running) {
         const shooter = snap.balls.some(b => b.mode === 'shooter'), pulling = running && (shooter || snap.plunger > .02);
         view.hud.setPlunger(snap.plunger, pulling);
-        const save = g?.ballSave, left = save && save.armed && !save.unlimited && g.phase !== 'bonus' ? (save.until === null ? save.seconds : Math.max(0, save.soft - g.time)) : 0;
+        const save = g?.ballSave, left = save && save.armed && !save.unlimited && g.phase !== 'bonus' && save.soft !== null ? Math.max(0, save.soft - g.time) : 0;   // counts down from the first scoring switch; hidden before the timer starts and once it ends
         view.hud.setBallSave(running ? left : 0);
         view.hud.setInitialsHint(g?.phase === 'initials');
         if (running) audio?.plunger(snap.plunger);
@@ -184,7 +186,8 @@ export function mountGame(host, context = {}) {
             session.lampModes(modes); lamps.setModes(modes); lamps.update(step);
             dmd.update(step, session.dmdState()); dmdView.draw(dmd.frame, dmd.version);
             const pair = session.snapshotPair(), snap = running ? (blend = lerpSnapshot(pair.prev, pair.curr, clamp(accumulator / STEP, 0, 1), blend)) : pair.curr;
-            scene.update({ snap, lamps, dmd: { frame: dmd.frame, version: dmd.version }, toyState: session.toyState(), dt, time: clock, paused, reduced: reducedNow(), interactive: nowActive });
+            scene.update({ snap, lamps, dmd: { frame: dmd.frame, version: dmd.version }, toyState: session.toyState(), events: recent, dt, time: clock, paused, reduced: reducedNow(), interactive: nowActive });
+            recent = [];
             updateHud(snap, g, running);
             if (running) audio?.roll(session.rollBalls());
         }

@@ -107,14 +107,27 @@ function onShot(ctx, id) {
     checkModeExtraBall(ctx, ctx.player.table);
 }
 
+// Decorative idle show (plan 7): the stream rows chase up the middle and the skyline signs breathe, faster in modes and multiball.
+const STREAM_ROWS = 8;
+function idleShow(g, set) {
+    const speed = g.mb.state !== 'off' ? 11 : g.mode.id ? 7 : 4.5, t = g.time, head = Math.floor(t * speed) % (STREAM_ROWS + 5);
+    for (let i = 0; i < 16; i++) {
+        const row = Math.floor(i / 2), d = head - row;
+        set('stream' + (i + 1), d === 0 ? 'on' : d === 1 || d === 2 ? 'dim' : 'off');
+    }
+    for (let i = 0; i < 6; i++) set('skyline' + (i + 1), Math.sin(t * (speed > 5 ? 2.6 : 1.3) + i * 1.9) > -0.2 ? 'on' : 'dim');
+}
+
 function lamps(ctx, set) {
     const p = ctx.player, t = p.table, g = ctx.game;
-    FW.forEach((id, i) => set(id, p.lockLit ? 'slow' : (t.fw[i] ? 'on' : 'off')));
-    LETTERS.forEach((id, i) => set(id, t.letters[i] ? 'on' : 'off'));
+    // Standing targets and uncollected letters glow dimly (still to hit); hit ones turn solid.
+    FW.forEach((id, i) => set(id, p.lockLit ? 'slow' : (t.fw[i] ? 'on' : 'dim')));
+    LETTERS.forEach((id, i) => set(id, t.letters[i] ? 'on' : 'dim'));
     // The bank pays out in modes and multiball: its unlit letters blink slowly then.
     const hot = g.mode.id || g.mb.state !== 'off';
-    UPLINK.forEach((id, i) => set(id, t.up[i] ? 'on' : hot ? 'slow' : 'off'));
+    UPLINK.forEach((id, i) => set(id, t.up[i] ? 'on' : hot ? 'slow' : 'dim'));
     set('spinnerLit', g.mode.id === 'chase' ? 'on' : 'off');
+    idleShow(g, set);
 }
 
 function toy(g) {

@@ -56,7 +56,10 @@ async function modeEngine(h) {
     const mechanical = spec !== 'attract' && spec !== 'showcase';
     if (mechanical) lamps.setModes(Uint8Array.from(layout.lamps, (_, i) => (i % 4 === 3 ? 2 : 1)));
     const closeup = /^closeup:(-?[\d.]+)[,;](-?[\d.]+)[,;]?(-?[\d.]*)/.exec(spec);
-    if (closeup) sc.three.rig.closeup(Number(closeup[1]), Number(closeup[2]), Number(closeup[3]) || 0);
+    if (closeup) {
+        sc.three.rig.closeup(Number(closeup[1]), Number(closeup[2]), Number(closeup[3]) || 0);
+        if (params.ball !== '0') { h.placeBall(Number(closeup[1]) + 0.012, Number(closeup[2]) - 0.006, 0, 0); h.step(2); h.clock.paused = true; }   // a resting ball for material checks
+    }
     if (spec === 'play' || spec === 'action' || spec === 'top') { h.placeBall(-0.06, 0.34, 0.2, -0.3); h.placeBall(0.1, 0.52, -0.1, -0.2); }
     const inset = () => sc.setInsets({ top: Number(new URLSearchParams(location.search).get('inset') ?? (cameraName === 'top' ? 0 : 0.24)) * h.stage.clientHeight });
     inset(); addEventListener('resize', inset);

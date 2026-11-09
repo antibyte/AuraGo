@@ -17,7 +17,7 @@ export function paintPlayfieldArt({ layout, tr, tableId, size, underlay, aniso }
     const palette = { accent: layout.meta && layout.meta.accent, secondary: layout.meta && layout.meta.secondary };
     const kit = createArtKit(ctx, { W, H, layout, tr, palette, underlay });
     const visual = VISUALS[tableId] || null;
-    kit.autoArt({ paint: visual && visual.paintArt ? visual.paintArt : null, brightness: 0.52 });
+    kit.autoArt({ paint: visual && visual.paintArt ? visual.paintArt : null, brightness: 0.78 });
     const tex = canvasTexture(canvas, { aniso });
     return { texture: tex, canvas, kit };
 }
@@ -51,7 +51,7 @@ export function createLampTextures(layout) {
 
 const FRAG_HEAD = `
 uniform sampler2D lampMask; uniform sampler2D lampState; uniform sampler2D giMap;
-uniform vec2 giLevel; uniform float lampGain; uniform float giFloor;
+uniform vec2 giLevel; uniform float lampGain; uniform float giFloor; uniform float giLift; uniform vec3 giTintLo; uniform vec3 giTintUp;
 vec3 lampRgb(float idx){ return texture2D(lampState, vec2((idx + 0.5) / 256.0, 0.5)).rgb; }
 `;
 const AFTER_MAP = `
@@ -61,6 +61,7 @@ const AFTER_MAP = `
   diffuseColor.rgb *= mix(giFloor, 1.0, pfGi);
 `;
 const AFTER_EMISSIVE = `
+  totalEmissiveRadiance += diffuseColor.rgb * (pfGw.x * giLevel.x * giTintLo + pfGw.y * giLevel.y * giTintUp) * giLift;
   float pfIns = floor(pfMask.r * 255.0 + 0.5);
   if (pfIns > 0.5) {
     vec3 pfLit = pow(lampRgb(pfIns), vec3(2.2));
@@ -72,7 +73,7 @@ const AFTER_EMISSIVE = `
     pfHot += floor(texture2D(lampMask, vMapUv + vec2(-pfT.x, -pfT.y)).r * 255.0 + 0.5) == pfIns ? 0.25 : 0.0;
     float pfInk = smoothstep(0.015, 0.14, max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)));
     float pfPeak = max(pfLit.r, max(pfLit.g, pfLit.b));
-    vec3 pfCore = pfLit * (0.5 + 1.15 * pfHot * pfHot) + vec3(pfPeak * pfHot * pfHot * pfHot * 0.55);
+    vec3 pfCore = pfLit * (0.55 + 0.95 * pfHot * pfHot) + vec3(pfPeak * pfHot * pfHot * pfHot * 0.14);
     totalEmissiveRadiance += pfCore * lampGain * mix(0.1, 1.0, pfInk);
   } else {
     float pfHalo = floor(pfMask.g * 255.0 + 0.5);
@@ -80,10 +81,11 @@ const AFTER_EMISSIVE = `
   }
 `;
 
-export function createPlayfieldMaterial({ artTex, lampTex, envMap, lampGain = 2.6, forceFallback = false }) {
+export function createPlayfieldMaterial({ artTex, lampTex, envMap, lampGain = 2.6, forceFallback = false, giColors = {} }) {
     const uniforms = {
         lampMask: { value: lampTex.maskTex }, lampState: { value: lampTex.stateTex }, giMap: { value: lampTex.giTex },
-        giLevel: { value: new THREE.Vector2(1, 1) }, lampGain: { value: lampGain }, giFloor: { value: 0.35 }
+        giLevel: { value: new THREE.Vector2(1, 1) }, lampGain: { value: lampGain }, giFloor: { value: 0.35 }, giLift: { value: 0.42 },
+        giTintLo: { value: hexToLinear(giColors.lower || '#ffe9d0') }, giTintUp: { value: hexToLinear(giColors.upper || '#ffe9d0') }
     };
     const material = new THREE.MeshPhysicalMaterial({
         map: artTex, color: '#ffffff', roughness: 0.55, metalness: 0.04, clearcoat: 0.55, clearcoatRoughness: 0.12,
@@ -97,7 +99,7 @@ export function createPlayfieldMaterial({ artTex, lampTex, envMap, lampGain = 2.
             .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + AFTER_EMISSIVE);
     };
     if (patched) material.onBeforeCompile = patch;
-    material.customProgramCacheKey = () => (patched ? 'pf-lamp-v1' : 'pf-plain');
+    material.customProgramCacheKey = () => (patched ? 'pf-lamp-v3' : 'pf-plain');
     // CPU fallback: an emissive canvas redrawn at 30 Hz from the lamp state (insets + soft glow).
     let fb = null;
     const fallback = {
@@ -132,18 +134,29 @@ export function createPlayfieldMaterial({ artTex, lampTex, envMap, lampGain = 2.
     return { material, uniforms, fallback };
 }
 
-const WALL_T = { wood: 0.010, metal: 0.0036 };
+const WALL_T = { wood: 0.010, metal: 0.0042, plastic: 0.0036 };
 
-// Merged wood rails (offset outward from the field centre, h 0..height) and metal guides (centred).
+// Vertex colours by face direction: bright top edge, darker sides (so rails read as thick brushed steel / plastic).
+function tintByNormal(g, top, side) {
+    const n = g.attributes.normal, col = new Float32Array(n.count * 3);
+    for (let i = 0; i < n.count; i++) { const c = n.getY(i) > 0.7 ? top : side; col[3 * i] = c[0]; col[3 * i + 1] = c[1]; col[3 * i + 2] = c[2]; }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    return g;
+}
+
+// Merged wood rails (offset outward from the field centre, h 0..height), brushed-steel guides and tinted plastic walls (centred).
 export function buildWallGeometry(layout) {
-    const wood = [], metal = [];
+    const wood = [], metal = [], plastic = [], accent = new THREE.Color((layout.meta && layout.meta.accent) || '#37d9ff');
     for (const w of layout.walls || []) {
-        if ((w.render !== 'wood' && w.render !== 'metal') || !w.points || w.points.length < 2) continue;
+        if ((w.render !== 'wood' && w.render !== 'metal' && w.render !== 'plastic') || !w.points || w.points.length < 2) continue;
         const wood1 = w.render === 'wood', h1 = Math.max(0.012, w.height || 0.03) * (wood1 ? 1.25 : 1);
         const g = ribbonGeometry(w.points, { thickness: WALL_T[w.render], h0: -0.002, h1, away: wood1 ? FIELD_CENTER : null, uvLen: 0.18 });
-        if (g) (wood1 ? wood : metal).push(g);
+        if (!g) continue;
+        if (wood1) wood.push(g);
+        else if (w.render === 'metal') metal.push(tintByNormal(g, [0.85, 0.88, 0.94], [0.5, 0.54, 0.6]));
+        else { const c = w.color ? new THREE.Color(w.color) : accent; plastic.push(tintByNormal(g, [c.r * 1.8 + 0.25, c.g * 1.8 + 0.25, c.b * 1.8 + 0.25], [c.r * 0.7, c.g * 0.7, c.b * 0.7])); }
     }
-    return { wood: merge(wood), metal: merge(metal) };
+    return { wood: merge(wood), metal: merge(metal), plastic: merge(plastic) };
 }
 
 export function hexToLinear(hex, k = 1) {

@@ -49,19 +49,28 @@ export const FIELD_CORNERS_LOCAL = (() => {
     return out;
 })();
 
+// Player view: the lockdown bar edge to the top-arc toys (no backbox), so the field fills the free height.
+export const PLAY_CORNERS_LOCAL = (() => {
+    const out = [];
+    for (const x of [-0.2975, 0.2975]) for (const y of [-0.03, 1.07]) for (const h of [0, 0.09]) out.push([x, h, -y]);
+    return out;
+})();
+const PLAY_ELEVATION = 49 * Math.PI / 180;
+
 export function createCameraRig({ camera, domElement, tableRoot, reduced = false }) {
     tableRoot.updateMatrixWorld(true);
     const toWorld = p => { const v = new THREE.Vector3(p[0], p[1], p[2]).applyMatrix4(tableRoot.matrixWorld); return [v.x, v.y, v.z]; };
     const rot = new THREE.Matrix4().makeRotationX(TILT);
     const dirWorld = p => { const v = new THREE.Vector3(p[0], p[1], p[2]).applyMatrix4(rot); return [v.x, v.y, v.z]; };
-    const corners = FIELD_CORNERS_LOCAL.map(toWorld);
+    const corners = FIELD_CORNERS_LOCAL.map(toWorld), playCorners = PLAY_CORNERS_LOCAL.map(toWorld);
     // Showcase frames the whole machine: backbox top and the legs down to the floor.
     const machine = corners.concat([[-0.3, 0.64, -1.12], [0.3, 0.64, -1.12], [-0.28, -0.8, 0.1], [0.28, -0.8, 0.1], [-0.28, -0.8, -1.05], [0.28, -0.8, -1.05]].map(toWorld));
     const controls = new OrbitControls(camera, domElement);
     controls.enableDamping = true; controls.dampingFactor = 0.08; controls.minDistance = 0.55; controls.maxDistance = 3.2;
     controls.maxPolarAngle = Math.PI * 0.495; controls.enablePan = false; controls.enabled = false; controls.autoRotateSpeed = 0.9;
 
-    const PLAY = { fov: 36, target: toWorld([0, 0.02, -0.46]), dir: dirWorld([0, Math.sin(52 * Math.PI / 180), Math.cos(52 * Math.PI / 180)]), up: [0, 1, 0] };
+    const ATTRACT = { fov: 36, target: toWorld([0, 0.02, -0.46]), dir: dirWorld([0, Math.sin(52 * Math.PI / 180), Math.cos(52 * Math.PI / 180)]), up: [0, 1, 0] };
+    const PLAY = { fov: 36, target: toWorld([0, 0.02, -0.5]), dir: dirWorld([0, Math.sin(PLAY_ELEVATION), Math.cos(PLAY_ELEVATION)]), up: [0, 1, 0] };
     const TOP = { fov: 30, target: toWorld([0, 0, -0.5]), dir: dirWorld([0, 1, 0]), up: dirWorld([0, 0, -1]) };
     const SHOW = { fov: 36, target: toWorld([0, -0.05, -0.55]), dir: norm([-0.55, 0.5, 0.85]), up: [0, 1, 0] };
     const state = { mode: 'play', width: 1, height: 1, insetTop: 0, idle: 0, base: PLAY, dist: 1, shiftX: 0, shiftY: 0, swing: 0 };
@@ -91,9 +100,9 @@ export function createCameraRig({ camera, domElement, tableRoot, reduced = false
             state.dist = fitDistance(SHOW, machine, aspect, {}, 0.06); applyShift(false);
             return;
         }
-        state.base = m === 'top' ? TOP : PLAY; camera.fov = state.base.fov;
-        const margin = m === 'attract' ? 0.07 : 0.03;
-        let fit = fitCamera(state.base, corners, aspect, { top }, margin);
+        state.base = m === 'top' ? TOP : m === 'attract' ? ATTRACT : PLAY; camera.fov = state.base.fov;
+        const margin = m === 'attract' ? 0.07 : m === 'play' ? 0.015 : 0.03;
+        let fit = fitCamera(state.base, m === 'play' ? playCorners : corners, aspect, { top }, margin);
         if (m === 'attract') for (const yaw of [-0.21, 0.21]) {
             const b = state.base, d = b.dir, c = Math.cos(yaw), s = Math.sin(yaw);
             const alt = { ...b, dir: [d[0] * c + d[2] * s, d[1], -d[0] * s + d[2] * c] };

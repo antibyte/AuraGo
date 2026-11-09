@@ -91,15 +91,15 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
 
     const forceFallback = /[?&]shader=fallback/.test((typeof location !== 'undefined' && location.search) || '') || settings.forceFallback === true;
     let art = paintPlayfieldArt({ layout, tr, tableId, size: tier.art, underlay, aniso: aniso() });
-    const pf = createPlayfieldMaterial({ artTex: art.texture, lampTex: lamps0.texture, envMap: env.texture, lampGain: tier.lampGain, forceFallback });
+    const pf = createPlayfieldMaterial({ artTex: art.texture, lampTex: lamps0.texture, envMap: env.texture, lampGain: tier.lampGain, forceFallback, giColors: Object.fromEntries((layout.gi || []).map(g => [g.id, g.color])) });
     if (forceFallback) pf.fallback.enable();
     const plane = new THREE.Mesh(new THREE.PlaneGeometry(FIELD_W, FIELD_H), pf.material);
     plane.rotation.x = -Math.PI / 2; plane.position.set(0, 0, -FIELD_H / 2); plane.receiveShadow = true; plane.name = 'playfield';
     tableRoot.add(plane);
     const wallGeo = buildWallGeometry(layout), wallMeshes = [];
-    for (const [geo, mat, name] of [[wallGeo.wood, mats.wood, 'woodRails'], [wallGeo.metal, mats.chrome, 'metalGuides']]) {
+    for (const [geo, mat, name] of [[wallGeo.wood, mats.wood, 'woodRails'], [wallGeo.metal, mats.rail, 'metalGuides'], [wallGeo.plastic, mats.plasticWall, 'plasticWalls']]) {
         if (!geo) continue;
-        const m = new THREE.Mesh(geo, mat); m.name = name; m.castShadow = true; m.receiveShadow = true; tableRoot.add(m); wallMeshes.push(m);
+        const m = new THREE.Mesh(geo, mat); m.name = name; m.castShadow = name !== 'plasticWalls'; m.receiveShadow = true; if (name === 'plasticWalls') m.renderOrder = 2; tableRoot.add(m); wallMeshes.push(m);
     }
     const cabinet = buildCabinet({ tableRoot, layout, mats, tr, tableId, backglass: backglassCanvas(glassImg, palette), aniso: aniso() });
     const room = buildRoom({ scene, tableRoot, mats, accent: palette.accent, secondary: palette.secondary });
@@ -114,8 +114,15 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
     const tmpM = new THREE.Matrix4();
 
     const visual = VISUALS[tableId] || {};
-    let toys = null;
-    if (visual.buildToys) { toys = visual.buildToys(THREE, art.kit, layout); if (toys && toys.group) tableRoot.add(toys.group); }
+    let toys = null, toysLow = false;
+    const buildToysNow = () => {
+        if (!visual.buildToys) return;
+        if (toys) { if (toys.dispose) toys.dispose(); toys = null; }
+        toysLow = quality === 'low';
+        toys = visual.buildToys(THREE, art.kit, layout, { tier: quality, low: toysLow });
+        if (toys && toys.group) tableRoot.add(toys.group);
+    };
+    buildToysNow();
 
     // ---- camera + composer ----
     const rig = createCameraRig({ camera, domElement: canvas, tableRoot, reduced: settings.reduced === true });
@@ -174,11 +181,12 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
         env = fresh; old.dispose();
     };
     canvas.addEventListener('webglcontextlost', onLost); canvas.addEventListener('webglcontextrestored', onRestored);
-    applyTier(); rebuildArt(); rig.setMode(['top', 'showcase', 'attract'].includes(settings.camera) ? settings.camera : 'play'); resize();
+    const setCam = mode => { rig.setMode(mode); cabinet.head.visible = rig.mode !== 'play' && rig.mode !== 'top'; };
+    applyTier(); rebuildArt(); setCam(['top', 'showcase', 'attract'].includes(settings.camera) ? settings.camera : 'play'); resize();
 
     function update(o = {}) {
         if (disposed || lost) return;
-        const { snap, lamps, dmd, toyState, dt = 0, paused = false, reduced = false, interactive = true } = o;
+        const { snap, lamps, dmd, toyState, events = [], dt = 0, paused = false, reduced = false, interactive = true } = o;
         const step = paused ? 0 : Math.min(0.05, Math.max(0, dt));
         tAnim += step;
         if (reduced !== reducedNow) { reducedNow = reduced; if (tier.bloom) bloom.strength = tier.bloom.strength * (reduced ? 0.6 : 1); }
@@ -201,7 +209,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
         ballMesh.count = n; ballMesh.visible = simpleBalls; if (n) ballMesh.instanceMatrix.needsUpdate = true;
         const ctx = { snap, lamps, toyState, dt: step, time: tAnim, reduced, scene: api };
         for (const m of mechs) if (m.update) m.update(ctx);
-        if (toys && toys.update) toys.update(step, tAnim, snap, toyState, lamps);
+        if (toys && toys.update) toys.update(step, tAnim, snap, toyState, lamps, events);
         rig.update(step, tAnim, { reducedNow: reduced, interactive });
         composer.render(step);
         frames++;
@@ -209,8 +217,8 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
 
     const api = {
         update,
-        setQuality(q) { if (!TIERS[q] || q === quality) return; quality = q; applyTier(); rebuildArt(); },
-        setCamera(mode) { rig.setMode(mode); },
+        setQuality(q) { if (!TIERS[q] || q === quality) return; quality = q; applyTier(); rebuildArt(); if ((q === 'low') !== toysLow) buildToysNow(); },
+        setCamera(mode) { setCam(mode); },
         setInsets(i) { rig.setInsets(i); },
         shake(dx, dy, strength) { rig.shake(dx, dy, strength); },
         hit() { /* T13/T16 hook: event visuals */ },

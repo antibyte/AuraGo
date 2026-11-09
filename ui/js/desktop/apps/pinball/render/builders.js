@@ -24,7 +24,7 @@ function makeCtx(host, D) {
         ? std({ color: new THREE.Color(accent).multiplyScalar(0.8), roughness: 0.3, emissive: new THREE.Color(accent).multiplyScalar(0.14), envMapIntensity: 1 })
         : D.m(new THREE.MeshPhysicalMaterial({ color: new THREE.Color(accent).multiplyScalar(0.8), roughness: 0.28, clearcoat: 0.8, clearcoatRoughness: 0.12, emissive: new THREE.Color(accent).multiplyScalar(0.14), envMap: env, envMapIntensity: 1.1 }));
     const chrome = D.m(mats.chrome.clone()); chrome.envMapIntensity = 0.7;
-    const wire = D.m(mats.chrome.clone()); wire.color.set('#8d98a8'); wire.envMapIntensity = 0.32; wire.roughness = 0.38;
+    const wire = D.m(mats.chrome.clone()); wire.color.set('#8d98a8'); wire.envMapIntensity = 0.32; wire.roughness = 0.52;
     const lampList = layout.lamps || [];
     const ctx = {
         host, layout, mats: { ...mats, chrome, wire, rubber, flipperTop }, env, tier, low, accent, secondary, D, idx: buildAnimIndex(layout),
@@ -76,9 +76,10 @@ export function buildSling(ctx, def) {
     if (nx * ((a[0] + b[0]) / 2 - cx) + ny * ((a[1] + b[1]) / 2 - cy) < 0) { nx = -nx; ny = -ny; }
     const root = new THREE.Group(), band = mesh(ctx, M.bandGeometry(a, b, ctx.low, [-nx * 0.0022, -ny * 0.0022]), ctx.mats.rubber, def.id + '_kick');
     root.add(band);
-    const col = new THREE.Color(ctx.secondary), plate = M.polygonPlate(M.insetPolygon(tri, 0.0058), 0.0018, 0.0006, ctx.low).translate(0, 0.0188, 0);
-    const plasticMat = ctx.D.m(new THREE.MeshPhysicalMaterial({ color: col.clone().multiplyScalar(0.7), transparent: true, opacity: 0.55, roughness: 0.18, metalness: 0, envMap: ctx.env, envMapIntensity: 0.9,
-        emissive: col.clone().multiplyScalar(0.22), emissiveIntensity: 1, depthWrite: false }));
+    const col = new THREE.Color(ctx.secondary), inner = M.insetPolygon(tri, 0.0058), bounds = M.slingBounds(inner);
+    const plate = M.planarUV(M.polygonPlate(inner, 0.0018, 0.0006, ctx.low).translate(0, 0.0188, 0), bounds), art = ctx.D.t(M.slingArtTexture(inner, bounds, ctx.secondary, ctx.accent));
+    const plasticMat = ctx.D.m(new THREE.MeshPhysicalMaterial({ color: '#ffffff', map: art, transparent: true, opacity: 0.88, roughness: 0.16, metalness: 0, envMap: ctx.env, envMapIntensity: 0.9,
+        clearcoat: ctx.low ? 0 : 0.8, clearcoatRoughness: 0.1, emissive: new THREE.Color(0.32, 0.32, 0.32), emissiveMap: art, emissiveIntensity: 1, depthWrite: false }));
     const glowMat = ctx.D.m(new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(1.8), transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false }));
     const plastic = mesh(ctx, plate, plasticMat, def.id + '_plastic'); plastic.renderOrder = 2;
     root.add(plastic);
@@ -304,7 +305,7 @@ function createDisposer() {
 export function buildMechanics(host) {
     const { root, layout } = host;
     let low = isLow(host.tier), built = null;
-    const balls = createBalls({ root, renderer: host.renderer, scene: host.scene, tableRoot: host.tableRoot, env: host.env, tier: host.tier });
+    const balls = createBalls({ root, renderer: host.renderer, scene: host.scene, tableRoot: host.tableRoot, env: host.env, tier: host.tier, accent: (layout.meta || {}).accent, secondary: (layout.meta || {}).secondary });
 
     function build() {
         const D = createDisposer(), ctx = makeCtx({ ...host, tier: host.tier }, D);

@@ -105,7 +105,7 @@ function plasticRamp(def, F, ctx, group, D) {
     const body = sweep(F, idx, [[-half - lt, -th], [-half - lt, lh], [-half, lh], [-half, 0], [half, 0], [half, lh], [half + lt, lh], [half + lt, -th]]);
     D.g(body);
     const bodyMat = new THREE.MeshPhysicalMaterial({ color: color.clone().multiplyScalar(0.4), roughness: 0.14, metalness: 0, transparent: true, opacity: 0.36, side: THREE.DoubleSide, depthWrite: false,
-        envMap: env, envMapIntensity: 1.2, clearcoat: low ? 0 : 1, clearcoatRoughness: 0.1, emissive: color.clone().multiplyScalar(0.07), emissiveIntensity: 1 });
+        envMap: env, envMapIntensity: 1.0, clearcoat: low ? 0 : 0.6, clearcoatRoughness: 0.3, emissive: color.clone().multiplyScalar(0.07), emissiveIntensity: 1 });
     D.m(bodyMat);
     const mesh = new THREE.Mesh(body, bodyMat); mesh.name = def.id + '_channel'; mesh.renderOrder = 2; mesh.frustumCulled = false; group.add(mesh);
     // Edge highlight along both lip tops.
@@ -123,7 +123,7 @@ function plasticRamp(def, F, ctx, group, D) {
     let si = Math.floor(F.count * 0.4);
     for (let i = si; i < F.count - 4; i++) { if (F.p[3 * i + 1] >= 0.03) { si = i; break; } }
     const tex = signTexture(def.color || '#37d9ff'); D.t(tex);
-    const signMat = new THREE.MeshStandardMaterial({ map: tex, emissive: new THREE.Color('#ffffff'), emissiveMap: tex, emissiveIntensity: 0.9, roughness: 0.4, metalness: 0, side: THREE.DoubleSide }); D.m(signMat);
+    const signMat = new THREE.MeshStandardMaterial({ map: tex, emissive: new THREE.Color('#ffffff'), emissiveMap: tex, emissiveIntensity: 0.5, roughness: 0.4, metalness: 0, side: THREE.DoubleSide }); D.m(signMat);
     const signGeo = new THREE.PlaneGeometry(w + 2 * lt, 0.016); D.g(signGeo);
     const sign = new THREE.Mesh(signGeo, signMat); sign.name = def.id + '_sign';
     const basis = new THREE.Matrix4().makeBasis(new THREE.Vector3(F.r[3 * si], F.r[3 * si + 1], F.r[3 * si + 2]), new THREE.Vector3(F.u[3 * si], F.u[3 * si + 1], F.u[3 * si + 2]),

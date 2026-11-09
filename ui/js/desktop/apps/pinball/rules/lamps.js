@@ -2,7 +2,7 @@
 import { LAMP_MODES } from '../contracts.js';
 import { cur, pack, layoutOf } from './features.js';
 
-const { off: OFF, on: ON, slow: SLOW, fast: FAST, pulse: PULSE } = LAMP_MODES;
+const { off: OFF, on: ON, slow: SLOW, fast: FAST, pulse: PULSE, dim: DIM } = LAMP_MODES;
 const indexCache = new WeakMap();
 
 // lamp id -> array index (lamp texel index is that plus one).
@@ -56,7 +56,7 @@ export function lampModes(g, out) {
     set(pk.modeStart?.lamp || 'modeStart', p.wizardReady ? FAST : (p.modeReady ? SLOW : OFF));
     const options = g.select ? g.select.options : [];
     for (const m of pk.modes || []) {
-        let mode = p.modesCompleted.includes(m.id) ? ON : (p.modesPlayed.includes(m.id) ? PULSE : OFF);
+        let mode = p.modesCompleted.includes(m.id) ? ON : (p.modesPlayed.includes(m.id) ? PULSE : DIM);   // a dim lamp = mode still to play
         if (g.mode.id === m.id) mode = FAST;
         else if (options.includes(m.id)) mode = SLOW;
         set('mode_' + m.id, mode);
@@ -78,6 +78,7 @@ export function lampModes(g, out) {
         else if (p.ebLit && pk.extraBall?.shot === shot.id) mode = PULSE;
         else if ((p.modeReady || p.wizardReady) && !g.mode.id && !mbOn && pk.modeStart?.shot === shot.id) mode = SLOW;
         else if (shot.combo && comboLive && g.combo.last !== shot.id) mode = PULSE;
+        else if (!mbOn && pk.shotPoints?.[shot.id]) mode = DIM;                  // a dim arrow = scoring shot
         set('arrow_' + shot.id, mode);
         set('jp_' + shot.id, mbShots.has(shot.id) ? FAST : OFF);
         set('combo_' + shot.id, shot.combo && comboLive && g.combo.last !== shot.id ? PULSE : OFF);

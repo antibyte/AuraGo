@@ -29,7 +29,7 @@ function modeLevel(mode, clock, flick) {
     case 3: return (clock * 6) % 1 < 0.5 ? 1 : 0;
     case 4: return 0.15 + 0.85 * (0.5 - 0.5 * Math.cos(clock * 1.25 * Math.PI * 2));
     case 5: return 0.3 + 0.7 * flick;
-    case 6: return 0.3;
+    case 6: return 0.5;
     default: return 0;
     }
 }
