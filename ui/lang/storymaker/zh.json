@@ -365,6 +365,8 @@
   "storymaker.agent.mode_text": "以文本方式调用工具",
   "storymaker.agent.outcome_ready_title": "你的故事已完成。请观看一遍。",
   "storymaker.agent.outcome_ready_text": "场景、素材和时间已检查。重叠和文字是否放得下未自动检查。",
+  "storymaker.agent.outcome_ready_checked_text": "已检查各场景、素材、时间节奏和每个场景的版面。",
+  "storymaker.agent.check_layout_found": "某个场景的版面仍有问题：文字盖住脚部、道具太小、内容超出画面或相互重叠。请观看一次并调整该场景。",
   "storymaker.agent.outcome_incomplete_title": "你的故事已部分完成。",
   "storymaker.agent.outcome_incomplete_text": "还有 {n} 个场景需要处理。有效的场景已保存。",
   "storymaker.agent.outcome_incomplete_some": "部分内容仍需处理。有效的场景已保存。",

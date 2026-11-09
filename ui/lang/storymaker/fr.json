@@ -365,6 +365,8 @@
   "storymaker.agent.mode_text": "Appels d'outils sous forme de texte",
   "storymaker.agent.outcome_ready_title": "Votre histoire est prête. Regardez-la une fois, s'il vous plaît.",
   "storymaker.agent.outcome_ready_text": "Les scènes, les ressources et le minutage ont été vérifiés. Les chevauchements et la place du texte n'ont pas été vérifiés automatiquement.",
+  "storymaker.agent.outcome_ready_checked_text": "Les scènes, les ressources, le minutage et la mise en page de chaque scène ont été vérifiés.",
+  "storymaker.agent.check_layout_found": "Une scène a encore un problème de mise en page : texte sur les pieds, objet trop petit, élément hors champ ou qui se chevauche. Regardez-la et ajustez la scène.",
   "storymaker.agent.outcome_incomplete_title": "Votre histoire est en partie terminée.",
   "storymaker.agent.outcome_incomplete_text": "{n} scènes demandent encore du travail. Les scènes valides sont enregistrées.",
   "storymaker.agent.outcome_incomplete_some": "Certaines parties demandent encore du travail. Les scènes valides sont enregistrées.",

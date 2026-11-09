@@ -365,6 +365,8 @@
   "storymaker.agent.mode_text": "Tool calls as text",
   "storymaker.agent.outcome_ready_title": "Your story is ready. Please watch it once.",
   "storymaker.agent.outcome_ready_text": "Scenes, assets and timing were checked. Overlaps and text fit were not checked automatically.",
+  "storymaker.agent.outcome_ready_checked_text": "Scenes, assets, timing and the layout of every scene were checked.",
+  "storymaker.agent.check_layout_found": "A scene still has a layout problem: text over feet, a small prop, something off screen or overlapping. Watch it once and adjust the scene.",
   "storymaker.agent.outcome_incomplete_title": "Your story is partly done.",
   "storymaker.agent.outcome_incomplete_text": "{n} scenes still need work. Valid scenes are saved.",
   "storymaker.agent.outcome_incomplete_some": "Some parts still need work. Valid scenes are saved.",

@@ -27,6 +27,7 @@
         narrating: 'storymaker.agent.phase_narrating'
     };
     const OUTCOME_KEYS = {
+        ready: { title: 'storymaker.agent.outcome_ready_title', text: 'storymaker.agent.outcome_ready_checked_text' },
         ready_unverified: { title: 'storymaker.agent.outcome_ready_title', text: 'storymaker.agent.outcome_ready_text' },
         incomplete: { title: 'storymaker.agent.outcome_incomplete_title', text: 'storymaker.agent.outcome_incomplete_text' },
         failed: { title: 'storymaker.agent.outcome_failed_title', text: 'storymaker.agent.outcome_failed_text' }
@@ -50,6 +51,11 @@
         compile_failed: 'storymaker.agent.check_compile_failed',
         over_target: 'storymaker.agent.check_over_target',
         over_budget: 'storymaker.agent.check_over_budget',
+        caption_overlap: 'storymaker.agent.check_layout_found',
+        prop_too_small: 'storymaker.agent.check_layout_found',
+        offscreen: 'storymaker.agent.check_layout_found',
+        actor_prop_overlap: 'storymaker.agent.check_layout_found',
+        scene_static: 'storymaker.agent.check_layout_found',
         environment_monotony: 'storymaker.agent.check_craft',
         framing_monotony: 'storymaker.agent.check_craft',
         gesture_monotony: 'storymaker.agent.check_craft',
@@ -359,6 +365,7 @@
 
         function outcomeText(outcome, checks) {
             if (outcome === 'failed') return job.error && S.JOB_ERROR_CODES.indexOf(job.error.code) >= 0 ? S.errors.describeJob(t, job.error) : t(OUTCOME_KEYS.failed.text);
+            if (outcome === 'ready') return t(OUTCOME_KEYS.ready.text);
             if (outcome !== 'incomplete') return t(OUTCOME_KEYS.ready_unverified.text);
             const open = checks.filter(check => check.code === 'scene_unfilled').length;
             return open ? t(OUTCOME_KEYS.incomplete.text, { n: open }) : t('storymaker.agent.outcome_incomplete_some');

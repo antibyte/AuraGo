@@ -123,6 +123,17 @@ func TestCompileCheckBrowser(t *testing.T) {
 	if got.Scenes[1].EndMS != got.DurationMS {
 		t.Errorf("the last scene ends at %d, the film at %d", got.Scenes[1].EndMS, got.DurationMS)
 	}
+	// The page measured the layout of both storyboard scenes, in fractions of the frame.
+	if got.LayoutError != "" || got.StoryboardScenes != 2 || got.CodeScenes != 0 || len(got.Layout) != 2 {
+		t.Fatalf("layout: %+v (error %q)", got.Layout, got.LayoutError)
+	}
+	firstLayout := got.Layout[0]
+	if firstLayout.ID != "s1" || len(firstLayout.Props) != 1 || !firstLayout.Props[0].Hero || firstLayout.Props[0].Box[3] <= 0 || firstLayout.Props[0].Box[3] > 1 {
+		t.Errorf("layout of s1 = %+v", firstLayout)
+	}
+	if firstLayout.Caption == nil || firstLayout.Caption[1] < 0.5 {
+		t.Errorf("the caption of s1 must be near the bottom: %+v", firstLayout.Caption)
+	}
 	if len(fx.pub.names()) != 0 {
 		t.Errorf("a compile check published %v", fx.pub.names())
 	}

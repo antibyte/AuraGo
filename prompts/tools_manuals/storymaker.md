@@ -16,8 +16,8 @@ Pass visual requirements in topic/instruction: the isolated author has bundled r
 ## Working with a job
 
 - A job takes minutes and posts a desktop notification when it ends. Tell the user that and end your turn. Do not wait in a loop, and never call `status` faster than `poll_after_seconds`.
-- `state` is `queued`, `running`, `ready_unverified`, `incomplete` or `failed`. `none` means the project has no agent job.
-- `ready_unverified` means scenes, assets and timing were checked, but overlaps and text fit were not. Ask the user to watch the film once. `open_checks` always contains `layout_unverified`.
+- `state` is `queued`, `running`, `ready`, `ready_unverified`, `incomplete` or `failed`. `none` means the project has no agent job.
+- `ready` means scenes, assets, timing and the layout of every scene were checked and nothing is left open. `ready_unverified` means something is left open (see `open_checks`), for example a code scene, whose layout is never measured, or a finding the agent could not fix. Ask the user to watch the film once in that case.
 - `incomplete` means some scenes still need work and valid scenes are saved. Use `revise` to finish them.
 - Use `silent: true` only if the user agrees to a film without speech. The app can restore the speech.
 - This tool has no music option. If the user asks for music, say that the app's Music tab offers it.

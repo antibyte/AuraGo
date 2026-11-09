@@ -365,6 +365,8 @@
   "storymaker.agent.mode_text": "Werkzeugaufrufe als Text",
   "storymaker.agent.outcome_ready_title": "Deine Geschichte ist fertig. Bitte sieh sie dir einmal an.",
   "storymaker.agent.outcome_ready_text": "Szenen, Assets und Timing wurden geprüft. Überlappungen und die Textpassung wurden nicht automatisch geprüft.",
+  "storymaker.agent.outcome_ready_checked_text": "Szenen, Assets, Timing und das Layout jeder Szene wurden geprüft.",
+  "storymaker.agent.check_layout_found": "Eine Szene hat noch ein Layoutproblem: Text über den Füßen, ein kleines Objekt, etwas außerhalb des Bildes oder Überlappungen. Sieh sie dir an und passe die Szene an.",
   "storymaker.agent.outcome_incomplete_title": "Deine Geschichte ist teilweise fertig.",
   "storymaker.agent.outcome_incomplete_text": "{n} Szenen brauchen noch Arbeit. Gültige Szenen sind gespeichert.",
   "storymaker.agent.outcome_incomplete_some": "Einige Teile brauchen noch Arbeit. Gültige Szenen sind gespeichert.",

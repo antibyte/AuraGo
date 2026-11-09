@@ -365,6 +365,8 @@
   "storymaker.agent.mode_text": "Toolaanroepen als tekst",
   "storymaker.agent.outcome_ready_title": "Je verhaal is klaar. Bekijk het graag één keer.",
   "storymaker.agent.outcome_ready_text": "Scènes, onderdelen en timing zijn gecontroleerd. Overlappingen en de pasvorm van tekst zijn niet automatisch gecontroleerd.",
+  "storymaker.agent.outcome_ready_checked_text": "Scènes, bestanden, timing en de opmaak van elke scène zijn gecontroleerd.",
+  "storymaker.agent.check_layout_found": "Een scène heeft nog een opmaakprobleem: tekst over de voeten, een klein voorwerp, iets buiten beeld of overlap. Bekijk haar en pas de scène aan.",
   "storymaker.agent.outcome_incomplete_title": "Je verhaal is gedeeltelijk klaar.",
   "storymaker.agent.outcome_incomplete_text": "{n} scènes hebben nog werk nodig. Geldige scènes zijn opgeslagen.",
   "storymaker.agent.outcome_incomplete_some": "Sommige delen hebben nog werk nodig. Geldige scènes zijn opgeslagen.",

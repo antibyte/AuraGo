@@ -365,6 +365,8 @@
   "storymaker.agent.mode_text": "Chamadas de ferramentas como texto",
   "storymaker.agent.outcome_ready_title": "A sua história está pronta. Veja-a uma vez, por favor.",
   "storymaker.agent.outcome_ready_text": "As cenas, os recursos e os tempos foram verificados. As sobreposições e o ajuste do texto não foram verificados automaticamente.",
+  "storymaker.agent.outcome_ready_checked_text": "As cenas, os recursos, o tempo e a composição de cada cena foram verificados.",
+  "storymaker.agent.check_layout_found": "Uma cena ainda tem um problema de composição: texto sobre os pés, um objeto pequeno, algo fora do quadro ou sobreposto. Veja-a e ajuste a cena.",
   "storymaker.agent.outcome_incomplete_title": "A sua história está parcialmente concluída.",
   "storymaker.agent.outcome_incomplete_text": "{n} cenas ainda precisam de trabalho. As cenas válidas estão guardadas.",
   "storymaker.agent.outcome_incomplete_some": "Algumas partes ainda precisam de trabalho. As cenas válidas estão guardadas.",

@@ -365,6 +365,8 @@
   "storymaker.agent.mode_text": "テキストによるツール呼び出し",
   "storymaker.agent.outcome_ready_title": "ストーリーができました。一度ご覧ください。",
   "storymaker.agent.outcome_ready_text": "シーン、素材、タイミングは確認済みです。重なりと文字の収まりは自動では確認していません。",
+  "storymaker.agent.outcome_ready_checked_text": "シーン、アセット、タイミング、各シーンのレイアウトを確認しました。",
+  "storymaker.agent.check_layout_found": "レイアウトに問題が残るシーンがあります：足に重なる字幕、小さすぎる小道具、画面外や重なりなど。一度ご覧になり、シーンを調整してください。",
   "storymaker.agent.outcome_incomplete_title": "ストーリーは一部完成です。",
   "storymaker.agent.outcome_incomplete_text": "{n} 件のシーンにまだ作業が必要です。有効なシーンは保存されています。",
   "storymaker.agent.outcome_incomplete_some": "一部にまだ作業が必要です。有効なシーンは保存されています。",

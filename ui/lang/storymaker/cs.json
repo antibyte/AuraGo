@@ -365,6 +365,8 @@
   "storymaker.agent.mode_text": "Volání nástrojů jako text",
   "storymaker.agent.outcome_ready_title": "Váš příběh je hotový. Podívejte se na něj prosím jednou.",
   "storymaker.agent.outcome_ready_text": "Scény, prvky a načasování byly zkontrolovány. Překryvy a umístění textu se automaticky nekontrolovaly.",
+  "storymaker.agent.outcome_ready_checked_text": "Scény, podklady, časování a rozvržení každé scény byly zkontrolovány.",
+  "storymaker.agent.check_layout_found": "Některá scéna má ještě potíže s rozvržením: text přes nohy, malý předmět, něco mimo obraz nebo překryv. Prohlédněte si ji a upravte.",
   "storymaker.agent.outcome_incomplete_title": "Váš příběh je hotový jen částečně.",
   "storymaker.agent.outcome_incomplete_text": "Počet scén, které ještě potřebují práci: {n}. Platné scény jsou uložené.",
   "storymaker.agent.outcome_incomplete_some": "Některé části ještě potřebují práci. Platné scény jsou uložené.",
