@@ -44,15 +44,15 @@
     const PROP_GROUP = { hay: 'prop.hay', cone: 'prop.cone', barrel: 'prop.barrel', tyre: 'prop.tyres' };
     const REVERB = { harbour: 0.34, industry: 0.30, metro: 0.26, glacier: 0.22, alpine: 0.16, forest: 0.12, salt: 0.06, desert: 0.06 };
     const RANGE = 120;
-    /* Engine bus level per view: silent in the garage, a low bed under the results, full in a race. */
-    const ENGINE_BED = { menu: 0, results: 0.3, race: 1 };
+    /* Engine bus level per view: silent in the garage, a low bed under the results, quieter in a race. */
+    const ENGINE_BED = { menu: 0, results: 0.24, race: 0.8 };
     const MASTER_TRIM = 1.0;            /* volume 1 = full scale into the glue compressor and the -3 dB limiter */
     /* The score has its own bus and its own trim in the settings: the sound slider is the
      * whole mix, the music slider is the score alone. MUSIC_LEVEL is the score at full, the
-     * player starts at MUSIC_DEFAULT, so the score sits at 0.45 under the race (it used to
-     * be 0.32) and can still be pushed to 0.6. */
+     * player starts at MUSIC_DEFAULT, so the score sits at 0.54 under the race
+     * and can still be pushed to 0.6. */
     const MUSIC_LEVEL = 0.6;            /* the score at full */
-    const MUSIC_DEFAULT = 0.75;         /* where the player's trim starts */
+    const MUSIC_DEFAULT = 0.9;          /* where the player's trim starts */
     const AMBIENCE_LEVEL = 0.8;         /* the world around the track */
     /* The voice commentary is a dialogue bus of its own: it goes straight to the
      * limiter and skips the glue compressor, because that compressor has a makeup

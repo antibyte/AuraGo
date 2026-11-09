@@ -468,6 +468,10 @@ function levelOf(samples) {
 
 await check('a spoken line is loud enough and the race steps back', async () => {
     const { sandbox, gains, sources } = mixSandbox();
+    const defaults = sandbox.window.AuraDriftCore.defaultSettings();
+    assert.equal(defaults.musicVolume, 0.9, 'the music trim defaults to 90%');
+    assert.equal(defaults.volume, 0.65, 'the overall volume stays unchanged');
+    assert.equal(defaults.voice, true, 'voice commentary stays enabled');
     const audio = sandbox.window.AuraDriftCore.createAudio({ volume: 1, muted: false });
     assert.equal(audio.unlock(), true);
     audio.setView('race');
@@ -476,21 +480,20 @@ await check('a spoken line is loud enough and the race steps back', async () => 
     const master = gains.find(g => g.outs.some(o => o.nodeKind === 'compressor' && o.outs.some(p => p.nodeKind === 'compressor')));
     const buses = gains.filter(g => g !== master && g.outs.includes(master) && g.gain.last !== undefined);
     assert.equal(buses.length, 3, 'engine, score and ambience have a level');
-    /* The score carries the player's trim, so the buses are told apart by their role and not
-     * by their level. */
-    const engine = buses.find(g => g.gain.last === 1);
-    const ambience = buses.find(g => g.gain.last === 0.8);
-    const music = buses.find(g => g !== engine && g !== ambience);
-    assert.ok(engine && ambience && music, 'engine, score and ambience are told apart');
+    /* These are the buses in audio-graph creation order. */
+    const [engine, ambience, music] = buses;
+    assert.equal(engine.gain.last, 0.8, 'engines play 20% quieter');
+    assert.equal(ambience.gain.last, 0.8, 'ambience stays unchanged');
+    assert.ok(Math.abs(music.gain.last - 0.54) < 1e-6, 'the default score is louder');
     const roles = { engine: engine, music: music, ambience: ambience };
     const before = {};
     for (const [role, g] of Object.entries(roles)) before[role] = g.gain.last;
 
     /* The score follows the trim of the player: a lower trim lowers the bus. */
     audio.setSettings({ volume: 1, muted: false, musicVolume: 0.5 });
-    assert.ok(Math.abs(music.gain.last / before.music - 0.5 / 0.75) < 1e-6,
+    assert.ok(Math.abs(music.gain.last / before.music - 0.5 / defaults.musicVolume) < 1e-6,
         `the score follows the trim: ${before.music} -> ${music.gain.last}`);
-    audio.setSettings({ volume: 1, muted: false, musicVolume: 0.75 });
+    audio.setSettings({ volume: 1, muted: false, musicVolume: defaults.musicVolume });
     assert.equal(music.gain.last, before.music, 'the score is back at the trim of the player');
 
     const line = modelLine();

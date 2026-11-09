@@ -337,6 +337,9 @@ func TestDesktopAuraDriftMusicVolumeBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	page := auraDriftFixture(t)
 	auraDriftReopen(page, map[string]interface{}{"quality": "low"}, "")
+	if !page.MustEval(`()=>[...aurora.state.windows.values()].find(w=>w.appId==='aura-drift').maximized`).Bool() {
+		t.Fatal("Aura Drift did not open maximized")
+	}
 
 	page.MustElement(".agdrift-tab[data-tab='settings']").MustClick()
 	if !page.MustEval(`()=>{const p=document.querySelector('.agdrift-page[data-page="settings"]');return !!p&&!p.hidden;}`).Bool() {
@@ -349,8 +352,8 @@ func TestDesktopAuraDriftMusicVolumeBrowser(t *testing.T) {
         const row=rows.find(r=>r.querySelector('.agdrift-row-label').textContent==='Musik');
         return row&&row.querySelector('input.agdrift-range')?row.querySelector('input.agdrift-range').value:'';
     }`).Str()
-	if musicValue != "75" {
-		t.Fatalf("the music trim shows %q, want 75", musicValue)
+	if musicValue != "90" {
+		t.Fatalf("the music trim shows %q, want 90", musicValue)
 	}
 
 	// Moving it must reach the audio engine and the stored settings at once.

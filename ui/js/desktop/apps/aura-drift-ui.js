@@ -233,7 +233,7 @@
          * music alone. It starts where the score sits under the race and may go up to full. */
         const musicTrim = typeof settings.musicVolume === 'number'
             ? settings.musicVolume
-            : (typeof AD.defaultSettings === 'function' ? AD.defaultSettings().musicVolume : 0.75);
+            : (typeof AD.defaultSettings === 'function' ? AD.defaultSettings().musicVolume : 0.9);
         const music = el('input', 'agdrift-range');
         music.type = 'range'; music.min = '0'; music.max = '100';
         music.value = String(Math.round(musicTrim * 100));

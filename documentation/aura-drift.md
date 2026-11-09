@@ -361,6 +361,10 @@ so the heading points up the screen (`screenRotation`). Two guards exist:
 
 ## Audio
 
+The default music trim is 90%, with quieter engines (80% of their full bus level in a race).
+The overall volume stays at 65%; commentary keeps its own speech level and ducking.
+Saved music trims are preserved.
+
 The audio is shipped sample-based: engines, music and most sound groups come from the repository's
 own synthesis, 17 sound groups from approved CC0 recordings (credited in
 `ui/3d/aura-drift/audio/LICENSE.txt`). Every file is Ogg Vorbis under `ui/3d/aura-drift/audio/`,
@@ -440,6 +444,8 @@ reduced motion (no shake, weather or speed-line motion), and no colour-only stat
 A full WCAG 2.2 AA review has not been done.
 
 ## Desktop integration
+
+Aura Drift opens maximized through the shared Desktop window manager.
 
 Lazy module loading, one render loop per visible window, complete disposal of listeners, RAF,
 AudioContext, WebGL resources, caches and observers, `isActive` gating, `app_aura_drift` plus

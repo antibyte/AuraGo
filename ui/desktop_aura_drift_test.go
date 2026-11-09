@@ -153,6 +153,9 @@ func TestAuraDriftAppRegistration(t *testing.T) {
 	if found.Category != "games" {
 		t.Fatalf("aura-drift category = %q, want games", found.Category)
 	}
+	if found.Metadata["open_maximized"] != "true" {
+		t.Fatal("Aura Drift must open maximized")
+	}
 	if found.Metadata["logo_path"] != "/img/desktop-icons/aura-drift.svg" {
 		t.Fatalf("aura-drift logo_path = %q", found.Metadata["logo_path"])
 	}

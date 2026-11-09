@@ -221,7 +221,7 @@
         return {
             quality: 'auto', volume: 0.65, muted: false,
             /* The trim of the score alone: the sound slider is the whole mix. */
-            musicVolume: 0.75,
+            musicVolume: 0.9,
             reducedMotion: false, weapons: true, showGhost: true,
             /* The voice commentary (Underdog Woof) speaks the banter lines. */
             voice: true,

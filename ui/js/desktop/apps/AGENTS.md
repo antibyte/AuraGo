@@ -3650,6 +3650,8 @@ buttons and menu popovers remain excluded from those gestures.
   sample is missing or fails. Requested music loads before bulk effect preloads;
   the manifest still accepts aligned stems. Engines, menu/results music and most groups are own synthesis;
   race-song provenance and unverified licence terms live in `assets/aura-drift/audio/yue2-songs.json`.
+  Default music trim is 0.9 (score bus 0.54); engine beds are menu 0, results 0.24, race 0.8.
+  Preserve saved music trims, master volume 0.65 and the voice commentary levels and ducking.
   Seventeen sfx groups are
   hash-pinned CC0 recordings declared in `assets/aura-drift/audio/sources.json` and credited in
   the pack's `LICENSE.txt`. Adding a group means adding a seeded recipe under

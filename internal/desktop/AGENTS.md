@@ -25,7 +25,8 @@ The Service owns authorization, read-only state, mutation locks and cache invali
   `go test ./ui -run TestGoldfishAppRegistration` and the built-in category test.
 
 - Aura Drift (`aura-drift`, category `games`) is a built-in offline single-player
-  racing app with no capability gate and no config switch. Its app-owned icon is
+  racing app with no capability gate and no config switch. Keep `open_maximized=true`.
+  Its app-owned icon is
   `logo_path` `/img/desktop-icons/aura-drift.svg`; the `Icon` value `aura-drift`
   is deliberately absent from `desktopPreferredIconNames` and every icon theme
   (as for ECalc and Synth Studio), so every theme shows the logo. App modules,
