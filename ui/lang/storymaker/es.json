@@ -366,6 +366,7 @@
   "storymaker.agent.outcome_ready_title": "Tu historia está lista. Mírala una vez, por favor.",
   "storymaker.agent.outcome_ready_text": "Se comprobaron las escenas, los recursos y los tiempos. Los solapamientos y el ajuste del texto no se comprobaron automáticamente.",
   "storymaker.agent.outcome_ready_checked_text": "Se revisaron las escenas, los recursos, el tiempo y la composición de cada escena.",
+  "storymaker.agent.outcome_open_text": "Se revisaron las escenas, los recursos, el tiempo y la composición. Quedan algunos puntos abiertos (consulta la lista). Mira la película una vez.",
   "storymaker.agent.check_layout_found": "Una escena aún tiene un problema de composición: texto sobre los pies, un objeto pequeño, algo fuera de plano o superpuesto. Míralo y ajusta la escena.",
   "storymaker.agent.outcome_incomplete_title": "Tu historia está terminada en parte.",
   "storymaker.agent.outcome_incomplete_text": "{n} escenas aún necesitan trabajo. Las escenas válidas están guardadas.",

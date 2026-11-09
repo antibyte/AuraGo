@@ -260,7 +260,7 @@ progress.stm-progress::-moz-progress-bar { background: var(--vd-mat-primary, var
 .stm-agent-step[data-state="current"] { color: var(--vd-text); font-weight: 600; }
 .stm-agent-step[data-state="done"] { color: var(--stm-ok-text); }
 .stm-agent-outcome { display: grid; gap: var(--ds-space-2); padding: var(--ds-space-3); border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border)); border-radius: var(--vd-mat-card-radius, var(--ds-radius-md)); background: var(--vd-mat-card, var(--vd-theme-panel-bg)); }
-.stm-agent-outcome[data-outcome="ready_unverified"] { border-color: var(--stm-ok); }
+.stm-agent-outcome[data-outcome="ready"], .stm-agent-outcome[data-outcome="ready_unverified"] { border-color: var(--stm-ok); }
 .stm-agent-outcome[data-outcome="incomplete"] { border-color: var(--stm-warn); }
 .stm-agent-outcome[data-outcome="failed"] { border-color: var(--stm-bad); }
 .stm-agent-outcome h3, .stm-agent-outcome p { margin: 0; }

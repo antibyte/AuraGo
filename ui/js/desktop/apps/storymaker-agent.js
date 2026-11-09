@@ -366,7 +366,7 @@
         function outcomeText(outcome, checks) {
             if (outcome === 'failed') return job.error && S.JOB_ERROR_CODES.indexOf(job.error.code) >= 0 ? S.errors.describeJob(t, job.error) : t(OUTCOME_KEYS.failed.text);
             if (outcome === 'ready') return t(OUTCOME_KEYS.ready.text);
-            if (outcome !== 'incomplete') return t(OUTCOME_KEYS.ready_unverified.text);
+            if (outcome !== 'incomplete') return t(checks.some(check => check && check.code === 'layout_unverified') ? OUTCOME_KEYS.ready_unverified.text : 'storymaker.agent.outcome_open_text');
             const open = checks.filter(check => check.code === 'scene_unfilled').length;
             return open ? t(OUTCOME_KEYS.incomplete.text, { n: open }) : t('storymaker.agent.outcome_incomplete_some');
         }

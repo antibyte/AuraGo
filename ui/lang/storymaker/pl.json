@@ -366,6 +366,7 @@
   "storymaker.agent.outcome_ready_title": "Twoja historia jest gotowa. Obejrzyj ją raz.",
   "storymaker.agent.outcome_ready_text": "Sceny, zasoby i czas zostały sprawdzone. Nakładanie się elementów i mieszczenie tekstu nie były sprawdzane automatycznie.",
   "storymaker.agent.outcome_ready_checked_text": "Sprawdzono sceny, zasoby, czas i układ każdej sceny.",
+  "storymaker.agent.outcome_open_text": "Sprawdzono sceny, zasoby, czas i układ. Kilka punktów jest nadal otwartych (zobacz listę). Obejrzyj film raz.",
   "storymaker.agent.check_layout_found": "Któraś scena ma jeszcze problem z układem: napis na stopach, mały przedmiot, coś poza kadrem lub nakładanie się. Obejrzyj ją i popraw scenę.",
   "storymaker.agent.outcome_incomplete_title": "Twoja historia jest gotowa częściowo.",
   "storymaker.agent.outcome_incomplete_text": "Liczba scen wymagających pracy: {n}. Poprawne sceny są zapisane.",

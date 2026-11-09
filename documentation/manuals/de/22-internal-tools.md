@@ -568,7 +568,7 @@ Erstellt und verfolgt Erklärvideos in der Storymaker-Desktop-App. Ein isolierte
 | `instruction` | string | `revise`: die gewünschte Änderung (1–2000 Zeichen) |
 | `silent` | boolean | `render`: Export ohne Sprechtext, wenn keine Stimme bereitsteht; die App kann den Sprechtext wiederherstellen |
 
-Ein Ergebnis `ready_unverified` heißt, dass Szenen, Assets und Timing geprüft wurden, Überlappungen und Textpassung aber nicht — bitte den Nutzer, den Film einmal anzusehen. Dieses Tool hat keine Musik-Option; der Musik-Bereich der App bietet sie an.
+Ein Ergebnis `ready` heißt, dass Szenen, Assets, Timing und das Layout jeder Szene geprüft wurden und nichts offen ist — der Film kann mit `render` exportiert werden. Ein Ergebnis `ready_unverified` heißt, dass noch etwas offen ist (siehe die offenen Prüfpunkte), zum Beispiel eine Code-Szene, deren Layout nie gemessen wird — bitte den Nutzer, den Film einmal anzusehen. Dieses Tool hat keine Musik-Option; der Musik-Bereich der App bietet sie an.
 
 ### `question_user`
 Stellt dem Benutzer eine gezielte Frage und wartet auf die Antwort. Nützlich bei unklaren Anforderungen oder wenn eine Entscheidung benötigt wird.

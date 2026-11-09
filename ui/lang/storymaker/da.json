@@ -366,6 +366,7 @@
   "storymaker.agent.outcome_ready_title": "Din historie er klar. Se den venligst igennem én gang.",
   "storymaker.agent.outcome_ready_text": "Scener, elementer og timing er kontrolleret. Overlap og tekstens pladsforhold blev ikke kontrolleret automatisk.",
   "storymaker.agent.outcome_ready_checked_text": "Scener, filer, timing og layoutet i hver scene er kontrolleret.",
+  "storymaker.agent.outcome_open_text": "Scener, filer, timing og layout er kontrolleret. Nogle punkter er stadig åbne (se listen). Se filmen igennem én gang.",
   "storymaker.agent.check_layout_found": "En scene har stadig et layoutproblem: tekst over fødderne, en lille ting, noget uden for billedet eller overlap. Se den og tilpas scenen.",
   "storymaker.agent.outcome_incomplete_title": "Din historie er delvist færdig.",
   "storymaker.agent.outcome_incomplete_text": "{n} scener mangler stadig arbejde. Gyldige scener er gemt.",

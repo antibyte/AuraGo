@@ -366,6 +366,7 @@
   "storymaker.agent.outcome_ready_title": "La tua storia è pronta. Guardala una volta, per favore.",
   "storymaker.agent.outcome_ready_text": "Scene, risorse e tempi sono stati controllati. Sovrapposizioni e spazio del testo non sono stati controllati automaticamente.",
   "storymaker.agent.outcome_ready_checked_text": "Scene, risorse, tempi e impaginazione di ogni scena sono stati controllati.",
+  "storymaker.agent.outcome_open_text": "Scene, risorse, tempi e impaginazione sono stati controllati. Alcuni punti sono ancora aperti (vedi l'elenco). Guarda il film una volta.",
   "storymaker.agent.check_layout_found": "Una scena ha ancora un problema di impaginazione: testo sui piedi, un oggetto piccolo, qualcosa fuori quadro o sovrapposto. Guardala e modifica la scena.",
   "storymaker.agent.outcome_incomplete_title": "La tua storia è in parte finita.",
   "storymaker.agent.outcome_incomplete_text": "{n} scene richiedono ancora lavoro. Le scene valide sono salvate.",

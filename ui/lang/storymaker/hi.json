@@ -366,6 +366,7 @@
   "storymaker.agent.outcome_ready_title": "आपकी कहानी तैयार है। कृपया इसे एक बार देखें।",
   "storymaker.agent.outcome_ready_text": "दृश्य, सामग्री और समय की जाँच हो गई। ओवरलैप और पाठ का फ़िट होना अपने आप नहीं जाँचा गया।",
   "storymaker.agent.outcome_ready_checked_text": "दृश्यों, संसाधनों, समय और हर दृश्य के लेआउट की जाँच हो चुकी है।",
+  "storymaker.agent.outcome_open_text": "दृश्यों, संसाधनों, समय और लेआउट की जाँच हो चुकी है। कुछ बिंदु अभी खुले हैं (सूची देखें)। फ़िल्म को एक बार देखें।",
   "storymaker.agent.check_layout_found": "किसी दृश्य में अब भी लेआउट की समस्या है: पैरों पर लिखा पाठ, छोटी वस्तु, फ़्रेम से बाहर या आपस में ढकी चीज़ें। इसे एक बार देखें और दृश्य ठीक करें।",
   "storymaker.agent.outcome_incomplete_title": "आपकी कहानी आंशिक रूप से पूरी है।",
   "storymaker.agent.outcome_incomplete_text": "{n} दृश्यों पर अभी काम बाकी है। मान्य दृश्य सहेजे गए हैं।",
