@@ -337,14 +337,19 @@ func (s *Studio) runCheck(ctx context.Context) (CheckReport, string, error) {
 }
 
 // dedupeCheckIssues removes duplicate findings for the same scene and code (or exact path) when
-// both the static job lint and the browser compile report the same rule.
+// both the static job lint and the browser compile report the same rule. Two gesture_monotony findings
+// can share the scene and the path (two gestures that both pass the limit), so the message, which names
+// the gesture, is part of their key.
 func dedupeCheckIssues(list []Issue) []Issue {
 	seen := make(map[string]bool, len(list))
 	out := make([]Issue, 0, len(list))
 	for _, is := range list {
 		key := is.SceneID + "|" + is.Code + "|" + is.Path
-		if is.Code == CodeFadeBetweenWorlds || is.Code == CodeEntryMonotony {
+		switch is.Code {
+		case CodeFadeBetweenWorlds, CodeEntryMonotony:
 			key = is.SceneID + "|" + is.Code
+		case CodeGestureMonotony:
+			key += "|" + is.Message
 		}
 		if seen[key] {
 			continue

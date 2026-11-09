@@ -72,7 +72,8 @@ func (d SceneDirection) packet() map[string]any {
 // DirectionPlan computes the direction of every scene of the story. It is a pure function of the title, the narrations, the
 // cast, the template and the catalog, so every fill packet of one film sees the same plan. A film of at least 3 environments
 // gets three: the best match goes to the middle act (solution and how), the second best to the first act (hook and
-// problem), the third to the last act (benefit and close). plain-stage is used only when nothing else exists.
+// problem), the third to the last act (benefit and close). plain-stage is used only when nothing else exists. The roles
+// are computed over all scenes; a code scene keeps its role but gets no actor, no hero prop and no spots.
 func DirectionPlan(story *Story, template string, cat *Catalog) []SceneDirection {
 	if story == nil || len(story.Scenes) == 0 {
 		return nil
@@ -87,20 +88,23 @@ func DirectionPlan(story *Story, template string, cat *Catalog) []SceneDirection
 		d := SceneDirection{
 			Role: role, Environment: actEnvironment(ranked, roleAct(role)),
 			Framing: style.framing, Pose: style.pose, Gesture: style.gesture,
-			Entry:   directionEntries[i%len(directionEntries)],
-			ActorAt: "left", PropAt: "right",
+			Entry: directionEntries[i%len(directionEntries)],
 		}
-		if i%2 == 1 {
-			d.ActorAt, d.PropAt = "right", "left"
-		}
-		if style.framing == "medium" {
-			d.PropAt = "center" // the camera follows the speaker, so the prop stays within reach
-		}
-		if template != "dialogue_story" && len(story.Cast) > 0 {
-			d.Actor = story.Cast[i%len(story.Cast)].ID
-		}
-		if props := packetSuggestedProps(cat, story.Scenes[i].Narration); len(props) > 0 {
-			d.HeroProp = props[0]
+		// A code scene shows source code: nobody stands in it and nothing is shown on a spot. It keeps its role.
+		if story.Scenes[i].Kind != "code" {
+			d.ActorAt, d.PropAt = "left", "right"
+			if i%2 == 1 {
+				d.ActorAt, d.PropAt = "right", "left"
+			}
+			if style.framing == "medium" {
+				d.PropAt = "center" // the camera follows the speaker, so the prop stays within reach
+			}
+			if template != "dialogue_story" && len(story.Cast) > 0 {
+				d.Actor = story.Cast[i%len(story.Cast)].ID
+			}
+			if props := packetSuggestedProps(cat, story.Scenes[i].Narration); len(props) > 0 {
+				d.HeroProp = props[0]
+			}
 		}
 		plan[i] = d
 	}

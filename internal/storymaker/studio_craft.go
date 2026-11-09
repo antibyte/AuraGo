@@ -12,21 +12,37 @@ const (
 )
 
 // LintFilmCraft finds what Validate accepts but what makes a film look uniform: too few environments, no chosen framing,
-// one gesture in too many scenes, a cast member who never appears. It needs a film of at least 4 scenes. The
-// dialogue_story template is exempt from the environment rule, because its scenes follow the speaker turns. The fix
-// texts name concrete scenes and ids from DirectionPlan. Every finding is a warning; see IssueCraft.
+// one gesture in too many scenes, a cast member who never appears. It needs a film of at least 4 storyboard scenes: a
+// code scene has no environment, framing or gesture and nobody can be put in it, so it is neither counted nor named in a
+// fix. The dialogue_story template is exempt from the environment rule, because its scenes follow the speaker turns. The
+// fix texts name concrete scenes and ids from DirectionPlan. Every finding is a warning; see IssueCraft.
 func LintFilmCraft(st *Story, template string, cat *Catalog) []Issue {
-	if st == nil || len(st.Scenes) < craftMinScenes {
+	if st == nil {
+		return nil
+	}
+	board := storyboardScenes(st)
+	if len(board) < craftMinScenes {
 		return nil
 	}
 	plan := DirectionPlan(st, template, cat)
 	var out []Issue
 	if template != "dialogue_story" {
-		out = append(out, lintEnvironmentMonotony(st, plan)...)
+		out = append(out, lintEnvironmentMonotony(st, plan, board)...)
 	}
-	out = append(out, lintFramingMonotony(st, plan)...)
-	out = append(out, lintGestureMonotony(st)...)
-	out = append(out, lintCastUnused(st, plan)...)
+	out = append(out, lintFramingMonotony(st, plan, board)...)
+	out = append(out, lintGestureMonotony(st, board)...)
+	out = append(out, lintCastUnused(st, plan, board)...)
+	return out
+}
+
+// storyboardScenes returns the indexes of the scenes that play on a stage, which is every scene but the code scenes.
+func storyboardScenes(st *Story) []int {
+	out := make([]int, 0, len(st.Scenes))
+	for i := range st.Scenes {
+		if st.Scenes[i].Kind != "code" {
+			out = append(out, i)
+		}
+	}
 	return out
 }
 
@@ -43,11 +59,11 @@ func (s *Studio) craftIssues(ctx context.Context, story *Story) []Issue {
 	return LintFilmCraft(story, template, s.deps.Catalog)
 }
 
-func lintEnvironmentMonotony(st *Story, plan []SceneDirection) []Issue {
-	n := len(st.Scenes)
+func lintEnvironmentMonotony(st *Story, plan []SceneDirection, board []int) []Issue {
+	n := len(board)
 	want := min(craftEnvironmentsWants, (n+2)/3) // min(3, ceil(n/3))
 	have := map[string]bool{}
-	for i := range st.Scenes {
+	for _, i := range board {
 		if env := st.Scenes[i].Environment; env != "" {
 			have[env] = true
 		}
@@ -57,7 +73,7 @@ func lintEnvironmentMonotony(st *Story, plan []SceneDirection) []Issue {
 	}
 	var picks []string
 	used := map[string]bool{}
-	for i := range st.Scenes {
+	for _, i := range board {
 		if len(have)+len(used) >= want {
 			break
 		}
@@ -80,8 +96,8 @@ func lintEnvironmentMonotony(st *Story, plan []SceneDirection) []Issue {
 	}}
 }
 
-func lintFramingMonotony(st *Story, plan []SceneDirection) []Issue {
-	for i := range st.Scenes {
+func lintFramingMonotony(st *Story, plan []SceneDirection, board []int) []Issue {
+	for _, i := range board {
 		sc := &st.Scenes[i]
 		// ApplyDefaults always writes a camera, so only a framing other than wide or a target is a choice.
 		if sc.Camera != nil && ((sc.Camera.Framing != "" && sc.Camera.Framing != "wide") || sc.Camera.Target != "") {
@@ -94,7 +110,7 @@ func lintFramingMonotony(st *Story, plan []SceneDirection) []Issue {
 		}
 	}
 	var picks []string
-	for i := range st.Scenes {
+	for _, i := range board {
 		if plan[i].Framing != "wide" && len(picks) < 3 {
 			picks = append(picks, st.Scenes[i].ID)
 		}
@@ -110,12 +126,12 @@ func lintFramingMonotony(st *Story, plan []SceneDirection) []Issue {
 	}}
 }
 
-func lintGestureMonotony(st *Story) []Issue {
-	n := len(st.Scenes)
+func lintGestureMonotony(st *Story, board []int) []Issue {
+	n := len(board)
 	limit := max(2, (n+2)/3) // max(2, ceil(n/3))
 	scenesOf := map[string][]string{}
 	var order []string
-	for i := range st.Scenes {
+	for _, i := range board {
 		sc := &st.Scenes[i]
 		seen := map[string]bool{}
 		for j := range sc.Beats {
@@ -152,7 +168,9 @@ func lintGestureMonotony(st *Story) []Issue {
 	return out
 }
 
-func lintCastUnused(st *Story, plan []SceneDirection) []Issue {
+// lintCastUnused names a storyboard scene for each member who is neither a speaker nor on a stage. A code scene is never the
+// target of the fix; a speaker of a code scene still counts as used, because that member does speak in the film.
+func lintCastUnused(st *Story, plan []SceneDirection, board []int) []Issue {
 	used := map[string]bool{}
 	for i := range st.Scenes {
 		sc := &st.Scenes[i]
@@ -166,9 +184,9 @@ func lintCastUnused(st *Story, plan []SceneDirection) []Issue {
 		if used[member.ID] {
 			continue
 		}
-		index := len(st.Scenes) / 2
-		for i := range plan {
-			if i > 0 && plan[i].Actor == member.ID {
+		index := board[len(board)/2]
+		for pos, i := range board {
+			if pos > 0 && plan[i].Actor == member.ID {
 				index = i
 				break
 			}
