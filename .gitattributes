@@ -41,6 +41,9 @@ ui/img/buuf-nestort/LICENSE.txt -whitespace
 # The linked-module manifest ships in resources.dat and the Linux image, so it stays LF on Windows checkouts.
 licences/linked-go-modules.tsv text eol=lf
 
+# System World authoring sources are hashed into the kit manifests, so they stay LF.
+assets/system-world/*.py text eol=lf
+
 # Preserve generated template literals and upstream license text byte-for-byte.
 licences/storymaker-colord-LICENSE.txt text eol=lf -whitespace
 ui/fonts/qr/OFL-*.txt text eol=lf -whitespace

@@ -420,7 +420,7 @@ def build():
         entries.append(entry);print('WORLD2',asset)
     manifest={'schema_version':2,'version':'2.4.0','license':'MIT','units':'metres','up_axis':'Y','front_axis':'Z',
               'generator':'Blender '+bpy.app.version_string,'assets':entries,'budget_bytes':48*1024*1024,'model_budget_bytes':12*1024*1024,
-              'sources':{name:hashlib.sha256((ROOT/'assets/system-world'/name).read_bytes()).hexdigest() for name in ['build_city.py','build_expansion.py','living_assets.py','landmark_assets.py','robot_assets.py','hover_assets.py']}}
+              'sources':{name:hashlib.sha256((ROOT/'assets/system-world'/name).read_bytes().replace(b'\r\n',b'\n')).hexdigest() for name in ['build_city.py','build_expansion.py','living_assets.py','landmark_assets.py','robot_assets.py','hover_assets.py']}}
     (OUT/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf8',newline='\n')
     (OUT/'LICENSE.txt').write_text((ROOT/'LICENSE').read_text(encoding='utf8'),encoding='utf8')
     for i,root in enumerate(roots): root.location=((i%5)*16,(i//5)*16,0)
