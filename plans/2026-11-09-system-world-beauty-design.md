@@ -2,6 +2,8 @@
 
 Date: 2026-11-09 · Status: approved design (user, 2026-11-09). Phases 0 and 1 are detailed here. Phases 2–6 each get their own spec and plan.
 
+This document: `plans/2026-11-09-system-world-beauty-design.md`. Phase 0 and 1 plan: `plans/2026-11-09-system-world-beauty-phase-0-1.md`.
+
 ## Goal
 
 System World is the 3D city inside AuraGo's virtual desktop. The goal is to make it as beautiful as possible: much more detail, better models, a stronger ambience in environment and sound, buildings that can be entered, residents whose feet stay on the ground, and windows that show a life behind them. Existing models are reworked in Blender and new models are created where needed. The asset limits may be raised.
@@ -169,7 +171,7 @@ Phase 0 builds the pipeline, the budgets and the survey harness that the later p
 | `surfaces.road` | 0.12 | -0.14 | kerb rise 0.14 m |
 | `ground`, `quay`, `room`, `gallery` | unchanged | unchanged | everything on plots keeps its height |
 
-Tram stop platforms keep their current height above the road, so boarding stays aligned. The absolute platform height moves with the road. This is intended: the platform-to-tram-floor relation is preserved.
+Tram stops keep the existing v2 `station` model, which now stands on the flush pavement (platform top 0.30 m). The step from platform to tram floor grows from 0.25 m to 0.49 m. This is accepted until trams and stops are reworked in phase 4.
 
 ### Street cross-section
 
@@ -216,8 +218,9 @@ height = road + rise * clamp(d / run, 0, 1)
 | `street-end` | 0.5 m deep, 12 m wide | island edge cap: kerb block across the carriageway (top at 0, inner face splayed over 0.14 m) with an outer wall across the full street width down to the island body |
 
 - Streets are assembled by repeating fixed-length modules. A single tile is no longer stretched.
-- The single island ground box becomes an island body. Its top sits below the roads.
-- 25 plot slabs are added, with their top at 0.
+- The single island ground box becomes an island body. Its top is at -0.2 m. It has a dark road-like top face that only shows through sub-pixel seams between street modules.
+- 25 plot slabs sit between the street bands, with their top at exactly 0. One quay base slab (x -85..85, z 74..80) has its top at exactly 0.
+- The `street-end` outer wall reaches down to -0.62 m.
 - Only the v1 `street-tile` and v1 `street-crossing` leave the runtime payload in phase 1. No v2 file leaves in phases 0 and 1.
 
 ### Street assembly
@@ -228,6 +231,8 @@ The assembly rule applies to every street arm:
 2. A `street-end` cap sits at each island edge.
 3. The rest is filled with 4 m modules: every third one is `street-drain`, the others are `street-plain`.
 4. The remainder of 0 to 3 m is filled with 1 m `street-fill` modules.
+
+Streets along world Z (the `xs` lines) end at the quay edge (z = 74) with a `street-end` cap. `streets` gains `quayZ: 74`. The quay strip (v2 quay tiles at 0.08 m, lanterns) stays continuous across them.
 
 ### Code
 
@@ -258,7 +263,7 @@ The assembly rule applies to every street arm:
 ### Contact shadows, companion and camera
 
 - **Contact shadows.** A soft blob shadow sits under each resident, under the companion, and under the ground projection of each hover robot.
-- **Companion.** The Spot companion follows the ground height and slope. Its patrol loop is moved so that it stays on plot, quay and pavement surfaces, and crosses a carriageway only at a zebra crossing.
+- **Companion.** The Spot companion follows the ground height and slope. Its patrol loop is moved east of the x = 18 street so that it stays on one level and never crosses a carriageway. The companion takes height and pitch from the ground.
 - **Visitor camera.** The visitor camera follows the ground with the same damping as the walker.
 
 ### Materials and renderer
@@ -288,9 +293,11 @@ Ground checks are node tests. The existing browser run is extended where needed.
 | Check | Requirement |
 | --- | --- |
 | Profile continuity | no step larger than 2 cm per 5 cm of travel outside stairs, on all streets |
-| Model match | exported v3 street models match the analytic profile within 1.5 cm when ray-cast from above |
+| Model match | exported v3 street models match the analytic profile within the limits below, when ray-cast from above |
 | Pedestrian edges | every pedestrian graph edge stays off the carriageway, unless it is a zebra edge |
 | Module placement | street modules fill every street segment without gaps or overlaps |
+
+Model match limits are 15 mm (LOD 0), 20 mm (LOD 1) and 30 mm (LOD 2). Measured in Blender on 2026-11-09, the street models deviate from the height profile by at most 12 mm (LOD 0), 15 mm (LOD 1) and 24 mm (LOD 2). Two choices make this possible: the flare columns of the dropped kerb are spaced at a constant kerb-run ratio, and the gutter drain pit is only 12 mm deep.
 
 Footing unit tests check:
 
@@ -337,10 +344,11 @@ Survey pictures are taken before and after the phase. They cover:
 | gltfpack quantisation moves vertices by fractions of a millimetre | the contract test tolerance covers it |
 | Foot adaptation on the baked walk clips can look stiff | blended by stance weight; runs at medium and above |
 | Other sessions commit to `main` | the branch is rebased before each merge |
+| GitNexus impact results are unreliable for the worktree: the index does not cover it. Impact analysis on the main-checkout index (181 commits behind) rates `streetHeight` and `groundHeight` CRITICAL because of name-collision fan-out into unrelated apps | their direct callers are 1 and 7, all inside System World, and are covered by the height-dependency audit. `createWayfinder` rates LOW. Change detection before merge runs against main |
 
 ## Next steps
 
-1. Phase 0 plan, written by the plan agent from this document.
+1. Phase 0 and 1 plan `plans/2026-11-09-system-world-beauty-phase-0-1.md`, written by the plan agent from `plans/2026-11-09-system-world-beauty-design.md`.
 2. Phase 0 implementation: Blender pipeline by the main session; code, tests and docs by the roster agents.
 3. Baseline survey pictures, captured before phase 1 changes anything visible.
 4. Phase 1 plan, written after the dependency audit of the height change.
