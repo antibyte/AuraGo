@@ -719,10 +719,11 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 
 <!-- pinball:start -->
 AuraPinball is the separate `pinball` Games app. Its thin sibling `pinball.js` exposes
-`window.PinballApp`; `pinball/AGENTS.md` owns the isolated runtime, 480 Hz Rapier
-simulation, three authored tables, local multiplayer/training, input and lifecycle.
-Build with `npm run build:pinball`; verify `npm run test:pinball` and
-`TestDesktopPinballBrowser`. Production sources belong to `assets/pinball/`.
+`window.PinballApp`; `pinball/AGENTS.md` owns the isolated runtime: a custom deterministic
+480 Hz 2.5D physics engine, rules packs for three procedural three.js tables, lamps, the DMD,
+synthesized audio, local multiplayer/training, input and lifecycle. Build with
+`npm run build:pinball`; verify `npm run test:pinball` and `TestDesktopPinballBrowser`.
+Retained ImageGen artwork belongs to `assets/pinball/`.
 <!-- pinball:end -->
 
 ## AuraGolf

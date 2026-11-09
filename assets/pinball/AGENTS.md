@@ -2,28 +2,38 @@
 
 ## Purpose
 
-Original ImageGen artwork for the built-in Pinball app.
+Original ImageGen artwork for the built-in Pinball app, retained with its prompts and source hashes.
 
 ## Ownership
 
-- `masters/` retains the nine generated concepts, backglasses and flat playfield paintings; `prompts.json` records exact prompts and `artwork.json` records source hashes.
+- `masters/` retains the nine generated images: a concept, a backglass and a flat playfield painting per
+  table (`neon-*`, `leviathan-*`, `temple-*`). `prompts.json` records the exact prompts and `artwork.json`
+  records the source hashes.
 - `prepare.py` converts the masters into the delivered WebP images in `../../ui/3d/pinball/v1/`.
-- Runtime ownership is `../../ui/js/desktop/apps/pinball/AGENTS.md`.
+- Runtime ownership is `../../ui/js/desktop/apps/pinball/AGENTS.md`. Payload ownership is
+  `../../ui/3d/pinball/AGENTS.md`.
 
 ## Local Contracts
 
-- Generated art contains no controls or localized instructions. Keep the lower playfield readable.
-- Runtime needs neither Blender nor an external service; tables are procedural in code.
-- Retain source artwork and recipes; payload hashes must be reproducible.
+- There is no Blender pipeline. Tables, cabinet, ramps, wires, flippers, toys and collision surfaces are
+  built procedurally in code, so no `.blend`, GLB, physics JSON or generator script belongs here.
+- Generated art contains no controls and no localized instructions. Keep the lower playfield readable,
+  because the game draws its own inserts, labels and lamps on top.
+- Retain every source master in this folder. Payload hashes in the delivered images must be reproducible
+  from these masters through `prepare.py`.
+- Runtime needs neither Blender nor any external service.
 
 ## Work Guidance
 
-- Use the image generator for new paintings.
-- Keep test captures in ignored `reports/pinball-implementation/`.
+- Use the image generator for new paintings, and record each new prompt in `prompts.json` and its source
+  hash in `artwork.json` before preparing the payload.
+- Keep test captures out of this folder. Survey screenshots go to `reports/pinball-survey/` and audio
+  renders to `reports/pinball-audio/`. Both are git-ignored.
 
 ## Verification
 
-- `node scripts/test-pinball-assets.mjs`
+- `node scripts/test-pinball-assets.mjs` (nine artworks with prompts and hashes, delivered images match the
+  manifest)
 - `npm run test:pinball`
 
 ## Child DOX Index

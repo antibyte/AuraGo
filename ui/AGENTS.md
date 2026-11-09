@@ -28,7 +28,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
 ## Ownership
 
 <!-- pinball:start -->
-- AuraPinball (`pinball`, Games) lazily loads its isolated pinned Three.js/Rapier runtime.
+- AuraPinball (`pinball`, Games) lazily loads its isolated pinned Three.js runtime (the
+  custom physics, rules, lamps, DMD and audio are first-party code).
   The runtime and all sixteen `pinball.*` locale sets follow
   `js/desktop/apps/pinball/AGENTS.md`; payloads follow `3d/pinball/AGENTS.md`.
   No external service, backend route or capability switch is required.
@@ -1442,7 +1443,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 <!-- pinball:start -->
 - `js/desktop/apps/pinball/AGENTS.md` — Pinball simulation, rules, controls, browser storage and window lifecycle.
-- `3d/pinball/AGENTS.md` — Versioned table payloads, collision identity, artwork and audio provenance.
+- `3d/pinball/AGENTS.md` — Versioned pinball payloads (table artwork, CC0 audio) and their manifest-v2 provenance.
 <!-- pinball:end -->
 
 - `../assets/desktop-pets/AGENTS.md` — Desktop Punk 3D authoring, pinned animation sources, runtime model budgets and interaction verification.
