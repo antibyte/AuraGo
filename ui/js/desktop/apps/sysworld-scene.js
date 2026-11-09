@@ -16,9 +16,11 @@ import { createFlow } from './sysworld-flow.js';
 import { createDrones } from './sysworld-drones.js';
 import { createExperience } from './sysworld-experience.js';
 import { createWeather } from './sysworld-weather.js';
-import { interiors } from './sysworld-exploration.js';
+import { interiors, groundHeight } from './sysworld-exploration.js';
+import { springStep } from './sysworld-footing.js';
 import { streets, towers, surfaces as groundLevels } from './sysworld-layout.js';
 import { createCompanion } from './sysworld-companion.js';
+import { createContactShadows } from './sysworld-contact.js';
 import {createTraffic,fixedSteps} from './sysworld-traffic.js';
 import {installCityColliders} from './sysworld-colliders.js';
 import { createSurfaces } from './sysworld-surfaces.js';
@@ -180,6 +182,7 @@ export async function createCity(host, options) {
   composer.addPass(bloom); composer.addPass(new OutputPass());
   const world = new THREE.Group(), staticCity = new THREE.Group(), landmarks = new THREE.Group();
   scene.add(world); world.add(staticCity, landmarks);
+  const contact = createContactShadows(scene);
   function ownMesh(geometry, material) {
     geoSet.add(geometry); matSet.add(material); return new THREE.Mesh(geometry, material);
   }
@@ -244,6 +247,7 @@ export async function createCity(host, options) {
   } catch (error) { if (abort.signal.aborted) { dispose(); throw error; } }
   installCityColliders(traffic,catalog,districts,placements);
   experience=createExperience(scene,{
+    shadows:contact,
     camera,districts,tier,traffic,reduced:()=>reduced,active:()=>visible&&!failed&&mode!=='map'&&!reduced&&!options.replaying?.(),
     assetURL:file=>options.resourceURL('/3d/system-world/v2/'+file),surfaces,
     clear:(from,to)=>traffic.clear(visitor,{...from,heading:0},{...to,heading:0},false),onFlight:state=>options.onFlight?.(state),
@@ -393,7 +397,7 @@ export async function createCity(host, options) {
     rippleMaterial.uniforms.alpha.value = 0; rippleTime = 0; ripple.visible = !reduced;
     hoverRing.visible = !!hovered && hovered !== selected;
     if (mode === 'street') {
-      experience.endRide(); options.onCut?.(); camera.position.set(d.x, 2.4, d.z + d.radius + 7); camera.lookAt(d.x, d.height * .4, d.z);
+      experience.endRide(); options.onCut?.(); camera.position.set(d.x, 2.4 + groundHeight(d.x, d.z + d.radius + 7), d.z + d.radius + 7); camera.lookAt(d.x, d.height * .4, d.z);
       settleCamera();
     } else {
       flyTo(new THREE.Vector3(d.x + d.radius * 2.7, d.height * .7 + 18, d.z + d.radius * 4),
@@ -408,7 +412,7 @@ export async function createCity(host, options) {
     visitor.circles[0].r=visitor.reach=mode==='street'?.24:.38;
     if (document.pointerLockElement === canvas) document.exitPointerLock();
     if (mode === 'street') {
-      options.onCut?.(); clearHover(); camera.position.set(18, 2.4, 57); camera.lookAt(0, 26, -12);
+      options.onCut?.(); clearHover(); camera.position.set(18, 2.4 + groundHeight(18, 57), 57); camera.lookAt(0, 26, -12);
       settleCamera();
     } else if (mode !== 'map') {
       settleCamera();
@@ -476,21 +480,27 @@ export async function createCity(host, options) {
   listen(window, 'blur', () => { keys.clear(); down = null; });
   listen(canvas, 'webglcontextlost', e => { e.preventDefault(); failed = true; keys.clear(); options.onContextLost?.(); });
   observer = new ResizeObserver(resize); observer.observe(host);
+  // The visitor's eye follows the ground with the residents' critically damped spring.
+  const eye = { y: NaN, v: 0 };
   function move(dt) {
     const speed = (keys.has('ShiftLeft') ? 25 : 11) * dt;
     let forward = Number(keys.has('KeyW') || keys.has('ArrowUp')) - Number(keys.has('KeyS') || keys.has('ArrowDown'));
     let right = Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft'));
     // A hover-pack flight runs even without a key held, so the velocity can ease out.
-    if (experience.hovering()) { experience.fly(dt, { forward, right, up: Number(keys.has('Space')) - Number(keys.has('KeyC')), boost: keys.has('ShiftLeft') }); return; }
-    if (!forward && !right) return;
-    if(experience.walkRide(forward,dt,right))return;
-    const scale = speed / Math.hypot(forward, right);
-    camera.getWorldDirection(v); v.y = 0; v.normalize();
-    const dx = (v.x * forward - v.z * right) * scale, dz = (v.z * forward + v.x * right) * scale;
-    const allowed = (x,z)=>experience.move(x,z,camera.position)&&traffic.clear(visitor,visitor,{x,y:2.4+experience.floor(x,z),z,heading:0});
-    if (allowed(camera.position.x + dx, camera.position.z)) camera.position.x += dx;
-    if (allowed(camera.position.x, camera.position.z + dz)) camera.position.z += dz;
-    if(!experience.isRiding())camera.position.y = 2.4+experience.floor(camera.position.x,camera.position.z);
+    if (experience.hovering()) { experience.fly(dt, { forward, right, up: Number(keys.has('Space')) - Number(keys.has('KeyC')), boost: keys.has('ShiftLeft') }); eye.y = NaN; return; }
+    if (forward || right) {
+      if (experience.walkRide(forward, dt, right)) return;
+      const scale = speed / Math.hypot(forward, right);
+      camera.getWorldDirection(v); v.y = 0; v.normalize();
+      const dx = (v.x * forward - v.z * right) * scale, dz = (v.z * forward + v.x * right) * scale;
+      const allowed = (x,z)=>experience.move(x,z,camera.position)&&traffic.clear(visitor,visitor,{x,y:2.4+experience.floor(x,z),z,heading:0});
+      if (allowed(camera.position.x + dx, camera.position.z)) camera.position.x += dx;
+      if (allowed(camera.position.x, camera.position.z + dz)) camera.position.z += dz;
+    }
+    if (experience.isRiding()) { eye.y = NaN; return; }
+    // Anything else that placed the camera (a visit, a landing, a refused step) restarts the spring there.
+    if (!(Math.abs(camera.position.y - eye.y) < 1e-6)) { eye.y = camera.position.y; eye.v = 0; }
+    camera.position.y = springStep(eye, 2.4 + experience.floor(camera.position.x, camera.position.z), reduced ? 0 : dt);
   }
   let simulationTime=0;
   const simulate=fixedSteps(step=>{
@@ -585,14 +595,14 @@ export async function createCity(host, options) {
     if (disposed) return; disposed = true; generation++; abort.abort(); requests.forEach(c => c.abort());
     keys.clear(); if(document.pointerLockElement === canvas) document.exitPointerLock();
     options.signal?.removeEventListener('abort', dispose); cleanup.forEach(fn => fn()); observer?.disconnect(); controls.dispose();
-    life?.dispose();companion?.dispose();experience?.dispose();weather.dispose(); hologram.dispose(); drones.dispose();traffic.dispose(); atmosphere.dispose(); surfaces.dispose(); flow.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose();
+    life?.dispose();companion?.dispose();experience?.dispose();weather.dispose(); hologram.dispose(); drones.dispose();contact.dispose();traffic.dispose(); atmosphere.dispose(); surfaces.dispose(); flow.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose();
     geoSet.forEach(g => g.dispose()); matSet.forEach(m => m.dispose());
     composer.passes.forEach(p => p.dispose?.()); composer.dispose(); environment.dispose(); sun.shadow.dispose();
     renderer.dispose(); renderer.forceContextLoss(); canvas.remove(); cache.clear(); materials.clear();
   }
-  life = createCityLife(scene, districts, {traffic,society:experience.society,robotURL:options.resourceURL('/3d/system-world/white-robot.glb'), signal:options.signal, onError:options.onRobotError, active:()=>visible&&!failed&&mode!=='map'&&!options.replaying?.(), obstacles});
+  life = createCityLife(scene, districts, {traffic,society:experience.society,robotURL:options.resourceURL('/3d/system-world/white-robot.glb'), signal:options.signal, onError:options.onRobotError, active:()=>visible&&!failed&&mode!=='map'&&!options.replaying?.(), obstacles, shadows:contact});
   // A missing or broken companion never stops the city from loading.
-  companion = createCompanion({scene, resourceURL:options.resourceURL, signal:abort.signal, groundY:groundLevels.quay, onError:options.onCompanionError});
+  companion = createCompanion({scene, resourceURL:options.resourceURL, signal:abort.signal, shadows:contact, onError:options.onCompanionError});
   hologram.setReducedMotion(!!reduced);
   try { applyTier(); await rebuild(); } catch(e) { dispose(); throw e; }
   return {

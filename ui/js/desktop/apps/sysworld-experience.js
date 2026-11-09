@@ -33,7 +33,7 @@ export function createExperience(scene,options){
     clear:(from,to)=>options.clear?options.clear(from,to):!visitorBody()||traffic.clear(visitorBody(),{...from,heading:0},{...to,heading:0},false),
     // A landing spot is open street-level pavement or ground: never a pavilion interior, a building or a resident.
     walkable:(x,z)=>{if(roomAt(x,z)||!canWalk(x,z,{x,z},()=>false,options.districts||[]))return false;const p={x,y:groundAt(x,z)+2.4,z,heading:0};return !visitorBody()||traffic.clear(visitorBody(),p,p);}});
-  const society=createSociety(scene,{traffic,camera,floor:placeFloor,onSelect:options.onSociety,onDemonstrate:machinery.demonstrate,active:options.active,onGait:options.onGait});
+  const society=createSociety(scene,{traffic,camera,floor:placeFloor,onSelect:options.onSociety,onDemonstrate:machinery.demonstrate,active:options.active,onGait:options.onGait,shadows:options.shadows});
   let placementSequence=0,lodClock=0;
   try{visited=new Set(JSON.parse(localStorage.getItem('aurago.desktop.sysworld.discoveries')||'[]').filter(id=>stations.some(s=>s.id===id)));}catch(_){}
   const route=streetCurve(tramWaypoints),length=route.getLength();

@@ -6,7 +6,7 @@ import {springStep,findRig,adaptFeet} from './sysworld-footing.js';
 const turn=(from,to,dt)=>from+Math.atan2(Math.sin(to-from),Math.cos(to-from))*Math.min(1,dt*5);
 // The walk and carry clips are authored for 1.65 m/s with planted feet; a faster stride plays them faster.
 const stride=(a,name,speed)=>{const action=a.play?.(name);if(action)action.timeScale=speed/1.65;};
-export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate,active,onGait}) {
+export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate,active,onGait,shadows}) {
   const actors=[],places=new Map(),slots=[],meetings=[],finder=createWayfinder(traffic,floor),signals=createSocialSignals(scene);
   let clock=0,selected=null,replay=false,tier='high',disposed=false,completed=0,selectedStatus='';
   const limit=()=>tier==='low'?3:tier==='medium'?10:19;
@@ -27,7 +27,7 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
     model.node.traverse(n=>{if(n.isMesh&&/parcel/.test(n.name)){a.parcels.push(n);n.visible=false;}});
     actors.push(a);model.node.position.set(body.x,body.y,body.z);
     // Damped height and slope pitch for every resident; feet only when the rig is complete.
-    a.height={y:body.y,v:0};a.pitch={y:0,v:0};model.node.rotation.order='YXZ';a.rig=findRig(model.node);
+    a.height={y:body.y,v:0};a.pitch={y:0,v:0};model.node.rotation.order='YXZ';a.rig=findRig(model.node);a.shadow=shadows?.claim()||null;
     return a;
   }
   function patrol(id,body,node,pause) {const a={id,body,node,pause,role:'patrol',state:'patrol',cooldown:7+actors.length,path:[],soundX:body.x,soundZ:body.z};actors.push(a);return a;}
@@ -186,12 +186,13 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
     const feet=tier!=='low';
     for(const a of actors) {
       if(!a.height)continue;                             // hovering patrols own their height
-      if(!a.body.enabled||!a.node.visible)continue;
+      if(!a.body.enabled||!a.node.visible){a.shadow?.hide();continue;}
       const b=a.body,y=springStep(a.height,b.y,dt);
       const fx=Math.sin(b.heading),fz=Math.cos(b.heading),slope=floor(b.x+fx*.35,b.z+fz*.35)-floor(b.x-fx*.35,b.z-fz*.35);
       const pitch=springStep(a.pitch,Math.max(-.08,Math.min(.08,Math.atan2(slope,.7)*.5)),dt);
       a.node.position.set(b.x,y,b.z);a.node.rotation.y=b.heading;a.node.rotation.x=-pitch;
       if(feet&&a.rig)adaptFeet(a.rig,a.node,floor);
+      a.shadow?.set(b.x,floor(b.x,b.z),b.z,.62,.5);
     }
   }
   return {

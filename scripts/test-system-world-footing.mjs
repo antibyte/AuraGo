@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {springStep,stanceWeight,solveLeg,findRig,adaptFeet,soleLift,SOLE} from '../ui/js/desktop/apps/sysworld-footing.js';
+import {createContactShadows} from '../ui/js/desktop/apps/sysworld-contact.js';
 
 // --- Spring ---
 {
@@ -101,5 +102,13 @@ for(const name of['courier','technician','archivist']){
   assert.ok(left>=.14-.005,name+': left sole not below the kerb: '+left);
   assert.ok(left<=.14+.01,name+': left sole on the kerb: '+left);
   assert.ok(Math.abs(right)<.005,name+': right foot still reaches its ground: '+right);
+}
+{
+  const scene=new THREE.Scene(),pool=createContactShadows(scene,{capacity:2}),a=pool.claim(),b=pool.claim();
+  assert.ok(a&&b);assert.equal(pool.claim(),null,'bounded pool');
+  a.set(1,0,2,.5,.4);const mesh=scene.getObjectByName('contact-shadows'),m=new THREE.Matrix4();mesh.getMatrixAt(0,m);
+  const p=new THREE.Vector3().setFromMatrixPosition(m);assert.ok(p.x===1&&p.z===2&&p.y>0&&p.y<.05,'just above the ground');
+  b.hide();mesh.getMatrixAt(1,m);assert.equal(new THREE.Vector3().setFromMatrixScale(m).x,0);
+  pool.dispose();assert.equal(scene.children.length,0);
 }
 console.log('System World footing: spring, stance weight, two-bone solve, kerb, step-down, ramp, 300 random poses, rig detection and 3 shipped residents passed.');

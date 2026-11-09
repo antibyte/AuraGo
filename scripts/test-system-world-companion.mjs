@@ -1,29 +1,32 @@
 import fs from 'node:fs';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
-import { companionPose, companionGait } from '../ui/js/desktop/apps/sysworld-companion.js';
+import { companionPose, companionGait, LOOP } from '../ui/js/desktop/apps/sysworld-companion.js';
+import { groundHeight } from '../ui/js/desktop/apps/sysworld-exploration.js';
+import { streetProfile } from '../ui/js/desktop/apps/sysworld-ground.js';
 
 // --- Deterministic, bounded patrol ------------------------------------------
-const first = companionPose(0), loop = companionPose(24);
+const first = companionPose(0), loop = companionPose(LOOP.seconds);
 assert.ok(Math.abs(first.x - loop.x) < 1e-9 && Math.abs(first.z - loop.z) < 1e-9, 'The patrol is a closed loop');
 assert.deepEqual(companionPose(7), companionPose(7), 'The pose is pure');
 let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, previous = -Infinity;
-for (let t = 0; t <= 48; t += .05) {
+for (let t = 0; t <= 2 * LOOP.seconds; t += .05) {
   const p = companionPose(t);
   assert.ok(Number.isFinite(p.x) && Number.isFinite(p.z) && Number.isFinite(p.heading));
-  minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
-  minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z);
+  minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z);
   assert.ok(p.phase >= previous, 'Gait phase never runs backwards'); previous = p.phase;
 }
-// The loop stays on the quiet quay: clear of the three pavilions (x -49..-37,
-// -6..6, 37..49), the southern tram boulevard (z <= 65) and the harbour hover dock.
-assert.ok(minX > 10 && maxX < 30, 'Patrol stays between the pavilions: ' + minX + '..' + maxX);
-assert.ok(minZ > 66 && maxZ < 74, 'Patrol stays off the tram boulevard: ' + minZ + '..' + maxZ);
-for (const dock of [{ x: 23.3, z: 75 }])
-  for (let t = 0; t <= 24; t += .05) {
-    const p = companionPose(t);
-    assert.ok(Math.hypot(p.x - dock.x, p.z - dock.z) > 2.5, 'Patrol clears the hover dock');
-  }
+// One level: the plot east of the x = 18 street, clear of its kerb, the southern boulevard (z <= 65),
+// the quay step (z >= 74), the missions pavilion (x >= 37) and the harbour hover dock.
+assert.ok(minX > 24 && maxX < 35.5, 'Patrol stays on the plot: ' + minX + '..' + maxX);
+assert.ok(minZ > 65 && maxZ < 74, 'Patrol stays off the boulevard and the quay: ' + minZ + '..' + maxZ);
+const level = groundHeight(LOOP.cx, LOOP.cz);
+for (let t = 0; t <= LOOP.seconds; t += .05) {
+  const p = companionPose(t), s = streetProfile(p.x, p.z);
+  assert.ok(!s || s.kind === 'pavement', 'The patrol never touches a kerb or a carriageway');
+  for (const [dx, dz] of [[.6, 0], [-.6, 0], [0, .35], [0, -.35]]) assert.equal(groundHeight(p.x + dx, p.z + dz), level, 'The patrol stays on one level');
+  assert.ok(Math.hypot(p.x - 23.3, p.z - 75) > 2.5, 'Patrol clears the hover dock');
+}
 
 // --- A diagonal trot, not four legs in lockstep -----------------------------
 for (const phase of [0, .8, 2.1, 5.7]) {

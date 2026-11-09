@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createNavigator } from './sysworld-navigation.js';
 import {bodyShape} from './sysworld-traffic.js';
+import {groundHeight} from './sysworld-exploration.js';
 
 // Five decorative city residents. Their routes are streets, not claimed data flows.
 // Block loops run as right-turn circuits, so the right-hand lane hugs each block's own kerb and
@@ -100,10 +101,10 @@ export function createCityLife(scene, districts, options) {
   routes.forEach((corners,i)=>{
     const root=new THREE.Group();root.name='city-white-robot-'+(i+1);
     const body=new THREE.Group();root.add(body);group.add(root);
-    const glow=new THREE.Mesh(glowGeometry,glowMaterial);glow.rotation.x=-Math.PI/2;glow.position.y=.58;group.add(glow);
+    const glow=new THREE.Mesh(glowGeometry,glowMaterial);glow.rotation.x=-Math.PI/2;glow.position.y=.08;group.add(glow);
     const jet=new THREE.Mesh(jetGeometry,jetMaterial);jet.rotation.z=Math.PI;jet.position.y=-.45;root.add(jet);
     root.visible=false;glow.visible=false;
-    residents.push({root,body,glow,jet,agent:navigator.agents[i],lastX:0,lastZ:0,phase:0,gait:0});
+    residents.push({shadow:options.shadows?.claim()||null,root,body,glow,jet,agent:navigator.agents[i],lastX:0,lastZ:0,phase:0,gait:0});
   });
   function releaseModel(model) {
     model.traverse(n=>{
@@ -199,6 +200,9 @@ export function createCityLife(scene, districts, options) {
       r.body.rotation.x=-.035+Math.sin(time*1.1+i)*.018*gait-Math.min(.09,moving*.015);
       r.glow.position.x=position.x;r.glow.position.z=position.z;
       r.jet.scale.y=1+Math.sin(time*4+i)*.12+moving*.04;
+      // Ground light and contact shadow lie on the actual street surface under the robot.
+      const floor=groundHeight(r.glow.position.x,r.glow.position.z);r.glow.position.y=floor+.08;
+      if(r.shadow){if(r.root.visible)r.shadow.set(r.glow.position.x,floor,r.glow.position.z,1.1,.3);else r.shadow.hide();}
       if(animated&&bodies[i]&&!a.held){
         const b=bodies[i],next={x:a.x,y:1.6,z:a.z,heading:a.heading};
         if(r.escape&&time<r.escape.until){next.x=b.x+r.escape.x*step*1.8;next.z=b.z+r.escape.z*step*1.8;next.heading=b.heading;}
