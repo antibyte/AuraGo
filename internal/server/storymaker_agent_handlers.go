@@ -218,7 +218,8 @@ func storymakerAgentCreateProject(ctx context.Context, acc *storymakerAccess, to
 	if utf8.RuneCountInString(title) > storymakerStartTitleRunes {
 		title = strings.TrimSpace(string([]rune(title)[:storymakerStartTitleRunes]))
 	}
-	project, _, _, err := acc.rt.projects.CreateWithVoice(ctx, title, aspect, 0, nil)
+	// An agent project gets the composition rules of the player: captions clear of the floor, a readable hero prop, a slow push-in.
+	project, _, _, err := acc.rt.projects.CreateWithOptions(ctx, title, aspect, 0, nil, storymaker.CreateOptions{Compose: "v2"})
 	if err != nil {
 		return "", err
 	}

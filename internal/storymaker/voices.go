@@ -162,6 +162,17 @@ func ApplyCaptionOverride(s *Story, burnIn *bool) {
 
 // CreateWithVoice is Create with story.voice set to a copy of voice. A nil voice leaves voice:null.
 func (p *ProjectStore) CreateWithVoice(ctx context.Context, title, aspect string, fps int, voice *Voice) (Project, Story, string, error) {
+	return p.CreateWithOptions(ctx, title, aspect, fps, voice, CreateOptions{})
+}
+
+// CreateOptions are the choices of a new project that the editor does not make. Compose is the story's style.compose: the
+// agent sets "v2", the editor leaves it empty, so existing and hand-made films keep their look.
+type CreateOptions struct {
+	Compose string
+}
+
+// CreateWithOptions is CreateWithVoice with options.
+func (p *ProjectStore) CreateWithOptions(ctx context.Context, title, aspect string, fps int, voice *Voice, opts CreateOptions) (Project, Story, string, error) {
 	title = strings.TrimSpace(title)
 	if title == "" || runeLen(title) > 120 {
 		return Project{}, Story{}, "", fmt.Errorf("%w: the title must have 1 to 120 characters", ErrInvalidArgument)
@@ -184,7 +195,7 @@ func (p *ProjectStore) CreateWithVoice(ctx context.Context, title, aspect string
 	story := Story{
 		Schema: Schema, Title: title,
 		Format: Format{Aspect: aspect, FPS: fps},
-		Style:  Style{Palette: DefaultPalette, Font: DefaultFont, Captions: true},
+		Style:  Style{Palette: DefaultPalette, Font: DefaultFont, Captions: true, Compose: opts.Compose},
 		Cast:   []CastMember{},
 		Scenes: []Scene{{ID: "s1"}},
 	}
