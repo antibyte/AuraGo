@@ -334,6 +334,9 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) (mcpCal
 		}
 	}
 
+	toolCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+
 	// Build a ToolCall from MCP arguments
 	tc := agent.ToolCall{
 		IsTool: true,
@@ -345,7 +348,7 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) (mcpCal
 		argBytes, _ := json.Marshal(p.Arguments)
 		// Scan marshaled arguments for prompt injection before dispatch
 		if s.Guardian != nil {
-			if scan := s.Guardian.ScanForInjection(string(argBytes)); scan.Level >= security.ThreatHigh {
+			if scan := mcpScanToolArguments(toolCtx, s, p, argBytes); scan.Level >= security.ThreatHigh {
 				s.Logger.Warn("[MCP] Prompt injection detected in tool arguments — blocking execution",
 					"tool", p.Name, "level", scan.Level, "patterns", scan.Patterns)
 				return mcpCallToolResult{
@@ -362,10 +365,6 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) (mcpCal
 			},
 		}, s.Logger)
 	}
-
-	// Add timeout
-	toolCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
-	defer cancel()
 
 	s.CfgMu.RLock()
 	cfg := s.Cfg
