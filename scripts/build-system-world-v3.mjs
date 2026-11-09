@@ -50,6 +50,13 @@ function parseGlb(bytes, label) {
   return JSON.parse(bytes.subarray(20, 20 + jlen).toString('utf8'));
 }
 
+function triangleCount(doc) {
+  let n = 0;
+  for (const mesh of doc.meshes ?? []) for (const p of mesh.primitives)
+    n += (p.indices !== undefined ? doc.accessors[p.indices].count : doc.accessors[p.attributes.POSITION].count) / 3;
+  return n;
+}
+
 let tempCounter = 0;
 function gltfpack(rawFile) {
   const temp = path.join(os.tmpdir(), 'aurago-v3-' + process.pid + '-' + (tempCounter++) + '.glb');
@@ -85,7 +92,10 @@ async function packOne(asset, lod) {
   const bytes = await gltfpack(path.join(rawDir, lod.file));
   const result = await validator.validateBytes(new Uint8Array(bytes), { uri: lod.file, maxIssues: 50 });
   if (result.issues.numErrors) fail(lod.file + ': Khronos validator: ' + JSON.stringify(result.issues.messages));
-  checkContract(parseGlb(bytes, lod.file), asset, lod.file);
+  const doc = parseGlb(bytes, lod.file);
+  checkContract(doc, asset, lod.file);
+  const tris = triangleCount(doc);
+  if (tris !== lod.triangles) fail(lod.file + ': gltfpack changed the triangle count (' + lod.triangles + ' -> ' + tris + '); no simplification is allowed');
   return bytes;
 }
 
@@ -133,6 +143,9 @@ if (check) {
     const data = await fs.readFile(path.join(outDir, lod.file)).catch(() => fail('Missing file: ' + lod.file));
     if (data.length !== lod.bytes) fail(lod.file + ': size differs from the manifest');
     if (sha(data) !== lod.sha256) fail(lod.file + ': sha256 differs from the manifest');
+    const checked = await validator.validateBytes(new Uint8Array(data), { uri: lod.file, maxIssues: 50 });
+    if (checked.issues.numErrors) fail(lod.file + ': Khronos validator: ' + JSON.stringify(checked.issues.messages));
+    checkContract(parseGlb(data, lod.file), asset, lod.file);
     total += data.length;
   }
   for (const name of await fs.readdir(outDir)) if (name.endsWith('.glb') && !listed.has(name)) fail('Unlisted GLB: ' + name);
