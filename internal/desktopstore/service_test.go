@@ -33,6 +33,7 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		"n8n":                 {image: "ghcr.io/n8n-io/n8n:latest", port: 5678, icon: "n8n", runtime: RuntimeContainerWebApp},
 		"node-red":            {image: "ghcr.io/node-red/node-red:latest", port: 1880, icon: "node-red", runtime: RuntimeContainerWebApp},
 		"open-webui":          {image: "ghcr.io/open-webui/open-webui:main", port: 8080, icon: "open-webui", runtime: RuntimeContainerWebApp},
+		"deeptutor":           {image: "ghcr.io/hkuds/deeptutor@sha256:9b8b21ea8861434868ba20adf70966ad9dce193c507c2dcceffbe57264306da8", port: 3782, icon: "book", runtime: RuntimeContainerWebApp},
 		"adguard-home":        {image: "adguard/adguardhome", port: 3000, icon: "network", runtime: RuntimeContainerWebApp},
 		"excalidraw":          {image: "excalidraw/excalidraw:latest", port: 80, icon: "editor", runtime: RuntimeContainerWebApp},
 		"uptime-kuma":         {image: "ghcr.io/louislam/uptime-kuma:2", port: 3001, icon: "monitor", runtime: RuntimeContainerWebApp},

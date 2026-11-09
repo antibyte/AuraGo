@@ -171,6 +171,7 @@ Quelle: `internal/desktopstore/catalog.go`.
 | n8n | `ghcr.io/n8n-io/n8n:latest` | Sustainable Use License |
 | Node-RED | `ghcr.io/node-red/node-red:latest` | Apache-2.0 |
 | Open WebUI | `ghcr.io/open-webui/open-webui:main` | Open WebUI License |
+| DeepTutor | `ghcr.io/hkuds/deeptutor@sha256:9b8b21ea8861434868ba20adf70966ad9dce193c507c2dcceffbe57264306da8` (1.7.2) | Apache-2.0 |
 | ByteStash | `ghcr.io/jordan-dalby/bytestash:latest` | GPL-3.0 |
 | IT-Tools | `ghcr.io/corentinth/it-tools:latest` | GPL-3.0 |
 | FileBrowser Quantum | `ghcr.io/gtsteffaniak/filebrowser:stable` | Apache-2.0 |

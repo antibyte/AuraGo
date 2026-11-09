@@ -184,12 +184,15 @@ type PortBinding struct {
 	HostPort      int    `json:"host_port"`
 }
 
-// ContainerSpec is the Docker create contract used by the store.
+// ContainerSpec is the Docker create contract used by the store. Entrypoint
+// replaces the image ENTRYPOINT when non-empty (Docker also drops the image's
+// default Cmd then); only fixed catalog wrappers set it, see deeptutor.go.
 type ContainerSpec struct {
 	Devices        []DeviceMapping     `json:"devices,omitempty"`
 	DeviceRequests []DeviceRequest     `json:"device_requests,omitempty"`
 	Name           string              `json:"name"`
 	Image          string              `json:"image"`
+	Entrypoint     []string            `json:"entrypoint,omitempty"`
 	Env            []string            `json:"env,omitempty"`
 	PortBindings   []PortBinding       `json:"port_bindings,omitempty"`
 	Volumes        []VolumeBinding     `json:"volumes,omitempty"`

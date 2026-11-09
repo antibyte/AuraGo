@@ -41,7 +41,7 @@ func TestPrintGuardProfilesAndFailedReplacement(t *testing.T) {
 			t.Fatal(err)
 		}
 		app, _, _ = s.GetInstalled(ctx, PrintGuardAppID)
-		spec, err := s.runtimeContainerSpec(app)
+		spec, err := s.runtimeContainerSpec(context.Background(), app)
 		if err != nil || app.Image != printGuardImages[profile] || app.Volumes[0] != dataVolume {
 			t.Fatalf("profile %s did not persist: %v", profile, err)
 		}
@@ -73,7 +73,7 @@ func TestPrintGuardProfilesAndFailedReplacement(t *testing.T) {
 	if app.Image != previous.Image || app.Status != AppStatusRunning || app.ContainerID != previous.ContainerID {
 		t.Fatal("failed GPU switch did not restore old runtime")
 	}
-	spec, err := s.runtimeContainerSpec(app)
+	spec, err := s.runtimeContainerSpec(context.Background(), app)
 	if err != nil || len(spec.Devices) != 0 || len(spec.DeviceRequests) != 0 {
 		t.Fatal("rollback acquired desired GPU grants")
 	}
@@ -133,7 +133,7 @@ func TestPrintGuardCatalogPinUpdateKeepsPreviousRuntime(t *testing.T) {
 		t.Fatal("failed release update succeeded")
 	}
 	app, _, _ := s.GetInstalled(ctx, PrintGuardAppID)
-	spec, err := s.runtimeContainerSpec(app)
+	spec, err := s.runtimeContainerSpec(context.Background(), app)
 	if err != nil || spec.Image != oldPin || app.ContainerID != previous.ContainerID {
 		t.Fatal("new pin invalidated previous runtime")
 	}
@@ -178,7 +178,7 @@ func TestPrintGuardAgentCredentialsAndRevocation(t *testing.T) {
 		t.Fatalf("verification not retained: %v", err)
 	}
 	app, _, _ := s.GetInstalled(ctx, PrintGuardAppID)
-	spec, _ := s.runtimeContainerSpec(app)
+	spec, _ := s.runtimeContainerSpec(context.Background(), app)
 	status, _ := s.PrintGuardConfiguration(ctx)
 	public, _ := json.Marshal(status)
 	ledger, _ := s.Operation(ctx, op.ID)

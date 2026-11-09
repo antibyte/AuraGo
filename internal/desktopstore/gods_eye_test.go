@@ -54,7 +54,7 @@ func TestGodsEyeConfigurationLifecycle(t *testing.T) {
 		t.Fatal("configure pulled an image")
 	}
 	app, _, _ = s.GetInstalled(ctx, GodsEyeAppID)
-	spec, err := s.runtimeContainerSpec(app)
+	spec, err := s.runtimeContainerSpec(context.Background(), app)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestGodsEyeConfigurationLifecycle(t *testing.T) {
 		t.Fatal("expected failure")
 	}
 	app, _, _ = s.GetInstalled(ctx, GodsEyeAppID)
-	spec, err = s.runtimeContainerSpec(app)
+	spec, err = s.runtimeContainerSpec(context.Background(), app)
 	if err != nil {
 		t.Fatal(err)
 	}

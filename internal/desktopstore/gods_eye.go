@@ -229,11 +229,17 @@ func (s *Service) godsEyeEnvironment() ([]string, []SecretRef, error) {
 	return []string{godsEyeRevisionEnv + "=" + settings.Desired.Revision}, nil, nil
 }
 
-func (s *Service) runtimeContainerSpec(app InstalledApp) (ContainerSpec, error) {
+// runtimeContainerSpec is the record's container spec plus everything that is
+// resolved at creation time and never stored: God's Eye View provider keys,
+// PrintGuard settings and the DeepTutor relay token and settings.
+func (s *Service) runtimeContainerSpec(ctx context.Context, app InstalledApp) (ContainerSpec, error) {
 	spec := containerSpecFromRecord(app)
 	spec.Hardening = s.catalogHardening(app.AppID, "")
 	if app.AppID == PrintGuardAppID {
 		return s.printGuardContainerSpec(app, spec)
+	}
+	if app.AppID == DeepTutorAppID {
+		return s.deepTutorContainerSpec(ctx, spec)
 	}
 	if app.AppID != GodsEyeAppID {
 		return spec, nil

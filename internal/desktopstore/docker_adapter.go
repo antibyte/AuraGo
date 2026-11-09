@@ -380,6 +380,11 @@ func dockerCreatePayload(spec ContainerSpec) map[string]any {
 		"HostConfig":   hostConfig,
 		"Labels":       spec.Labels,
 	}
+	// Docker replaces the image ENTRYPOINT (and drops its Cmd default) only when
+	// the key is present, so every other app keeps the image's own entrypoint.
+	if len(spec.Entrypoint) > 0 {
+		payload["Entrypoint"] = append([]string(nil), spec.Entrypoint...)
+	}
 	return payload
 }
 

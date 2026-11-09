@@ -60,6 +60,9 @@ type Config struct {
 	Launchpad     LaunchpadAdapter
 	Secrets       SecretStore
 	NativeManaged NativeManagedRuntime
+	// LLMRelay tells the DeepTutor install how its container reaches the AuraGo
+	// LLM relay; without it DeepTutor cannot be installed.
+	LLMRelay      LLMRelayProvider
 	PortAllocator PortAllocator
 	PortProbe     PortProbe
 	// Logger receives Store warnings; nil uses slog.Default().
@@ -761,7 +764,7 @@ func (s *Service) RunOperation(ctx context.Context, operationID string) error {
 	}
 	if runErr != nil {
 		errorCode, errorParams := operationErrorDetails(runErr)
-		if op.AppID == GodsEyeAppID || op.AppID == PrintGuardAppID {
+		if op.AppID == GodsEyeAppID || op.AppID == PrintGuardAppID || op.AppID == DeepTutorAppID {
 			runErr = errors.New(security.Scrub(runErr.Error()))
 		}
 		if op.Type == OperationConfigure {
@@ -1182,6 +1185,13 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 			return err
 		}
 	}
+	if entry.ID == DeepTutorAppID {
+		// Fail before the image pull when the AuraGo LLM relay is unusable.
+		if err := s.prepareDeepTutorInstall(ctx); err != nil {
+			s.cleanupBlockedInstall(ctx, entry.ID)
+			return err
+		}
+	}
 	hostPort, err := s.portAllocator(ctx, entry.PrimaryPort.ContainerPort)
 	if err != nil {
 		return fmt.Errorf("allocate port: %w", err)
@@ -1254,7 +1264,7 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 		}
 	}
 	companionsStarted := time.Now()
-	spec, err := s.runtimeContainerSpec(record)
+	spec, err := s.runtimeContainerSpec(ctx, record)
 	if err != nil {
 		return s.failInstall(ctx, record, err)
 	}
@@ -1345,7 +1355,7 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	if isNativeManagedEntry(entry) {
 		return s.updateNativeManaged(ctx, op, entry, record)
 	}
-	previousSpec, err := s.runtimeContainerSpec(previous)
+	previousSpec, err := s.runtimeContainerSpec(ctx, previous)
 	if err != nil {
 		return err
 	}
@@ -1451,7 +1461,7 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 			return restorePrevious(err)
 		}
 	}
-	nextSpec, err := s.runtimeContainerSpec(record)
+	nextSpec, err := s.runtimeContainerSpec(ctx, record)
 	if err != nil {
 		return restorePrevious(err)
 	}
@@ -2256,6 +2266,11 @@ func (s *Service) resolveEnv(entry CatalogEntry, app InstalledApp, previousEnv [
 			refs = append(refs, ref)
 		}
 	}
+	if entry.ID == DeepTutorAppID {
+		// The relay token lives only in the Vault; runtimeContainerSpec adds it
+		// (and the relay settings) when it creates the container.
+		env = withoutDeepTutorToken(env)
+	}
 	return env, refs, nil
 }
 
@@ -2683,7 +2698,7 @@ func (s *Service) upsertLaunchpad(ctx context.Context, entry CatalogEntry, app I
 }
 
 func (s *Service) saveInstalled(ctx context.Context, app InstalledApp) error {
-	if app.AppID == GodsEyeAppID || app.AppID == PrintGuardAppID {
+	if app.AppID == GodsEyeAppID || app.AppID == PrintGuardAppID || app.AppID == DeepTutorAppID {
 		app.Error = security.Scrub(app.Error)
 	}
 	app.UpdatedAt = time.Now().UTC()

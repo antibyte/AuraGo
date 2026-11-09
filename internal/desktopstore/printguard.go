@@ -317,8 +317,11 @@ func (s *Service) configurePrintGuardRuntime(ctx context.Context, op Operation) 
 }
 
 func appReadinessTimeoutFor(app InstalledApp) time.Duration {
-	if app.AppID == PrintGuardAppID {
+	switch app.AppID {
+	case PrintGuardAppID:
 		return 5 * time.Minute
+	case DeepTutorAppID:
+		return deepTutorReadinessTimeout
 	}
 	return appReadinessTimeout
 }

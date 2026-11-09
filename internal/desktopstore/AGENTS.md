@@ -84,6 +84,83 @@ Store app configuration, runtime, assets, and publication.
 
 - The OpenSCAD catalog image is the digest pin `openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37`, the same reference as Desktop `defaultOpenSCADImage`.
 
+### DeepTutor
+
+- `deeptutor` (category `ai`, icon `book`, `open_maximized`) is pinned to the
+  digest of `ghcr.io/hkuds/deeptutor:1.7.2` (amd64+arm64 index
+  `sha256:9b8b21ea…6da8`, see `catalog.go`). Port 3782, one named volume
+  `data` at `/app/data`. The image starts as root (supervisord drops to its own
+  user and runs `chown -R /app/data`), so it opts into no hardening. DeepTutor
+  has no login of its own; the description says so. An image bump needs the new
+  digest, a re-run of the live checks below and `documentation/deeptutor.md`.
+- The LLM comes from AuraGo through the token-gated relay `DeepTutorRelayPath`
+  (`/api/store-llm/deeptutor/v1`, handlers in `internal/server`). The server
+  implements `LLMRelayProvider` (`Config.LLMRelay`); a nil provider, a provider
+  error or an invalid origin fails the install before the image pull
+  (`prepareDeepTutorInstall`) with a secret-free operation error.
+- The relay token is the generated secret `llm_relay_token` (Vault key
+  `desktop_store_deeptutor_llm_relay_token`, never exposed). `resolveEnv` runs
+  the generic generated-secret path and then strips the token env, so the
+  installed record (`env_json`, `secret_refs_json`, `extra_hosts_json`) never
+  holds the token, the relay URL or the merge script. `runtimeContainerSpec`
+  (now `runtimeContainerSpec(ctx, app)`) adds them at every container create
+  (install, update, rollback recreate): `AURAGO_DT_RELAY_URL`,
+  `AURAGO_DT_RELAY_TOKEN`, `AURAGO_DT_VISION`, `AURAGO_DT_EMBEDDINGS`,
+  `AURAGO_DT_CONTEXT` (omitted when unknown) and `AURAGO_DT_MERGE_PY`, plus
+  `RelayInfo.ExtraHosts` and `Entrypoint`. An Update therefore re-resolves a
+  changed AuraGo address or token. Reading the token with the Vault failing
+  fails the create; it is never regenerated silently there.
+- `VerifyRelayToken` is the only bearer check behind the relay: false for any
+  other app id, an app that is not installed, a missing or empty Vault secret
+  and an empty token; SHA-256 digests compared with `subtle`. Uninstall without
+  `delete_data` keeps the Vault token but the relay refuses it (no record);
+  `delete_data` rotates it.
+- `ContainerSpec.Entrypoint` becomes the create payload's `Entrypoint` only when
+  non-empty. DeepTutor's is `/bin/sh -c <deepTutorWrapper> aurago-deeptutor`:
+  run `python -c "$AURAGO_DT_MERGE_PY"` (fail-open: a non-zero exit prints one
+  stderr line and DeepTutor still starts), unset the script and the token from
+  the environment, then `exec /app/entrypoint.sh "$@"`. The image has no Cmd, so
+  dropping the default Cmd is harmless.
+- `deeptutor_assets/aurago_catalog_merge.py` (stdlib, runs as root before the
+  image's own directory setup and `chown`) merges ONE llm profile and, when the
+  relay reports embeddings, ONE embedding profile into
+  `/app/data/user/settings/model_catalog.json`, keyed by the fixed ids
+  `llm-profile-a0a0a0a0`/`llm-model-a0a0a0a0` and
+  `embedding-profile-a0a0a0a0`/`embedding-model-a0a0a0a0`. A fingerprint of
+  url|token|vision|embeddings|context in `.aurago-managed.json` makes a restart
+  a no-op (also records which managed profiles were ever created, so a profile
+  the user deleted does not return). A changed fingerprint updates only
+  `base_url`, `api_key` and the model alias of existing managed profiles. Managed
+  profiles become active only for a service without a usable profile; every
+  other profile and unknown key is kept. A damaged catalog gets a
+  `model_catalog.json.corrupt-<unix>` copy and a fresh start, and is never
+  treated as applied. Writes are atomic and 0600. The embedding dimension is
+  filled from one probe request to the relay (bounded, no redirects, no proxy)
+  because GraphRAG needs a known dimension; a failed probe leaves it empty.
+  Vision, context window and capabilities are only set when a profile is created.
+- Verified against the real image `1.7.2` on 2026-11-09 (Docker Desktop,
+  linux/amd64): entrypoint `/app/entrypoint.sh`, no Cmd, root, workdir `/app`,
+  Python 3.11. `model_catalog.py` does not validate ids (`setdefault` only).
+  Binding `custom` accepts `api_format: openai_chat` with `wire_api:
+  chat_completions` (formats: auto, openai_chat, openai_responses, anthropic).
+  The `custom` embedding base URL is used verbatim and must be the full
+  `.../embeddings` URL; `dimension: ""` resolves to 0 (provider default).
+  DeepTutor's own `ModelCatalogService.load()` left the merged file
+  byte-identical, `resolve_llm_runtime_config()` returned model `aurago`,
+  binding `custom`, the relay URL and the context window, and with a user
+  profile already active the user's stayed active. The wrapper text itself was
+  run in the image with `/app/entrypoint.sh` swapped for `env`: token and
+  script gone from the environment, a failing merge still reached the exec.
+- Not covered by unit tests: a full DeepTutor start with the wrapper and a chat
+  through the relay (live Track C check). The token is visible in `docker
+  inspect` and in the catalog file inside the data volume; the real provider
+  key never enters the container. A stale managed embedding profile stays after
+  AuraGo stops offering embeddings (remove it in the DeepTutor settings).
+- Verify `TestDeepTutor*`, `TestInstallDeepTutor*`, `TestUpdateDeepTutor*`,
+  `TestVerifyRelayToken`, `TestDockerCreatePayloadEntrypoint` (the Python merge
+  tests skip without a Python 3 on PATH) and the server `StoreLLMRelay` tests.
+  See `documentation/deeptutor.md`.
+
 ### God's Eye View Store Contract
 
 - `internal/desktopstore/gods_eye.go` owns app-specific setup for catalog ID

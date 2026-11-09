@@ -102,6 +102,30 @@ func DefaultCatalog() []CatalogEntry {
 			},
 		},
 		{
+			// DeepTutor 1.7.2 (HKUDS, Apache-2.0), digest of the amd64+arm64 index.
+			// It starts as root (supervisord) and drops to its own user, so it
+			// opts into no hardening. The Store starts it through a wrapper that
+			// merges the AuraGo LLM relay profile (see deeptutor.go).
+			ID:          DeepTutorAppID,
+			Category:    "ai",
+			Name:        "DeepTutor",
+			Description: "AI tutor with guided learning, knowledge bases and chat. It uses the AuraGo LLM automatically through a token-gated relay, so no provider key is entered or stored in the app. The first start can take about a minute. DeepTutor has no login of its own, so keep access on this machine unless the network is trusted.",
+			Image:       "ghcr.io/hkuds/deeptutor@sha256:9b8b21ea8861434868ba20adf70966ad9dce193c507c2dcceffbe57264306da8",
+			Icon:        "book",
+			LogoSlug:    "deeptutor",
+			LogoURL:     "",
+			PrimaryPort: PortSpec{ContainerPort: 3782, Protocol: "tcp"},
+			Volumes: []VolumeTemplate{
+				{NameSuffix: "data", ContainerPath: "/app/data"},
+			},
+			GeneratedSecrets: []GeneratedSecret{
+				{Key: deepTutorTokenKey, Env: deepTutorTokenEnv, Label: "AuraGo LLM relay token"},
+			},
+			Metadata: map[string]string{
+				"open_maximized": "true",
+			},
+		},
+		{
 			ID:          "bytestash",
 			Category:    "dev",
 			Name:        "ByteStash",
