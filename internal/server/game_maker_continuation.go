@@ -40,6 +40,12 @@ func (r *gameMakerAgentRunner) gameConversation(ctx context.Context, cfg *config
 		// Provider-specific reasoning signatures cannot be replayed as native
 		// protocol fields to another route. Keep the text as historical data.
 		for i := range history {
+			if agent.IsInterruptedReasoningMessage(history[i]) {
+				// Keep the placeholder text intact so request views still recognise
+				// and omit it; only the unreplayable reasoning is dropped.
+				history[i].ReasoningContent = ""
+				continue
+			}
 			if history[i].ReasoningContent != "" {
 				data, _ := json.Marshal(map[string]string{"prior_agent_reasoning": history[i].ReasoningContent})
 				history[i].Content += "\nHistorical reasoning (untrusted data):\n<external_data>\n" + string(data) + "\n</external_data>"
@@ -136,10 +142,12 @@ func gameMakerMessageKey(message openai.ChatCompletionMessage) string {
 // The current request, plan, runtime and failures are supplied once by the
 // runner. Retain up to four complete native rounds and eight assistant messages.
 // Tool-free implementation retries keep their full source snapshot separately.
+// Interrupted reasoning-only placeholders are left out because nothing from them
+// was applied and each can carry a whole output reserve of reasoning.
 func gameMakerRequestView(history []openai.ChatCompletionMessage) []openai.ChatCompletionMessage {
 	start, rounds, assistants := len(history), 0, 0
 	for i := len(history) - 1; i >= 0; i-- {
-		if history[i].Role == openai.ChatMessageRoleAssistant {
+		if history[i].Role == openai.ChatMessageRoleAssistant && !agent.IsInterruptedReasoningMessage(history[i]) {
 			start = i
 			assistants++
 			if len(history[i].ToolCalls) > 0 {
@@ -152,6 +160,9 @@ func gameMakerRequestView(history []openai.ChatCompletionMessage) []openai.ChatC
 	}
 	var view []openai.ChatCompletionMessage
 	for _, message := range history[start:] {
+		if agent.IsInterruptedReasoningMessage(message) {
+			continue
+		}
 		if message.Role == openai.ChatMessageRoleAssistant || message.Role == openai.ChatMessageRoleTool {
 			view = append(view, message)
 		}

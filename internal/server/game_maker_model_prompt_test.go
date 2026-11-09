@@ -851,6 +851,10 @@ func TestGameMakerOutputTokensSeparateReasoning(t *testing.T) {
 	}{
 		{"planning", qwen, 4096, 4096 + gameMakerReasoningTokens},
 		{"building", qwen, 16384, 16384 + gameMakerReasoningTokens},
+		{"building on a large route gets the wide allowance", llm.ModelLimits{ContextWindow: 512000, MaxOutputTokens: 128000}, 16384, 16384 + gameMakerWideReasoningTokens},
+		{"planning on a large route keeps the standard allowance", llm.ModelLimits{ContextWindow: 512000, MaxOutputTokens: 128000}, 4096, 4096 + gameMakerReasoningTokens},
+		{"building on a 262144 route", llm.ModelLimits{ContextWindow: 262144, MaxOutputTokens: 128000}, 16384, 65536},
+		{"building on a 200000 route stays standard", llm.ModelLimits{ContextWindow: 200000, MaxOutputTokens: 64000}, 16384, 32768},
 		{"route output caps the sum", llm.ModelLimits{ContextWindow: 127999, MaxOutputTokens: 20000}, 16384, 20000},
 		{"small context keeps the general reserve", llm.ModelLimits{ContextWindow: 32768, MaxOutputTokens: 32768}, 16384, 0},
 		{"small output keeps the general reserve", llm.ModelLimits{ContextWindow: 127999, MaxOutputTokens: 8192}, 16384, 0},

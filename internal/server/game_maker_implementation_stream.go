@@ -38,9 +38,12 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 		answerTokens = 32768
 	}
 	// Reasoning gets its own allowance on top of the source. If fitting the
-	// context fails, drop that allowance first, then fall back to the 2D source
-	// reserve; reasoning never takes the room the source needs.
+	// context fails, drop that allowance first (wide, then standard), then fall
+	// back to the 2D source reserve; reasoning never takes the room the source needs.
 	outputCandidates := []int{answerTokens + gameMakerReasoningTokens, answerTokens}
+	if reasoning := gameMakerReasoningAllowance(gameMakerRouteLimits(cfg), answerTokens); reasoning > gameMakerReasoningTokens {
+		outputCandidates = []int{answerTokens + reasoning, answerTokens + gameMakerReasoningTokens, answerTokens}
+	}
 	if answerTokens > gameMakerBuildAnswerTokens {
 		outputCandidates = append(outputCandidates, gameMakerBuildAnswerTokens)
 	}

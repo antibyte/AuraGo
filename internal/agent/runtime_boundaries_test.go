@@ -218,3 +218,22 @@ func TestQueuedToolGuardStopsCancelledCallBeforeDispatch(t *testing.T) {
 		t.Fatal("cancelled queued call was not stopped")
 	}
 }
+
+func TestIncompleteCompletionErrorMessageAndInterruptedPlaceholder(t *testing.T) {
+	for reason, want := range map[openai.FinishReason]string{
+		"":                        "model response incomplete (stream ended without a finish reason); output was not applied",
+		openai.FinishReasonLength: "model response incomplete (length); output was not applied",
+	} {
+		if got := (&IncompleteCompletionError{FinishReason: reason}).Error(); got != want {
+			t.Errorf("reason %q: got %q, want %q", reason, got, want)
+		}
+	}
+	placeholder := interruptedReasoningMessage("x")
+	if !IsInterruptedReasoningMessage(placeholder) {
+		t.Error("placeholder not recognised")
+	}
+	placeholder.ToolCalls = []openai.ToolCall{{ID: "a"}}
+	if IsInterruptedReasoningMessage(placeholder) {
+		t.Error("message with a tool call recognised as placeholder")
+	}
+}

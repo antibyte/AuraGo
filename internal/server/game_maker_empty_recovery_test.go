@@ -25,6 +25,13 @@ import (
 )
 
 func TestGameMakerReasoningOnlyBuildReachesBoundedImplementationRecovery(t *testing.T) {
+	// The first tool request always ends with length (the in-loop continuation).
+	// The second ends either without any finish reason or with length.
+	t.Run("no_finish_reason", func(t *testing.T) { runReasoningOnlyBuildRecovery(t, false) })
+	t.Run("length", func(t *testing.T) { runReasoningOnlyBuildRecovery(t, true) })
+}
+
+func runReasoningOnlyBuildRecovery(t *testing.T, secondEndsWithLength bool) {
 	root := t.TempDir()
 	svc, err := gamemaker.NewService(gamemaker.Options{DBPath: filepath.Join(root, "games.db"), WorkspacePath: filepath.Join(root, "games"), Enabled: true, AllowCreate: true, AllowEdit: true})
 	if err != nil {
@@ -54,6 +61,10 @@ func TestGameMakerReasoningOnlyBuildReachesBoundedImplementationRecovery(t *test
 				if !found {
 					t.Error("retry lost provider reasoning")
 				}
+			}
+			if n == 2 && !secondEndsWithLength {
+				fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"private runner reasoning\"}}]}\n\ndata: [DONE]\n\n")
+				return
 			}
 			fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"private runner reasoning\"},\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n")
 			return

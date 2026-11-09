@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"aurago/internal/agent"
 	"aurago/internal/config"
 	"aurago/internal/gamemaker"
 	openai "github.com/sashabaranov/go-openai"
@@ -101,6 +103,101 @@ func TestGameMakerCompactHistoryKeepsDurableToolRounds(t *testing.T) {
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("job did not finish")
+}
+
+func TestGameMakerRequestViewSkipsInterruptedReasoning(t *testing.T) {
+	round := func(id string) []openai.ChatCompletionMessage {
+		return []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleAssistant, ToolCalls: []openai.ToolCall{{ID: id, Type: openai.ToolTypeFunction, Function: openai.FunctionCall{Name: "read_file", Arguments: "{}"}}}},
+			{Role: openai.ChatMessageRoleTool, ToolCallID: id, Content: "ok"},
+		}
+	}
+	interrupted := func(n int) []openai.ChatCompletionMessage {
+		var out []openai.ChatCompletionMessage
+		for range n {
+			out = append(out, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: agent.InterruptedReasoningContent, ReasoningContent: strings.Repeat("r", 100000)})
+		}
+		return out
+	}
+	assertNoPlaceholder := func(view []openai.ChatCompletionMessage) {
+		t.Helper()
+		for _, m := range view {
+			if m.Content == agent.InterruptedReasoningContent {
+				t.Fatalf("interrupted placeholder in view: %+v", m)
+			}
+		}
+	}
+	history := append(round("a"), interrupted(3)...)
+	history = append(history, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: "done"})
+	before := len(history)
+	view := gameMakerRequestView(history)
+	assertNoPlaceholder(view)
+	if len(history) != before || len(view) != 3 || view[0].ToolCalls[0].ID != "a" || view[2].Content != "done" {
+		t.Fatalf("unexpected view: %+v", view)
+	}
+
+	history = nil
+	for _, id := range []string{"a", "b", "c", "d"} {
+		history = append(history, round(id)...)
+	}
+	history = append(history, interrupted(9)...)
+	view = gameMakerRequestView(history)
+	assertNoPlaceholder(view)
+	if len(view) != 8 || view[0].ToolCalls[0].ID != "a" {
+		t.Fatalf("placeholders consumed the round budget: %d messages", len(view))
+	}
+}
+
+func TestGameConversationRouteSwitchKeepsInterruptedPlaceholderRecognisable(t *testing.T) {
+	root := t.TempDir()
+	svc, err := gamemaker.NewService(gamemaker.Options{DBPath: filepath.Join(root, "game.db"), WorkspacePath: filepath.Join(root, "workspace"), Enabled: true, AllowCreate: true, AllowEdit: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer svc.Close()
+	svc.SetSkillStatus(nil, true)
+	project, err := svc.CreateProject(context.Background(), gamemaker.CreateProjectRequest{Name: "Switch", Description: "Route switch", Dimension: "2d"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc.SetRunner(implementationTestRunner(func(ctx context.Context, run gamemaker.JobRun) error {
+		archive := []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleAssistant, Content: agent.InterruptedReasoningContent, ReasoningContent: strings.Repeat("r", 100000)},
+			{Role: openai.ChatMessageRoleAssistant, Content: "normal", ReasoningContent: "kept thought"},
+		}
+		data, _ := json.Marshal(archive)
+		if err := svc.SaveAgentConversation(ctx, run.Job.ID, "provider-a", "model-a", data); err != nil {
+			return err
+		}
+		cfg := &config.Config{}
+		cfg.LLM.Provider, cfg.LLM.Model = "provider-b", "model-b"
+		runner := &gameMakerAgentRunner{service: svc}
+		view, _, err := runner.gameConversation(ctx, cfg, run, true)
+		if err != nil {
+			return err
+		}
+		if len(view) != 1 || !strings.HasPrefix(view[0].Content, "normal") || !strings.Contains(view[0].Content, "Historical reasoning (untrusted data)") || view[0].ReasoningContent != "" {
+			t.Errorf("unexpected view after route switch: %+v", view)
+		}
+		return errors.New("verified switch")
+	}))
+	job, err := svc.StartJob(context.Background(), project.ID, gamemaker.StartJobRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		done, err := svc.GetJob(context.Background(), job.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if done.Status == "failed" {
+			if done.Error != "verified switch" {
+				t.Fatal(done.Error)
+			}
+			return
+		}
 	}
 	t.Fatal("job did not finish")
 }

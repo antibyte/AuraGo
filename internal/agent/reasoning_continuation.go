@@ -6,10 +6,20 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+// InterruptedReasoningContent is the placeholder content written for a response
+// that was cut off with only reasoning.
+const InterruptedReasoningContent = "Generation was interrupted. Only an incomplete reasoning fragment was received; no source or tool call from this response was applied."
+
+// IsInterruptedReasoningMessage reports the placeholder written for a response
+// that was cut off with only reasoning. Nothing from that response was applied.
+func IsInterruptedReasoningMessage(message openai.ChatCompletionMessage) bool {
+	return message.Role == openai.ChatMessageRoleAssistant && len(message.ToolCalls) == 0 && message.Content == InterruptedReasoningContent
+}
+
 func interruptedReasoningMessage(reasoning string) openai.ChatCompletionMessage {
 	return openai.ChatCompletionMessage{
 		Role:             openai.ChatMessageRoleAssistant,
-		Content:          "Generation was interrupted. Only an incomplete reasoning fragment was received; no source or tool call from this response was applied.",
+		Content:          InterruptedReasoningContent,
 		ReasoningContent: reasoning,
 	}
 }

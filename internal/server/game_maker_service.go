@@ -430,6 +430,9 @@ func gameMakerBudget(ctx context.Context, toolCalls int, run gamemaker.JobRun) m
 const (
 	gameMakerBuildAnswerTokens = 16384
 	gameMakerReasoningTokens   = 16384
+	// MiniMax-M3.1-Flash reasoned 23-33K tokens before writing main.ts; the 16K
+	// allowance cut 9 of 10 building replies on aurago-test (2026-11-08/09).
+	gameMakerWideReasoningTokens = 49152
 	// Default sampling for the isolated agent. Planning benefits from variety;
 	// code phases need schema and syntax fidelity, so they run near-deterministic.
 	gameMakerPlanningTemperature = 0.6
@@ -482,14 +485,27 @@ func applyGameMakerStreamIdle(cfg *config.Config) {
 	}
 }
 
-// gameMakerOutputTokens returns the answer reserve plus the reasoning allowance,
-// clamped to the route's output limit. Routes below 64K context or without room
-// beyond the general reasoning reserve return 0 and keep the agent's reserve.
+// gameMakerReasoningAllowance returns the reasoning tokens granted on top of an
+// answer reserve. Building reserves get the wide allowance when the route's
+// context window holds at least four times the resulting reserve, so the
+// history keeps most of the window. Planning and smaller routes keep the
+// standard allowance.
+func gameMakerReasoningAllowance(limits llm.ModelLimits, answer int) int {
+	if answer >= gameMakerBuildAnswerTokens && limits.ContextWindow >= 4*(answer+gameMakerWideReasoningTokens) {
+		return gameMakerWideReasoningTokens
+	}
+	return gameMakerReasoningTokens
+}
+
+// gameMakerOutputTokens returns the answer reserve plus the reasoning allowance
+// (wide for building on large routes), clamped to the route's output limit.
+// Routes below 64K context or without room beyond the general reasoning reserve
+// return 0 and keep the agent's reserve.
 func gameMakerOutputTokens(limits llm.ModelLimits, answer int) int {
 	if limits.ContextWindow < 65536 || limits.MaxOutputTokens <= llm.ReasoningOutputTokens {
 		return 0
 	}
-	return min(answer+gameMakerReasoningTokens, limits.MaxOutputTokens)
+	return min(answer+gameMakerReasoningAllowance(limits, answer), limits.MaxOutputTokens)
 }
 
 // gameMakerRouteLimits resolves the selected route with the configured provider
@@ -803,9 +819,10 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 	if err != nil {
 		var incomplete *agent.IncompleteCompletionError
 		if ctx.Err() == nil && run.Stage == "building" && run.Job.BaseRevision == 0 && run.Plan != nil &&
-			errors.As(err, &incomplete) && incomplete.FinishReason == openai.FinishReasonLength && incomplete.ReasoningOnly {
-			// Reasoning-only truncation has already used the one bounded
-			// continuation. The unchanged-starter gate may now request source;
+			errors.As(err, &incomplete) && (incomplete.FinishReason == openai.FinishReasonLength || incomplete.FinishReason == "") && incomplete.ReasoningOnly {
+			// A length cut has already used its one bounded in-loop continuation;
+			// a stream that ended without a finish reason goes straight to bounded
+			// source generation. The unchanged-starter gate may now request source;
 			// compiler/browser checks still own success and publication.
 			broker.Send("model_progress", "recovering")
 			return nil

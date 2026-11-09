@@ -16,6 +16,9 @@ type IncompleteCompletionError struct {
 }
 
 func (e *IncompleteCompletionError) Error() string {
+	if e.FinishReason == "" {
+		return "model response incomplete (stream ended without a finish reason); output was not applied"
+	}
 	return fmt.Sprintf("model response incomplete (%s); output was not applied", e.FinishReason)
 }
 
