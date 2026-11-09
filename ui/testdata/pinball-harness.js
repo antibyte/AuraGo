@@ -41,6 +41,9 @@ const harnessTr = (key, vars) => {
     return text.replace(/\{(\w+)\}/g, (m, k) => (vars && vars[k] !== undefined ? vars[k] : m));
 };
 
+// Lobby preview framings (x,y,h in metres) for the `preview` scene: neon Data Core, leviathan sea monster head, temple sun idol.
+const PREVIEW_SPOTS = { neon: '0,0.72,0.04', leviathan: '0.105,0.84,0.2', temple: '0,0.8,0.05' };
+
 // T12 engine mode: render core + lamp controller (attract playlist) + DMD, physics balls from the harness world.
 async function modeEngine(h) {
     const [sceneMod, lampMod, dmdMod, rasterMod] = await Promise.all([
@@ -55,10 +58,12 @@ async function modeEngine(h) {
     dmd.setBase('attract', { title: layout.meta.title, scores: [{ name: 'AAA', score: 12345670 }, { name: 'BBB', score: 8200000 }, { name: 'CCC', score: 5100000 }], replayAt: 2000000 });
     const mechanical = spec !== 'attract' && spec !== 'showcase';
     if (mechanical) lamps.setModes(Uint8Array.from(layout.lamps, (_, i) => (i % 4 === 3 ? 2 : 1)));
-    const closeup = /^closeup:(-?[\d.]+)[,;](-?[\d.]+)[,;]?(-?[\d.]*)/.exec(spec);
+    // `preview` = lobby card framing: the table's signature spot, no ball, lamps lit (see PREVIEW_SPOTS); `preview:x,y,h` overrides the spot.
+    const previewSpot = spec === 'preview' || spec.startsWith('preview:') ? (/^preview:(-?[\d.]+)[,;](-?[\d.]+)[,;]?(-?[\d.]*)/.exec(spec) ? spec : 'preview:' + PREVIEW_SPOTS[params.table]) : '';
+    const closeup = /^(?:closeup|preview):(-?[\d.]+)[,;](-?[\d.]+)[,;]?(-?[\d.]*)/.exec(previewSpot || spec);
     if (closeup) {
         sc.three.rig.closeup(Number(closeup[1]), Number(closeup[2]), Number(closeup[3]) || 0);
-        if (params.ball !== '0') { h.placeBall(Number(closeup[1]) + 0.012, Number(closeup[2]) - 0.006, 0, 0); h.step(2); h.clock.paused = true; }   // a resting ball for material checks
+        if (!previewSpot && params.ball !== '0') { h.placeBall(Number(closeup[1]) + 0.012, Number(closeup[2]) - 0.006, 0, 0); h.step(2); h.clock.paused = true; }   // a resting ball for material checks
     }
     if (spec === 'play' || spec === 'action' || spec === 'top') { h.placeBall(-0.06, 0.34, 0.2, -0.3); h.placeBall(0.1, 0.52, -0.1, -0.2); }
     const inset = () => sc.setInsets({ top: Number(new URLSearchParams(location.search).get('inset') ?? (cameraName === 'top' ? 0 : 0.24)) * h.stage.clientHeight });

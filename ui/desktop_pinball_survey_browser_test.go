@@ -18,7 +18,7 @@ import (
 //
 //	AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_PINBALL_SURVEY=1 [AURAGO_PINBALL_SCENES="neon:2d:low,neon:top:low"] go test -run TestDesktopPinballSurvey -count=1 .
 //
-// Scene format table:scene:quality; scenes: 2d, play, top, showcase, attract, action, closeup:x,y,h, dmd:<scene>.
+// Scene format table:scene:quality; scenes: 2d, play, top, showcase, attract, action, closeup:x,y,h, preview[:x,y,h] (1280x640 lobby card shot, no ball), dmd:<scene>.
 // PNGs go to AURAGO_BROWSER_ARTIFACT_DIR, else ../reports/pinball-survey (git-ignored).
 func TestDesktopPinballSurvey(t *testing.T) {
 	if os.Getenv("AURAGO_PINBALL_SURVEY") != "1" {
@@ -62,7 +62,11 @@ func TestDesktopPinballSurvey(t *testing.T) {
 		t.Run(table+"-"+scene+"-"+quality, func(t *testing.T) {
 			page := browser.MustPage("about:blank").Timeout(90 * time.Second)
 			t.Cleanup(func() { _ = page.Close() })
-			page.MustSetViewport(1440, 960, 1, false)
+			if scene == "preview" || strings.HasPrefix(scene, "preview:") {
+				page.MustSetViewport(1280, 640, 1, false) // 2:1 lobby card frame at twice the 640x320 delivery size
+			} else {
+				page.MustSetViewport(1440, 960, 1, false)
+			}
 			page.MustNavigate(server.URL + pinballSurveyURL(table, scene, quality))
 			page.MustWait(`()=>window.pinballHarness?.ready===true||!!window.pinballHarnessError`)
 			if msg := page.MustEval(`()=>window.pinballHarnessError||''`).Str(); msg != "" {

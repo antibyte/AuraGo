@@ -1,4 +1,4 @@
-"""Convert retained raster masters for delivery; do not repaint or crop them."""
+"""Convert retained raster masters (backglass, playfield) for delivery; do not repaint or crop them."""
 import hashlib
 import json
 from pathlib import Path
@@ -14,7 +14,10 @@ def run():
     OUT.mkdir(parents=True,exist_ok=True)
     records=[]
     for table in ['neon','leviathan','temple']:
-        for role,size in [('concept',(640,960)),('backglass',(2048,1152)),('playfield',(2048,4096))]:
+        # The concept masters stay as source art (recorded below); the lobby previews are game renders, see ui/3d/pinball/AGENTS.md.
+        path=SOURCE/'masters'/(table+'-concept.png')
+        records.append({'table':table,'role':'concept','file':'masters/'+path.name,'sha256':hashlib.sha256(path.read_bytes()).hexdigest()})
+        for role,size in [('backglass',(2048,1152)),('playfield',(2048,4096))]:
             path=SOURCE/'masters'/(table+'-'+role+'.png')
             width,height=struct.unpack('>II',path.read_bytes()[16:24])
             ratio=min(1,size[0]/width,size[1]/height)

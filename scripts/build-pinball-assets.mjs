@@ -24,7 +24,7 @@ for(const [id,{pack,path}] of Object.entries(SAMPLE_FILES)){
     audio.push({path:target,bytes:record.bytes,sha256:record.sha256,seconds:record.seconds,channels:record.channels,pack,packPath:path,source:sourceId,member:record.member,license:record.license});
 }
 const sources=[...usedSources.values()];
-const tables=['neon','leviathan','temple'].map(id=>({id,backglass:id+'-backglass.webp',preview:id+'-concept.webp',underlay:id+'-playfield.webp'}));
+const tables=['neon','leviathan','temple'].map(id=>({id,backglass:id+'-backglass.webp',preview:id+'-preview.webp',underlay:id+'-playfield.webp'}));
 const paths=[...tables.flatMap(t=>[t.underlay,t.backglass,t.preview]),...audio.map(a=>a.path)];
 const files=[];
 for(const path of paths){const bytes=await fs.readFile(root+'/'+path);files.push({path,bytes:bytes.length,sha256:hash(bytes)});}

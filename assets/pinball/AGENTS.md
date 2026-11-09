@@ -9,7 +9,9 @@ Original ImageGen artwork for the built-in Pinball app, retained with its prompt
 - `masters/` retains the nine generated images: a concept, a backglass and a flat playfield painting per
   table (`neon-*`, `leviathan-*`, `temple-*`). `prompts.json` records the exact prompts and `artwork.json`
   records the source hashes.
-- `prepare.py` converts the masters into the delivered WebP images in `../../ui/3d/pinball/v1/`.
+- `prepare.py` converts the backglass and playfield masters into the delivered WebP images in
+  `../../ui/3d/pinball/v1/`. The concept masters are source art only and are not delivered: the lobby
+  previews are renders of the real tables (see `../../ui/3d/pinball/AGENTS.md` for how to re-make them).
 - Runtime ownership is `../../ui/js/desktop/apps/pinball/AGENTS.md`. Payload ownership is
   `../../ui/3d/pinball/AGENTS.md`.
 

@@ -7,8 +7,8 @@ CC0 sound samples and the integrity manifest (version 2).
 
 ## Ownership
 
-- `v1/` contains nine WebP images (one flat playfield underlay, one backglass and one preview per
-  table), thirteen CC0 OGG clips under `v1/audio/`, and the generated `v1/manifest.json`.
+- `v1/` contains nine WebP images (one flat playfield underlay and one backglass per table, plus one
+  640x320 lobby preview per table that is a real render of the procedural table, not painted art), thirteen CC0 OGG clips under `v1/audio/`, and the generated `v1/manifest.json`.
 - Original sources, prompts and recipes belong to `../../../assets/pinball/AGENTS.md`.
 - Runtime behaviour belongs to `../../js/desktop/apps/pinball/AGENTS.md`.
 
@@ -25,6 +25,12 @@ CC0 sound samples and the integrity manifest (version 2).
 
 ## Local Contracts
 
+- Re-make the previews (`<id>-preview.webp`) from the repo root: run
+  `AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_PINBALL_SURVEY=1 AURAGO_PINBALL_SCENES="neon:preview:high,leviathan:preview:high,temple:preview:high" go test -run TestDesktopPinballSurvey -count=1 -timeout 20m ./ui`
+  (the `preview` harness scene, 1280x640, spots in `PREVIEW_SPOTS` of `ui/testdata/pinball-harness.js`),
+  find `reports/pinball-survey/<id>-preview-high.png`, then encode each with
+  `ffmpeg -i <png> -vf scale=640:320:flags=lanczos -c:v libwebp -quality 82 ui/3d/pinball/v1/<id>-preview.webp`
+  (keep each under about 120 KB) and rerun the asset builder.
 - Do not hand-edit generated files. Rebuild artwork with `assets/pinball/prepare.py`, then rebuild
   the payload with `node scripts/build-pinball-assets.mjs`.
 - Every file in `v1/` is listed in the manifest with its hash, and no unlisted file is shipped.

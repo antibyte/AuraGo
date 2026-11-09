@@ -38,7 +38,7 @@ function dist2(e, x, y, limit) {
 export function buildLampMask(layout, opts = {}) {
     const width = opts.width || 1024, height = opts.height || 2048;
     const data = new Uint8Array(width * height * 4);
-    for (let i = 3; i < data.length; i += 4) data[i] = 255;
+    new Uint32Array(data.buffer).fill(new Uint32Array(Uint8Array.of(0, 0, 0, 255).buffer)[0]);   // A = 255 everywhere (byte order of the host kept)
     const lamps = (layout && layout.lamps) || [];
     const sx = width / FIELD_W, sy = height / FIELD_H, halo2 = HALO_M * HALO_M;
     for (let li = 0; li < lamps.length; li++) {

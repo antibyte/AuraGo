@@ -240,7 +240,11 @@ Asset builds are described in `assets/pinball/AGENTS.md` and `ui/3d/pinball/AGEN
 
 Original table artwork: built-in ImageGen. The nine retained masters (concept,
 backglass and playfield per table), their prompts and source hashes are in
-`assets/pinball/`.
+`assets/pinball/`. The lobby table cards (`<id>-preview.webp`, 640x320) are not painted art but
+renders of the real procedural tables from the survey harness. To re-make them run
+`AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_PINBALL_SURVEY=1 AURAGO_PINBALL_SCENES="neon:preview:high,leviathan:preview:high,temple:preview:high" go test -run TestDesktopPinballSurvey -count=1 -timeout 20m ./ui` from the repo root, then encode the
+`reports/pinball-survey/<id>-preview-high.png` shots with ffmpeg as described in
+`ui/3d/pinball/AGENTS.md`.
 
 Sound samples: 13 mechanical and jingle recordings from the Kenney Impact Sounds and
 Music Jingles packs, both CC0 1.0. Each delivered clip records its source member, archive

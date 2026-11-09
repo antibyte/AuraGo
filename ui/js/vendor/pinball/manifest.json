@@ -1,6 +1,6 @@
 {
   "three": "0.186.1",
   "entry": "ui/js/desktop/apps/pinball/game.js",
-  "bytes": 1185815,
-  "sha256": "ead276971e873802db436f461661c7f26f9c5d862746d6190d1c61f32edc279a"
+  "bytes": 1185862,
+  "sha256": "2dbe3c03cc0e83b1421da15ba8bedb710cb97c4991594c52f3d31258adebe358"
 }

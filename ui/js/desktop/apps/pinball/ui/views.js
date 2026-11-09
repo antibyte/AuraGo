@@ -39,7 +39,7 @@ export function createView(host, tr, assetURL, tables) {
         for (const table of tableList) {
             const choice = button('', 'table-' + table.id); choice.classList.add('pb-table'); choice.dataset.table = table.id;
             choice.setAttribute('aria-pressed', String(data.table === table.id));
-            const image = el('img'); image.src = assetURL(ASSET_ROOT + table.id + '-concept.webp'); image.alt = ''; image.width = 200; image.height = 240;
+            const image = el('img'); image.src = assetURL(ASSET_ROOT + table.id + '-preview.webp'); image.alt = ''; image.width = 640; image.height = 320;
             choice.append(image, el('strong', table.title), el('span', tr(table.id + '_description'))); choices.append(choice);
         }
         card.append(choices);

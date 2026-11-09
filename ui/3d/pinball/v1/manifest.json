@@ -4,19 +4,19 @@
     {
       "id": "neon",
       "backglass": "neon-backglass.webp",
-      "preview": "neon-concept.webp",
+      "preview": "neon-preview.webp",
       "underlay": "neon-playfield.webp"
     },
     {
       "id": "leviathan",
       "backglass": "leviathan-backglass.webp",
-      "preview": "leviathan-concept.webp",
+      "preview": "leviathan-preview.webp",
       "underlay": "leviathan-playfield.webp"
     },
     {
       "id": "temple",
       "backglass": "temple-backglass.webp",
-      "preview": "temple-concept.webp",
+      "preview": "temple-preview.webp",
       "underlay": "temple-playfield.webp"
     }
   ],
@@ -32,9 +32,9 @@
       "sha256": "7cd14fa0b1a8aba34cf2927fac613ae86cd03cd583116ccf37bc7587bd5a8229"
     },
     {
-      "path": "neon-concept.webp",
-      "bytes": 238600,
-      "sha256": "7efcd8a6e5e327acd1906361c443f5fb652845f37fa26aae358fd8554728ec42"
+      "path": "neon-preview.webp",
+      "bytes": 44372,
+      "sha256": "1f9bd846adb18c7d466aeedd3bdbf7b3691e0b41fd928ece30bcc6f871979003"
     },
     {
       "path": "leviathan-playfield.webp",
@@ -47,9 +47,9 @@
       "sha256": "c5508d8feb2b01ece1ab3bcde5f84f9d0d93c831699f3e6bb8d8b6faf142c89b"
     },
     {
-      "path": "leviathan-concept.webp",
-      "bytes": 294596,
-      "sha256": "e8e9a94601e56ca8cc835d6949d00e381d1530e61d384d6769d5ed20d11c0291"
+      "path": "leviathan-preview.webp",
+      "bytes": 27934,
+      "sha256": "805363ab225b5b2c137d84f67da9cb642281eb46abe36e6447349f3172e1bf46"
     },
     {
       "path": "temple-playfield.webp",
@@ -62,9 +62,9 @@
       "sha256": "f1d93de6b618de252792d99bf2d7ac9254fd693f58769da6fcb3597ec69e6548"
     },
     {
-      "path": "temple-concept.webp",
-      "bytes": 324152,
-      "sha256": "93a072ec6efab2ad28004f717dc547eb5615ef19c0cd29b1d5378afceaaf01e5"
+      "path": "temple-preview.webp",
+      "bytes": 43436,
+      "sha256": "3db9e62dda2a3ba486118c5a4996216e8e91250f3636858ebf4ff0ba2b90d6de"
     },
     {
       "path": "audio/drift-impact-metal-1.ogg",
