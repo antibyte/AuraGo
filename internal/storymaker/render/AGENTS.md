@@ -48,8 +48,9 @@ frame ingest, browser provisioning, the egress guard and the FFmpeg frame-input 
   listening sockets of the browser tree; `devtools_pipe_test.go` covers the framing, start-up failures (with the browser's own output in the
   error, which `launchIssue` reads) and the kill path with the test binary as a fake browser, on Windows and Linux.
 - **Browser** (`browser.go`): `render.browser_path`, else `launcher.LookPath()`, else the pinned Chromium (revision 1321438, SHA-256 per
-  platform in `pinnedChromium`, downloaded into `<DataDir>/storymaker/chromium-<rev>/` by the first export, never by a status request). A
-  browser is `ready` only after a cached headless launch probe. Production launches never set `NoSandbox` (`newLauncher` deletes the flag rod adds
+  platform in `pinnedChromium`, downloaded into `<DataDir>/storymaker/chromium-<rev>/` by the first export, never by a status request). The
+  agent job also calls `Browsers.Ensure` before a check round, so a first agent run downloads the pinned Chromium; a status request still
+  never does. A browser is `ready` only after a cached headless launch probe. Production launches never set `NoSandbox` (`newLauncher` deletes the flag rod adds
   inside containers); `SetNoSandboxForTests` is the only way to set it and nothing outside tests calls it. The pinned download gives up when no
   byte arrives for 60 s (`downloadIdleTimeout`; a slow link that keeps delivering is left alone). On Ubuntu 23.10+ the pinned
   download only starts with its sandbox when `install.sh`/`update.sh` wrote the AppArmor profile that names
