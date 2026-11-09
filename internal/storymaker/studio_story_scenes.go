@@ -40,7 +40,12 @@ func (s *Studio) runSceneOp(ctx context.Context, op string, args map[string]any)
 	case "put_scene", "patch_scene":
 		s.pendingRepairs = nil // repairs left by a refused outline call must not be reported by this write
 		res := s.writeScene(ctx, op, sceneID, args)
-		return withRepairs(res, s.takeRepairs())
+		fixes := s.takeRepairs()
+		if res.Status != "ok" && res.Status != "draft" {
+			return res // refused after the repair step: nothing was stored, so nothing is counted or reported
+		}
+		s.countRepairs(fixes)
+		return withRepairs(res, fixes)
 	case "dry_run":
 		return s.dryRunScene(ctx, sceneID, args)
 	case "remove_scene":

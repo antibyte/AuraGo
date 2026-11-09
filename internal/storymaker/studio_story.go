@@ -284,10 +284,9 @@ func studioOutline(ctx context.Context, s *Studio, args map[string]any) StudioRe
 		answer["issues"] = CapIssues(warnings, MaxModelIssues)
 	}
 	answer["rev"] = studioRev(newTag)
-	if fixes := s.takeRepairs(); len(fixes) > 0 {
-		answer["repaired"] = fixes
-		answer["repaired_note"] = umlautNote
-	}
+	fixes := s.takeRepairs()
+	s.countRepairs(fixes)
+	noteRepairs(answer, fixes)
 	answer["next_action"] = "The outline is saved. This phase is done: stop."
 	return studioOK(answer)
 }

@@ -57,7 +57,8 @@ func TestUmlautMapEntriesAreSound(t *testing.T) {
 	}
 	replacer := strings.NewReplacer("ä", "a", "ö", "o", "ü", "u")
 	// ASCII spellings that are German words of their own: they must never be keys.
-	realWords := []string{"wurde", "wurden", "fuhren", "losen", "losung", "losungen", "wahlen", "andern", "hohe", "schon"}
+	realWords := []string{"wurde", "wurden", "fuhren", "losen", "losung", "losungen", "wahlen", "andern", "hohe", "schon",
+		"konnte", "konnten", "mochte", "mochten", "gerate"}
 	for key, value := range entries {
 		if key != strings.ToLower(key) || value != strings.ToLower(value) {
 			t.Errorf("%q: keys and values are lower case", key)

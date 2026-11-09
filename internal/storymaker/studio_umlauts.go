@@ -133,15 +133,20 @@ func (s *Studio) repairSceneFields(fields map[string]any) {
 	}
 }
 
-// takeRepairs hands out the repairs of the call in progress and counts them for the job. A refused call leaves its repairs
-// pending, and the next call that takes them is the one that saved the text.
+// takeRepairs hands out the repairs of the call in progress and clears the pending list. It does not count them: only the
+// caller knows whether the text was stored, and it passes the repairs to countRepairs then. A call that was refused after the
+// repair step drops what it took.
 func (s *Studio) takeRepairs() []UmlautFix {
 	fixes := s.pendingRepairs
 	s.pendingRepairs = nil
+	return fixes
+}
+
+// countRepairs adds repairs of stored text to the job's count. The caller holds s.mu.
+func (s *Studio) countRepairs(fixes []UmlautFix) {
 	for _, f := range fixes {
 		s.repairs += f.Count
 	}
-	return fixes
 }
 
 // Repairs is the number of umlauts restored in this job's stored text so far.
@@ -149,6 +154,28 @@ func (s *Studio) Repairs() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.repairs
+}
+
+// umlautListLimit is the most distinct repairs one tool answer lists. repaired_total still counts all of them.
+const umlautListLimit = 20
+
+// noteRepairs puts the repairs into the body of a tool answer: at most umlautListLimit distinct entries, the sum of all the
+// counts, and the note. With nothing repaired it leaves the body as it is.
+func noteRepairs(body map[string]any, fixes []UmlautFix) {
+	if len(fixes) == 0 {
+		return
+	}
+	total := 0
+	for _, f := range fixes {
+		total += f.Count
+	}
+	listed := fixes
+	if len(listed) > umlautListLimit {
+		listed = listed[:umlautListLimit]
+	}
+	body["repaired"] = listed
+	body["repaired_total"] = total
+	body["repaired_note"] = umlautNote
 }
 
 // withRepairs adds the repairs to a tool answer so that the model sees what changed in its text.
@@ -160,8 +187,7 @@ func withRepairs(res StudioResult, fixes []UmlautFix) StudioResult {
 	if json.Unmarshal(res.JSON, &body) != nil {
 		return res
 	}
-	body["repaired"] = fixes
-	body["repaired_note"] = umlautNote
+	noteRepairs(body, fixes)
 	data, err := json.Marshal(body)
 	if err != nil {
 		return res
