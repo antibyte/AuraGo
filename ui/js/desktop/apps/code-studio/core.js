@@ -251,6 +251,9 @@
         const lang = languageForPath(name);
         return ({
             javascript: 'javascript',
+            jsx: 'javascript',
+            typescript: 'javascript',
+            tsx: 'javascript',
             python: 'python',
             go: 'go',
             c: 'code',
@@ -1315,7 +1318,7 @@
         if (!target) return;
         const savedPaths = target.openTabs.map(tab => tab.path);
         if (!savedPaths.length && !(target.context && target.context.path)) {
-            for (const name of ['hello.go', 'hello.py', 'hello.c']) {
+            for (const name of ['hello.go', 'hello.py', 'hello.c', 'hello.js', 'hello.ts']) {
                 const path = WORKSPACE_ROOT + '/' + name;
                 if (target.files.some(file => file.path === path && file.type !== 'directory')) savedPaths.push(path);
             }
@@ -1734,7 +1737,7 @@
             initialPath: codeStudioDesktopPath(target.currentPath),
             filters: [{
                 label: tr('codeStudio.files', 'Files'),
-                extensions: ['.c', '.h', '.go', '.js', '.mjs', '.ts', '.tsx', '.jsx', '.py', '.rs', '.json', '.html', '.css', '.md', '.txt', '.yaml', '.yml']
+                extensions: ['.c', '.h', '.go', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.py', '.rs', '.json', '.html', '.css', '.md', '.txt', '.yaml', '.yml']
             }]
         });
         if (!result || result.canceled || !result.path || !isLiveInstance(target)) return;
@@ -1884,13 +1887,30 @@
 
     function languageForPath(path) {
         const ext = String(path || '').split('.').pop().toLowerCase();
-        return ({ js: 'javascript', mjs: 'javascript', ts: 'javascript', jsx: 'javascript', tsx: 'javascript', py: 'python', go: 'go', c: 'c', h: 'c', rs: 'rust', json: 'json', html: 'html', htm: 'html', css: 'css', md: 'markdown' })[ext] || '';
+        return ({ js: 'javascript', mjs: 'javascript', cjs: 'javascript', jsx: 'jsx', ts: 'typescript', tsx: 'tsx', py: 'python', go: 'go', c: 'c', h: 'c', rs: 'rust', json: 'json', html: 'html', htm: 'html', css: 'css', md: 'markdown' })[ext] || '';
     }
 
     function languageExtension(cm, language) {
-        const map = { javascript: cm.javascript, python: cm.python, go: cm.go, c: cm.cpp, rust: cm.rust, json: cm.json, html: cm.html, css: cm.css, markdown: cm.markdown };
+        // The JavaScript family shares one CodeMirror mode; the dialect decides how
+        // TypeScript and JSX are parsed and highlighted.
+        const map = {
+            javascript: () => cm.javascript && cm.javascript(),
+            jsx: () => cm.javascript && cm.javascript({ jsx: true }),
+            typescript: () => cm.javascript && cm.javascript({ typescript: true }),
+            tsx: () => cm.javascript && cm.javascript({ jsx: true, typescript: true }),
+            python: () => cm.python && cm.python(),
+            go: () => cm.go && cm.go(),
+            c: () => cm.cpp && cm.cpp(),
+            rust: () => cm.rust && cm.rust(),
+            json: () => cm.json && cm.json(),
+            html: () => cm.html && cm.html(),
+            css: () => cm.css && cm.css(),
+            markdown: () => cm.markdown && cm.markdown()
+        };
         const factory = map[language];
-        return typeof factory === 'function' ? factory() : [];
+        if (typeof factory !== 'function') return [];
+        const support = factory();
+        return support ? [support] : [];
     }
 
     function runCommandFor(path) {
@@ -1899,7 +1919,8 @@
         const lang = languageForPath(path);
         if (lang === 'go') return 'go run ' + quoted;
         if (lang === 'python') return 'python3 ' + quoted;
-        if (ext === 'js' || ext === 'mjs') return 'node ' + quoted;
+        if (ext === 'js' || ext === 'mjs' || ext === 'cjs') return 'node ' + quoted;
+        if (ext === 'jsx' || ext === 'ts' || ext === 'tsx') return 'tsx ' + quoted;
         if (ext === 'c') {
             return '(cs_run_dir=$(mktemp -d /tmp/cs-run.XXXXXX) && ' +
                 'trap \'rm -rf "$cs_run_dir"\' EXIT && ' +
@@ -1915,7 +1936,7 @@
 
     function fileIcon(name) {
         const lang = languageForPath(name);
-        return ({ javascript: 'JS', python: 'PY', go: 'GO', c: 'C', rust: 'RS', json: '{}', html: '<>', css: '#', markdown: 'MD' })[lang] || '\u2022';
+        return ({ javascript: 'JS', jsx: 'JS', typescript: 'TS', tsx: 'TS', python: 'PY', go: 'GO', c: 'C', rust: 'RS', json: '{}', html: '<>', css: '#', markdown: 'MD' })[lang] || '\u2022';
     }
 
     function editorValue(tab) {

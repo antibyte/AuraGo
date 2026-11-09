@@ -3,7 +3,7 @@
     // container. Both end up in the same list so the panel, the inline squiggles and the
     // status bar counters always agree.
 
-    const BRACKET_LANGUAGES = ['javascript', 'go', 'c', 'rust', 'css'];
+    const BRACKET_LANGUAGES = ['javascript', 'jsx', 'typescript', 'tsx', 'go', 'c', 'rust', 'css'];
     const MAX_PROBLEMS = 500;
     // Sources of the cheap client side checks. They are replaced whenever the
     // document changes, so they must not collide with the container checks.
@@ -373,7 +373,7 @@
         if (lang === 'go' && has('go.mod')) return { command: 'go build ./...', source: 'go build' };
         if (lang === 'rust' && has('Cargo.toml')) return { command: 'cargo check --message-format short', source: 'cargo check' };
         // Otherwise check the open file with the toolchain that understands it.
-        if (ext === 'ts' || ext === 'tsx') return { command: `npx --no-install tsc --noEmit ${shellQuotePath(path)}`, source: 'tsc' };
+        if (ext === 'ts' || ext === 'tsx') return { command: typescriptCheckCommand(path), source: 'tsc' };
         if (lang === 'go' && path) return { command: `go vet ${shellQuotePath(path)}`, source: 'go vet' };
         if (lang === 'rust' && path) return { command: `rustc --emit=metadata -o /dev/null ${shellQuotePath(path)}`, source: 'rustc' };
         if ((ext === 'js' || ext === 'mjs' || ext === 'cjs') && path) return { command: `node --check ${shellQuotePath(path)}`, source: 'node' };
@@ -383,10 +383,20 @@
         // Finally fall back to whatever the project itself offers.
         if (has('go.mod')) return { command: 'go build ./...', source: 'go build' };
         if (has('Cargo.toml')) return { command: 'cargo check --message-format short', source: 'cargo check' };
-        if (has('tsconfig.json')) return { command: 'npx --no-install tsc --noEmit', source: 'tsc' };
+        if (has('tsconfig.json')) return { command: typescriptCheckCommand(''), source: 'tsc' };
         if (has('requirements.txt') || has('pyproject.toml')) return { command: 'python3 -m compileall -q .', source: 'compileall' };
         if (has('package.json')) return { command: 'npm test --silent', source: 'npm test' };
         return null;
+    }
+
+    // TypeScript ships with the managed runtime, but a project may pin its own
+    // compiler. The project copy wins; the runtime copy is the fallback. `npx
+    // --no-install` cannot be used here because it never resolves a global binary.
+    function typescriptCheckCommand(path) {
+        const quoted = path ? shellQuotePath(path) : '';
+        const local = path ? `"$(dirname ${quoted})/node_modules/.bin/tsc"` : 'node_modules/.bin/tsc';
+        const target = quoted ? ` --noEmit ${quoted}` : ' --noEmit';
+        return `if [ -x ${local} ]; then ${local}${target}; else tsc${target}; fi`;
     }
 
     function shellQuotePath(path) {

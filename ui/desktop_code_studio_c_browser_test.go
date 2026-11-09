@@ -14,14 +14,15 @@ func TestDesktopCodeStudioC(t *testing.T) {
 	backend.files["/workspace/hello.py"] = "print('Hello from Code Studio')\n"
 	backend.files["/workspace/hello.c"] = "#include <stdio.h>\nint main(void) { puts(\"Hello from Code Studio\"); return 0; }\n"
 	backend.files["/workspace/hello.h"] = "int greeting(void);\n"
+	backend.files["/workspace/hello.js"] = "console.log(\"Hello from Code Studio\");\n"
 	backend.files["/workspace/hello.ts"] = "export const n: number = 1;\n"
 	backend.mu.Unlock()
 	page.MustReload().MustWaitLoad()
 	result := page.MustEval(`async()=>{
         await fixtureReady;
-        await csWait(()=>csState()?.terminalSessions.length && csState().openTabs.length===3,20000);
+        await csWait(()=>csState()?.terminalSessions.length && csState().openTabs.length===5,20000);
         const app=CodeStudioApp,target=csState(),id=target.windowId;
-        const examples=target.openTabs.map(tab=>tab.path).join(',')==='/workspace/hello.go,/workspace/hello.py,/workspace/hello.c';
+        const examples=target.openTabs.map(tab=>tab.path).join(',')==='/workspace/hello.go,/workspace/hello.py,/workspace/hello.c,/workspace/hello.js,/workspace/hello.ts';
         await app.openFile('/workspace/hello.c',true,id);
         const tab=target.openTabs[target.activeTabIndex];
         await csWait(()=>tab.view.contentDOM.querySelector('span[class]'));
@@ -37,13 +38,8 @@ func TestDesktopCodeStudioC(t *testing.T) {
         const header=target.openTabs[target.activeTabIndex].language==='c';
         await app.command('runCurrentFile',[],id);
         const headerIdle=csRoot().querySelector('.cs-status-message')?.textContent==='Für diese Datei gibt es keinen Startbefehl';
-        await app.openFile('/workspace/hello.ts',true,id);
-        await app.command('runCurrentFile',[],id);
-        const tsTab=target.openTabs[target.activeTabIndex];
-        const noTypeScript=tsTab.path==='/workspace/hello.ts' && csRoot().querySelector('.cs-status-message')?.textContent==='Für diese Datei gibt es keinen Startbefehl';
-        await app.command('closeTab',[target.openTabs.indexOf(tsTab),true],id);
         await app.openFile('/workspace/hello.c',true,id);
-        return examples && highlighted && saved && header && headerIdle && noTypeScript && fixtureErrors.length===0;
+        return examples && highlighted && saved && header && headerIdle && fixtureErrors.length===0;
     }`)
 	if !result.Bool() {
 		t.Fatalf("C examples, highlighting or save/run failed: %s", page.MustEval(`()=>fixtureErrors`).JSON("", ""))
@@ -67,8 +63,8 @@ func TestDesktopCodeStudioC(t *testing.T) {
 		t.Fatalf("unexpected C commands: %q", inputs)
 	}
 	for _, input := range inputs {
-		if strings.Contains(input, "hello.h") || strings.Contains(input, "hello.ts") {
-			t.Fatalf("header or TypeScript ran: %q", inputs)
+		if strings.Contains(input, "hello.h") || strings.Contains(input, "hello.ts") || strings.Contains(input, "hello.js") {
+			t.Fatalf("header, TypeScript or JavaScript ran: %q", inputs)
 		}
 	}
 	for _, theme := range []string{"standard", "fruity"} {
@@ -90,7 +86,7 @@ func TestDesktopCodeStudioC(t *testing.T) {
 	page.MustReload().MustWaitLoad()
 	if !page.MustEval(`async()=>{
         await fixtureReady;await csWait(()=>csState()?.terminalSessions.length,20000);
-        return csState().openTabs.length===5 && csState().openTabs[csState().activeTabIndex].path==='/workspace/hello.c' && fixtureErrors.length===0;
+        return csState().openTabs.length===7 && csState().openTabs[csState().activeTabIndex].path==='/workspace/hello.c' && fixtureErrors.length===0;
     }`).Bool() {
 		t.Fatal("restoring the C tab replaced existing tabs or the active selection")
 	}

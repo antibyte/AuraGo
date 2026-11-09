@@ -256,6 +256,9 @@
         const lang = languageForPath(name);
         return ({
             javascript: 'javascript',
+            jsx: 'javascript',
+            typescript: 'javascript',
+            tsx: 'javascript',
             python: 'python',
             go: 'go',
             c: 'code',
@@ -1320,7 +1323,7 @@
         if (!target) return;
         const savedPaths = target.openTabs.map(tab => tab.path);
         if (!savedPaths.length && !(target.context && target.context.path)) {
-            for (const name of ['hello.go', 'hello.py', 'hello.c']) {
+            for (const name of ['hello.go', 'hello.py', 'hello.c', 'hello.js', 'hello.ts']) {
                 const path = WORKSPACE_ROOT + '/' + name;
                 if (target.files.some(file => file.path === path && file.type !== 'directory')) savedPaths.push(path);
             }
@@ -1739,7 +1742,7 @@
             initialPath: codeStudioDesktopPath(target.currentPath),
             filters: [{
                 label: tr('codeStudio.files', 'Files'),
-                extensions: ['.c', '.h', '.go', '.js', '.mjs', '.ts', '.tsx', '.jsx', '.py', '.rs', '.json', '.html', '.css', '.md', '.txt', '.yaml', '.yml']
+                extensions: ['.c', '.h', '.go', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.py', '.rs', '.json', '.html', '.css', '.md', '.txt', '.yaml', '.yml']
             }]
         });
         if (!result || result.canceled || !result.path || !isLiveInstance(target)) return;
@@ -1889,13 +1892,30 @@
 
     function languageForPath(path) {
         const ext = String(path || '').split('.').pop().toLowerCase();
-        return ({ js: 'javascript', mjs: 'javascript', ts: 'javascript', jsx: 'javascript', tsx: 'javascript', py: 'python', go: 'go', c: 'c', h: 'c', rs: 'rust', json: 'json', html: 'html', htm: 'html', css: 'css', md: 'markdown' })[ext] || '';
+        return ({ js: 'javascript', mjs: 'javascript', cjs: 'javascript', jsx: 'jsx', ts: 'typescript', tsx: 'tsx', py: 'python', go: 'go', c: 'c', h: 'c', rs: 'rust', json: 'json', html: 'html', htm: 'html', css: 'css', md: 'markdown' })[ext] || '';
     }
 
     function languageExtension(cm, language) {
-        const map = { javascript: cm.javascript, python: cm.python, go: cm.go, c: cm.cpp, rust: cm.rust, json: cm.json, html: cm.html, css: cm.css, markdown: cm.markdown };
+        // The JavaScript family shares one CodeMirror mode; the dialect decides how
+        // TypeScript and JSX are parsed and highlighted.
+        const map = {
+            javascript: () => cm.javascript && cm.javascript(),
+            jsx: () => cm.javascript && cm.javascript({ jsx: true }),
+            typescript: () => cm.javascript && cm.javascript({ typescript: true }),
+            tsx: () => cm.javascript && cm.javascript({ jsx: true, typescript: true }),
+            python: () => cm.python && cm.python(),
+            go: () => cm.go && cm.go(),
+            c: () => cm.cpp && cm.cpp(),
+            rust: () => cm.rust && cm.rust(),
+            json: () => cm.json && cm.json(),
+            html: () => cm.html && cm.html(),
+            css: () => cm.css && cm.css(),
+            markdown: () => cm.markdown && cm.markdown()
+        };
         const factory = map[language];
-        return typeof factory === 'function' ? factory() : [];
+        if (typeof factory !== 'function') return [];
+        const support = factory();
+        return support ? [support] : [];
     }
 
     function runCommandFor(path) {
@@ -1904,7 +1924,8 @@
         const lang = languageForPath(path);
         if (lang === 'go') return 'go run ' + quoted;
         if (lang === 'python') return 'python3 ' + quoted;
-        if (ext === 'js' || ext === 'mjs') return 'node ' + quoted;
+        if (ext === 'js' || ext === 'mjs' || ext === 'cjs') return 'node ' + quoted;
+        if (ext === 'jsx' || ext === 'ts' || ext === 'tsx') return 'tsx ' + quoted;
         if (ext === 'c') {
             return '(cs_run_dir=$(mktemp -d /tmp/cs-run.XXXXXX) && ' +
                 'trap \'rm -rf "$cs_run_dir"\' EXIT && ' +
@@ -1920,7 +1941,7 @@
 
     function fileIcon(name) {
         const lang = languageForPath(name);
-        return ({ javascript: 'JS', python: 'PY', go: 'GO', c: 'C', rust: 'RS', json: '{}', html: '<>', css: '#', markdown: 'MD' })[lang] || '\u2022';
+        return ({ javascript: 'JS', jsx: 'JS', typescript: 'TS', tsx: 'TS', python: 'PY', go: 'GO', c: 'C', rust: 'RS', json: '{}', html: '<>', css: '#', markdown: 'MD' })[lang] || '\u2022';
     }
 
     function editorValue(tab) {
@@ -2813,6 +2834,14 @@
         return [cm.EditorState.readOnly.of(!canWrite()), cm.EditorView.editable.of(canWrite())];
     }
 
+    // The textarea fallback highlights with highlight.js, which knows JavaScript and
+    // TypeScript but not the JSX and TSX dialects as separate names.
+    const HLJS_LANGUAGES = { jsx: 'javascript', tsx: 'typescript' };
+
+    function highlightLanguage(language) {
+        return HLJS_LANGUAGES[language] || language;
+    }
+
     function createTextareaEditor(container, tab, link) {
         const wrapper = document.createElement('div');
         wrapper.className = 'cs-textarea-wrap';
@@ -2837,7 +2866,7 @@
                 preview.textContent = textarea.value;
                 if (window.hljs && tab.language) {
                     try {
-                        preview.innerHTML = window.hljs.highlight(textarea.value, { language: tab.language, ignoreIllegals: true }).value;
+                        preview.innerHTML = window.hljs.highlight(textarea.value, { language: highlightLanguage(tab.language), ignoreIllegals: true }).value;
                     } catch (_) {}
                 }
             }, 100);
@@ -3381,7 +3410,7 @@
     // container. Both end up in the same list so the panel, the inline squiggles and the
     // status bar counters always agree.
 
-    const BRACKET_LANGUAGES = ['javascript', 'go', 'c', 'rust', 'css'];
+    const BRACKET_LANGUAGES = ['javascript', 'jsx', 'typescript', 'tsx', 'go', 'c', 'rust', 'css'];
     const MAX_PROBLEMS = 500;
     // Sources of the cheap client side checks. They are replaced whenever the
     // document changes, so they must not collide with the container checks.
@@ -3751,7 +3780,7 @@
         if (lang === 'go' && has('go.mod')) return { command: 'go build ./...', source: 'go build' };
         if (lang === 'rust' && has('Cargo.toml')) return { command: 'cargo check --message-format short', source: 'cargo check' };
         // Otherwise check the open file with the toolchain that understands it.
-        if (ext === 'ts' || ext === 'tsx') return { command: `npx --no-install tsc --noEmit ${shellQuotePath(path)}`, source: 'tsc' };
+        if (ext === 'ts' || ext === 'tsx') return { command: typescriptCheckCommand(path), source: 'tsc' };
         if (lang === 'go' && path) return { command: `go vet ${shellQuotePath(path)}`, source: 'go vet' };
         if (lang === 'rust' && path) return { command: `rustc --emit=metadata -o /dev/null ${shellQuotePath(path)}`, source: 'rustc' };
         if ((ext === 'js' || ext === 'mjs' || ext === 'cjs') && path) return { command: `node --check ${shellQuotePath(path)}`, source: 'node' };
@@ -3761,10 +3790,20 @@
         // Finally fall back to whatever the project itself offers.
         if (has('go.mod')) return { command: 'go build ./...', source: 'go build' };
         if (has('Cargo.toml')) return { command: 'cargo check --message-format short', source: 'cargo check' };
-        if (has('tsconfig.json')) return { command: 'npx --no-install tsc --noEmit', source: 'tsc' };
+        if (has('tsconfig.json')) return { command: typescriptCheckCommand(''), source: 'tsc' };
         if (has('requirements.txt') || has('pyproject.toml')) return { command: 'python3 -m compileall -q .', source: 'compileall' };
         if (has('package.json')) return { command: 'npm test --silent', source: 'npm test' };
         return null;
+    }
+
+    // TypeScript ships with the managed runtime, but a project may pin its own
+    // compiler. The project copy wins; the runtime copy is the fallback. `npx
+    // --no-install` cannot be used here because it never resolves a global binary.
+    function typescriptCheckCommand(path) {
+        const quoted = path ? shellQuotePath(path) : '';
+        const local = path ? `"$(dirname ${quoted})/node_modules/.bin/tsc"` : 'node_modules/.bin/tsc';
+        const target = quoted ? ` --noEmit ${quoted}` : ' --noEmit';
+        return `if [ -x ${local} ]; then ${local}${target}; else tsc${target}; fi`;
     }
 
     function shellQuotePath(path) {
@@ -4258,13 +4297,25 @@
     // user can navigate a large file without scrolling. The scanner is intentionally simple:
     // it recognises the declaration shapes of the languages the studio can edit.
 
+    const JAVASCRIPT_RULES = [
+        { kind: 'function', regex: /^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)/ },
+        { kind: 'class', regex: /^\s*(?:export\s+)?(?:default\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/ },
+        { kind: 'function', regex: /^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/ },
+        { kind: 'variable', regex: /^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)/ }
+    ];
+
+    const TYPESCRIPT_RULES = [
+        ...JAVASCRIPT_RULES,
+        { kind: 'type', regex: /^\s*(?:export\s+)?(?:declare\s+)?interface\s+([A-Za-z_$][\w$]*)/ },
+        { kind: 'type', regex: /^\s*(?:export\s+)?(?:declare\s+)?type\s+([A-Za-z_$][\w$]*)/ },
+        { kind: 'type', regex: /^\s*(?:export\s+)?(?:declare\s+)?(?:const\s+)?enum\s+([A-Za-z_$][\w$]*)/ }
+    ];
+
     const OUTLINE_RULES = {
-        javascript: [
-            { kind: 'function', regex: /^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)/ },
-            { kind: 'class', regex: /^\s*(?:export\s+)?(?:default\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/ },
-            { kind: 'function', regex: /^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/ },
-            { kind: 'variable', regex: /^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)/ }
-        ],
+        javascript: JAVASCRIPT_RULES,
+        jsx: JAVASCRIPT_RULES,
+        typescript: TYPESCRIPT_RULES,
+        tsx: TYPESCRIPT_RULES,
         python: [
             { kind: 'class', regex: /^\s*class\s+([A-Za-z_][\w]*)/ },
             { kind: 'function', regex: /^\s*(?:async\s+)?def\s+([A-Za-z_][\w]*)/ }

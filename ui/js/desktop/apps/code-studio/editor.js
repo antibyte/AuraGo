@@ -244,6 +244,14 @@
         return [cm.EditorState.readOnly.of(!canWrite()), cm.EditorView.editable.of(canWrite())];
     }
 
+    // The textarea fallback highlights with highlight.js, which knows JavaScript and
+    // TypeScript but not the JSX and TSX dialects as separate names.
+    const HLJS_LANGUAGES = { jsx: 'javascript', tsx: 'typescript' };
+
+    function highlightLanguage(language) {
+        return HLJS_LANGUAGES[language] || language;
+    }
+
     function createTextareaEditor(container, tab, link) {
         const wrapper = document.createElement('div');
         wrapper.className = 'cs-textarea-wrap';
@@ -268,7 +276,7 @@
                 preview.textContent = textarea.value;
                 if (window.hljs && tab.language) {
                     try {
-                        preview.innerHTML = window.hljs.highlight(textarea.value, { language: tab.language, ignoreIllegals: true }).value;
+                        preview.innerHTML = window.hljs.highlight(textarea.value, { language: highlightLanguage(tab.language), ignoreIllegals: true }).value;
                     } catch (_) {}
                 }
             }, 100);

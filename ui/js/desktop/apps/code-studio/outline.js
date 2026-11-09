@@ -2,13 +2,25 @@
     // user can navigate a large file without scrolling. The scanner is intentionally simple:
     // it recognises the declaration shapes of the languages the studio can edit.
 
+    const JAVASCRIPT_RULES = [
+        { kind: 'function', regex: /^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)/ },
+        { kind: 'class', regex: /^\s*(?:export\s+)?(?:default\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/ },
+        { kind: 'function', regex: /^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/ },
+        { kind: 'variable', regex: /^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)/ }
+    ];
+
+    const TYPESCRIPT_RULES = [
+        ...JAVASCRIPT_RULES,
+        { kind: 'type', regex: /^\s*(?:export\s+)?(?:declare\s+)?interface\s+([A-Za-z_$][\w$]*)/ },
+        { kind: 'type', regex: /^\s*(?:export\s+)?(?:declare\s+)?type\s+([A-Za-z_$][\w$]*)/ },
+        { kind: 'type', regex: /^\s*(?:export\s+)?(?:declare\s+)?(?:const\s+)?enum\s+([A-Za-z_$][\w$]*)/ }
+    ];
+
     const OUTLINE_RULES = {
-        javascript: [
-            { kind: 'function', regex: /^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)/ },
-            { kind: 'class', regex: /^\s*(?:export\s+)?(?:default\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/ },
-            { kind: 'function', regex: /^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/ },
-            { kind: 'variable', regex: /^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)/ }
-        ],
+        javascript: JAVASCRIPT_RULES,
+        jsx: JAVASCRIPT_RULES,
+        typescript: TYPESCRIPT_RULES,
+        tsx: TYPESCRIPT_RULES,
         python: [
             { kind: 'class', regex: /^\s*class\s+([A-Za-z_][\w]*)/ },
             { kind: 'function', regex: /^\s*(?:async\s+)?def\s+([A-Za-z_][\w]*)/ }

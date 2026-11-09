@@ -90,9 +90,15 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 
 - Code Studio's managed image includes GCC, libc development headers and make;
   the runtime probe requires GCC alongside Go, Python and Node. The shared
-  sample map seeds `hello.go`, `hello.py` and `hello.c`. Existing workspaces with
-  both original samples gain only a missing `hello.c`; host and container seeds
-  use exclusive creation and preserve existing files and symlinks.
+  sample map seeds `hello.go`, `hello.py`, `hello.c`, `hello.js` and `hello.ts`.
+  Existing workspaces with both original samples gain only the missing sample
+  files; host and container seeds use exclusive creation and preserve existing
+  files and symlinks.
+- The managed image also ships `typescript` and `tsx`, so the studio runs
+  JavaScript with `node` and TypeScript or JSX with `tsx`. The runtime probe
+  requires `node` but not `tsx`: a container without the TypeScript runner keeps
+  working for every other language. Verify `TestCodeStudioNodeSampleWorkspace`
+  and `TestDesktopCodeStudioNode`.
 - Managed probes and workspace scripts use non-login shells to retain the image
   PATH, including `/usr/local/go/bin`. Never rebuild a healthy image because a
   login profile hid its tools. Verify `TestCodeStudioRuntimeRequiresCCompiler`.

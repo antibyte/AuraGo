@@ -61,21 +61,22 @@ func TestCodeStudioRootedPaths(t *testing.T) {
 
 const codeStudioRuntimeAcceptanceScript = `
 import shutil
-assert all(shutil.which(name) for name in ('go','node','python3','gcc','grep')), 'managed runtime incomplete'
+assert all(shutil.which(name) for name in ('go','node','tsx','python3','gcc','grep')), 'managed runtime incomplete'
 with tempfile.TemporaryDirectory() as project:
     project = pathlib.Path(project)
     files = {
         'hello.go': 'package main\nimport "fmt"\nfunc main(){fmt.Println("runtime-ok")}\n',
         'hello.js': 'console.log("runtime-ok");\n',
+        'hello.ts': 'const greeting: string = "runtime-ok";\nconsole.log(greeting);\n',
         'hello.py': 'print("runtime-ok")\n',
         'hello.c': '#include <stdio.h>\nint main(void){puts("runtime-ok");return 0;}\n',
     }
     for name, text in files.items(): (project/name).write_text(text)
     subprocess.run(['gcc','-std=c17','-Wall','-Wextra','hello.c','-o','hello-c'],cwd=project,check=True,capture_output=True,timeout=60)
-    for command in [['go','run','hello.go'],['node','hello.js'],['python3','hello.py'],['./hello-c']]:
+    for command in [['go','run','hello.go'],['node','hello.js'],['tsx','hello.ts'],['python3','hello.py'],['./hello-c']]:
         result = subprocess.run(command,cwd=project,check=True,capture_output=True,timeout=90,env={**os.environ,'GOTOOLCHAIN':'local'})
         assert result.stdout.strip() == b'runtime-ok', (command,result.stdout)
-print('Managed Code Studio runtime: Go, Node, Python and C execution OK')
+print('Managed Code Studio runtime: Go, Node, TypeScript, Python and C execution OK')
 `
 
 const codeStudioPathAcceptanceScript = `import base64, hashlib, json, os, pathlib, subprocess, sys, tempfile

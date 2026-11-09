@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -384,6 +385,11 @@ func (s *CodeContainerService) ensureWorkspaceLocked() (string, error) {
 	return codeWorkspaceDir, nil
 }
 
+// codeStudioExtraSamples are the examples that join an existing sample workspace.
+// A workspace that still carries the original Go and Python samples receives the
+// missing files; unrelated projects stay untouched.
+var codeStudioExtraSamples = []string{"hello.c", "hello.js", "hello.ts"}
+
 func seedCodeStudioWorkspace(dir string) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -391,14 +397,17 @@ func seedCodeStudioWorkspace(dir string) error {
 	}
 	files := defaultCodeStudioWorkspaceFiles()
 	if len(entries) > 0 {
-		// Add C to existing sample workspaces without filling unrelated projects.
+		// Add the newer examples to existing sample workspaces without filling unrelated projects.
 		for _, name := range []string{"hello.go", "hello.py"} {
 			info, err := os.Lstat(filepath.Join(dir, name))
 			if err != nil || !info.Mode().IsRegular() {
 				return nil
 			}
 		}
-		files = map[string]string{"hello.c": files["hello.c"]}
+		files = map[string]string{}
+		for _, name := range codeStudioExtraSamples {
+			files[name] = defaultCodeStudioWorkspaceFiles()[name]
+		}
 	}
 	for name, content := range files {
 		file, err := os.OpenFile(filepath.Join(dir, name), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
@@ -483,7 +492,7 @@ func buildCodeStudioContainerSeedScript() string {
 	sort.Strings(names)
 	for _, name := range names {
 		condition := "[ \"$seed_all\" = true ]"
-		if name == "hello.c" {
+		if slices.Contains(codeStudioExtraSamples, name) {
 			condition = "{ " + condition + " || { [ -f /workspace/hello.go ] && [ ! -L /workspace/hello.go ] && [ -f /workspace/hello.py ] && [ ! -L /workspace/hello.py ]; }; }"
 		}
 		fmt.Fprintf(&b, "if %s && [ ! -e /workspace/%s ] && [ ! -L /workspace/%s ]; then\n", condition, name, name)
@@ -502,10 +511,12 @@ func buildCodeStudioContainerSeedScript() string {
 
 func defaultCodeStudioWorkspaceFiles() map[string]string {
 	return map[string]string{
-		"README.md": "# Code Studio Workspace\n\nThis workspace is mounted at `/workspace` inside the Code Studio container.\n\nOpen hello.go, hello.py or hello.c and use Run. C source is compiled as C17 with GCC; compiler errors and program output appear in the terminal.\n\nTry running:\n\n```sh\ngo run hello.go\npython3 hello.py\ngcc -std=c17 -Wall -Wextra hello.c -o /tmp/hello-c && /tmp/hello-c\n```\n",
+		"README.md": "# Code Studio Workspace\n\nThis workspace is mounted at `/workspace` inside the Code Studio container.\n\nOpen hello.go, hello.py, hello.c, hello.js or hello.ts and use Run. C source is compiled as C17 with GCC; JavaScript runs on Node; TypeScript runs through tsx. Compiler errors and program output appear in the terminal.\n\nTry running:\n\n```sh\ngo run hello.go\npython3 hello.py\ngcc -std=c17 -Wall -Wextra hello.c -o /tmp/hello-c && /tmp/hello-c\nnode hello.js\ntsx hello.ts\n```\n",
 		"hello.go":  "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello from Code Studio\")\n}\n",
 		"hello.py":  "print(\"Hello from Code Studio\")\n",
 		"hello.c":   "#include <stdio.h>\n\nint main(void) {\n    puts(\"Hello from Code Studio\");\n    return 0;\n}\n",
+		"hello.js":  "console.log(\"Hello from Code Studio\");\n",
+		"hello.ts":  "const greeting: string = \"Hello from Code Studio\";\n\nconsole.log(greeting);\n",
 	}
 }
 

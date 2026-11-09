@@ -52,7 +52,12 @@ func TestCodeStudioCSampleWorkspace(t *testing.T) {
 				if name == "empty" {
 					want = defaultCodeStudioWorkspaceFiles()
 				} else if name == "legacy samples" {
-					want["hello.c"] = defaultCodeStudioWorkspaceFiles()["hello.c"]
+					for _, sample := range codeStudioExtraSamples {
+						want[sample] = defaultCodeStudioWorkspaceFiles()[sample]
+					}
+				} else if name == "existing C" {
+					want["hello.js"] = defaultCodeStudioWorkspaceFiles()["hello.js"]
+					want["hello.ts"] = defaultCodeStudioWorkspaceFiles()["hello.ts"]
 				}
 				entries, err := os.ReadDir(dir)
 				if err != nil || len(entries) != len(want) {
