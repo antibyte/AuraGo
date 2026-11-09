@@ -159,7 +159,7 @@ func TestStudioCheckFindsStageOverlapMonotonyAndCompileWarnings(t *testing.T) {
 	studio.SetPhase(PhaseFill, "s1")
 	// Actor anna at "left" and show prop.lock also at "left" -> immediate spot_overlap warning on put_scene.
 	putS1 := studioWriteCall(t, studio, ToolStory, "put_scene",
-		`{"scene_id":"s1","data":{"environment":"env.office","actors":[{"cast":"anna","at":"left","pose":"present"}],"beats":[{"do":"show","item":"prop.lock","at":"left","entry":"pop"},{"do":"show","item":"prop.shield","at":"right","entry":"pop"}]}}`)
+		`{"scene_id":"s1","data":{"environment":"env.office","actors":[{"cast":"anna","at":"left","pose":"present"}],"beats":[{"do":"show","item":"prop.lock","at":"left","entry":"pop"},{"do":"show","item":"prop.shield","at":"right","entry":"pop"},{"do":"show","item":"prop.key","at":"center","entry":"pop"}]}}`)
 	if putS1["status"] != "ok" {
 		t.Fatalf("put_scene s1 = %v", putS1)
 	}
@@ -168,7 +168,7 @@ func TestStudioCheckFindsStageOverlapMonotonyAndCompileWarnings(t *testing.T) {
 		t.Fatalf("put_scene s1 warnings = %v, want spot_overlap", warnings)
 	}
 
-	// Walking away before showing at "left" resolves spot_overlap in s2, while fade across environments and 3rd "pop" entry trigger advice.
+	// Walking away before showing at "left" resolves spot_overlap in s2, while fade across environments triggers advice; s1 holds the third "pop" in a row.
 	studio.SetPhase(PhaseFill, "s2")
 	putS2 := studioWriteCall(t, studio, ToolStory, "put_scene",
 		`{"scene_id":"s2","data":{"environment":"env.server-room","transition":"fade","actors":[{"cast":"anna","at":"left","pose":"stand"}],"beats":[{"do":"walk","who":"anna","to":"right"},{"do":"show","item":"prop.shield","at":"left","entry":"pop"}]}}`)
@@ -191,5 +191,24 @@ func TestStudioCheckFindsStageOverlapMonotonyAndCompileWarnings(t *testing.T) {
 		if !seenCodes[want] {
 			t.Errorf("advice = %+v, missing %q", report.Advice, want)
 		}
+	}
+}
+
+func TestLintForJobEntryStreakResetsPerScene(t *testing.T) {
+	show := func(entry string) Beat { return Beat{Do: "show", Item: "prop.lock", At: SpotAt("right"), Entry: entry} }
+	actors := []Actor{{Cast: "anna", At: SpotAt("left")}}
+	story := &Story{Scenes: []Scene{
+		{ID: "s1", Actors: actors, Beats: []Beat{show("pop"), show("pop")}},
+		{ID: "s2", Actors: actors, Beats: []Beat{show("pop"), show("pop")}},
+		{ID: "s3", Actors: actors, Beats: []Beat{show("fade"), show("fade"), show("fade"), show("pop"), show("pop"), show("pop")}},
+	}}
+	var got []string
+	for _, is := range LintForJob(story) {
+		if is.Code == CodeEntryMonotony {
+			got = append(got, is.SceneID)
+		}
+	}
+	if len(got) != 2 || got[0] != "s3" || got[1] != "s3" {
+		t.Fatalf("entry_monotony scenes = %v, want s3 twice (two streaks of three) and nothing for two scenes of two", got)
 	}
 }

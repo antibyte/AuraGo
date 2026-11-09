@@ -64,17 +64,17 @@ type checkEnvironmentAnswer struct {
 // LintForJob adds what Validate accepts but a finished film must not have: scene_unfilled for a
 // scene with nothing on stage, over_budget for narration over the house budget of 19 words
 // plus 15 percent, fade_between_worlds for a fade across different environments, entry_monotony
-// for three or more consecutive show beats with the same entry style, and spot_overlap when
+// for three or more consecutive show beats of one scene with the same entry style, and spot_overlap when
 // actors or shown items share the same named spot.
 func LintForJob(st *Story) []Issue {
 	if st == nil {
 		return nil
 	}
 	var out []Issue
-	lastEntry := ""
-	entryStreak := 0
 	for i := range st.Scenes {
 		sc := &st.Scenes[i]
+		// The streak of equal entries counts inside one scene: a new scene starts a new reveal sequence.
+		lastEntry, entryStreak := "", 0
 		if !studioSceneFilled(sc) {
 			out = append(out, Issue{
 				Severity: SeverityError, SceneID: sc.ID, Path: jp("scenes", i), Code: CodeSceneUnfilled,
@@ -104,7 +104,7 @@ func LintForJob(st *Story) []Issue {
 					out = append(out, Issue{
 						Severity: SeverityWarning, SceneID: sc.ID, Path: fmt.Sprintf("%s/beats/%d/entry", jp("scenes", i), j), Code: CodeEntryMonotony,
 						Message: fmt.Sprintf("Three show beats in a row use entry %q.", b.Entry),
-						Fix:     `Vary the entry style across reveals (pop, fade, slide-up, draw or stamp).`,
+						Fix:     `Vary the entry style across reveals: pop, fade or slide.`,
 					})
 				}
 			} else {
