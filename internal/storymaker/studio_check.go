@@ -322,6 +322,7 @@ func (s *Studio) runCheck(ctx context.Context) (CheckReport, string, error) {
 	summary, state, environment := s.compileForCheck(ctx, etag)
 	found = append(found, checkCompileIssues(summary.Issues)...)
 	found = append(found, LayoutIssues(summary.Layout, LayoutOptions{CaptionRule: story.Style.Compose == "v2" && story.Style.Captions && story.Format.Aspect != "9:16"})...)
+	found = append(found, LookAlikeIssues(summary.Stills)...)
 	found = append(found, LintForJob(&story)...)
 	found = append(found, s.craftIssues(ctx, &story)...)
 	found = append(found, LintWords(&story, s.job.Language)...)

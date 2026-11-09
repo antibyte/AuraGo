@@ -156,6 +156,10 @@ type CompileSummary struct {
 	StoryboardScenes int
 	CodeScenes       int
 	LayoutError      string
+	// Stills are the hashes of the captured pictures, one per measured scene. Sheet is their contact sheet as a PNG, until the
+	// job saves it; the Studio does not keep it.
+	Stills []StillInfo
+	Sheet  []byte
 }
 
 // CompileScene is the measured timing of one scene.
