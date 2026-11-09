@@ -52,10 +52,12 @@ func (s *Studio) Packet(ctx context.Context, compact bool) (map[string]any, erro
 		packet["suggested_scenes"] = packetSuggestedScenes(job.TargetSeconds)
 		packet["templates"] = packetTemplates
 		packet["environments"] = deps.Catalog.Names("environment")
+		packet["environment_guide"] = packetEnvironmentGuide(deps.Catalog)
 	case PhaseCast:
 		packet["story"] = packetSummary(story)
 		packet["characters"] = deps.Catalog.Names("character")
 		packet["environments"] = deps.Catalog.Names("environment")
+		packet["environment_guide"] = packetEnvironmentGuide(deps.Catalog)
 		packet["style_options"] = map[string]any{
 			"rhythms":  []string{"calm", "standard", "lively"},
 			"palettes": deps.Catalog.Names("palette"),
@@ -99,20 +101,52 @@ func (s *Studio) Packet(ctx context.Context, compact bool) (map[string]any, erro
 	return packet, nil
 }
 
-// packetFillExample is the worked example of a fill scene. It names the first cast member of the story and
-// leaves the actor and the gesture out when there is no cast, so it never names a member that does not exist.
-func packetFillExample(cast []CastMember) map[string]any {
+// packetFillExample is the worked example of a fill scene. It is built from the scene's own direction (environment,
+// framing, actor, spots, pose, gesture, entry), so it can never contradict it and every scene gets a different one. It
+// names the direction's actor, or the first cast member, and leaves the actor and the gesture out when there is no cast.
+func packetFillExample(cast []CastMember, dir SceneDirection) map[string]any {
+	environment := dir.Environment
+	if environment == "" {
+		environment = "env.office"
+	}
+	prop := dir.HeroProp
+	if prop == "" {
+		prop = "prop.lock"
+	}
+	propAt, entry := dir.PropAt, dir.Entry
+	if propAt == "" {
+		propAt = "right"
+	}
+	if entry == "" {
+		entry = "pop"
+	}
 	example := map[string]any{
 		"narration":   "Eine {1}Firewall prüft jedes Paket am Eingang.",
-		"environment": "env.office",
+		"environment": environment,
 		"transition":  "wipe",
 	}
-	beats := []any{map[string]any{"do": "show", "item": "prop.lock", "at": "right", "entry": "pop", "cue": 1}}
+	if dir.Framing != "" && dir.Framing != "wide" {
+		example["camera"] = map[string]any{"framing": dir.Framing}
+	}
+	beats := []any{map[string]any{"do": "show", "item": prop, "at": propAt, "entry": entry, "cue": 1}}
 	if len(cast) > 0 {
 		who := cast[0].ID
+		if dir.Actor != "" {
+			who = dir.Actor
+		}
+		actorAt, pose, gesture := dir.ActorAt, dir.Pose, dir.Gesture
+		if actorAt == "" {
+			actorAt = "left"
+		}
+		if pose == "" {
+			pose = "present"
+		}
+		if gesture == "" {
+			gesture = "present"
+		}
 		example["speaker"] = who
-		example["actors"] = []any{map[string]any{"cast": who, "at": "left", "pose": "present", "expression": "neutral"}}
-		beats = append(beats, map[string]any{"do": "gesture", "who": who, "gesture": "point", "with": "prev"})
+		example["actors"] = []any{map[string]any{"cast": who, "at": actorAt, "pose": pose, "expression": "neutral"}}
+		beats = append(beats, map[string]any{"do": "gesture", "who": who, "gesture": gesture, "with": "prev"})
 	}
 	example["beats"] = beats
 	return example
@@ -163,7 +197,9 @@ func packetFill(ctx context.Context, packet map[string]any, story *Story, sceneI
 	packet["cast"] = packetCast(story)
 	packet["environments"] = packetEnvironments(deps.Catalog)
 	packet["open_issues"] = packetIssues(story, deps, sc.ID)
-	packet["example"] = packetFillExample(story.Cast)
+	direction := DirectionPlan(story, project.Template, deps.Catalog)[index]
+	packet["direction"] = direction.packet()
+	packet["example"] = packetFillExample(story.Cast, direction)
 	if !job.VoiceAvailable {
 		packet["note"] = packetNoVoiceNote
 	}
@@ -334,7 +370,24 @@ func packetEnvironments(cat *Catalog) []map[string]any {
 	ids := cat.Names("environment")
 	out := make([]map[string]any, 0, len(ids))
 	for _, id := range ids {
-		out = append(out, map[string]any{"id": id, "spots": cat.SpotNames(id)})
+		row := map[string]any{"id": id, "spots": cat.SpotNames(id)}
+		if about := environmentAbout(id); about != "" {
+			row["about"] = about
+		}
+		out = append(out, row)
+	}
+	return out
+}
+
+// packetEnvironmentGuide lists what each environment is for, without the spots. The outline and cast packets carry it
+// next to the plain list of names.
+func packetEnvironmentGuide(cat *Catalog) []map[string]any {
+	ids := cat.Names("environment")
+	out := make([]map[string]any, 0, len(ids))
+	for _, id := range ids {
+		if about := environmentAbout(id); about != "" {
+			out = append(out, map[string]any{"id": id, "about": about})
+		}
 	}
 	return out
 }
