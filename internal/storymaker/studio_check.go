@@ -310,6 +310,7 @@ func (s *Studio) runCheck(ctx context.Context) (CheckReport, string, error) {
 	summary, state, environment := s.compileForCheck(ctx, etag)
 	found = append(found, checkCompileIssues(summary.Issues)...)
 	found = append(found, LintForJob(&story)...)
+	found = append(found, s.craftIssues(ctx, &story)...)
 	found = append(found, LintWords(&story, s.job.Language)...)
 	found = dedupeCheckIssues(found)
 	scenes, total := checkTiming(&story, summary)
