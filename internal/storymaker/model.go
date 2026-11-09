@@ -81,6 +81,16 @@ const (
 	CodeCastUnused          = "cast_unused"
 )
 
+// Issue codes of the layout run (LayoutIssues). Only the agent job's check emits them. They are model-fixable like the craft
+// codes and never block an outcome.
+const (
+	CodeCaptionOverlap   = "caption_overlap"
+	CodePropTooSmall     = "prop_too_small"
+	CodeOffscreen        = "offscreen"
+	CodeActorPropOverlap = "actor_prop_overlap"
+	CodeSceneStatic      = "scene_static"
+)
+
 // Issue is one validation finding. Path is a JSON Pointer (RFC 6901) from the story root.
 type Issue struct {
 	Severity  string   `json:"severity"`

@@ -55,7 +55,7 @@ func HasErrors(issues []Issue) bool {
 // Validate, scene_unfilled, and compile_failed that names a scene. Code scenes and render deadlines
 // are outside its tools.
 func IssueModelFixable(i Issue) bool {
-	if IssueCraft(i.Code) {
+	if IssueCraft(i.Code) || IssueLayout(i.Code) {
 		return true
 	}
 	switch i.Code {
@@ -82,7 +82,7 @@ func IssueCraft(code string) bool {
 // issueNeverBlocks says whether a model-fixable code stays an open check instead of turning the outcome into
 // incomplete. Craft codes and, from batch D on, layout codes never block.
 func issueNeverBlocks(code string) bool {
-	return IssueCraft(code)
+	return IssueCraft(code) || IssueLayout(code)
 }
 
 // HasBlockingIssue reports whether any of the model-fixable issues of a report would turn the outcome into incomplete.
