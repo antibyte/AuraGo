@@ -26,7 +26,7 @@ Go types: `internal/storymaker/model.go`. Keys are snake_case. A key that is not
 Story       {schema:"storymaker/1", title:string 1..120, format:Format, style:Style, voice:Voice|null,
              music:Music|null, cast:[CastMember], scenes:[Scene]}
 Format      {aspect:"16:9"|"9:16"|"1:1", fps:24|25|30}
-Style       {palette:string, font:string, captions:bool, rhythm?:"calm"|"standard"|"lively", auto_sfx?:bool}
+Style       {palette:string, font:string, captions:bool, rhythm?:"calm"|"standard"|"lively", auto_sfx?:bool, compose?:"v2"}
 Voice       {provider:VoiceProvider, voice:string, language:string}   // provider and voice id are checked, see the notes
 Music       {mode:"none"|"generated"|"file", mood?, prompt?, file?, track?, volume?:0..1}
 CastMember  {id:slug, name?:string, character:assetId, voice?:Voice|null}
@@ -42,7 +42,7 @@ Prop        {id?:slug, item:assetId, at?:Position, layer?:"back"|"front", scale?
 Beat        {do:BeatKind, who?, target?, from?:Position, to?:Position, pose?, gesture?,
              count?:1..5, expression?, text?, style?, item?, icon?, chart?,
              data?:{labels:[string], values:[number]}, at?:Position, entry?, id?, op?,
-             amount?:number, sound?, seconds?:number, with?:"prev", cue?:int,
+             amount?:number, scale?:number, sound?, seconds?:number, with?:"prev", cue?:int,   // scale 0.5..2, show with item only
              delay?:0..600, duration?:0..600, ease?:Ease}
 Position    string (spot name) | {x:number 0..100, y:number 0..100}   // percent of the safe area; y = feet line
 Duration    "auto" | number (seconds, greater than 0)
@@ -59,11 +59,12 @@ Notes on the shape:
 - `voice` and `music` may be `null`. `POST /narrate` synthesises; validation still checks only the shape of `voice` and of the provider id.
 - `voice.provider` (and `cast[].voice.provider`) is a concrete TTS provider id, never `"active"`. The ids are the dispatcher ids of `internal/tools/tts.go` `synthesizeProvider`, kept as a sorted list in `validate.go` (`voiceProviders`; the package does not import `internal/tools`). The comparison ignores case and surrounding space, and `Validate` does not rewrite the value. `"active"` is refused as `invalid_value` at `<voice path>/provider` (a saved story names a concrete provider). Any other id outside the list, including the dispatcher aliases `s2s` and `s2s-lab` (a story saves only `speech_lab`), is `unknown_name` at `<voice path>/provider` with at most 5 closest alternatives and a `{"provider":"..."}` example. An empty provider is `missing_field`. The voice id must match `^[A-Za-z0-9._-]{1,128}$` (`invalid_value` at `<voice path>/voice`); the language is only required.
 - `style` may be given without `captions`; the decoder then sets captions to true.
-- Numbers `amount`, `seconds`, `delay`, `duration`, `count`, `cue` and the `scale` of actors and props are plain numbers with `omitempty`. A value of 0 means "absent".
+- Numbers `amount`, `seconds`, `delay`, `duration`, `count`, `cue` and the `scale` of actors, props and show beats are plain numbers with `omitempty`. A value of 0 means "absent".
 - A `Position` or `Duration` of the wrong JSON shape is kept as written. The story therefore saves unchanged, and `Validate` reports `invalid_value` at the exact path.
 - `kind` is not defaulted. An absent kind is a storyboard scene.
 - `music.track` is a positive decimal media id and excludes `music.file`. `style.auto_sfx`, like `style.rhythm`, is not written when absent.
 - `style.rhythm` is not written when absent.
+- `style.compose` is not written when absent. `"v2"` switches on the composition rules of the player: with captions on, the feet line of the base spots stands at 74 percent of the height instead of 88 in 16:9 and 1:1 (the depth scale of the old line is kept), the first cue-bound show of a scene with an item is enlarged to about 24 percent of the frame height unless it has a `scale`, and a scene without its own camera zooms from 1.0 to 1.08 (1.04 for rhythm calm). A story without `compose` renders exactly as before. Only agent-created projects carry it.
 - `Prop.id` is not defaulted. `show` beats get an instance id (see "Defaults").
 
 ### Closed name sets

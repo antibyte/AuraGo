@@ -34,6 +34,7 @@ JavaScript (`ui/js/storymaker/`); Go never recomputes the timeline.
 - The phase 1 support matrix lives in `model.go` (`phase1Beats`, `phase1Transitions`) and in `validate.go`; move a beat or
   transition out of "not supported yet" there when the player gains it. `highlight` moved in phase 2. `style.rhythm` is `calm`,
   `standard`, `lively` or absent, and Go never writes a default.
+- `style.compose` (`"v2"`) and `Beat.scale` (0.5 to 2, show with item) are additive, never defaulted and never written when absent. Only `ProjectStore.CreateWithOptions` with `CreateOptions{Compose: "v2"}` sets compose, and only the agent's project creator calls it.
 - `ApplyDefaults` fills only the static defaults of the spec and the show-beat instance id; timing (`delay`, `duration`,
   `ease`) is never defaulted: the player's compile step owns it. It is idempotent. The default transition is `cut` on scene 1,
   `wipe` when the environment differs from the previous scene's, else `fade`; a stored value stays. The editor saves a new scene
