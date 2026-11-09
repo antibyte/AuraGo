@@ -93,11 +93,18 @@ def render_previews(scene, roots):
                    for child in root.children if child.type == 'MESH' for p in child.bound_box]
         low = Vector([min(c[i] for c in corners) for i in range(3)])
         high = Vector([max(c[i] for c in corners) for i in range(3)])
-        centre, size = (low + high) / 2, (high - low).length
-        for suffix, direction, lift in (('', Vector((.9, -1.2, .62)), 0), ('-low', Vector((.75, -1.1, .12)), .25)):
-            target = centre + Vector((0, 0, lift * 0))
-            camera.location = target + direction.normalized() * max(size * .82, 3.2)
-            camera.rotation_euler = (target - camera.location).to_track_quat('-Z', 'Y').to_euler()
+        centre, size, tall = (low + high) / 2, (high - low).length, high.z - low.z
+        distance = max(size * .82, tall * 2.0, 3.2)
+        views = [('', centre, centre + Vector((.9, -1.2, .62)).normalized() * distance),
+                 ('-low', centre, centre + Vector((.75, -1.1, .12)).normalized() * distance)]
+        if tall > 8:
+            # Street view: eye level in front of the entrance (-Y).
+            origin = Vector((root.matrix_world.translation.x, root.matrix_world.translation.y, low.z))
+            views.append(('-street', origin + Vector((0, low.y - centre.y + (centre.y - origin.y), 4.2)),
+                          origin + Vector((6.5, low.y - origin.y - 13, 1.9))))
+        for suffix, target, position in views:
+            camera.location = position
+            camera.rotation_euler = (target - position).to_track_quat('-Z', 'Y').to_euler()
             scene.render.filepath = str(kit3.REPORT / f"{root['asset_id']}{suffix}.png")
             bpy.ops.render.render(write_still=True)
     for obj in everything:

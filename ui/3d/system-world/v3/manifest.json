@@ -6,8 +6,8 @@
   "units": "metres",
   "up_axis": "Y",
   "sources": {
-    "kit3.py": "197d279ca714fe2401e1c0e14cb20be64eea3bdbd2519916e13f4258c6af4977",
-    "build_world3.py": "ab83b0abe56f4514f53f1eef78031de29b0fb6cf437b0764f602b72f57f0ab58",
+    "kit3.py": "7b814c903ed56177b33f4cf14f4054c25ebe2b5036498affa4f95e977a27d006",
+    "build_world3.py": "b84fe9614a9fac736703915ad37f69aff3adec8b551c899affe91c5eaa3065da",
     "street_assets3.py": "26f8d0e7d515516c19c510f4eb1880644818ff0d9b11fc8095314a294a729fc1"
   },
   "assets": [

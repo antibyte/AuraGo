@@ -47,6 +47,9 @@ PALETTE = {
     'iron': ((.022, .026, .03, 1), .85, .48, 0, 1),
     'marking': ((.62, .63, .58, 1), .02, .62, 0, 1),
     'tactile': ((.50, .47, .36, 1), .04, .64, 0, 1),
+    # Window panes: the renderer replaces this material with the interior shader. UV0 holds
+    # room coordinates (one unit per bay along the facade and per floor upwards).
+    'window': ((.018, .032, .045, 1), .0, .08, 0, 1),
 }
 
 
@@ -101,28 +104,31 @@ class Kit:
         self.rng = random.Random(seed)
 
     # -- raw access ---------------------------------------------------------------------
-    def add(self, vertices, faces, mat, at=(0, 0, 0), rot=None, tint=1.0, up=False):
+    def add(self, vertices, faces, mat, at=(0, 0, 0), rot=None, tint=1.0, up=False, uvs=None):
         """Add faces. `mat` and `tint` are one value or one value per face.
 
         With up=True every face is wound so that its normal points to +Z (ground surfaces).
+        `uvs` optionally gives one (u, v) per vertex; faces without it export (0, 0).
         """
-        part = self.parts.setdefault(self.part, {'verts': [], 'faces': [], 'mats': [], 'tints': []})
+        part = self.parts.setdefault(self.part, {'verts': [], 'faces': [], 'mats': [], 'tints': [], 'uvs': []})
         start = len(part['verts'])
         offset = Vector(at)
         placed = [tuple((rot @ Vector(v) if rot else Vector(v)) + offset) for v in vertices]
+        faces = [tuple(f) for f in faces]
         if up:
             def facing(face):
                 z = sum((placed[a][0] - placed[b][0]) * (placed[a][1] + placed[b][1])
                         for a, b in zip(face, face[1:] + face[:1]))
                 return face if z >= 0 else tuple(reversed(face))
-            faces = [facing(tuple(f)) for f in faces]
+            faces = [facing(f) for f in faces]
         part['verts'].extend(placed)
+        part['uvs'].extend([tuple(uvs[i] for i in f) for f in faces] if uvs else [None] * len(faces))
         part['faces'].extend(tuple(start + i for i in f) for f in faces)
         part['mats'].extend(mat if isinstance(mat, (list, tuple)) else [mat] * len(faces))
         part['tints'].extend(tint if isinstance(tint, (list, tuple)) else [tint] * len(faces))
 
-    def quad(self, a, b, c, d, mat, tint=1.0, up=False):
-        self.add([a, b, c, d], [(0, 1, 2, 3)], mat, tint=tint, up=up)
+    def quad(self, a, b, c, d, mat, tint=1.0, up=False, uvs=None):
+        self.add([a, b, c, d], [(0, 1, 2, 3)], mat, tint=tint, up=up, uvs=uvs)
 
     # -- solids -------------------------------------------------------------------------
     def box(self, center, size, mat='graphite', bevel=.03, segments=2, angle=0, rot=None, tint=1.0):
@@ -262,8 +268,9 @@ def create_asset(asset_id, factory, lod, collection, mats):
             mesh.materials.append(mats[key])
         bm = bmesh.new()
         tint_layer = bm.faces.layers.float.new('tint')
+        uv_layer = bm.loops.layers.uv.new('UVMap') if any(data['uvs']) else None
         verts = [bm.verts.new(v) for v in data['verts']]
-        for face, key, tint in zip(data['faces'], data['mats'], data['tints']):
+        for face, key, tint, uvs in zip(data['faces'], data['mats'], data['tints'], data['uvs']):
             corners = [verts[i] for i in face]
             if len(set(corners)) < 3:
                 continue
@@ -274,6 +281,9 @@ def create_asset(asset_id, factory, lod, collection, mats):
             f.material_index = used.index(key)
             f[tint_layer] = tint
             f.smooth = True
+            if uvs:
+                for loop, uv in zip(f.loops, uvs):
+                    loop[uv_layer].uv = uv
         bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
         dead = [f for f in bm.faces if f.calc_area() < 1e-9]
         if dead:
