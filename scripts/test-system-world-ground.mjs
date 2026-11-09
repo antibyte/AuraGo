@@ -133,3 +133,43 @@ const R=surfaces.road,P=surfaces.road+kerb.rise,near=(a,b,e=1e-9)=>Math.abs(a-b)
   assert.equal(carriagewayFree({x:zb.x,z:zb.z},side),false);assert.ok(carriagewayFree({x:zb.x,z:zb.z},side,true),'a start on a zebra may step off it');
   console.log(`System World ground: profile, continuity, ${streetModules().length} modules, 26 slabs, ${nodes.length} nodes / ${links.length} links (graph ${ms} ms) verified.`);
 }
+
+// --- Resident routes cross carriageways only on zebras ---
+{
+  const {createWayfinder}=await import('../ui/js/desktop/apps/sysworld-places.js');
+  const {createTraffic}=await import('../ui/js/desktop/apps/sysworld-traffic.js');
+  const {groundHeight}=await import('../ui/js/desktop/apps/sysworld-exploration.js');
+  const {nodes,links}=pedestrianGraph(),finder=createWayfinder(createTraffic(),groundHeight);
+  const same=(n,p)=>near(n.x,p.x,1e-9)&&near(n.z,p.z,1e-9);
+  const zebraLeg=(a,b)=>links.some(l=>l.zebra&&((same(nodes[l.a],a)&&same(nodes[l.b],b))||(same(nodes[l.a],b)&&same(nodes[l.b],a))));
+  // A start standing on a zebra may step off it: every sample of that leg off the pavement must lie in a zebra corridor.
+  const inCorridor=(x,z)=>zebras().some(zb=>zb.axis==='x'?Math.abs(x-zb.at)<=kerb.opening&&Math.abs(z-zb.line)<=streets.halfWidth:Math.abs(z-zb.at)<=kerb.opening&&Math.abs(x-zb.line)<=streets.halfWidth);
+  const onlyOnZebra=(a,b)=>{const n=Math.ceil(Math.hypot(b.x-a.x,b.z-a.z)/.05);for(let i=0;i<=n;i++){const x=a.x+(b.x-a.x)*i/n,z=a.z+(b.z-a.z)*i/n,p=streetProfile(x,z);if(p&&p.kind!=='pavement'&&!inCorridor(x,z))return false;}return true;};
+  const bodyAt=(p)=>({id:'walker',circles:[{x:0,z:0,r:.6}],minY:0,maxY:2,reach:.6,heading:0,...p,y:groundHeight(p.x,p.z)});
+  const check=(from,to)=>{
+    const path=finder.route(bodyAt(from),{...to,y:groundHeight(to.x,to.z)});
+    let prev=from,length=0;
+    for(const p of path){
+      if(!carriagewayFree(prev,p))assert.ok(zebraLeg(prev,p)||(prev===from&&onlyOnZebra(prev,p)),'route crosses a carriageway away from a zebra: '+JSON.stringify([prev,p]));
+      length+=Math.hypot(p.x-prev.x,p.z-prev.z);prev=p;
+    }
+    return {path,length};
+  };
+  for(const [from,to]of[[{x:-40,z:-50},{x:-40,z:-15}],[{x:-40,z:-50},{x:40,z:30}],[{x:5,z:45},{x:-50,z:70}]])
+    assert.ok(check(from,to).path.length,'route found '+JSON.stringify([from,to]));
+
+  // Seeded sample: random plot or pavement points (never on a carriageway).
+  let seed=20261109;const rnd=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
+  const walkable=()=>{for(;;){
+    const x=streets.minX+rnd()*(streets.maxX-streets.minX),z=streets.minZ+rnd()*(streets.quayZ-streets.minZ),p=streetProfile(x,z);
+    if(!p||p.kind==='pavement')return {x,z};
+  }};
+  let tried=0,resolved=0,detour=0;
+  for(let i=0;i<200;i++){
+    const from=walkable(),to=walkable(),straight=Math.hypot(to.x-from.x,to.z-from.z);if(straight<10)continue;
+    tried++;const {path,length}=check(from,to);
+    if(path.length){resolved++;detour+=length/straight;}
+  }
+  assert.ok(resolved/tried>=.7,`most random routes resolve (${resolved}/${tried})`);
+  console.log(`System World routes: ${resolved}/${tried} resolve (${(100*resolved/tried).toFixed(1)}%), mean detour x${(detour/resolved).toFixed(2)}, no leg off a zebra touches a carriageway.`);
+}

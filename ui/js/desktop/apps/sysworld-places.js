@@ -1,4 +1,5 @@
-import {surfaces} from './sysworld-layout.js';
+import {surfaces,streets} from './sysworld-layout.js';
+import {pedestrianGraph,carriagewayFree,maxLink,kerb,zebras} from './sysworld-ground.js';
 // Fixed places belong to the city, never to a changing telemetry inventory.
 export const livingPlaces = [
   {id:'repair-bay',district:'infra',x:-28,z:-62,role:'technician'},
@@ -19,25 +20,39 @@ export const landmarkPlaces = [
   {id:'tidal-turbine',x:0,z:96,y:-3.2,angle:Math.PI,clip:'spin'},
 ];
 
+// carriagewayFree exempts every zebra corridor along a leg; a start on one zebra may therefore only take
+// legs short enough to cross that single street (street band 12 m), never a long diagonal over another crossing.
+const stepOff=2*streets.halfWidth;
+// True when a point stands in a zebra corridor (opening wide, across the whole street band).
+function onZebra(p) {
+  return zebras().some(zb=>zb.axis==='x'
+    ?Math.abs(p.x-zb.at)<=kerb.opening&&Math.abs(p.z-zb.line)<=streets.halfWidth
+    :Math.abs(p.z-zb.at)<=kerb.opening&&Math.abs(p.x-zb.line)<=streets.halfWidth);
+}
+
+// Residents walk the pavement graph of sysworld-ground.js: links along pavements and over plots,
+// carriageways crossed only on zebras. Static links are pure and built once; bodies and solids filter them.
 export function createWayfinder(traffic, floor) {
-  const points=[],cache=new Map();let revision=-1;
-  for(const x of [-73,-61,-24,-12,12,24,61,73])for(const z of [-83,-71,-38,-26,7,19,53,65])points.push({x,z,y:floor(x,z),heading:0});
+  const graph=pedestrianGraph(),points=graph.nodes.map(n=>({x:n.x,z:n.z,y:floor(n.x,n.z),heading:0})),cache=new Map();let revision=-1;
   function route(body,destination) {
     if(revision!==traffic.revision()){cache.clear();revision=traffic.revision();}
     const key=body.circles.map(c=>[c.x,c.z,c.r].join(',')).join(';')+':'+body.maxY;
     if(!cache.has(key)) {
-      const nodes=points.filter(p=>traffic.clear(body,p,p,false)),edges=nodes.map(()=>[]);
-      for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++) {
-        const a=nodes[i],b=nodes[j],d=Math.hypot(a.x-b.x,a.z-b.z);
-        if(d<48&&traffic.clear(body,a,b,false)){edges[i].push([j,d]);edges[j].push([i,d]);}
+      const index=new Map(),nodes=[];
+      points.forEach((p,i)=>{if(traffic.clear(body,p,p,false)){index.set(i,nodes.length);nodes.push(p);}});
+      const edges=nodes.map(()=>[]);
+      for(const l of graph.links) {
+        const a=index.get(l.a),b=index.get(l.b);if(a===undefined||b===undefined)continue;
+        if(traffic.clear(body,nodes[a],nodes[b],false)){edges[a].push([b,l.length]);edges[b].push([a,l.length]);}
       }
       cache.set(key,{nodes,edges});
     }
-    const graph=cache.get(key),nodes=[...graph.nodes,{x:body.x,y:body.y,z:body.z,heading:body.heading},{...destination,heading:0}];
-    const start=nodes.length-2,end=nodes.length-1,edges=graph.edges.map(e=>[...e]);edges.push([],[]);
+    const cached=cache.get(key),nodes=[...cached.nodes,{x:body.x,y:body.y,z:body.z,heading:body.heading},{...destination,heading:0}];
+    const start=nodes.length-2,end=nodes.length-1,startOnZebra=onZebra(nodes[start]),edges=cached.edges.map(e=>[...e]);edges.push([],[]);
     for(const k of [start,end])for(let i=0;i<k;i++) {
       const a=nodes[k],b=nodes[i],d=Math.hypot(a.x-b.x,a.z-b.z);
-      if((d<48||i===start)&&traffic.clear(body,a,b,false)){edges[k].push([i,d]);edges[i].push([k,d]);}
+      // Only a start standing on a zebra may step off it; every other link stays off carriageways and kerbs.
+      if((d<maxLink||i===start)&&carriagewayFree(a,b,k===start&&startOnZebra&&d<stepOff)&&traffic.clear(body,a,b,false)){edges[k].push([i,d]);edges[i].push([k,d]);}
     }
     const costs=nodes.map(()=>Infinity),previous=nodes.map(()=>-1),open=new Set(nodes.map((_,i)=>i));costs[start]=0;
     while(open.size) {
