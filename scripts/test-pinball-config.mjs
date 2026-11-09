@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import { normalizeSettings, normalizeScores, DEFAULT_KEYS, DEFAULT_PAD, rngNext, TABLE_IDS } from '../ui/js/desktop/apps/pinball/config.js';
+import { CAMERA_REV, normalizeSettings, normalizeScores, DEFAULT_KEYS, DEFAULT_PAD, rngNext, TABLE_IDS } from '../ui/js/desktop/apps/pinball/config.js';
 
 // Old settings object (no music/callouts/camera/start) migrates to the new defaults.
 const old = { quality: 'medium', effects: 0.4, ambience: 0.1, reduced: true, keys: { left: 'KeyZ', right: 'KeyX' }, pad: { left: 4 } };
 const s = normalizeSettings(old);
-assert.equal(s.music, 0.5); assert.equal(s.callouts, true); assert.equal(s.camera, 'play');
+assert.equal(s.music, 0.5); assert.equal(s.callouts, true); assert.equal(s.camera, 'follow');
 assert.equal(s.keys.start, 'Digit1'); assert.equal(s.pad.start, 8);
 assert.equal(s.quality, 'medium'); assert.equal(s.effects, 0.4); assert.equal(s.reduced, true);
 assert.equal(s.keys.left, 'KeyZ'); assert.equal(s.keys.right, 'KeyX');
@@ -23,6 +23,12 @@ assert.deepEqual(normalizeSettings({ keys: { left: 'KeyA', start: 'KeyA' } }).ke
 assert.deepEqual(normalizeSettings({ pad: { left: 5 } }).pad, DEFAULT_PAD);
 assert.equal(normalizeSettings({ keys: { left: 'bad key!' } }).keys.left, 'ShiftLeft');
 assert.equal(normalizeSettings({ camera: 'top' }).camera, 'top');
+// Ball cam is the default; a pre-ball-cam 'play' moves to it once, a later explicit 'play' (cameraRev set by normalize) sticks.
+assert.equal(normalizeSettings(null).camera, 'follow'); assert.equal(normalizeSettings({ camera: 'bogus' }).camera, 'follow');
+assert.equal(normalizeSettings({ camera: 'play' }).camera, 'follow'); assert.equal(normalizeSettings({ camera: 'follow' }).camera, 'follow');
+const chosen = normalizeSettings({ camera: 'play', cameraRev: CAMERA_REV });
+assert.equal(chosen.camera, 'play'); assert.equal(normalizeSettings(JSON.parse(JSON.stringify(chosen))).camera, 'play');
+assert.equal(normalizeSettings({ camera: 'top', cameraRev: CAMERA_REV }).camera, 'top');
 assert.equal(normalizeSettings({ callouts: false }).callouts, false);
 assert.equal(normalizeSettings({ music: 2 }).music, 1);
 

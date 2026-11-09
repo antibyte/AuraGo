@@ -79,7 +79,7 @@ Keyboard defaults:
 | Start | 1 |
 | Nudge left / right / forward | Arrow Left / Right / Up |
 | Pause | Escape |
-| Camera (play / overhead) | C |
+| Camera (ball cam / play / overhead) | C |
 | Reset training ball | R |
 
 Standard gamepads: left and right bumpers are the flippers, the right trigger is the
@@ -129,8 +129,20 @@ it is playing.
 
 - **Graphics quality** (low, balanced, high) changes resolution, shadows, bloom and
   transparent materials. It never changes the simulation or the table collisions.
-- **Camera:** play (the fixed view that keeps the whole playfield visible), overhead
-  (for shot placement) and showcase (pauses the game and lets you orbit the model).
+- **Camera:** ball cam (the default: the view behind the flippers, zoomed in on about half the
+  table, smoothly following the ball), play (the fixed view that keeps the whole playfield
+  visible), overhead (for shot placement) and showcase (pauses the game and lets you orbit the
+  model). C cycles ball cam, play and overhead. Settings saved before the ball cam existed move
+  from play to ball cam once.
+
+  The ball cam follows the lowest ball in play (the one closest to the drain) with a short
+  lookahead along its velocity, and stays inside the table so the flippers are fully visible when
+  the ball is low and the top arc is the upper limit. With several balls far apart it zooms out
+  smoothly until the two lowest balls fit (at most the whole table). Balls held in scoops, locks
+  or by magnets and balls in the shooter lane keep a steady frame; without a ball in play the view
+  rests on the flippers. Switching cameras blends over half a second. With **Reduce effects** (or
+  the system reduced-motion setting) the ball cam does not chase the ball and shows the static play
+  framing. The maths is the pure `render/follow.js`; the rig is `render/camera.js`.
 - **Volumes:** mechanics (effects), music and ambience each have their own volume,
   including true zero.
 - **Voice callouts** use on-device voices only, and only for the table's language. When no
@@ -196,6 +208,8 @@ go test ./ui -run TestDesktopPinballSurvey -count=1
 ```
 
 `AURAGO_PINBALL_SCENES` takes `table:scene:quality` items, where the scene is `2d`,
+`follow:<seconds>[:narrow|:reduced]` (a real bot game in the ball cam; shots when the ball is low,
+high or on a ramp, in the shooter lane and in multiball; `narrow` is a 720x1000 window),
 `play`, `top`, `showcase`, `attract`, `action`, `closeup:x,y,h` or `dmd:<scene>`. PNGs go to
 `AURAGO_BROWSER_ARTIFACT_DIR`, or to the git-ignored `reports/pinball-survey/`.
 

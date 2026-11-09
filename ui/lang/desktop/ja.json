@@ -11556,6 +11556,7 @@
   "pinball.retry": "再試行",
   "pinball.webgl_error": "WebGL 2 が必要です。ハードウェアアクセラレーションを有効にして再試行してください。",
   "pinball.ball": "ボール",
+  "pinball.follow": "ボールカメラ",
   "pinball.play": "プレイ視点",
   "pinball.top": "真上から",
   "pinball.showcase": "鑑賞",

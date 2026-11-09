@@ -26,7 +26,7 @@ export function mountGame(host, context = {}) {
     };
     const read = key => { try { return JSON.parse(localStorage.getItem(key)); } catch (_) { return null; } };
     let settings = normalizeSettings(read(STORAGE.settings)), scores = normalizeScores(read(STORAGE.scores)), tableId = TABLES[context.table] ? context.table : 'neon';
-    let recent = [], session = null, scene = null, audio = null, lamps = null, dmd = null, presenter = null, loadController = null, modes = null, blend = null, autoplay = null;
+    let recent = [], session = null, scene = null, audio = null, lamps = null, dmd = null, presenter = null, loadController = null, modes = null, blend = null, autoplay = null, held = false;   // held: test-only physics freeze (the frame loop and camera keep running)
     let disposed = false, loading = false, generation = 0, raf = 0, last = 0, accumulator = 0, clock = 0, paused = true, visible = true, wasActive = true;
     let camera = settings.camera, count = 1, names = [], returnPanel = 'lobby', saved = false, overFor = 0;
     const life = new AbortController(), view = createView(host, tr, assetURL, TABLES), root = view.root;
@@ -103,7 +103,7 @@ export function mountGame(host, context = {}) {
             if (!game()) return;
             if (paused && ['pause', 'showcase'].includes(view.kind())) resume(); else pause();
         } else if (key === 'start') { if (view.kind() === 'lobby') { names = view.names(); start(false); } }
-        else if (key === 'camera' && game() && !paused) { camera = camera === 'play' ? 'top' : 'play'; applyCamera(); syncCamera(); }
+        else if (key === 'camera' && game() && !paused) { camera = camera === 'follow' ? 'play' : camera === 'play' ? 'top' : 'follow'; applyCamera(); syncCamera(); }
         else if (key === 'reset' && game()?.training && !paused) session.resetTraining();
     }, binding() { saveSettings(); panel('settings'); } });
 
@@ -175,7 +175,7 @@ export function mountGame(host, context = {}) {
         const dt = last ? clamp((time - last) / 1000, 0, MAX_DT) : 0; last = time; clock += dt;
         input.poll();
         if (session && !loading) {
-            const g = game(), running = !!g && !paused;
+            const g = game(), running = !!g && !paused && !held;
             if (running) {
                 for (const n of input.nudges()) { const dx = .2 * n.x, dy = .14 * Math.abs(n.z); if (session.nudge(dx, dy)) presenter.nudge(dx, dy); }
                 doTicks(time, dt);
@@ -253,6 +253,7 @@ export function mountGame(host, context = {}) {
             },
             start(training = false, players) { names = players || names; start(training); },
             autoplay(fn) { autoplay = fn || null; },
+            hold(on) { held = !!on; },
             stress() { if (!game()) throw Error('round'); session.stress(4); resume(); },
             fire(ev) { session.inject(ev); },
             internals: () => ({ session, scene, lamps, dmd, audio, view, input, presenter, settings })

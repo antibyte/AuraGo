@@ -11556,6 +11556,7 @@
   "pinball.retry": "Prøv igjen",
   "pinball.webgl_error": "Du trenger WebGL 2. Slå på maskinvareakselerasjon og prøv igjen.",
   "pinball.ball": "Kule",
+  "pinball.follow": "Ballkamera",
   "pinball.play": "Spillvisning",
   "pinball.top": "Ovenfra",
   "pinball.showcase": "Fremvisning",

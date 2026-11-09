@@ -181,8 +181,8 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
         env = fresh; old.dispose();
     };
     canvas.addEventListener('webglcontextlost', onLost); canvas.addEventListener('webglcontextrestored', onRestored);
-    const setCam = mode => { rig.setMode(mode); cabinet.head.visible = rig.mode !== 'play' && rig.mode !== 'top'; };
-    applyTier(); rebuildArt(); setCam(['top', 'showcase', 'attract'].includes(settings.camera) ? settings.camera : 'play'); resize();
+    const setCam = mode => { rig.setMode(mode); cabinet.head.visible = rig.mode !== 'follow' && rig.mode !== 'play' && rig.mode !== 'top'; };
+    applyTier(); rebuildArt(); setCam(['play', 'top', 'showcase', 'attract'].includes(settings.camera) ? settings.camera : 'follow'); resize();
 
     function update(o = {}) {
         if (disposed || lost) return;
@@ -210,7 +210,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
         const ctx = { snap, lamps, toyState, dt: step, time: tAnim, reduced, scene: api };
         for (const m of mechs) if (m.update) m.update(ctx);
         if (toys && toys.update) toys.update(step, tAnim, snap, toyState, lamps, events);
-        rig.update(step, tAnim, { reducedNow: reduced, interactive });
+        rig.update(step, tAnim, { reducedNow: reduced, interactive, balls: snap && snap.balls });
         composer.render(step);
         frames++;
     }

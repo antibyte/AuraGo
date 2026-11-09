@@ -11556,6 +11556,7 @@
   "pinball.retry": "Νέα προσπάθεια",
   "pinball.webgl_error": "Χρειάζεσαι WebGL 2. Ενεργοποίησε την επιτάχυνση υλικού και προσπάθησε ξανά.",
   "pinball.ball": "Μπίλια",
+  "pinball.follow": "Κάμερα μπάλας",
   "pinball.play": "Προβολή παιχνιδιού",
   "pinball.top": "Κάτοψη",
   "pinball.showcase": "Παρουσίαση",

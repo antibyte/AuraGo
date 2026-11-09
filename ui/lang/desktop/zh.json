@@ -11556,6 +11556,7 @@
   "pinball.retry": "重试",
   "pinball.webgl_error": "需要 WebGL 2。请启用硬件加速后重试。",
   "pinball.ball": "弹珠",
+  "pinball.follow": "跟球视角",
   "pinball.play": "游戏视角",
   "pinball.top": "俯视",
   "pinball.showcase": "展示",

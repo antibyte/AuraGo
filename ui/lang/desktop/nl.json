@@ -11556,6 +11556,7 @@
   "pinball.retry": "Opnieuw proberen",
   "pinball.webgl_error": "Je hebt WebGL 2 nodig. Zet hardwareversnelling aan en probeer opnieuw.",
   "pinball.ball": "Bal",
+  "pinball.follow": "Ballencamera",
   "pinball.play": "Spelcamera",
   "pinball.top": "Bovenaanzicht",
   "pinball.showcase": "Presentatie",

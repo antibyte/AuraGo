@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const SUITES = [
     'config', 'rules', 'input', 'physics', 'devices', 'paths', 'tables', 'reach',
     'layout-neon', 'layout-leviathan', 'layout-temple', 'pack-neon', 'pack-leviathan', 'pack-temple',
-    'lights', 'dmd', 'audio', 'music', 'session', 'assets'
+    'follow', 'lights', 'dmd', 'audio', 'music', 'session', 'assets'
 ];
 
 for (const name of SUITES) {

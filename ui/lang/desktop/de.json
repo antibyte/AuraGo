@@ -11556,6 +11556,7 @@
   "pinball.retry": "Erneut versuchen",
   "pinball.webgl_error": "Du brauchst WebGL 2. Aktiviere die Hardwarebeschleunigung und versuche es erneut.",
   "pinball.ball": "Kugel",
+  "pinball.follow": "Ballkamera",
   "pinball.play": "Spielkamera",
   "pinball.top": "Übersicht",
   "pinball.showcase": "Präsentation",

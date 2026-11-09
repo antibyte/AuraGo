@@ -11556,6 +11556,7 @@
   "pinball.retry": "Zkusit znovu",
   "pinball.webgl_error": "Potřebuješ WebGL 2. Zapni hardwarovou akceleraci a zkus to znovu.",
   "pinball.ball": "Kulička",
+  "pinball.follow": "Kamera na míček",
   "pinball.play": "Herní pohled",
   "pinball.top": "Pohled shora",
   "pinball.showcase": "Prohlídka",

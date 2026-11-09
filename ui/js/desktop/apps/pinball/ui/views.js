@@ -15,7 +15,7 @@ export function createView(host, tr, assetURL, tables) {
     const stage = el('div', undefined, 'pb-stage'), chrome = el('header', undefined, 'pb-toolbar');
     const brand = el('strong', 'AURA / PINBALL', 'pb-brand');
     const camera = el('select'); camera.dataset.setting = 'camera'; camera.setAttribute('aria-label', tr('camera'));
-    for (const key of ['play', 'top', 'showcase']) { const option = el('option', tr(key)); option.value = key; camera.append(option); }
+    for (const key of ['follow', 'play', 'top', 'showcase']) { const option = el('option', tr(key)); option.value = key; camera.append(option); }
     const left = el('div', undefined, 'pb-toolbar-side pb-toolbar-left'), right = el('div', undefined, 'pb-toolbar-side pb-toolbar-right');
     left.append(brand); right.append(camera, button(tr('fullscreen'), 'fullscreen'), button(tr('pause_action'), 'pause'));
     chrome.append(left, right);
@@ -59,7 +59,7 @@ export function createView(host, tr, assetURL, tables) {
         const s = data.settings;
         const select = (name, keys, value) => { const sel = el('select'); sel.dataset.setting = name; for (const key of keys) { const o = el('option', tr(key)); o.value = key; sel.append(o); } sel.value = value; return sel; };
         card.append(label(tr('quality'), select('quality', ['low', 'medium', 'high'], s.quality)));
-        card.append(label(tr('camera'), select('camera', ['play', 'top'], s.camera === 'top' ? 'top' : 'play')));
+        card.append(label(tr('camera'), select('camera', ['follow', 'play', 'top'], ['play', 'top'].includes(s.camera) ? s.camera : 'follow')));
         for (const key of ['effects', 'music', 'ambience']) {
             const input = el('input'); input.type = 'range'; input.min = 0; input.max = 1; input.step = .01; input.value = s[key]; input.dataset.setting = key; card.append(label(tr(key), input));
         }

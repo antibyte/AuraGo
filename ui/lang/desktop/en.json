@@ -11556,6 +11556,7 @@
   "pinball.retry": "Try again",
   "pinball.webgl_error": "WebGL 2 is required. Enable hardware acceleration and try again.",
   "pinball.ball": "Ball",
+  "pinball.follow": "Ball cam",
   "pinball.play": "Play view",
   "pinball.top": "Overhead",
   "pinball.showcase": "Showcase",

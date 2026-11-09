@@ -11556,6 +11556,7 @@
   "pinball.retry": "Prøv igen",
   "pinball.webgl_error": "Du skal bruge WebGL 2. Slå hardwareacceleration til og prøv igen.",
   "pinball.ball": "Kugle",
+  "pinball.follow": "Boldkamera",
   "pinball.play": "Spilvisning",
   "pinball.top": "Ovenfra",
   "pinball.showcase": "Fremvisning",

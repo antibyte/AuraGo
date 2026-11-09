@@ -11556,6 +11556,7 @@
   "pinball.retry": "Riprova",
   "pinball.webgl_error": "Serve WebGL 2. Attiva l’accelerazione hardware e riprova.",
   "pinball.ball": "Pallina",
+  "pinball.follow": "Camera sulla palla",
   "pinball.play": "Vista di gioco",
   "pinball.top": "Vista dall’alto",
   "pinball.showcase": "Presentazione",

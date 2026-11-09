@@ -11556,6 +11556,7 @@
   "pinball.retry": "फिर कोशिश करें",
   "pinball.webgl_error": "WebGL 2 चाहिए। हार्डवेयर त्वरण चालू करके फिर कोशिश करें।",
   "pinball.ball": "गेंद",
+  "pinball.follow": "गेंद कैमरा",
   "pinball.play": "खेल दृश्य",
   "pinball.top": "ऊपर से दृश्य",
   "pinball.showcase": "प्रदर्शन",

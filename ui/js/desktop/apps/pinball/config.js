@@ -41,6 +41,8 @@ function normalizeBindings(stored, defaults, valid, startChoices) {
     return out;
 }
 
+// Settings saved before the ball cam existed keep no cameraRev: their 'play' means "never chose" and moves to 'follow' once.
+export const CAMERA_REV = 2;
 export function normalizeSettings(value) {
     const s = value && typeof value === 'object' ? value : {};
     const keys = normalizeBindings(s.keys, DEFAULT_KEYS, v => typeof v === 'string' && KEY_RE.test(v), START_KEY_CHOICES);
@@ -51,7 +53,8 @@ export function normalizeSettings(value) {
         music: clamp(finite(s.music, .5), 0, 1),
         ambience: clamp(finite(s.ambience, .3), 0, 1),
         callouts: s.callouts !== false,
-        camera: s.camera === 'top' ? 'top' : 'play',
+        camera: s.camera === 'top' ? 'top' : s.camera === 'play' && s.cameraRev >= CAMERA_REV ? 'play' : 'follow',
+        cameraRev: CAMERA_REV,
         reduced: s.reduced === true,
         keys, pad
     };

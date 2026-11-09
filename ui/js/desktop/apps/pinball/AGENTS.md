@@ -56,6 +56,9 @@ music, and a per-window Desktop game lifecycle.
   flashers, clearance) and the reachability and soak tests. Layouts reference only `pinball.*` keys.
 - Keep every first-party file under `ui/js/desktop/apps/pinball/` at or below 700 lines (repo hard
   limit 1100 in `ui/desktop_js_line_budget_test.go`). Split by responsibility rather than trimming.
+- Cameras: `follow` (ball cam, default, `render/follow.js` is the pure target/zoom/spring maths), `play`,
+  `top`, `showcase` and `attract`. Reduced motion shows the static play framing instead of chasing the
+  ball. Saved `camera: 'play'` without `cameraRev` migrates to `follow` once (`config.js`).
 - Use `pb-*` classes, semantic menus, remappable controls, reduced-motion support and `FONT_STACK`
   from `config.js` for canvas text. No remote fonts, scripts or images.
 
