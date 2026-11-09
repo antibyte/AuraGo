@@ -224,7 +224,9 @@ func buildCaddyfileWithProxies(domain string, port int, routes []ProxyRoute) str
 	sb.WriteString("\t\tAccess-Control-Allow-Headers \"*\"\n")
 	sb.WriteString("\t}\n")
 	sb.WriteString("\t@cors_preflight method OPTIONS\n")
-	sb.WriteString("\trespond @cors_preflight 204\n\n")
+	// Keep private-path rejection ahead of both proxy handling and SPA rewrites.
+	sb.WriteString("\t@private path_regexp private `(?i)(^|/)\\.[^/]+|\\.(bak|backup|orig|tmp)([.-][^/]*)?($|/)|~($|/)`\n")
+	sb.WriteString("\troute {\n\t\thandle /.well-known/* {\n\t\t\tfile_server\n\t\t}\n\t\trespond @private 404\n\t\trespond @cors_preflight 204\n")
 
 	for _, r := range routes {
 		proxyPath := r.Path
@@ -244,6 +246,7 @@ func buildCaddyfileWithProxies(domain string, port int, routes []ProxyRoute) str
 	sb.WriteString("\thandle {\n")
 	sb.WriteString("\t\tfile_server\n")
 	sb.WriteString("\t\ttry_files {path} /index.html\n")
+	sb.WriteString("\t}\n")
 	sb.WriteString("\t}\n")
 
 	sb.WriteString("}\n")

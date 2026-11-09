@@ -231,7 +231,7 @@ func netlifyDeployTestSite(t *testing.T, deployURLPath, siteURLPath string, depl
 			_, _ = w.Write([]byte(deployBody(server.URL + siteURLPath)))
 		case r.Method == http.MethodGet && r.URL.Path == deployURLPath:
 			verified = append(verified, r.URL.Path)
-			_, _ = w.Write([]byte(`<html><body>permalink</body></html>`))
+			_, _ = w.Write([]byte(`<h1>Site</h1>`))
 		case r.Method == http.MethodGet && r.URL.Path == siteURLPath:
 			verified = append(verified, r.URL.Path)
 			_, _ = w.Write([]byte(`<html><body>site</body></html>`))

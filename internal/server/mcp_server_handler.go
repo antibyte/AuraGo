@@ -103,7 +103,15 @@ func handleMCPEndpoint(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		s.CfgMu.RLock()
 		trustedHost := mcpTrustedHost(r, s.Cfg)
+		tailnetEnabled := s.Cfg.Tailscale.TsNet.Enabled
 		s.CfgMu.RUnlock()
+		if !trustedHost && tailnetEnabled && s.TsNetManager != nil {
+			// Trust the running node's exact MagicDNS name, never a caller's DNS lookup.
+			dns := s.TsNetManager.GetStatus().DNS
+			s.CfgMu.RLock()
+			trustedHost = mcpTrustedHost(r, s.Cfg, dns)
+			s.CfgMu.RUnlock()
+		}
 		if !trustedHost || !sameOriginOrNoOrigin(r) {
 			jsonError(w, "Request origin does not match server host", http.StatusForbidden)
 			return

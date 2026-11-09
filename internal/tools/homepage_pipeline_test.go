@@ -273,7 +273,9 @@ func TestHomepageDeployNetlifyZipExcludesSensitiveAndNonDeployableFiles(t *testi
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"id":"deploy-zip","state":"ready","url":"` + server.URL + `/live"}`))
 		case r.Method == http.MethodGet && r.URL.Path == "/live":
-			_, _ = w.Write([]byte(`<html><body>Site</body></html>`))
+			_, _ = w.Write([]byte(files["index.html"]))
+		case r.Method == http.MethodGet && r.URL.Path == "/assets/app.js":
+			_, _ = w.Write([]byte(files["assets/app.js"]))
 		default:
 			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
 		}
@@ -442,7 +444,7 @@ func TestHomepageDeployNetlifyReturnsSiteAndDeployIDs(t *testing.T) {
 		case r.Method == http.MethodGet && r.URL.Path == "/deploys/deploy-123":
 			_, _ = w.Write([]byte(`{"id":"deploy-123","state":"ready","url":"` + server.URL + `/live"}`))
 		case r.Method == http.MethodGet && r.URL.Path == "/live":
-			_, _ = w.Write([]byte(`<html><body>Site</body></html>`))
+			_, _ = w.Write([]byte(`<h1>Site</h1>`))
 		default:
 			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
 		}
@@ -537,7 +539,7 @@ func TestHomepageDeployNetlifyFallsBackToStaticSiblingAfterBuildFailure(t *testi
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"id":"deploy-fallback","state":"ready","url":"` + server.URL + `/live"}`))
 		case r.Method == http.MethodGet && r.URL.Path == "/live":
-			_, _ = w.Write([]byte(`<html><body>Static KI News</body></html>`))
+			_, _ = w.Write([]byte(`<main>Static KI News</main>`))
 		default:
 			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
 		}
@@ -622,7 +624,9 @@ func TestHomepageDeployNetlifyBundlesLegacyRootGeneratedImageRefs(t *testing.T) 
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"id":"deploy-root-image","state":"ready","url":"` + server.URL + `/live"}`))
 		case r.Method == http.MethodGet && r.URL.Path == "/live":
-			_, _ = w.Write([]byte(`<html><body>Image site</body></html>`))
+			_, _ = w.Write([]byte(`<div id="app"></div><script src="/assets/main.js"></script>`))
+		case r.Method == http.MethodGet && r.URL.Path == "/assets/main.js":
+			_, _ = w.Write([]byte(`const hero="/` + imageName + `";`))
 		default:
 			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
 		}
@@ -730,7 +734,9 @@ func TestHomepageDeployNetlifyBundlesGeneratedImageAssetRefs(t *testing.T) {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"id":"deploy-asset-image","state":"ready","url":"` + server.URL + `/live"}`))
 		case r.Method == http.MethodGet && r.URL.Path == "/live":
-			_, _ = w.Write([]byte(`<html><body>Asset image site</body></html>`))
+			_, _ = w.Write([]byte(`<div id="app"></div><script src="/assets/main.js"></script>`))
+		case r.Method == http.MethodGet && r.URL.Path == "/assets/main.js":
+			_, _ = w.Write([]byte(`const hero="/assets/` + imageName + `";`))
 		default:
 			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
 		}

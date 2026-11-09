@@ -21,17 +21,17 @@ import (
 )
 
 const (
-	maxRevisionFileSize  = 500 * 1024
+	maxRevisionFileSize  = maxHomepageWriteFileSize
 	maxDiffPreviewLength = 3000
 )
 
 var revisionExcludedDirs = []string{
-	"node_modules", ".next", ".git", "dist", "build", ".output", ".cache", ".temp",
+	"node_modules", ".next", ".git", "dist", "build", ".output", ".cache", ".temp", ".aurago",
 }
 
 func shouldExcludePath(relPath string) bool {
 	relPath = filepath.ToSlash(relPath)
-	if filepath.Base(relPath) == homepageArtifactManifestName || hereNowSensitivePath(relPath) {
+	if strings.HasPrefix(strings.ToLower(filepath.Base(relPath)), ".aurago-") || hereNowSensitivePath(relPath) {
 		return true
 	}
 	for _, excluded := range revisionExcludedDirs {

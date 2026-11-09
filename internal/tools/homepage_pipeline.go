@@ -40,6 +40,7 @@ type homepageDeployCandidate struct {
 	Kind            string   `json:"kind"`
 	HasIndex        bool     `json:"has_index"`
 	Warnings        []string `json:"warnings,omitempty"`
+	IndexSHA256     string   `json:"index_sha256,omitempty"`
 }
 
 type homepageVerifyResult struct {
@@ -49,6 +50,7 @@ type homepageVerifyResult struct {
 	HTTPStatus    int      `json:"http_status,omitempty"`
 	CheckedAssets []string `json:"checked_assets,omitempty"`
 	SkippedAssets []string `json:"skipped_assets,omitempty"`
+	ContentSHA256 string   `json:"content_sha256,omitempty"`
 }
 
 // homepageMaxSkippedAssets bounds the recorded skip reasons of a deployment
@@ -248,6 +250,10 @@ func homepageDetectDeployCandidate(cfg HomepageConfig, projectDir, buildDir, fra
 		if !fileExists(indexPath) {
 			continue
 		}
+		indexHash, err := homepageStaticIndexHash(full)
+		if err != nil {
+			return homepageDeployCandidate{}, err
+		}
 		stat, _ := os.Stat(indexPath)
 		warnings := []string{}
 		if stat != nil && time.Since(stat.ModTime()) > 24*time.Hour {
@@ -264,6 +270,7 @@ func homepageDetectDeployCandidate(cfg HomepageConfig, projectDir, buildDir, fra
 			Kind:            homepageCandidateKind(framework, dir),
 			HasIndex:        true,
 			Warnings:        warnings,
+			IndexSHA256:     indexHash,
 		}, nil
 	}
 	if strings.TrimSpace(buildDir) != "" {
@@ -300,6 +307,10 @@ func homepageVercelDeploySubdir(projectDir, framework, explicitBuildDir string, 
 }
 
 func homepageVerifyDeploymentURL(rawURL string, contexts ...context.Context) homepageVerifyResult {
+	return homepageVerifyDeploymentExpected(rawURL, "", contexts...)
+}
+
+func homepageVerifyDeploymentExpected(rawURL, expectedHash string, contexts ...context.Context) homepageVerifyResult {
 	rawURL = strings.TrimSpace(rawURL)
 	if rawURL == "" {
 		return homepageVerifyResult{Status: "error", Message: "deployment URL is empty"}
@@ -316,7 +327,7 @@ func homepageVerifyDeploymentURL(rawURL string, contexts ...context.Context) hom
 		return homepageVerifyResult{Status: "error", Message: fmt.Sprintf("root request failed: %v", err), URL: parsedURL.String()}
 	}
 	defer resp.Body.Close()
-	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 512*1024))
+	bodyBytes, err := homepageReadDocument(resp.Body)
 	if err != nil {
 		return homepageVerifyResult{Status: "error", Message: fmt.Sprintf("root response failed: %v", err), URL: parsedURL.String()}
 	}
@@ -327,11 +338,28 @@ func homepageVerifyDeploymentURL(rawURL string, contexts ...context.Context) hom
 	lower := strings.ToLower(body)
 	errorNeedles := []string{"deployment_not_found", "404: not_found", "function_invocation_failed", "application error", "site not found", "page not found"}
 	for _, needle := range errorNeedles {
-		if strings.Contains(lower, needle) {
+		if expectedHash == "" && strings.Contains(lower, needle) {
 			return homepageVerifyResult{Status: "error", Message: fmt.Sprintf("provider error page detected: %s", needle), URL: parsedURL.String(), HTTPStatus: resp.StatusCode}
 		}
 	}
-	assets := homepageExtractCriticalAssets(body, parsedURL)
+	finalURL := parsedURL
+	if resp.Request != nil && resp.Request.URL != nil {
+		finalURL = resp.Request.URL
+	}
+	title, integrityErr := homepageDocumentIntegrity(bodyBytes)
+	if integrityErr != nil {
+		return homepageVerifyResult{Status: "error", Message: "document integrity failed: " + integrityErr.Error(), URL: finalURL.String(), HTTPStatus: resp.StatusCode}
+	}
+	contentHash := homepageDocumentHash(bodyBytes)
+	if expectedHash != "" && contentHash != expectedHash {
+		return homepageVerifyResult{Status: "error", Message: "served document does not match the published artifact", URL: finalURL.String(), HTTPStatus: resp.StatusCode, ContentSHA256: contentHash}
+	}
+	lowerTitle := strings.ToLower(title)
+	if strings.Contains(lowerTitle, "log in to vercel") || strings.Contains(lowerTitle, "login to vercel") || strings.Contains(lowerTitle, "authentication required") ||
+		(finalURL.Hostname() != parsedURL.Hostname() && (strings.Contains(finalURL.Path, "/login") || strings.Contains(finalURL.Path, "/sso"))) {
+		return homepageVerifyResult{Status: "error", Message: "provider authentication page cannot verify a published website", URL: finalURL.String(), HTTPStatus: resp.StatusCode}
+	}
+	assets := homepageExtractCriticalAssets(body, finalURL)
 	checked := []string{}
 	skipped := []string{}
 	for _, asset := range assets {
@@ -352,6 +380,9 @@ func homepageVerifyDeploymentURL(rawURL string, contexts ...context.Context) hom
 		_, _ = io.Copy(io.Discard, io.LimitReader(assetResp.Body, 512*1024))
 		_ = assetResp.Body.Close()
 		checked = append(checked, asset)
+		if strings.Contains(strings.ToLower(assetResp.Header.Get("Content-Type")), "text/html") {
+			return homepageVerifyResult{Status: "error", Message: "asset returned an HTML document instead of its stylesheet or script: " + asset, URL: finalURL.String(), HTTPStatus: resp.StatusCode, CheckedAssets: checked}
+		}
 		if assetResp.StatusCode >= 400 {
 			return homepageVerifyResult{Status: "error", Message: fmt.Sprintf("asset %s returned HTTP %d", asset, assetResp.StatusCode), URL: parsedURL.String(), HTTPStatus: resp.StatusCode, CheckedAssets: checked, SkippedAssets: skipped}
 		}
@@ -359,7 +390,7 @@ func homepageVerifyDeploymentURL(rawURL string, contexts ...context.Context) hom
 	if len(checked) == 0 && len(skipped) > 0 {
 		return homepageVerifyResult{Status: "error", Message: fmt.Sprintf("no asset could be checked: %s", truncateStr(strings.Join(skipped, "; "), 300)), URL: parsedURL.String(), HTTPStatus: resp.StatusCode, SkippedAssets: skipped}
 	}
-	return homepageVerifyResult{Status: "ok", Message: "Deployment URL verified", URL: parsedURL.String(), HTTPStatus: resp.StatusCode, CheckedAssets: checked, SkippedAssets: skipped}
+	return homepageVerifyResult{Status: "ok", Message: "Deployment URL verified", URL: finalURL.String(), HTTPStatus: resp.StatusCode, CheckedAssets: checked, SkippedAssets: skipped, ContentSHA256: contentHash}
 }
 
 func homepageExtractCriticalAssets(html string, base *url.URL) []string {

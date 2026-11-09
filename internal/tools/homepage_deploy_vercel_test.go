@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -8,6 +9,45 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestHomepageVercelVerifiesProductionAliasInsteadOfProtectedPreview(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "true")
+	workspace := t.TempDir()
+	const content = "<html><title>Expected site</title><article>published</article></html>"
+	writeNetlifyDeployFiles(t, filepath.Join(workspace, "site"), map[string]string{"index.html": content, "index.html.bak": "private"})
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasPrefix(r.URL.Path, "/v9/projects/"):
+			_, _ = w.Write([]byte(`{"id":"prj_fixture","name":"site"}`))
+		case strings.HasPrefix(r.URL.Path, "/v7/deployments"):
+			_, _ = w.Write([]byte(`{"deployments":[{"uid":"dpl_fixture","url":"preview.vercel.app","target":"production"}]}`))
+		case r.URL.Path == "/v2/deployments/dpl_fixture/aliases":
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"aliases": []map[string]string{{"alias": server.URL + "/live", "deploymentId": "dpl_fixture"}}})
+		case r.URL.Path == "/live":
+			_, _ = w.Write([]byte(content))
+		default:
+			t.Errorf("unexpected provider request: %s", r.URL.Path)
+			w.WriteHeader(500)
+		}
+	}))
+	defer server.Close()
+	oldBase, oldClient, oldVerify, oldExec := vercelBaseURL, vercelHTTPClient, homepageVerifyHTTPClient, homepageDockerExecInternalFunc
+	t.Cleanup(func() {
+		vercelBaseURL, vercelHTTPClient, homepageVerifyHTTPClient, homepageDockerExecInternalFunc = oldBase, oldClient, oldVerify, oldExec
+	})
+	vercelBaseURL, vercelHTTPClient, homepageVerifyHTTPClient = server.URL, server.Client(), server.Client()
+	homepageDockerExecInternalFunc = func(_ DockerConfig, _, command, _ string, _ []string) string {
+		if strings.Contains(command, "vercel deploy") && !strings.Contains(command, ".aurago/published/") {
+			t.Errorf("static deploy did not use a snapshot: %s", command)
+		}
+		return `{"status":"ok","exit_code":0,"output":"https://preview.vercel.app"}`
+	}
+	result := parseToolJSON(HomepageDeployVercel(HomepageConfig{WorkspacePath: workspace}, VercelConfig{Token: "fixture", AllowDeploy: true}, "site", ".", "prj_fixture", "production", "", "", false, false, slogDiscard()))
+	if result["status"] != "ok" || result["verified_url"] != server.URL+"/live" || result["content_sha256"] != homepageDocumentHash([]byte(content)) {
+		t.Fatalf("production alias was not verified: %+v", result)
+	}
+}
 
 func TestBuildVercelDeployCommandLinksProjectBeforeDeploy(t *testing.T) {
 	cmd := buildVercelDeployCommand("testseite-aurago", "prj_123", "production", VercelConfig{

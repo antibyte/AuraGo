@@ -23,7 +23,7 @@ import (
 // Match administrator-configured names or literal local addresses, never DNS
 // results for the request Host. Matching an attacker-controlled Origin to Host
 // alone does not prevent DNS rebinding.
-func mcpTrustedHost(r *http.Request, cfg *config.Config) bool {
+func mcpTrustedHost(r *http.Request, cfg *config.Config, tailnetDNS ...string) bool {
 	u, err := url.Parse("http://" + r.Host)
 	if err != nil || u.User != nil || u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
 		return false
@@ -34,6 +34,9 @@ func mcpTrustedHost(r *http.Request, cfg *config.Config) bool {
 	}
 	localName, _ := os.Hostname()
 	trusted := []string{"localhost", localName, cfg.Server.Host, cfg.Server.HTTPS.Domain, cfg.Tailscale.TsNet.Hostname}
+	if cfg.Tailscale.TsNet.Enabled {
+		trusted = append(trusted, tailnetDNS...)
+	}
 	if callback, err := url.Parse(cfg.Server.OAuthRedirectBaseURL); err == nil {
 		trusted = append(trusted, callback.Hostname())
 	}

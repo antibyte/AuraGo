@@ -33,17 +33,22 @@ const webserverStateFile = ".aurago-webserver-state.json"
 
 // webserverState holds the persisted Caddy web server configuration.
 type webserverState struct {
-	ProjectDir string `json:"project_dir,omitempty"`
-	BuildDir   string `json:"build_dir,omitempty"`
+	ProjectDir  string `json:"project_dir,omitempty"`
+	BuildDir    string `json:"build_dir,omitempty"`
+	SnapshotDir string `json:"snapshot_dir,omitempty"`
+	IndexSHA256 string `json:"index_sha256,omitempty"`
 }
 
 // saveWebserverState persists the project/build configuration so it survives
 // container restarts and server reboots.
-func saveWebserverState(workspacePath, projectDir, buildDir string) error {
+func saveWebserverState(workspacePath, projectDir, buildDir string, publication ...string) error {
 	if workspacePath == "" {
 		return nil
 	}
 	state := webserverState{ProjectDir: projectDir, BuildDir: buildDir}
+	if len(publication) == 2 {
+		state.SnapshotDir, state.IndexSHA256 = publication[0], publication[1]
+	}
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal webserver state: %w", err)
@@ -415,6 +420,11 @@ func HomepageDeploy(cfg HomepageConfig, deployCfg HomepageDeployConfig, projectD
 	if buildDir == "" {
 		buildDir = detectBuildDir(cfg, projectDir)
 	}
+	snapshot, _, snapshotErr := homepageLocalSnapshot(cfg, projectDir, buildDir)
+	if snapshotErr != nil {
+		return errJSON("SFTP publication failed integrity checks: %v", snapshotErr)
+	}
+	defer snapshot.Close()
 	if manifest, manifestErr := BuildHomepageArtifactManifest(cfg, 0, projectDir, 0, "", buildDir); manifestErr == nil {
 		if writeErr := WriteHomepageArtifactManifest(cfg, manifest); writeErr != nil {
 			logger.Warn("[Homepage] Failed to write deployment manifest", "project_dir", projectDir, "build_dir", buildDir, "error", writeErr)
@@ -425,7 +435,7 @@ func HomepageDeploy(cfg HomepageConfig, deployCfg HomepageDeployConfig, projectD
 
 	// Get file list from build directory inside the container
 	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
-	hostBuildPath := filepath.Join(cfg.WorkspacePath, projectDir, buildDir)
+	hostBuildPath := snapshot.root
 
 	// Walk the local build directory and upload via SFTP
 	ctx, cancel := context.WithTimeout(nativeHTTPContext(cfg.Context), 5*time.Minute)
@@ -484,6 +494,26 @@ func shellSingleQuote(value string) string {
 
 // HomepageWebServerStart starts the Caddy container serving the build output.
 func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, logger *slog.Logger) string {
+	var publishedPath, indexHash string
+	if projectDir == "" && buildDir == "" {
+		data, err := os.ReadFile(filepath.Join(cfg.WorkspacePath, webserverStateFile))
+		var saved webserverState
+		if err != nil && !os.IsNotExist(err) {
+			return errJSON("Cannot read the last publication state: %v", err)
+		}
+		if err == nil {
+			if err := json.Unmarshal(data, &saved); err != nil {
+				return errJSON("Invalid publication state; publish the project explicitly: %v", err)
+			}
+		}
+		if saved.SnapshotDir != "" {
+			publishedPath, err = homepageSavedSnapshot(cfg.WorkspacePath, saved)
+			if err != nil {
+				return errJSON("Cannot restore the last published snapshot: %v", err)
+			}
+			projectDir, buildDir, indexHash = saved.ProjectDir, saved.BuildDir, saved.IndexSHA256
+		}
+	}
 	if projectDir != "" && projectDir != "." {
 		if err := sanitizeProjectDir(projectDir); err != nil {
 			return errJSON("%v", err)
@@ -552,6 +582,9 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 	}
 
 	hostBuildPath := filepath.Join(cfg.WorkspacePath, projectDir, buildDir)
+	if publishedPath != "" {
+		hostBuildPath = publishedPath
+	}
 	if _, err := os.Stat(hostBuildPath); err != nil {
 		return errJSON("Local publish source does not exist: %s. homepage write_file/read_file operate in the dev workspace, while published local sites are served by container %q from document root /srv. Use homepage build/publish_local/webserver_start instead of copying files to /var/www/html.", hostBuildPath, homepageWebContainer)
 	}
@@ -567,7 +600,23 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 	// Caddy/Python can serve them as static assets (the main AuraGo server's
 	// /files/generated_images/ route is NOT reachable from the separate
 	// homepage web server).
-	copyAssetsToBuildDir(hostBuildPath, cfg.DataDir, logger)
+	var snapshot *hereNowPublishSnapshot
+	if publishedPath == "" {
+		copyAssetsToBuildDir(hostBuildPath, cfg.DataDir, logger)
+		var err error
+		snapshot, indexHash, err = homepageLocalSnapshot(cfg, projectDir, buildDir)
+		if err != nil {
+			return errJSON("Local publication failed integrity checks: %v", err)
+		}
+		defer snapshot.Close()
+		publishedPath = snapshot.root
+	}
+	hostBuildPath = publishedPath
+	snapshotRelative, err := filepath.Rel(cfg.WorkspacePath, publishedPath)
+	if err != nil {
+		return errJSON("Cannot retain publication snapshot: %v", err)
+	}
+	snapshotRelative = filepath.ToSlash(snapshotRelative)
 
 	if !checkDockerAvailable(cfg.DockerHost, cfg.Context) {
 		if err := nativeHTTPContext(cfg.Context).Err(); err != nil {
@@ -584,18 +633,7 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		// Check if already running
 		if c, dialErr := net.DialTimeout("tcp", fmt.Sprintf("localhost:%d", port), time.Second); dialErr == nil {
 			c.Close()
-			if saveErr := saveWebserverState(cfg.WorkspacePath, projectDir, buildDir); saveErr != nil {
-				logger.Info("[Homepage] Could not persist webserver state (Python fallback already running)", "error", saveErr)
-			}
-			return okJSON("Web server already running (Python fallback)",
-				"url", fmt.Sprintf("http://localhost:%d", port),
-				"served_url", fmt.Sprintf("http://localhost:%d", port),
-				"port", fmt.Sprintf("%d", port),
-				"mode", "python",
-				"deploy_target", "python_fallback",
-				"source_path", hostBuildPath,
-				"project_dir", projectDir,
-				"build_dir", buildDir)
+			return errJSON("Port %d is already in use; the existing Python server was preserved. Stop it explicitly before publishing a new snapshot.", port)
 		}
 
 		// Use Python HTTP server as fallback
@@ -605,20 +643,29 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		}
 
 		logger.Info("[Homepage] Web server started (Python fallback)", "url", url, "pid", pid)
-		if saveErr := saveWebserverState(cfg.WorkspacePath, projectDir, buildDir); saveErr != nil {
-			logger.Info("[Homepage] Could not persist webserver state (Python fallback)", "error", saveErr)
+		if snapshot != nil {
+			snapshot.root = ""
 		}
-		return okJSON("Web server started (Python fallback)",
-			"url", url,
-			"served_url", url,
-			"port", fmt.Sprintf("%d", port),
-			"pid", strconv.Itoa(pid),
-			"mode", "python",
-			"deploy_target", "python_fallback",
-			"source_path", hostBuildPath,
-			"project_dir", projectDir,
-			"build_dir", buildDir,
-			"note", "Limited functionality. Full features require Docker.")
+		if err := homepageVerifyLocalDocument(nativeHTTPContext(cfg.Context), port, indexHash); err != nil {
+			data, _ := json.Marshal(map[string]interface{}{
+				"status": "partial_success", "error": err.Error(), "url": url,
+				"pid": pid, "mode": "python", "verified": false, "retry_safe": false,
+				"expected_content_sha256": indexHash,
+			})
+			return string(data)
+		}
+		if saveErr := saveWebserverState(cfg.WorkspacePath, projectDir, buildDir, snapshotRelative, indexHash); saveErr != nil {
+			return errJSON("Python server started but publication state could not be saved: %v", saveErr)
+		}
+		data, _ := json.Marshal(map[string]interface{}{
+			"status": "ok", "message": "Web server started (Python fallback)",
+			"verified": true, "content_sha256": indexHash, "url": url, "served_url": url,
+			"port": strconv.Itoa(port), "pid": strconv.Itoa(pid), "mode": "python",
+			"deploy_target": "python_fallback", "source_path": hostBuildPath,
+			"project_dir": projectDir, "build_dir": buildDir,
+			"note": "Limited functionality. Full features require Docker.",
+		})
+		return string(data)
 	}
 
 	// Docker is available - use Caddy
@@ -630,34 +677,68 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		return errJSON("Failed to pull Caddy image: %v", err)
 	}
 
-	// Check if already running
-	_, code, _ := dockerRequest(dockerCfg, "GET", "/containers/"+homepageWebContainer+"/json", "")
-	if code == 200 {
-		// Stop and remove existing
-		DockerContainerAction(dockerCfg, homepageWebContainer, "stop", false)
-		DockerContainerAction(dockerCfg, homepageWebContainer, "remove", true)
-	}
-
 	// Generate Caddyfile (with proxy routes if any)
-	pruned := 0
-	routes, routeErr := homepageMutateProxyRoutes(cfg.WorkspacePath, func(routes []ProxyRoute) []ProxyRoute {
-		filtered := filterProxyRoutesForStaticProject(routes, projectDir)
-		pruned = len(routes) - len(filtered)
-		return filtered
-	})
+	routes, routeErr := homepageReadProxyRoutes(cfg.WorkspacePath)
 	if routeErr != nil {
-		logger.Warn("[Homepage] Failed to prune stale proxy routes for static project", "project_dir", projectDir, "error", routeErr)
-	} else if pruned > 0 {
-		logger.Info("[Homepage] Pruned stale proxy routes for static project", "project_dir", projectDir, "removed", pruned)
+		return errJSON("Cannot prepare publication proxy routes: %v", routeErr)
 	}
+	routes = filterProxyRoutesForStaticProject(routes, projectDir)
 	caddyfile := buildCaddyfileWithProxies(cfg.WebServerDomain, port, routes)
 
 	// Write Caddyfile to workspace. The file is bind-mounted into the Caddy
 	// container, so it is written through a synced temporary copy in the same
 	// directory instead of being replaced by a rename.
 	caddyfilePath := filepath.Join(cfg.WorkspacePath, ".aurago-Caddyfile")
+	previousCaddyfile, readErr := os.ReadFile(caddyfilePath)
+	if readErr != nil && !os.IsNotExist(readErr) {
+		return errJSON("Cannot preserve the previous Caddyfile: %v", readErr)
+	}
 	if err := writeHomepageBindMountedFile(caddyfilePath, []byte(caddyfile)); err != nil {
 		return errJSON("Failed to write Caddyfile: %v", err)
+	}
+	previousContainer := ""
+	created, committed := false, false
+	defer func() {
+		if committed {
+			return
+		}
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(nativeHTTPContext(cfg.Context)), 30*time.Second)
+		defer cancel()
+		cleanupCfg := dockerCfg
+		cleanupCfg.Context = cleanupCtx
+		if created {
+			DockerContainerAction(cleanupCfg, homepageWebContainer, "stop", false)
+			DockerContainerAction(cleanupCfg, homepageWebContainer, "remove", true)
+		}
+		if readErr == nil {
+			if err := writeHomepageBindMountedFile(caddyfilePath, previousCaddyfile); err != nil {
+				logger.Error("[Homepage] Could not restore previous Caddyfile", "error", err)
+			}
+		}
+		if previousContainer != "" {
+			_, code, err := dockerRequest(cleanupCfg, "POST", "/containers/"+previousContainer+"/rename?name="+homepageWebContainer, "")
+			if err == nil && code == http.StatusNoContent {
+				DockerContainerAction(cleanupCfg, homepageWebContainer, "start", false)
+			} else {
+				logger.Error("[Homepage] Previous web container retained for recovery", "container", previousContainer, "code", code, "error", err)
+			}
+		}
+	}()
+	_, existingCode, inspectErr := dockerRequest(dockerCfg, "GET", "/containers/"+homepageWebContainer+"/json", "")
+	if inspectErr != nil || (existingCode != 200 && existingCode != 404) {
+		return errJSON("Cannot inspect the existing web server: code=%d err=%v", existingCode, inspectErr)
+	}
+	if existingCode == 200 {
+		backupName := homepageWebContainer + "-previous-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+		_, code, err := dockerRequest(dockerCfg, "POST", "/containers/"+homepageWebContainer+"/rename?name="+backupName, "")
+		if err != nil || code != http.StatusNoContent {
+			return errJSON("Cannot preserve the existing web server: code=%d err=%v", code, err)
+		}
+		previousContainer = backupName
+		_, code, err = dockerRequest(dockerCfg, "POST", "/containers/"+previousContainer+"/stop?t=10", "")
+		if err != nil || (code != 204 && code != 304) {
+			return errJSON("Cannot stop the preserved web server: code=%d err=%v", code, err)
+		}
 	}
 
 	// Determine bind address: internal-only (127.0.0.1) or all interfaces (0.0.0.0).
@@ -675,8 +756,8 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		},
 		"HostConfig": map[string]interface{}{
 			"Binds": []string{
-				hostBuildPath + ":/srv",
-				caddyfilePath + ":/etc/caddy/Caddyfile",
+				hostBuildPath + ":/srv:ro",
+				caddyfilePath + ":/etc/caddy/Caddyfile:ro",
 			},
 			"PortBindings": map[string]interface{}{
 				fmt.Sprintf("%d/tcp", port): []map[string]interface{}{
@@ -711,6 +792,7 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		})
 		return string(out)
 	}
+	created = true
 
 	_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+homepageWebContainer+"/start", "")
 	if startErr != nil || (startCode != 204 && startCode != 304) {
@@ -728,6 +810,9 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 	healthAddr := fmt.Sprintf("127.0.0.1:%d", port)
 	healthOK := false
 	for i := 0; i < 20; i++ {
+		if err := nativeHTTPContext(cfg.Context).Err(); err != nil {
+			return errJSON("Homepage request canceled: %v", err)
+		}
 		conn, err := net.DialTimeout("tcp", healthAddr, 500*time.Millisecond)
 		if err == nil {
 			conn.Close()
@@ -737,17 +822,14 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		time.Sleep(500 * time.Millisecond)
 	}
 	if !healthOK {
-		logger.Warn("[Homepage] Web server started but TCP health-check timed out", "addr", healthAddr)
+		return errJSON("Web server readiness timed out; previous publication is being restored")
 	}
-	if healthOK && cfg.WebServerDomain == "" {
-		statusCode, httpErr := waitHomepageRootHTTP(port, 5*time.Second, cfg.Context)
-		if httpErr != nil {
-			logger.Warn("[Homepage] Web server root HTTP health-check failed", "error", httpErr)
-		} else if statusCode >= 400 {
-			DockerContainerAction(dockerCfg, homepageWebContainer, "stop", false)
-			DockerContainerAction(dockerCfg, homepageWebContainer, "remove", true)
-			return errJSON("Web server started but / returned HTTP %d from /srv. Published source %s is not a valid root static site. Use project_dir for the site directory, or ensure the selected build_dir contains index.html.", statusCode, hostBuildPath)
+	if cfg.WebServerDomain == "" {
+		if err := homepageVerifyLocalDocument(nativeHTTPContext(cfg.Context), port, indexHash); err != nil {
+			return errJSON("%v; previous publication is being restored", err)
 		}
+	} else if verify := homepageVerifyDeploymentExpected("https://"+cfg.WebServerDomain, indexHash, cfg.Context); verify.Status != "ok" {
+		return errJSON("Local publication verification failed: %s; previous publication is being restored", verify.Message)
 	}
 
 	logger.Info("[Homepage] Web server started", "port", port, "domain", cfg.WebServerDomain)
@@ -771,14 +853,28 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		"source_path", hostBuildPath,
 		"project_dir", projectDir,
 		"build_dir", buildDir,
+		"content_sha256", indexHash,
 	}
 	if lanIP != "" && !cfg.WebServerInternalOnly {
 		args = append(args, "lan_url", fmt.Sprintf("http://%s:%d", lanIP, port))
 	}
-	if saveErr := saveWebserverState(cfg.WorkspacePath, projectDir, buildDir); saveErr != nil {
-		logger.Warn("[Homepage] Could not persist webserver state", "error", saveErr)
+	if saveErr := saveWebserverState(cfg.WorkspacePath, projectDir, buildDir, snapshotRelative, indexHash); saveErr != nil {
+		return errJSON("Cannot persist publication state: %v; previous publication is being restored", saveErr)
 	}
-	return okJSON("Web server started", args...)
+	committed = true
+	if snapshot != nil {
+		snapshot.root = ""
+	}
+	if previousContainer != "" {
+		DockerContainerAction(dockerCfg, previousContainer, "remove", true)
+	}
+	if _, err := homepageMutateProxyRoutes(cfg.WorkspacePath, func(routes []ProxyRoute) []ProxyRoute { return filterProxyRoutesForStaticProject(routes, projectDir) }); err != nil {
+		logger.Warn("[Homepage] Could not persist published proxy routes", "error", err)
+	}
+	result := parseToolJSON(okJSON("Web server started", args...))
+	result["verified"], result["verified_url"], result["expected_content_sha256"] = true, url, indexHash
+	out, _ := json.Marshal(result)
+	return string(out)
 }
 
 // HomepageWebServerStop stops the Caddy container.
@@ -986,8 +1082,7 @@ func HomepagePublishToLocal(cfg HomepageConfig, projectDir string, logger *slog.
 			}
 		}
 	} else {
-		// No build script (plain-HTML project). Always serve from the project
-		// root so that files written via write_file are immediately visible.
+		// A plain-HTML project publishes a separate snapshot of the project root.
 		// Skipping detectBuildDir avoids accidentally serving a stale sub-directory
 		// (e.g. an old dist/ created by a previous manual copy).
 		buildDir = "."

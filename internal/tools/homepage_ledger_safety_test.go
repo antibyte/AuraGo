@@ -84,7 +84,7 @@ func TestHomepageLargeRevisionRestoreRefusesBeforeChangingFiles(t *testing.T) {
 	cfg := HomepageConfig{WorkspacePath: t.TempDir()}
 	dir := filepath.Join(cfg.WorkspacePath, "site")
 	os.MkdirAll(dir, 0755)
-	os.WriteFile(filepath.Join(dir, "large.txt"), []byte(strings.Repeat("a", 600*1024)), 0644)
+	os.WriteFile(filepath.Join(dir, "large.txt"), []byte(strings.Repeat("a", maxRevisionFileSize+1)), 0644)
 	EnsureHomepageProjectForDir(db, cfg, "site", "", "")
 	first := SaveHomepageRevisionAndState(cfg, db, "site", "first", "create", "test", nil, slog.Default())
 	os.WriteFile(filepath.Join(dir, "large.txt"), []byte("keep me"), 0644)

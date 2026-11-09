@@ -103,6 +103,9 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 	if strings.TrimSpace(vcfg.Token) == "" {
 		return errJSON("Vercel token is required")
 	}
+	if (strings.TrimSpace(alias) != "" || strings.TrimSpace(domain) != "") && !allowDomainManagement {
+		return errJSON("Alias or domain assignment for Vercel requires vercel.allow_domain_management=true.")
+	}
 	// The token must never reach the ledger or a tool result: register it for
 	// scrubbing before the deploy output is produced.
 	security.RegisterSensitive(vcfg.Token)
@@ -139,10 +142,11 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 		logger.Info("[Homepage] Attempting build before Vercel deploy", "dir", projectDir, "target", target)
 		buildResult := homepageBuildWithAutoFixOptions(cfg, projectDir, logger, homepageBuildOptions{RequireDeployableOutput: false})
 		var br map[string]interface{}
-		if err := json.Unmarshal([]byte(buildResult), &br); err == nil {
-			if s, _ := br["status"].(string); s == "error" {
-				return decorateHomepageBuildFailure(buildResult, projectDir)
-			}
+		if err := json.Unmarshal([]byte(buildResult), &br); err != nil {
+			return errJSON("Homepage build returned an unreadable result: %v", err)
+		}
+		if s, _ := br["status"].(string); s == "error" {
+			return decorateHomepageBuildFailure(buildResult, projectDir)
 		}
 	}
 
@@ -168,6 +172,29 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 	deploySubdir, staticOutputDeploy := homepageVercelDeploySubdir(projectDir, framework, buildDir, candidate, projectInfo.HasPackageJSON)
 	if !projectInfo.HasPackageJSON {
 		staticOutputDeploy = true
+	}
+	publicationHash := ""
+	if staticOutputDeploy {
+		snapshot, _, err := homepageLocalSnapshot(cfg, projectDir, candidate.BuildDir)
+		if err != nil {
+			return errJSON("Cannot prepare a private Vercel publication: %v", err)
+		}
+		defer snapshot.Close()
+		copyAssetsToBuildDir(snapshot.root, cfg.DataDir, logger)
+		candidate.IndexSHA256, err = homepageStaticIndexHash(snapshot.root)
+		if err != nil {
+			return errJSON("Vercel publication failed integrity checks: %v", err)
+		}
+		manifest, err := BuildHomepageArtifactManifest(HomepageConfig{WorkspacePath: snapshot.root}, 0, ".", 0, "", ".")
+		if err != nil {
+			return errJSON("Cannot hash Vercel publication: %v", err)
+		}
+		publicationHash = manifest.ArtifactHash
+		deploySubdir, err = filepath.Rel(cfg.WorkspacePath, snapshot.root)
+		if err != nil {
+			return errJSON("Cannot resolve Vercel publication: %v", err)
+		}
+		deploySubdir = filepath.ToSlash(deploySubdir)
 	}
 	deployPath := filepath.Join(cfg.WorkspacePath, filepath.FromSlash(deploySubdir))
 	if _, err := os.Stat(deployPath); err != nil {
@@ -253,11 +280,6 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 	if deploymentURL == "" {
 		return errJSON("Vercel deploy finished but no deployment URL could be detected. Output: %s", truncateStr(strings.TrimSpace(deployOutput), 1200))
 	}
-	verify := homepageVerifyDeploymentURL(deploymentURL, cfg.Context)
-	if verify.Status != "ok" {
-		return errJSON("Vercel deploy completed but live verification failed: %s", verify.Message)
-	}
-
 	aliasResults := []map[string]interface{}{}
 	aliasTargets := []string{}
 	for _, candidate := range []string{alias, domain} {
@@ -318,6 +340,7 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 
 	deploymentDetails := parseToolJSON(VercelListDeployments(vcfg, projectRef))
 	deploymentID := ""
+	verifyTargets := append([]string{}, aliasTargets...)
 	if deployments, ok := deploymentDetails["deployments"].([]interface{}); ok {
 		for _, item := range deployments {
 			deployment, ok := item.(map[string]interface{})
@@ -325,14 +348,61 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 				continue
 			}
 			urlStr := strVal(deployment, "url")
-			if urlStr != "" && !strings.HasPrefix(urlStr, "https://") {
+			if urlStr != "" && !strings.HasPrefix(urlStr, "https://") && !strings.HasPrefix(urlStr, "http://") {
 				urlStr = "https://" + urlStr
 			}
 			if urlStr == deploymentURL {
 				deploymentID = strVal(deployment, "id")
+				if target == "production" && len(verifyTargets) == 0 {
+					if aliases, ok := deployment["aliases"].([]interface{}); ok {
+						for _, value := range aliases {
+							if alias, ok := value.(string); ok && alias != "" {
+								verifyTargets = append(verifyTargets, alias)
+							}
+						}
+					}
+				}
 				break
 			}
 		}
+	}
+	if target == "production" && len(aliasTargets) == 0 && deploymentID != "" {
+		aliases := parseToolJSON(VercelListAliases(vcfg, projectRef, deploymentID))
+		if items, ok := aliases["aliases"].([]interface{}); ok {
+			for _, item := range items {
+				if item, ok := item.(map[string]interface{}); ok && strVal(item, "alias") != "" {
+					verifyTargets = append(verifyTargets, strVal(item, "alias"))
+				}
+			}
+		}
+	}
+	if len(verifyTargets) == 0 {
+		verifyTargets = append(verifyTargets, deploymentURL)
+	}
+	var verify homepageVerifyResult
+	aliasObservations := []homepageVerifyResult{}
+	for _, verifyURL := range verifyTargets {
+		verify = homepageVerifyDeploymentExpected(verifyURL, candidate.IndexSHA256, cfg.Context)
+		aliasObservations = append(aliasObservations, verify)
+		if target == "production" && len(aliasTargets) == 0 {
+			if verify.Status == "ok" {
+				break
+			}
+			continue
+		}
+		if verify.Status != "ok" {
+			out, _ := json.Marshal(map[string]interface{}{
+				"status": "partial_success", "verified": false, "retry_safe": false,
+				"message":    "Vercel upload completed but content verification failed: " + verify.Message,
+				"project_id": projectRef, "project_dir": projectDir, "deployment_url": deploymentURL, "deployment_id": deploymentID,
+				"verified_url": verify.URL, "expected_content_sha256": candidate.IndexSHA256, "content_sha256": verify.ContentSHA256,
+			})
+			return string(out)
+		}
+	}
+	if verify.Status != "ok" {
+		out, _ := json.Marshal(map[string]interface{}{"status": "partial_success", "verified": false, "retry_safe": false, "message": "Vercel upload completed but no public production URL passed content verification: " + verify.Message, "project_id": projectRef, "project_dir": projectDir, "deployment_id": deploymentID, "deployment_url": deploymentURL, "alias_observations": aliasObservations})
+		return string(out)
 	}
 
 	result := map[string]interface{}{
@@ -347,11 +417,17 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 			}
 			return "framework-source"
 		}(),
-		"target":         target,
-		"deployment_url": deploymentURL,
-		"verified":       true,
-		"aliases":        aliasResults,
-		"output":         strings.TrimSpace(deployOutput),
+		"target":                  target,
+		"deployment_url":          deploymentURL,
+		"verified":                true,
+		"content_verified":        candidate.IndexSHA256 != "",
+		"verified_url":            verify.URL,
+		"content_sha256":          verify.ContentSHA256,
+		"expected_content_sha256": candidate.IndexSHA256,
+		"publication_hash":        publicationHash,
+		"alias_observations":      aliasObservations,
+		"aliases":                 aliasResults,
+		"output":                  strings.TrimSpace(deployOutput),
 	}
 	if deploymentID != "" {
 		result["deployment_id"] = deploymentID

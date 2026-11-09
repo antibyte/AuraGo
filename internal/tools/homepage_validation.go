@@ -286,6 +286,11 @@ func validateHomepageRelativePathArg(path, field string) error {
 func validateHomepageSourceEditPath(path string) error {
 	normalized := filepath.ToSlash(strings.TrimSpace(path))
 	parts := strings.Split(normalized, "/")
+	for _, part := range parts {
+		if strings.EqualFold(part, ".aurago") || strings.HasPrefix(strings.ToLower(part), ".aurago-") {
+			return fmt.Errorf("managed Homepage publication snapshots cannot be edited; edit the project source and publish again")
+		}
+	}
 	// A generated output directory is blocked at the workspace root ("dist/index.html")
 	// and directly below the project directory ("site/dist/index.html"). A deeper
 	// source folder ("site/src/build/helpers.ts") is a source file, not build output.

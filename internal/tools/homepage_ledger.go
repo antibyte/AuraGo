@@ -499,7 +499,10 @@ func recordHomepageDeploymentFromResult(cfg HomepageConfig, db *sql.DB, projectD
 		result.Fatal = fmt.Errorf("deployment result was not JSON: %v", err)
 		return result
 	}
-	if status, _ := parsed["status"].(string); status == "error" {
+	if status, _ := parsed["status"].(string); status == "error" || status == "partial_success" || status == "unknown" || status == "failed" {
+		return result
+	}
+	if verified, ok := parsed["verified"].(bool); ok && !verified {
 		return result
 	}
 	provider = strings.ToLower(strings.TrimSpace(provider))
@@ -592,6 +595,11 @@ func recordHomepageDeploymentFromResult(cfg HomepageConfig, db *sql.DB, projectD
 	if verifiedURL := ledgerString(parsed, "verified_url"); verifiedURL != "" {
 		verification["verified_url"] = verifiedURL
 	}
+	for _, key := range []string{"expected_content_sha256", "content_sha256", "publication_hash", "upload_sha256"} {
+		if value := ledgerString(parsed, key); value != "" {
+			verification[key] = value
+		}
+	}
 	verificationJSON := ""
 	if len(verification) > 0 {
 		b, _ := json.Marshal(verification)
@@ -637,7 +645,7 @@ func BuildHomepageArtifactManifest(cfg HomepageConfig, projectID int64, projectD
 	}
 	manifestFiles := make([]HomepageArtifactManifestFile, 0, len(files))
 	for _, f := range files {
-		if f.Path == homepageArtifactManifestName {
+		if f.Path == homepageArtifactManifestName || homepageNonPublicArtifact(f.Path) {
 			continue
 		}
 		manifestFiles = append(manifestFiles, HomepageArtifactManifestFile{Path: f.Path, Hash: f.Hash, Size: f.Size})

@@ -218,6 +218,10 @@ func buildHereNowSnapshot(workspaceRoot, deployRelative string) (*hereNowPublish
 }
 
 func buildHereNowSnapshotLimited(workspaceRoot, deployRelative string, maxBytes int64) (_ *hereNowPublishSnapshot, err error) {
+	return buildHomepageSnapshotIn(workspaceRoot, deployRelative, "", maxBytes)
+}
+
+func buildHomepageSnapshotIn(workspaceRoot, deployRelative, parent string, maxBytes int64) (_ *hereNowPublishSnapshot, err error) {
 	workspaceRoot, err = filepath.Abs(strings.TrimSpace(workspaceRoot))
 	if err != nil {
 		return nil, fmt.Errorf("resolve Homepage workspace: %w", err)
@@ -247,7 +251,7 @@ func buildHereNowSnapshotLimited(workspaceRoot, deployRelative string, maxBytes 
 	}
 	defer deployRoot.Close()
 
-	snapshotPath, err := os.MkdirTemp("", "aurago-here-now-*")
+	snapshotPath, err := os.MkdirTemp(parent, "aurago-here-now-*")
 	if err != nil {
 		return nil, fmt.Errorf("create private here.now snapshot: %w", err)
 	}
@@ -271,6 +275,12 @@ func buildHereNowSnapshotLimited(workspaceRoot, deployRelative string, maxBytes 
 			return nil
 		}
 		rel = path.Clean(filepath.ToSlash(rel))
+		if homepageNonPublicArtifact(rel) {
+			if entry.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
 		info, infoErr := deployRoot.Lstat(rel)
 		if infoErr != nil {
 			return fmt.Errorf("inspect here.now source %s: %w", rel, infoErr)

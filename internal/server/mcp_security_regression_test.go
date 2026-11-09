@@ -45,6 +45,30 @@ func TestMCPEndpointRejectsRebindingHostEvenWithMatchingOrigin(t *testing.T) {
 	}
 }
 
+func TestMCPTrustedHostUsesExactRunningTailnetDNS(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tailscale.TsNet.Enabled = true
+	cfg.Tailscale.TsNet.Hostname = "aurago"
+	for _, tc := range []struct {
+		host, dns     string
+		enabled, want bool
+	}{
+		{"aurago.tail123.ts.net", "aurago.tail123.ts.net.", true, true},
+		{"AURAGO.TAIL123.TS.NET:443", "aurago.tail123.ts.net.", true, true},
+		{"aurago.attacker.test", "aurago.tail123.ts.net.", true, false},
+		{"aurago.tail123.ts.net.attacker.test", "aurago.tail123.ts.net.", true, false},
+		{"other.tail123.ts.net", "aurago.tail123.ts.net.", true, false},
+		{"aurago.tail123.ts.net", "", true, false},
+		{"aurago.tail123.ts.net", "aurago.tail123.ts.net.", false, false},
+	} {
+		cfg.Tailscale.TsNet.Enabled = tc.enabled
+		r := httptest.NewRequest(http.MethodPost, "https://"+tc.host+"/mcp", nil)
+		if got := mcpTrustedHost(r, cfg, tc.dns); got != tc.want {
+			t.Fatalf("host=%s dns=%s enabled=%v got=%v want=%v", tc.host, tc.dns, tc.enabled, got, tc.want)
+		}
+	}
+}
+
 func TestMCPSessionsSeparateClientsAndBindPrincipal(t *testing.T) {
 	var signer mcpSessionSigner
 	request := func(credential string) *http.Request {

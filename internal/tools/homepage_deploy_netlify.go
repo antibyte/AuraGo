@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -31,12 +32,16 @@ type netlifyZipStats struct {
 	Skipped     int
 	Bundled     int
 	SPAFallback bool
+	IndexSHA256 string
 }
 
 func homepageNetlifyShouldSkipZipEntry(rel string, info os.FileInfo) bool {
 	rel = strings.Trim(strings.ToLower(filepath.ToSlash(rel)), "/")
 	if rel == "" || rel == "." {
 		return false
+	}
+	if homepageNonPublicArtifact(rel) {
+		return true
 	}
 	parts := strings.Split(rel, "/")
 	skipDirs := map[string]struct{}{
@@ -179,6 +184,15 @@ func buildNetlifyZip(cfg HomepageConfig, deployPath string, logger *slog.Logger)
 		data, readErr := os.ReadFile(path)
 		if readErr != nil {
 			return readErr
+		}
+		if rel == "index.html" {
+			if len(data) > maxHomepageWriteFileSize {
+				return fmt.Errorf("index.html exceeds the document verification limit")
+			}
+			if _, err := homepageDocumentIntegrity(data); err != nil {
+				return err
+			}
+			stats.IndexSHA256 = homepageDocumentHash(data)
 		}
 		stats.Bytes += int64(len(data))
 		if stats.Bytes > netlifyZipMaxBytes {
@@ -419,6 +433,9 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	if len(zipBytes) == 0 {
 		return errJSON("ZIP is empty — check that %q contains files", deployPath)
 	}
+	if zipStats.IndexSHA256 == "" {
+		return errJSON("ZIP has no verified index.html; no deployment was uploaded")
+	}
 	logger.Info("[Homepage] Netlify ZIP ready",
 		"bytes", zipStats.Bytes,
 		"compressed_bytes", len(zipBytes),
@@ -523,6 +540,7 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	// A deploy is only reported as published when it was not a draft. A draft
 	// never changes the site, so the ledger must not record it as a deployment.
 	dr["published"] = !draft
+	dr["upload_sha256"] = homepageDocumentHash(zipBytes)
 	dr["spa_fallback"] = zipStats.SPAFallback
 	// Render providers that only report the published site URL land in url or
 	// site_url; the deploy permalink always wins when it exists.
@@ -535,10 +553,14 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	if verifyURL == "" {
 		return errJSON("Netlify deploy completed but no verification URL was returned")
 	}
-	verify := homepageVerifyDeploymentURL(verifyURL, cfg.Context)
+	verify := homepageVerifyDeploymentExpected(verifyURL, zipStats.IndexSHA256, cfg.Context)
 	if verify.Status != "ok" {
 		if !draft {
-			return errJSON("Netlify deploy completed but live verification failed: %s", verify.Message)
+			dr["status"], dr["verified"], dr["retry_safe"] = "partial_success", false, false
+			dr["message"] = "Netlify upload completed but content verification failed: " + verify.Message
+			dr["verified_url"], dr["expected_content_sha256"], dr["content_sha256"] = verify.URL, zipStats.IndexSHA256, verify.ContentSHA256
+			out, _ := json.Marshal(dr)
+			return string(out)
 		}
 		// A draft deploy's permalink may require a Netlify login. Report the
 		// deploy without claiming a live verification or a publication.
@@ -549,6 +571,8 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	}
 	dr["verified"] = true
 	dr["verified_url"] = verify.URL
+	dr["content_sha256"] = verify.ContentSHA256
+	dr["expected_content_sha256"] = zipStats.IndexSHA256
 	out, _ := json.Marshal(dr)
 	return string(out)
 }

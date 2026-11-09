@@ -163,7 +163,7 @@ If an existing project directory is owned by root or otherwise not writable by t
 Use `exec` for diagnostics such as reading package metadata, checking logs, or running one-off inspection commands. Do not use it as the normal build/deploy path, and do not use shell redirects, `cp`, `mv`, `rm`, or similar commands to write directly into generated output directories like `/workspace/my-site/dist`, `/workspace/my-site/build`, or `/workspace/my-site/out`. Edit source files with `write_file`/`edit_file`, run `build`, then deploy through `deploy_netlify` or `deploy_vercel`.
 
 ### write_file — Write/create a file
-Content is safely base64-encoded internally. Parent directories are created automatically.
+Complete files up to 2 MiB use bounded archive transfers in Docker and atomic local writes. Oversized, empty or incomplete transfers fail before replacement. Parent directories are created automatically. Use targeted `edit_file` insertions for small additions; never reconstruct a large document from a shortened tool result.
 ```json
 {"action": "homepage", "operation": "write_file", "path": "my-site/src/components/Hero.tsx", "content": "export default function Hero() { return <section>...</section> }"}
 ```
@@ -207,7 +207,7 @@ The dev container and Caddy web container are connected via a shared Docker netw
 ```
 
 ### lint — Run TypeScript & ESLint checks
-Runs `tsc --noEmit` (if `tsconfig.json` exists) followed by ESLint. Returns combined output.
+Runs `tsc --noEmit` (if `tsconfig.json` exists) followed by ESLint. Missing runtime/configuration and any nonzero exit are failures; check `status` and `exit_code`. A check that did not run is never a pass.
 ```json
 {"action": "homepage", "operation": "lint", "project_dir": "my-site"}
 ```
@@ -315,7 +315,7 @@ The generated Caddyfile uses `handle` blocks for proxy routes (matched first) an
 Do **not** assume `/var/www/html`. Use `publish_local` or `webserver_start` instead of manual `docker cp` to guessed paths.
 
 ### webserver_start — Start local Caddy web server
-Serves the build output via Caddy (Docker required). Always pass `project_dir` for the project that should be public at `/`.
+Validates and copies the build output to a private filtered snapshot, then serves that snapshot read-only through Caddy (Docker required). Source edits do not change the publication. Invalid input or failed activation preserves the previous publication. Always pass `project_dir` for the project that should be public at `/`.
 Omit `project_dir` only for recovery/status restoration of an already published site, or when intentionally using the single-project/plain-HTML auto-detect path. When the project is known, pass `project_dir`; do not omit it for ordinary build, publish, or deploy work.
 ```json
 {"action": "homepage", "operation": "webserver_start", "project_dir": "my-site"}
@@ -327,8 +327,9 @@ Omit `project_dir` only for recovery/status restoration of an already published 
 - `mode`: "docker"
 - `container_name`: `aurago-homepage-web`
 - `document_root`: `/srv`
-- `source_path`: Host-side build or project directory mounted into Caddy
-- `project_dir` / `build_dir`: The resolved workspace source mounted as `/srv`; for plain HTML projects, `build_dir` is `.`
+- `source_path`: Private publication snapshot mounted read-only into Caddy
+- `project_dir` / `build_dir`: Original project/build identity; plain HTML uses `build_dir: "."`
+- `verified`, `verified_url`, `expected_content_sha256`, `content_sha256`: Full-document content verification
 
 ### webserver_stop — Stop the web server
 ```json
@@ -342,7 +343,7 @@ Omit `project_dir` only for recovery/status restoration of an already published 
 
 ### publish_local — Build and serve locally
 Combines `build` + `webserver_start` in one step.
-For plain HTML projects (no `package.json`), the build step is automatically skipped and the project directory is served directly.
+For plain HTML projects (no `package.json`), the build step is skipped and a separate snapshot of the project root is published. Hidden development state, Git files, internal scripts and backups are excluded; `.well-known` remains available. Private URLs return 404 before SPA fallback.
 Referenced AuraGo assets (`/files/generated_images/*`, generated image `/assets/img_*` paths, `/files/audio/*`, `/files/documents/*`) are automatically copied into the build directory so the Caddy container can serve them.
 Always pass the workspace-relative `project_dir` for the project being published.
 ```json
@@ -532,6 +533,9 @@ Use `deploy_vercel` when the homepage project should be published to Vercel from
 
 Notes:
 - `deploy_vercel` is designed for homepage workspace projects including HTML, Vite/React, Astro, and Next.js.
+- Static deploys use a filtered snapshot. Verification reads the full document through 2 MiB and compares its expected SHA-256; it rejects login pages, stale aliases, malformed full HTML and HTML returned for JS/CSS assets. Production aliases are checked after assignment. A completed upload with failed verification returns `partial_success`, provider locators and `retry_safe:false`; inspect the existing deployment instead of uploading again blindly. Framework-source verification does not compare generated output with source-file bytes.
+- Screenshot and JS checks use the Playwright package matching the managed image. Rebuild the managed Homepage container if its fixed runtime is missing; do not install an arbitrary latest Playwright version.
+- For automated article updates, generate only the new article blocks, insert them at a unique marker, and run the project's deterministic whole-document/preservation validator before publication. Final success requires machine verification. Store operational results in the journal and registry, never Core Memory; ordinary managed mutations already record their ledger events.
 - Projects with `package.json` deploy Vercel-native from the project root after a local build check, even when `build_dir` is provided. Explicit static `build_dir` values are only for plain static projects without package metadata and must contain a valid `index.html`.
 - Do not patch Next.js into static export for Vercel. Let Vercel build and route the framework project from source.
 - AuraGo validates the build first, links the Vercel project when a project reference is available, then deploys from the homepage workspace via the Vercel CLI.

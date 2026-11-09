@@ -704,6 +704,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			// The ingress already chose the detached sync lifetime. Keep that
 			// registered context so Stop and shutdown cannot be lost here.
 			broker := newChatVoiceOutputTrackingBroker(feedbackBrokerForRequestContext(r.Context(), sse, sessionID, missionID, isFollowUp))
+			loopStarted := time.Now()
 			resp, err := agent.ExecuteAgentLoop(r.Context(), req, runCfg, false, broker)
 			if err != nil {
 				if errors.Is(err, agent.ErrActionRuleRequired) {
@@ -721,6 +722,9 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				}
 				// Return a user-visible error as a proper OpenAI response instead of HTTP 500
 				errMsg := chatCompletionErrorMessage(s.Cfg.Server.UILanguage, err)
+				if missionID != "" {
+					errMsg = missionAgentFailureDetail(err, errMsg, time.Since(loopStarted), runCfg.Config)
+				}
 				writeChatCompletionErrorResponse(w, sessionID, errMsg)
 				return
 			}

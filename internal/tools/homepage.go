@@ -119,6 +119,8 @@ RUN npm install -g \
     svgo \
     typescript ts-node \
     && npm cache clean --force
+RUN npm install --prefix /opt/aurago-homepage-tools --ignore-scripts --no-audit --no-fund playwright@1.61.1 \
+    && npm cache clean --force
 ENV CI=true
 ENV NODE_ENV=development
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
@@ -1279,12 +1281,10 @@ func HomepageScreenshot(ctx context.Context, cfg HomepageConfig, url, viewport s
 	}
 	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 
-	// Use npx playwright screenshot CLI — works reliably in the Playwright base image
-	// without requiring a global npm install of the playwright package.
 	// Rewrite localhost URLs so Chrome inside the container can reach the host.
 	containerURL := rewriteLocalhostForContainer(url)
-	script := fmt.Sprintf(`npx playwright screenshot --browser=chromium --viewport-size=%s,%s --full-page "%s" /workspace/_screenshot.png 2>&1 && echo '\n{"status":"ok","file":"/workspace/_screenshot.png","message":"screenshot saved"}'`,
-		width, height, containerURL)
+	script := fmt.Sprintf(`node %s screenshot --browser=chromium --viewport-size=%s,%s --full-page %s /workspace/_screenshot.png 2>&1 && echo '\n{"status":"ok","file":"/workspace/_screenshot.png","message":"screenshot saved"}'`,
+		shellSingleQuote(homepagePlaywrightModule+"/cli.js"), width, height, shellSingleQuote(containerURL))
 
 	result := homepageDockerExecFunc(dockerCfg, homepageContainerName, script, "")
 
@@ -1316,10 +1316,7 @@ func HomepageLint(cfg HomepageConfig, projectDir string, logger *slog.Logger) st
 	}
 	logger.Info("[Homepage] Lint", "dir", projectDir)
 	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
-	// Run TypeScript check first (if tsconfig exists), then ESLint.
-	// Prefer the project-local ESLint binary (faster, no npx lookup overhead).
-	cmd := fmt.Sprintf(`cd /workspace/%s && { if [ -f tsconfig.json ]; then echo "=== TypeScript Check ==="; npx tsc --noEmit 2>&1 | head -50; echo; fi; echo "=== ESLint ==="; if [ -f ./node_modules/.bin/eslint ]; then ./node_modules/.bin/eslint . --format compact 2>&1; else npx eslint . --format compact 2>&1; fi | head -100; }`, projectDir)
-	return DockerExec(dockerCfg, homepageContainerName, cmd, "")
+	return homepageQualityResult(homepageDockerExecFunc(dockerCfg, homepageContainerName, homepageLintCommand(homepageContainerProjectPath(projectDir)), ""))
 }
 
 // HomepageCheckJS navigates to a URL and captures any JavaScript console errors.
@@ -1336,23 +1333,27 @@ func HomepageCheckJS(ctx context.Context, cfg HomepageConfig, url string, logger
 	}
 	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 
-	script := fmt.Sprintf(`node -e "
-const {chromium} = require('playwright');
+	containerURL := rewriteLocalhostForContainer(url)
+	js := fmt.Sprintf(`
+const {chromium} = require(%q);
 (async()=>{
   const errors = [];
   const b = await chromium.launch({args:['--no-sandbox']});
-  const p = await b.newPage();
-  p.on('pageerror', e => errors.push({type:'error',message:e.message}));
-  p.on('console', m => { if(m.type()==='error') errors.push({type:'console-error',message:m.text()}); });
-  await p.goto('%s',{waitUntil:'networkidle',timeout:30000});
-  await new Promise(r=>setTimeout(r,2000));
-  await b.close();
+  try {
+    const p = await b.newPage();
+    p.on('pageerror', e => errors.push({type:'error',message:e.message}));
+    p.on('console', m => { if(m.type()==='error') errors.push({type:'console-error',message:m.text()}); });
+    await p.goto(%q,{waitUntil:'networkidle',timeout:30000});
+    await new Promise(r=>setTimeout(r,2000));
+  } finally { await b.close(); }
   console.log(JSON.stringify({errorCount:errors.length,errors:errors.slice(0,20)}));
-})();"`, url)
+  process.exitCode = errors.length ? 1 : 0;
+})().catch(e=>{ console.error(e.message); process.exitCode=1; });`, homepagePlaywrightModule, containerURL)
+	script := "node -e " + shellSingleQuote(js)
 
 	result := homepageDockerExecFunc(dockerCfg, homepageContainerName, script, "")
 	if strings.Contains(result, "Cannot find module 'playwright'") || strings.Contains(result, "MODULE_NOT_FOUND") {
-		return errJSON("Playwright not available in homepage container. Install with: homepage exec 'npm i -g playwright && npx playwright install chromium'")
+		return errJSON("Playwright not available in homepage container. Rebuild the Homepage container to install the package matching its bundled browsers.")
 	}
-	return result
+	return homepageQualityResult(result)
 }

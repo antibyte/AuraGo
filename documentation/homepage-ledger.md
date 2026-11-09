@@ -85,6 +85,22 @@ before initialization; they never become newly agent-created history.
 
 ## Deployment and observation
 
+Local publication serves a filtered immutable snapshot, mounted read-only into
+Caddy. Editing source files cannot alter it. Restart restores the saved snapshot
+and refuses invalid state or a changed index hash. Failed activation restores the
+previous container and Caddyfile. Retained snapshots under `.aurago/published`
+are reserved managed state and require reviewed cleanup.
+
+Static verification checks complete bounded HTML (up to 2 MiB), article balance,
+truncation markers, expected index SHA-256 and critical assets. Vercel checks
+production aliases after assignment. Provider readiness, login pages and HTTP
+200 alone do not establish content identity. Verification metadata retains the
+expected/observed document hashes and checked URL. Failed verification after an
+upload keeps the provider locator and `retry_safe:false` as a partial outcome;
+it never updates a successful live target. Framework-source output is not hashed
+against its source HTML. Publication payloads and artifact manifests exclude
+private development state and backups; `.well-known` remains public.
+
 Each publication keeps provider IDs, URL, source revision and artifact hash when
 available. Account/environment distinguish targets, including simultaneous
 preview and production. Immutable deployment URLs remain distinct from aliases.
@@ -118,7 +134,7 @@ Additive HTTP interfaces:
 ## Revision safety and upgrades
 
 Revision content excludes credential-like paths and generated artifact
-manifests. Hashing streams large files. Content is bounded to 500 KiB per file
+manifests. Hashing streams large files. Content is bounded to 2 MiB per file
 and 64 MiB per scan, with at most 10,000 inventoried files. Missing, sensitive
 or incomplete content is never silently restored. Historical reconstruction
 uses the complete revision chain in stable ID order.
