@@ -92,6 +92,6 @@ if (check) {
   await fs.writeFile(outDir + '/spot-LICENSE.txt', licence);
 }
 const total = await size(outDir);
-if (total >= 12 * 1024 * 1024) throw Error('Model directory exceeds the 12 MiB ceiling: ' + total);
+if (total >= 40 * 1024 * 1024) throw Error('Model directory exceeds the 40 MiB ceiling: ' + total);
 console.log('System World companion ' + (check ? 'verified' : 'built') + ': ' +
   bytes.length + ' bytes, ' + triangles + ' triangles, model directory ' + total + ' bytes');

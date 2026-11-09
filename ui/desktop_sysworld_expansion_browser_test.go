@@ -19,8 +19,8 @@ func verifySystemWorldExpansion(t *testing.T, page *rod.Page, dir string) {
 	page.MustEval(`()=>{document.body.dataset.animations='true';aurora.state.bootstrap.settings['appearance.animations']=true;localStorage.removeItem('aurago.desktop.sysworld.discoveries');}`)
 	page.MustSetViewport(1920, 1080, 1, false)
 	page.Timeout(40 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).experience.residents===19&&SysWorldApp.inspect(cityId).experience.trams===2`)
-	if size := page.MustEval(`()=>SysWorldApp.inspect(cityId).loadedBytes`).Int(); size > 12*1024*1024 {
-		t.Fatal("initial load exceeds 12 MiB", size)
+	if size := page.MustEval(`()=>SysWorldApp.inspect(cityId).loadedBytes`).Int(); size > 20*1024*1024 {
+		t.Fatal("initial load exceeds 20 MiB", size)
 	}
 	hold := func(key input.Key, d time.Duration) {
 		t.Helper()

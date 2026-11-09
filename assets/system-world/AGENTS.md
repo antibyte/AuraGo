@@ -13,8 +13,8 @@ Own the original Blender city kit, deterministic generator and source scene.
 ## Local Contracts
 - Blender 5.2.2 LTS; original geometry and materials under MIT.
 - Each asset has three isolated GLBs, Y up, metre units and base-centred origins.
-- The complete runtime model directory must stay below 12 MiB; first display
-  stays below 12 MiB and the full app below 48 MiB.
+- The complete runtime model directory must stay below 40 MiB; first display
+  stays below 20 MiB and the full app below 80 MiB.
 - Surface maps are original procedural data (R albedo factor / 2, G roughness factor / 2,
   B height), seamless, byte-stable for the pinned numpy/Pillow and verified with `--check`.
   The GLBs stay texture-free; the renderer projects the maps (see `sysworld-surfaces.js`).

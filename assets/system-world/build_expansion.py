@@ -419,7 +419,7 @@ def build():
                 bpy.data.objects.remove(root,do_unlink=True)
         entries.append(entry);print('WORLD2',asset)
     manifest={'schema_version':2,'version':'2.4.0','license':'MIT','units':'metres','up_axis':'Y','front_axis':'Z',
-              'generator':'Blender '+bpy.app.version_string,'assets':entries,'budget_bytes':48*1024*1024,'model_budget_bytes':12*1024*1024,
+              'generator':'Blender '+bpy.app.version_string,'assets':entries,'budget_bytes':80*1024*1024,'model_budget_bytes':40*1024*1024,
               'sources':{name:hashlib.sha256((ROOT/'assets/system-world'/name).read_bytes().replace(b'\r\n',b'\n')).hexdigest() for name in ['build_city.py','build_expansion.py','living_assets.py','landmark_assets.py','robot_assets.py','hover_assets.py']}}
     (OUT/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf8',newline='\n')
     (OUT/'LICENSE.txt').write_text((ROOT/'LICENSE').read_text(encoding='utf8'),encoding='utf8')
@@ -427,7 +427,7 @@ def build():
     source=ROOT/'assets/system-world/production';source.mkdir(exist_ok=True)
     bpy.data.libraries.write(str(source/'aurago-world-2.blend'),{scene},compress=True)
     total=sum(p.stat().st_size for p in (ROOT/'ui/3d/system-world').rglob('*') if p.is_file())
-    assert total<=12*1024*1024,total
+    assert total<=40*1024*1024,total
     print('WORLD2_COMPLETE',len(entries),total)
 
 

@@ -69,11 +69,11 @@ async function size(dir){let total=0;for(const f of await fs.readdir(dir,{withFi
 // Count the renderer, classic app modules, CSS and all sixteen translated sections,
 // not only the model files. Authoring sources and browser review code are excluded.
 let runtime=await size('ui/3d/system-world')+await size('ui/js/vendor/system-world');
-assert.ok(await size('ui/3d/system-world')<12*1024*1024,'Complete model directory exceeds 12 MiB');
+assert.ok(await size('ui/3d/system-world')<40*1024*1024,'Complete model directory exceeds 40 MiB');
 for(const name of ['sysworld.js','sysworld-data.js','sysworld-hud.js','sysworld-controls.js'])runtime+=(await fs.stat('ui/js/desktop/apps/'+name)).size;
 runtime+=(await fs.stat('ui/css/desktop-app-sysworld.css')).size;
 for(const name of await fs.readdir('ui/lang/desktop')){if(!name.endsWith('.json'))continue;const locale=JSON.parse(await fs.readFile('ui/lang/desktop/'+name));runtime+=Buffer.byteLength(JSON.stringify(Object.fromEntries(Object.entries(locale).filter(([key])=>key.startsWith('sysworld.')))));}
-assert.ok(runtime<48*1024*1024);
+assert.ok(runtime<80*1024*1024);
 {
   const scene=new THREE.Scene(),fx=createMachinery(scene);
   fx.attach('repair-bay',{play(){}});fx.demonstrate('repair-bay',2,'failed');

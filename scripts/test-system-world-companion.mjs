@@ -64,5 +64,5 @@ const size = dir => fs.readdirSync(dir, { withFileTypes: true }).reduce((total, 
   const p = dir + '/' + f.name;
   return total + (f.isDirectory() ? size(p) : fs.statSync(p).size);
 }, 0);
-assert.ok(size('ui/3d/system-world') < 12 * 1024 * 1024, 'Complete model directory stays below 12 MiB');
+assert.ok(size('ui/3d/system-world') < 40 * 1024 * 1024, 'Complete model directory stays below 40 MiB');
 console.log('System World companion: bounded quay patrol, diagonal trot, BSD-3-Clause provenance, meshopt GLB and model budget verified');

@@ -53,10 +53,10 @@ node scripts/test-system-world-hover.mjs
 node scripts/build-system-world.js
 ```
 
-The 48 MiB budget covers both city kits, the original white robot, renderer,
+The 80 MiB budget covers both city kits, the original white robot, renderer,
 classic app modules, stylesheet and System World labels in all sixteen locales.
-The combined runtime model directory has a 12 MiB ceiling.
-First display has a separate 12 MiB budget; interior furnishings and alternate
+The combined runtime model directory has a 40 MiB ceiling.
+First display has a separate 20 MiB budget; interior furnishings and alternate
 LODs are lazy. Exterior shells are present at first display. Modular floor seams
 and lift landings use exact planar edges; the platform top matches its declared
 zero-height surface and its left side opens onto the gallery.
@@ -96,7 +96,7 @@ none are required or shipped to run the app.
 
 - 17 asset designs; three separately loadable LODs per design.
 - 51 self-contained GLB files. The original v1 kit retains its **8 MiB** gate;
-  the combined v1/v2/robot runtime directory has a **12 MiB** ceiling.
+  the combined v1/v2/robot runtime directory has a **40 MiB** ceiling.
 - No image textures, external URIs, Draco decoder, skeletal animation or lights.
 - Standard metallic/roughness materials and `KHR_materials_emissive_strength`.
 - Shared named materials; static geometry is batched by material.
