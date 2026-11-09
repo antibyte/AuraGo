@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/desktopstore"
 	"aurago/internal/llm"
@@ -964,5 +965,126 @@ func TestRebindingStoreLLMRelayAcceptsTheDockerHostAliasOnlyOnRelayRoutes(t *tes
 	// Ordinary hosts keep working everywhere.
 	if code := do("192.168.1.10:8088", "/api/config"); code != http.StatusAccepted {
 		t.Fatalf("IP literal host: status = %d, want 202", code)
+	}
+}
+
+// ── n, budget ────────────────────────────────────────────────────────────────
+
+func TestStoreLLMRelayRejectsMoreThanOneChoice(t *testing.T) {
+	client := &relayFakeClient{response: openai.ChatCompletionResponse{}}
+	h := newStoreRelayTestHandler(newStoreRelayServer(client, nil), &relayFakeVerifier{token: relayTestToken})
+	rec := serveRelay(h, relayRequest(http.MethodPost, relayTestChat, relayTestToken, `{"n":3,"messages":[{"role":"user","content":"hi"}]}`))
+	got := decodeRelayError(t, rec)
+	if rec.Code != http.StatusBadRequest || got.Error.Type != "invalid_request_error" || got.Error.Message != "n must be 1" {
+		t.Fatalf("n=3: status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if client.calls.Load() != 0 {
+		t.Fatal("n > 1 must not reach the LLM")
+	}
+	for _, body := range []string{`{"n":1,"messages":[{"role":"user","content":"hi"}]}`, `{"messages":[{"role":"user","content":"hi"}]}`} {
+		if rec = serveRelay(h, relayRequest(http.MethodPost, relayTestChat, relayTestToken, body)); rec.Code != http.StatusOK {
+			t.Fatalf("body %s: status = %d", body, rec.Code)
+		}
+	}
+}
+
+func newRelayBudgetServer(t *testing.T, upstreamURL string) (*Server, *budget.Tracker) {
+	t.Helper()
+	s := newStoreRelayServer(&relayFakeClient{response: openai.ChatCompletionResponse{}}, func(c *config.Config) {
+		c.Budget.Enabled, c.Budget.DailyLimitUSD, c.Budget.Enforcement, c.Budget.WarningThreshold = true, 1, "partial", 0.9
+		c.Budget.Models = []config.ModelCost{{Name: "embed-model", InputPerMillion: 2}}
+		c.Embeddings.Provider, c.Embeddings.ProviderType, c.Embeddings.Model = "embed", "openai", "embed-model"
+		c.Embeddings.BaseURL = upstreamURL + "/v1"
+	})
+	tracker := budget.NewTracker(s.Cfg, s.Logger, t.TempDir())
+	if tracker == nil {
+		t.Fatal("budget tracker was not created")
+	}
+	s.BudgetTracker = tracker
+	return s, tracker
+}
+
+func TestStoreLLMRelayEmbeddingsHonourTheBudget(t *testing.T) {
+	var upstreamCalls atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		upstreamCalls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"object":"list","data":[{"object":"embedding","index":0,"embedding":[0.5]}],"model":"embed-model","usage":{"prompt_tokens":500000,"total_tokens":500000}}`)
+	}))
+	defer upstream.Close()
+	s, tracker := newRelayBudgetServer(t, upstream.URL)
+	h := newStoreRelayTestHandler(s, &relayFakeVerifier{token: relayTestToken})
+	const body = `{"input":"hello"}`
+
+	// Usage reported by the provider is booked under the relay category.
+	rec := serveRelay(h, relayRequest(http.MethodPost, relayTestEmbed, relayTestToken, body))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if spent := tracker.CategorySpendUSD("store_relay"); spent < 0.99 || spent > 1.01 {
+		t.Fatalf("store_relay spend = %v, want about 1.0 (500000 tokens at 2 USD per million)", spent)
+	}
+
+	// The budget is now exceeded: the relay category is blocked before any upstream call.
+	if !tracker.IsBlocked("store_relay") {
+		t.Fatal("test setup: the budget should be exceeded and block the relay category")
+	}
+	before := upstreamCalls.Load()
+	rec = serveRelay(h, relayRequest(http.MethodPost, relayTestEmbed, relayTestToken, body))
+	if rec.Code != http.StatusTooManyRequests || decodeRelayError(t, rec).Error.Code != "budget_exceeded" {
+		t.Fatalf("blocked embeddings: status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if upstreamCalls.Load() != before {
+		t.Fatal("a blocked embeddings request reached the provider")
+	}
+	// Chat shares the gate.
+	rec = serveRelay(h, relayRequest(http.MethodPost, relayTestChat, relayTestToken, `{"messages":[{"role":"user","content":"hi"}]}`))
+	if rec.Code != http.StatusTooManyRequests || decodeRelayError(t, rec).Error.Code != "budget_exceeded" {
+		t.Fatalf("blocked chat: status = %d body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+// ── login requirement ────────────────────────────────────────────────────────
+
+func TestAuthBypassStoreLLMRelayLeavesEveryOtherRouteClosedForContainerHosts(t *testing.T) {
+	s, _, _ := newRelayRoutingServer(true) // login enabled with a password hash
+	reached := 0
+	mux := http.NewServeMux()
+	mux.Handle(storeLLMRelayAuthPrefix, newStoreRelayTestHandler(s, &relayFakeVerifier{token: relayTestToken}))
+	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+		reached++
+		w.WriteHeader(http.StatusAccepted)
+	})
+	handler := authMiddleware(s, mux)
+	do := func(host, method, path, token string) int {
+		req := httptest.NewRequest(method, path, strings.NewReader(`{}`))
+		req.Host = host
+		req.RemoteAddr = "172.17.0.2:51234"
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	for _, host := range []string{"127.0.0.1:8088", "localhost:8088", "host.docker.internal:8088"} {
+		for _, path := range []string{"/api/config", "/api/desktop/store/apps"} {
+			if code := do(host, http.MethodGet, path, ""); code != http.StatusUnauthorized {
+				t.Fatalf("Host %q %s without a session: status = %d, want 401", host, path, code)
+			}
+			// The Store token opens the relay only, never another route.
+			if code := do(host, http.MethodGet, path, relayTestToken); code != http.StatusUnauthorized && code != http.StatusForbidden {
+				t.Fatalf("Host %q %s with the Store token: status = %d, want it refused", host, path, code)
+			}
+		}
+		if code := do(host, http.MethodGet, relayTestModel, relayTestToken); code != http.StatusOK {
+			t.Fatalf("Host %q relay with a valid token: status = %d, want 200", host, code)
+		}
+		if code := do(host, http.MethodGet, relayTestModel, ""); code != http.StatusUnauthorized {
+			t.Fatalf("Host %q relay without a token: status = %d, want 401", host, code)
+		}
+	}
+	if reached != 0 {
+		t.Fatalf("%d requests reached a non-relay handler without a session", reached)
 	}
 }

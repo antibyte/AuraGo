@@ -44,6 +44,14 @@ func (p storeLLMRelayProvider) RelayInfo(_ context.Context, _ string) (desktopst
 	if cfg == nil || client == nil || strings.TrimSpace(cfg.LLM.Model) == "" {
 		return desktopstore.RelayInfo{}, errors.New("no main LLM is configured in AuraGo; set up a provider and model under Config > Providers first")
 	}
+	// The container can reach the AuraGo address and send any Host header, so
+	// the Host guard that protects a login-less AuraGo from browsers does not
+	// stop it: without login every route would be open to the container. A
+	// dedicated relay listener would lift this requirement.
+	if !cfg.Auth.Enabled || cfg.Auth.PasswordHash == "" {
+		return desktopstore.RelayInfo{}, errors.New("DeepTutor needs AuraGo login to be enabled (Config > Auth): the DeepTutor container can reach the AuraGo address, " +
+			"and without login every AuraGo route would be open to it")
+	}
 	listener, err := storeRelayListener(cfg)
 	if err != nil {
 		return desktopstore.RelayInfo{}, err

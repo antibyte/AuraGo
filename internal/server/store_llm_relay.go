@@ -278,6 +278,11 @@ func (h *storeLLMRelay) handleChat(w http.ResponseWriter, r *http.Request) {
 		writeStoreRelayError(w, http.StatusBadRequest, "invalid_request_error", "invalid_request", "messages is required.")
 		return
 	}
+	if req.N > 1 {
+		// One call must not multiply its cost.
+		writeStoreRelayError(w, http.StatusBadRequest, "invalid_request_error", "invalid_request", "n must be 1")
+		return
+	}
 	cfg, client := h.server.chatRuntimeSnapshot()
 	model := ""
 	if cfg != nil {
@@ -287,8 +292,7 @@ func (h *storeLLMRelay) handleChat(w http.ResponseWriter, r *http.Request) {
 		writeStoreRelayError(w, http.StatusServiceUnavailable, "server_error", "llm_not_configured", "AuraGo has no LLM configured.")
 		return
 	}
-	if tracker := h.server.BudgetTracker; tracker != nil && tracker.IsBlocked(storeLLMRelayBudgetCategory) {
-		writeStoreRelayError(w, http.StatusTooManyRequests, "insufficient_quota", "budget_exceeded", "The AuraGo budget limit is reached.")
+	if h.budgetBlocked(w) {
 		return
 	}
 
@@ -325,6 +329,16 @@ func (h *storeLLMRelay) handleChat(w http.ResponseWriter, r *http.Request) {
 		resp.Choices = []openai.ChatCompletionChoice{}
 	}
 	writeStoreRelayJSON(w, http.StatusOK, resp)
+}
+
+// budgetBlocked answers 429 when AuraGo's budget enforcement blocks the relay
+// category. Chat and embeddings share it.
+func (h *storeLLMRelay) budgetBlocked(w http.ResponseWriter) bool {
+	if tracker := h.server.BudgetTracker; tracker != nil && tracker.IsBlocked(storeLLMRelayBudgetCategory) {
+		writeStoreRelayError(w, http.StatusTooManyRequests, "insufficient_quota", "budget_exceeded", "The AuraGo budget limit is reached.")
+		return true
+	}
+	return false
 }
 
 func (h *storeLLMRelay) streamChat(ctx context.Context, w http.ResponseWriter, r *http.Request, capture *llm.UsageCapture, client llm.ChatClient, cfg *config.Config, req openai.ChatCompletionRequest) {
@@ -481,9 +495,13 @@ func storeRelayEmbeddingsAvailable(cfg *config.Config) bool {
 }
 
 func (h *storeLLMRelay) handleEmbeddings(w http.ResponseWriter, r *http.Request) {
-	target, ok := storeRelayEmbeddingTargetFor(h.server.ConfigSnapshot())
+	cfg := h.server.ConfigSnapshot()
+	target, ok := storeRelayEmbeddingTargetFor(cfg)
 	if !ok {
 		writeStoreRelayError(w, http.StatusNotFound, "invalid_request_error", "embeddings_unavailable", "AuraGo has no external OpenAI-compatible embedding provider configured.")
+		return
+	}
+	if h.budgetBlocked(w) {
 		return
 	}
 	release, ok := h.acquire(w)
@@ -552,9 +570,35 @@ func (h *storeLLMRelay) handleEmbeddings(w http.ResponseWriter, r *http.Request)
 		writeStoreRelayError(w, http.StatusBadGateway, "server_error", "upstream_error", "The embedding provider returned an unusable response.")
 		return
 	}
+	h.recordEmbeddingUsage(cfg, target.Model, data)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(data)
+}
+
+// recordEmbeddingUsage books the provider-reported token count (prompt_tokens,
+// else total_tokens) under the relay budget category and logs the count only.
+func (h *storeLLMRelay) recordEmbeddingUsage(cfg *config.Config, model string, response []byte) {
+	var body struct {
+		Usage struct {
+			PromptTokens int `json:"prompt_tokens"`
+			TotalTokens  int `json:"total_tokens"`
+		} `json:"usage"`
+	}
+	if json.Unmarshal(response, &body) != nil {
+		return
+	}
+	tokens := body.Usage.PromptTokens
+	if tokens <= 0 {
+		tokens = body.Usage.TotalTokens
+	}
+	if tokens <= 0 {
+		return
+	}
+	if tracker := h.server.BudgetTracker; tracker != nil && cfg != nil {
+		tracker.RecordResponseUsage(storeLLMRelayBudgetCategory, cfg.Embeddings.ProviderType, model, nil, tokens, 0, true)
+	}
+	h.log().Info("[StoreLLMRelay] embeddings finished", "app", storeLLMRelayAppID, "prompt_tokens", tokens)
 }
 
 // ── errors ───────────────────────────────────────────────────────────────────

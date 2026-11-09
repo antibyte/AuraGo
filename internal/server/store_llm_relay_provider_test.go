@@ -20,6 +20,7 @@ func setStoreRelayGOOS(t *testing.T, goos string) {
 func relayProviderServer(mutate func(*config.Config)) *Server {
 	return newStoreRelayServer(&relayFakeClient{}, func(c *config.Config) {
 		c.Server.Host = "0.0.0.0"
+		c.Auth.Enabled, c.Auth.PasswordHash = true, "configured"
 		if mutate != nil {
 			mutate(c)
 		}
@@ -119,7 +120,9 @@ func TestStoreRelayProviderNeedsAMainLLM(t *testing.T) {
 	setStoreRelayGOOS(t, "linux")
 	for name, server := range map[string]*Server{
 		"no model":  relayProviderServer(func(c *config.Config) { c.LLM.Model = " " }),
-		"no client": newStoreRelayServer(nil, func(c *config.Config) { c.Server.Host = "0.0.0.0" }),
+		"no client": newStoreRelayServer(nil, func(c *config.Config) {
+			c.Server.Host, c.Auth.Enabled, c.Auth.PasswordHash = "0.0.0.0", true, "configured"
+		}),
 	} {
 		_, err := storeLLMRelayProvider{s: server}.RelayInfo(context.Background(), "")
 		if err == nil || !strings.Contains(err.Error(), "Config > Providers") {
@@ -156,5 +159,25 @@ func TestStoreRelayProviderReportsModelCapabilities(t *testing.T) {
 	})
 	if info, err = (storeLLMRelayProvider{s: server}).RelayInfo(context.Background(), ""); err != nil || info.ContextWindow != 0 {
 		t.Fatalf("unknown provider: info = %+v err = %v", info, err)
+	}
+}
+
+func TestStoreRelayProviderNeedsAnEffectiveLogin(t *testing.T) {
+	for _, goos := range []string{"linux", "windows", "darwin"} {
+		setStoreRelayGOOS(t, goos)
+		for name, mutate := range map[string]func(*config.Config){
+			"login disabled":           func(c *config.Config) { c.Auth.Enabled, c.Auth.PasswordHash = false, "configured" },
+			"login disabled, no hash":  func(c *config.Config) { c.Auth.Enabled, c.Auth.PasswordHash = false, "" },
+			"enabled without password": func(c *config.Config) { c.Auth.Enabled, c.Auth.PasswordHash = true, "" },
+		} {
+			_, err := storeLLMRelayProvider{s: relayProviderServer(mutate)}.RelayInfo(context.Background(), "")
+			if err == nil || !strings.Contains(err.Error(), "login") || !strings.Contains(err.Error(), "Config > Auth") {
+				t.Fatalf("%s on %s: err = %v, want the login requirement", name, goos, err)
+			}
+		}
+		info, err := storeLLMRelayProvider{s: relayProviderServer(nil)}.RelayInfo(context.Background(), "")
+		if err != nil || info.BaseURL == "" {
+			t.Fatalf("login enabled with a password on %s: info = %+v err = %v", goos, info, err)
+		}
 	}
 }
