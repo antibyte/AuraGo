@@ -103,7 +103,9 @@ type Browsers struct {
 
 	probeMu sync.Mutex
 	probes  map[string]probeResult
-	dlMu    sync.Mutex
+	// dl is the download lock: a buffer of one, held while a job installs the pinned Chromium. A channel and not a mutex,
+	// so that a job waiting for the lock can give up when its context ends.
+	dl chan struct{}
 }
 
 type probeResult struct {
@@ -117,7 +119,7 @@ func NewBrowsers(dir string) *Browsers {
 	return &Browsers{
 		dir: dir, lookPath: launcher.LookPath, launchProbe: probeLaunch,
 		client: &http.Client{Timeout: 0}, pins: pinnedChromium, platform: runtime.GOOS + "_" + runtime.GOARCH,
-		probes: map[string]probeResult{},
+		probes: map[string]probeResult{}, dl: make(chan struct{}, 1),
 	}
 }
 
@@ -372,10 +374,15 @@ func probeLaunch(ctx context.Context, bin string) (string, error) {
 }
 
 // install downloads the pinned archive, verifies its SHA-256, unpacks it next to the final folder
-// and moves it into place. A verified install carries a marker with the archive hash.
+// and moves it into place. A verified install carries a marker with the archive hash. Only one install runs at a time; a
+// caller that waits for the lock gives up with the error of its context when that ends first.
 func (b *Browsers) install(ctx context.Context, pin PinnedChromium, progress BrowserProgress) (string, error) {
-	b.dlMu.Lock()
-	defer b.dlMu.Unlock()
+	select {
+	case b.dl <- struct{}{}:
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
+	defer func() { <-b.dl }()
 	if exe, ok := b.pinnedInstalled(); ok {
 		return exe, nil // another job finished the install while this one waited
 	}

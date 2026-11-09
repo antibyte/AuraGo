@@ -655,15 +655,22 @@ func (j *storymakerAgentJob) keepAnswer(answer string) {
 	j.summary = answer
 }
 
-// storymakerBrowserMaxAttempts is how often one job asks for the browser: the first check round and one later round.
+// storymakerBrowserMaxAttempts is how often one job may ask for the browser: in its first check round and again in a later
+// round (a revise job has more than one). It is a cap on the asking, not a promise of two attempts: a ready browser, a
+// read-only desktop, a stopped job or the runtime's back-off after a failed setup each end the asking early.
 const storymakerBrowserMaxAttempts = 2
 
 // ensureBrowser makes the browser for the compile check ready, downloading the pinned Chromium when only that is left, as
 // the export does. It is bound by render.timeout_seconds. A read-only desktop gets no download, a stopped job logs nothing,
 // and a failure is logged with the browser's own status text (which can name paths, so it never goes into an event or the
-// job document). The job then goes on, and the check reports compile_unverified with the reason code.
+// job document). A failure also starts the runtime's back-off, so the jobs after it do not repeat the download for
+// storymakerBrowserBackoff; a ready browser ends it. The job then goes on, and the check reports compile_unverified with the
+// reason code.
 func (j *storymakerAgentJob) ensureBrowser(ctx context.Context) {
-	if j.browserReady || j.browserAttempts >= storymakerBrowserMaxAttempts || ctx.Err() != nil || j.rt.browsers == nil {
+	if j.browserReady || j.browserAttempts >= storymakerBrowserMaxAttempts || ctx.Err() != nil || j.rt == nil {
+		return
+	}
+	if j.rt.browserBackedOff(time.Now()) || j.rt.browsers == nil {
 		return
 	}
 	if j.deps.ReadOnly != nil && j.deps.ReadOnly() {
@@ -689,11 +696,13 @@ func (j *storymakerAgentJob) ensureBrowser(ctx context.Context) {
 	}
 	if status.Ready {
 		j.browserReady = true
+		j.rt.browserRetryAfter.Store(0)
 		if j.studio != nil {
 			j.studio.ForgetCompile() // an "unavailable" compile kept for this story version must not hide the ready browser
 		}
 		return
 	}
+	j.rt.noteBrowserFailure(time.Now())
 	j.logger.Warn("[Storymaker] The browser for the agent's compile check is not ready", "job_id", j.job.ID, "source", status.Source, "can_download", status.CanDownload, "issue", status.Issue)
 }
 

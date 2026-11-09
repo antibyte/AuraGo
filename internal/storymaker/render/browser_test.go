@@ -410,6 +410,54 @@ func TestPinnedChromiumDownloadGivesUpOnAStalledConnection(t *testing.T) {
 	}
 }
 
+// A job that waits for the download lock gives up with the error of its context and does not take the lock away from the
+// job that holds it.
+func TestPinnedChromiumDownloadWaitObeysTheContext(t *testing.T) {
+	archive := fakeChromiumZip(t, "chrome-x", nil)
+	srv := serveArchive(t, archive)
+	b, _ := newTestBrowsers(t)
+	pin := pinFor(srv.URL, archive)
+	b.pins = map[string]PinnedChromium{b.platform: pin}
+	b.dl <- struct{}{} // another job is downloading
+
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	done := make(chan error, 1)
+	go func() { _, err := b.install(cancelled, pin, nil); done <- err }()
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("install with a cancelled context = %v, want context.Canceled", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("install waited for the download lock although its context was cancelled")
+	}
+
+	// Through Ensure a deadline ends the wait the same way, and the status says why.
+	short, cancelShort := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancelShort()
+	start := time.Now()
+	st, bin := b.Ensure(short, "", nil)
+	if st.Ready || bin != "" || !strings.Contains(st.Issue, "deadline exceeded") {
+		t.Fatalf("Ensure behind a held lock: %+v %q", st, bin)
+	}
+	if took := time.Since(start); took > 5*time.Second {
+		t.Fatalf("Ensure waited %s for the held lock", took)
+	}
+	if len(b.dl) != 1 {
+		t.Fatal("a caller that gave up must leave the lock with its holder")
+	}
+
+	// Once the holder is done, a caller that does not cancel installs as before.
+	<-b.dl
+	if st, bin := b.Ensure(context.Background(), "", nil); !st.Ready || bin == "" {
+		t.Fatalf("Ensure with a free lock: %+v %q", st, bin)
+	}
+	if len(b.dl) != 0 {
+		t.Fatal("the install must release the lock")
+	}
+}
+
 // The stall limit is an idle limit, not a deadline for the whole download: a slow link that keeps
 // delivering must finish.
 func TestPinnedChromiumDownloadKeepsASlowConnectionAlive(t *testing.T) {

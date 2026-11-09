@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/config"
@@ -57,6 +58,24 @@ type storymakerRuntime struct {
 
 	musicMu      sync.Mutex
 	musicResults map[string]string // project id + music key -> result path, for a paid result whose pending file was not written
+
+	// browserRetryAfter is the time (unix nanoseconds) before which no agent job asks for the browser again, after a setup
+	// that failed. Zero means no back-off.
+	browserRetryAfter atomic.Int64
+}
+
+// storymakerBrowserBackoff is how long the agent jobs leave the browser alone after a failed setup, so that a job queue does
+// not repeat a download that cannot work.
+const storymakerBrowserBackoff = 15 * time.Minute
+
+// browserBackedOff says whether a failed browser setup still holds the agent jobs back at now.
+func (rt *storymakerRuntime) browserBackedOff(now time.Time) bool {
+	return now.UnixNano() < rt.browserRetryAfter.Load()
+}
+
+// noteBrowserFailure starts the back-off after a browser setup that failed at now.
+func (rt *storymakerRuntime) noteBrowserFailure(now time.Time) {
+	rt.browserRetryAfter.Store(now.Add(storymakerBrowserBackoff).UnixNano())
 }
 
 // storymakerUIFiles returns the ui tree the catalog and the player bundles are read from: the
