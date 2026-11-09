@@ -2,6 +2,8 @@ package render
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -64,5 +66,62 @@ func TestBootDocAsksForLayoutOnlyWhenTheParamsDo(t *testing.T) {
 	_ = json.Unmarshal(off, &m)
 	if _, present := m["layout"]; present {
 		t.Fatalf("an export's boot.json must not mention layout: %s", off)
+	}
+}
+
+// The ids in a layout block are strings the page wrote. They reach the model through the findings, so they lose the render
+// prefix and token like every other page text, and the number of boxes per block is bounded.
+func TestSummarizeCompileReportCleansAndBoundsTheLayoutBlocks(t *testing.T) {
+	want := reportExpectation()
+	want.Prefix, want.Token = "/r/job-7f3a/", "tok9d2c"
+	box := []float64{0.1, 0.1, 0.1, 0.1}
+	many := func(n int, mk func(i int) map[string]any) []any {
+		out := make([]any, 0, n)
+		for i := 0; i < n; i++ {
+			out = append(out, mk(i))
+		}
+		return out
+	}
+	m := goodReport()
+	m["layout"] = []any{
+		map[string]any{"id": "s1", "index": 0, "hold_s": 1,
+			"actors": []any{
+				map[string]any{"id": "an" + want.Token + "na", "box": box},
+				map[string]any{"id": "ben" + want.Prefix, "box": box},
+				map[string]any{"id": strings.Repeat("x", 100), "box": box},
+			},
+			"props": []any{map[string]any{"id": "p" + want.Prefix + "1", "item": "prop." + want.Token + "lock", "scale": 1, "box": box}},
+			"texts": []any{map[string]any{"id": "t" + want.Token + want.Prefix + "1", "box": box}}},
+		map[string]any{"id": "s2", "index": 1, "hold_s": 1,
+			"actors": many(100, func(i int) map[string]any { return map[string]any{"id": fmt.Sprintf("a%d", i), "box": box} }),
+			"props": many(100, func(i int) map[string]any {
+				return map[string]any{"id": fmt.Sprintf("p%d", i), "item": "prop.lock", "box": box}
+			}),
+			"texts": many(100, func(i int) map[string]any { return map[string]any{"id": fmt.Sprintf("t%d", i), "box": box} })},
+	}
+	body, err := json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := summarizeCompileReport(body, want, 0)
+	if !got.Available || len(got.Layout) != 2 {
+		t.Fatalf("summary = %+v", got)
+	}
+	first := got.Layout[0]
+	if first.Actors[0].ID != "anna" || first.Actors[1].ID != "ben" || first.Actors[2].ID != strings.Repeat("x", 60)+"..." {
+		t.Fatalf("actor ids: %+v", first.Actors)
+	}
+	if first.Props[0].ID != "p1" || first.Props[0].Item != "prop.lock" || first.Texts[0].ID != "t1" {
+		t.Fatalf("prop and text ids: %+v %+v", first.Props, first.Texts)
+	}
+	if first.Actors[0].Box != [4]float64{0.1, 0.1, 0.1, 0.1} || first.Props[0].Scale != 1 {
+		t.Fatalf("the geometry stays: %+v", first)
+	}
+	second := got.Layout[1]
+	if len(second.Actors) != 64 || len(second.Props) != 64 || len(second.Texts) != 64 {
+		t.Fatalf("a block is cut to 64 boxes: %d actors, %d props, %d texts", len(second.Actors), len(second.Props), len(second.Texts))
+	}
+	if second.Actors[63].ID != "a63" || second.Props[0].ID != "p0" || second.Texts[63].ID != "t63" {
+		t.Fatalf("the first 64 are kept: %+v", second.Actors[63])
 	}
 }

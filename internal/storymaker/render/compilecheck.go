@@ -238,10 +238,12 @@ func summarizeCompileReport(body []byte, want reportExpect, frameLimit int) stor
 		}
 	}
 	var layout []storymaker.LayoutScene
+	kept := map[string]bool{}
 	for _, block := range rep.Layout {
 		// The page is trusted for geometry only: a block for a scene the story does not have, or a second one, is dropped.
-		if known[block.ID] && !slices.ContainsFunc(layout, func(l storymaker.LayoutScene) bool { return l.ID == block.ID }) {
-			layout = append(layout, block)
+		if known[block.ID] && !kept[block.ID] {
+			kept[block.ID] = true
+			layout = append(layout, cleanLayoutScene(block, want))
 		}
 	}
 	for _, sc := range rep.Scenes {
@@ -255,6 +257,29 @@ func summarizeCompileReport(body []byte, want reportExpect, frameLimit int) stor
 		Available: true, DurationMS: compileFrameMS(rep.FrameCount, want.FPS), Scenes: scenes, Issues: issues,
 		Layout: layout, StoryboardScenes: storyboard, CodeScenes: code, LayoutError: clip(rep.LayoutError, 200),
 	}
+}
+
+// layoutMaxBoxes bounds the actors, props and texts the page may report for one scene. A story holds far fewer.
+const layoutMaxBoxes = 64
+
+// cleanLayoutScene removes the render secrets from the ids the page wrote into a layout block and bounds their length and
+// their number. The boxes and numbers stay: they are geometry, and Go decides what they mean.
+func cleanLayoutScene(block storymaker.LayoutScene, want reportExpect) storymaker.LayoutScene {
+	block.ID = want.clean(block.ID, 60)
+	block.Actors = slices.Clone(block.Actors[:min(len(block.Actors), layoutMaxBoxes)])
+	for i := range block.Actors {
+		block.Actors[i].ID = want.clean(block.Actors[i].ID, 60)
+	}
+	block.Props = slices.Clone(block.Props[:min(len(block.Props), layoutMaxBoxes)])
+	for i := range block.Props {
+		block.Props[i].ID = want.clean(block.Props[i].ID, 60)
+		block.Props[i].Item = want.clean(block.Props[i].Item, 60)
+	}
+	block.Texts = slices.Clone(block.Texts[:min(len(block.Texts), layoutMaxBoxes)])
+	for i := range block.Texts {
+		block.Texts[i].ID = want.clean(block.Texts[i].ID, 60)
+	}
+	return block
 }
 
 // cleanCompileIssues removes the render secrets from the page's text and bounds it. An error issue becomes compile_failed
