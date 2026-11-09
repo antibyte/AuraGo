@@ -119,7 +119,7 @@ func TestStoreRelayProviderRejectsHTTPSOnlyListeners(t *testing.T) {
 func TestStoreRelayProviderNeedsAMainLLM(t *testing.T) {
 	setStoreRelayGOOS(t, "linux")
 	for name, server := range map[string]*Server{
-		"no model":  relayProviderServer(func(c *config.Config) { c.LLM.Model = " " }),
+		"no model": relayProviderServer(func(c *config.Config) { c.LLM.Model = " " }),
 		"no client": newStoreRelayServer(nil, func(c *config.Config) {
 			c.Server.Host, c.Auth.Enabled, c.Auth.PasswordHash = "0.0.0.0", true, "configured"
 		}),
