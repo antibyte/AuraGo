@@ -321,10 +321,7 @@ func (s *Studio) runCheck(ctx context.Context) (CheckReport, string, error) {
 	}
 	summary, state, environment := s.compileForCheck(ctx, etag)
 	found = append(found, checkCompileIssues(summary.Issues)...)
-	found = append(found, LayoutIssues(summary.Layout, LayoutOptions{
-		CaptionRule:   story.Style.Compose == "v2" && story.Style.Captions && story.Format.Aspect != "9:16",
-		CaptionExempt: captionExemptScenes(&story),
-	})...)
+	found = append(found, LayoutIssues(summary.Layout, StoryLayoutOptions(&story))...)
 	found = append(found, LookAlikeIssues(summary.Stills)...)
 	found = append(found, LintForJob(&story)...)
 	found = append(found, s.craftIssues(ctx, &story)...)
@@ -352,6 +349,16 @@ func (s *Studio) runCheck(ctx context.Context) (CheckReport, string, error) {
 	}
 	report.RoundsLeft = max(0, StudioCheckRounds-s.checkRounds)
 	return report, etag, nil
+}
+
+// StoryLayoutOptions are the layout rules the agent's check runs for a story that is decoded and has its defaults applied: the
+// caption rule for a composition v2 film with captions in 16:9 or 1:1, and the scenes it skips. The check and the real-browser
+// test of the stills both take them from here, so the test runs the rule the agent runs.
+func StoryLayoutOptions(story *Story) LayoutOptions {
+	return LayoutOptions{
+		CaptionRule:   story.Style.Compose == "v2" && story.Style.Captions && story.Format.Aspect != "9:16",
+		CaptionExempt: captionExemptScenes(story),
+	}
 }
 
 // captionExemptScenes names the scenes the caption rule skips: the player keeps the feet above the caption box only for the

@@ -30,7 +30,7 @@ const (
 	stillsThumbStep      = 60
 
 	// MaxStillBytes bounds one PNG still (a 1920x1080 screenshot is far below it) and maxStillPixels its width times its height,
-	// so a still cannot make the decoder allocate more than a few hundred megabytes.
+	// so a still cannot make the decoder allocate more than about 130 MB (at most eight bytes a pixel).
 	MaxStillBytes  = 8 << 20
 	maxStillPixels = 16_000_000
 

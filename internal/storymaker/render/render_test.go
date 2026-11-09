@@ -89,6 +89,8 @@ type fakePage struct {
 	crashed chan struct{}
 	closed  atomic.Bool
 	capture func(n int) []byte
+	// captureFail, when set and not nil for a frame, is the error of that Capture: the picture of capture is not used.
+	captureFail func(n int) error
 }
 
 func (p *fakePage) Navigate(ctx context.Context, u string) error {
@@ -100,6 +102,11 @@ func (p *fakePage) WaitReady(context.Context) error { return nil }
 func (p *fakePage) Crashed() <-chan struct{}        { return p.crashed }
 func (p *fakePage) Close()                          { p.closed.Store(true) }
 func (p *fakePage) Capture(_ context.Context, n int) ([]byte, error) {
+	if p.captureFail != nil {
+		if err := p.captureFail(n); err != nil {
+			return nil, err
+		}
+	}
 	if p.capture == nil {
 		return nil, errors.New("no capture")
 	}

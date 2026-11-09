@@ -49,7 +49,8 @@ func TestCompileCheckStillsOfTheRealRuns(t *testing.T) {
 		{"firewall-v2", "agent-firewall-run", "v2"},
 		{"varied-v2", "agent-varied", "v2"},
 	} {
-		if _, err := fx.projects.SaveStory(ctx, fx.projectID, load(tc.story, tc.compose), ""); err != nil {
+		doc := load(tc.story, tc.compose)
+		if _, err := fx.projects.SaveStory(ctx, fx.projectID, doc, ""); err != nil {
 			t.Fatal(err)
 		}
 		settings := fx.settings
@@ -69,7 +70,21 @@ func TestCompileCheckStillsOfTheRealRuns(t *testing.T) {
 		for i := 1; i < len(got.Stills); i++ {
 			t.Logf("%s: scenes %s and %s differ by %d of 64 bits", tc.name, got.Stills[i-1].SceneID, got.Stills[i].SceneID, storymaker.HashDistance(got.Stills[i-1].Hash, got.Stills[i].Hash))
 		}
-		issues := storymaker.LayoutIssues(got.Layout, storymaker.LayoutOptions{CaptionRule: true})
+		// The agent's check runs the layout rules with the options of the story it decodes: take them from the same helper, so the
+		// scenes whose camera the player does not make caption-safe are skipped here too.
+		story, _, err := storymaker.DecodeStory(doc, storymaker.DefaultLimits())
+		if err != nil {
+			t.Fatal(err)
+		}
+		storymaker.ApplyDefaults(&story)
+		opts := storymaker.StoryLayoutOptions(&story)
+		if tc.compose == "" {
+			// The agent runs the caption rule on composition v2 films only. The v1 case turns it on to show the geometry it exists for.
+			opts.CaptionRule = true
+		} else if !opts.CaptionRule {
+			t.Fatalf("%s: the agent's check would not run the caption rule on this story", tc.name)
+		}
+		issues := storymaker.LayoutIssues(got.Layout, opts)
 		overlaps, others := 0, 0
 		for _, is := range issues {
 			if is.Code == storymaker.CodeCaptionOverlap {

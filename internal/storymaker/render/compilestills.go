@@ -59,12 +59,20 @@ func (r *Runner) captureStills(ctx context.Context, page browserPage, summary *s
 			r.deps.Logger.Warn("[Storymaker] A still could not be captured", "frame", n, "error", err)
 			return
 		}
+		// The page is trusted for nothing: a screenshot over the byte cap is dropped like a failed capture, before any decoding.
+		if len(data) > storymaker.MaxStillBytes {
+			r.deps.Logger.Warn("[Storymaker] A still is over the size limit", "frame", n, "bytes", len(data), "limit", storymaker.MaxStillBytes)
+			return
+		}
 		pngs = append(pngs, data)
 	}
 	sheet, stills, err := storymaker.BuildStills(ids, indexes, pngs)
 	if err != nil {
 		r.deps.Logger.Warn("[Storymaker] The stills could not be assembled", "error", err)
 		return
+	}
+	if len(sheet) == 0 {
+		r.deps.Logger.Warn("[Storymaker] The contact sheet would be too large and was left out; the hashes stay", "stills", len(stills))
 	}
 	summary.Sheet, summary.Stills = sheet, stills
 }

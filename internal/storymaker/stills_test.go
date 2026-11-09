@@ -277,8 +277,11 @@ func TestContactSheetStaysWithinThePixelBudget(t *testing.T) {
 
 // A still over 8 MB, or over 16 million pixels, is refused before it is decoded.
 func TestStillsRefuseOversizedPNGs(t *testing.T) {
-	tooBig := make([]byte, MaxStillBytes+1)
-	copy(tooBig, "\x89PNG\r\n\x1a\n")
+	// A complete PNG followed by padding: the decoder would take it, so only the cap refuses it.
+	tooBig := append(stillPNG(t, true, false), make([]byte, MaxStillBytes)...)
+	if _, err := png.Decode(bytes.NewReader(tooBig)); err != nil {
+		t.Fatalf("the padded still must be a valid PNG for the decoder: %v", err)
+	}
 	tooWide := grayPNG(t, 4100, 4100) // 16.8 million pixels in a few hundred bytes
 	for name, data := range map[string][]byte{"too many bytes": tooBig, "too many pixels": tooWide} {
 		if _, err := DifferenceHash(data); err == nil {
