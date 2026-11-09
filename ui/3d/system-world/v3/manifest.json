@@ -1,0 +1,445 @@
+{
+  "schema_version": 3,
+  "version": "3.0.0",
+  "license": "MIT",
+  "generator": "Blender 5.2.2 LTS / build_world3.py",
+  "units": "metres",
+  "up_axis": "Y",
+  "sources": {
+    "kit3.py": "197d279ca714fe2401e1c0e14cb20be64eea3bdbd2519916e13f4258c6af4977",
+    "build_world3.py": "ab83b0abe56f4514f53f1eef78031de29b0fb6cf437b0764f602b72f57f0ab58",
+    "street_assets3.py": "26f8d0e7d515516c19c510f4eb1880644818ff0d9b11fc8095314a294a729fc1"
+  },
+  "assets": [
+    {
+      "id": "street-plain",
+      "name": "Street module, 4 m",
+      "category": "street",
+      "lods": [
+        {
+          "file": "street-plain.lod0.glb",
+          "triangles": 354,
+          "bounds": {
+            "min": [
+              -2,
+              -0.14,
+              -6
+            ],
+            "max": [
+              2,
+              0,
+              6
+            ]
+          },
+          "level": 0,
+          "bytes": 7816,
+          "sha256": "88084c683e8f2da19d1482607190770512866618be95fefb66653cc7d8df51a5"
+        },
+        {
+          "file": "street-plain.lod1.glb",
+          "triangles": 136,
+          "bounds": {
+            "min": [
+              -2,
+              -0.14,
+              -6
+            ],
+            "max": [
+              2,
+              0,
+              6
+            ]
+          },
+          "level": 1,
+          "bytes": 6200,
+          "sha256": "6542fdaa6c5e895d880da9d7a176186323c2d8200a00bef790878c7afe6f2d1c"
+        },
+        {
+          "file": "street-plain.lod2.glb",
+          "triangles": 42,
+          "bounds": {
+            "min": [
+              -2,
+              -0.14,
+              -6
+            ],
+            "max": [
+              2,
+              0,
+              6
+            ]
+          },
+          "level": 2,
+          "bytes": 5372,
+          "sha256": "fc476868eec43a6ce74e0e0be4aa64fb764406bb9b22bc2d4bfe1851365d9cf0"
+        }
+      ],
+      "components": [
+        "structure"
+      ],
+      "navigation": {
+        "colliders": []
+      },
+      "animations": []
+    },
+    {
+      "id": "street-drain",
+      "name": "Street module with gutter drains and manhole, 4 m",
+      "category": "street",
+      "lods": [
+        {
+          "file": "street-drain.lod0.glb",
+          "triangles": 1026,
+          "bounds": {
+            "min": [
+              -2,
+              -0.152,
+              -6
+            ],
+            "max": [
+              2,
+              0,
+              6
+            ]
+          },
+          "level": 0,
+          "bytes": 12600,
+          "sha256": "aa87dab7d6a3adb24ee0b3d78eca4a6228b068d57a297374ec0c6b37b6cc01e7"
+        },
+        {
+          "file": "street-drain.lod1.glb",
+          "triangles": 298,
+          "bounds": {
+            "min": [
+              -2,
+              -0.14,
+              -6
+            ],
+            "max": [
+              2,
+              0,
+              6
+            ]
+          },
+          "level": 1,
+          "bytes": 8216,
+          "sha256": "e92ae212867f027c7352af3580973e6f827dcddd433766f44516374d6e865955"
+        },
+        {
+          "file": "street-drain.lod2.glb",
+          "triangles": 42,
+          "bounds": {
+            "min": [
+              -2,
+              -0.14,
+              -6
+            ],
+            "max": [
+              2,
+              0,
+              6
+            ]
+          },
+          "level": 2,
+          "bytes": 5372,
+          "sha256": "64d410c874cd323632a753b55d907285f14ec59366fd245a7df4720ed8587b04"
+        }
+      ],
+      "components": [
+        "structure"
+      ],
+      "navigation": {
+        "colliders": []
+      },
+      "animations": []
+    },
+    {
+      "id": "street-zebra",
+      "name": "Pedestrian crossing with dropped kerbs, 4 m",
+      "category": "street",
+      "lods": [
+        {
+          "file": "street-zebra.lod0.glb",
+          "triangles": 1058,
+          "bounds": {
+            "min": [
+              -2,
+              -0.14,
+              -6
+            ],
+            "max": [
+              2,
+              0.007,
+              6
+            ]
+          },
+          "level": 0,
+          "bytes": 16412,
+          "sha256": "cc39f46a3def83bb0b9e13faaafdfb5cae8a923692bba3af48257b2871b5ca73"
+        },
+        {
+          "file": "street-zebra.lod1.glb",
+          "triangles": 346,
+          "bounds": {
+            "min": [
+              -2,
+              -0.14,
+              -6
+            ],
+            "max": [
+              2,
+              0,
+              6
+            ]
+          },
+          "level": 1,
+          "bytes": 8500,
+          "sha256": "8c2c802026cc14c00211a8f681cec5f092a86e5416318c74c4438a3724e5a65b"
+        },
+        {
+          "file": "street-zebra.lod2.glb",
+          "triangles": 194,
+          "bounds": {
+            "min": [
+              -2,
+              -0.14,
+              -6
+            ],
+            "max": [
+              2,
+              0,
+              6
+            ]
+          },
+          "level": 2,
+          "bytes": 7412,
+          "sha256": "d797a423524e2ac3f1a70cde946508c34f69a13d2c9f3cad09dfabb269793eb2"
+        }
+      ],
+      "components": [
+        "structure"
+      ],
+      "navigation": {
+        "colliders": []
+      },
+      "animations": []
+    },
+    {
+      "id": "street-fill",
+      "name": "Street filler module, 1 m",
+      "category": "street",
+      "lods": [
+        {
+          "file": "street-fill.lod0.glb",
+          "triangles": 114,
+          "bounds": {
+            "min": [
+              -0.5,
+              -0.14,
+              -6
+            ],
+            "max": [
+              0.5,
+              0,
+              6
+            ]
+          },
+          "level": 0,
+          "bytes": 5280,
+          "sha256": "3d903b769a22419690dde0a603d76c61b6bb1248d72481454c26f787bfaff9cc"
+        },
+        {
+          "file": "street-fill.lod1.glb",
+          "triangles": 34,
+          "bounds": {
+            "min": [
+              -0.5,
+              -0.14,
+              -6
+            ],
+            "max": [
+              0.5,
+              0,
+              6
+            ]
+          },
+          "level": 1,
+          "bytes": 4672,
+          "sha256": "97181c9afd8e2e5901e0c3ca8c115840828a27086738303bf88d03a9109f107e"
+        },
+        {
+          "file": "street-fill.lod2.glb",
+          "triangles": 30,
+          "bounds": {
+            "min": [
+              -0.5,
+              -0.14,
+              -6
+            ],
+            "max": [
+              0.5,
+              0,
+              6
+            ]
+          },
+          "level": 2,
+          "bytes": 4624,
+          "sha256": "4326dfd5c9c6f29ec8a819571e187471f4e97f92b275c86af6c316600dbd16f5"
+        }
+      ],
+      "components": [
+        "structure"
+      ],
+      "navigation": {
+        "colliders": []
+      },
+      "animations": []
+    },
+    {
+      "id": "street-crossing",
+      "name": "Four-way intersection, 12 m",
+      "category": "street",
+      "lods": [
+        {
+          "file": "street-crossing.lod0.glb",
+          "triangles": 1038,
+          "bounds": {
+            "min": [
+              -6,
+              -0.14,
+              -6
+            ],
+            "max": [
+              6,
+              0,
+              6
+            ]
+          },
+          "level": 0,
+          "bytes": 13480,
+          "sha256": "8c56aac87fd7448731e665d34f010cd4499cb90fe040d503f4f7094368cd2ecc"
+        },
+        {
+          "file": "street-crossing.lod1.glb",
+          "triangles": 424,
+          "bounds": {
+            "min": [
+              -6,
+              -0.14,
+              -6
+            ],
+            "max": [
+              6,
+              0,
+              6
+            ]
+          },
+          "level": 1,
+          "bytes": 9576,
+          "sha256": "e8d727986a68586bcb6cfd9715be7cd3b40deef25b82cf86d24080dcd7618cac"
+        },
+        {
+          "file": "street-crossing.lod2.glb",
+          "triangles": 202,
+          "bounds": {
+            "min": [
+              -6,
+              -0.14,
+              -6
+            ],
+            "max": [
+              6,
+              0,
+              6
+            ]
+          },
+          "level": 2,
+          "bytes": 6316,
+          "sha256": "d3d770292848788238ad92c8750103fbe9a5fc639b03708749add3da95a0b7ff"
+        }
+      ],
+      "components": [
+        "structure"
+      ],
+      "navigation": {
+        "colliders": []
+      },
+      "animations": []
+    },
+    {
+      "id": "street-end",
+      "name": "Street end kerb block",
+      "category": "street",
+      "lods": [
+        {
+          "file": "street-end.lod0.glb",
+          "triangles": 86,
+          "bounds": {
+            "min": [
+              -0.64,
+              -0.62,
+              -6
+            ],
+            "max": [
+              0,
+              0,
+              6
+            ]
+          },
+          "level": 0,
+          "bytes": 4020,
+          "sha256": "041c47fac761cdf93ae8ac7efebceccace2aaa1e1fba8ee9704311dc97b90ef1"
+        },
+        {
+          "file": "street-end.lod1.glb",
+          "triangles": 30,
+          "bounds": {
+            "min": [
+              -0.64,
+              -0.62,
+              -6
+            ],
+            "max": [
+              0,
+              0,
+              6
+            ]
+          },
+          "level": 1,
+          "bytes": 3424,
+          "sha256": "8dfcce9767aeb7a36a572573d3b9cdc7ded84dfd65419b441067709cf6b84cf3"
+        },
+        {
+          "file": "street-end.lod2.glb",
+          "triangles": 6,
+          "bounds": {
+            "min": [
+              -0.64,
+              -0.62,
+              -6
+            ],
+            "max": [
+              0,
+              0,
+              6
+            ]
+          },
+          "level": 2,
+          "bytes": 3100,
+          "sha256": "d97c396839afd298feb9fddf4d6c01c3d085c879239a9bb62c3bba7e6d782ac4"
+        }
+      ],
+      "components": [
+        "structure"
+      ],
+      "navigation": {
+        "colliders": []
+      },
+      "animations": []
+    }
+  ],
+  "compression": "EXT_meshopt_compression",
+  "pack": "gltfpack@1.3.0 -cc -kn -km -ke -kv",
+  "total_model_bytes": 132392,
+  "validator_errors": 0
+}
