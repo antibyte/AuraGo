@@ -189,6 +189,8 @@
             // audio addresses, only from values of the parent's own /narration answer; '' means refused
             narrationUrl(id, hash, ext) { return audioUrl(id, 'narration', hash, ext); },
             musicUrl(id, key, ext) { return audioUrl(id, 'music', key, ext); },
+            // the contact sheet of the agent's latest check; the file name is fixed by the server
+            reviewSheetUrl(id) { return BASE + '/projects/' + encodeURIComponent(id) + '/review/contact-sheet.png'; },
 
             // events(projectId, onJob, onState, onAgent) -> {close()}; onState('open' | 'error'); onAgent gets the body of each agent event
             events(projectId, onJob, onState, onAgent) {

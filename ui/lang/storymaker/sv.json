@@ -391,6 +391,7 @@
   "storymaker.agent.check_over_budget": "En scen har fler ord än planerat. Be författaren korta den.",
   "storymaker.agent.check_craft": "Filmen känns fortfarande likartad på en punkt: miljöer, kamera, gester eller rollbesättning. Titta på den en gång och justera scener om du vill.",
   "storymaker.agent.check_unknown": "Något behöver fortfarande ses över.",
+  "storymaker.agent.review_link": "Visa kontaktarket från den senaste kontrollen",
   "storymaker.agent.make_silent": "Exportera utan röst",
   "storymaker.agent.make_silent_done": "Talet är nu text på skärmen, och filmen kan exporteras.",
   "storymaker.agent.restore_speech": "Återställ tal",

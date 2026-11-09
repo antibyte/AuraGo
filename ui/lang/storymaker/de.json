@@ -391,6 +391,7 @@
   "storymaker.agent.check_over_budget": "Eine Szene hat mehr Wörter als geplant. Bitte den Autor, sie zu kürzen.",
   "storymaker.agent.check_craft": "Der Film wirkt in einem Punkt noch gleichförmig: Umgebungen, Kamera, Gesten oder Besetzung. Sieh ihn dir an und passe Szenen an, wenn du magst.",
   "storymaker.agent.check_unknown": "Etwas sollte noch geprüft werden.",
+  "storymaker.agent.review_link": "Kontaktbogen der letzten Prüfung ansehen",
   "storymaker.agent.make_silent": "Ohne Stimme exportieren",
   "storymaker.agent.make_silent_done": "Der Sprechtext steht jetzt als Text im Bild, und der Film kann exportiert werden.",
   "storymaker.agent.restore_speech": "Sprache wiederherstellen",

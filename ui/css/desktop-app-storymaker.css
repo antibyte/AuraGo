@@ -267,6 +267,7 @@ progress.stm-progress::-moz-progress-bar { background: var(--vd-mat-primary, var
 .stm-agent-outcome h3 { color: var(--vd-mat-heading-color, var(--vd-text)); font-size: 14px; }
 .stm-agent-check { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ds-space-2); font-size: 12px; }
 .stm-agent-check code { font-family: var(--stm-mono); }
+.stm-agent-review { display: inline-block; font-size: 12px; color: var(--ds-color-accent, currentColor); text-decoration: underline; }
 
 /* Export dialog */
 .stm-export-dialog { width: min(440px, calc(100vw - 32px)); max-height: min(80vh, 640px); padding: var(--ds-space-4); overflow: auto; border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border)); border-radius: var(--vd-mat-card-radius, var(--ds-radius-md)); background: var(--vd-mat-card, var(--vd-theme-panel-bg)); box-shadow: var(--vd-mat-card-shadow, 0 12px 32px color-mix(in srgb, var(--vd-text) 22%, transparent)); color: var(--vd-text); }

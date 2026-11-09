@@ -391,6 +391,7 @@
   "storymaker.agent.check_over_budget": "En scene har flere ord enn planlagt. Be forfatteren om å korte den ned.",
   "storymaker.agent.check_craft": "Filmen virker fortsatt ensartet på ett punkt: omgivelser, kamera, bevegelser eller rollebesetning. Se den én gang og juster scener om du vil.",
   "storymaker.agent.check_unknown": "Noe må fortsatt ses på.",
+  "storymaker.agent.review_link": "Se kontaktarket fra den siste kontrollen",
   "storymaker.agent.make_silent": "Eksporter uten stemme",
   "storymaker.agent.make_silent_done": "Talen er nå tekst på skjermen, og filmen kan eksporteres.",
   "storymaker.agent.restore_speech": "Gjenopprett tale",

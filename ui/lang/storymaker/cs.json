@@ -391,6 +391,7 @@
   "storymaker.agent.check_over_budget": "Scéna má více slov, než bylo plánováno. Požádejte autora, ať ji zkrátí.",
   "storymaker.agent.check_craft": "Film působí v jednom ohledu stále jednotvárně: prostředí, záběr, gesta nebo obsazení. Prohlédněte si ho a případně upravte scény.",
   "storymaker.agent.check_unknown": "Něco ještě potřebuje pozornost.",
+  "storymaker.agent.review_link": "Zobrazit kontaktní arch poslední kontroly",
   "storymaker.agent.make_silent": "Exportovat bez hlasu",
   "storymaker.agent.make_silent_done": "Řeč je teď text na obrazovce a film lze exportovat.",
   "storymaker.agent.restore_speech": "Obnovit řeč",

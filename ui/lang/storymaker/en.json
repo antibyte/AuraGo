@@ -391,6 +391,7 @@
   "storymaker.agent.check_over_budget": "A scene has more words than planned. Ask the author to shorten it.",
   "storymaker.agent.check_craft": "The film still looks alike in one respect: environments, framing, gestures or cast. Watch it once and adjust scenes if you like.",
   "storymaker.agent.check_unknown": "Something still needs a look.",
+  "storymaker.agent.review_link": "View the contact sheet of the last check",
   "storymaker.agent.make_silent": "Export without voice",
   "storymaker.agent.make_silent_done": "The speech is now on-screen text, and the film can be exported.",
   "storymaker.agent.restore_speech": "Restore speech",

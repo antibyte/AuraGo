@@ -391,6 +391,7 @@
   "storymaker.agent.check_over_budget": "シーンの語数が予定より多くなっています。作家に短縮を依頼してください。",
   "storymaker.agent.check_craft": "動画はまだ、環境・カメラ・ジェスチャー・キャストのいずれかで単調に見えます。一度ご覧になり、必要ならシーンを調整してください。",
   "storymaker.agent.check_unknown": "まだ確認が必要な点があります。",
+  "storymaker.agent.review_link": "直近のチェックのコンタクトシートを見る",
   "storymaker.agent.make_silent": "音声なしで書き出す",
   "storymaker.agent.make_silent_done": "音声は画面上の文字になり、映像を書き出せるようになりました。",
   "storymaker.agent.restore_speech": "音声を元に戻す",

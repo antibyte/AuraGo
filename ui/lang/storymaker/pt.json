@@ -391,6 +391,7 @@
   "storymaker.agent.check_over_budget": "Uma cena tem mais palavras do que o previsto. Peça ao autor que a encurte.",
   "storymaker.agent.check_craft": "O filme ainda parece uniforme num aspeto: cenários, enquadramento, gestos ou elenco. Veja-o uma vez e ajuste cenas se quiser.",
   "storymaker.agent.check_unknown": "Ainda há algo a verificar.",
+  "storymaker.agent.review_link": "Ver a folha de contactos da última verificação",
   "storymaker.agent.make_silent": "Exportar sem voz",
   "storymaker.agent.make_silent_done": "A fala é agora texto no ecrã, e o filme pode ser exportado.",
   "storymaker.agent.restore_speech": "Repor a fala",
