@@ -86,7 +86,13 @@ Most UI fixes are in the presentation layer. Most power fixes need small, bounde
    - pills, port labels and the status line render at 10.3 px or more, until the FD-04 compact tier (Wave 2) hides them.
 
    Checked by a computed-style browser test.
-2. **Colour means status.** In all 14 themes, every category, group and wire token keeps an OKLab distance of at least 0.12 from every status token at matching lightness, with chroma at most 0.08. Effect chips, the simulation frame, and selection and focus rings pass the same test. Every status also carries a glyph and a word from one status map. Checked by a token test plus a forced-colors check.
+2. **Colour means status, categories stay colourful.** Status colours appear only where state is shown: the card ring, wire states, chips, and the status glyph and word. Every status carries a glyph and a word from one status map. Categories are colourful, but only on the icon tile: a saturated tile with a light icon. This follows the owner's decision of 2026-11-10 for colourful categories rather than muted ones. The test, run in all 14 themes:
+   - Every coloured category tile keeps an OKLCH hue distance of at least 30° from every status hue of the theme.
+   - Every category tile keeps an OKLab distance of at least 0.20 from every status token. Tiles below chroma 0.05 (the neutral categories) are exempt from the hue rule.
+   - Group colours, wires, effect chips, the simulation frame, and selection and focus rings use tokens that pass the same distance test.
+   - A lint fails when a category colour appears outside the icon tile.
+
+   Checked by a token test plus a forced-colors check.
 3. **One next action.** Each screen has at most one filled primary button. Control positions before and after a run are equal at each width (x-positions compared at 390, 900 and 1440 px). Exactly one Stop is visible per window.
 4. **Safe by default.** Simulation is preselected whenever a flow has any effect, including unknown ones. Simulation makes zero invoker, vault or network calls (instrumented test). A real test always needs one explicit confirmation that lists every effect, and no keyboard shortcut starts or confirms one.
 5. **Real things, not ids.** The default sample, mapping and error views never show a node id or a bare FLOW_* code as the main text (unit and browser tests).
@@ -346,7 +352,7 @@ Pillars: ui, foundation, joy.
 **Goal.** Give every colour, token, status, icon, component, action and word exactly one meaning, guarded by tests across 14 themes and 16 locales.
 
 **What the user gets**
-- Red always means failed. Categories are muted hues, and a clean run looks clean (run-done).
+- Red always means failed. Each category keeps its own colour on the icon tile, from hues that never touch the status colours, and a clean run looks clean (run-done).
 - Every status reads the same everywhere: one glyph and one word, with "unklar" for anything uncertain.
 - Info boxes no longer look like input fields. One chevron disclosure replaces the native triangles.
 - Every rail icon has one meaning and a caption.
@@ -355,7 +361,7 @@ Pillars: ui, foundation, joy.
 
 **Scope**
 - [UI-03, FD-08] Two palettes and the token layer:
-  - six muted category hues plus two neutral categories; the icon tile carries category identity first;
+  - six saturated category hues on the icon tile only (in Standard dark: indigo for triggers, violet for AI, berry for messages, teal for web, petrol for the planner, olive for the smart home), a warm-neutral documents tile and two neutral categories (logic, tool). Hues stay outside a ±30° window around every status hue. Teal and petrol sit close together, so the icon carries that difference;
   - group colour names mapped to category hues;
   - neutral wires;
   - a neutral "unpublished" chip;
@@ -375,7 +381,7 @@ Pillars: ui, foundation, joy.
 
 **Acceptance criteria**
 - Colour tokens in all 14 themes:
-  - Every `--ed-cat-*` and group token keeps an OKLab distance of at least 0.12 from every status token at matching lightness, with chroma at most 0.08.
+  - Every coloured `--ed-cat-*` tile keeps an OKLCH hue distance of at least 30° from every status hue, and every category and group token keeps an OKLab distance of at least 0.20 from every status token (§2 principle 2). A lint fails when a category colour is used outside the icon tile.
   - Effect chips use neutral ink plus a glyph and never a warning token.
   - The simulation frame passes the same test. So do selection and focus rings in every theme whose accent falls within that distance.
   - Status ink reaches 4.5:1, and category tiles and icons 3:1.
@@ -1616,7 +1622,7 @@ Wave 5 is the most crowded power wave: three tracks and a migration. Its shared 
    - Trigger samples translated in all 16 locales.
 4. [UI-02] Card type: names 16 px, parameter lines 14 px upright, and captions, pills and port labels 12 px, so no canvas text is below 12 px at 100 %. The automatic-fit floor rises from 0.8 to 0.86.
 5. [UI-03] Two palettes:
-   - category, group, delivered-wire and unpublished-chip tokens move off the status hues: six muted hues plus two neutral categories, checked with the OKLab rule (§2 principle 2);
+   - category, group, delivered-wire and unpublished-chip tokens move off the status hues. Categories become six saturated hues on the icon tile only, plus a warm-neutral documents tile and two neutral categories (logic, tool). Delivered wires and the unpublished chip become neutral. All of it is checked with the hue-window and distance rule (§2 principle 2; colourful categories by the owner's decision of 2026-11-10);
    - stored group colour names keep their meaning in documents; only rendering changes.
 
 **Out of scope**
@@ -1636,7 +1642,7 @@ Wave 5 is the most crowded power wave: three tracks and a migration. Its shared 
   - at every automatic fit, on screen, names render at 13.8 px or more and parameter lines at 12 px or more, and captions, pills and port labels at 10.3 px or more;
   - none of the 12 recipe layouts overlaps;
   - each recipe step name at 16 px fits the card, or is truncated with an ellipsis and keeps the full name in the accessible name.
-- In Standard dark and Fruity light and dark, every category and group token passes the OKLab rule. Status ink reaches 4.5:1 and category tiles 3:1. The other 11 themes pass in a representative screenshot survey.
+- In Standard dark and Fruity light and dark, every category and group token passes the hue-window and distance rule (§2 principle 2), and no category colour appears outside the icon tile. Status ink reaches 4.5:1 and category tiles 3:1. The other 11 themes pass in a representative screenshot survey.
 - On the run-done fixture, no wire or card border uses a category colour.
 - The fence regression tests pass for route mode, evaluate mode and the uncertain port. The read_only refusal and the notes refusal are tested. No exported flow contains note text.
 - A flow with notify.telegram opens Test with Simulieren selected, and Enter never starts a real test.
@@ -1655,7 +1661,7 @@ Wave 5 is the most crowded power wave: three tracks and a migration. Its shared 
 - Regressions from the moves. Mitigation: one commit per module, a GitNexus impact check per moved function, and the full EasyDrag test set.
 - At the 0.86 floor, fewer cards fit when a flow opens. Check the groups-fifty fixture.
 - The colour change is visible in every flow. Mitigation: a before-and-after contact sheet reviewed by the owner.
-- The OKLab rule leaves less room for hues. The plan already drops to six hues plus two neutral categories, and the icon tile carries identity first.
+- Colourful tiles leave few free hues. The ±30° windows around the four status hues leave three bands: olive, teal to petrol, and indigo to berry. Six hues fit there. Teal and petrol are close, so the icon carries that difference. Light themes, and themes with their own status colours, need their own tile values, computed per theme in the lab. The Standard dark values were computed on 2026-11-10: tiles at OKLab L 0.46 sit 0.28–0.33 from the nearest status token.
 - The fields.js split touches the conditions editor that PE-15 extends in Wave 5. Mitigation: the split lands first, with its own impact check.
 - Other sessions commit in the same checkout. Mitigation: a dedicated worktree.
 
