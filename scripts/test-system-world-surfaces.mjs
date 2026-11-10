@@ -5,6 +5,7 @@ import fs from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import * as THREE from 'three';
 import {KINDS, WINDOWS, windowSeeds, createSurfaces} from '../ui/js/desktop/apps/sysworld-surfaces.js';
+import {WINDOW_MATERIAL} from '../ui/js/desktop/apps/sysworld-windows.js';
 import {sharedMaterialKey, kitPlacements} from '../ui/js/desktop/apps/sysworld-scene.js';
 
 const dir = 'ui/3d/system-world/textures/v1/';
@@ -27,7 +28,7 @@ assert.ok(total < 1.5 * 1024 * 1024, 'Surface textures exceed 1.5 MiB: ' + total
 // dim the glow instead of adding detail.
 const untextured = new Set(['city.garden-glass', 'city.cyan', 'city.jade', 'city.lantern-glow']);
 // Kit v3 window panes are interior-mapped by sysworld-windows.js, never by the surface maps.
-const windowPanes = new Set(['city.window']);
+const windowPanes = new Set([WINDOW_MATERIAL]);
 const names = new Set();
 for (const kit of ['v1', 'v2', 'v3']) {
   const files = await fs.readdir(`ui/3d/system-world/${kit}`).catch(() => []);

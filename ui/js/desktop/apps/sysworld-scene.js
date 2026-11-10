@@ -24,6 +24,7 @@ import { createContactShadows } from './sysworld-contact.js';
 import {createTraffic,fixedSteps} from './sysworld-traffic.js';
 import {installCityColliders} from './sysworld-colliders.js';
 import { createSurfaces } from './sysworld-surfaces.js';
+import { createWindows } from './sysworld-windows.js';
 import { streetModules, plotSlabs, island } from './sysworld-ground.js';
 export { createCityAmbience } from './sysworld-audio.js';
 
@@ -142,6 +143,8 @@ export async function createCity(host, options) {
   const reportProgress = () => { const s = surfaces?.progress(); options.onProgress?.(loadBytes + (s?.bytes || 0), expectedBytes + (s?.expected || 0)); };
   const surfaces = createSurfaces(renderer, { url: file => options.resourceURL('/3d/system-world/textures/v1/' + file), onProgress: () => reportProgress(),
     shelters: interiors.map(r => [r.x - r.width / 2, r.z - r.depth / 2, r.x + r.width / 2, r.z + r.depth / 2]) });
+  // Kit v3 window panes share one interior-mapped glass material (sysworld-windows.js).
+  const windows = createWindows();
   const pmrem = new THREE.PMREMGenerator(renderer), room = new RoomEnvironment();
   const environment = pmrem.fromScene(room, .05);
   scene.environment = environment.texture; scene.environmentIntensity = .48;
@@ -276,8 +279,13 @@ export async function createCity(host, options) {
         gltf.scene.traverse(n => {
           if (!n.isMesh) return;
           geoSet.add(n.geometry); n.castShadow = true; n.receiveShadow = true;
+          // Window panes (city.window) take the shared interior material on every path that loads
+          // a model (instanced city, district clones, LOD rebuilds, skyline). It never enters the
+          // shared-material map and sysworld-surfaces.js leaves it alone.
+          windows.adopt(n);
           const source = Array.isArray(n.material) ? n.material : [n.material];
           const shared = source.map(m => {
+            if (windows.owns(m)) return m;
             const name = sharedMaterialKey(m);
             if (materials.has(name)) { const original = m; m = materials.get(name); original.dispose(); }
             else { materials.set(name, m); matSet.add(m); }
@@ -358,7 +366,7 @@ export async function createCity(host, options) {
       sun.shadow.mapSize.set(config.shadow, config.shadow);
       sun.shadow.map?.dispose(); sun.shadow.map = null;
     }
-    renderer.shadowMap.needsUpdate = true; bloom.enabled = config.bloom; surfaces.setTier(tier); atmosphere.setTier(tier);experience.setTier(tier);weather.setTier(tier);drones.setTier(tier);flow.setTier(tier);
+    renderer.shadowMap.needsUpdate = true; bloom.enabled = config.bloom; surfaces.setTier(tier); windows.setTier(tier); atmosphere.setTier(tier);experience.setTier(tier);weather.setTier(tier);drones.setTier(tier);flow.setTier(tier);
     resize(); options.onQuality?.(quality, tier);
   }
   function flyTo(position, target) {
@@ -550,6 +558,8 @@ export async function createCity(host, options) {
     companion?.update(dt, !reduced && visible && mode !== 'map' && !options.replaying?.());
     const mood = weather.mood();
     flow.update(dt,!reduced,1-(mood.day||0));
+    // Window interiors: lit share, lobbies and glass sheen follow the time of day; no motion freezes them.
+    windows.setLighting(mood.day, mood.evening, mood.weather === 'clear' ? 0 : 1, scene.fog.color); windows.update(dt, !reduced);
     if(!reduced){
       // The selection ripple opens out from the district and fades away.
       if(rippleTime<1.4){rippleTime+=dt;const p=Math.min(1,rippleTime/1.4);
@@ -593,7 +603,7 @@ export async function createCity(host, options) {
     if (disposed) return; disposed = true; generation++; abort.abort(); requests.forEach(c => c.abort());
     keys.clear(); if(document.pointerLockElement === canvas) document.exitPointerLock();
     options.signal?.removeEventListener('abort', dispose); cleanup.forEach(fn => fn()); observer?.disconnect(); controls.dispose();
-    life?.dispose();companion?.dispose();experience?.dispose();weather.dispose(); hologram.dispose(); drones.dispose();contact.dispose();traffic.dispose(); atmosphere.dispose(); surfaces.dispose(); flow.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose(); plots.dispose();
+    life?.dispose();companion?.dispose();experience?.dispose();weather.dispose(); hologram.dispose(); drones.dispose();contact.dispose();traffic.dispose(); atmosphere.dispose(); surfaces.dispose(); windows.dispose(); flow.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose(); plots.dispose();
     geoSet.forEach(g => g.dispose()); matSet.forEach(m => m.dispose());
     composer.passes.forEach(p => p.dispose?.()); composer.dispose(); environment.dispose(); sun.shadow.dispose();
     renderer.dispose(); renderer.forceContextLoss(); canvas.remove(); cache.clear(); materials.clear();
@@ -601,7 +611,7 @@ export async function createCity(host, options) {
   life = createCityLife(scene, districts, {traffic,society:experience.society,robotURL:options.resourceURL('/3d/system-world/white-robot.glb'), signal:options.signal, onError:options.onRobotError, active:()=>visible&&!failed&&mode!=='map'&&!options.replaying?.(), obstacles, shadows:contact});
   // A missing or broken companion never stops the city from loading.
   companion = createCompanion({scene, resourceURL:options.resourceURL, signal:abort.signal, shadows:contact, onError:options.onCompanionError});
-  hologram.setReducedMotion(!!reduced);
+  hologram.setReducedMotion(!!reduced); windows.setReducedMotion(!!reduced);
   try { applyTier(); await rebuild(); } catch(e) { dispose(); throw e; }
   return {
     districts, canvas, update, focus(id) { cancelTour(); focus(id); }, setMode, setQuality, setData, dispose,
@@ -609,7 +619,7 @@ export async function createCity(host, options) {
     visit(id){setMode('street');experience.visit(id);settleCamera();},enter(id){setMode('street');experience.destination(id);settleCamera();},
     setEnvironment(value){weather.set(value);renderer.shadowMap.needsUpdate=true;},
     setVisible(value) { visible = value; if(!value) { simulate(0);experience.suspend();life?.update(0,false);keys.clear(); down = null; if(document.pointerLockElement===canvas) document.exitPointerLock(); } },
-    setReducedMotion(value) { reduced = value; hologram.setReducedMotion(!!value);if(value){flight=null;experience.endRide();experience.society.suspend();} if(value && mode === 'tour') setMode('orbit'); },
+    setReducedMotion(value) { reduced = value; hologram.setReducedMotion(!!value); windows.setReducedMotion(!!value);if(value){flight=null;experience.endRide();experience.society.suspend();} if(value && mode === 'tour') setMode('orbit'); },
     setHologram(texts, source) { hologram.setTexts(texts, source); experience.setMemory(texts); },
     setWorld(snapshot,replay) { experience.setWorld(snapshot,replay); },
     moveKey(key, pressed) { if(pressed) keys.add(key); else keys.delete(key); },
@@ -624,6 +634,6 @@ export async function createCity(host, options) {
       camera.position.copy(end).sub(homeTarget).applyAxisAngle(new THREE.Vector3(0, 1, 0), -.55).multiplyScalar(1.22).add(homeTarget); camera.position.y += 34;
       camera.lookAt(homeTarget); settleCamera(); flyTo(end, homeTarget); if (flight) flight.duration = 3.6;
     },
-    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), drones:drones.stats(), flow:flow.stats(), companion:companion?.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
+    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), windows:windows.stats(), drones:drones.stats(), flow:flow.stats(), companion:companion?.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
   };
 }
