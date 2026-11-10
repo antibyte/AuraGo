@@ -212,8 +212,8 @@ export async function createCity(host, options) {
   world.add(plots);
   // Lawn and paving over the purpose plots (backlog item 7): 2 cm instanced slabs, one draw each, surface maps of
   // the leaf and setts kinds (the lawn is not `city.leaf`, so it never sways).
-  const lawnMaterial = new THREE.MeshStandardMaterial({ name: 'lawn', color: 0x1f3a26, metalness: 0, roughness: .9 });
-  const pavingMaterial = new THREE.MeshStandardMaterial({ name: 'paving', color: 0x3a4146, metalness: .05, roughness: .75 });
+  const lawnMaterial = new THREE.MeshStandardMaterial({ name: 'lawn', color: 0x2a5230, metalness: 0, roughness: .9 });
+  const pavingMaterial = new THREE.MeshStandardMaterial({ name: 'paving', color: 0x6f6a62, metalness: .05, roughness: .75 });
   matSet.add(lawnMaterial); matSet.add(pavingMaterial); surfaces.apply(lawnMaterial, 'world', 'city.leaf'); surfaces.apply(pavingMaterial, 'world', 'city.setts');
   const groundCover = [['lawn', lawnMaterial], ['paving', pavingMaterial]].map(([kind, material]) => {
     const rects = SURFACES.filter(s => s.kind === kind), mesh = new THREE.InstancedMesh(slabGeometry, material, Math.max(1, rects.length));

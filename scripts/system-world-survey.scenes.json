@@ -71,9 +71,9 @@
   {"name":"life-terrace-evening","position":[66,5,60],"target":[79,1,69],"fov":43,"environment":"evening","weather":"clear","frames":40,"waitMs":400},
   {"name":"life-street-trees-day","position":[-60,4,-32],"target":[-22,2.5,-32],"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400},
   {"name":"life-street-trees-night","position":[-60,4,-32],"target":[-22,2.5,-32],"fov":43,"environment":"night","weather":"clear","frames":40,"waitMs":400},
-  {"name":"life-harbour-dusk","position":[-10,16,86],"target":[-45,-3,100],"fov":43,"environment":"evening","weather":"clear","frames":40,"waitMs":400},
+  {"name":"life-harbour-dusk","position":[-22,7,85],"target":[-45,-2,100],"fov":43,"environment":"evening","weather":"clear","frames":40,"waitMs":400},
   {"name":"life-skiffs-day","position":[92,9,-2],"target":[118,-3,4],"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400},
-  {"name":"life-gulls-day","position":[5,9,84],"target":[0,18,104],"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400},
+  {"name":"life-gulls-day","position":[-34,5,82],"target":[-6,19,104],"fov":55,"environment":"day","weather":"clear","frames":40,"waitMs":400},
   {"name":"life-fireflies-night","position":[-30,5,-80],"target":[-44,1,-90],"fov":43,"environment":"night","weather":"clear","frames":40,"waitMs":400},
   {"name":"life-neon-night","position":[40,6,-32],"target":[40,8,-47],"fov":43,"environment":"night","weather":"clear","frames":40,"waitMs":400},
   {"name":"life-steam-day","position":[-43,9,-30],"target":[-43,11,-50],"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400}

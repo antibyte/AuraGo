@@ -23,7 +23,7 @@ const STEAM_FRAGMENT=`uniform vec3 color;uniform float strength;varying float vA
 void main(){float d=length(vUv-0.5)*2.0;float a=(1.0-smoothstep(0.2,1.0,d))*vA*strength;if(a<0.004)discard;gl_FragColor=vec4(color,a);}`;
 const FLY_VERTEX=`attribute vec4 aSeed;uniform float time,pointScale;varying float vA;
 void main(){vec3 p=position+vec3(sin(time*0.7+aSeed.x*20.0)*0.6,sin(time*1.3+aSeed.y*9.0)*0.3,cos(time*0.6+aSeed.z*13.0)*0.6);
-vec4 mv=modelViewMatrix*vec4(p,1.0);vA=pow(max(0.0,sin(time*(1.5+aSeed.w)+aSeed.x*50.0)),6.0);gl_PointSize=clamp(2.6*pointScale/max(1.0,-mv.z),1.5,5.0);gl_Position=projectionMatrix*mv;}`;
+vec4 mv=modelViewMatrix*vec4(p,1.0);vA=pow(max(0.0,sin(time*(1.5+aSeed.w)+aSeed.x*50.0)),6.0);gl_PointSize=clamp(3.2*pointScale/max(1.0,-mv.z),1.5,6.0);gl_Position=projectionMatrix*mv;}`;
 const FLY_FRAGMENT=`uniform vec3 color;uniform float strength;varying float vA;void main(){float d=length(gl_PointCoord-0.5)*2.0;if(d>1.0)discard;gl_FragColor=vec4(color*pow(1.0-d,1.5)*vA*strength,1.0);}`;
 export function createParticles(scene){
   const group=new THREE.Group();group.name='city-particles';scene.add(group);
@@ -34,7 +34,7 @@ export function createParticles(scene){
   const vent=new Float32Array(STEAM_MAX*4),phase=new Float32Array(STEAM_MAX*2);let quads=0;
   for(const v of steamVents())for(let k=0;k<v.count&&quads<STEAM_MAX;k++,quads++){vent.set([v.x,v.y,v.z,v.size],quads*4);phase.set([k/v.count+rnd()*.1,.07+rnd()*.06],quads*2);}
   steamGeometry.setAttribute('aVent',new THREE.InstancedBufferAttribute(vent,4));steamGeometry.setAttribute('aSeed',new THREE.InstancedBufferAttribute(phase,2));steamGeometry.instanceCount=quads;
-  const steamMaterial=new THREE.ShaderMaterial({uniforms:{time:timeU,wind:windU,color:{value:new THREE.Color(.6,.62,.64)},strength:{value:.32}},vertexShader:STEAM_VERTEX,fragmentShader:STEAM_FRAGMENT,transparent:true,depthWrite:false});
+  const steamMaterial=new THREE.ShaderMaterial({uniforms:{time:timeU,wind:windU,color:{value:new THREE.Color(.6,.62,.64)},strength:{value:.38}},vertexShader:STEAM_VERTEX,fragmentShader:STEAM_FRAGMENT,transparent:true,depthWrite:false});
   const steam=new THREE.Mesh(steamGeometry,steamMaterial);steam.frustumCulled=false;steam.name='steam';group.add(steam);
   const areas=fireflyAreas(),weights=areas.map(a=>(a.x1-a.x0)*(a.z1-a.z0)),total=weights.reduce((s,w)=>s+w,0),pos=new Float32Array(FIREFLY_MAX*3),fly=new Float32Array(FIREFLY_MAX*4);
   for(let i=0;i<FIREFLY_MAX;i++){let r=rnd()*total,k=0;while(r>weights[k]&&k<areas.length-1)r-=weights[k++];const a=areas[k];
