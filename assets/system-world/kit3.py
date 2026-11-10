@@ -50,6 +50,9 @@ PALETTE = {
     # Window panes: the renderer replaces this material with the interior shader. UV0 holds
     # room coordinates (one unit per bay along the facade and per floor upwards).
     'window': ((.018, .032, .045, 1), .0, .08, 0, 1),
+    # See-through glazing of the enterable lobbies and their door leaves. The renderer swaps in its
+    # own shared transparent material by name; the alpha here only serves previews.
+    'pane': ((.05, .17, .21, 1), .0, .05, 0, .25),
 }
 
 
@@ -67,6 +70,8 @@ def materials():
         bsdf.inputs['Emission Color'].default_value = color
         bsdf.inputs['Emission Strength'].default_value = emission
         bsdf.inputs['Alpha'].default_value = alpha
+        if alpha < 1 and hasattr(mat, 'surface_render_method'):
+            mat.surface_render_method = 'BLENDED'
         result[key] = mat
     return result
 

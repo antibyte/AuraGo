@@ -1,17 +1,18 @@
 {
   "schema_version": 3,
-  "version": "3.1.0",
+  "version": "3.2.0",
   "license": "MIT",
   "generator": "Blender 5.2.2 LTS / build_world3.py",
   "units": "metres",
   "up_axis": "Y",
   "sources": {
-    "kit3.py": "799ed7f856d82fd0723f4ee07af39c9a07834b042eb5778372ca585dbcc16bd1",
-    "build_world3.py": "0ef2001ead4cef92c657995fcdedc75d6e413179a6055839594aaf4b3066319d",
+    "kit3.py": "003132f1f993bdf6b1490642b04c28e37f31179030d0d4014c743d57a4a38c0a",
+    "build_world3.py": "e3f325b51453504ad057c544caddff386dad14531cbf0953cec4ff71f5afbc96",
     "street_assets3.py": "26f8d0e7d515516c19c510f4eb1880644818ff0d9b11fc8095314a294a729fc1",
     "facade_assets3.py": "c9ef0e5f0d15c54c2a7cad0f8c5d41db5212698bde57344d05cd65163b4979d2",
     "district_assets3.py": "095e133f47c9b3bcb4ad9ad5f92b7f00b33105b5c988a6d4712effdc78fe52aa",
-    "furniture_assets3.py": "f64e279f64d8ff2fa8aa9becb828bca7d8b263970859b3b4953c75c4e97cfd69"
+    "furniture_assets3.py": "f64e279f64d8ff2fa8aa9becb828bca7d8b263970859b3b4953c75c4e97cfd69",
+    "interior_assets3.py": "bd6b7eb561837ed7033e9e205d3da4f415967abe6575d11534dd775cd302b2b8"
   },
   "assets": [
     {
@@ -1876,10 +1877,1238 @@
         ]
       },
       "animations": []
+    },
+    {
+      "id": "lobby-agent",
+      "name": "Agent core lobby",
+      "category": "interior",
+      "lods": [
+        {
+          "file": "lobby-agent.lod0.glb",
+          "triangles": 6988,
+          "bounds": {
+            "min": [
+              -7.05,
+              0.88,
+              -7.05
+            ],
+            "max": [
+              7.05,
+              5,
+              7.345
+            ]
+          },
+          "level": 0,
+          "bytes": 91772,
+          "sha256": "2765a755c62a6ac67b3e669e99dcb837d3c159a8ca4674653a5cc8b11f6972b0"
+        },
+        {
+          "file": "lobby-agent.lod1.glb",
+          "triangles": 3852,
+          "bounds": {
+            "min": [
+              -7.05,
+              0.88,
+              -7.05
+            ],
+            "max": [
+              7.05,
+              5,
+              7.345
+            ]
+          },
+          "level": 1,
+          "bytes": 62872,
+          "sha256": "db8ee3788a66d62395a6b668c18d75d7e735fbbd731e94bbde9b2a66c007d6f2"
+        },
+        {
+          "file": "lobby-agent.lod2.glb",
+          "triangles": 1042,
+          "bounds": {
+            "min": [
+              -7.05,
+              0.88,
+              -7.05
+            ],
+            "max": [
+              7.05,
+              5,
+              7.285
+            ]
+          },
+          "level": 2,
+          "bytes": 26244,
+          "sha256": "12090bd8373e0c98be0ac825b863730f303f1599b469a42364688951898b58e4"
+        }
+      ],
+      "components": [
+        "door_0_l",
+        "door_0_r",
+        "structure"
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -1.2,
+            0.88,
+            -1.2,
+            1.2,
+            5,
+            1.2
+          ],
+          [
+            -3.4,
+            0.88,
+            2.5,
+            3.4,
+            1.98,
+            3.4
+          ],
+          [
+            -3.4,
+            0.88,
+            -1.9,
+            -2.5,
+            1.98,
+            2.5
+          ],
+          [
+            2.5,
+            0.88,
+            -1.9,
+            3.4,
+            1.98,
+            2.5
+          ],
+          [
+            -6.05,
+            0.88,
+            2.3,
+            -5.15,
+            1.88,
+            4.9
+          ],
+          [
+            -5.4,
+            0.88,
+            5.1,
+            -3.2,
+            1.88,
+            6
+          ],
+          [
+            -6.2,
+            0.88,
+            -3.1,
+            -5.3,
+            1.88,
+            -1.1
+          ],
+          [
+            -5.8,
+            0.88,
+            -5,
+            -4.6,
+            3.28,
+            -4.2
+          ],
+          [
+            -3.6,
+            0.88,
+            -6.1,
+            -2.6,
+            3.28,
+            -5.7
+          ],
+          [
+            5.15,
+            0.88,
+            2.3,
+            6.05,
+            1.88,
+            4.9
+          ],
+          [
+            3.2,
+            0.88,
+            5.1,
+            5.4,
+            1.88,
+            6
+          ],
+          [
+            5.3,
+            0.88,
+            -3.1,
+            6.2,
+            1.88,
+            -1.1
+          ],
+          [
+            4.6,
+            0.88,
+            -5,
+            5.8,
+            3.28,
+            -4.2
+          ],
+          [
+            2.6,
+            0.88,
+            -6.1,
+            3.6,
+            3.28,
+            -5.7
+          ]
+        ],
+        "workpoints": [
+          {
+            "id": "reception-west",
+            "position": [
+              -1.35,
+              0.9,
+              1.5
+            ]
+          },
+          {
+            "id": "reception-east",
+            "position": [
+              1.35,
+              0.9,
+              1.5
+            ]
+          },
+          {
+            "id": "briefing-west",
+            "position": [
+              -4.5,
+              0.9,
+              -3.6
+            ]
+          },
+          {
+            "id": "briefing-east",
+            "position": [
+              4.5,
+              0.9,
+              -3.6
+            ]
+          },
+          {
+            "id": "lounge-west",
+            "position": [
+              -4.3,
+              0.9,
+              2.9
+            ]
+          },
+          {
+            "id": "lounge-east",
+            "position": [
+              4.3,
+              0.9,
+              2.9
+            ]
+          }
+        ]
+      },
+      "animations": []
+    },
+    {
+      "id": "lobby-memory",
+      "name": "Archive hall",
+      "category": "interior",
+      "lods": [
+        {
+          "file": "lobby-memory.lod0.glb",
+          "triangles": 10604,
+          "bounds": {
+            "min": [
+              -10.55,
+              0.88,
+              -9.55
+            ],
+            "max": [
+              10.55,
+              6.1,
+              7.845
+            ]
+          },
+          "level": 0,
+          "bytes": 138764,
+          "sha256": "738203cd2e7a14ddc6515c9b22e613c275daa6eef91b7873944ec809b3dd7ea6"
+        },
+        {
+          "file": "lobby-memory.lod1.glb",
+          "triangles": 3910,
+          "bounds": {
+            "min": [
+              -10.55,
+              0.88,
+              -9.55
+            ],
+            "max": [
+              10.55,
+              6.1,
+              7.845
+            ]
+          },
+          "level": 1,
+          "bytes": 62340,
+          "sha256": "41396ccfd8774e5726a322de3471e1b77d15186524a5afebf7f6f106e9db7965"
+        },
+        {
+          "file": "lobby-memory.lod2.glb",
+          "triangles": 818,
+          "bounds": {
+            "min": [
+              -10.55,
+              0.88,
+              -9.55
+            ],
+            "max": [
+              10.55,
+              6.1,
+              7.785
+            ]
+          },
+          "level": 2,
+          "bytes": 23404,
+          "sha256": "21431f4454e7705c4e332ac8cf8bb08172b77b57c38c630b95b51bdb10677c9b"
+        }
+      ],
+      "components": [
+        "door_0_l",
+        "door_0_r",
+        "door_1_l",
+        "door_1_r",
+        "structure"
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -1.5,
+            0.88,
+            -2.5,
+            1.5,
+            3.68,
+            0.5
+          ],
+          [
+            -3.85,
+            0.88,
+            -8.4,
+            -2.95,
+            4.88,
+            -2
+          ],
+          [
+            -6.35,
+            0.88,
+            -8.4,
+            -5.45,
+            4.88,
+            -2
+          ],
+          [
+            -8.85,
+            0.88,
+            -8.4,
+            -7.95,
+            4.88,
+            -2
+          ],
+          [
+            -8.9,
+            0.88,
+            2.4,
+            -4.3,
+            1.68,
+            4.4
+          ],
+          [
+            2.95,
+            0.88,
+            -8.4,
+            3.85,
+            4.88,
+            -2
+          ],
+          [
+            5.45,
+            0.88,
+            -8.4,
+            6.35,
+            4.88,
+            -2
+          ],
+          [
+            7.95,
+            0.88,
+            -8.4,
+            8.85,
+            4.88,
+            -2
+          ],
+          [
+            4.3,
+            0.88,
+            2.4,
+            8.9,
+            1.68,
+            4.4
+          ],
+          [
+            -1.9,
+            0.88,
+            4.3,
+            1.9,
+            1.98,
+            5.3
+          ]
+        ],
+        "workpoints": [
+          {
+            "id": "enquiry",
+            "position": [
+              0,
+              0.9,
+              4
+            ]
+          },
+          {
+            "id": "core",
+            "position": [
+              0,
+              0.9,
+              1.3
+            ]
+          },
+          {
+            "id": "stacks-west",
+            "position": [
+              -4.65,
+              0.9,
+              -4.2
+            ]
+          },
+          {
+            "id": "stacks-east",
+            "position": [
+              4.65,
+              0.9,
+              -4.2
+            ]
+          },
+          {
+            "id": "reading-west",
+            "position": [
+              -6.6,
+              0.9,
+              2.2
+            ]
+          },
+          {
+            "id": "reading-east",
+            "position": [
+              6.6,
+              0.9,
+              2.2
+            ]
+          }
+        ]
+      },
+      "animations": []
+    },
+    {
+      "id": "lobby-integrations",
+      "name": "Gate halls",
+      "category": "interior",
+      "lods": [
+        {
+          "file": "lobby-integrations.lod0.glb",
+          "triangles": 3932,
+          "bounds": {
+            "min": [
+              -10.55,
+              0.88,
+              -4.05
+            ],
+            "max": [
+              10.55,
+              4.3,
+              4.345
+            ]
+          },
+          "level": 0,
+          "bytes": 67216,
+          "sha256": "b0c40f1d3e4510d02e80913649820cd3cd426f031fa53a8054a8c06c838a1d6f"
+        },
+        {
+          "file": "lobby-integrations.lod1.glb",
+          "triangles": 1692,
+          "bounds": {
+            "min": [
+              -10.55,
+              0.88,
+              -4.05
+            ],
+            "max": [
+              10.55,
+              4.3,
+              4.345
+            ]
+          },
+          "level": 1,
+          "bytes": 38896,
+          "sha256": "42212d7da708e85512b81471a6dd105bb81e57cb958e55f046b050f4dbc068b9"
+        },
+        {
+          "file": "lobby-integrations.lod2.glb",
+          "triangles": 480,
+          "bounds": {
+            "min": [
+              -10.55,
+              0.88,
+              -4.05
+            ],
+            "max": [
+              10.55,
+              4.3,
+              4.285
+            ]
+          },
+          "level": 2,
+          "bytes": 19040,
+          "sha256": "8db4cf539c3858210861de9987873fafbc3539202b8c2f7dd5191937ff6adc3e"
+        }
+      ],
+      "components": [
+        "door_0_l",
+        "door_0_r",
+        "door_1_l",
+        "door_1_r",
+        "structure"
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -10.2,
+            0.88,
+            -3.9,
+            -5.8,
+            3.78,
+            -3.3
+          ],
+          [
+            -9.4,
+            0.88,
+            -1.9,
+            -6.6,
+            1.98,
+            -0.9
+          ],
+          [
+            -10.4,
+            0.88,
+            0.6,
+            -9.5,
+            1.88,
+            2.6
+          ],
+          [
+            6.2,
+            0.88,
+            -1.7,
+            9.8,
+            1.98,
+            -0.7
+          ],
+          [
+            5.9,
+            0.88,
+            -3.8,
+            10.1,
+            3.58,
+            -3.2
+          ],
+          [
+            9.5,
+            0.88,
+            1.8,
+            10.1,
+            2.98,
+            3
+          ]
+        ],
+        "workpoints": [
+          {
+            "id": "switchboard",
+            "position": [
+              -8,
+              0.9,
+              -2.6
+            ]
+          },
+          {
+            "id": "patching",
+            "position": [
+              -7,
+              0.9,
+              -0.5
+            ]
+          },
+          {
+            "id": "counter",
+            "position": [
+              8,
+              0.9,
+              -2.3
+            ]
+          },
+          {
+            "id": "queue",
+            "position": [
+              8,
+              0.9,
+              0.2
+            ]
+          }
+        ]
+      },
+      "animations": []
+    },
+    {
+      "id": "lobby-missions",
+      "name": "Departure hall",
+      "category": "interior",
+      "lods": [
+        {
+          "file": "lobby-missions.lod0.glb",
+          "triangles": 6944,
+          "bounds": {
+            "min": [
+              -12.55,
+              0.88,
+              -8.05
+            ],
+            "max": [
+              12.55,
+              6.1,
+              6.345
+            ]
+          },
+          "level": 0,
+          "bytes": 111524,
+          "sha256": "800aa653350bda73fdbff94ed49e6d527fb65baabd6ffb6e62afeb8f4d6809fc"
+        },
+        {
+          "file": "lobby-missions.lod1.glb",
+          "triangles": 3262,
+          "bounds": {
+            "min": [
+              -12.55,
+              0.88,
+              -8.05
+            ],
+            "max": [
+              12.55,
+              6.1,
+              6.345
+            ]
+          },
+          "level": 1,
+          "bytes": 67044,
+          "sha256": "30ea7d0853f1d3cb3c51cb0e4eaa4c56f547f5f3319d0e694bececf55c8d3d33"
+        },
+        {
+          "file": "lobby-missions.lod2.glb",
+          "triangles": 1018,
+          "bounds": {
+            "min": [
+              -12.55,
+              0.88,
+              -8.05
+            ],
+            "max": [
+              12.55,
+              6.1,
+              6.285
+            ]
+          },
+          "level": 2,
+          "bytes": 32508,
+          "sha256": "c3be8199b1c5c7d8b1d1b4037f7c741fd9dee42df3463607783ccee4540124da"
+        }
+      ],
+      "components": [
+        "door_0_l",
+        "door_0_r",
+        "door_1_l",
+        "door_1_r",
+        "door_2_l",
+        "door_2_r",
+        "door_3_l",
+        "door_3_r",
+        "structure"
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -10.6,
+            0.88,
+            -1.9,
+            -7.4,
+            1.98,
+            -0.9
+          ],
+          [
+            -4.6,
+            0.88,
+            -1.9,
+            -1.4,
+            1.98,
+            -0.9
+          ],
+          [
+            1.4,
+            0.88,
+            -1.9,
+            4.6,
+            1.98,
+            -0.9
+          ],
+          [
+            7.4,
+            0.88,
+            -1.9,
+            10.6,
+            1.98,
+            -0.9
+          ],
+          [
+            -10.6,
+            0.88,
+            -7.6,
+            10.6,
+            2.38,
+            -6.4
+          ],
+          [
+            -7.3,
+            0.88,
+            1.9,
+            -4.7,
+            1.88,
+            2.9
+          ],
+          [
+            -7.3,
+            0.88,
+            3.8,
+            -4.7,
+            1.88,
+            4.8
+          ],
+          [
+            4.7,
+            0.88,
+            1.9,
+            7.3,
+            1.88,
+            2.9
+          ],
+          [
+            4.7,
+            0.88,
+            3.8,
+            7.3,
+            1.88,
+            4.8
+          ]
+        ],
+        "workpoints": [
+          {
+            "id": "counter-1",
+            "position": [
+              -9,
+              0.9,
+              -2.5
+            ]
+          },
+          {
+            "id": "counter-2",
+            "position": [
+              -3,
+              0.9,
+              -2.5
+            ]
+          },
+          {
+            "id": "counter-3",
+            "position": [
+              3,
+              0.9,
+              -2.5
+            ]
+          },
+          {
+            "id": "counter-4",
+            "position": [
+              9,
+              0.9,
+              -2.5
+            ]
+          },
+          {
+            "id": "belt-west",
+            "position": [
+              -5.5,
+              0.9,
+              -5.9
+            ]
+          },
+          {
+            "id": "belt-east",
+            "position": [
+              5.5,
+              0.9,
+              -5.9
+            ]
+          },
+          {
+            "id": "waiting",
+            "position": [
+              0,
+              0.9,
+              3.4
+            ]
+          }
+        ]
+      },
+      "animations": []
+    },
+    {
+      "id": "lobby-infra",
+      "name": "Machine hall",
+      "category": "interior",
+      "lods": [
+        {
+          "file": "lobby-infra.lod0.glb",
+          "triangles": 7098,
+          "bounds": {
+            "min": [
+              -9.55,
+              0.88,
+              -8.55
+            ],
+            "max": [
+              9.55,
+              4.5,
+              2.845
+            ]
+          },
+          "level": 0,
+          "bytes": 106892,
+          "sha256": "b72a004fe7b064d2a886ccbc849364e8c6a21b05ae9610d91d24b5bb523317e3"
+        },
+        {
+          "file": "lobby-infra.lod1.glb",
+          "triangles": 3002,
+          "bounds": {
+            "min": [
+              -9.55,
+              0.88,
+              -8.55
+            ],
+            "max": [
+              9.55,
+              4.5,
+              2.845
+            ]
+          },
+          "level": 1,
+          "bytes": 54012,
+          "sha256": "0ff38a99375f5904ca95da597f5adfe0d831adcdbbd0daa96ca9529ca45a5f83"
+        },
+        {
+          "file": "lobby-infra.lod2.glb",
+          "triangles": 540,
+          "bounds": {
+            "min": [
+              -9.55,
+              0.88,
+              -8.55
+            ],
+            "max": [
+              9.55,
+              4.5,
+              2.785
+            ]
+          },
+          "level": 2,
+          "bytes": 19880,
+          "sha256": "194a8b6767f9407187bd6f004c363de568978efe71904308fcb81c4925b802b5"
+        }
+      ],
+      "components": [
+        "door_0_l",
+        "door_0_r",
+        "door_1_l",
+        "door_1_r",
+        "structure"
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -9.2,
+            0.88,
+            -5.5,
+            -5.2,
+            3.58,
+            -4.5
+          ],
+          [
+            -4.4,
+            0.88,
+            -5.5,
+            -0.4,
+            3.58,
+            -4.5
+          ],
+          [
+            0.4,
+            0.88,
+            -5.5,
+            4.4,
+            3.58,
+            -4.5
+          ],
+          [
+            5.2,
+            0.88,
+            -5.5,
+            9.2,
+            3.58,
+            -4.5
+          ],
+          [
+            -9.2,
+            0.88,
+            -7.9,
+            -5.2,
+            3.58,
+            -6.9
+          ],
+          [
+            -4.4,
+            0.88,
+            -7.9,
+            -0.4,
+            3.58,
+            -6.9
+          ],
+          [
+            0.4,
+            0.88,
+            -7.9,
+            4.4,
+            3.58,
+            -6.9
+          ],
+          [
+            5.2,
+            0.88,
+            -7.9,
+            9.2,
+            3.58,
+            -6.9
+          ],
+          [
+            -2.6,
+            0.88,
+            -1.1,
+            2.6,
+            1.98,
+            -0.1
+          ]
+        ],
+        "workpoints": [
+          {
+            "id": "console-west",
+            "position": [
+              -1.2,
+              0.9,
+              0.3
+            ]
+          },
+          {
+            "id": "console-east",
+            "position": [
+              1.2,
+              0.9,
+              0.3
+            ]
+          },
+          {
+            "id": "aisle-west",
+            "position": [
+              -4.8,
+              0.9,
+              -6.2
+            ]
+          },
+          {
+            "id": "aisle-east",
+            "position": [
+              4.8,
+              0.9,
+              -6.2
+            ]
+          },
+          {
+            "id": "racks-front",
+            "position": [
+              0,
+              0.9,
+              -3.9
+            ]
+          }
+        ]
+      },
+      "animations": []
+    },
+    {
+      "id": "lobby-graph",
+      "name": "Knowledge garden court",
+      "category": "interior",
+      "lods": [
+        {
+          "file": "lobby-graph.lod0.glb",
+          "triangles": 7148,
+          "bounds": {
+            "min": [
+              -9.05,
+              0.88,
+              -9.05
+            ],
+            "max": [
+              9.05,
+              4.7,
+              9.073
+            ]
+          },
+          "level": 0,
+          "bytes": 87196,
+          "sha256": "8d443dcc565b7b4204d88ab2cd9e7c060a2165a5b1fc82f587f91e9432dfaef1"
+        },
+        {
+          "file": "lobby-graph.lod1.glb",
+          "triangles": 2532,
+          "bounds": {
+            "min": [
+              -9.05,
+              0.88,
+              -9.05
+            ],
+            "max": [
+              9.05,
+              4.7,
+              9.073
+            ]
+          },
+          "level": 1,
+          "bytes": 41716,
+          "sha256": "033f1619eef307e6752ed9f752e6bb79374126125e5b973fd55f607ef9f8f5a2"
+        },
+        {
+          "file": "lobby-graph.lod2.glb",
+          "triangles": 796,
+          "bounds": {
+            "min": [
+              -9.05,
+              0.88,
+              -9.05
+            ],
+            "max": [
+              9.05,
+              4.7,
+              9.05
+            ]
+          },
+          "level": 2,
+          "bytes": 22004,
+          "sha256": "8a694c78bdf9340f5c7c2da15779d5ac40157a6547b5d8042c7fef899c2a5478"
+        }
+      ],
+      "components": [
+        "door_0_l",
+        "door_0_r",
+        "structure"
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -1.6,
+            0.88,
+            -1.6,
+            1.6,
+            4.88,
+            1.6
+          ],
+          [
+            6.45,
+            0.88,
+            -3.896,
+            9.25,
+            1.68,
+            -1.496
+          ],
+          [
+            3.423,
+            0.88,
+            -7.955,
+            6.223,
+            1.68,
+            -5.555
+          ],
+          [
+            -1.4,
+            0.88,
+            -9.5,
+            1.4,
+            1.68,
+            -7.1
+          ],
+          [
+            -6.223,
+            0.88,
+            -7.955,
+            -3.423,
+            1.68,
+            -5.555
+          ],
+          [
+            -9.25,
+            0.88,
+            -3.896,
+            -6.45,
+            1.68,
+            -1.496
+          ],
+          [
+            2.565,
+            0.88,
+            -4.365,
+            4.365,
+            1.78,
+            -2.565
+          ],
+          [
+            -4.365,
+            0.88,
+            -4.365,
+            -2.565,
+            1.78,
+            -2.565
+          ],
+          [
+            -4.365,
+            0.88,
+            2.565,
+            -2.565,
+            1.78,
+            4.365
+          ],
+          [
+            2.565,
+            0.88,
+            2.565,
+            4.365,
+            1.78,
+            4.365
+          ],
+          [
+            6.246,
+            0.88,
+            -1.465,
+            7.446,
+            2.98,
+            -0.265
+          ],
+          [
+            -7.446,
+            0.88,
+            -1.465,
+            -6.246,
+            2.98,
+            -0.265
+          ],
+          [
+            4.717,
+            0.88,
+            3.798,
+            5.917,
+            2.98,
+            4.998
+          ],
+          [
+            -5.917,
+            0.88,
+            3.798,
+            -4.717,
+            2.98,
+            4.998
+          ]
+        ],
+        "workpoints": [
+          {
+            "id": "terminal-east",
+            "position": [
+              5.8,
+              0.9,
+              -0.75
+            ]
+          },
+          {
+            "id": "terminal-west",
+            "position": [
+              -5.8,
+              0.9,
+              -0.75
+            ]
+          },
+          {
+            "id": "tree-south",
+            "position": [
+              0,
+              0.9,
+              3.4
+            ]
+          },
+          {
+            "id": "tree-north",
+            "position": [
+              0,
+              0.9,
+              -3.5
+            ]
+          },
+          {
+            "id": "garden",
+            "position": [
+              2.6,
+              0.9,
+              -6.4
+            ]
+          }
+        ]
+      },
+      "animations": []
     }
   ],
   "compression": "EXT_meshopt_compression",
   "pack": "gltfpack@1.3.0 -cc -kn -km -ke -kv -vtf",
-  "total_model_bytes": 2716012,
+  "total_model_bytes": 3789336,
   "validator_errors": 0
 }
