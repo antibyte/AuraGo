@@ -190,15 +190,19 @@ export function createAtmosphere(scene, options = {}) {
   const crown = own(new THREE.SphereGeometry(.9, 16, 12), crownMaterial); beacon.add(crown);
   // Warm lamp cones from the kit's cantilever lamps.
   const lamps = (options.lamps || []).slice(0, 64);
-  const lampMaterial = shader('varying vec2 vUv;varying vec3 vNormal,vView;void main(){vUv=uv;vNormal=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.0);vView=-mv.xyz;gl_Position=projectionMatrix*mv;}',
+  const lampMaterial = shader(`varying vec2 vUv;varying vec3 vNormal,vView;void main(){vUv=uv;vNormal=normalize(normalMatrix*normal);vec4 p=vec4(position,1.0);
+#ifdef USE_INSTANCING
+p=instanceMatrix*p;
+#endif
+vec4 mv=modelViewMatrix*p;vView=-mv.xyz;gl_Position=projectionMatrix*mv;}`,
     LAMP, { color: { value: new THREE.Color(0xffd9a0) }, strength: { value: .3 } }, { ...additive, side: THREE.DoubleSide });
-  const lampGeometry = new THREE.ConeGeometry(2.7, 6.1, 18, 1, true);
+  const lampGeometry = new THREE.ConeGeometry(2.7, 6.5, 18, 1, true);
   const lampCones = new THREE.InstancedMesh(lampGeometry, lampMaterial, Math.max(1, lamps.length));
   geometries.push(lampGeometry); materials.push(lampMaterial);
   const scratch = new THREE.Object3D();
   lamps.forEach((lamp, i) => {
-    // cone apex 2.9 m above the lamp base
-    scratch.position.set(lamp.x + 1.9 * Math.cos(lamp.angle || 0), (lamp.y || 0) + 2.9, lamp.z - 1.9 * Math.sin(lamp.angle || 0)); scratch.updateMatrix(); lampCones.setMatrixAt(i, scratch.matrix);
+    // kit v3 street-lamp: luminaire 1.55 m along local +X, underside 6.5 m up; apex touches it, base circle on the ground
+    scratch.position.set(lamp.x + 1.55 * Math.cos(lamp.angle || 0), (lamp.y || 0) + 3.25, lamp.z - 1.55 * Math.sin(lamp.angle || 0)); scratch.updateMatrix(); lampCones.setMatrixAt(i, scratch.matrix);
   });
   lampCones.count = lamps.length; lampCones.instanceMatrix.needsUpdate = true; group.add(lampCones);
   // A faint coastline behind and beside the city gives the horizon depth; settlement lights

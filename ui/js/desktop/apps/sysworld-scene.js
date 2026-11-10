@@ -293,7 +293,11 @@ export async function createCity(host, options) {
             if (windows.owns(m)) return m;
             const name = sharedMaterialKey(m);
             if (materials.has(name)) { const original = m; m = materials.get(name); original.dispose(); }
-            else { materials.set(name, m); matSet.add(m); }
+            else {
+              // Smooth metal turns specular glints into night bloom flares: kit metals keep at least roughness .45.
+              if (m.isMeshStandardMaterial && m.metalness > .5) m.roughness = Math.max(m.roughness, .45);
+              materials.set(name, m); matSet.add(m);
+            }
             return m;
           });
           n.material = Array.isArray(n.material) ? shared : shared[0];
@@ -585,7 +589,7 @@ export async function createCity(host, options) {
     }
     if (!reduced) ringTime.value += Math.min(.1, Math.max(0, dt));
     const key = [busy, mood.day.toFixed(1), mood.evening.toFixed(1), mood.weather].join();
-    bloom.strength = .2 + .15 * (1 - mood.day); renderer.toneMappingExposure = .95 + .05 * (1 - mood.day);
+    bloom.strength = .2 + .15 * (1 - mood.day); bloom.threshold = 1.06 + .26 * THREE.MathUtils.smoothstep(mood.day, 0, 1); renderer.toneMappingExposure = .95 + .05 * (1 - mood.day);
     if (key !== moodKey) { moodKey = key; options.onMood?.({ busy, day: mood.day, evening: mood.evening, weather: mood.weather }); }
     hologram.update(dt, camera, !reduced);
     renderer.info.reset(); composer.render(); frames++;

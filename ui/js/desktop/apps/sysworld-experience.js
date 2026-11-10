@@ -61,7 +61,7 @@ export function createExperience(scene,options){
       const gltf=await new GLTFLoader().parseAsync(data,'');
       // Moving or articulated assets use object-space surface detail so it never slides over them.
       const moving=gltf.animations.length>0||/^(tram|service-cart|robot-|door|lift|sky-lift|telescope)/.test(id);
-      gltf.scene.traverse(n=>{if(n.isMesh){geometries.add(n.geometry);for(const m of(Array.isArray(n.material)?n.material:[n.material]))materials.add(m);n.castShadow=true;n.receiveShadow=true;options.surfaces?.prepare(n,moving);}});
+      gltf.scene.traverse(n=>{if(n.isMesh){geometries.add(n.geometry);for(const m of(Array.isArray(n.material)?n.material:[n.material])){if(m.isMeshStandardMaterial&&m.metalness>.5)m.roughness=Math.max(m.roughness,.45);materials.add(m);}n.castShadow=true;n.receiveShadow=true;options.surfaces?.prepare(n,moving);}});
       if(disposed){geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());throw Error('Disposed');}
       loaded.add(id);return gltf;
     })());
