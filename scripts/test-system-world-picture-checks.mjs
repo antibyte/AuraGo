@@ -51,4 +51,10 @@ const paint=(img,x0,y0,x1,y1,c)=>{for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)im
   assert.equal(budgetCheck(budget,[run('high',12.2,640000)]).failures.length,1);
   assert.equal(budgetCheck(budget,[run('high',11,650000)]).failures.length,1,'650 000 is not below the limit');
   assert.equal(budgetCheck(budget,[run('low',5,999999)]).failures.length,0,'the triangle limit applies to its own scene and tier'); }
+// 8. Budget refuses another adapter: matching renderer passes, a differing one fails naming both; budget-init refuses mixed reports.
+{ const run=(renderer,ms)=>({info:{tier:'high',renderer},shots:[{scene:'street-agent',frameMs:{median:ms,p95:ms},stats:{viewTriangles:1,triangles:1}}]});
+  const budget=budgetInit([run('GPU A',10),run('GPU A',11)]);assert.equal(budget.reference,'GPU A');
+  assert.deepEqual(budgetCheck(budget,[run('GPU A',11)]).failures,[]);
+  const bad=budgetCheck(budget,[run('GPU B',11)]).failures;assert.equal(bad.length,1);assert.ok(bad[0].includes('GPU A')&&bad[0].includes('GPU B'));
+  assert.throws(()=>budgetInit([run('GPU A',10),run('GPU B',10)]),/GPU A.*GPU B/); }
 console.log('System World picture checks: PNG codec (5 filters, RGB and RGBA), clipped share and blobs, masks, lit share, tones, sheets and budget passed.');

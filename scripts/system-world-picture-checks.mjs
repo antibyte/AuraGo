@@ -149,7 +149,8 @@ export function writeSheet(dir, name, { columns = 4, scale = 2 } = {}) {
 
 // Budget file: {reference, margin, triangles: {scene, tier, max}, frameMs: {<scene>: {<tier>: base median}}}.
 export function budgetInit(reports, { margin = .1, triangles = 650000 } = {}) {
-  const frameMs = {};
+  const frameMs = {}, renderers = new Set(reports.map(r => r.info?.renderer).filter(Boolean));
+  if (renderers.size > 1) throw new Error('budget-init: reports come from different renderers: ' + [...renderers].join(' | '));
   for (const r of reports) for (const s of r.shots || []) if (s.frameMs) {
     const t = r.info.tier; frameMs[s.scene] ??= {}; frameMs[s.scene][t] = Math.max(frameMs[s.scene][t] || 0, s.frameMs.median);
   }
@@ -157,6 +158,7 @@ export function budgetInit(reports, { margin = .1, triangles = 650000 } = {}) {
 }
 export function budgetCheck(budget, reports) {
   const rows = [], failures = [];
+  for (const r of reports) if (budget.reference && r.info?.renderer !== budget.reference) failures.push('renderer differs: report ' + r.info?.renderer + ' vs budget reference ' + budget.reference);
   for (const r of reports) for (const s of r.shots || []) {
     const t = r.info.tier, base = budget.frameMs?.[s.scene]?.[t];
     if (s.frameMs && base) {

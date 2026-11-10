@@ -8,24 +8,24 @@
   },
   "frameMs": {
     "overview-day": {
-      "low": 10.3,
-      "medium": 10.4,
-      "high": 10.9
+      "low": 7.4,
+      "medium": 8.5,
+      "high": 9.1
     },
     "street-agent": {
-      "low": 9.6,
-      "medium": 10.8,
-      "high": 10.8
+      "low": 4.4,
+      "medium": 5.5,
+      "high": 5.7
     },
     "facade-agent-night": {
-      "low": 10.2,
-      "medium": 11.7,
-      "high": 10.6
+      "low": 4.6,
+      "medium": 5.9,
+      "high": 5.9
     },
     "life-park-day": {
-      "low": 10.4,
-      "medium": 10.7,
-      "high": 10.6
+      "low": 2.6,
+      "medium": 2.9,
+      "high": 3.1
     }
   }
 }

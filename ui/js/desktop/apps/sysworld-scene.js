@@ -33,6 +33,7 @@ import { createHarbour } from './sysworld-harbour.js';
 import { createGulls } from './sysworld-gulls.js';
 import { createParticles } from './sysworld-particles.js';
 import { createSoundFrame } from './sysworld-sound-frame.js';
+import { createFurnitureSets, setDesigns, FURNITURE_LOD } from './sysworld-furniture-lod.js';
 export { createCityAmbience } from './sysworld-audio.js';
 
 // Metres, Y up. Stable district anchors are shared with the accessible map.
@@ -89,6 +90,8 @@ export function sharedMaterialKey(material) { return material.name + (material.v
 // length, never stretched; sysworld-ground.js) and the phase 4 furniture and signs (sysworld-furnishing.js).
 export const streetPlacements = streetModules().map(m => ({ asset: m.id, x: m.x, z: m.z, y: 0, angle: m.angle, scale: [1, 1, 1] }));
 export const kitPlacements = [...streetPlacements, ...furnishing().map(f => ({ asset: f.asset, x: f.x, z: f.z, y: f.y, angle: f.angle, scale: [1, 1, 1], area: f.area }))];
+const FURNISHED = new Map();   // phase 6: furniture design -> piece count; the worthwhile ones get near and far sets (setDesigns)
+for (const f of furnishing()) if (f.asset !== 'banner-mast') FURNISHED.set(f.asset, (FURNISHED.get(f.asset) || 0) + 1);
 // Designs kit v3 took over from v1 in phase 2. Wherever both kits ship an id, v3 wins: districts,
 // skyline, towers, lamps and planters load the v3 design (kitFor), colliders read its bounds.
 export const supersededV1 = ['agent-spire', 'memory-archive', 'integration-gate', 'mission-terminal', 'compute-foundry', 'knowledge-atrium',
@@ -238,7 +241,7 @@ export async function createCity(host, options) {
   const drones = createDrones(scene,{traffic,surfaces});
   const weather = createWeather(scene,{sun,rim,hemisphere,atmosphere,surfaces,onThunder:delay=>options.onThunder?.(delay)});
   const particles = createParticles(scene);
-  let moodKey = '', nearHidden = null, soundFrame = null;
+  let moodKey = '', nearHidden = null, soundFrame = null, furnitureSets = null;
   let banners = null, bannerAngle = 0;
   const bannerTurn = new THREE.Matrix4(), bannerRotation = () => bannerTurn.makeRotationY(bannerAngle);
   // Banner cloth swings about the mast with the wind (zero wind: at rest).
@@ -362,13 +365,16 @@ export async function createCity(host, options) {
     const kitOf = id => kitFor(id, catalog3);
     const size = (id, level, kit = kitOf(id)) => (kit === 'v3' ? catalog3 : catalog).get(id)?.lods.find(l => l.level === level)?.bytes || 0;
     const pending = (id, level, kit = kitOf(id)) => cache.has(kit + ':' + id + ':' + level) ? 0 : size(id, level, kit);
+    const setIds = setDesigns(new Map([...FURNISHED].filter(([id]) => kitIds.includes(id))), catalog3, lod);   // designs drawn as near and far sets at this tier
     expectedBytes = ids.reduce((sum, id) => sum + pending(id, lod), loadBytes) + (lod === 2 ? 0 : ['data-tower-a', 'data-tower-b'].reduce((sum, id) => sum + pending(id, 2), 0))
-      + kitIds.reduce((sum, id) => sum + pending(id, lod, 'v3'), 0);
+      + kitIds.reduce((sum, id) => sum + pending(id, lod, 'v3'), 0)
+      + ([...setIds].reduce((sum, id) => sum + pending(id, FURNITURE_LOD.level, 'v3'), 0));
     try {
       const loaded = new Map(await Promise.all(ids.map(async id => [id, await model(id, lod, kitOf(id))])));
       // Skyline deliberately uses low LOD even on Ultra.
       const distant = new Map(await Promise.all(['data-tower-a','data-tower-b'].map(async id => [id, await model(id, 2, kitOf(id))])));
       const kit = new Map(await Promise.all(kitIds.map(async id => [id, await model(id, lod, 'v3')])));
+      const farKit = new Map(await Promise.all([...setIds].map(async id => [id, await model(id, FURNITURE_LOD.level, 'v3')])));
       if (disposed || token !== generation) return;
       clearGroup(staticCity); clearGroup(landmarks); objects = [];
       const batches = new Map();
@@ -383,12 +389,15 @@ export async function createCity(host, options) {
         });
       };
       for (const p of placements) add(p, (p.z < -100 ? distant : loaded).get(p.asset));
-      for (const p of kitPlacements) if (kit.has(p.asset)) add(p, kit.get(p.asset));
+      for (const p of kitPlacements) if (kit.has(p.asset) && !farKit.has(p.asset)) add(p, kit.get(p.asset));
       for (const { node, matrices, near } of batches.values()) {
         const mesh = new THREE.InstancedMesh(node.geometry, node.material, matrices.length);
         matrices.forEach((m, i) => mesh.setMatrixAt(i, m));
         mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData.near = near; staticCity.add(mesh);
       }
+      // Furniture (phase 6): near and far sets per design instead of one city-wide batch (sysworld-furniture-lod.js).
+      furnitureSets = farKit.size ? createFurnitureSets({ pieces: kitPlacements.filter(p => farKit.has(p.asset)), near: kit, far: farKit, isNear: id => NEAR.has(id) }) : null;
+      if (furnitureSets) { furnitureSets.meshes.forEach(m => staticCity.add(m)); furnitureSets.sync(camera.position, 0, true); }
       // The banner cloth gets its own instances (sysworld-parts.js); the mast stays in the static batch.
       const masts = kitPlacements.filter(p => p.asset === 'banner-mast' && kit.has(p.asset));
       banners = masts.length ? { parts: createPartInstances(kit.get('banner-mast'), masts.length, { only: ['banner'], movable: ['banner'] }),
@@ -610,6 +619,7 @@ export async function createCity(host, options) {
     // Small furniture (NEAR) is sub-pixel from the orbit views: hidden above NEAR_HEIGHT, fewer draw calls.
     const far = camera.position.y > NEAR_HEIGHT;
     if (far !== nearHidden) { nearHidden = far; staticCity.traverse(n => { if (n.userData.near) n.visible = !far; }); renderer.shadowMap.needsUpdate = true; }
+    furnitureSets?.sync(camera.position, elapsed);
     if(travelling){
       if(camera.position.distanceToSquared(requested)>.000001){travelling.wait=(travelling.wait||0)+dt;travelling.time=flightTime;flight=travelling.wait<6?travelling:null;}
       else travelling.wait=0;
@@ -716,6 +726,6 @@ export async function createCity(host, options) {
       camera.position.copy(end).sub(homeTarget).applyAxisAngle(new THREE.Vector3(0, 1, 0), -.55).multiplyScalar(1.22).add(homeTarget); camera.position.y += 34;
       camera.lookAt(homeTarget); settleCamera(); flyTo(end, homeTarget); if (flight) flight.duration = 3.6;
     },
-    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), windows:windows.stats(), lobbies:lobbyRender.stats(), harbour:harbour.stats(), gulls:gulls.stats(), particles:particles.stats(), furniture:kitPlacements.length-streetPlacements.length,nearHidden,drones:drones.stats(), flow:flow.stats(), companion:companion?.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size,kitModels:{v1:[...cache.keys()].filter(k=>k.startsWith('v1:')).length,v3:[...cache.keys()].filter(k=>k.startsWith('v3:')).length}, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), pitch:+Math.asin(THREE.MathUtils.clamp(camera.getWorldDirection(new THREE.Vector3()).y,-1,1)).toFixed(3), fov:camera.fov, renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
+    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), furnitureLod:furnitureSets?furnitureSets.stats():null, atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), windows:windows.stats(), lobbies:lobbyRender.stats(), harbour:harbour.stats(), gulls:gulls.stats(), particles:particles.stats(), furniture:kitPlacements.length-streetPlacements.length,nearHidden,drones:drones.stats(), flow:flow.stats(), companion:companion?.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size,kitModels:{v1:[...cache.keys()].filter(k=>k.startsWith('v1:')).length,v3:[...cache.keys()].filter(k=>k.startsWith('v3:')).length}, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), pitch:+Math.asin(THREE.MathUtils.clamp(camera.getWorldDirection(new THREE.Vector3()).y,-1,1)).toFixed(3), fov:camera.fov, renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
   };
 }

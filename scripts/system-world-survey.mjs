@@ -11,13 +11,17 @@
  *   --timing: after each scene's picture, runs 100 frames in one synchronous loop outside requestAnimationFrame (no yielding, so vsync
  *        and presentation cannot pace it): city.update(1/60) + near sync + render, then gl.finish() so GPU work counts, one timing per
  *        iteration. The first 10 are warm-up and dropped; frameMs {median, p95} (milliseconds, 90 samples) goes into that scene's report.json entry.
+ *        What the number is: the uncapped cost of update + render submission per frame at the scene's own pose, not a vsync frame time.
+ *        The GPU is pinned (--force_high_performance_gpu); report info.renderer names it, and budget-check refuses a different one. The camera
+ *        is compared before and after the loop: a move over 0.05 m is a scene error and no frameMs. The old flat ~10 ms figures of
+ *        2026-11-10 measured the overview (the visitor body pulled the camera up), not each scene.
  *   --without-furniture: measuring aid for A/B runs. Patches the in-memory copy of sysworld-scene.js so kitPlacements holds only the
  *        street pieces (no furnishing() pieces); report.json gets withoutFurniture: true. Nothing on disk changes.
  *
  * How it works: a DEBUG bundle of sysworld-scene.js is built in memory with esbuild. An onLoad plugin
  * patches the source text (every patch asserted to match exactly once; nothing under ui/ is modified):
  *   - sysworld-scene.js: exposes globalThis.__sw = {THREE, camera, controls, scene, renderer, composer,
- *     experience, traffic, weather, atmosphere, surfaces, windows, sun, bloom, drones, lobbies, staticCity, nearHeight, harbour, gulls, particles, cancelFlight(), mode()}
+ *     experience, traffic, weather, atmosphere, surfaces, windows, sun, bloom, drones, lobbies, staticCity, nearHeight, harbour, gulls, particles, furniture(), cancelFlight(), mode()}
  *   - sysworld-society.js: adds `actors` to the society object, so residents are reached through
  *     __sw.experience.society.actors (each has .id "resident-N", .body {x,y,z,heading,enabled}, .node).
  * ui/ is served as the web root; the harness page drives the city with its own animation loop.
@@ -110,7 +114,7 @@ function replaceOnce(text, find, replacement, label) {
 
 const EXPOSE = 'globalThis.__sw = { THREE, camera, controls, scene, renderer, composer, experience, traffic, weather, atmosphere, surfaces, windows, sun, bloom, drones, '
   + 'model, catalogV3: () => catalog3, lobbies: lobbyRender, '
-  + 'staticCity, nearHeight: NEAR_HEIGHT, harbour, gulls, particles, '
+  + 'staticCity, nearHeight: NEAR_HEIGHT, harbour, gulls, particles, furniture: () => furnitureSets, '
   + 'cancelFlight: () => { flight = null; }, mode: () => mode };\n  ';
 
 async function buildBundle(withoutFurniture) {
@@ -237,7 +241,7 @@ async function main() {
   }
   const sub = s => ({ tier: s.tier, mode: s.mode, calls: s.calls, triangles: s.triangles, geometries: s.geometries, loadedBytes: s.loadedBytes, frames: s.frames,
     weather: s.weather && { time: s.weather.time, weather: s.weather.weather, daylight: round(s.weather.daylight) },
-    furniture: s.furniture, nearHidden: nearApplied });
+    furniture: s.furniture, furnitureLod: s.furnitureLod, nearHidden: nearApplied });
   // ---- phase 6 instruments: building rectangle, camera check, inventory, toggles, masks, feet ----
   const T = sw.THREE;
   function districtObject(id) { let target = null; sw.scene.traverse(n => { if (!target && n.userData && n.userData.district === id) target = n; }); if (!target) throw Error('no district ' + id); return target; }
@@ -342,6 +346,7 @@ async function main() {
   // One picture: flush a pending shadow pass first (so triangles counts the view only), then PNG, camera check, extras.
   async function captureFrame(scene, name, wanted) {
     wanted = applyCamera(scene) || wanted;
+    const sets = sw.furniture && sw.furniture(); if (sets && !scene.sequenceOf) sets.sync(sw.camera.position, Infinity, true);
     syncNear();
     const flushed = sw.renderer.shadowMap.needsUpdate;
     if (flushed) sw.composer.render();
@@ -383,9 +388,11 @@ async function main() {
       }
       if (config.timing) {
         applyCamera(scene); syncNear();
-        await nextFrames(2); timingLoop = true; const gl = sw.renderer.getContext(), ms = [];
+        await nextFrames(2); timingLoop = true; const gl = sw.renderer.getContext(), ms = [], p0 = sw.camera.position.clone();
         for (let i = 0; i < 100; i++) { const t0 = performance.now(); elapsed += 1 / 60; city.update(1 / 60, elapsed); syncNear(); gl.finish(); if (i >= 10) ms.push(performance.now() - t0); }
         timingLoop = false; ms.sort((a, b) => a - b);
+        const moved = sw.camera.position.distanceTo(p0);
+        if (moved > 0.05) throw Error('timing: the camera moved during the timed loop (' + round(moved, 3) + ' m)');
         shots[shots.length - 1].frameMs = { median: round(ms[Math.floor(ms.length / 2)], 2), p95: round(ms[Math.min(ms.length - 1, Math.ceil(ms.length * 0.95) - 1)], 2) };
         log('frameMs ' + scene.name + ' median ' + shots[shots.length - 1].frameMs.median + ' p95 ' + shots[shots.length - 1].frameMs.p95);
       }
@@ -515,7 +522,7 @@ async function main() {
   const profile = await fs.mkdtemp(path.join(os.tmpdir(), 'sw-survey-'));
   const args = ['--headless=new', '--user-data-dir=' + profile, '--window-size=' + opts.width + ',' + opts.height, '--no-first-run',
     '--no-default-browser-check', '--disable-extensions', '--hide-scrollbars', '--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist',
-    '--enable-unsafe-swiftshader', pageUrl];
+    '--enable-unsafe-swiftshader', '--force_high_performance_gpu', pageUrl];
   console.log('server ' + pageUrl + '\nlaunching ' + chromePath);
   const chrome = spawn(chromePath, args, { stdio: 'ignore', windowsHide: true });
   let spawnError = null;
