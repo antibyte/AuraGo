@@ -13,6 +13,8 @@ const post=(url,body,type)=>fetch(url,{method:'POST',headers:{'Content-Type':typ
 const errors=[],log=t=>post('/__sound/log',String(t)).catch(()=>{});
 addEventListener('error',e=>errors.push({where:'window',message:String(e.message)}));
 addEventListener('unhandledrejection',e=>errors.push({where:'promise',message:String(e.reason&&e.reason.stack||e.reason)}));
+// The recordings come from this page's own server (scripts/system-world-sound-survey.mjs serves ui/3d/system-world/audio/).
+const load=async path=>{const res=await fetch('/__sound/audio/'+path);if(!res.ok)throw Error('audio '+path+' '+res.status);return res.arrayBuffer();};
 const seeded=seed=>{let s=(seed>>>0)||1;return()=>(s=(Math.imul(s,1664525)+1013904223)>>>0)/4294967296;};
 function audioTimers(){const tasks=new Map();let id=0,now=0;
   return {setTimeout(fn,ms){tasks.set(++id,{fn,due:now+Math.max(0,Number(ms)||0)/1000});return id;},clearTimeout(h){tasks.delete(h);},
@@ -30,7 +32,7 @@ function along(points,s,out){let left=s;for(let i=1;i<points.length;i++){const [
 const polyLength=p=>p.slice(1).reduce((n,q,i)=>n+Math.hypot(q[0]-p[i][0],q[1]-p[i][1]),0);
 async function render(s){
   const seconds=s.seconds||30,ctx=new OfflineAudioContext({numberOfChannels:2,length:Math.round(RATE*seconds),sampleRate:RATE}),timers=audioTimers(),m=s.mood||{},weather=m.weather||'clear';
-  const sound=createCityAmbience(()=>{},{context:ctx,offline:true,timers,random:seeded(s.seed||1),voice:false,storage:null,enabled:true,tier:s.tier||'high'});
+  const sound=createCityAmbience(()=>{},{context:ctx,offline:true,timers,random:seeded(s.seed||1),voice:false,storage:null,enabled:true,tier:s.tier||'high',load});
   sound.setTier?.(s.tier||'high');sound.setVolume(s.volume??.18);sound.setMood({day:m.day??1,evening:m.evening??0,busy:!!m.busy,weather});sound.setEnvironment(!!s.inside,weather);
   sound.unlock();sound.setActive(true);
   const L=s.listener||{},walk=s.walk||null,walkLength=walk?polyLength(walk):0,pose={x:walk?walk[0][0]:L.x??0,z:walk?walk[0][1]:L.z??0,fx:L.fx??0,fz:L.fz??-1};
@@ -55,6 +57,11 @@ async function render(s){
     sound.frame?.(frame);
   }
   advance(0);
+  // The first frame starts the recordings' load; nothing is measured before every file is decoded (or has failed).
+  const expected=(s.tier||'high')==='low'?3:6,waitStart=performance.now();let rec=null;
+  for(;;){rec=sound.stats().soundscape.layers.recordings;if(rec&&rec.loaded.length+rec.failed>=expected)break;
+    if(performance.now()-waitStart>30000){errors.push({where:s.name,message:'recordings not ready after 30 s: '+JSON.stringify(rec)});break;}
+    await new Promise(r=>setTimeout(r,25));}
   const samples=[];
   for(let k=1;k<seconds*STEP;k++){const t=k/STEP;ctx.suspend(t).then(()=>{try{advance(t);if(k%(STEP*5)===0)samples.push({t,transient:sound.stats()?.soundscape?.transient??null});}catch(e){errors.push({where:s.name,message:String(e&&e.stack||e)});}return ctx.resume();});}
   const started=performance.now(),buffer=await ctx.startRendering(),renderMs=performance.now()-started,stats=sound.stats();sound.dispose();

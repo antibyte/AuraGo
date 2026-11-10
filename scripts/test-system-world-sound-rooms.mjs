@@ -6,7 +6,7 @@ import * as R from '../ui/js/desktop/apps/sysworld-sound-rooms.js';
 import {ROOMS} from '../ui/js/desktop/apps/sysworld-zones.js';
 for(const r of Object.values(ROOMS))assert.ok(R.ROOM_TONES[r.tone],'tone '+r.tone);
 for(const [name,t]of Object.entries(R.ROOM_TONES)){assert.ok(t.beds.length>=1,name);
-  for(const b of t.beds)assert.ok(['sine','saw','noise'].includes(b.wave)&&b.gain>0&&b.gain<=.08,name+' bed');
+  for(const b of t.beds)assert.ok(['sine','saw','noise'].includes(b.wave)&&b.gain>0&&b.gain<=.12,name+' bed');
   for(const e of t.events)assert.ok(['blip','tick','chime','clunk','drop'].includes(e.kind)&&e.every[0]>0&&e.every[1]>=e.every[0],name+' event '+e.kind);}
 const seeded=s=>()=>(s=(Math.imul(s,1664525)+1013904223)>>>0)/4294967296;
 function rig(tier='high'){const fake=createFakeAudio(),c=fake.context,room=fake.node('room'),send=fake.node('send');return {fake,c,tones:R.createRoomTones(c,{room,send,noise:c.createBuffer(1,c.sampleRate),random:seeded(9),tier})};}

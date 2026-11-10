@@ -7,7 +7,7 @@ import {seaHeight} from './sysworld-atmosphere.js';
 import {steamVents} from './sysworld-particles.js';
 import {bearingPan} from './sysworld-zones.js';
 
-export const BEDS=Object.freeze({leaves:.05,laps:.05,steam:.03,traffic:.012,rain:.02,patter:.02});
+export const BEDS=Object.freeze({leaves:.1,laps:.12,steam:.06,traffic:.03,rain:.04,patter:.05});
 export const LAP=Object.freeze({rise:.15,gap:.9,max:3,low:380,high:700,shortest:.22,longest:.4,quayZ:80});
 const RICH=Object.freeze({low:false,medium:true,high:true,ultra:true}),VENTS=steamVents();
 const clamp01=v=>v<0?0:v>1?1:v;

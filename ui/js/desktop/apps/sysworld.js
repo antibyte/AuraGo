@@ -175,7 +175,7 @@
             try{
                 const module=await import(versioned('/js/vendor/system-world/city.esm.js'));
                 if(inst.disposed)return;
-                inst.sound=module.createCityAmbience(value=>inst.hud.sound(value));
+                inst.sound=module.createCityAmbience(value=>inst.hud.sound(value),{assetURL:file=>versioned('/3d/system-world/audio/'+file)});
                 inst.hud.sound(inst.sound.enabled());
                 const city=await module.createCity(canvasHost,{
                     label:ctx.t('desktop.app_system_world'),memoryLabel:ctx.t('sysworld.zone.memory'),quality:inst.quality,reducedMotion:motionOff(),signal:inst.load.signal,

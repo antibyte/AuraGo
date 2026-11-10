@@ -84,6 +84,9 @@ async function main(){
       return send(404,'text/plain','not found');}
     if(url.pathname==='/__sound/index.html')return send(200,'text/html; charset=utf-8',html);
     if(url.pathname==='/__sound/page.js')return send(200,'text/javascript; charset=utf-8',page);
+    if(url.pathname.startsWith('/__sound/audio/')){const file=decodeURIComponent(url.pathname.slice('/__sound/audio/'.length));
+      if(!/^(manifest\.json|[a-z0-9-]+\.ogg)$/.test(file))return send(404,'text/plain','not found');
+      try{return send(200,file.endsWith('.json')?'application/json':'audio/ogg',await fs.readFile(path.join(root,'ui','3d','system-world','audio',file)));}catch(_){return send(404,'text/plain','not found');}}
     if(url.pathname==='/__sound/config.json')return send(200,'application/json',config);
     return send(404,'text/plain','not found');
   }catch(e){console.error('server error: '+e.message);try{res.writeHead(500);res.end();}catch(_){}}});
@@ -101,7 +104,7 @@ async function main(){
   for(const s of situations){const file=path.join(outDir,s.name+'.wav');if(!existsSync(file))continue;
     const wav=readWav(await fs.readFile(file)),m=measure(wav.channels,wav.sampleRate,{skip:o.skip}),st=stats.get(s.name)||{};
     rows.push({name:s.name,file:s.name+'.wav',seconds:wav.channels[0].length/wav.sampleRate,tier:s.tier||'high',lufs:db(m.lufs),truePeakDb:db(m.truePeakDb),samplePeakDb:db(m.samplePeakDb),rmsDb:db(m.rmsDb),
-      renderMs:st.renderMs,realtime:st.realtime,steps:st.steps,transientSamples:st.transientSamples,track:st.track?.length?st.track:undefined,stats:st.sound||null});}
+      renderMs:st.renderMs,realtime:st.realtime,steps:st.steps,transientSamples:st.transientSamples,track:st.track?.length?st.track:undefined,recordings:st.sound?.soundscape?.layers?.recordings||null,stats:st.sound||null});}
   let base=null;if(o.baseline){try{base=JSON.parse(await fs.readFile(path.join(root,'reports','system-world-sound',o.baseline,'report.json'),'utf8'));}catch(_){console.warn('baseline '+o.baseline+' not found');}}
   const out={label:o.label,generatedAt:new Date().toISOString(),reason,skip:o.skip,wavFormat:o.pcm24?'pcm24':'float32',calibration,situations:rows,checks:checks(rows,base),errors:report?.errors||[]};
   await fs.writeFile(path.join(outDir,'report.json'),JSON.stringify(out,null,2));

@@ -14,7 +14,7 @@ export function createFakeAudio({sampleRate=8000}={}){
       gain:parameter(1),frequency:parameter(350),Q:parameter(1),pan:parameter(0),delayTime:parameter(0),detune:parameter(0),playbackRate:parameter(1),
       threshold:parameter(-24),knee:parameter(30),ratio:parameter(12),attack:parameter(.003),release:parameter(.25),
       connect(other){this.links.push(other);this.disconnected=false;return other;},disconnect(){this.disconnected=true;this.links.length=0;},
-      start(){this.started=true;},stop(){this.stopped=true;},getFloatTimeDomainData(target){target.fill(0);}};
+      start(...args){this.started=true;this.startArgs=args;},stop(){this.stopped=true;},getFloatTimeDomainData(target){target.fill(0);}};
     nodes.push(n);return n;
   }
   const context={currentTime:0,state:'running',sampleRate,destination:node('destination'),

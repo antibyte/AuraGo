@@ -8,7 +8,7 @@ import {craftPoses} from './sysworld-harbour.js';
 import {gullPose,FLOCK} from './sysworld-gulls.js';
 import {bearingPan} from './sysworld-zones.js';
 
-export const MOVERS=Object.freeze({tram:.06,squeal:.02,hover:.025,launch:.05,barge:.04,clack:.5,joint:12,axles:2.2,maxClacks:6,release:1.25,
+export const MOVERS=Object.freeze({tram:.14,squeal:.04,hover:.05,launch:.11,barge:.08,clack:.5,joint:12,axles:2.2,maxClacks:6,release:1.25,
   reach:Object.freeze({tram:90,hover:30,launch:120,barge:260,clack:60})});
 export const VOICES=Object.freeze({low:Object.freeze({trams:1,hovers:2,barge:false}),medium:Object.freeze({trams:2,hovers:4,barge:true}),
   high:Object.freeze({trams:2,hovers:4,barge:true}),ultra:Object.freeze({trams:2,hovers:4,barge:true})});
