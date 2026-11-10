@@ -248,7 +248,9 @@ export function createAtmosphere(scene, options = {}) {
   geometries.push(aviationGeometry); materials.push(aviationMaterial);
   // Cinematic grade after the output pass (high/ultra only).
   const cinema = createCinema(time), post = cinema.pass;
-  let busy = false, tier = 'high', sweep = 0;
+  let busy = false, tier = 'high', sweep = 0, lampLevel = 1;
+  // Lamp cones only read at night: invisible by day, fading in towards dusk (never on low).
+  const showLamps = () => { lampCones.visible = tier !== 'low' && lampLevel > .01; };
   return {
     post, sea,
     setLighting(daylight, evening, direction) {
@@ -266,6 +268,7 @@ export function createAtmosphere(scene, options = {}) {
       mist.material.uniforms.strength.value=.55*(1-daylight*.85);
       coastShade.value=.82-.22*(1-daylight)-.2*dusk.value;shoreStrength.value=Math.max(0,1-daylight*1.6)*(1-dusk.value*.5);
       sea.material.uniforms.sunColor.value.set(0xdff0ff).lerp(new THREE.Color(0xffa060),dusk.value);
+      lampLevel = 1 - THREE.MathUtils.smoothstep(daylight, .12, .55); showLamps();
     },
     setWeather(value) { cloud.value = value === 'rain' ? .95 : value === 'fog' ? .7 : .25; },
     setFlash(value) { flash.value = Math.max(0, Math.min(1, value)); },
@@ -279,7 +282,7 @@ export function createAtmosphere(scene, options = {}) {
     setTier(value) {
       tier = value;
       const rich = tier !== 'low';
-      mist.visible = rich; dust.visible = rich; lampCones.visible = rich;
+      mist.visible = rich; dust.visible = rich; showLamps();
       searchlights.forEach(beam => { beam.visible = rich; });
       octaves.value = tier === 'low' ? 3 : tier === 'medium' ? 4 : 5;
       post.enabled = tier === 'high' || tier === 'ultra';
@@ -301,7 +304,7 @@ export function createAtmosphere(scene, options = {}) {
       crown.scale.setScalar(1 + Math.sin(time.value * (busy ? 6 : 2.2)) * .18);
       // A barely visible warm flicker keeps the quay lamps from looking painted
       // on. The shared time uniform freezes it under reduced motion.
-      lampMaterial.uniforms.strength.value = .3 * (1 + .035 * Math.sin(time.value * 1.6) + .015 * Math.sin(time.value * 4.1 + 1.2));
+      lampMaterial.uniforms.strength.value = .3 * lampLevel * (1 + .035 * Math.sin(time.value * 1.6) + .015 * Math.sin(time.value * 4.1 + 1.2));
       sweep += step;
       const night = 1 - day.value;
       searchMaterial.uniforms.strength.value = night * night * .075 * (1 - dusk.value * .7) * (1 - cloud.value * .45);
@@ -313,7 +316,7 @@ export function createAtmosphere(scene, options = {}) {
       });
       if (post.enabled) cinema.update(step, camera, sunDir, { day: day.value, dusk: dusk.value, cloud: cloud.value, animated });
     },
-    stats: () => ({ tier, busy, stars: starCount, dust: dustCount, lamps: lamps.length, post: post.enabled, coast: coastIndex.length / 6, shoreLights: shorePhase.length,
+    stats: () => ({ tier, busy, stars: starCount, dust: dustCount, lamps: lamps.length, lampLevel: +lampLevel.toFixed(2), post: post.enabled, coast: coastIndex.length / 6, shoreLights: shorePhase.length,
       clouds: +cloud.value.toFixed(2), searchlights: searchlights.length, aviation: aviationGeometry.drawRange.count, cinema: cinema.stats() }),
     dispose() {
       group.removeFromParent(); lampCones.dispose();
