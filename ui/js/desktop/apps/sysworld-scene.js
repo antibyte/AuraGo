@@ -11,7 +11,7 @@ import { CopyShader } from 'three/addons/shaders/CopyShader.js';
 import { createCityLife } from './sysworld-life.js';
 import { obstaclesFrom } from './sysworld-navigation.js';
 import { createMemoryHologram } from './sysworld-hologram.js';
-import { createAtmosphere } from './sysworld-atmosphere.js';
+import { createAtmosphere, roofTop, aviationPoints } from './sysworld-atmosphere.js';
 import { createFlow } from './sysworld-flow.js';
 import { createDrones } from './sysworld-drones.js';
 import { createExperience } from './sysworld-experience.js';
@@ -51,6 +51,7 @@ const tiers = {
   high: { lod: 0, dpr: 1.5, shadow: 2048, bloom: true },
   ultra: { lod: 0, dpr: 2, shadow: 4096, bloom: true },
 };
+const NIGHT_ENV = .2;   // scene.environmentIntensity at night (day .48); range .08-.3
 const home = new THREE.Vector3(122, 106, 183);
 
 // Renders the scene into a multisampled HDR target and resolves it into the composer's plain
@@ -395,9 +396,9 @@ export async function createCity(host, options) {
         mesh.userData.district = d.id; landmarks.add(mesh); objects.push(mesh);
       }
       life?.attachLandmarks(landmarks); drones.setTemplate(loaded.get('service-drone'));
-      const box = new THREE.Box3(), roofs = new Map();
-      for (const id of ['data-tower-a','data-tower-b']) roofs.set(id, box.setFromObject(distant.get(id)).max.y);
-      atmosphere.setAviation(placements.filter(p => roofs.has(p.asset) && (p.z < -100 || p.scale[1] > 1.1)).map(p => ({ x: p.x, y: p.y + roofs.get(p.asset) * p.scale[1] + .6, z: p.z })));
+      // Aviation lights stand on the centre of each tower's roof, turned and scaled with the placement (phase 6).
+      const roofs = new Map(['data-tower-a', 'data-tower-b'].map(id => [id, roofTop(distant.get(id))]));
+      atmosphere.setAviation(aviationPoints(placements, roofs));
       renderer.shadowMap.needsUpdate = true; options.onReady?.();
     } catch (e) { if (!disposed && token === generation) options.onError?.(e); }
   }
@@ -645,6 +646,7 @@ export async function createCity(host, options) {
     if (!reduced) ringTime.value += Math.min(.1, Math.max(0, dt));
     const key = [busy, mood.day.toFixed(1), mood.evening.toFixed(1), mood.weather].join();
     bloom.strength = .2 + .15 * (1 - mood.day); bloom.threshold = 1.06 + .26 * THREE.MathUtils.smoothstep(mood.day, 0, 1); renderer.toneMappingExposure = .95 + .05 * (1 - mood.day);
+    scene.environmentIntensity = NIGHT_ENV + (.48 - NIGHT_ENV) * mood.day;
     if (key !== moodKey) { moodKey = key; options.onMood?.({ busy, day: mood.day, evening: mood.evening, weather: mood.weather }); }
     hologram.update(dt, camera, !reduced);
     renderer.info.reset(); composer.render(); frames++;

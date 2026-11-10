@@ -1,7 +1,7 @@
 // Street-lamp light cones are a night effect: invisible by day, fading in towards dusk, off on low.
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import {createAtmosphere} from '../ui/js/desktop/apps/sysworld-atmosphere.js';
+import {createAtmosphere,coneFade} from '../ui/js/desktop/apps/sysworld-atmosphere.js';
 import {surfaces} from '../ui/js/desktop/apps/sysworld-layout.js';
 
 const scene = new THREE.Scene(); scene.fog = new THREE.FogExp2(0x08121e, .004);
@@ -42,5 +42,17 @@ const afternoon = at(.35, .1);
 assert.ok(afternoon > 0 && afternoon < 1 && cones.visible && pools.visible, 'cones and pools fade in towards dusk');
 assert.equal(at(0, 1), 1); assert.equal(at(0, 0), 1); assert.equal(cones.visible, true, 'full cones in the evening and at night'); assert.equal(pools.visible, true, 'pools visible at night');
 atmosphere.setTier('low'); assert.equal(cones.visible, false, 'low tier keeps cones off'); assert.equal(pools.visible, false, 'low tier keeps pools off');
+// Phase 6: cones fade out near the camera (0 inside, 1 beyond 3 m of the cone volume), per instance.
+{ const c={x:0,z:0,bottom:0,top:6.5,radius:2.7};
+  assert.equal(coneFade(0,1,0,c),0,'inside the cone');assert.equal(coneFade(10,1,0,c),1,'far away');
+  const mid=coneFade(2.7+1.5,0,0,c);assert.ok(mid>0&&mid<1,'fading band');
+  let last=-1;for(let d=0;d<6;d+=.25){const f=coneFade(2.7+d,0,0,c);assert.ok(f>=last,'monotonic');last=f;}
+  assert.equal(coneFade(0,9.6,0,c),1,'3.1 m above the apex'); }
+{ const s=new THREE.Scene();s.fog=new THREE.FogExp2(0x08121e,.004);const a=createAtmosphere(s,{lamps:[{x:0,z:0,y:0,angle:0}]}),cam=new THREE.PerspectiveCamera();a.setTier('medium');a.setLighting(0,0,up);
+  const mesh=s.getObjectByName('city-atmosphere').children.find(n=>n.isInstancedMesh&&n.geometry.type==='ConeGeometry'),fade=mesh.geometry.getAttribute('fade');
+  assert.ok(fade&&fade.isInstancedBufferAttribute,'per-instance fade attribute');
+  cam.position.set(1.55,2,0);a.update(.016,1,cam,true);assert.equal(fade.array[0],0,'camera inside: cone faded out');
+  cam.position.set(30,2,0);a.update(.016,1,cam,true);assert.ok(fade.array[0]>.99,'camera far: full cone');
+  assert.ok(mesh.material.fragmentShader.includes('vFade'),'the fragment shader applies the fade');a.dispose(); }
 atmosphere.dispose();
 console.log('System World lamps: cones off by day, ' + afternoon.toFixed(2) + ' in the afternoon, full at night.');

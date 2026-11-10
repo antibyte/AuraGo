@@ -110,9 +110,9 @@ void main(){float d=length(gl_PointCoord-0.5)*2.0;if(d>1.0)discard;gl_FragColor=
 };
 const BEAM = `uniform float strength;uniform vec3 color;varying vec2 vUv;
 void main(){float along=pow(clamp(1.0-vUv.x,0.0,1.0),2.4);float across=pow(clamp(1.0-abs(vUv.y-0.5)*2.0,0.0,1.0),1.7);gl_FragColor=vec4(color*along*across*strength,1.0);}`;
-const LAMP = `uniform vec3 color;uniform float strength;varying vec2 vUv;varying vec3 vNormal,vView;
+const LAMP = `uniform vec3 color;uniform float strength;varying float vFade;varying vec2 vUv;varying vec3 vNormal,vView;
 void main(){float facing=clamp(abs(dot(normalize(vNormal),normalize(vView))),0.0,1.0);float h=clamp(vUv.y,0.0,1.0);
-float a=pow(h,2.4)*pow(facing,1.5)*strength;gl_FragColor=vec4(color*a,1.0);}`;
+float a=pow(h,2.4)*pow(facing,1.5)*strength*vFade;gl_FragColor=vec4(color*a,1.0);}`;
 // Soft pool of light on the pavement under each lamp: bright centre, smooth falloff to nothing at the rim.
 const LAMP_POOL = `uniform vec3 color;uniform float strength;varying vec2 vUv;
 void main(){float d=clamp(length(vUv-0.5)*2.0,0.0,1.0);float f=1.0-smoothstep(0.0,1.0,d);f=f*(0.35+0.65*f);gl_FragColor=vec4(color*f*strength,1.0);}`;
@@ -145,6 +145,31 @@ export function windAt(t, weather = 'clear', out = {}) {
   out.x = Math.cos(angle); out.z = Math.sin(angle);
   out.strength = Math.min(1, (base + .45 * g * g) * (weather === 'rain' ? 1.5 : weather === 'fog' ? .6 : 1));
   return out;
+}
+// Phase 6: a lamp's cone fades out when the camera is inside it or within CONE_FADE.outer metres (it would veil the frame).
+export const CONE_FADE = Object.freeze({ inner: .5, outer: 3 });
+export function coneFade(x, y, z, cone, inner = CONE_FADE.inner, outer = CONE_FADE.outer) {
+  const h = Math.min(cone.top, Math.max(cone.bottom, y)), r = cone.radius * (cone.top - h) / Math.max(1e-6, cone.top - cone.bottom);
+  const radial = Math.max(0, Math.hypot(x - cone.x, z - cone.z) - r), vertical = y < cone.bottom ? cone.bottom - y : y > cone.top ? y - cone.top : 0;
+  const t = Math.min(1, Math.max(0, (Math.hypot(radial, vertical) - inner) / (outer - inner)));
+  return t * t * (3 - 2 * t);
+}
+// Phase 6: the top centre of a model in its own frame, the mean x/z of the vertices within `band` metres of its highest
+// point; and the aviation lights of the tall or skyline towers on it, turned and scaled with each placement.
+export function roofTop(object, band = .5) {
+  object.updateMatrixWorld(true);
+  const v = new THREE.Vector3(), pts = []; let top = -Infinity;
+  object.traverse(n => { const p = n.isMesh && n.geometry.getAttribute('position'); if (!p) return;
+    for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(n.matrixWorld); pts.push(v.x, v.y, v.z); if (v.y > top) top = v.y; } });
+  let x = 0, z = 0, n = 0;
+  for (let i = 0; i < pts.length; i += 3) if (pts[i + 1] >= top - band) { x += pts[i]; z += pts[i + 2]; n++; }
+  return n ? { x: x / n, y: top, z: z / n } : { x: 0, y: 0, z: 0 };
+}
+export function aviationPoints(placements, roofs, lift = .6) {
+  return placements.filter(p => roofs.has(p.asset) && (p.z < -100 || p.scale[1] > 1.1)).map(p => {
+    const r = roofs.get(p.asset), c = Math.cos(p.angle || 0), s = Math.sin(p.angle || 0), lx = r.x * p.scale[0], lz = r.z * p.scale[2];
+    return { x: p.x + lx * c + lz * s, y: p.y + r.y * p.scale[1] + lift, z: p.z - lx * s + lz * c };
+  });
 }
 export function createAtmosphere(scene, options = {}) {
   const geometries = [], materials = [], group = new THREE.Group(); group.name = 'city-atmosphere'; scene.add(group);
@@ -206,7 +231,7 @@ export function createAtmosphere(scene, options = {}) {
   const crown = own(new THREE.SphereGeometry(.9, 16, 12), crownMaterial); beacon.add(crown);
   // Warm lamp cones from the kit's cantilever lamps.
   const lamps = (options.lamps || []).slice(0, 64);
-  const lampMaterial = shader(`varying vec2 vUv;varying vec3 vNormal,vView;void main(){vUv=uv;vNormal=normalize(normalMatrix*normal);vec4 p=vec4(position,1.0);
+  const lampMaterial = shader(`attribute float fade;varying float vFade;varying vec2 vUv;varying vec3 vNormal,vView;void main(){vFade=fade;vUv=uv;vNormal=normalize(normalMatrix*normal);vec4 p=vec4(position,1.0);
 #ifdef USE_INSTANCING
 p=instanceMatrix*p;
 #endif
@@ -221,6 +246,10 @@ vec4 mv=modelViewMatrix*p;vView=-mv.xyz;gl_Position=projectionMatrix*mv;}`,
     { const top = (lamp.y || 0) + 6.5, h = top - surfaces.pavement; scratch.position.set(lamp.x + 1.55 * Math.cos(lamp.angle || 0), surfaces.pavement + h / 2, lamp.z - 1.55 * Math.sin(lamp.angle || 0)); scratch.scale.set(1, h / 6.5, 1); scratch.updateMatrix(); scratch.scale.set(1, 1, 1); } lampCones.setMatrixAt(i, scratch.matrix);
   });
   lampCones.count = lamps.length; lampCones.instanceMatrix.needsUpdate = true; group.add(lampCones);
+  // Per-lamp cone volumes for the near-camera fade (same placement as the matrices above).
+  const cones = lamps.map(lamp => ({ x: lamp.x + 1.55 * Math.cos(lamp.angle || 0), z: lamp.z - 1.55 * Math.sin(lamp.angle || 0), bottom: surfaces.pavement, top: (lamp.y || 0) + 6.5, radius: 2.7 }));
+  const lampFade = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, lamps.length)).fill(1), 1);
+  lampGeometry.setAttribute('fade', lampFade);
   // One additive disc per lamp on the ground below the luminaire (radius 3.4 m), a single draw call. It lies 2 cm above the pavement top (surfaces.pavement); the lamps themselves stand 5 cm sunk.
   const poolMaterial = shader(`varying vec2 vUv;void main(){vUv=uv;vec4 p=vec4(position,1.0);
 #ifdef USE_INSTANCING
@@ -347,6 +376,9 @@ gl_Position=projectionMatrix*modelViewMatrix*p;}`,
       // on. The shared time uniform freezes it under reduced motion.
       const lampFlicker = lampLevel * (1 + .035 * Math.sin(time.value * 1.6) + .015 * Math.sin(time.value * 4.1 + 1.2));
       lampMaterial.uniforms.strength.value = .3 * lampFlicker; poolMaterial.uniforms.strength.value = .6 * lampFlicker;
+      if (lampCones.visible) { let dirty = false; const p = camera.position;
+        for (let i = 0; i < cones.length; i++) { const f = coneFade(p.x, p.y, p.z, cones[i]); if (Math.abs(f - lampFade.array[i]) > .01 || (f === 0) !== (lampFade.array[i] === 0)) { lampFade.array[i] = f; dirty = true; } }
+        if (dirty) lampFade.needsUpdate = true; }
       sweep += step;
       const night = 1 - day.value;
       searchMaterial.uniforms.strength.value = night * night * .075 * (1 - dusk.value * .7) * (1 - cloud.value * .45);
