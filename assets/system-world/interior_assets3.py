@@ -89,7 +89,8 @@ def shell(g, w, d, z1, doors, door_w, door_h, at=(0, 0), tile=1.15, floor=('kerb
 
         g.grid(xs, ys, FLOOR, lambda i, j: border if edge(i, j) else floor[(i + j) % 2],
                lambda i, j: .75 if edge(i, j) else 1.0)
-    # Ceiling: square light panels below the slab.
+    # Ceiling: a matt soffit hides the beam above, with square light panels below it.
+    g.grid([x0 - .3, x1 + .3], [y0 - .3, y1 + .3], glass_top - .006, 'kerb', .62, flip=True)
     if lod < 2:
         nx, ny = max(1, round((x1 - x0) / pitch)), max(1, round((y1 - y0) / pitch))
         for i in range(nx):
