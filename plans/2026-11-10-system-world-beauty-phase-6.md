@@ -2092,6 +2092,38 @@ was unusable for that reason.
   step L only if a lobby stays above .004, Task 6 steps 1–4 and 6 (`WIN_CAP` from 1.0). Steps M, F, C, G, A2, Task 6
   steps 5 and 7 and C1 are not applied.
 
+### Tasks 5–9 and 12 — fixes by cause (2026-11-10/11)
+- **Night light (Tasks 5, 8).** Only step E was needed: `NIGHT_ENV` .2 (the highest value that passes). Clipped
+  share at night: archive front .040 → .003, mission terminal .0245 → .002, agent tower .004 → .0005, lobbies
+  ≤ .002. Step L and every other Task 8 step stayed unused.
+- **Windows (Task 6).** The plan's day changes (tones, furniture, depth falloff) changed the pictures hardly at
+  all: by day the panes were pale because the glass mirrored the environment map (with the environment off,
+  the lit share of the agent tower's panes fell from .61 to .08). The glass got its own environment intensity
+  (`WINDOW_ENV` day .12, night .08; the plan's step 7 needed `material.envMap` to be set to act). Day fill .2,
+  `WIN_CAP` 1.1. All four day scenes pass (pane over ceramic ≤ .93, tones ≥ 3).
+- **Feet (Task 7).** Gaps on the four stair stills [0, 0]; the stills now start the resident's work clip, because
+  a resident still in its walk clip had one foot in swing and the measured pose depended on the run order.
+- **Patrol label (Task 12).** In the living run all `yield` label time was genuine (31 s stepping aside, 1.6 s
+  holding); only a suspended held patrol kept a stale label. Backlog 14 stays open.
+
+### Task 10 and the frame-time budget (2026-11-11)
+- **The Task 2 budget was wrong.** That harness set the survey camera but not the visitor body; the app's
+  traffic commit moved the camera back to the overview (y = 70) before the timed loop, so every scene was timed
+  at the overview: a flat 10 ms on every tier. Later the same day Chrome switched to the integrated GPU (3.5 to 4
+  times slower), which made the first Task 10 timing look like a regression. Measured on the same harness and
+  GPU, the app before and after phase 6 agree within half a millisecond.
+- **Harness.** It pins the high-performance GPU, fails a scene whose camera moves during the timed loop, and the
+  budget check refuses reports from another adapter. The number is the uncapped cost of update and render
+  submission at the scene's own pose, not a vsync frame time.
+- **New budget** (phase 5 app, two runs per tier, worst median, +10 %; Arc B580): overview 7.4 / 8.5 / 9.1 ms,
+  street 4.4 / 5.5 / 5.7, agent tower at night 4.6 / 5.9 / 5.9, park 2.6 / 2.9 / 3.1 on low / medium / high.
+  Run-to-run spread is about half a millisecond, so rows near their limit need the allowed re-run.
+- **Furniture sets.** Two sets for every design saved 100 to 300 thousand triangles but added 20 to 35 draw
+  calls per view, which cost more than the triangles saved on this GPU (park on medium 2.9 → 3.4 ms). Only the
+  designs worth it now have sets (`FURNITURE_LOD.worth` 8,000 triangles saved city-wide): both trees, bollards,
+  flower beds, litter bins and zebra signs on high, the first five on medium. `street-agent` on high: 627,936
+  view triangles (882,938 before; limit 650,000); every budget row passes.
+
 ### Tasks 13–15 — sound finish (2026-11-10)
 - **Task 13 (synthesis).** First render: the tram read as a kettle and a vacuum cleaner (motor sawtooth and whine
   over a weak roar), and the footfall body layer was inaudible (a band-pass of Q 8–10 passes about 25 Hz of the
@@ -2104,4 +2136,8 @@ was unusable for that reason.
 - **Task 15 (recordings).** The user approved four concrete files on 2026-11-10; two are used: "Tram Passing #2"
   (BigSoundBank, Joseph Sardin; 13 s around the pass) and "light footsteps on concrete walking.wav" (Freesound,
   rsellick; twelve single footfalls on a 0.3 s grid). `build_audio.py` got the kinds `pass` and `slices`. With the
-  recorded footfalls `walk-surfaces` reads as footsteps (z 3.4 on a step, 2.6 on a stretch).
+  recorded footfalls `walk-surfaces` reads as footsteps (z 3.4 on a step, 2.6 on a stretch). The tram pass first
+  went through the voice's hum gain and was audible for three seconds (two distance envelopes on one sound,
+  z 0.95 to 2.4); with its own gain following the square root of the distance law (`pass.level` .9, `tram` .28)
+  the pass reads as a rail vehicle: z 3.3, tagger "Train" .50. Strict survey `phase-6-t15f` passes
+  (`tram-corner` +2.24 LU against the baseline).
