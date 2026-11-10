@@ -62,13 +62,32 @@ function solidHit(body,from,to,solid) {
   return false;
 }
 
-export function createTraffic() {
-  const bodies=new Map(),solids=new Map(),requests=new Map();
-  let stops=0,steps=0,clock=0,revision=0;
+// Static solids are bucketed in CELL-metre cells by their world box (design risk 1: hundreds of furniture
+// solids). A query visits only the cells its swept box touches and still reports the first blocking solid in
+// insertion order; solids spanning more than WIDE cells, and every solid with {grid:false}, are always visited.
+const CELL=16,WIDE=64;
+export function createTraffic({grid:useGrid=true}={}) {
+  const bodies=new Map(),solids=new Map(),requests=new Map(),cells=new Map(),wide=new Set();
+  let stops=0,steps=0,clock=0,revision=0,order=0,stamp=0;
+  function index(s,add){
+    const i0=Math.floor(s.world[0]/CELL),j0=Math.floor(s.world[1]/CELL),i1=Math.floor(s.world[2]/CELL),j1=Math.floor(s.world[3]/CELL);
+    if(!useGrid||(i1-i0+1)*(j1-j0+1)>WIDE){if(add)wide.add(s);else wide.delete(s);return;}
+    for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const k=i*65536+j;let list=cells.get(k);
+      if(add){if(!list)cells.set(k,list=[]);list.push(s);}else if(list){const at=list.indexOf(s);if(at>=0)list.splice(at,1);if(!list.length)cells.delete(k);}}
+  }
+  function near(x0,z0,x1,z1,visit){
+    const q=++stamp;for(const s of wide)if(s.stamp!==q){s.stamp=q;visit(s);}
+    if(!useGrid)return;
+    for(let i=Math.floor(x0/CELL),i1=Math.floor(x1/CELL);i<=i1;i++)for(let j=Math.floor(z0/CELL),j1=Math.floor(z1/CELL);j<=j1;j++){
+      const list=cells.get(i*65536+j);if(list)for(const s of list)if(s.stamp!==q){s.stamp=q;visit(s);}}
+  }
   const ignored=(a,b)=>a.id===b.id||a.ignore===b.id||b.ignore===a.id||a.enabled===false||b.enabled===false;
   function obstruction(body,from,to,actors=true) {
     if(![to.x,to.y,to.z,to.heading].every(Number.isFinite))return 'invalid-pose';
-    for(const s of solids.values())if(s.enabled!==false&&!(s.owner&&(s.owner===body.ignore||s.owner===body.id))&&solidHit(body,from,to,s))return s.id;
+    const r=body.reach+GAP;let best=null;
+    near(Math.min(from.x,to.x)-r,Math.min(from.z,to.z)-r,Math.max(from.x,to.x)+r,Math.max(from.z,to.z)+r,s=>{
+      if(s.enabled!==false&&!(s.owner&&(s.owner===body.ignore||s.owner===body.id))&&(!best||s.order<best.order)&&solidHit(body,from,to,s))best=s;});
+    if(best)return best.id;
     if(actors)for(const b of bodies.values())if(!ignored(body,b)&&pairHit(body,from,to,b,b,b))return b.id;
     return null;
   }
@@ -129,16 +148,16 @@ export function createTraffic() {
     remove(id){bodies.delete(id);requests.delete(id);},
     solid(id,box){const old=solids.get(id),next={id,x:0,z:0,heading:0,...box};if(old&&old.x===next.x&&old.z===next.z&&old.heading===next.heading&&old.enabled===next.enabled&&old.min.every((v,i)=>v===next.min[i])&&old.max.every((v,i)=>v===next.max[i]))return;
       const c=Math.cos(next.heading),s=Math.sin(next.heading),xs=[],zs=[];for(const x of [next.min[0],next.max[0]])for(const z of [next.min[2],next.max[2]]){xs.push(next.x+x*c+z*s);zs.push(next.z-x*s+z*c);}next.world=[Math.min(...xs),Math.min(...zs),Math.max(...xs),Math.max(...zs)];
-      solids.set(id,next);revision++;},
-    removeSolid(id){if(solids.delete(id))revision++;},
-    removeOwner(owner){for(const [id,s]of solids)if(s.owner===owner){solids.delete(id);revision++;}},
+      next.order=old?old.order:order++;if(old)index(old,false);index(next,true);solids.set(id,next);revision++;},
+    removeSolid(id){const s=solids.get(id);if(s){index(s,false);solids.delete(id);revision++;}},
+    removeOwner(owner){for(const [id,s]of solids)if(s.owner===owner){index(s,false);solids.delete(id);revision++;}},
     revision:()=>revision,
     solidClear(solid){return [...bodies.values()].every(b=>b.enabled===false||(solid.owner&&b.ignore===solid.owner)||!solidHit(b,b,b,{x:0,z:0,heading:0,...solid}));},
-    ceiling(body,x,z){let y=0;for(const s of solids.values())if(s.enabled!==false&&solidHit(body,{x,y:s.min[1],z,heading:0},{x,y:s.min[1],z,heading:0},s))y=Math.max(y,s.max[1]-body.minY+1);return y;},
+    ceiling(body,x,z){let y=0;const r=body.reach+GAP;near(x-r,z-r,x+r,z+r,s=>{if(s.enabled!==false&&solidHit(body,{x,y:s.min[1],z,heading:0},{x,y:s.min[1],z,heading:0},s))y=Math.max(y,s.max[1]-body.minY+1);});return y;},
     body:id=>bodies.get(id),
     neighbors(body,distance=12){return [...bodies.values()].filter(b=>!ignored(body,b)&&Math.abs(b.y-body.y)<4&&Math.hypot(b.x-body.x,b.z-body.z)<distance);},
     stats:()=>({bodies:bodies.size,solids:solids.size,stops,steps,time:clock,poses:[...bodies.values()].filter(b=>b.enabled!==false).map(b=>({id:b.id,x:b.x,y:b.y,z:b.z,heading:b.heading,blocked:b.blocked,obstruction:b.obstruction}))}),
-    dispose(){bodies.clear();solids.clear();requests.clear();},
+    dispose(){bodies.clear();solids.clear();requests.clear();cells.clear();wide.clear();},
   };
 }
 

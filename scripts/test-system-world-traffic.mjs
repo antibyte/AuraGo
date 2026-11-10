@@ -116,3 +116,19 @@ const p=(x,z,y=0,heading=0)=>({x,y,z,heading});
   signals.dispose();assert.equal(scene.children.length,0);
 }
 console.log('System World shared traffic: swept walls, opposing actors, height, camera, tram, yielding, doorway, guide resumption, directed exchanges and bounded fixed steps passed.');
+
+// Spatial buckets (phase 4): identical answers to the plain scan, first solid in insertion order, moved/removed/wide solids.
+{
+  const {createTraffic}=await import('../ui/js/desktop/apps/sysworld-traffic.js');
+  let seed=99;const rnd=()=>(seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296;
+  const grid=createTraffic(),plain=createTraffic({grid:false});
+  for(let i=0;i<900;i++){const box={x:(rnd()-.5)*180,z:(rnd()-.5)*180,heading:rnd()*6.28,min:[-rnd()*2,0,-rnd()*2],max:[rnd()*2,1+rnd()*5,rnd()*2]};
+    if(i%7===0)box.owner='o'+(i%3);if(i%50===0){box.min[0]=-1200;box.max[0]=1200;}for(const t of[grid,plain])t.solid('s'+i,box);}
+  for(const t of[grid,plain]){t.solid('s5',{x:10,z:10,min:[-1,0,-1],max:[1,2,1]});t.removeSolid('s6');t.removeOwner('o1');}
+  const body={id:'b',circles:[{x:0,z:0,r:.4},{x:0,z:.6,r:.4}],minY:0,maxY:2,reach:1};let hits=0;const started=performance.now();
+  for(let i=0;i<20000;i++){const a={x:(rnd()-.5)*200,y:rnd()*3,z:(rnd()-.5)*200,heading:rnd()*6},b={x:a.x+(rnd()-.5)*8,y:a.y,z:a.z+(rnd()-.5)*8,heading:a.heading+rnd()-.5};
+    const g=grid.obstruction(body,a,b,false);assert.equal(g,plain.obstruction(body,a,b,false),'buckets and scan disagree at '+JSON.stringify([a,b]));if(g)hits++;
+    if(i%10===0)assert.equal(grid.ceiling(body,a.x,a.z),plain.ceiling(body,a.x,a.z),'ceiling');}
+  assert.ok(hits>500,'the queries must hit solids: '+hits);assert.equal(grid.stats().solids,plain.stats().solids);
+  console.log(`Traffic buckets: 20000 swept queries agree with the plain scan (${hits} hits, ${(performance.now()-started).toFixed(0)} ms).`);
+}
