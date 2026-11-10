@@ -15,7 +15,7 @@ import {createSoundRecordings} from './sysworld-sound-recordings.js';
 const CHORDS=[[110,164.81,246.94,261.63],[87.31,130.81,220,329.63],[130.81,196,246.94,329.63],[98,146.83,246.94,293.66]];
 const CHIMES=[440,523.25,587.33,659.25,783.99,880,1046.5];
 const MAX_EVENTS=12;
-const VISITOR_STEP=Object.freeze({scale:1.9});
+const VISITOR_STEP=Object.freeze({scale:2.8}); // the visitor's own footfalls (phase 6: raised from 1.9 so they stand out of the bed)
 // While a real recording of birds or gulls carries the place, the synthesised calls become occasional accents.
 const RECORDED_KIND=Object.freeze({birds:'birds',gull:'gulls'}),RECORDED_THIN=.35;
 const gullSpot={x:0,y:0,z:0,heading:0,bank:0,flap:0};
@@ -174,7 +174,7 @@ export function createCityAmbience(onState=()=>{},options={}) {
     lamp.start();harmonic.start();
     // Phase 5 layers: zone-shaped beds, moving sources, room tones (outdoor ones behind the glass).
     beds=createSoundBeds(context,{outdoor:space.outdoor,send:space.sendOutdoor,local:ambientBus,noise,random,tier});beds.setMood(mood);
-    movers=createSoundMovers(context,{outdoor:space.outdoor,send:space.sendOutdoor,noise,tier});
+    movers=createSoundMovers(context,{outdoor:space.outdoor,send:space.sendOutdoor,noise,tier,random});
     rooms=createRoomTones(context,{room:space.room,send:space.roomSend,noise,random,tier});rooms.setMood(mood);
     recordings=createSoundRecordings(context,{outdoor:space.outdoor,send:space.sendOutdoor,load,tier});recordings.setMood(mood);
     applyMood();

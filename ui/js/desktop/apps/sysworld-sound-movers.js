@@ -8,14 +8,16 @@ import {craftPoses} from './sysworld-harbour.js';
 import {gullPose,FLOCK} from './sysworld-gulls.js';
 import {bearingPan} from './sysworld-zones.js';
 
-export const MOVERS=Object.freeze({tram:.45,squeal:.1,hover:.05,launch:.11,barge:.08,roll:.6,whine:.3,clack:.5,joint:12,axles:2.2,maxClacks:6,release:1.25,
-  reach:Object.freeze({tram:90,hover:30,launch:120,barge:260,clack:60})});
+// tram .7: the tram's overall level (phase 6: raised from .45 so a pass stands out of the bed).
+export const MOVERS=Object.freeze({tram:.7,squeal:.1,hover:.05,launch:.11,barge:.08,roll:1.6,whine:.09,motor:.15,clack:.8,tick:.25,tickGap:.3,joint:12,axles:2.2,maxClacks:6,release:1.25,
+  rollBands:Object.freeze([Object.freeze([.55,1.0,.6]),Object.freeze([1.1,1.4,.45]),Object.freeze([2.05,1.8,.3])]),tramFall:Object.freeze([8,.7]),hoverFall:Object.freeze([4,.45]),
+  reach:Object.freeze({tram:120,hover:45,launch:120,barge:260,clack:60})});
 export const VOICES=Object.freeze({low:Object.freeze({trams:1,hovers:2,barge:false}),medium:Object.freeze({trams:2,hovers:4,barge:true}),
   high:Object.freeze({trams:2,hovers:4,barge:true}),ultra:Object.freeze({trams:2,hovers:4,barge:true})});
 const clamp01=v=>v<0?0:v>1?1:v;
 export function distanceGain(d,ref,rolloff){return d<=ref?1:ref/(ref+rolloff*(d-ref));}
 export function dopplerRatio(previous,distance,dt){if(!(dt>0)||!Number.isFinite(previous))return 1;return Math.max(.94,Math.min(1.06,343/(343+(distance-previous)/dt)));}
-export function tramLaw(speed,lateral,distance,out={}){const g=distance<MOVERS.reach.tram?distanceGain(distance,6,1):0;
+export function tramLaw(speed,lateral,distance,out={}){const g=distance<MOVERS.reach.tram?distanceGain(distance,MOVERS.tramFall[0],MOVERS.tramFall[1]):0;
   out.hum=MOVERS.tram*Math.pow(clamp01(speed/11),.7)*g;out.squeal=MOVERS.squeal*clamp01((lateral-1)/3)*g;out.motor=60+32*clamp01(speed/11);out.whine=380+520*clamp01(speed/11);out.roll=600+40*Math.min(11,Math.max(0,speed));return out;}
 // Indices of the `count` nearest items with `on` within `reach` of (x, z), nearest first; -1 pads. No allocation.
 export function nearestSlots(items,count,x,z,reach,out){
@@ -24,12 +26,12 @@ export function nearestSlots(items,count,x,z,reach,out){
     for(let k=0;k<count;k++){const j=out[k];if(j<0||d<Math.hypot(items[j].x-x,items[j].z-z)){for(let m=count-1;m>k;m--)out[m]=out[m-1];out[k]=i;break;}}}
   return out;
 }
-export function createSoundMovers(context,{outdoor,send,noise,tier='high'}){
-  let level=VOICES[tier]?tier:'high',hoverClock=0,clacks=0,clacksPlayed=0;
-  const trams=[0,1].map(()=>({voice:null,x:0,z:0,heading:0,speed:0,turn:0,distance:NaN,travelled:0,idle:0,fresh:true}));
+export function createSoundMovers(context,{outdoor,send,noise,tier='high',random=Math.random}){
+  let level=VOICES[tier]?tier:'high',hoverClock=0,clacks=0,clacksPlayed=0,ticks=0;
+  const trams=[0,1].map(()=>({voice:null,x:0,z:0,heading:0,speed:0,turn:0,distance:NaN,travelled:0,idle:0,fresh:true,tick:0}));
   const gliders=[],gliderIds=new Map(),slots=Array.from({length:4},()=>({voice:null,index:-1,idle:0})),picks=new Int32Array(4);
   const launch={voice:null,idle:0},barge={voice:null,idle:0},poses=craftPoses(0),law={hum:0,squeal:0,motor:60},live=new Set();
-  function kit(){const v={nodes:[],last:new Float64Array(6).fill(NaN)},own=n=>(v.nodes.push(n),n);
+  function kit(){const v={nodes:[],last:new Float64Array(9).fill(NaN)},own=n=>(v.nodes.push(n),n);
     v.amp=x=>{const g=own(context.createGain());g.gain.value=x;return g;};
     v.filter=(type,f,q)=>{const n=own(context.createBiquadFilter());n.type=type;n.frequency.value=f;n.Q.value=q;return n;};
     v.noise=rate=>{const s=own(context.createBufferSource());s.buffer=noise;s.loop=true;s.playbackRate.value=rate;return s;};
@@ -39,11 +41,12 @@ export function createSoundMovers(context,{outdoor,send,noise,tier='high'}){
   function release(v){if(!v)return null;for(const n of v.nodes){try{n.stop?.();}catch(_){}try{n.disconnect();}catch(_){}}live.delete(v);return null;}
   function tramVoice(){const v=kit();v.squeal=v.amp(0);v.squeal.connect(v.pan);v.out.connect(v.amp(.35)).connect(send);
     v.noise(.6).connect(v.filter('lowpass',160,.7)).connect(v.amp(.6)).connect(v.out);
-    v.motor=v.osc('sawtooth',60);v.motor.connect(v.filter('lowpass',400,.7)).connect(v.amp(.3)).connect(v.out);
-    // Electric whine (380 Hz at rest to 900 Hz at full speed) and wheel-on-rail rolling noise (high-passed noise in a band that
-    // follows the speed); both pass v.out, so they share the hum's speed/distance law, pan and output.
+    v.motor=v.osc('sawtooth',60);v.motor.connect(v.filter('lowpass',400,.7)).connect(v.amp(MOVERS.motor)).connect(v.out);
+    // Noise first, tones second: the roar (roll) is the loudest part, the motor sawtooth and the whine sit well under it (motor .15, whine .09).
+    // Electric whine (380 Hz at rest to 900 Hz at full speed) and wheel-on-rail roar: three detuned noise bands that follow the speed;
+    // both pass v.out, so they share the hum's speed/distance law, pan and output.
     v.whine=v.osc('sine',380);v.whine.connect(v.amp(MOVERS.whine)).connect(v.out);
-    v.rollBand=v.filter('bandpass',600,.55);v.noise(.9).connect(v.filter('highpass',220,.7)).connect(v.rollBand).connect(v.amp(MOVERS.roll)).connect(v.out);
+    v.rolls=MOVERS.rollBands.map(([k,q,g],i)=>{const b=v.filter('bandpass',600*k,q);v.noise(.9+.07*i).connect(v.filter('highpass',220,.7)).connect(b).connect(v.amp(MOVERS.roll*g)).connect(v.out);return b;});
     v.noise(1).connect(v.filter('bandpass',2900,14)).connect(v.squeal);v.osc('sine',3150).connect(v.amp(.3)).connect(v.squeal);return start(v);}
   function hoverVoice(k){const v=kit();v.out.connect(v.amp(.2)).connect(send);
     v.osc('sine',180+7*k).connect(v.out);v.osc('sine',271+9*k).connect(v.amp(.4)).connect(v.out);v.noise(1+.05*k).connect(v.filter('bandpass',1200,3)).connect(v.amp(.5)).connect(v.out);return start(v);}
@@ -51,10 +54,10 @@ export function createSoundMovers(context,{outdoor,send,noise,tier='high'}){
     v.osc('sawtooth',46).connect(v.filter('lowpass',260,.7)).connect(am).connect(v.out);v.osc('sine',7.5).connect(v.amp(.4)).connect(am.gain);return start(v);}
   function bargeVoice(){const v=kit(),lp=v.filter('lowpass',120,.7);lp.connect(v.out);v.osc('sine',33).connect(lp);v.osc('sine',66).connect(v.amp(.5)).connect(lp);return start(v);}
   function set(v,slot,param,value,tau,eps=2e-4){const prev=v.last[slot];if(Math.abs(value-prev)<=Math.max(eps,Math.abs(prev)*.004))return;v.last[slot]=value;param.setTargetAtTime(value,context.currentTime,tau);}
-  function clack(at,gain,pan){if(clacks>=MOVERS.maxClacks)return;clacks++;clacksPlayed++;
-    const src=context.createBufferSource(),band=context.createBiquadFilter(),env=context.createGain();src.buffer=noise;src.loop=true;band.type='bandpass';band.frequency.value=1800;band.Q.value=2;
-    env.gain.setValueAtTime(0,at);env.gain.linearRampToValueAtTime(gain*MOVERS.clack,at+.002);env.gain.exponentialRampToValueAtTime(.0001,at+.012);
-    src.connect(band).connect(env).connect(pan);src.onended=()=>{clacks--;for(const n of[src,band,env])try{n.disconnect();}catch(_){}};src.start(at);src.stop(at+.02);}
+  function clack(at,gain,pan,f=1800,q=2,decay=.012){if(clacks>=MOVERS.maxClacks)return;clacks++;clacksPlayed++;
+    const src=context.createBufferSource(),band=context.createBiquadFilter(),env=context.createGain();src.buffer=noise;src.loop=true;band.type='bandpass';band.frequency.value=f;band.Q.value=q;
+    env.gain.setValueAtTime(0,at);env.gain.linearRampToValueAtTime(gain*MOVERS.clack,at+.002);env.gain.exponentialRampToValueAtTime(.0001,at+decay);
+    src.connect(band).connect(env).connect(pan);src.onended=()=>{clacks--;for(const n of[src,band,env])try{n.disconnect();}catch(_){}};src.start(at);src.stop(at+decay+.008);}
   function moveTram(t,src,listener,now,dt){
     const ox=listener.origin.x,oz=listener.origin.z;
     if(src&&src.on){
@@ -65,9 +68,11 @@ export function createSoundMovers(context,{outdoor,send,noise,tier='high'}){
       const d=Math.hypot(t.x-ox,t.z-oz);
       if(!t.voice&&d<MOVERS.reach.tram)t.voice=tramVoice();
       if(t.voice){const v=t.voice,r=dopplerRatio(t.distance,d,dt);tramLaw(t.speed,Math.abs(t.turn)*t.speed,d,law);
-        set(v,0,v.out.gain,law.hum,.15);set(v,1,v.squeal.gain,law.squeal,.1);set(v,2,v.motor.frequency,law.motor*r,.2,.05);set(v,3,v.whine.frequency,law.whine*r,.2,.05);set(v,5,v.rollBand.frequency,law.roll,.2,1);
+        set(v,0,v.out.gain,law.hum,.15);set(v,1,v.squeal.gain,law.squeal,.1);set(v,2,v.motor.frequency,law.motor*r,.2,.05);set(v,3,v.whine.frequency,law.whine*r,.2,.05);for(let i=0;i<v.rolls.length;i++)set(v,5+i,v.rolls[i].frequency,law.roll*MOVERS.rollBands[i][0]*(1+.012*(i-1)),.2,1);
         set(v,4,v.pan.pan,bearingPan(t.x-listener.x,t.z-listener.z,listener.fx,listener.fz),.1,.02);
-        while(t.travelled>=MOVERS.joint){t.travelled-=MOVERS.joint;if(d<MOVERS.reach.clack&&law.hum>0){clack(now,law.hum,v.pan);clack(now+MOVERS.axles/Math.max(1,t.speed),law.hum,v.pan);}}
+        while(t.travelled>=MOVERS.joint){t.travelled-=MOVERS.joint;if(d<MOVERS.reach.clack&&law.hum>0){clack(now,law.hum,v.pan,1300,1.6,.035);clack(now+MOVERS.axles/Math.max(1,t.speed),law.hum,v.pan,1300,1.6,.035);}}
+        // Flange ticks: short bright noise bursts, more often at speed and in curves (deterministic through the injected random).
+        if(d<MOVERS.reach.clack&&law.hum>0&&t.speed>1){t.tick-=dt*(t.speed/11)*(1+2*Math.min(1,Math.abs(t.turn)));if(t.tick<=0){ticks++;clack(now,law.hum*MOVERS.tick/MOVERS.clack,v.pan,4200,6,.006);t.tick=MOVERS.tickGap*(.4+1.2*random());}}
         t.idle=d>MOVERS.reach.tram*1.2?t.idle+dt:0;if(t.idle>MOVERS.release){t.voice=release(t.voice);t.idle=0;}}
       else t.travelled%=MOVERS.joint;
       t.distance=d;
@@ -80,7 +85,7 @@ export function createSoundMovers(context,{outdoor,send,noise,tier='high'}){
     for(let k=0;k<slots.length;k++){const s=slots[k];if(!s.voice)continue;
       if(s.index<0){set(s.voice,0,s.voice.out.gain,0,.3);s.idle+=dt;if(s.idle>MOVERS.release){s.voice=release(s.voice);s.idle=0;}continue;}
       const g=gliders[s.index],d=Math.hypot(g.x-ox,g.z-oz);
-      set(s.voice,0,s.voice.out.gain,MOVERS.hover*distanceGain(d,3,.6)*(g.moving?1:.6),.15);set(s.voice,1,s.voice.pan.pan,bearingPan(g.x-listener.x,g.z-listener.z,listener.fx,listener.fz),.1,.02);}
+      set(s.voice,0,s.voice.out.gain,MOVERS.hover*distanceGain(d,MOVERS.hoverFall[0],MOVERS.hoverFall[1])*(g.moving?1:.6),.15);set(s.voice,1,s.voice.pan.pan,bearingPan(g.x-listener.x,g.z-listener.z,listener.fx,listener.fz),.1,.02);}
   }
   function boat(b,pose,make,gain,ref,rolloff,reach,listener,dt,allowed){
     const d=Math.hypot(pose.x-listener.origin.x,pose.z-listener.origin.z);
@@ -104,7 +109,7 @@ export function createSoundMovers(context,{outdoor,send,noise,tier='high'}){
     clear(){},
     stats:()=>({tier:level,trams:trams.map(t=>({voice:!!t.voice,speed:+t.speed.toFixed(2),hum:t.voice?+(t.voice.last[0]||0).toFixed(4):0,squeal:t.voice?+(t.voice.last[1]||0).toFixed(4):0,
         distance:Number.isFinite(t.distance)?+t.distance.toFixed(1):null})),
-      hovers:slots.filter(s=>s.voice&&s.index>=0).map(s=>gliders[s.index].id),gliders:gliders.length,launch:!!launch.voice,barge:!!barge.voice,clacks,clacksPlayed,
+      hovers:slots.filter(s=>s.voice&&s.index>=0).map(s=>gliders[s.index].id),gliders:gliders.length,launch:!!launch.voice,barge:!!barge.voice,clacks,clacksPlayed,ticks,
       nodes:[...live].reduce((n,v)=>n+v.nodes.length,0)}),
     dispose(){for(const v of[...live])release(v);for(const t of trams)t.voice=null;for(const s of slots)s.voice=null;launch.voice=barge.voice=null;},
   };

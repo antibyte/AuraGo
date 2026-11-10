@@ -7,10 +7,10 @@ import {HARBOUR_SKY} from '../ui/js/desktop/apps/sysworld-gulls.js';
 assert.equal(M.distanceGain(3,6,1),1);let prev=2;for(let d=6;d<200;d+=7){const g=M.distanceGain(d,6,1);assert.ok(g<=prev&&g>0);prev=g;}
 assert.ok(M.dopplerRatio(50,49,.1)>1&&M.dopplerRatio(49,50,.1)<1,'approaching sounds higher');assert.equal(M.dopplerRatio(0,1000,.1),.94);assert.equal(M.dopplerRatio(NaN,5,.1),1);
 assert.equal(M.tramLaw(0,0,5,{}).hum,0);assert.equal(M.tramLaw(11,0,5,{}).hum,M.MOVERS.tram);assert.equal(M.tramLaw(11,4,5,{}).squeal,M.MOVERS.squeal);
-assert.equal(M.tramLaw(11,0,95,{}).hum,0,'beyond reach');assert.equal(M.tramLaw(11,.5,5,{}).squeal,0,'a straight run does not squeal');
+assert.ok(M.tramLaw(11,0,100,{}).hum>0,'a tram is still heard at 100 m (reach 120)');assert.equal(M.tramLaw(11,0,121,{}).hum,0,'beyond reach');assert.equal(M.tramLaw(11,.5,5,{}).squeal,0,'a straight run does not squeal');
 const items=[{x:10,z:0,on:true},{x:2,z:0,on:true},{x:5,z:0,on:false},{x:40,z:0,on:true},{x:3,z:0,on:true}],out=new Int32Array(3);
 assert.deepEqual([...M.nearestSlots(items,3,0,0,30,out)],[1,4,0]);assert.deepEqual([...M.nearestSlots(items,3,0,0,4,out)],[1,4,-1]);
-function rig(tier='high'){const fake=createFakeAudio(),c=fake.context,outdoor=fake.node('outdoor'),send=fake.node('send');return {fake,c,movers:M.createSoundMovers(c,{outdoor,send,noise:c.createBuffer(1,c.sampleRate*2),tier})};}
+function rig(tier='high',random){const fake=createFakeAudio(),c=fake.context,outdoor=fake.node('outdoor'),send=fake.node('send');return {fake,c,movers:M.createSoundMovers(c,{outdoor,send,noise:c.createBuffer(1,c.sampleRate*2),tier,...(random?{random}:{})})};}
 const L=(x,z,fx=0,fz=-1)=>({x,y:2.4,z,fx,fz,origin:{x,z}}),off={x:0,z:0,heading:0,on:false},frame=(trams=[],seaTime=0)=>({seaTime,trams:[trams[0]||off,trams[1]||off]});
 { // A tram passes along x at 11 m/s, 2 m from the listener.
   const {fake,c,movers}=rig(),tram={x:-150,z:2,heading:Math.PI/2,on:true};let built=null,approach=0,recede=0,maxClacks=0;
@@ -18,7 +18,7 @@ const L=(x,z,fx=0,fz=-1)=>({x,y:2.4,z,fx,fz,origin:{x,z}}),off={x:0,z:0,heading:
   for(let k=0;k<30*60;k++){const t=k/60;c.currentTime=t;tram.x=-150+11*t;movers.update(frame([tram]),L(0,0),t,1/60);
     const s=movers.stats().trams[0];if(s.voice&&built===null)built=tram.x;if(Math.abs(tram.x+30)<.1)approach=motor().frequency.value;if(Math.abs(tram.x-30)<.1)recede=motor().frequency.value;
     maxClacks=Math.max(maxClacks,movers.stats().clacks);if(k%6===0)fake.flush();}
-  assert.ok(built>-91&&built<-85,'the voice starts within 90 m: '+built);assert.ok(approach>recede&&approach>92&&recede<92,'Doppler '+approach+' / '+recede);
+  assert.ok(built>-121&&built<-115,'the voice starts within 120 m: '+built);assert.ok(approach>recede&&approach>92&&recede<92,'Doppler '+approach+' / '+recede);
   assert.ok(movers.stats().clacksPlayed>4&&maxClacks<=M.MOVERS.maxClacks,'rail joints');assert.equal(movers.stats().trams[0].voice,false,'released after it left');
   assert.equal(movers.stats().trams[0].squeal,0);movers.dispose();
 }
@@ -29,16 +29,25 @@ const L=(x,z,fx=0,fz=-1)=>({x,y:2.4,z,fx,fz,origin:{x,z}}),off={x:0,z:0,heading:
   assert.ok(squeal>.5*M.MOVERS.squeal,'a 5.3 m curve at 8 m/s squeals: '+squeal);movers.dispose();
 }
 { // Rolling noise and whine: a tram voice carries a rolling-noise band that follows the speed and a whine that runs 380..900 Hz.
-  assert.equal(M.MOVERS.roll,.6);assert.equal(M.tramLaw(0,0,5,{}).whine,380);assert.equal(M.tramLaw(11,0,5,{}).whine,900);assert.equal(M.tramLaw(11,0,5,{}).roll,1040);
+  assert.equal(M.MOVERS.roll,1.6);assert.equal(M.tramLaw(0,0,5,{}).whine,380);assert.equal(M.tramLaw(11,0,5,{}).whine,900);assert.equal(M.tramLaw(11,0,5,{}).roll,1040);
   const {fake,c,movers}=rig(),tram={x:-60,z:2,heading:Math.PI/2,on:true};
   for(let k=0;k<4*60;k++){const t=k/60;c.currentTime=t;tram.x=-60+11*t;movers.update(frame([tram]),L(0,0),t,1/60);}
-  const band=fake.nodes.find(n=>n.kind==='filter'&&n.type==='bandpass'&&n.Q.value===.55&&!n.disconnected);assert.ok(band,'a rolling-noise band-pass');
-  assert.ok(Math.abs(band.frequency.value-(600+40*movers.stats().trams[0].speed))<5,'the band follows the speed '+band.frequency.value);
+  const bands=M.MOVERS.rollBands.map(([k,q])=>fake.nodes.find(n=>n.kind==='filter'&&n.type==='bandpass'&&n.Q.value===q&&n.frequency.ramp.length>0&&!n.disconnected));
+  assert.ok(bands.every(Boolean),'three rolling-noise band-passes');const band=bands[0],law=M.tramLaw(movers.stats().trams[0].speed,0,2,{});
+  M.MOVERS.rollBands.forEach(([k],i)=>assert.ok(Math.abs(bands[i].frequency.value-law.roll*k)<.05*law.roll*k,'band '+i+' follows the speed x'+k+': '+bands[i].frequency.value));
   assert.ok(fake.nodes.some(n=>n.kind==='filter'&&n.type==='highpass'&&n.frequency.value===220&&!n.disconnected),'high-passed at 220 Hz');
-  const roll=band.links[0];assert.ok(roll&&roll.kind==='gain'&&roll.gain.value===M.MOVERS.roll,'a roll gain right after the band');
+  const roll=band.links[0];assert.ok(roll&&roll.kind==='gain'&&roll.gain.value===M.MOVERS.roll*M.MOVERS.rollBands[0][2],'a roll gain right after the band');
   const hum=fake.nodes.find(n=>n.kind==='gain'&&n.links.some(l=>l.kind==='pan')&&n.gain.ramp.length>0);assert.ok(fake.downstream(roll).has(hum),'the roll shares the hum output (speed/distance law, pan)');
   for(let k=240;k<240+20*60;k++){const t=k/60;c.currentTime=t;tram.x=-60+11*t;movers.update(frame([tram]),L(0,0),t,1/60);}
   assert.equal(band.disconnected,true,'released with the voice');movers.dispose();
+}
+{ // Flange ticks: a straight tram at 11 m/s, 20 m away, 2 s of 1/60 updates; a curve ticks more. A hover glider at 40 m is heard (reach 45).
+  const run=turn=>{let s=7;const random=()=>(s=(Math.imul(s,1664525)+1013904223)>>>0)/4294967296,{c,movers}=rig('high',random),tram={x:0,z:20,heading:0,on:true};
+    for(let k=0;k<120;k++){const t=k/60;c.currentTime=t;tram.x=11*t;tram.heading=turn*t;movers.update(frame([tram]),L(0,0),t,1/60);}
+    const n=movers.stats().ticks;movers.dispose();return n;};
+  const straight=run(0),curve=run(.3);assert.ok(straight>=3&&straight<=15,'straight ticks '+straight);assert.ok(curve>straight,'a curve ticks more: '+curve+' vs '+straight);
+  const {c,movers}=rig('high');movers.gait('patrol-far',40,1.6,0,true,'glide');for(let k=0;k<30;k++){c.currentTime=k/60;movers.update(frame(),L(0,0),k/60,1/60);}
+  assert.deepEqual(movers.stats().hovers,['patrol-far'],'a hover glider at 40 m gets a voice');movers.dispose();
 }
 for(const [tier,n]of[['low',2],['medium',4],['high',4]]){ // The nearest hover robots win a voice.
   const {c,movers}=rig(tier);for(let i=0;i<12;i++)movers.gait('patrol-'+i,2+i*3,1.6,0,true,'glide');movers.gait('resident-0',1,0,0,true,'');

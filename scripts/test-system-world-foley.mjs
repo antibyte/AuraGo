@@ -126,6 +126,10 @@ try{
     const {SURFACE_KINDS}=await import('../ui/js/desktop/apps/sysworld-zones.js');
     assert.deepEqual(Object.keys(STEP_VOICES).sort(),[...SURFACE_KINDS].sort(),'every surface has a footfall voice');
     for(const [k,v]of Object.entries(STEP_VOICES))assert.ok(v.gain>=.042&&v.gain<=.063&&v.layers.length>=2,'step voice '+k);
+    for(const [k,v]of Object.entries(STEP_VOICES)){if(k==='garden'||k==='grating'){assert.equal(v.body,undefined,k+' has no body resonance');continue;}
+      assert.ok(v.body&&v.body.f>=100&&v.body.f<=400&&v.body.q>=6,'body resonance on '+k);}
+    const {PAIRS}=await import('../ui/js/desktop/apps/sysworld-foley.js');
+    assert.equal(PAIRS.pavement.filter(l=>l.body).length,1,'one body layer in a pavement step');assert.ok(!PAIRS.pavement.some(l=>l.toe&&l.body),'no toe layer carries the body');
     const f=createCityFoley(context,node('out'),node('send'));f.setActive(true);
     const spots={road:[-18,-.14,-50],kerb:[-14.63,0,-50],pavement:[-13.5,0,-50],stairs:[0,.5,.3],quay:[-20,.08,77],lobby:[0,.88,-12],grating:[-43,.88,-56],garden:[-44,0,-88]};
     for(const [surface,[x,y,z]]of Object.entries(spots)){f.listener(x+2,y,z,0,-1,x+2,z);assert.equal(f.step(x,y,z,'v-'+surface),true,surface);assert.equal(f.stats().bySurface[surface],1,surface+' counted');flush();}
