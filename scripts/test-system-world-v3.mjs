@@ -109,8 +109,8 @@ assert.equal(lobbiesShipped, 6, 'All six lobby interiors must ship, found ' + lo
 // Phase 4: the fifteen city-life designs ship together (Task 0) or not at all.
 const lifeIds = ['harbour-launch', 'harbour-barge', 'sail-skiff', 'harbour-buoy', 'mooring-post', 'flower-bed', 'cafe-set', 'charge-post', 'info-pylon', 'utility-cabinet', 'neon-blade', 'neon-wave', 'neon-ring', 'banner-mast', 'gull'];
 const lifeShipped = lifeIds.filter(id => ids.includes(id)).length;
-assert.ok(lifeShipped === 0 || lifeShipped === 15, 'Life designs ship together: ' + lifeShipped);
-assert.equal(manifest.assets.length, 31 + lifeShipped, '6 street + 12 superseded + 7 furniture + 6 lobby interiors (+ 15 life), found ' + manifest.assets.length);
+assert.equal(lifeShipped, 15, 'The fifteen life designs ship');
+assert.equal(manifest.assets.length, 46, '6 street + 12 superseded + 7 furniture + 6 interiors + 15 life, found ' + manifest.assets.length);
 for (const id of [...supersededV1, ...furniture]) assert.ok(ids.includes(id), 'Missing v3 design ' + id);
 const catalogV3 = new Map(manifest.assets.map(a => [a.id, a]));
 for (const id of supersededV1) assert.equal(kitFor(id, catalogV3), 'v3', id + ' must load from v3');

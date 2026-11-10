@@ -152,6 +152,8 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	// Window interiors: kit v3 panes on the shared interior material, full level on high.
 	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(!s.windows||s.windows.level!==2||s.windows.meshes<10||s.kitModels.v3<14)throw Error('Window interiors inactive: '+JSON.stringify({windows:s.windows,kits:s.kitModels}));}`)
 	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(!s.lobbies||s.lobbies.level!==0||s.lobbies.shown.length)throw Error('Lobby interiors must not load at the overview: '+JSON.stringify(s.lobbies));}`)
+	page.Timeout(30 * time.Second).MustWait(`()=>{const s=SysWorldApp.inspect(cityId);return !!s.harbour&&s.harbour.craft===5&&s.gulls.loaded;}`)
+	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(s.furniture<300||s.nearHidden!==true||s.gulls.count!==12||s.harbour.buoys!==6||typeof s.atmosphere.wind!=='number'||s.particles.steam>60||s.particles.fireflies>200)throw Error('City life incomplete: '+JSON.stringify({f:s.furniture,n:s.nearHidden,h:s.harbour,g:s.gulls,p:s.particles,w:s.atmosphere.wind}));}`)
 	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId),dump=JSON.stringify(s);
         if(/Proxmox|alert\(1\)|Gedächtnis/.test(dump))throw Error('Diagnostics leak memory text');
         if(!(cityCalls['/api/desktop/system-world/memory-artifacts']>=1&&cityCalls['/api/desktop/system-world/memory-artifacts']<=2))throw Error('Artifact feed must poll once per interval');
@@ -467,6 +469,7 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(s.atmosphere.tier!=='low'||s.atmosphere.post!==false)throw Error('Low tier must disable the atmosphere post pass');if(s.surfaces.detail!==0)throw Error('Low tier must disable surface detail');}`)
 	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(s.windows.level!==0)throw Error('Low tier must use flat window cells: '+JSON.stringify(s.windows));}`)
 	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(s.lobbies.level!==null||s.lobbies.shown.length)throw Error('Low tier must keep the lobby stand-ins: '+JSON.stringify(s.lobbies));}`)
+	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(s.gulls.count!==0||s.particles.steam!==0||s.particles.fireflies!==0||s.atmosphere.wind!==0||s.harbour.lod!==2)throw Error('Low tier must drop gulls, steam, fireflies and wind and park the boats: '+JSON.stringify({g:s.gulls,p:s.particles,w:s.atmosphere.wind,h:s.harbour}));}`)
 	page.MustEval(`()=>{const select=document.querySelector('.sw-quality');select.value='high';select.dispatchEvent(new Event('change'));document.querySelector('[data-sw-mode="orbit"]').click();}`)
 	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).tier==='high'`)
 	metrics := page.MustEval(`async()=>{const frames=[];let last=performance.now();for(let i=0;i<120;i++){await new Promise(requestAnimationFrame);const now=performance.now();if(i>10)frames.push(now-last);last=now;}frames.sort((a,b)=>a-b);return JSON.stringify({meanMS:frames.reduce((a,b)=>a+b,0)/frames.length,p95MS:frames[Math.floor(frames.length*.95)],...SysWorldApp.inspect(cityId)},null,2)}`).Str()
