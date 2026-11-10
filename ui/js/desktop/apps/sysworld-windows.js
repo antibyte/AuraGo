@@ -48,9 +48,12 @@ vWinSeed=fract((winKey.x+winKey.y)*winKey.z);`,
   fragmentPars: `uniform float winTime;uniform vec4 winState;uniform vec3 winSky;
 varying vec3 vWinPos;varying vec3 vWinNrm;varying vec2 vWinRoom;varying float vWinSeed;
 float winHash(vec2 p){vec3 q=fract(vec3(p.xyx)*0.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
-float winBox(vec2 p,vec2 lo,vec2 hi){vec2 s=step(lo,p)*step(p,hi);return s.x*s.y;}
+// Box coverage with a smooth edge about one pixel wide (aa = pixel footprint in the same units).
+float winBox(vec2 p,vec2 lo,vec2 hi,vec2 aa){vec2 s=smoothstep(lo-aa,lo+aa,p)*(1.0-smoothstep(hi-aa,hi+aa,p));return s.x*s.y;}
 // Robot silhouette in metres around its feet: two legs, a torso and a round head.
-float winRobot(vec2 r){return min(1.0,winBox(vec2(abs(r.x),r.y),vec2(0.05,0.0),vec2(0.13,0.78))+winBox(r,vec2(-0.2,0.78),vec2(0.2,1.36))+step(length(r-vec2(0.0,1.52)),0.13));}`,
+float winRobot(vec2 r,vec2 aa){float a=max(aa.x,aa.y);return min(1.0,winBox(vec2(abs(r.x),r.y),vec2(0.05,0.0),vec2(0.13,0.78),aa)+winBox(r,vec2(-0.2,0.78),vec2(0.2,1.36),aa)+(1.0-smoothstep(0.13-a,0.13+a,length(r-vec2(0.0,1.52)))));}
+// Light on a room surface: lamp light falls off a little with depth, daylight a lot (2/3 at the back).
+vec3 winLightAt(vec3 lamp,vec3 fill,float z){return min(lamp*(1.0-0.3*z)+fill*(1.0-0.67*z),vec3(1.2));}`,
   fragmentMain: `
 // Room cell, per-room hashes and the light state (rooms re-roll their light every 20-60 s).
 vec2 winCell=floor(vWinRoom),winF=vWinRoom-winCell;
@@ -68,8 +71,15 @@ float winEpoch=0.0;
 #endif
 float winOn=max(step(winHash(winKey+winEpoch*vec2(3.1,1.7)+vec2(5.3,2.9)),winState.x),winLobby*step(0.5,winState.z));
 vec3 winWall=mix(vec3(0.62,0.56,0.48),vec3(0.40,0.48,0.55),step(0.55,winH1));
-vec3 winLamp=mix(vec3(1.0,0.8,0.56),vec3(0.8,0.9,1.0),step(0.72,winH1))*mix(vec3(1.0),vec3(1.12,0.95,0.78),winLobby);
-vec3 winLit=mix(vec3(winState.y),winLamp*winState.w,winOn);
+vec3 winLamp=mix(vec3(1.0,0.8,0.56),vec3(0.8,0.9,1.0),step(0.72,winH1))*mix(vec3(1.0),vec3(1.0,0.92,0.78),winLobby);
+// Light budget (linear radiance before tone mapping): lit walls stay below about 0.85, only the
+// ceiling panel (1.2) and screens and visors (1.15) pass the bloom threshold. Daylight (read back
+// from the unlit ambient) fills every room, brightest at the glass and a third of it at the back.
+float winDusk=clamp((winState.w-0.6)*1.1111,0.0,1.0);
+float winDay=clamp((winState.y-0.012)*10.0,0.0,1.0);
+vec3 winLampL=winLamp*(mix(0.08,0.7,winDusk)*winOn);
+vec3 winFill=vec3(0.94,1.0,1.06)*(0.012+0.26*winDay);
+float winAlive=max(winOn,winDay*step(fract(winH0*7.7),0.45));
 vec2 winS=vec2(WIN_BAY,WIN_STOREY);
 vec3 winRoomCol;
 #if WIN_LEVEL>0
@@ -86,7 +96,11 @@ winOk*=step(0.25,winLu)*step(winLu,40.0)*step(0.25,winLv)*step(winLv,40.0);
 vec3 winC=cross(vec3(0.0,1.0,0.0),winN);
 vec3 winT=mix(winC/max(length(winC),1e-4),winPu/max(winLu,1e-4),winOk);
 vec3 winB=mix(vec3(0.0,1.0,0.0),winPv/max(winLv,1e-4),winOk);
-winS=mix(winS,vec2(winLu,winLv),winOk);
+// Derived sizes jitter per 2x2 pixel quad (stair-steps, moire); within 15 % of the kit's room size
+// they snap to it, so only genuinely rescaled buildings keep the measured size.
+vec2 winSm=vec2(winLu,winLv);
+winSm=mix(winSm,winS,step(abs(winSm-winS),winS*0.15));
+winS=mix(winS,winSm,winOk);
 // View ray into a box room one cell wide, one storey high and WIN_DEPTH deep.
 vec3 winD=vec3(dot(winV,winT),dot(winV,winB),max(-dot(winV,winN),0.02));
 vec3 winSize=vec3(winS,WIN_DEPTH),winP=vec3(winF*winS,0.0);
@@ -97,15 +111,18 @@ float winBack=step(winT3.z,min(winT3.x,winT3.y));
 float winSide=(1.0-winBack)*step(winT3.x,winT3.y);
 float winFlr=(1.0-winBack-winSide)*step(winD.y,0.0);
 float winCeil=1.0-winBack-winSide-winFlr;
-vec3 winAlb=winWall*(winBack+0.72*winSide+0.9*winCeil)+vec3(0.16,0.15,0.17)*winFlr;
-float winPanel=winCeil*winBox(winQ.xz,vec2(0.28,0.3),vec2(0.72,0.62));
-winRoomCol=winAlb*winLit*mix(0.9,0.6,winQ.z)+winPanel*winLamp*winOn*2.5*winState.w;
+vec3 winAlb=winWall*(winBack+0.72*winSide+0.9*winCeil)+vec3(0.22,0.2,0.21)*winFlr;
+vec2 winAq=min(max(fwidth(winQ.xz),vec2(1e-3)),vec2(0.2));
+float winPanel=winCeil*winBox(winQ.xz,vec2(0.28,0.3),vec2(0.72,0.62),winAq*0.6);
+winRoomCol=winAlb*winLightAt(winLampL,winFill,winQ.z)+winPanel*winLamp*winOn*mix(0.5,1.2,winDusk);
+float winAh=max(fwidth(winHit),1e-3);
 // Furniture at 55 % depth: a desk or counter, sometimes a tall shelf.
 float winTf=0.55*WIN_DEPTH/winD.z;
 vec2 winPf=(winP+winD*winTf).xy;
 float winX0=(0.12+0.3*winH1)*winS.x,winX1=winX0+(0.3+0.2*fract(winH1*7.0))*winS.x;
-float winFurn=min(1.0,winBox(winPf,vec2(winX0,0.0),vec2(winX1,0.76))+step(0.5,fract(winH1*13.0))*winBox(winPf,vec2(winS.x-0.42,0.0),vec2(winS.x-0.1,1.9)))*step(winTf,winHit);
-winRoomCol=mix(winRoomCol,winWall*0.16*winLit,winFurn);
+vec2 winAf=min(max(fwidth(winPf),vec2(1e-3)),vec2(0.2))*0.6;
+float winFurn=min(1.0,winBox(winPf,vec2(winX0,0.0),vec2(winX1,0.76),winAf)+step(0.5,fract(winH1*13.0))*winBox(winPf,vec2(winS.x-0.42,0.0),vec2(winS.x-0.1,1.9),winAf))*smoothstep(winTf-winAh,winTf+winAh,winHit);
+winRoomCol=mix(winRoomCol,winWall*0.3*winLightAt(winLampL,winFill,0.55),winFurn);
 #if WIN_LEVEL>1
 // Life at 30 % depth in a share of the lit rooms: a robot walking across or standing and bobbing
 // (two in lobbies), and a flickering screen on the back wall of offices.
@@ -115,19 +132,25 @@ float winWalk=step(0.5,fract(winH2*5.3));
 float winX=mix(0.2+0.6*fract(winH2*29.0),0.5+0.36*sin(winTime*(0.25+0.25*fract(winH2*17.0))+winH2*40.0),winWalk)*winS.x;
 float winBob=0.025*sin(winTime*2.6+winH2*30.0)*(1.0-winWalk);
 vec2 winR1=vec2(winPl.x-winX,winPl.y-winBob),winR2=vec2(winPl.x-winS.x+winX,winPl.y+winBob);
-float winBots=max(winRobot(winR1),winRobot(winR2)*winLobby)*winOn*step(winH2,mix(0.4,0.85,winLobby))*step(winTl,winHit);
-float winVisor=max(winBox(winR1,vec2(-0.09,1.49),vec2(0.09,1.55)),winBox(winR2,vec2(-0.09,1.49),vec2(0.09,1.55))*winLobby)*winBots;
-float winScreen=winOn*winBack*(1.0-winLobby)*(1.0-winFurn)*step(fract(winH2*3.1),0.35)*winBox(vec2((winQ.x-0.5)*winS.x,winQ.y*winS.y),vec2(-0.5,1.0),vec2(0.5,1.6));
-winRoomCol+=winScreen*vec3(0.3,0.7,1.0)*1.8*(0.8+0.2*sin(winTime*9.0+winH2*50.0)*sin(winTime*2.3+winH2*20.0));
-winRoomCol=mix(winRoomCol,vec3(0.02,0.025,0.03),winBots)+winVisor*vec3(0.2,0.9,1.0)*1.5;
+vec2 winAl=min(max(fwidth(winPl),vec2(1e-3)),vec2(0.2))*0.6;
+float winBots=max(winRobot(winR1,winAl),winRobot(winR2,winAl)*winLobby)*winAlive*step(winH2,mix(0.4,0.85,winLobby))*smoothstep(winTl-winAh,winTl+winAh,winHit);
+float winVisor=max(winBox(winR1,vec2(-0.09,1.49),vec2(0.09,1.55),winAl),winBox(winR2,vec2(-0.09,1.49),vec2(0.09,1.55),winAl)*winLobby)*winBots*winOn;
+vec2 winSp=vec2((winQ.x-0.5)*winS.x,winQ.y*winS.y);
+float winScreen=winOn*winBack*(1.0-winLobby)*(1.0-winFurn)*step(fract(winH2*3.1),0.35)*winBox(winSp,vec2(-0.5,1.0),vec2(0.5,1.6),min(max(fwidth(winSp),vec2(1e-3)),vec2(0.2))*0.6);
+winRoomCol+=winScreen*vec3(0.3,0.7,1.0)*1.15*(0.8+0.2*sin(winTime*9.0+winH2*50.0)*sin(winTime*2.3+winH2*20.0));
+winRoomCol=mix(winRoomCol,vec3(0.03,0.035,0.045)+0.12*winLightAt(winLampL,winFill,0.3)*vec3(0.6,0.65,0.7),winBots)+winVisor*vec3(0.2,0.9,1.0)*1.15;
 #endif
 // Blinds in about one room in five, drawn on the glass; slats fade out when they get sub-pixel.
-float winBlind=step(fract(winH1*23.0),0.2)*step(0.7-0.6*fract(winH2*41.0),winF.y);
-float winSlat=0.8+0.2*step(0.5,fract(winF.y*winS.y*12.0))*(1.0-smoothstep(0.2,0.6,winAa.y*winS.y*12.0));
-winRoomCol=mix(winRoomCol,vec3(0.55,0.5,0.42)*winSlat*(winState.y*1.6+winLamp*winOn*0.45*winState.w),winBlind);
+float winBlindTop=0.7-0.6*fract(winH2*41.0);
+float winBlind=step(fract(winH1*23.0),0.2)*smoothstep(winBlindTop-winAa.y,winBlindTop+winAa.y,winF.y);
+// Slats: anti-aliased triangle wave; they fade to their average colour below about two pixels.
+float winSlatPx=winAa.y*WIN_STOREY*12.0;
+float winSlatW=smoothstep(0.5-min(winSlatPx,0.5),0.5+min(winSlatPx,0.5),abs(fract(winF.y*WIN_STOREY*12.0)-0.5)*2.0);
+float winSlat=mix(0.8+0.2*winSlatW,0.9,smoothstep(0.12,0.25,winSlatPx));
+winRoomCol=mix(winRoomCol,vec3(0.55,0.5,0.42)*winSlat*winLightAt(winLampL,winFill,0.0)*0.8,winBlind);
 #else
 // Low tier: a flat lit or unlit cell, brighter under the ceiling; no parallax, no motion.
-winRoomCol=winWall*winLit*0.8+winLamp*winOn*winState.w*0.5*smoothstep(0.35,1.0,winF.y);
+winRoomCol=winWall*winLightAt(winLampL,winFill,0.4)*0.8+winLamp*winOn*mix(0.1,0.2,winDusk)*smoothstep(0.35,1.0,winF.y);
 #endif
 winRoomCol*=1.0-winFres;
 // A faint frame (mullions on the cell's vertical edges, a spandrel at its foot) so the lowest LOD,
