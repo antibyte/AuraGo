@@ -18,7 +18,7 @@ export const KINDS = {
   // Robot-local rubber (soles, flex sleeves, belts): dark, rough, barely wet.
   'city.robot-rubber': {top: 'panels', side: 'panels', albedo: .3, rough: .75, bump: .008, wet: .25},
   'city.ceramic': {top: 'concrete', side: 'concrete', albedo: .3, rough: .4, bump: .008, wet: .8, puddle: [.464, .460]},
-  'city.leaf': {top: 'foliage', side: 'foliage', albedo: .7, rough: .3, bump: .03, wet: .5},
+  'city.leaf': {top: 'foliage', side: 'foliage', albedo: .7, rough: .3, bump: .03, wet: .5, sway: .045},
   // Kit v3 street materials (baked AO in COLOR_0 multiplies the albedo).
   'city.kerb': {top: 'concrete', side: 'concrete', albedo: .45, rough: .55, bump: .01, wet: 1},
   'city.setts': {top: 'pavers', side: 'concrete', albedo: .5, rough: .6, bump: .014, wet: 1, topScale: 2, puddle: [.523, .516]},
@@ -34,11 +34,18 @@ export const WINDOWS = new Set(['city.ivory', 'city.warm']);
 const PANES = 'city.window';
 const LEVELS = {low: 0, medium: 1, high: 2, ultra: 2};
 const float = value => Number(value).toFixed(4);
-const VERTEX_PARS = `varying vec3 vSwPos;varying vec3 vSwNrm;
+const VERTEX_PARS = `varying vec3 vSwPos;varying vec3 vSwNrm;uniform vec4 swWind;
 #ifdef SW_WINDOWS
 attribute float swSeed;varying float vSwSeed;
 #endif`;
+// Leaf sway (phase 4, city.leaf on instanced draws above the low tier): the bend grows with the height above 2 m, so leaves
+// below 2 m (beds, planters) stay still and a street tree's canopy (starting about 3 m up) keeps its underside on its limbs.
 const VERTEX_MAIN = `
+#if defined(SW_SWAY)&&defined(USE_INSTANCING)
+{float swHgt=max(transformed.y-2.0,0.0),swPh=dot(instanceMatrix[3].xz,vec2(.37,.23));
+vec3 swDir=transpose(mat3(instanceMatrix))*vec3(swWind.x,0.0,swWind.y);
+transformed+=swDir*(swWind.z*SW_SWAY*swHgt*sqrt(swHgt)*(.62+.38*sin(swWind.w*1.9+swPh)+.12*sin(swWind.w*5.3+swPh*2.1)));}
+#endif
 #ifdef USE_INSTANCING
 mat4 swObject=instanceMatrix;
 #else
@@ -158,7 +165,7 @@ export function createSurfaces(renderer, options = {}) {
   const shelters = (options.shelters || []).slice(0, 3).map(r => new THREE.Vector4(...r));
   while (shelters.length < 3) shelters.push(new THREE.Vector4(1e6, 1e6, -1e6, -1e6));
   const shared = {
-    swWet: { value: 0 }, swRain: { value: 0 }, swTime: { value: 0 }, swShelter: { value: shelters }, swSky: { value: new THREE.Color(0x08121e) },
+    swWet: { value: 0 }, swRain: { value: 0 }, swTime: { value: 0 }, swShelter: { value: shelters }, swWind: { value: new THREE.Vector4(1, 0, 0, 0) },swSky: { value: new THREE.Color(0x08121e) },
     swWindow: { value: new THREE.Vector4(.8, 1, .06, 1) }, swFade: { value: new THREE.Vector2(35, 140) },
   };
   let level = 2, loading = null, disposed = false, bytes = 0, expected = 0, loaded = 0, failures = 0, raining = false;
@@ -171,6 +178,7 @@ export function createSurfaces(renderer, options = {}) {
     const defines = ['#define SW_LEVEL ' + (config ? level : 0)];
     if (space === 'world') defines.push('#define SW_WORLD');
     if (windows) defines.push('#define SW_WINDOWS');
+    if (config?.sway && material.name === 'city.leaf' && level > 0) defines.push('#define SW_SWAY ' + float(config.sway));
     if (config) {
       shader.uniforms.swTop = slots[config.top]; shader.uniforms.swSide = slots[config.side]; shader.uniforms.swScale = scales[kind];
       defines.push('#define SW_SURFACE', '#define SW_ALBEDO ' + float(config.albedo), '#define SW_ROUGH ' + float(config.rough),
@@ -197,7 +205,7 @@ export function createSurfaces(renderer, options = {}) {
     patched.set(material, { kind, windows, space });
     material.addEventListener('dispose', () => patched.delete(material));
     material.onBeforeCompile = shader => inject(shader, material);
-    material.customProgramCacheKey = () => ['sw', kind, windows, space, kind ? level : 0].join('|');
+    material.customProgramCacheKey = () => ['sw', kind, windows, space, kind ? level : 0, !!(KINDS[kind]?.sway && material.name === 'city.leaf' && level > 0)].join('|');
     material.needsUpdate = true;
   }
   function prepare(mesh, dynamic = false) {
@@ -256,6 +264,8 @@ export function createSurfaces(renderer, options = {}) {
       shared.swWindow.value.set(Math.min(.9, .12 + .72 * dusk + .12 * overcast), .22 + night * .98 + Math.min(1, evening) * .1, .05, .55 + .45 * night);
     },
     setWeather(value) { raining = value === 'rain'; shared.swRain.value = raining ? 1 : 0; },
+    // Wind for leaf sway (atmosphere.wind()): direction x/z, strength (0 = still), time.
+    setWind(w) { shared.swWind.value.set(w.x, w.z, w.strength, w.time); },
     // Wet surfaces follow the weather over tens of seconds; without motion they switch at once.
     update(dt, animated) {
       const target = raining ? 1 : 0, wet = shared.swWet.value;

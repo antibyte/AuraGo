@@ -28,6 +28,7 @@ import { createWindows } from './sysworld-windows.js';
 import { createLobbyRender } from './sysworld-lobby-render.js';
 import { streetModules, plotSlabs, island } from './sysworld-ground.js';
 import { furnishing, SIZES as furnitureSizes, NEAR, NEAR_HEIGHT, SURFACES } from './sysworld-furnishing.js';
+import { createPartInstances, partOf } from './sysworld-parts.js';
 export { createCityAmbience } from './sysworld-audio.js';
 
 // Metres, Y up. Stable district anchors are shared with the accessible map.
@@ -228,6 +229,14 @@ export async function createCity(host, options) {
   const drones = createDrones(scene,{traffic,surfaces});
   const weather = createWeather(scene,{sun,rim,hemisphere,atmosphere,surfaces,onThunder:delay=>options.onThunder?.(delay)});
   let moodKey = '', nearHidden = null;
+  let banners = null, bannerAngle = 0;
+  const bannerTurn = new THREE.Matrix4(), bannerRotation = () => bannerTurn.makeRotationY(bannerAngle);
+  // Banner cloth swings about the mast with the wind (zero wind: at rest).
+  function swingBanners(wind, time) {
+    if (!banners) return;
+    for (let i = 0; i < banners.bases.length; i++) { bannerAngle = wind.strength * (.22 + .16 * Math.sin(time * 1.7 + i * 2.1)); banners.parts.set(i, banners.bases[i], bannerRotation); }
+    banners.parts.commit();
+  }
   let experience=null;
   // Selection: dashed, slowly turning, pulsing in the district's state colour. Hover: a quiet solid ring.
   const ringTime = { value: 0 }, ringGeometry = new THREE.RingGeometry(1, 1.045, 96); geoSet.add(ringGeometry);
@@ -355,7 +364,7 @@ export async function createCity(host, options) {
         const matrix = new THREE.Matrix4().compose(new THREE.Vector3(p.x, p.y, p.z),
           new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.angle), new THREE.Vector3(...p.scale));
         template.traverse(n => {
-          if (!n.isMesh) return;
+          if (!n.isMesh || (p.asset === 'banner-mast' && partOf(n, ['banner']))) return;
           if (!batches.has(n.uuid)) batches.set(n.uuid, { node: n, matrices: [], near: NEAR.has(p.asset) });
           batches.get(n.uuid).matrices.push(new THREE.Matrix4().multiplyMatrices(matrix, n.matrixWorld));
         });
@@ -367,6 +376,11 @@ export async function createCity(host, options) {
         matrices.forEach((m, i) => mesh.setMatrixAt(i, m));
         mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData.near = near; staticCity.add(mesh);
       }
+      // The banner cloth gets its own instances (sysworld-parts.js); the mast stays in the static batch.
+      const masts = kitPlacements.filter(p => p.asset === 'banner-mast' && kit.has(p.asset));
+      banners = masts.length ? { parts: createPartInstances(kit.get('banner-mast'), masts.length, { only: ['banner'], movable: ['banner'] }),
+        bases: masts.map(p => new THREE.Matrix4().compose(new THREE.Vector3(p.x, p.y, p.z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.angle), new THREE.Vector3(1, 1, 1))) } : null;
+      if (banners) { banners.parts.meshes.forEach(m => staticCity.add(m)); swingBanners({ strength: 0 }, 0); }
       nearHidden = null;
       for (const d of districts) {
         const mesh = loaded.get(d.asset).clone(true); mesh.position.set(d.x, 0, d.z);
@@ -594,6 +608,8 @@ export async function createCity(host, options) {
     atmosphere.setBusy(busy); atmosphere.setCinematic(mode === 'tour'); atmosphere.update(dt, elapsed, camera, !reduced); surfaces.update(dt, !reduced);
     companion?.update(dt, !reduced && visible && mode !== 'map' && !options.replaying?.());
     const mood = weather.mood();
+    // City life (phase 4): the atmosphere's wind moves leaves and banners; the atmosphere clock drives the harbour.
+    const wind = atmosphere.wind(), seaTime = atmosphere.seaTime?.() ?? elapsed; surfaces.setWind(wind); swingBanners(wind, seaTime);
     flow.update(dt,!reduced,1-(mood.day||0));
     // Window interiors: lit share, lobbies and glass sheen follow the time of day; no motion freezes them.
     windows.setLighting(mood.day, mood.evening, mood.weather === 'clear' ? 0 : 1, scene.fog.color); lobbyRender.setLighting(mood.day); windows.update(dt, !reduced);

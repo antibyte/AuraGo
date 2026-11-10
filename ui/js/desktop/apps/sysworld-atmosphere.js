@@ -135,6 +135,14 @@ const AVIATION = {
 vA=0.22+0.78*pow(max(0.0,sin(time*1.9+phase)),10.0);gl_PointSize=clamp(1.5*pointScale/max(1.0,-mv.z),2.0,14.0);}`,
   fragment: 'varying float vA;void main(){float d=length(gl_PointCoord-0.5)*2.0;if(d>1.0)discard;gl_FragColor=vec4(vec3(3.2,0.35,0.25)*pow(1.0-d,2.0)*vA,1.0);}',
 };
+// Wind (phase 4): one slowly turning direction with gusts, written into `out` (no allocation). Rain blows harder,
+// fog calms it. Leaves (sysworld-surfaces.js), banners, skiff rigs and steam read it; the leaf sound will (phase 5).
+export function windAt(t, weather = 'clear', out = {}) {
+  const angle = .6 + .5 * Math.sin(t * .013), base = .32 + .12 * Math.sin(t * .021 + 1.1), g = Math.max(0, Math.sin(t * .37) * Math.sin(t * .113 + 1.3));
+  out.x = Math.cos(angle); out.z = Math.sin(angle);
+  out.strength = Math.min(1, (base + .45 * g * g) * (weather === 'rain' ? 1.5 : weather === 'fog' ? .6 : 1));
+  return out;
+}
 export function createAtmosphere(scene, options = {}) {
   const geometries = [], materials = [], group = new THREE.Group(); group.name = 'city-atmosphere'; scene.add(group);
   const own = (g, m) => { geometries.push(g); materials.push(m); return new THREE.Mesh(g, m); };
@@ -275,7 +283,8 @@ gl_Position=projectionMatrix*modelViewMatrix*p;}`,
   geometries.push(aviationGeometry); materials.push(aviationMaterial);
   // Cinematic grade after the output pass (high/ultra only).
   const cinema = createCinema(time), post = cinema.pass;
-  let busy = false, tier = 'high', sweep = 0, lampLevel = 1;
+  let busy = false, tier = 'high', sweep = 0, lampLevel = 1, weatherKind = 'clear';
+  const wind = { x: 1, z: 0, strength: 0, time: 0 };
   // Lamp cones only read at night: invisible by day, fading in towards dusk (never on low).
   const showLamps = () => { lampCones.visible = lampPools.visible = tier !== 'low' && lampLevel > .01; };
   return {
@@ -297,7 +306,7 @@ gl_Position=projectionMatrix*modelViewMatrix*p;}`,
       sea.material.uniforms.sunColor.value.set(0xdff0ff).lerp(new THREE.Color(0xffa060),dusk.value);
       lampLevel = 1 - THREE.MathUtils.smoothstep(daylight, .12, .55); showLamps();
     },
-    setWeather(value) { cloud.value = value === 'rain' ? .95 : value === 'fog' ? .7 : .25; },
+    setWeather(value) { weatherKind = value; cloud.value = value === 'rain' ? .95 : value === 'fog' ? .7 : .25; },
     setFlash(value) { flash.value = Math.max(0, Math.min(1, value)); },
     setCinematic(value) { cinema.setCinematic(value); },
     // Roof-top points for the aviation lights; bounded to the preallocated buffer.
@@ -316,6 +325,7 @@ gl_Position=projectionMatrix*modelViewMatrix*p;}`,
     },
     setBusy(value) { busy = !!value; },
     setPointScale(value) { pointScale.value = value; },
+    wind: () => wind,
     update(dt, elapsed, camera, animated) {
       const step = animated ? Math.min(.1, Math.max(0, dt)) : 0;
       time.value += step;
@@ -343,9 +353,10 @@ gl_Position=projectionMatrix*modelViewMatrix*p;}`,
         beam.rotation.x = .22 + .14 * Math.sin(sweep * .13 + o * 1.7);
       });
       if (post.enabled) cinema.update(step, camera, sunDir, { day: day.value, dusk: dusk.value, cloud: cloud.value, animated });
+      windAt(time.value, weatherKind, wind); if (tier === 'low' || !animated) wind.strength = 0; wind.time = time.value;
     },
     stats: () => ({ tier, busy, stars: starCount, dust: dustCount, lamps: lamps.length, lampLevel: +lampLevel.toFixed(2), post: post.enabled, coast: coastIndex.length / 6, shoreLights: shorePhase.length,
-      clouds: +cloud.value.toFixed(2), searchlights: searchlights.length, aviation: aviationGeometry.drawRange.count, cinema: cinema.stats() }),
+      clouds: +cloud.value.toFixed(2), wind: +wind.strength.toFixed(2),searchlights: searchlights.length, aviation: aviationGeometry.drawRange.count, cinema: cinema.stats() }),
     dispose() {
       group.removeFromParent(); lampCones.dispose(); lampPools.dispose();
       geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); cinema.dispose();

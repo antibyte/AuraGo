@@ -124,5 +124,15 @@ assert.equal(KINDS['city.marking'].top, 'asphalt');
   assert.notEqual(sharedMaterialKey(ao), sharedMaterialKey(new THREE.MeshStandardMaterial({ name: 'city.kerb' })), 'AO and plain materials never share');
 }
 assert.ok(Array.isArray(kitPlacements));
+// Leaf sway (phase 4): only city.leaf, only on instanced draws and tiers above low; the lawn (leaf kind) never sways.
+{
+  const leafHigh = compile('city.leaf', 'world', 'high'), leafLow = compile('city.leaf', 'world', 'low');
+  assert.ok(leafHigh.text.includes('#define SW_SWAY ') && leafHigh.text.includes('defined(SW_SWAY)&&defined(USE_INSTANCING)') && leafHigh.text.includes('uniform vec4 swWind'), 'leaf sway injection');
+  assert.ok(!leafLow.text.includes('#define SW_SWAY '), 'no sway on low');
+  surfaces.setTier('high');const lawn = new THREE.MeshStandardMaterial({ name: 'lawn' });surfaces.apply(lawn, 'world', 'city.leaf');
+  const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.standard.vertexShader, fragmentShader: THREE.ShaderLib.standard.fragmentShader };lawn.onBeforeCompile(shader);
+  assert.ok(!shader.vertexShader.includes('#define SW_SWAY '), 'the lawn never sways');assert.notEqual(lawn.customProgramCacheKey(), leafHigh.material.customProgramCacheKey(), 'sway changes the program key');
+  surfaces.setWind({ x: 0, z: 1, strength: .4, time: 12 });assert.deepEqual(shader.uniforms.swWind.value.toArray(), [0, 1, .4, 12]);
+}
 surfaces.dispose();
 console.log(`System World surfaces: ${Object.keys(KINDS).length} kinds, ${names.size} kit materials mapped, ${total} texture bytes, pane seeds and shader hooks verified.`);
