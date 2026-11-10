@@ -5,6 +5,14 @@ import {lobbyGround} from './sysworld-lobbies.js';
 import {onCarriageway} from './sysworld-ground.js';
 import {springStep,findRig,adaptFeet} from './sysworld-footing.js';
 
+// A walking robot is about 0.8 m across the shoulders; swinging arms may overlap furniture. The traffic body keeps
+// the model's height but clamps the lateral half-extents so that the envelope (routing reach) is 0.5 m, which
+// fits the 2.0-3.2 m doors and the 1.2 m aisles. Residents keep a personal-space margin among themselves.
+export const RESIDENT_HALF=.35;
+const clampBounds=b=>{const h=[0,2].map(k=>Math.min(RESIDENT_HALF/1.15,(b.max[k]-b.min[k])/2));
+  return {min:[-h[0],b.min[1],-h[1]],max:[h[0],b.max[1],h[1]]};};
+// The traffic body of a resident: one round envelope (covers every articulated pose, permits turning in place).
+export function residentShape(bounds){const shape=bodyShape(clampBounds(bounds),1.15);shape.circles=[{x:0,z:0,r:shape.reach}];return shape;}
 const turn=(from,to,dt)=>from+Math.atan2(Math.sin(to-from),Math.cos(to-from))*Math.min(1,dt*5);
 // The walk and carry clips are authored for 1.65 m/s with planted feet; a faster stride plays them faster.
 const stride=(a,name,speed)=>{const action=a.play?.(name);if(action)action.timeScale=speed/1.65;};
@@ -12,14 +20,18 @@ export function createSociety(scene,{traffic,camera,floor,catalog,onSelect,onDem
   const actors=[],places=new Map(),slots=[],meetings=[],finder=createWayfinder(traffic,floor,catalog),signals=createSocialSignals(scene);
   let clock=0,selected=null,replay=false,tier='high',disposed=false,completed=0,selectedStatus='',lobbyVisits=0;
   const byPlace={},byResident={};
+  // A tram that has not moved for longer than its 6 s station dwell is held up (a visitor on the rails): residents
+  // neither wait for it nor flee from it. It brakes for whoever stands in front of it.
+  const still=new Map();
+  function stalled(b){const s=still.get(b.id);
+    if(!s||Math.hypot(b.x-s.x,b.z-s.z)>.05||Math.abs(b.heading-s.heading)>.01){still.set(b.id,{x:b.x,z:b.z,heading:b.heading,since:clock});return false;}
+    return clock-s.since>8;}
   const limit=()=>tier==='low'?3:tier==='medium'?10:19;
   function release(a) {if(a.slot){a.slot.owner=null;a.slot=null;}a.path=[];a.goal=null;}
   function describe(a) {return a?{id:a.id,role:a.role,state:a.state,source:a.source||'ambient',guided:!!a.guide}:null;}
   function select(a) {selected=a?.id||null;selectedStatus=a?.state||'';onSelect?.(describe(a));}
   function add(model,index,bounds) {
-    const id='resident-'+index,shape=bodyShape(bounds,1.15),role=['courier','technician','archivist'][index%3];let body=null;
-    // A round envelope covers all articulated poses and permits turning in place.
-    shape.circles=[{x:0,z:0,r:shape.reach}];
+    const id='resident-'+index,shape=residentShape(bounds),role=['courier','technician','archivist'][index%3];let body=null;
     const near=slots.filter(s=>s.role===role).map(s=>({x:s.x,z:s.z+2.2,y:floor(s.x,s.z+2.2),heading:Math.PI}));
     // Residents of one role start at different workstations (two slots per place), so every place has a neighbour.
     near.push(...near.splice(0,Math.floor(index/3)*2%Math.max(1,near.length)));
@@ -123,14 +135,14 @@ export function createSociety(scene,{traffic,camera,floor,catalog,onSelect,onDem
       onGait?.(a.id,a.body.x,a.body.y,a.body.z,moved>.004,!!a.carrying,a.role==='patrol'?'glide':'');
       if(!enabled||!animated)continue;
       const tram=traffic.neighbors(a.body,22).sort((b,c)=>Math.hypot(b.x-a.body.x,b.z-a.body.z)-Math.hypot(c.x-a.body.x,c.z-a.body.z)).find(b=>{
-        if(!b.id.startsWith('tram-'))return false;const dx=a.body.x-b.x,dz=a.body.z-b.z,c=Math.cos(b.heading),s=Math.sin(b.heading);
+        if(!b.id.startsWith('tram-')||stalled(b))return false;const dx=a.body.x-b.x,dz=a.body.z-b.z,c=Math.cos(b.heading),s=Math.sin(b.heading);
         return Math.abs(dx*c-dz*s)<a.body.reach+(a.trafficYield?4:2.3)&&dx*s+dz*c>-8-a.body.reach&&dx*s+dz*c<14;
       });
       if(!tram&&a.yieldTram){
         const train=traffic.body(a.yieldTram),dx=train?a.body.x-train.x:0,dz=train?a.body.z-train.z:0;
         // Stay at the crossing until the entire train has passed. Immediately
         // rejoining a patrol would otherwise keep stepping back in front of it.
-        if(train?.enabled&&Math.hypot(dx,dz)<26&&dx*Math.sin(train.heading)+dz*Math.cos(train.heading)>-train.reach-a.body.reach-1){a.pause?.(true);a.play?.('idle');continue;}
+        if(train?.enabled&&!stalled(train)&&Math.hypot(dx,dz)<26&&dx*Math.sin(train.heading)+dz*Math.cos(train.heading)>-train.reach-a.body.reach-1){a.pause?.(true);a.play?.('idle');continue;}
         a.yieldTram=null;
       }
       if(tram){
@@ -235,8 +247,8 @@ export function createSociety(scene,{traffic,camera,floor,catalog,onSelect,onDem
     if(!animated){signals.update(0,false);return;}
     // Reserve both partners for one finite exchange. No overlapping conversations.
     for(const a of actors) {
-      if(!a.body.enabled||a.trafficYield||a.meeting||a.guide||a.state==='greet'||clock<a.cooldown)continue;
-      const b=actors.find(b=>b!==a&&b.body.enabled&&!b.trafficYield&&b.state!=='greet'&&!b.meeting&&!b.guide&&clock>=b.cooldown&&Math.abs(a.body.y-b.body.y)<2&&Math.hypot(a.body.x-b.body.x,a.body.z-b.body.z)>2.8&&Math.hypot(a.body.x-b.body.x,a.body.z-b.body.z)<6);
+      if(!a.body.enabled||a.trafficYield||a.meeting||a.guide||a.state==='greet'||clock<a.cooldown||onCarriageway(a.body.x,a.body.z))continue;
+      const b=actors.find(b=>b!==a&&b.body.enabled&&!b.trafficYield&&!onCarriageway(b.body.x,b.body.z)&&b.state!=='greet'&&!b.meeting&&!b.guide&&clock>=b.cooldown&&Math.abs(a.body.y-b.body.y)<2&&Math.hypot(a.body.x-b.body.x,a.body.z-b.body.z)>2.8&&Math.hypot(a.body.x-b.body.x,a.body.z-b.body.z)<6);
       if(!b)continue;
       const m={a,b,at:clock,sent:false,replied:false};meetings.push(m);
       for(const p of [a,b]){p.meeting=m;p.state='exchange';p.pause?.(true);p.play?.('greet');}

@@ -7,7 +7,7 @@
 export const PODIUM=.88,STEPS=5,TREAD=.32,FLIGHT=STEPS*TREAD,RISER=PODIUM/(STEPS+1),FLOOR=PODIUM+.02;
 // Wall band inside the facade line, frames/piers outside it, corner piers, atrium pier half width, leaf inset.
 export const WALL=.6,WALL_OUT=.25,PIER=1.2,PIER_HALF=.35,LEAF_INSET=.25,SOLID_TOP=8;
-export const MAX_STEP=.35,STEP_SAMPLE=.25,SENSE=3.2,DOOR_TIME=.6,PASS=.85,LOAD_DISTANCE=45,HIDE_DISTANCE=70,GRID=2,FOOT=.9;
+export const MAX_STEP=.35,STEP_SAMPLE=.25,SENSE=3.2,DOOR_TIME=.6,PASS=.85,LOAD_DISTANCE=45,HIDE_DISTANCE=70,GRID=.5,FOOT=.9,TIE=1.2,SPUR=3;
 const ATRIUM={sides:12,radius:9.45,wall:4.7,cap:.4,portal:.1};
 // Foundry cooling towers: 2.7 m plinths; each pipe runs 3.7 m towards the street (0.36 m thick, 2 m high).
 const TOWER={radius:2.7,pipe:.4,reach:4.1,top:2.4};
@@ -158,7 +158,9 @@ export function lobbyPlaces(catalog){
   return out;
 }
 // Residents' graph: per flight a foot (pavement) and a landing (podium); per door a porch (outside) and an
-// entry (inside); per hall a GRID of inside nodes and its workpoints. Inside nodes carry `lobby`.
+// entry (inside); per hall a GRID (1 m) of inside cells with 8-neighbour links, and its workpoints. Entries and
+// workpoints tie to every cell within TIE. Inside nodes carry `lobby`. Cells are only geometric (clear of the walls);
+// the wayfinder drops what a body shape cannot stand on, walk through, or reach from an entry.
 export function lobbyGraph(catalog=null){
   const nodes=[],links=[],add=n=>nodes.push(Object.freeze(n))-1,join=(a,b)=>links.push([a,b]),tops=new Map(PODIUMS.map(p=>[p.id,[]]));
   for(const p of PODIUMS)for(const f of p.stairs){
@@ -166,19 +168,34 @@ export function lobbyGraph(catalog=null){
     join(foot,landing);tops.get(p.id).push(landing);
   }
   for(const l of LOBBIES){
-    const inside=[];
+    const ties=[],cells=new Map();
     for(const d of l.doors){
       const porch=add({x:d.x,z:l.front+WALL_OUT+FOOT,kind:'porch',lobby:null}),entry=add({x:d.x,z:l.front-WALL-FOOT,kind:'entry',lobby:l.id});
-      join(porch,entry);tops.get(l.district).push(porch);inside.push(entry);
+      join(porch,entry);tops.get(l.district).push(porch);ties.push(entry);
     }
-    const [x0,z0,x1,z1]=lobbyBounds(l);
-    for(let x=x0+WALL+GRID/2;x<=x1-WALL-GRID/2+1e-9;x+=GRID)for(let z=z0+WALL+GRID/2;z<=z1-WALL-GRID/2+1e-9;z+=GRID)
-      if(reach(l,x,z)<=-WALL-.3)inside.push(add({x,z,kind:'grid',lobby:l.id}));
-    for(const w of workpointsOf(l,catalog))inside.push(add({x:w.x,z:w.z,id:w.id,kind:'work',lobby:l.id}));
-    for(let i=0;i<inside.length;i++)for(let j=i+1;j<inside.length;j++){
-      const a=nodes[inside[i]],b=nodes[inside[j]],r=a.kind==='grid'&&b.kind==='grid'?GRID*1.5:GRID*2;
-      if(Math.hypot(a.x-b.x,a.z-b.z)<=r+1e-9)join(inside[i],inside[j]);
+    const [x0,z0,x1,z1]=lobbyBounds(l),nx=Math.floor((x1-x0-2*WALL-GRID)/GRID+1e-9),nz=Math.floor((z1-z0-2*WALL-GRID)/GRID+1e-9);
+    for(let i=0;i<=nx;i++)for(let k=0;k<=nz;k++){
+      const x=x0+WALL+GRID/2+i*GRID,z=z0+WALL+GRID/2+k*GRID;
+      if(reach(l,x,z)<=-WALL-.3)cells.set(i+','+k,add({x,z,kind:'grid',lobby:l.id}));
     }
+    for(const [key,a]of cells){const [i,k]=key.split(',').map(Number);
+      for(const [di,dk]of[[1,0],[0,1],[1,1],[1,-1]]){const b=cells.get((i+di)+','+(k+dk));if(b!==undefined)join(a,b);}}
+    for(const w of workpointsOf(l,catalog))ties.push(add({x:w.x,z:w.z,id:w.id,kind:'work',lobby:l.id}));
+    // Entries and workpoints rarely sit on the lattice, and an aisle can be narrower than one cell: each sends a
+    // spur of cells GRID apart along both axes (SPUR long), tied to the lattice cells beside it.
+    const cellList=[...cells.values()],spurs=[];
+    for(const t of ties)for(const [dx,dz]of[[1,0],[-1,0],[0,1],[0,-1]]){
+      let prev=t;
+      for(let k=1;k*GRID<=SPUR+1e-9;k++){
+        const x=nodes[t].x+dx*k*GRID,z=nodes[t].z+dz*k*GRID;if(reach(l,x,z)>-WALL-.3)break;
+        const n=add({x,z,kind:'grid',lobby:l.id,spur:true});join(prev,n);spurs.push(n);prev=n;
+      }
+    }
+    for(const t of ties)for(const c of cellList)if(Math.hypot(nodes[t].x-nodes[c].x,nodes[t].z-nodes[c].z)<=TIE+1e-9)join(t,c);
+    for(const n of spurs)for(const c of cellList)if(Math.hypot(nodes[n].x-nodes[c].x,nodes[n].z-nodes[c].z)<=GRID*.75+1e-9)join(n,c);
+    // Entries and workpoints that stand in the same hall see each other directly, too (short hops only).
+    for(let a=0;a<ties.length;a++)for(let b=a+1;b<ties.length;b++)
+      if(Math.hypot(nodes[ties[a]].x-nodes[ties[b]].x,nodes[ties[a]].z-nodes[ties[b]].z)<=TIE+1e-9)join(ties[a],ties[b]);
   }
   for(const ids of tops.values())for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++)join(ids[i],ids[j]);
   return {nodes,links};

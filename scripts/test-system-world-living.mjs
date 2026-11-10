@@ -9,6 +9,7 @@ import {createTraffic,fixedSteps} from '../ui/js/desktop/apps/sysworld-traffic.j
 import {installCityColliders,kitCatalog} from '../ui/js/desktop/apps/sysworld-colliders.js';
 import {onCarriageway} from '../ui/js/desktop/apps/sysworld-ground.js';
 import {districts,placements,obstacles} from '../ui/js/desktop/apps/sysworld-scene.js';
+import {LOBBIES,WALL,WALL_OUT} from '../ui/js/desktop/apps/sysworld-lobbies.js';
 
 // Run the real controllers and exported model dimensions, without a WebGL context.
 // Pixels, material appearance and real image decoding belong to the browser check.
@@ -95,10 +96,18 @@ try{
   experience.setWorld(null,false);active=false;experience.society.event({state:'succeeded',from:'agent',to:'infra',at:now});
   active=true;experience.society.event({state:'succeeded',from:'agent',to:'infra',at:now-30000});
   assert.ok(experience.stats().machinery.places.every(p=>p.source==='ambient'),'Hidden/stale events cannot replay on resume');
-  console.log(JSON.stringify({seconds:Math.round(time),traffic:traffic.stats().bodies,completed:experience.stats().society.completed,byPlace:society.byPlace,byResident:society.byResident,yieldSeconds,onCarriageway:onRoad,signals:experience.stats().society.signals.sent,travel:progress}));
+  const lobbyJobs=Object.fromEntries(Object.entries(society.byPlace).filter(([place])=>place.startsWith('lobby-')));
+  console.log(JSON.stringify({seconds:Math.round(time),lobbyVisits:society.lobbyVisits,lobbyJobs,traffic:traffic.stats().bodies,completed:experience.stats().society.completed,byPlace:society.byPlace,byResident:society.byResident,yieldSeconds,onCarriageway:onRoad,signals:experience.stats().society.signals.sent,travel:progress}));
   if(seconds>=120){
     assert.ok(society.completed>=40,'The city must complete at least 40 jobs: '+JSON.stringify(society.byPlace));
     for(const place of ['repair-bay','relay-mast','kinetic-fountain','glass-garden'])assert.ok(society.byPlace[place]>=1,place+' completed no job: '+JSON.stringify(society.byPlace));
+  }
+  // Nobody ends the run waiting inside a door gap (wall thickness plus the porch lip): that would block the door for all.
+  const inDoor=society.residents.filter(r=>r.id.startsWith('resident')&&r.state==='yield'&&LOBBIES.some(l=>l.doors.some(d=>{const f=r.z-l.front;return f>=-WALL&&f<=WALL_OUT&&Math.abs(r.x-d.x)<d.width/2;}))).map(r=>({id:r.id,x:r.x,z:r.z}));
+  assert.deepEqual(inDoor,[],'No resident may end the run yielding inside a doorway');
+  if(seconds>=120){
+    assert.ok(society.lobbyVisits>=6,'At least 6 lobby job visits: '+JSON.stringify(lobbyJobs));
+    assert.ok(Object.keys(lobbyJobs).length>=3,'Lobby jobs in at least 3 different lobbies: '+JSON.stringify(lobbyJobs));
   }
   assert.equal(onRoad.length,0,'No resident may stand on a carriageway outside a zebra corridor: '+JSON.stringify(onRoad));
   const jobs=Object.values(society.byResident).sort((x,y)=>y-x);

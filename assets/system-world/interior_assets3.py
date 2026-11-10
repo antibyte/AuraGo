@@ -370,14 +370,14 @@ def lobby_integrations(g):
     sofa(g, -10.0, -1.6, 1.8, pi / 2, 'titanium', .8)
     pot_plant(g, -6.1, -3.3, .9)
     # East: service counter, parcel shelves behind it, a queue totem.
-    counter(g, 8, 1.2, 2.4, 0, screens=2)
+    counter(g, 6.85, 1.2, 2.4, 0, screens=2)
     cabinet(g, 8, 3.5, 0, (4.0, .5, 2.6), ('cyan', 'ivory'), rows=4)
     totem(g, 9.8, -2.4, -pi / 2, height=2.0)
     pot_plant(g, 6.1, -3.3, .9)
     colliders = [block(-10.2, -5.8, 3.3, 3.9, 2.9), block(-9.05, -6.95, .9, 1.9, 1.1), block(-10.4, -9.5, -2.6, -.6, 1.0),
-                 block(6.75, 9.25, .7, 1.7, 1.1), block(5.9, 10.1, 3.2, 3.8, 2.7), block(9.5, 10.1, -3.0, -1.8, 2.1)]
-    points = [workpoint('switchboard', -8, 2.6), workpoint('patching', -7.0, .1), workpoint('counter', 8, 2.3),
-              workpoint('queue', 8, -.2)]
+                 block(5.65, 8.05, .7, 1.7, 1.1), block(5.9, 10.1, 3.2, 3.8, 2.7), block(9.5, 10.1, -3.0, -1.8, 2.1)]
+    points = [workpoint('switchboard', -8, 2.6), workpoint('patching', -7.0, .1), workpoint('counter', 6.9, 2.4),
+              workpoint('queue', 6.9, -.2)]
     return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots,
             'occlusion': {'ground': PODIUM, 'distance': 1.6}}
 
@@ -528,11 +528,11 @@ def lobby_graph(g):
         colliders.append(block(8.3 * cos(a) - 1.4, 8.3 * cos(a) + 1.4, 8.3 * sin(a) - 1.2, 8.3 * sin(a) + 1.2, .8))
     for i in range(4):
         a = pi / 4 + i * pi / 2
-        arc_block(g, (0, 0), 4.6, 5.15, z, z + .44, a - .3, a + .3, ('bronze', 'bronze', 'bronze'), n=(8, 5, 3)[lod], tint=.8)
+        arc_block(g, (0, 0), 5.6, 6.15, z, z + .44, a - .22, a + .22, ('bronze', 'bronze', 'bronze'), n=(8, 5, 3)[lod], tint=.8)
         if lod < 2:
-            arc_block(g, (0, 0), 5.15, 5.25, z + .44, z + .86, a - .3, a + .3, ('bronze', 'bronze', 'bronze'), n=(8, 5)[lod], tint=.7)
-        colliders.append(block(4.9 * cos(a) - .9, 4.9 * cos(a) + .9, 4.9 * sin(a) - .9, 4.9 * sin(a) + .9, .9))
-    for i, a in enumerate((pi * .04, pi * .96, -pi * .22, -pi * .78)):
+            arc_block(g, (0, 0), 6.15, 6.25, z + .44, z + .86, a - .22, a + .22, ('bronze', 'bronze', 'bronze'), n=(8, 5)[lod], tint=.7)
+        colliders.append(block(5.9 * cos(a) - 1.0, 5.9 * cos(a) + 1.0, 5.9 * sin(a) - 1.0, 5.9 * sin(a) + 1.0, .9))
+    for i, a in enumerate((pi * .04, pi * .96, -pi * .1, -pi * .9)):
         x, y = 6.9 * cos(a), 6.9 * sin(a)
         totem(g, x, y, a - pi / 2, screen=('jade', 'cyan')[i % 2], height=2.0)
         colliders.append(block(x - .6, x + .6, y - .6, y + .6, 2.1))

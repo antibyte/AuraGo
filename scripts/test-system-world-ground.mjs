@@ -234,3 +234,42 @@ assert.equal(surfaces.pavement,surfaces.ground,'pavements are flush with the plo
   }
   console.log(`System World living places: ${routes} routes between all workpoints exist and stay within 2.5x the straight distance (first route incl. street, approach and place nodes: ${buildMs} ms; all routes ${Date.now()-started} ms).`);
 }
+
+// --- Lobby workpoints: every workpoint of every hall is routable from the pavement for the resident body ---
+{
+  const fs=await import('node:fs/promises');
+  const {createWayfinder}=await import('../ui/js/desktop/apps/sysworld-places.js');
+  const {createTraffic}=await import('../ui/js/desktop/apps/sysworld-traffic.js');
+  const {groundHeight}=await import('../ui/js/desktop/apps/sysworld-exploration.js');
+  const {installCityColliders,kitCatalog}=await import('../ui/js/desktop/apps/sysworld-colliders.js');
+  const {districts,placements}=await import('../ui/js/desktop/apps/sysworld-scene.js');
+  const {LOBBIES,workpointsOf,stepFree}=await import('../ui/js/desktop/apps/sysworld-lobbies.js');
+  const {residentShape}=await import('../ui/js/desktop/apps/sysworld-society.js');
+  const read=f=>fs.readFile(f,'utf8').then(JSON.parse),v1=await read('ui/3d/system-world/v1/manifest.json'),v3=await read('ui/3d/system-world/v3/manifest.json');
+  const catalog=kitCatalog(v3),traffic=createTraffic();installCityColliders(traffic,kitCatalog(v1,v3),districts,placements);
+  const finder=createWayfinder(traffic,groundHeight,catalog),pavement=pedestrianGraph().nodes;
+  // The resident envelope exactly as the society builds it from a robot-sized model (0.8 m across, 1.8 m tall).
+  const shape=residentShape({min:[-.4,0,-.4],max:[.4,1.8,.4]});
+  assert.ok(shape.reach>=.45&&shape.reach<=.55,'resident routing radius is about 0.5 m: '+shape.reach);
+  const body=p=>({id:'walker',...shape,heading:0,...p,y:groundHeight(p.x,p.z)});
+  const failures=[],table={};
+  for(const l of LOBBIES){
+    const start=pavement.reduce((a,n)=>Math.hypot(n.x-l.origin[0],n.z-l.origin[1])<Math.hypot(a.x-l.origin[0],a.z-l.origin[1])?n:a);
+    for(const w of workpointsOf(l,catalog)){
+      const row=table[l.asset]||(table[l.asset]={routable:0,total:0});row.total++;
+      const goal={x:w.x,z:w.z,y:groundHeight(w.x,w.z)},path=finder.route(body(start),goal);
+      if(!path.length){
+        const at={...goal,heading:0},blocker=traffic.obstruction(body(goal),at,at,false);
+        // Without a blocker on the spot the pocket is walled in: name the fixtures within a body width of the point.
+        const near=(v3.assets.find(a=>a.id===l.asset).navigation.colliders||[]).map((b,i)=>({i,d:Math.hypot(Math.max(l.origin[0]+b[0]-w.x,0,w.x-l.origin[0]-b[3]),Math.max(l.origin[1]+b[2]-w.z,0,w.z-l.origin[1]-b[5]))})).filter(c=>c.d<1.6).map(c=>`#${c.i} ${c.d.toFixed(2)} m`);
+        failures.push(`${l.asset}:${w.id} at (${w.x.toFixed(2)}, ${w.z.toFixed(2)}) ${blocker?'blocked by '+blocker:'no connected route, fixtures nearby: '+near.join(', ')}`);continue;
+      }
+      let prev=start;for(const p of path){assert.ok(stepFree(prev,p,groundHeight),'leg breaks the step rule: '+JSON.stringify([prev,p]));prev=p;}
+      row.routable++;
+    }
+  }
+  const total=Object.values(table).reduce((n,r)=>n+r.total,0),routable=Object.values(table).reduce((n,r)=>n+r.routable,0);
+  console.log(`System World lobby workpoints: ${routable}/${total} routable from the pavement with the resident body (r ${shape.reach.toFixed(2)}) ${JSON.stringify(table)}`);
+  assert.ok(total>=30,'workpoints counted: '+total);
+  assert.deepEqual(failures,[],'unroutable lobby workpoints');
+}

@@ -31,13 +31,14 @@ function onZebra(p) {
     :Math.abs(p.z-zb.at)<=kerb.opening&&Math.abs(p.x-zb.line)<=streets.halfWidth);
 }
 
+// Wander targets (streetPoints) are pavement and zebra nodes only: never a stair foot, landing or door porch.
 // Residents walk the pavement graph of sysworld-ground.js plus the lobby graph of sysworld-lobbies.js (stair
 // feet and landings, porches, entries, inside grid and workpoints). Every static link keeps the 0.35 m step
 // rule (built once, on first use); bodies and solids filter links per revision. Inside a lobby a route links
 // only to that lobby's inside nodes; outside never to an inside node, so the doors are the only way in.
 export function createWayfinder(traffic, floor, catalog=null) {
   const graph=pedestrianGraph(),lobby=lobbyGraph(catalog),base=graph.nodes.length;
-  const points=[...graph.nodes,...lobby.nodes].map(n=>({x:n.x,z:n.z,y:floor(n.x,n.z),heading:0,lobby:n.lobby||null})),cache=new Map();
+  const points=[...graph.nodes,...lobby.nodes].map(n=>({x:n.x,z:n.z,y:floor(n.x,n.z),heading:0,lobby:n.lobby||null,kind:n.kind,cell:n.kind==='grid'||undefined})),cache=new Map();
   let revision=-1,fixed=null;
   function staticLinks(){
     if(fixed)return fixed;
@@ -81,6 +82,13 @@ export function createWayfinder(traffic, floor, catalog=null) {
       if(u.place<v.place&&d<3&&carriagewayFree(u.c,v.c)&&stepFree(u.c,v.c,floor)&&traffic.clear(body,u.c,v.c,false)){edges[u.index].push([v.index,d]);edges[v.index].push([u.index,d]);}
     }
   }
+  // Inside nodes that the body cannot reach from any entry of their hall (a pocket between fixtures) lose their links.
+  function pruneHalls(nodes,edges) {
+    const seen=new Set(),queue=[];
+    nodes.forEach((n,i)=>{if(n.kind==='entry'){seen.add(i);queue.push(i);}});
+    while(queue.length){const u=queue.pop();for(const [v]of edges[u])if(!seen.has(v)){seen.add(v);queue.push(v);}}
+    nodes.forEach((n,i)=>{if(n.lobby&&!seen.has(i)){for(const [v]of edges[i])edges[v]=edges[v].filter(e=>e[0]!==i);edges[i]=[];}});
+  }
   function route(body,destination) {
     if(revision!==traffic.revision()){cache.clear();revision=traffic.revision();}
     const key=body.circles.map(c=>[c.x,c.z,c.r].join(',')).join(';')+':'+body.maxY;
@@ -93,6 +101,7 @@ export function createWayfinder(traffic, floor, catalog=null) {
         if(traffic.clear(body,nodes[a],nodes[b],false)){edges[a].push([b,l.length]);edges[b].push([a,l.length]);}
       }
       approach(body,nodes,edges,index);
+      pruneHalls(nodes,edges);
       cache.set(key,{nodes,edges});
     }
     const cached=cache.get(key),here=lobbyAt(body.x,body.z)?.id||null,there=lobbyAt(destination.x,destination.z)?.id||null;
@@ -101,7 +110,7 @@ export function createWayfinder(traffic, floor, catalog=null) {
     const link=(u,v,d)=>{for(const [p,q]of[[u,v],[v,u]]){const row=extra.get(p);if(row)row.push([q,d]);else extra.set(p,[[q,d]]);}};
     for(const k of [start,end])for(let i=0;i<k;i++) {
       const a=nodes[k],b=nodes[i],d=Math.hypot(a.x-b.x,a.z-b.z);
-      if(a.lobby!==b.lobby||(b.cell&&d>=10))continue;
+      if(a.lobby!==b.lobby||(b.cell&&d>=(b.lobby?4:10)))continue;
       // Only a start standing on a zebra may step off it; every other link stays off carriageways and kerbs.
       // A start standing on a carriageway may leave it; the leg is checked from the start outwards.
       const fromStart=k===start,toStart=i===start;
@@ -121,5 +130,5 @@ export function createWayfinder(traffic, floor, catalog=null) {
     if(!Number.isFinite(costs[end]))return [];
     const result=[];for(let n=end;n!==start;n=previous[n]){if(n<0)return [];result.unshift(nodes[n]);}return result;
   }
-  return {route,points,streetPoints:points.filter(p=>!p.lobby)};
+  return {route,points,streetPoints:points.filter(p=>!p.lobby&&!['foot','landing','porch'].includes(p.kind))};
 }
