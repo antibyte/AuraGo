@@ -44,6 +44,24 @@
  *   eval           JS source run in the page before the final camera is applied; has `city`, `__sw`,
  *                  `scene` (the scene object). If the scene has no position/followResident the camera
  *                  is left as eval set it.
+ *   freeze         true: the city's update stops (no resident, tram or weather motion) before the toggles apply and the pictures are taken.
+ *   toggles        array of switches applied while frozen and undone after the scene: "bloom-off", "env-off", "window-env-off",
+ *                  "windows-dark", "surface-day", "lamps-off", "emissive-all-off", "emissive-off:<material name>", "light-off:<index>"
+ *                  (index = order in the light inventory).
+ *   building       district id; the picture's glare rectangle is that building's screen box (whole frame if a corner is behind the camera).
+ *   glare          {rect:[x0,y0,x1,y1]} fractions of the frame to measure blown-out (clipped) pixels in; overrides building's rectangle.
+ *   masks          {"<material name>":"#rrggbb"}: a second picture <name>-mask.png with those materials as flat colours and all else black;
+ *                  gives metrics.panes (pixels, p99, litShare, tones) and metrics.ceramic when window=red and ceramic=green.
+ *   feet           resident index: report.json shot.feet = height of each sole above the ground (metres, one number per leg).
+ *   inventory      true: shot.inventory lists lights and emissive materials near the centre (bloom threshold, environment intensity).
+ *   checks         {glareMax, paneOverCeramicMax, tonesMin, feetMax}: measured after the run; failures are printed as CHECK FAILED and
+ *                  fail the exit code only with --strict.
+ *   allowInside    true: the camera-inside / camera-blocked check is not reported for this scene.
+ * --strict: the exit code is 1 when any check failed (default: failures are only listed).
+ * viewTriangles (stats): triangles of the captured frame alone; a pending shadow pass is rendered first (stats.shadowFlushed).
+ * Camera checks (shot.camera): inside = instanced pieces (canopies, kiosks) the camera lies in; blocked = the visitor body at the camera
+ *   overlaps a traffic solid. Either one is a failed check "camera" unless allowInside is set.
+ * The visitor body (traffic body "visitor") follows the survey camera, so the camera is judged like a walking visitor.
  */
 import { build } from 'esbuild';
 import fs from 'node:fs/promises';
@@ -53,6 +71,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { decodePNG, clipped, maskOf, maskLumas, percentile, litShare, toneCount } from './system-world-picture-checks.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
@@ -61,7 +80,7 @@ const uiRoot = path.join(root, 'ui');
 // ---------- CLI ----------
 function parseArgs(argv) {
   const o = { out: 'reports/system-world-survey/latest', scenes: path.join(here, 'system-world-survey.scenes.json'),
-    only: null, tier: 'high', width: 1600, height: 900, timeout: 300, keepOpen: false, timing: false, withoutFurniture: false };
+    only: null, tier: 'high', width: 1600, height: 900, timeout: 300, keepOpen: false, timing: false, withoutFurniture: false, strict: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i], next = () => { if (i + 1 >= argv.length) throw Error('Missing value for ' + a); return argv[++i]; };
     if (a === '--out') o.out = next();
@@ -74,6 +93,7 @@ function parseArgs(argv) {
     else if (a === '--keep-open') o.keepOpen = true;
     else if (a === '--timing') o.timing = true;
     else if (a === '--without-furniture') o.withoutFurniture = true;
+    else if (a === '--strict') o.strict = true;
     else throw Error('Unknown argument ' + a);
   }
   if (!['low', 'medium', 'high', 'ultra'].includes(o.tier)) throw Error('--tier must be low|medium|high|ultra');
@@ -107,6 +127,7 @@ async function buildBundle(withoutFurniture) {
         if (isScene) {
           if (withoutFurniture) text = replaceOnce(text, '...furnishing().map(', '...furnishing().filter(() => false).map(', 'drop the furnishing pieces from kitPlacements');
           text = replaceOnce(text, '  return {\n    districts, canvas, update, focus(id)', '  ' + EXPOSE + 'return {\n    districts, canvas, update, focus(id)', 'expose internals before createCity return');
+          text += "\nexport { SOLE as surveySole } from './sysworld-footing.js';\nexport { groundHeight as surveyGroundHeight } from './sysworld-exploration.js';\n";
         } else {
           text = replaceOnce(text, '    add,patrol,update,suspend,\n', '    add,patrol,update,suspend,actors,\n', 'expose society actors');
         }
@@ -136,7 +157,7 @@ window.addEventListener('unhandledrejection', e => addError('unhandledrejection'
 const origError = console.error.bind(console);
 console.error = (...args) => { const t = args.map(a => (a && a.message) || String(a)).join(' '); if (/THREE|WebGL|shader/i.test(t)) addError('console.error', t); origError(...args); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-let tickCount = 0, timingLoop = false;
+let tickCount = 0, timingLoop = false, frozen = false;
 const nextFrames = n => new Promise((resolve, reject) => {
   const target = tickCount + n, started = performance.now();
   const poll = () => { if (tickCount >= target) resolve(); else if (performance.now() - started > 30000) reject(Error('animation frames stopped (page hidden?)')); else setTimeout(poll, 10); };
@@ -171,7 +192,7 @@ async function main() {
     if (changed) sw.renderer.shadowMap.needsUpdate = true;
   };
   let last = 0, elapsed = 0;
-  const tick = time => { const dt = last ? Math.min(0.2, (time - last) / 1000) : 1 / 60; last = time; elapsed += dt; if (!timingLoop) { city.update(dt, elapsed); if (surveying) syncNear(); }
+  const tick = time => { const dt = last ? Math.min(0.2, (time - last) / 1000) : 1 / 60; last = time; elapsed += dt; if (!timingLoop && !frozen) { city.update(dt, elapsed); if (surveying) syncNear(); }
     tickCount++; requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
   // Loading settled: createCity resolved (kit loaded); the experience (v2 models, residents) streams on.
@@ -210,13 +231,143 @@ async function main() {
     sw.camera.position.set(pos[0], pos[1], pos[2]);
     c.target.set(tgt[0], tgt[1], tgt[2]);
     c.update();
+    const body = sw.traffic.body('visitor');
+    if (body) { body.x = sw.camera.position.x; body.y = sw.camera.position.y; body.z = sw.camera.position.z; }
     return { position: pos, target: tgt };
   }
   const sub = s => ({ tier: s.tier, mode: s.mode, calls: s.calls, triangles: s.triangles, geometries: s.geometries, loadedBytes: s.loadedBytes, frames: s.frames,
     weather: s.weather && { time: s.weather.time, weather: s.weather.weather, daylight: round(s.weather.daylight) },
     furniture: s.furniture, nearHidden: nearApplied });
+  // ---- phase 6 instruments: building rectangle, camera check, inventory, toggles, masks, feet ----
+  const T = sw.THREE;
+  function districtObject(id) { let target = null; sw.scene.traverse(n => { if (!target && n.userData && n.userData.district === id) target = n; }); if (!target) throw Error('no district ' + id); return target; }
+  function buildingCentre(id) { return new T.Box3().setFromObject(districtObject(id)).getCenter(new T.Vector3()); }
+  // Screen rectangle [x0,y0,x1,y1] (fractions) of a district building; the whole frame when a corner lies behind the camera.
+  function buildingRect(id) {
+    const box = new T.Box3().setFromObject(districtObject(id)), v = new T.Vector3(), view = new T.Vector3();
+    let x0 = 1, y0 = 1, x1 = 0, y1 = 0;
+    sw.camera.updateMatrixWorld();
+    for (let i = 0; i < 8; i++) {
+      v.set(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z);
+      if (view.copy(v).applyMatrix4(sw.camera.matrixWorldInverse).z > -sw.camera.near) return [0, 0, 1, 1];
+      v.project(sw.camera);
+      x0 = Math.min(x0, (v.x + 1) / 2); x1 = Math.max(x1, (v.x + 1) / 2); y0 = Math.min(y0, (1 - v.y) / 2); y1 = Math.max(y1, (1 - v.y) / 2);
+    }
+    return [Math.max(0, x0), Math.max(0, y0), Math.min(1, x1), Math.min(1, y1)].map(n => round(n, 4));
+  }
+  // The camera inside an instanced piece (upper 70 % of its box, horizontally 15 % inset: canopies and kiosks, not the
+  // space under a tree) or overlapping a traffic solid at eye height.
+  function cameraCheck() {
+    const p = sw.camera.position, m = new T.Matrix4(), local = new T.Vector3(), inside = [];
+    sw.staticCity.traverse(n => {
+      if (!n.isInstancedMesh || !n.visible || !n.count) return;
+      const g = n.geometry; if (!g.boundingBox) g.computeBoundingBox();
+      const b = g.boundingBox, sx = (b.max.x - b.min.x) * .15, sz = (b.max.z - b.min.z) * .15, y0 = b.min.y + .3 * (b.max.y - b.min.y);
+      for (let i = 0; i < n.count; i++) {
+        n.getMatrixAt(i, m); local.copy(p).applyMatrix4(m.invert());
+        if (local.x > b.min.x + sx && local.x < b.max.x - sx && local.y > y0 && local.y < b.max.y && local.z > b.min.z + sz && local.z < b.max.z - sz) { inside.push((n.material && n.material.name || 'mesh') + '#' + i); break; }
+      }
+    });
+    const body = sw.traffic.body('visitor'), pose = { x: p.x, y: p.y, z: p.z, heading: 0 };
+    return { inside, blocked: !!body && !sw.traffic.clear(body, pose, pose) };
+  }
+  const lights = () => { const out = []; sw.scene.traverse(n => { if (n.isLight) out.push(n); }); return out; };
+  const materialsOf = () => { const set = new Set(); sw.scene.traverse(n => { if (n.isMesh) for (const m of Array.isArray(n.material) ? n.material : [n.material]) if (m) set.add(m); }); return [...set]; };
+  // Lights (index = order of traversal, the index the light-off toggle takes) and emissive materials within 40 m.
+  function inventory(centre) {
+    const lightRows = lights().map((n, index) => ({ index, type: n.type, name: n.name, color: '#' + n.color.getHexString(), intensity: round(n.intensity, 3),
+      distance: n.distance === undefined ? null : n.distance, position: n.getWorldPosition(new T.Vector3()).toArray().map(v => round(v, 1)) }));
+    const emissive = new Map(), box = new T.Box3();
+    sw.scene.traverse(n => {
+      if (!n.isMesh || !n.visible) return;
+      if (n.isInstancedMesh) { if (!n.boundingBox) n.computeBoundingBox(); box.copy(n.boundingBox).applyMatrix4(n.matrixWorld); } else box.setFromObject(n);
+      if (box.isEmpty() || box.distanceToPoint(centre) > 40) return;
+      for (const m of Array.isArray(n.material) ? n.material : [n.material]) {
+        if (!m || !m.emissive) continue;
+        const value = Math.max(m.emissive.r, m.emissive.g, m.emissive.b) * (m.emissiveIntensity === undefined ? 1 : m.emissiveIntensity);
+        if (value <= 0) continue;
+        const e = emissive.get(m.name) || { name: m.name, value: 0, meshes: 0 }; e.value = Math.max(e.value, round(value, 3)); e.meshes++; emissive.set(m.name, e);
+      }
+    });
+    return { lights: lightRows, emissive: [...emissive.values()].sort((a, b) => b.value - a.value), bloomThreshold: round(sw.bloom.threshold, 3), environment: round(sw.scene.environmentIntensity, 3) };
+  }
+  // Toggles switch one suspect off while the city is frozen; each returns its undo.
+  function applyToggle(spec) {
+    const parts = spec.split(':'), kind = parts[0], arg = parts[1];
+    if (kind === 'bloom-off') { const o = sw.bloom.enabled; sw.bloom.enabled = false; return () => { sw.bloom.enabled = o; }; }
+    if (kind === 'env-off') { const o = sw.scene.environmentIntensity; sw.scene.environmentIntensity = 0; return () => { sw.scene.environmentIntensity = o; }; }
+    if (kind === 'window-env-off') { const m = sw.windows.material, o = m.envMapIntensity; m.envMapIntensity = 0; return () => { m.envMapIntensity = o; }; }
+    if (kind === 'windows-dark') { const v = sw.windows.uniforms.winState.value, o = v.clone(); v.set(0, o.y, 0, o.w); return () => { v.copy(o); }; }
+    if (kind === 'surface-day') { sw.surfaces.setLighting(1, 0, 0); return () => { const m = sw.weather.mood(); sw.surfaces.setLighting(m.day, m.evening, m.weather === 'clear' ? 0 : 1, sw.scene.fog.color); }; }
+    if (kind === 'lamps-off') { const hits = []; sw.scene.getObjectByName('city-atmosphere').children.forEach(n => { if (n.name === 'lamp-pools' || (n.isInstancedMesh && n.geometry.type === 'ConeGeometry')) { hits.push([n, n.visible]); n.visible = false; } }); return () => hits.forEach(h => { h[0].visible = h[1]; }); }
+    if (kind === 'emissive-all-off' || kind === 'emissive-off') { const hits = materialsOf().filter(m => m.emissive && (kind === 'emissive-all-off' || m.name === arg)).map(m => [m, m.emissiveIntensity]); hits.forEach(h => { h[0].emissiveIntensity = 0; }); return () => hits.forEach(h => { h[0].emissiveIntensity = h[1]; }); }
+    if (kind === 'light-off') { const l = lights()[Number(arg)]; if (!l) throw Error('no light ' + arg); const o = l.intensity; l.intensity = 0; return () => { l.intensity = o; }; }
+    throw Error('unknown toggle ' + spec);
+  }
+  // Mask picture: named materials as flat colours, everything else black, no fog, sky, points or tone mapping.
+  async function captureMask(name, masks) {
+    const saved = [], basics = new Map(Object.keys(masks).map(k => [k, new T.MeshBasicMaterial({ color: new T.Color(masks[k]), toneMapped: false })]));
+    const black = new T.MeshBasicMaterial({ color: 0x000000, toneMapped: false }), swap = m => basics.get(m && m.name) || black;
+    sw.scene.traverse(n => {
+      if (n.isMesh) { saved.push([n, 'material', n.material]); n.material = Array.isArray(n.material) ? n.material.map(swap) : swap(n.material); }
+      else if ((n.isPoints || n.isLine || n.isSprite) && n.visible) { saved.push([n, 'visible', true]); n.visible = false; }
+    });
+    const fog = sw.scene.fog, background = sw.scene.background, tone = sw.renderer.toneMapping;
+    sw.scene.fog = null; sw.scene.background = new T.Color(0); sw.renderer.toneMapping = T.NoToneMapping;
+    let blob = null;
+    const wasFrozen = frozen;
+    frozen = true; // the page loop must not run city.update while the override materials are on (it reads uniforms of its own materials)
+    try {
+      sw.renderer.setRenderTarget(null); sw.renderer.render(sw.scene, sw.camera);
+      blob = await new Promise(r => sw.renderer.domElement.toBlob(r, 'image/png'));
+    } finally {
+      frozen = wasFrozen;
+      for (const s of saved) s[0][s[1]] = s[2];
+      sw.scene.fog = fog; sw.scene.background = background; sw.renderer.toneMapping = tone;
+      basics.forEach(m => m.dispose()); black.dispose();
+    }
+    if (!blob) throw Error('mask capture returned no image');
+    const res = await post('/__survey/shot?name=' + encodeURIComponent(name + '-mask'), blob, 'image/png');
+    if (!res.ok) throw Error('mask upload failed ' + res.status);
+  }
+  // Height of each sole's lower contact above the ground under the sole centre (metres), for resident-N.
+  function feetGaps(index) {
+    const a = actors().find(r => r.id === 'resident-' + index);
+    if (!a || !a.rig) return null;
+    a.node.updateMatrixWorld(true);
+    const v = new T.Vector3(), w = new T.Vector3(), sole = module.surveySole, ground = module.surveyGroundHeight;
+    return a.rig.legs.map(l => { v.fromArray(sole[0]).applyMatrix4(l.foot.matrixWorld); w.fromArray(sole[1]).applyMatrix4(l.foot.matrixWorld);
+      return round(Math.min(v.y, w.y) - ground((v.x + w.x) / 2, (v.z + w.z) / 2), 4); });
+  }
+  // One picture: flush a pending shadow pass first (so triangles counts the view only), then PNG, camera check, extras.
+  async function captureFrame(scene, name, wanted) {
+    wanted = applyCamera(scene) || wanted;
+    syncNear();
+    const flushed = sw.renderer.shadowMap.needsUpdate;
+    if (flushed) sw.composer.render();
+    sw.renderer.info.reset();
+    const pending = city.capture();
+    const stats = sub(city.stats());
+    stats.viewTriangles = stats.triangles; stats.shadowFlushed = flushed;
+    const actual = sw.camera.position.toArray().map(v => round(v));
+    const blob = await pending;
+    if (!blob) throw Error('capture returned no image');
+    const res = await post('/__survey/shot?name=' + encodeURIComponent(name), blob, 'image/png');
+    if (!res.ok) throw Error('shot upload failed ' + res.status);
+    const drift = wanted ? Math.hypot(actual[0] - wanted.position[0], actual[1] - wanted.position[1], actual[2] - wanted.position[2]) : 0;
+    const shot = { name, scene: scene.name, requestedPosition: wanted && wanted.position, actualPosition: actual, target: wanted && wanted.target,
+      cameraMovedByCollision: drift > 0.05 ? round(drift) : 0, stats, camera: cameraCheck(), checks: scene.checks || null, allowInside: !!scene.allowInside };
+    if (scene.building) shot.glareRect = buildingRect(scene.building);
+    if (scene.glare && scene.glare.rect) shot.glareRect = scene.glare.rect;
+    if (scene.feet !== undefined) shot.feet = feetGaps(scene.feet);
+    if (scene.inventory) shot.inventory = inventory(scene.building ? buildingCentre(scene.building) : sw.controls.target);
+    if (scene.masks) { await captureMask(name, scene.masks); shot.mask = true; }
+    shots.push(shot);
+    return wanted;
+  }
 
   for (const scene of config.scenes) {
+    const restore = [];
     try {
       city.setEnvironment({ time: scene.environment || 'day', weather: scene.weather || 'clear' });
       let wanted = applyCamera(scene);
@@ -224,24 +375,11 @@ async function main() {
       await nextFrames(scene.frames === undefined ? 40 : scene.frames);
       await sleep(scene.waitMs === undefined ? 400 : scene.waitMs);
       if (scene.eval) await new AsyncFunction('city', '__sw', 'scene', scene.eval)(city, sw, scene);
+      if (scene.freeze) { frozen = true; for (const t of scene.toggles || []) restore.push(applyToggle(t)); }
       const count = scene.sequence > 0 ? scene.sequence : 1;
       for (let i = 0; i < count; i++) {
         if (i > 0) await sleep(scene.intervalMs === undefined ? 350 : scene.intervalMs);
-        const name = count > 1 ? scene.name + '-' + String(i).padStart(2, '0') : scene.name;
-        // Camera, render and PNG encode start in one task.
-        wanted = applyCamera(scene) || wanted;
-        syncNear();
-        sw.renderer.info.reset();
-        const pending = city.capture();
-        const stats = sub(city.stats());
-        const actual = sw.camera.position.toArray().map(v => round(v));
-        const blob = await pending;
-        if (!blob) throw Error('capture returned no image');
-        const res = await post('/__survey/shot?name=' + encodeURIComponent(name), blob, 'image/png');
-        if (!res.ok) throw Error('shot upload failed ' + res.status);
-        const drift = wanted ? Math.hypot(actual[0] - wanted.position[0], actual[1] - wanted.position[1], actual[2] - wanted.position[2]) : 0;
-        shots.push({ name, scene: scene.name, requestedPosition: wanted && wanted.position, actualPosition: actual, target: wanted && wanted.target,
-          cameraMovedByCollision: drift > 0.05 ? round(drift) : 0, stats });
+        wanted = await captureFrame(scene, count > 1 ? scene.name + '-' + String(i).padStart(2, '0') : scene.name, wanted);
       }
       if (config.timing) {
         applyCamera(scene); syncNear();
@@ -252,6 +390,7 @@ async function main() {
         log('frameMs ' + scene.name + ' median ' + shots[shots.length - 1].frameMs.median + ' p95 ' + shots[shots.length - 1].frameMs.p95);
       }
     } catch (e) { addError('scene ' + scene.name, e && e.stack || e); }
+    finally { for (const undo of restore.reverse()) { try { undo(); } catch (_) {} } frozen = false; }
   }
   const info = { tier: config.tier, withoutFurniture: !!config.withoutFurniture, canvas: [sw.renderer.domElement.width, sw.renderer.domElement.height], loadMs, renderer: city.stats().renderer };
   await post('/__survey/report', JSON.stringify({ info, shots, errors }), 'application/json');
@@ -284,6 +423,30 @@ function findChrome() {
   const found = candidates.find(p => p && existsSync(p));
   if (!found) throw Error('No Chrome/Edge found; set CHROME_PATH');
   return found;
+}
+
+// Measurements on the saved PNGs and the scene checks; returns the failed checks (they fail the run with --strict).
+async function measure(report, outDir) {
+  const failures = [], load = async n => decodePNG(await fs.readFile(path.join(outDir, n + '.png')));
+  for (const shot of report.shots || []) {
+    const metrics = {}, result = {}, want = shot.checks || {};
+    const check = (key, value, limit, ok) => { result[key] = { value, limit, ok }; if (!ok) failures.push(shot.name + ': ' + key + ' ' + JSON.stringify(value) + ' (limit ' + limit + ')'); };
+    if (shot.glareRect) { const g = clipped(await load(shot.name), shot.glareRect); metrics.glare = { share: +g.share.toFixed(5), largest: g.largest, area: g.area }; }
+    if (shot.mask) {
+      const img = await load(shot.name), m = await load(shot.name + '-mask'), win = maskOf(m, [255, 0, 0]), cer = maskOf(m, [0, 255, 0]);
+      const wl = maskLumas(img, win), cl = maskLumas(img, cer);
+      metrics.panes = { pixels: wl.length, p99: +percentile(wl, .99).toFixed(1), litShare: +litShare(img, win).toFixed(3), tones: toneCount(img, win).tones };
+      metrics.ceramic = { pixels: cl.length, p95: +percentile(cl, .95).toFixed(1) };
+      metrics.paneOverCeramic = wl.length && cl.length ? +(metrics.panes.p99 / Math.max(1, metrics.ceramic.p95)).toFixed(3) : null;
+    }
+    if (want.glareMax !== undefined && metrics.glare) check('glare', metrics.glare.share, want.glareMax, metrics.glare.share <= want.glareMax);
+    if (want.paneOverCeramicMax !== undefined && metrics.paneOverCeramic !== null && metrics.paneOverCeramic !== undefined) check('paneOverCeramic', metrics.paneOverCeramic, want.paneOverCeramicMax, metrics.paneOverCeramic <= want.paneOverCeramicMax);
+    if (want.tonesMin !== undefined && metrics.panes) check('tones', metrics.panes.tones, want.tonesMin, metrics.panes.tones >= want.tonesMin);
+    if (want.feetMax !== undefined) { const worst = shot.feet ? Math.max(...shot.feet.map(Math.abs)) : Infinity; check('feet', shot.feet, want.feetMax, worst <= want.feetMax); }
+    if (!shot.allowInside && shot.camera && (shot.camera.blocked || shot.camera.inside.length)) check('camera', shot.camera, 'outside geometry', false);
+    shot.metrics = metrics; shot.result = result;
+  }
+  return failures;
 }
 
 async function main() {
@@ -382,14 +545,21 @@ async function main() {
   await cleanup();
 
   if (spawnError) { console.error('Could not start Chrome: ' + spawnError.message); process.exit(1); }
+  let failures = [];
+  if (report && report.shots && report.shots.length) {
+    failures = await measure(report, outDir);
+    await fs.writeFile(path.join(outDir, 'report.json'), JSON.stringify(report, null, 2));
+  }
   const errorCount = report?.errors?.length || 0;
   console.log('--- summary ---');
   console.log('result: ' + reason + ', shots saved: ' + saved + ', page errors: ' + errorCount + (report?.http404?.length ? ', 404s: ' + report.http404.join(' ') : ''));
   if (report?.info?.canvas) console.log('canvas ' + report.info.canvas.join('x') + ', tier ' + report.info.tier + ', ' + report.info.renderer);
   if (opts.timing) console.log('frameMs (median/p95): ' + (report?.shots || []).filter(x => x.frameMs).map(x => x.scene + ' ' + x.frameMs.median + '/' + x.frameMs.p95).join(', '));
   for (const e of report?.errors || []) console.log('  error [' + e.where + '] ' + String(e.message).split('\n')[0]);
+  for (const s of report?.shots || []) if (s.metrics && Object.keys(s.metrics).length) console.log('  ' + s.name + ' ' + JSON.stringify(s.metrics) + (s.feet ? ' feet ' + JSON.stringify(s.feet) : ''));
+  for (const f of failures) console.log('  CHECK FAILED ' + f);
   console.log('report: ' + path.relative(root, path.join(outDir, 'report.json')));
-  process.exit(reason === 'done' && report && !report.info?.failed && errorCount === 0 ? 0 : 1);
+  process.exit(reason === 'done' && report && !report.info?.failed && errorCount === 0 && !(opts.strict && failures.length) ? 0 : 1);
 }
 
 main().catch(e => { console.error(e.message || e); process.exit(1); });
