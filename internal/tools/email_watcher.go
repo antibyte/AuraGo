@@ -503,7 +503,8 @@ func (ew *EmailWatcher) notifyAgent(ctx context.Context, prompt string) error {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	defer transport.CloseIdleConnections()
-	client := &http.Client{Timeout: 3 * time.Minute, Transport: transport, CheckRedirect: security.SameOriginRedirect}
+	// Sync agent runs can outlive the HTTP caller for up to 30 minutes.
+	client := &http.Client{Timeout: 35 * time.Minute, Transport: transport, CheckRedirect: security.SameOriginRedirect}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("create email notification request: %w", err)

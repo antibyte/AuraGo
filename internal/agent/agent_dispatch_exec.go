@@ -838,7 +838,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				result := compressPersistentHistory(ctx, RunConfig{
 					Config: dc.Cfg, Logger: dc.Logger, LLMClient: dc.LLMClient,
 					ShortTermMem: dc.ShortTermMem, HistoryManager: dc.HistoryMgr, SessionID: dc.SessionID,
-				}, 0, dc.HistoryMgr.TotalChars()/2, true, model, client, dc.Logger)
+				}, 0, dc.HistoryMgr.TotalChars()/2, true, model, client, dc.Logger, nil)
 				if !result.Compressed {
 					return `Tool Output: {"status": "error", "message": "Conversation could not be compacted safely."}`
 				}

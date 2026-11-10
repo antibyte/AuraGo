@@ -36,7 +36,7 @@ func TestPersistentCompressionReservesRecapAndReasoningOutput(t *testing.T) {
 			client := &mockChatClient{response: "complete bounded recap"}
 			result := compressPersistentHistory(context.Background(), RunConfig{
 				Config: cfg, ShortTermMem: stm, HistoryManager: history, SessionID: t.Name(),
-			}, 0, 1, true, model, client, testLogger)
+			}, 0, 1, true, model, client, testLogger, nil)
 			if !result.Compressed || client.lastReq.MaxTokens != want {
 				t.Fatalf("compressed=%v output budget=%d, want %d", result.Compressed, client.lastReq.MaxTokens, want)
 			}
@@ -52,7 +52,7 @@ func TestPersistentCompressionFailureBackoffPreservesHistoryAndRecovers(t *testi
 	client := &mockChatClient{response: "incomplete recap", finishReason: openai.FinishReasonLength}
 	before := len(history.GetAll())
 	compress := func() persistentCompressionResult {
-		return compressPersistentHistory(context.Background(), runCfg, 0, 1, true, "test", client, testLogger)
+		return compressPersistentHistory(context.Background(), runCfg, 0, 1, true, "test", client, testLogger, nil)
 	}
 	allowRetry := func() {
 		historyCompressionFailures.Lock()

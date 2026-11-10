@@ -205,7 +205,7 @@ func TestCompressionStoresBenignDirectiveShapedSummaryOfHumanTranscript(t *testi
 	runCfg := RunConfig{Config: &config.Config{}, ShortTermMem: stm, HistoryManager: history, SessionID: t.Name()}
 	t.Cleanup(func() { resolveHistoryCompressionFailure(runCfg) })
 	client := &mockChatClient{response: summary}
-	result := compressPersistentHistory(context.Background(), runCfg, 0, 1, true, "test", client, testLogger)
+	result := compressPersistentHistory(context.Background(), runCfg, 0, 1, true, "test", client, testLogger, nil)
 	if !result.Compressed || history.GetSummary() != summary {
 		t.Fatalf("a human transcript summary was screened: %+v summary=%q", result, history.GetSummary())
 	}

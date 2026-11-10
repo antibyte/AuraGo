@@ -139,7 +139,7 @@ func TestPersistentCompressionCancellationRecordsNoFailure(t *testing.T) {
 	client := &mockChatClient{err: context.Canceled}
 
 	for attempt := 0; attempt < 2; attempt++ {
-		if result := compressPersistentHistory(ctx, runCfg, 0, 1, true, "test", client, testLogger); result.Compressed {
+		if result := compressPersistentHistory(ctx, runCfg, 0, 1, true, "test", client, testLogger, nil); result.Compressed {
 			t.Fatal("cancelled compression must not compress history")
 		}
 	}

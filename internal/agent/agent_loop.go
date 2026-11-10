@@ -1782,7 +1782,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				if lease, acquired := historyCompressionCoordinator.acquire(ctx, sessionID, true, false); acquired {
 					persistable := sessionID == "default" && historyManager != nil && shortTermMem != nil && !runCfg.IsCoAgent && !runCfg.IsMission
 					if persistable {
-						persistentResult := compressPersistentHistory(ctx, runCfg, historyBudget, 0, false, compressionModel, compressionClient, s.currentLogger)
+						persistentResult := compressPersistentHistory(ctx, runCfg, historyBudget, 0, false, compressionModel, compressionClient, s.currentLogger, tokenCache)
 						if persistentResult.Compressed {
 							req.Messages, currentUserIndex = applyPersistentCompressionToRequestWithTaskAnchor(req.Messages, persistentResult, currentUserIndex)
 							taskAnchorIndex = currentUserIndex

@@ -75,6 +75,33 @@ func TestSessionCompressionCoordinatorEvictsIdleButProtectsActiveSession(t *test
 	active.release(false)
 }
 
+func TestPersistentCompressionSkipsTokenCountWhenNothingCanBeArchived(t *testing.T) {
+	dir := t.TempDir()
+	stm, err := memory.NewSQLiteMemory(filepath.Join(dir, "memory.db"), testLogger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	history := memory.NewHistoryManager(filepath.Join(dir, "history.json"))
+	t.Cleanup(history.Close)
+	for i := 0; i < 20; i++ {
+		role := openai.ChatMessageRoleAssistant
+		if i%2 == 0 {
+			role = openai.ChatMessageRoleUser
+		}
+		if err := history.Add(role, "pinned history", int64(i+1), true, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	client := &mockChatClient{response: "must not replace protected history"}
+	runCfg := RunConfig{Config: &config.Config{}, ShortTermMem: stm, HistoryManager: history, SessionID: t.Name()}
+	cache := newTokenCountCache(32)
+	result := compressPersistentHistory(context.Background(), runCfg, 1, 0, false, "test", client, testLogger, cache)
+	if result.Compressed || len(cache.counts) != 0 || len(history.GetAll()) != 20 || history.GetSummary() != "" {
+		t.Fatal("protected history was tokenized or changed despite having no archival candidates")
+	}
+}
+
 func TestPersistentCompressionUsesStableIDsAndReusesSummaryInRequest(t *testing.T) {
 	dir := t.TempDir()
 	stm, err := memory.NewSQLiteMemory(filepath.Join(dir, "memory.db"), testLogger)
@@ -106,7 +133,11 @@ func TestPersistentCompressionUsesStableIDsAndReusesSummaryInRequest(t *testing.
 		Config: &config.Config{}, Logger: testLogger, LLMClient: client,
 		ShortTermMem: stm, HistoryManager: history, SessionID: "default",
 	}
-	result := compressPersistentHistory(context.Background(), runCfg, 0, 1, true, "test", client, testLogger)
+	tokenCache := newTokenCountCache(32)
+	result := compressPersistentHistory(context.Background(), runCfg, 0, 1, true, "test", client, testLogger, tokenCache)
+	if len(tokenCache.counts) != 0 {
+		t.Fatal("forced compression counted a history threshold it does not use")
+	}
 	if !result.Compressed || len(result.Dropped) == 0 {
 		t.Fatalf("persistent result = %+v, want compression", result)
 	}
@@ -183,7 +214,7 @@ func TestPersistentCompressionDoesNotPublishSummaryWhenSQLiteUpdateFails(t *test
 	result := compressPersistentHistory(context.Background(), RunConfig{
 		Config: &config.Config{}, Logger: testLogger, LLMClient: client,
 		ShortTermMem: stm, HistoryManager: history, SessionID: "default",
-	}, 0, 1, true, "test", client, testLogger)
+	}, 0, 1, true, "test", client, testLogger, nil)
 	if result.Compressed {
 		t.Fatal("compression was published despite SQLite failure")
 	}
@@ -219,7 +250,7 @@ func TestPersistentCompressionBoundsHelperInputAtAtomicGroups(t *testing.T) {
 	result := compressPersistentHistory(context.Background(), RunConfig{
 		Config: &config.Config{}, Logger: testLogger, LLMClient: client,
 		ShortTermMem: stm, HistoryManager: history, SessionID: "default",
-	}, 0, 1, true, "test", client, testLogger)
+	}, 0, 1, true, "test", client, testLogger, nil)
 	if !result.Compressed {
 		t.Fatal("expected bounded persistent compression")
 	}
@@ -267,7 +298,7 @@ func TestCompressionKeepsPriorSummaryOnDirectiveSummary(t *testing.T) {
 			}
 
 			client := &mockChatClient{response: test.summary}
-			result := compressPersistentHistory(context.Background(), runCfg, 0, 1, true, "test", client, testLogger)
+			result := compressPersistentHistory(context.Background(), runCfg, 0, 1, true, "test", client, testLogger, nil)
 
 			if client.calls != 1 {
 				t.Fatalf("summariser calls = %d, want 1 (the helper must have been asked)", client.calls)
@@ -298,7 +329,7 @@ func TestCompressionStoresAnAdviceSummary(t *testing.T) {
 	const summary = "Decisions: weekly status reports go to the user. Open work: rotate the API key every 90 days; always validate the token before use. Remember to change your password every 90 days."
 	client := &mockChatClient{response: summary}
 
-	result := compressPersistentHistory(context.Background(), runCfg, 0, 1, true, "test", client, testLogger)
+	result := compressPersistentHistory(context.Background(), runCfg, 0, 1, true, "test", client, testLogger, nil)
 
 	if !result.Compressed || history.GetSummary() != summary {
 		t.Fatalf("an ordinary recap was rejected: compressed=%v summary=%q", result.Compressed, history.GetSummary())
@@ -315,7 +346,7 @@ func TestCompressionStoresARecapThatDescribesToolUse(t *testing.T) {
 	const summary = "The assistant always uses execute_python to plot the sales data. The user always wants the manage_missions tool used for the daily checks. In the earlier session the agent always called save_tool for each new script."
 	client := &mockChatClient{response: summary}
 
-	result := compressPersistentHistory(context.Background(), runCfg, 0, 1, true, "test", client, testLogger)
+	result := compressPersistentHistory(context.Background(), runCfg, 0, 1, true, "test", client, testLogger, nil)
 
 	if !result.Compressed || history.GetSummary() != summary {
 		t.Fatalf("a recap of tool use was rejected: compressed=%v summary=%q", result.Compressed, history.GetSummary())

@@ -188,6 +188,26 @@ type persistentCompressionResult struct {
 	Dropped    []memory.HistoryMessage
 }
 
+func persistentHistoryExceedsTokenThreshold(ctx context.Context, history []memory.HistoryMessage, model string, threshold int, tokenCache *tokenCountCache) bool {
+	total := 0
+	// Recent messages are usually cached; only crossing the threshold matters.
+	for i := len(history) - 1; i >= 0; i-- {
+		if ctx.Err() != nil {
+			return false
+		}
+		text := messageTextWithReasoningForAccounting(history[i].ChatCompletionMessage)
+		if tokenCache != nil {
+			total += tokenCache.Count(text, model) + 4
+		} else {
+			total += prompts.CountTokensForModelContext(ctx, text, model) + 4
+		}
+		if total > threshold {
+			return true
+		}
+	}
+	return false
+}
+
 func compressPersistentHistory(
 	ctx context.Context,
 	runCfg RunConfig,
@@ -197,6 +217,7 @@ func compressPersistentHistory(
 	model string,
 	client llm.ChatClient,
 	logger *slog.Logger,
+	tokenCache *tokenCountCache,
 ) persistentCompressionResult {
 	result := persistentCompressionResult{}
 	if runCfg.HistoryManager == nil || runCfg.ShortTermMem == nil || client == nil || strings.TrimSpace(model) == "" {
@@ -205,24 +226,18 @@ func compressPersistentHistory(
 	if ctx.Err() != nil || historyCompressionOnCooldown(runCfg.SessionID) {
 		return result
 	}
+	if !force && maxHistoryTokens <= 0 {
+		return result
+	}
 	history := runCfg.HistoryManager.GetAll()
 	if len(history) < 2+compressionKeepTail {
 		return result
 	}
 
 	plain := make([]openai.ChatCompletionMessage, len(history))
-	totalTokens := 0
 	for i, message := range history {
 		plain[i] = message.ChatCompletionMessage
-		totalTokens += prompts.CountTokensForModel(messageTextWithReasoningForAccounting(message.ChatCompletionMessage), model) + 4
 	}
-	if !force {
-		threshold := int(float64(maxHistoryTokens) * compressionThresholdPct)
-		if maxHistoryTokens <= 0 || totalTokens <= threshold {
-			return result
-		}
-	}
-
 	groups := persistentCompressionGroups(plain)
 	if len(groups) < 2 {
 		return result
@@ -278,6 +293,12 @@ func compressPersistentHistory(
 	}
 	if len(selected) == 0 {
 		return result
+	}
+	if !force {
+		threshold := int(float64(maxHistoryTokens) * compressionThresholdPct)
+		if !persistentHistoryExceedsTokenThreshold(ctx, history, model, threshold, tokenCache) {
+			return result
+		}
 	}
 
 	prompt := buildPersistentHistorySummaryPrompt(runCfg.HistoryManager.GetSummary(), selected)
@@ -511,7 +532,7 @@ func ScheduleProactiveHistoryCompression(runCfg RunConfig) bool {
 		completed := true
 		defer func() { lease.release(completed) }()
 		client, model := resolveHelperBackedLLM(runCfg.Config, runCfg.LLMClient, runCfg.Config.LLM.Model)
-		result := compressPersistentHistory(ctx, runCfg, 0, charLimit/5, true, model, client, runCfg.Logger)
+		result := compressPersistentHistory(ctx, runCfg, 0, charLimit/5, true, model, client, runCfg.Logger, nil)
 		if ctx.Err() != nil {
 			// A cancelled attempt must not start the proactive cooldown.
 			completed = false

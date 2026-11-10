@@ -44,7 +44,7 @@ func TestPersistentCompressionMakesProgressThroughLargeToolConversation(t *testi
 		}
 	}
 	client := &mockChatClient{response: "Earlier tool rounds summarized"}
-	result := compressPersistentHistory(context.Background(), RunConfig{Config: &config.Config{}, Logger: testLogger, HistoryManager: history, ShortTermMem: stm, SessionID: "default"}, 0, 24576, true, "test", client, testLogger)
+	result := compressPersistentHistory(context.Background(), RunConfig{Config: &config.Config{}, Logger: testLogger, HistoryManager: history, ShortTermMem: stm, SessionID: "default"}, 0, 24576, true, "test", client, testLogger, nil)
 	if !result.Compressed || len(result.Dropped) == 0 {
 		t.Fatal("oversized conversation still blocks compression")
 	}
