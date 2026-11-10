@@ -149,9 +149,9 @@ func verifySystemWorldExpansion(t *testing.T, page *rod.Page, dir string) {
 	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).experience.hover.pads===5`)
 	page.MustEval(`()=>{document.querySelector('.sw-world').open=true;document.querySelector('[data-world-station="operations"]').click();}`)
 	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).experience.ride===null&&Math.abs(SysWorldApp.inspect(cityId).position[2]-64.5)<.5`)
-	// West off the platform, north to the dock's row, west again: the dock itself fills x -8.5..-7.1, z 63.1..64.1.
+	// West off the platform, north to the dock's row, west again: the dock itself fills x -8.5..-7.1, z 63.25..64.25.
 	axis(0, -5.3, input.KeyA, input.KeyD)
-	axis(2, 62.2, input.KeyW, input.KeyS)
+	axis(2, 62.35, input.KeyW, input.KeyS)
 	axis(0, -7.8, input.KeyA, input.KeyD)
 	page.Timeout(10 * time.Second).MustWait(`()=>document.querySelector('.sw-interaction').dataset.kind==='hoverpack'`)
 	hold(input.KeyE, 60*time.Millisecond)
