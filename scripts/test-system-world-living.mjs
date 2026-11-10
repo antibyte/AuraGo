@@ -54,7 +54,7 @@ const simulate=fixedSteps(dt=>{
   }
 });
 try{
-  await wait(()=>ready&&experience.stats().society.places.length===12&&life.stats().robots===5);
+  await wait(()=>ready&&experience.stats().society.places.length===14&&life.stats().robots===5);
   drones.setTemplate(drone.scene);
   assert.equal(experience.stats().society.residents.length,24,'All five patrols and nineteen residents have safe spawn positions');
   assert.equal(experience.stats().society.rigs,19,'Every resident exposes its leg rig (structure, leg/shin/foot per side) with soles at its origin');
@@ -100,7 +100,7 @@ try{
   console.log(JSON.stringify({seconds:Math.round(time),lobbyVisits:society.lobbyVisits,lobbyJobs,traffic:traffic.stats().bodies,completed:experience.stats().society.completed,byPlace:society.byPlace,byResident:society.byResident,yieldSeconds,onCarriageway:onRoad,signals:experience.stats().society.signals.sent,travel:progress}));
   if(seconds>=120){
     assert.ok(society.completed>=40,'The city must complete at least 40 jobs: '+JSON.stringify(society.byPlace));
-    for(const place of ['repair-bay','relay-mast','kinetic-fountain','glass-garden'])assert.ok(society.byPlace[place]>=1,place+' completed no job: '+JSON.stringify(society.byPlace));
+    for(const place of ['repair-bay','relay-mast','kinetic-fountain','glass-garden','charge-plaza','harbour-cafe'])assert.ok(society.byPlace[place]>=1,place+' completed no job: '+JSON.stringify(society.byPlace));
   }
   // Nobody ends the run waiting inside a door gap (wall thickness plus the porch lip): that would block the door for all.
   const inDoor=society.residents.filter(r=>r.id.startsWith('resident')&&r.state==='yield'&&LOBBIES.some(l=>l.doors.some(d=>{const f=r.z-l.front;return f>=-WALL&&f<=WALL_OUT&&Math.abs(r.x-d.x)<d.width/2;}))).map(r=>({id:r.id,x:r.x,z:r.z}));

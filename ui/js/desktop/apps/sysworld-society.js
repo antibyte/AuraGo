@@ -75,11 +75,15 @@ export function createSociety(scene,{traffic,camera,floor,catalog,onSelect,onDem
     };
     // The place just worked at is skipped for the next two choices. When nothing else is free the resident
     // walks on instead of working the same place again; it falls back to that place only when it cannot walk.
+    // After an outdoor job a resident prefers a free lobby workpoint within 70 m, so the halls are not left to chance
+    // while the outdoor places (now six, two of them far from the residents' homes) keep attracting every choice.
+    const indoorsNext=a.outdoor&&eligible.some(s=>s.lobby&&Math.hypot(s.x-a.body.x,s.z-a.body.z)<=70);
     for(const pass of [0,1]) {
       if(pass===1&&a.avoidLeft>0&&wander()){a.avoidLeft--;return;}
       for(let n=0;n<eligible.length;n++) {
         const slot=eligible[((first?0:a.trip)+n)%eligible.length];
         if(pass===0&&a.avoidLeft>0&&slot.place===a.avoid)continue;
+        if(pass===0&&indoorsNext&&!slot.lobby)continue;
         const path=finder.route(a.body,slot);
         if(!path.length||!openAhead(a,path))continue;
         if(a.avoidLeft>0)a.avoidLeft--;
@@ -238,7 +242,7 @@ export function createSociety(scene,{traffic,camera,floor,catalog,onSelect,onDem
       } else if(a.state==='walk'||a.state==='carry'||a.state==='guide'||a.state==='yield') {
         if(a.guide&&Math.hypot(a.body.x-a.guide.x,a.body.z-a.guide.z)>.5){a.play('idle');if(clock>a.until){a.path=finder.route(a.body,a.guide);a.until=clock+2.5;}continue;}
         a.guide=null;a.state=a.slot?.place==='meeting-charge'?'charge':a.slot?'work':'idle';a.until=clock+5+(a.index%4);
-        a.play(a.state==='work'?'work':'idle');if(a.slot&&!a.slot.lobby)onDemonstrate?.(a.slot.place,5);if(a.slot?.lobby)lobbyVisits++;a.avoid=a.slot?.place||null;a.avoidLeft=a.avoid?2:0;completed++;byResident[a.id]=(byResident[a.id]||0)+1;if(a.slot)byPlace[a.slot.place]=(byPlace[a.slot.place]||0)+1;
+        a.play(a.state==='work'?'work':'idle');if(a.slot&&!a.slot.lobby)onDemonstrate?.(a.slot.place,5);if(a.slot?.lobby)lobbyVisits++;a.outdoor=!!a.slot&&!a.slot.lobby;a.avoid=a.slot?.place||null;a.avoidLeft=a.avoid?2:0;completed++;byResident[a.id]=(byResident[a.id]||0)+1;if(a.slot)byPlace[a.slot.place]=(byPlace[a.slot.place]||0)+1;
       } else if(clock>a.until){
         if(a.role==='courier'&&a.slot&&(a.state==='work'||a.state==='charge')){a.carrying=a.slot.place==='parcel-sorter';a.parcels.forEach(n=>{n.visible=a.carrying;});}
         choose(a);
@@ -289,7 +293,7 @@ export function createSociety(scene,{traffic,camera,floor,catalog,onSelect,onDem
     },
     nearby() {
       const rows=[];for(const a of actors)if(a.body.enabled){const distance=Math.hypot(camera.position.x-a.body.x,camera.position.z-a.body.z);if(distance<5&&Math.abs(camera.position.y-a.body.y)<8)rows.push({kind:'resident',id:a.id,distance,x:a.body.x,z:a.body.z});}
-      for(const p of places.values()){if(p.lobby)continue;const distance=Math.hypot(camera.position.x-p.x,camera.position.z-p.z);if(distance<7)rows.push({kind:'demonstrate',id:p.id,distance,x:p.x,z:p.z});}return rows;
+      for(const p of places.values()){if(p.lobby||p.kit)continue;const distance=Math.hypot(camera.position.x-p.x,camera.position.z-p.z);if(distance<7)rows.push({kind:'demonstrate',id:p.id,distance,x:p.x,z:p.z});}return rows;
     },
     inspect(id){const a=actors.find(a=>a.id===id);select(a);return describe(a);},
     action(verb,destination) {

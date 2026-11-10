@@ -31,7 +31,12 @@ try{
   let climbs=0;
   for(const l of LOBBIES)for(const d of l.doors){
     const key='lobby:'+l.id+':'+d.n,p=PODIUMS.find(p=>p.id===l.district),foot={x:d.x,z:p.z1+FLIGHT+.9},porch={x:d.x,z:l.front+WALL_OUT+1.1},inside={x:d.x,z:l.front-WALL-1.1};
-    if(traffic.clear(visitor,pose(foot.x,foot.z),pose(foot.x,foot.z),false)){put(foot.x,foot.z);tick();assert.ok(walk(porch.x,porch.z),key+': cannot climb the stairs');climbs++;}
+    // The visitor is set down at the foot of a flight. A resident passing there is waited out, as a person would
+    // (bounded at 15 s): dropping the visitor onto a walking resident overlaps both bodies, and neither can then step free.
+    if(traffic.clear(visitor,pose(foot.x,foot.z),pose(foot.x,foot.z),false)){
+      for(let n=0;n<900&&!traffic.clear(visitor,pose(foot.x,foot.z),pose(foot.x,foot.z));n++)tick();
+      assert.ok(traffic.clear(visitor,pose(foot.x,foot.z),pose(foot.x,foot.z)),key+': foot of the flight stays occupied by '+traffic.obstruction(visitor,pose(foot.x,foot.z),pose(foot.x,foot.z)));
+      put(foot.x,foot.z);tick();assert.ok(walk(porch.x,porch.z),key+': cannot climb the stairs');climbs++;}
     else{put(porch.x,porch.z);tick();}
     assert.ok(Math.abs(camera.position.y-(2.4+PODIUM))<1e-6,key+': not on the podium');
     assert.equal(walk(inside.x,inside.z,80),false,key+': entered although the interior is not shown');

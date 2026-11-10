@@ -6,6 +6,7 @@ import {streetCurve} from './sysworld-navigation.js';
 import {bodyShape,createTraffic} from './sysworld-traffic.js';
 import {livingPlaces,landmarkPlaces} from './sysworld-places.js';
 import {createSociety} from './sysworld-society.js';
+import {furnishingPlaces} from './sysworld-furnishing.js';
 import {createMachinery} from './sysworld-machinery.js';
 import {createHoverFlight} from './sysworld-hover.js';
 import {lobbyAt,lobbyGround,lobbyAirspace,createLobbyDoors,lobbyPlaces,DOORS,SENSE,PODIUM,SOLID_TOP} from './sysworld-lobbies.js';
@@ -188,6 +189,9 @@ export function createExperience(scene,options){
         }
       }catch(e){if(!disposed)options.onError?.(e);}
       const cart=await place('service-cart',55,51.2,surfaces.ground,Math.PI/2);if(cart)cart.play('open',true);
+      // Kit workplaces (phase 4): the charging plaza's posts and the harbour cafe. Registered before the residents so
+      // their slots take part in the start rotation and every place has a resident beside it.
+      for(const {place,entry}of furnishingPlaces(options.kit3))society.addPlace(place,entry);
       for(let i=0;i<19;i++){
         const type=['courier','technician','archivist'][i%3],body=await place('robot-'+type,0,0);if(!body)return;
         body.node.scale.setScalar(1.15);residents.push(body);society.add(body,i,body.bounds);body.play('idle');
