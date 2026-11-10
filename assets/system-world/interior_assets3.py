@@ -242,7 +242,7 @@ def lobby_agent(g):
         colliders += [block(side * 5.15, side * 6.05, -4.9, -2.3, 1.0), block(side * 3.2, side * 5.4, -6.0, -5.1, 1.0),
                       block(side * 5.3, side * 6.2, 1.1, 3.1, 1.0), block(side * 4.6, side * 5.8, 4.2, 5.0, 2.4),
                       block(side * 2.6, side * 3.6, 5.7, 6.1, 2.4)]
-    points = [workpoint('reception-west', -1.35, -1.5), workpoint('reception-east', 1.35, -1.5),
+    points = [workpoint('reception-west', -1.85, -1.0), workpoint('reception-east', 1.85, -1.0),
               workpoint('briefing-west', -4.5, 3.6), workpoint('briefing-east', 4.5, 3.6),
               workpoint('lounge-west', -4.3, -2.9), workpoint('lounge-east', 4.3, -2.9)]
     return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots,
@@ -339,8 +339,8 @@ def lobby_memory(g):
         floor_lamp(g, side * 9.55, -1.0)
     counter(g, 0, -4.8, 3.6, 0, screens=2, glow='jade')
     colliders.append(block(-1.9, 1.9, -5.3, -4.3, 1.1))
-    points = [workpoint('enquiry', 0, -4.0), workpoint('core', 0, -1.3), workpoint('stacks-west', -4.65, 4.2),
-              workpoint('stacks-east', 4.65, 4.2), workpoint('reading-west', -6.6, -2.2), workpoint('reading-east', 6.6, -2.2)]
+    points = [workpoint('enquiry', 0, -3.4), workpoint('core', 0, -1.3), workpoint('stacks-west', -4.65, 4.2),
+              workpoint('stacks-east', 4.65, 4.2), workpoint('reading-west', -6.6, -1.5), workpoint('reading-east', 6.6, -1.5)]
     return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots,
             'occlusion': {'ground': PODIUM, 'distance': 1.8}}
 
@@ -366,17 +366,17 @@ def lobby_integrations(g):
         for i in range(5):
             x0, x1 = -9.6 + i * .7, -8.9 + i * .62
             g.pipe((x0, 3.37, z + 2.3 - i * .22), (x1, 3.3, z + 1.0 + i * .12), .014, 'tactile', n=4)
-    counter(g, -8, 1.4, 2.6, pi, screens=2, glow='jade')
+    counter(g, -8, 1.4, 2.0, pi, screens=1, glow='jade')
     sofa(g, -10.0, -1.6, 1.8, pi / 2, 'titanium', .8)
     pot_plant(g, -6.1, -3.3, .9)
     # East: service counter, parcel shelves behind it, a queue totem.
-    counter(g, 8, 1.2, 3.4, 0, screens=2)
+    counter(g, 8, 1.2, 2.4, 0, screens=2)
     cabinet(g, 8, 3.5, 0, (4.0, .5, 2.6), ('cyan', 'ivory'), rows=4)
     totem(g, 9.8, -2.4, -pi / 2, height=2.0)
     pot_plant(g, 6.1, -3.3, .9)
-    colliders = [block(-10.2, -5.8, 3.3, 3.9, 2.9), block(-9.4, -6.6, .9, 1.9, 1.1), block(-10.4, -9.5, -2.6, -.6, 1.0),
-                 block(6.2, 9.8, .7, 1.7, 1.1), block(5.9, 10.1, 3.2, 3.8, 2.7), block(9.5, 10.1, -3.0, -1.8, 2.1)]
-    points = [workpoint('switchboard', -8, 2.6), workpoint('patching', -7.0, .5), workpoint('counter', 8, 2.3),
+    colliders = [block(-10.2, -5.8, 3.3, 3.9, 2.9), block(-9.05, -6.95, .9, 1.9, 1.1), block(-10.4, -9.5, -2.6, -.6, 1.0),
+                 block(6.75, 9.25, .7, 1.7, 1.1), block(5.9, 10.1, 3.2, 3.8, 2.7), block(9.5, 10.1, -3.0, -1.8, 2.1)]
+    points = [workpoint('switchboard', -8, 2.6), workpoint('patching', -7.0, .1), workpoint('counter', 8, 2.3),
               workpoint('queue', 8, -.2)]
     return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots,
             'occlusion': {'ground': PODIUM, 'distance': 1.6}}
@@ -434,7 +434,7 @@ def lobby_missions(g):
         pot_plant(g, side * 11.6, 5.2, 1.0)
         totem(g, side * 12.0, -1.0, -side * pi / 2, screen='warm' if side < 0 else 'cyan')
     points = [workpoint('counter-%d' % (i + 1), x, 2.5) for i, x in enumerate(doors)]
-    points += [workpoint('belt-west', -5.5, 5.9), workpoint('belt-east', 5.5, 5.9), workpoint('waiting', 0, -3.4)]
+    points += [workpoint('belt-west', -5.5, 5.6), workpoint('belt-east', 5.5, 5.6), workpoint('waiting', 0, -3.4)]
     return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots,
             'occlusion': {'ground': PODIUM, 'distance': 1.8}}
 
@@ -448,9 +448,9 @@ def lobby_infra(g):
     colliders = []
     for row, y in enumerate((5.0, 7.4)):
         for i in range(4):
-            x = -7.2 + i * 4.8
-            cabinet(g, x, y, 0, (3.9, .95, 2.6), ('cyan', 'jade'), rows=4, cap='titanium')
-            colliders.append(block(x - 2.0, x + 2.0, y - .5, y + .5, 2.7))
+            x = -6.9 + i * 4.6
+            cabinet(g, x, y, 0, (3.2, .95, 2.6), ('cyan', 'jade'), rows=4, cap='titanium')
+            colliders.append(block(x - 1.65, x + 1.65, y - .5, y + .5, 2.7))
     # Cold aisle grating between the rows and coolant pipes overhead.
     g.grid([-9.2, 9.2], [5.75, 6.65], z + .012, 'iron', tint=1.8)
     if lod == 0:
@@ -460,7 +460,7 @@ def lobby_infra(g):
         g.pipe((-9.2, y, 4.05), (9.2, y, 4.05), .13, mat, n=(10, 7, 5)[lod])
         if lod < 2:
             for i in range(4):
-                x = -7.2 + i * 4.8
+                x = -6.9 + i * 4.6
                 g.pipe((x, y, 3.92), (x, y, z + 2.66), .06, 'titanium', n=(8, 6)[lod])
                 torus(g, (x + 1.0, y, 4.05), .135, .02, 'cyan', rot=Matrix.Rotation(pi / 2, 3, 'Y'), n=10, sides=4)
     # Control desk.
@@ -474,7 +474,7 @@ def lobby_infra(g):
     for side in (-1, 1):
         totem(g, side * 8.6, -1.3, -side * pi / 2, height=2.0)
         pot_plant(g, side * 8.9, 1.0, .9)
-    points = [workpoint('console-west', -1.2, -.3), workpoint('console-east', 1.2, -.3), workpoint('aisle-west', -4.8, 6.2),
+    points = [workpoint('console-west', -1.2, -.7), workpoint('console-east', 1.2, -.7), workpoint('aisle-west', -4.8, 6.2),
               workpoint('aisle-east', 4.8, 6.2), workpoint('racks-front', 0, 3.9)]
     return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots,
             'occlusion': {'ground': PODIUM, 'distance': 1.6}}
@@ -537,7 +537,7 @@ def lobby_graph(g):
         totem(g, x, y, a - pi / 2, screen=('jade', 'cyan')[i % 2], height=2.0)
         colliders.append(block(x - .6, x + .6, y - .6, y + .6, 2.1))
         floor_lamp(g, 6.4 * cos(a + .32), 6.4 * sin(a + .32))
-    points = [workpoint('terminal-east', 5.8, .75), workpoint('terminal-west', -5.8, .75), workpoint('tree-south', 0, -3.4),
+    points = [workpoint('terminal-east', 5.4, .75), workpoint('terminal-west', -5.4, .75), workpoint('tree-south', 0, -3.4),
               workpoint('tree-north', 0, 3.5), workpoint('garden', 2.6, 6.4)]
     return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots,
             'occlusion': {'ground': PODIUM, 'distance': 1.6}}
