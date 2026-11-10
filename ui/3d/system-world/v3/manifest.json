@@ -1,18 +1,19 @@
 {
   "schema_version": 3,
-  "version": "3.2.0",
+  "version": "3.3.0",
   "license": "MIT",
   "generator": "Blender 5.2.2 LTS / build_world3.py",
   "units": "metres",
   "up_axis": "Y",
   "sources": {
     "kit3.py": "d57187cf1c402c0366ab63fae0db2b3bf36c92615f17a5f76a73152193a2b460",
-    "build_world3.py": "e3f325b51453504ad057c544caddff386dad14531cbf0953cec4ff71f5afbc96",
+    "build_world3.py": "28f9ed1050ccf2baabf5f0d4fd226525f41b8036c906429fa149c5d14a09a91e",
     "street_assets3.py": "26f8d0e7d515516c19c510f4eb1880644818ff0d9b11fc8095314a294a729fc1",
     "facade_assets3.py": "c9ef0e5f0d15c54c2a7cad0f8c5d41db5212698bde57344d05cd65163b4979d2",
     "district_assets3.py": "491643796981c5716b1ade594dbfedb02738e93bab140b48c9a3b8277c686ada",
     "furniture_assets3.py": "f64e279f64d8ff2fa8aa9becb828bca7d8b263970859b3b4953c75c4e97cfd69",
-    "interior_assets3.py": "21b88f1094b80c9b1c66d08b407f4344c3d86bdd17fec145bda0520269b8e796"
+    "interior_assets3.py": "21b88f1094b80c9b1c66d08b407f4344c3d86bdd17fec145bda0520269b8e796",
+    "life_assets3.py": "93ab3ff7bb95e550d774c25e8a551b6dc4a769084a8e32b6dd7dc123c6e220a1"
   },
   "assets": [
     {
@@ -3105,10 +3106,1189 @@
         ]
       },
       "animations": []
+    },
+    {
+      "id": "harbour-launch",
+      "name": "Harbour launch with a wheelhouse",
+      "category": "vehicle",
+      "lods": [
+        {
+          "file": "harbour-launch.lod0.glb",
+          "triangles": 3116,
+          "bounds": {
+            "min": [
+              -4.5048,
+              -0.46,
+              -1.63293
+            ],
+            "max": [
+              4.50839,
+              3.385,
+              1.63293
+            ]
+          },
+          "level": 0,
+          "bytes": 47096,
+          "sha256": "294ba43fb2a01d64f853b55bffa1f46f3ccd307f197a24421da07b255998405c"
+        },
+        {
+          "file": "harbour-launch.lod1.glb",
+          "triangles": 1426,
+          "bounds": {
+            "min": [
+              -4.5,
+              -0.45571,
+              -1.63531
+            ],
+            "max": [
+              4.5,
+              3.385,
+              1.63531
+            ]
+          },
+          "level": 1,
+          "bytes": 28676,
+          "sha256": "dbd2a10618d2747dedab4823f3ed9b7810d2b4c9a4a758af31c7d8c4484f19a7"
+        },
+        {
+          "file": "harbour-launch.lod2.glb",
+          "triangles": 316,
+          "bounds": {
+            "min": [
+              -4.5,
+              -0.4525,
+              -1.43912
+            ],
+            "max": [
+              4.5,
+              3.385,
+              1.43912
+            ]
+          },
+          "level": 2,
+          "bytes": 11448,
+          "sha256": "10663b3337a71b9e18e91acadf441dc2b3f363625c665ca828ddee93aa4c9245"
+        }
+      ],
+      "components": [
+        "structure"
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -4.5,
+            -0.5,
+            -1.45,
+            4.5,
+            2.3,
+            1.45
+          ]
+        ]
+      },
+      "animations": []
+    },
+    {
+      "id": "harbour-barge",
+      "name": "Cargo barge with data containers",
+      "category": "vehicle",
+      "lods": [
+        {
+          "file": "harbour-barge.lod0.glb",
+          "triangles": 5642,
+          "bounds": {
+            "min": [
+              -11,
+              -0.7,
+              -3.2566
+            ],
+            "max": [
+              11,
+              7.59,
+              3.2566
+            ]
+          },
+          "level": 0,
+          "bytes": 71660,
+          "sha256": "11d437a1f48084327f34b9041864783f4cb5a948f88be050a031a07167d188bc"
+        },
+        {
+          "file": "harbour-barge.lod1.glb",
+          "triangles": 2652,
+          "bounds": {
+            "min": [
+              -11,
+              -0.7,
+              -3.26511
+            ],
+            "max": [
+              11,
+              7.59,
+              3.26511
+            ]
+          },
+          "level": 1,
+          "bytes": 41320,
+          "sha256": "9afd46aab44fa35df3daf19c54d4e9eab22c73563cefe3602fb476ff92d7b596"
+        },
+        {
+          "file": "harbour-barge.lod2.glb",
+          "triangles": 404,
+          "bounds": {
+            "min": [
+              -11,
+              -0.7,
+              -3.1
+            ],
+            "max": [
+              11,
+              7.59,
+              3.1
+            ]
+          },
+          "level": 2,
+          "bytes": 15028,
+          "sha256": "5c36da6b38a183f46f609c1b4d26b5bf7e173c45f0492366424a8f633aeadcdd"
+        }
+      ],
+      "components": [
+        "structure"
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -11,
+            -0.8,
+            -3.1,
+            11,
+            5.6,
+            3.1
+          ]
+        ]
+      },
+      "animations": []
+    },
+    {
+      "id": "sail-skiff",
+      "name": "Wooden sailing skiff",
+      "category": "vehicle",
+      "lods": [
+        {
+          "file": "sail-skiff.lod0.glb",
+          "triangles": 625,
+          "bounds": {
+            "min": [
+              -2.95,
+              -0.32,
+              -0.9443
+            ],
+            "max": [
+              2.7,
+              6.6,
+              0.9443
+            ]
+          },
+          "level": 0,
+          "bytes": 13048,
+          "sha256": "a79653c81e6d64c3f2b9c79bc7e492bc66882788eb94d21ca6a465b305bf564f"
+        },
+        {
+          "file": "sail-skiff.lod1.glb",
+          "triangles": 280,
+          "bounds": {
+            "min": [
+              -2.95,
+              -0.32,
+              -0.94683
+            ],
+            "max": [
+              2.7,
+              6.6,
+              0.94683
+            ]
+          },
+          "level": 1,
+          "bytes": 9128,
+          "sha256": "586c1e26eae13717391c8a0abda4219d5a5eab20ab76b7d28880d9d968d517cb"
+        },
+        {
+          "file": "sail-skiff.lod2.glb",
+          "triangles": 170,
+          "bounds": {
+            "min": [
+              -2.95,
+              -0.32,
+              -0.9405
+            ],
+            "max": [
+              2.7,
+              6.6,
+              0.9405
+            ]
+          },
+          "level": 2,
+          "bytes": 7852,
+          "sha256": "7e11f7901da61c85c86b34761ad279608c2aaef3c50a48f9b7186fcba49be427"
+        }
+      ],
+      "components": [
+        "rig",
+        "structure"
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -2.7,
+            -0.3,
+            -0.95,
+            2.7,
+            1.5,
+            0.95
+          ]
+        ]
+      },
+      "animations": []
+    },
+    {
+      "id": "harbour-buoy",
+      "name": "Lit channel buoy",
+      "category": "prop",
+      "lods": [
+        {
+          "file": "harbour-buoy.lod0.glb",
+          "triangles": 550,
+          "bounds": {
+            "min": [
+              -0.785,
+              -0.55,
+              -0.785
+            ],
+            "max": [
+              0.785,
+              2.4,
+              0.785
+            ]
+          },
+          "level": 0,
+          "bytes": 11584,
+          "sha256": "10a274fe673bbe4e759c6fd6586f8371d4aa4d9e30af985f7e2d3c912133b57e"
+        },
+        {
+          "file": "harbour-buoy.lod1.glb",
+          "triangles": 376,
+          "bounds": {
+            "min": [
+              -0.785,
+              -0.55,
+              -0.74658
+            ],
+            "max": [
+              0.785,
+              2.4,
+              0.74658
+            ]
+          },
+          "level": 1,
+          "bytes": 10424,
+          "sha256": "79e40ba333ecb0216ce9ff4fecb5c896a8fb22d1ec2d6484f776b99a82d2dc09"
+        },
+        {
+          "file": "harbour-buoy.lod2.glb",
+          "triangles": 178,
+          "bounds": {
+            "min": [
+              -0.785,
+              -0.55,
+              -0.67983
+            ],
+            "max": [
+              0.785,
+              2.4,
+              0.67983
+            ]
+          },
+          "level": 2,
+          "bytes": 8312,
+          "sha256": "a42488b3ed7c9142055d5feac133e12aff341a97d46f0738e75ba42aa6210c9d"
+        }
+      ],
+      "components": [
+        "lamp",
+        "structure"
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -0.8,
+            -0.5,
+            -0.8,
+            0.8,
+            2.4,
+            0.8
+          ]
+        ]
+      },
+      "animations": []
+    },
+    {
+      "id": "mooring-post",
+      "name": "Quay bollard with a coiled line",
+      "category": "prop",
+      "lods": [
+        {
+          "file": "mooring-post.lod0.glb",
+          "triangles": 892,
+          "bounds": {
+            "min": [
+              -0.31,
+              0,
+              -0.42794
+            ],
+            "max": [
+              1.053,
+              0.64,
+              0.31
+            ]
+          },
+          "level": 0,
+          "bytes": 12660,
+          "sha256": "8746f5c0fd0ca99d855598f05f94317c8e4bdcbebe272412005be6b0675f560a"
+        },
+        {
+          "file": "mooring-post.lod1.glb",
+          "triangles": 530,
+          "bounds": {
+            "min": [
+              -0.31,
+              0,
+              -0.433
+            ],
+            "max": [
+              1.053,
+              0.64,
+              0.31
+            ]
+          },
+          "level": 1,
+          "bytes": 9528,
+          "sha256": "f25108a3464819ddc27fbb0b6f9b15529c5c5c5632b86c55eb9423dafada4b21"
+        },
+        {
+          "file": "mooring-post.lod2.glb",
+          "triangles": 90,
+          "bounds": {
+            "min": [
+              -0.31,
+              0,
+              -0.31
+            ],
+            "max": [
+              0.31,
+              0.64,
+              0.31
+            ]
+          },
+          "level": 2,
+          "bytes": 3376,
+          "sha256": "44c69e802309ac6c3ab73ab7a0109e7e35581a9818d747e930f8e62b7414106e"
+        }
+      ],
+      "components": [
+        "structure"
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -0.3,
+            0,
+            -0.3,
+            0.3,
+            0.64,
+            0.3
+          ]
+        ]
+      },
+      "animations": []
+    },
+    {
+      "id": "flower-bed",
+      "name": "Raised flower bed",
+      "category": "nature",
+      "lods": [
+        {
+          "file": "flower-bed.lod0.glb",
+          "triangles": 2050,
+          "bounds": {
+            "min": [
+              -1.6,
+              0,
+              -0.7
+            ],
+            "max": [
+              1.6,
+              0.74,
+              0.7
+            ]
+          },
+          "level": 0,
+          "bytes": 34664,
+          "sha256": "5ac7f922904b6a6649b35fbdea58ab1761f796c5b065faa00d18af0dffbb20b8"
+        },
+        {
+          "file": "flower-bed.lod1.glb",
+          "triangles": 626,
+          "bounds": {
+            "min": [
+              -1.6,
+              0,
+              -0.7
+            ],
+            "max": [
+              1.6,
+              0.74,
+              0.7
+            ]
+          },
+          "level": 1,
+          "bytes": 15208,
+          "sha256": "d51cadfe94119c654948a6b4caed21e0c70b9ca1546154278dd9445ce29a4a89"
+        },
+        {
+          "file": "flower-bed.lod2.glb",
+          "triangles": 170,
+          "bounds": {
+            "min": [
+              -1.6,
+              0,
+              -0.7
+            ],
+            "max": [
+              1.6,
+              0.69515,
+              0.7
+            ]
+          },
+          "level": 2,
+          "bytes": 8840,
+          "sha256": "0270770d495b52d029fd4dc462159539bfee8b2dd0710c062f5b1140b7f9cff9"
+        }
+      ],
+      "components": [
+        "structure"
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -1.6,
+            0,
+            -0.7,
+            1.6,
+            0.9,
+            0.7
+          ]
+        ]
+      },
+      "animations": []
+    },
+    {
+      "id": "cafe-set",
+      "name": "Cafe table with chairs and a parasol",
+      "category": "prop",
+      "lods": [
+        {
+          "file": "cafe-set.lod0.glb",
+          "triangles": 724,
+          "bounds": {
+            "min": [
+              -1.45,
+              0,
+              -1.45
+            ],
+            "max": [
+              1.45,
+              2.825,
+              1.45
+            ]
+          },
+          "level": 0,
+          "bytes": 15040,
+          "sha256": "d775b8af8b6a4707cc5fd6c09a6140357eccdcfb1c730bea438ace18c22b71ba"
+        },
+        {
+          "file": "cafe-set.lod1.glb",
+          "triangles": 380,
+          "bounds": {
+            "min": [
+              -1.45,
+              0,
+              -1.45
+            ],
+            "max": [
+              1.45,
+              2.825,
+              1.45
+            ]
+          },
+          "level": 1,
+          "bytes": 9228,
+          "sha256": "6603789c5d47b5aa2f7463d01af2253ed33b6c4a8ef3a13da36e2d200ffeb77c"
+        },
+        {
+          "file": "cafe-set.lod2.glb",
+          "triangles": 158,
+          "bounds": {
+            "min": [
+              -1.45,
+              0,
+              -1.25574
+            ],
+            "max": [
+              1.45,
+              2.74,
+              1.25574
+            ]
+          },
+          "level": 2,
+          "bytes": 6148,
+          "sha256": "67f8627583af5eac00b1f8d520431ee23e442820dece6bff4cf68705818f5e30"
+        }
+      ],
+      "components": [
+        "structure"
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -1,
+            0,
+            -1,
+            1,
+            1,
+            1
+          ]
+        ]
+      },
+      "animations": []
+    },
+    {
+      "id": "charge-post",
+      "name": "Charging post for residents",
+      "category": "prop",
+      "lods": [
+        {
+          "file": "charge-post.lod0.glb",
+          "triangles": 544,
+          "bounds": {
+            "min": [
+              -0.72,
+              0,
+              -0.83
+            ],
+            "max": [
+              0.72,
+              1.89,
+              0.72
+            ]
+          },
+          "level": 0,
+          "bytes": 13868,
+          "sha256": "d734464c9fb3f8e66e116716625aa77dabe84c0b74367e2b190305fc93d56a15"
+        },
+        {
+          "file": "charge-post.lod1.glb",
+          "triangles": 248,
+          "bounds": {
+            "min": [
+              -0.72,
+              0,
+              -0.83
+            ],
+            "max": [
+              0.72,
+              1.89,
+              0.72
+            ]
+          },
+          "level": 1,
+          "bytes": 10884,
+          "sha256": "3f63147c518fb794ff4565dffe95570078e9aad2d4db387f162d4f3e961d66ca"
+        },
+        {
+          "file": "charge-post.lod2.glb",
+          "triangles": 92,
+          "bounds": {
+            "min": [
+              -0.72,
+              0,
+              -0.83
+            ],
+            "max": [
+              0.72,
+              1.89,
+              0.72
+            ]
+          },
+          "level": 2,
+          "bytes": 7192,
+          "sha256": "56f6b5b62c6077827ff96e00d6c71182593a0bbb550970bcb3f040e117785126"
+        }
+      ],
+      "components": [
+        "structure"
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -0.26,
+            0,
+            -0.84,
+            0.26,
+            1.9,
+            -0.4
+          ]
+        ],
+        "workpoints": [
+          {
+            "id": "charge",
+            "position": [
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      "animations": []
+    },
+    {
+      "id": "info-pylon",
+      "name": "Wayfinding pylon with a city map",
+      "category": "prop",
+      "lods": [
+        {
+          "file": "info-pylon.lod0.glb",
+          "triangles": 724,
+          "bounds": {
+            "min": [
+              -0.48,
+              0,
+              -0.22
+            ],
+            "max": [
+              0.48,
+              2.7,
+              0.22
+            ]
+          },
+          "level": 0,
+          "bytes": 15544,
+          "sha256": "0535b8287b37f36192168ed63f9cb5b1b9dfa21cdd5820c2de05124323be7c05"
+        },
+        {
+          "file": "info-pylon.lod1.glb",
+          "triangles": 156,
+          "bounds": {
+            "min": [
+              -0.48,
+              0,
+              -0.22
+            ],
+            "max": [
+              0.48,
+              2.7,
+              0.22
+            ]
+          },
+          "level": 1,
+          "bytes": 7496,
+          "sha256": "d7721c97299f430f77c0f2e9c2cdc575346c1e4aea0a898442a23b9302ef8842"
+        },
+        {
+          "file": "info-pylon.lod2.glb",
+          "triangles": 84,
+          "bounds": {
+            "min": [
+              -0.48,
+              0,
+              -0.22
+            ],
+            "max": [
+              0.48,
+              2.7,
+              0.22
+            ]
+          },
+          "level": 2,
+          "bytes": 6492,
+          "sha256": "83d0e4c6b9e22a2385414d4dd8fb43c2161ea4d07b2011c537c2e71d9aecef2b"
+        }
+      ],
+      "components": [
+        "structure"
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -0.48,
+            0,
+            -0.22,
+            0.48,
+            2.7,
+            0.22
+          ]
+        ]
+      },
+      "animations": []
+    },
+    {
+      "id": "utility-cabinet",
+      "name": "Street cabinet",
+      "category": "prop",
+      "lods": [
+        {
+          "file": "utility-cabinet.lod0.glb",
+          "triangles": 348,
+          "bounds": {
+            "min": [
+              -0.65,
+              0,
+              -0.25
+            ],
+            "max": [
+              0.65,
+              1.31,
+              0.25
+            ]
+          },
+          "level": 0,
+          "bytes": 10568,
+          "sha256": "99a6ff38abcdb530696f5cfc86db19cc42160e333ae7685bef960ab687830a01"
+        },
+        {
+          "file": "utility-cabinet.lod1.glb",
+          "triangles": 84,
+          "bounds": {
+            "min": [
+              -0.65,
+              0,
+              -0.25
+            ],
+            "max": [
+              0.65,
+              1.31,
+              0.25
+            ]
+          },
+          "level": 1,
+          "bytes": 6340,
+          "sha256": "452ed024f96671b4e5e4aa02a5ea8736e0455949eb7b64bf6676c5a39aa06ba1"
+        },
+        {
+          "file": "utility-cabinet.lod2.glb",
+          "triangles": 36,
+          "bounds": {
+            "min": [
+              -0.65,
+              0,
+              -0.25
+            ],
+            "max": [
+              0.65,
+              1.31,
+              0.25
+            ]
+          },
+          "level": 2,
+          "bytes": 4256,
+          "sha256": "21b61e761cbd01f46fe781021e00b5d2c415d4115cb5a4761844e8066c0885ff"
+        }
+      ],
+      "components": [
+        "structure"
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -0.65,
+            0,
+            -0.25,
+            0.65,
+            1.3,
+            0.25
+          ]
+        ]
+      },
+      "animations": []
+    },
+    {
+      "id": "neon-blade",
+      "name": "Vertical neon blade sign",
+      "category": "prop",
+      "lods": [
+        {
+          "file": "neon-blade.lod0.glb",
+          "triangles": 588,
+          "bounds": {
+            "min": [
+              -0.1,
+              -0.06,
+              0
+            ],
+            "max": [
+              0.1,
+              4.06,
+              1.23
+            ]
+          },
+          "level": 0,
+          "bytes": 13480,
+          "sha256": "01f2e1a7dedfe0ee593e0b4ff99809ca2ca02d9cc23caab487e17eb12fb18b60"
+        },
+        {
+          "file": "neon-blade.lod1.glb",
+          "triangles": 492,
+          "bounds": {
+            "min": [
+              -0.1,
+              -0.06,
+              0
+            ],
+            "max": [
+              0.1,
+              4.06,
+              1.23
+            ]
+          },
+          "level": 1,
+          "bytes": 11916,
+          "sha256": "0444819456be487496f4e73086e3e3fc34fb7dfe427f8816b974e565202d2ba3"
+        },
+        {
+          "file": "neon-blade.lod2.glb",
+          "triangles": 60,
+          "bounds": {
+            "min": [
+              -0.078,
+              0,
+              0
+            ],
+            "max": [
+              0.078,
+              4,
+              1.2
+            ]
+          },
+          "level": 2,
+          "bytes": 4660,
+          "sha256": "8ace2a2f7791ff63e73c6e14f9a79b28e25eec583256c28cc3aeed32cec9a31c"
+        }
+      ],
+      "components": [
+        "structure"
+      ],
+      "navigation": {
+        "colliders": []
+      },
+      "animations": []
+    },
+    {
+      "id": "neon-wave",
+      "name": "Wide neon wall sign",
+      "category": "prop",
+      "lods": [
+        {
+          "file": "neon-wave.lod0.glb",
+          "triangles": 1320,
+          "bounds": {
+            "min": [
+              -1.705,
+              -0.02,
+              0
+            ],
+            "max": [
+              1.705,
+              1.12,
+              0.15
+            ]
+          },
+          "level": 0,
+          "bytes": 25236,
+          "sha256": "f3aa0d1a371f84a4b09a8b13a335a28c1ff5264c27d2f839b4c6c7de559b6d0c"
+        },
+        {
+          "file": "neon-wave.lod1.glb",
+          "triangles": 592,
+          "bounds": {
+            "min": [
+              -1.705,
+              -0.02,
+              0
+            ],
+            "max": [
+              1.705,
+              1.12,
+              0.14427
+            ]
+          },
+          "level": 1,
+          "bytes": 14572,
+          "sha256": "5cdd25843f06ffab02c01a2018006c61abce3790073afc35b5cab1790ed20470"
+        },
+        {
+          "file": "neon-wave.lod2.glb",
+          "triangles": 156,
+          "bounds": {
+            "min": [
+              -1.7,
+              0,
+              0.01
+            ],
+            "max": [
+              1.7,
+              1.1,
+              0.135
+            ]
+          },
+          "level": 2,
+          "bytes": 7412,
+          "sha256": "f3a130a06fb16b59d6648d95fedd96b36568270e4764f1bca383a293d3d0d5ab"
+        }
+      ],
+      "components": [
+        "structure"
+      ],
+      "navigation": {
+        "colliders": []
+      },
+      "animations": []
+    },
+    {
+      "id": "neon-ring",
+      "name": "Round neon sign",
+      "category": "prop",
+      "lods": [
+        {
+          "file": "neon-ring.lod0.glb",
+          "triangles": 1296,
+          "bounds": {
+            "min": [
+              -0.925,
+              -0.025,
+              0.01
+            ],
+            "max": [
+              0.925,
+              1.825,
+              0.14598
+            ]
+          },
+          "level": 0,
+          "bytes": 17724,
+          "sha256": "60c669ce399a72bdbe497ee165fff3d175ab92986f0185482ee10dd849fbd3a6"
+        },
+        {
+          "file": "neon-ring.lod1.glb",
+          "triangles": 824,
+          "bounds": {
+            "min": [
+              -0.925,
+              -0.025,
+              0.01
+            ],
+            "max": [
+              0.925,
+              1.825,
+              0.14853
+            ]
+          },
+          "level": 1,
+          "bytes": 14292,
+          "sha256": "941408cc074c74b04e5489dc5b407492e6466db12ca77796f1f87da8349cebac"
+        },
+        {
+          "file": "neon-ring.lod2.glb",
+          "triangles": 182,
+          "bounds": {
+            "min": [
+              -0.9,
+              0.04405,
+              0.01
+            ],
+            "max": [
+              0.9,
+              1.75595,
+              0.14598
+            ]
+          },
+          "level": 2,
+          "bytes": 6688,
+          "sha256": "2c62da510536fb9014d8860cf79fadafd55730f32bbfde487f7f01c4db0b4a98"
+        }
+      ],
+      "components": [
+        "structure"
+      ],
+      "navigation": {
+        "colliders": []
+      },
+      "animations": []
+    },
+    {
+      "id": "banner-mast",
+      "name": "Mast with a cloth banner",
+      "category": "prop",
+      "lods": [
+        {
+          "file": "banner-mast.lod0.glb",
+          "triangles": 326,
+          "bounds": {
+            "min": [
+              -0.24,
+              0,
+              -0.24
+            ],
+            "max": [
+              1.095,
+              7.24,
+              0.24
+            ]
+          },
+          "level": 0,
+          "bytes": 9120,
+          "sha256": "61108797e8a018bb1d3afc1ef4157b7d4ca2ac29925f9a8552dfb46595cd5346"
+        },
+        {
+          "file": "banner-mast.lod1.glb",
+          "triangles": 222,
+          "bounds": {
+            "min": [
+              -0.24,
+              0,
+              -0.24
+            ],
+            "max": [
+              1.095,
+              7.24,
+              0.24
+            ]
+          },
+          "level": 1,
+          "bytes": 8756,
+          "sha256": "8253b17f6bfb8a5d8852606b3b3848a8563754672035b1db8df8437696e90280"
+        },
+        {
+          "file": "banner-mast.lod2.glb",
+          "triangles": 120,
+          "bounds": {
+            "min": [
+              -0.24,
+              0,
+              -0.20785
+            ],
+            "max": [
+              1.05,
+              7.24,
+              0.20785
+            ]
+          },
+          "level": 2,
+          "bytes": 6116,
+          "sha256": "4d911c6c8a367638936f59d3368b28b134bd27fbca6bae4b67a04ff3c6693763"
+        }
+      ],
+      "components": [
+        "banner",
+        "structure"
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -0.25,
+            0,
+            -0.25,
+            0.25,
+            7.2,
+            0.25
+          ]
+        ]
+      },
+      "animations": []
+    },
+    {
+      "id": "gull",
+      "name": "Gull with hinged wings",
+      "category": "nature",
+      "lods": [
+        {
+          "file": "gull.lod0.glb",
+          "triangles": 154,
+          "bounds": {
+            "min": [
+              -0.45,
+              -0.105,
+              -0.78
+            ],
+            "max": [
+              0.41,
+              0.105,
+              0.78
+            ]
+          },
+          "level": 0,
+          "bytes": 8148,
+          "sha256": "f8f3aca157c6034c87fde8588ce50cb34f767a9a9563e73b8b05794e8c6f42e9"
+        },
+        {
+          "file": "gull.lod1.glb",
+          "triangles": 102,
+          "bounds": {
+            "min": [
+              -0.45,
+              -0.105,
+              -0.78
+            ],
+            "max": [
+              0.41,
+              0.105,
+              0.78
+            ]
+          },
+          "level": 1,
+          "bytes": 6804,
+          "sha256": "945cadf2f55e2f45dbb4014f4c1b444e94183c394240deeb7d1125d54321ad7a"
+        },
+        {
+          "file": "gull.lod2.glb",
+          "triangles": 70,
+          "bounds": {
+            "min": [
+              -0.45,
+              -0.105,
+              -0.78
+            ],
+            "max": [
+              0.41,
+              0.105,
+              0.78
+            ]
+          },
+          "level": 2,
+          "bytes": 6564,
+          "sha256": "3c243bcaf85dee6bec735234db74f61f5df59e46149ccb84fcd8aa27e894ccb3"
+        }
+      ],
+      "components": [
+        "structure",
+        "wing_l",
+        "wing_r"
+      ],
+      "navigation": {
+        "colliders": []
+      },
+      "animations": []
     }
   ],
   "compression": "EXT_meshopt_compression",
   "pack": "gltfpack@1.3.0 -cc -kn -km -ke -kv -vtf",
-  "total_model_bytes": 3805728,
+  "total_model_bytes": 4440124,
   "validator_errors": 0
 }

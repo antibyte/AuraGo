@@ -27,9 +27,10 @@ import facade_assets3  # noqa: E402
 import district_assets3  # noqa: E402
 import furniture_assets3  # noqa: E402
 import interior_assets3  # noqa: E402
+import life_assets3  # noqa: E402
 
-VERSION = '3.2.0'
-FAMILIES = [street_assets3, facade_assets3, district_assets3, furniture_assets3, interior_assets3]
+VERSION = '3.3.0'
+FAMILIES = [street_assets3, facade_assets3, district_assets3, furniture_assets3, interior_assets3, life_assets3]
 SOURCES = ['kit3.py', 'build_world3.py'] + [Path(m.__file__).name for m in FAMILIES]
 
 

@@ -418,7 +418,8 @@ def charge_post(g):
         for i in range(4):
             g.box((0, .468, .5 + i * .32), (.16, .01, .02), 'titanium', 0)
         g.lathe((0, 0, 0), [(.29, .031), (.31, .031)], 'cyan', n=n, up=True)
-    return {'navigation': {'colliders': [collider(-.26, -.84, .26, -.4, 1.9)], 'workpoints': [{'id': 'charge', 'position': [0, 0, 0]}]},
+    # The pylon stands behind the pad (Blender +Y, glTF -Z); the pad itself stays free to stand on.
+    return {'navigation': {'colliders': [collider(-.26, .4, .26, .84, 1.9)], 'workpoints': [{'id': 'charge', 'position': [0, 0, 0]}]},
             'occlusion': {'ground': 0.0}}
 
 
