@@ -149,6 +149,8 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	// Surface detail: all six generated maps on high, patched kit materials and no failed map.
 	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId)?.surfaces?.textures===6`)
 	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId).surfaces;if(s.detail!==2||s.failures||s.materials<20||s.bytes<100000)throw Error('Surface detail inactive: '+JSON.stringify(s));}`)
+	// Window interiors: kit v3 panes on the shared interior material, full level on high.
+	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(!s.windows||s.windows.level!==2||s.windows.meshes<10||s.kitModels.v3<14)throw Error('Window interiors inactive: '+JSON.stringify({windows:s.windows,kits:s.kitModels}));}`)
 	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId),dump=JSON.stringify(s);
         if(/Proxmox|alert\(1\)|Gedächtnis/.test(dump))throw Error('Diagnostics leak memory text');
         if(!(cityCalls['/api/desktop/system-world/memory-artifacts']>=1&&cityCalls['/api/desktop/system-world/memory-artifacts']<=2))throw Error('Artifact feed must poll once per interval');
@@ -462,6 +464,7 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.MustScreenshot(filepath.Join(dir, "city-low.png"))
 	assertRenderedCity(t, filepath.Join(dir, "city-low.png"))
 	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(s.atmosphere.tier!=='low'||s.atmosphere.post!==false)throw Error('Low tier must disable the atmosphere post pass');if(s.surfaces.detail!==0)throw Error('Low tier must disable surface detail');}`)
+	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(s.windows.level!==0)throw Error('Low tier must use flat window cells: '+JSON.stringify(s.windows));}`)
 	page.MustEval(`()=>{const select=document.querySelector('.sw-quality');select.value='high';select.dispatchEvent(new Event('change'));document.querySelector('[data-sw-mode="orbit"]').click();}`)
 	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).tier==='high'`)
 	metrics := page.MustEval(`async()=>{const frames=[];let last=performance.now();for(let i=0;i<120;i++){await new Promise(requestAnimationFrame);const now=performance.now();if(i>10)frames.push(now-last);last=now;}frames.sort((a,b)=>a-b);return JSON.stringify({meanMS:frames.reduce((a,b)=>a+b,0)/frames.length,p95MS:frames[Math.floor(frames.length*.95)],...SysWorldApp.inspect(cityId)},null,2)}`).Str()
