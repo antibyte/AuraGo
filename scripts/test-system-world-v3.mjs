@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { supersededV1, kitFor } from '../ui/js/desktop/apps/sysworld-scene.js';
 
 const base = 'ui/3d/system-world/v3';
 const manifest = JSON.parse(await fs.readFile(base + '/manifest.json', 'utf8'));
@@ -99,4 +100,18 @@ for (const asset of manifest.assets) for (const lod of asset.lods) {
 }
 if (windowDesigns.size) assert.match(manifest.pack ?? '', /-vtf\b/, 'Room coordinates need float texture coordinates');
 console.log('System World v3 window panes: ' + (windowDesigns.size ? windowDesigns.size + ' designs, ' + paneTriangles + ' pane triangles verified' : 'none shipped yet'));
+// Phase 2: kit v3 takes over twelve v1 designs and ships street furniture that is not placed yet.
+const furniture = ['tree-round', 'tree-column', 'street-bench', 'bollard', 'litter-bin', 'zebra-sign', 'kiosk'];
+assert.equal(manifest.assets.length, 25, '6 street + 12 superseded + 7 new furniture designs');
+for (const id of [...supersededV1, ...furniture]) assert.ok(ids.includes(id), 'Missing v3 design ' + id);
+const catalogV3 = new Map(manifest.assets.map(a => [a.id, a]));
+for (const id of supersededV1) assert.equal(kitFor(id, catalogV3), 'v3', id + ' must load from v3');
+assert.equal(kitFor('service-drone', catalogV3), 'v1');
+for (const id of supersededV1.filter(id => id !== 'street-lamp' && id !== 'planter')) assert.ok(windowDesigns.has(id), id + ' has window panes');
+assert.ok(catalogV3.get('operations-beacon').components.includes('signal'), 'operations-beacon keeps its signal part');
+// The twelve superseded v1 designs left the runtime payload; v1 keeps the drone, the tram and the rack.
+const v1 = JSON.parse(await fs.readFile('ui/3d/system-world/v1/manifest.json', 'utf8'));
+assert.deepEqual(v1.assets.map(a => a.id).sort(), ['data-tram', 'server-rack', 'service-drone']);
+for (const id of supersededV1) for (const level of [0, 1, 2])
+  await assert.rejects(fs.access(`ui/3d/system-world/v1/${id}.lod${level}.glb`), 'retired v1 file still present: ' + id);
 console.log('System World v3: ' + manifest.assets.length + ' designs, ' + files + ' meshopt GLBs, ' + bytes + ' bytes, model directory ' + model + ' bytes verified');
