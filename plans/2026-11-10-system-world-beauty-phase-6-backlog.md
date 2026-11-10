@@ -84,6 +84,15 @@ and plan; this file only keeps the findings so they are not lost.
    recordings loaded, foley peak .063). Cause not established: no audio device in that shell, or the wait is
    too short while the larger sound graph is built. Find out which; if it is time, wait longer for the state.
 
+35. **Night glare steps down within one survey page.** After about the 11th picture in one page the facade
+   glare drops by itself (missions .0245 → .0157, memory .0400 → .0337), with lights, emissive values, environment
+   intensity and triangle counts unchanged (phase 6 Task 4, `reports/system-world-survey/phase-6-find-drift`).
+   Something time-driven runs on between scenes (`freeze` only holds inside one). Find what; if it is a slow
+   easing of the night state, the first minute after a mood change is brighter than the settled picture.
+36. **Survey instruments.** The `window-env-off` toggle does nothing (the window material has no environment
+   map of its own). `camera.blocked` reports a moving body near the camera, not a bad camera position
+   (`life-street-trees-night`, `crossing`): check against solids only, or freeze before the check.
+
 ## Sound
 
 28. **Tram and footsteps do not read as such.** Coordinator's classifier finding on the rendered mix: the tram

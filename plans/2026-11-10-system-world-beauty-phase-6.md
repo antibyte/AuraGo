@@ -2050,3 +2050,58 @@ Keep the soundscape budget test's node limits; if a limit is hit, drop to two ro
 - **Could-not-verify 10, Request 6.** The leaves source `0904.ogg` is still in the session scratch directory
   with the recorded sha256, so Task 14 needs no download.
 - **Request 8.** The baseline for the before/after sheet is `reports/system-world-survey/baseline` (2026-11-09).
+
+## Execution notes
+
+### Tasks 1–3 (2026-11-10)
+- **Task 2.** Frame-time medians are about 10 ms on every tier and scene on the reference machine (Arc B580), so the
+  frame is bound by the update, not by triangles. `street-agent` draws 1.94 million triangles with the shadow pass
+  and 882,938 without (`viewTriangles`, Task 3): the second figure is the W4 starting point.
+- **Task 3.** The plan's `captureMask` awaited `toBlob` while its override materials were on; the page's own update
+  then read uniforms of swapped materials and stopped the animation loop. The mask pass now freezes the update.
+
+### Task 4 — what causes the night glare (2026-11-10)
+Clean numbers need one page per target with a throw-away first picture: within one page the facade glare steps
+down by itself after about the 11th picture (missions .0245 → .0157, memory .0400 → .0337, agent .0041 → .0025;
+lights, emissive values and environment unchanged; cause not found, see backlog 35). The plan's single-page pass 2
+was unusable for that reason.
+
+| Patch (stable base share) | `env-off` | `bloom-off` | `windows-dark` | `emissive-all-off` | lights, lamps, pane lighting | Class |
+| --- | --- | --- | --- | --- | --- | --- |
+| `facade-memory-night` .0400 | −95 % | −81 % | −40 % | −16 % | ≤ 7 % | E, partly B |
+| `facade-missions-night` .0245 | −95 % | −84 % | −51 % | −4 % | ≤ 9 % | E and B |
+| `facade-agent-night` .0041 (passes) | −90 % | −81 % | −88 % | −3 % | ≤ 3 % | E and B |
+| `lobby-memory-night` .0148 | −100 % | −63 % | 0 % | −67 % | ≤ 2 % (pane lighting −43 %) | E, A-in |
+| `lobby-missions-night` .0064 | −100 % | −100 % | 0 % | −66 % | ≤ 5 % | E, A-in |
+| `lobby-agent-night` .0027 (passes) | −100 % | −79 % | 0 % | −42 % | 0 % | below the limit |
+| `life-street-trees-night`, `skyline-night` | base 0 | | | | | nothing to explain |
+
+- **Cause.** The pale ceramic mirrors the bright panels of the environment map, which keeps its day intensity
+  (.48) at night. Lit window rooms add to it. Neither the moonlight nor a point light nor the lamp cones matter.
+- **Emissive inventory** (bloom threshold 1.06): `city.lantern-glow` 2.4 and `city.cyan` 1.68 lie above it,
+  `city.warm` .845, `city.ivory` .64 and `city.jade` .624 below. Switching every emissive off changes the facades by
+  4 to 16 %, so no kit emission change (C1) is needed.
+- **Aviation.** All 56 points sit 1.79 to 5.27 m beside their tower's roof-top centre (class D); none needs the
+  fog step.
+- **Cone.** The camera of `life-street-trees-night` is 6.9 m from the nearest cone; cones cause no glare.
+- **Blob (backlog 5).** `proof-window-close` on medium: no clipped pixel. Closed.
+- **Low tier.** Lit share at night .78 against .775 on high: Task 6 step 5 is not needed.
+- **Instruments.** `window-env-off` does nothing (the window material has no environment map of its own), so E
+  and E-w cannot be told apart; `camera.blocked` depends on a moving body, not on the camera position.
+- **Decision.** Task 5 (always), Task 8 step E starting at `NIGHT_ENV` .12 with the highest passing value kept,
+  step L only if a lobby stays above .004, Task 6 steps 1–4 and 6 (`WIN_CAP` from 1.0). Steps M, F, C, G, A2, Task 6
+  steps 5 and 7 and C1 are not applied.
+
+### Tasks 13–15 — sound finish (2026-11-10)
+- **Task 13 (synthesis).** First render: the tram read as a kettle and a vacuum cleaner (motor sawtooth and whine
+  over a weak roar), and the footfall body layer was inaudible (a band-pass of Q 8–10 passes about 25 Hz of the
+  noise). After two tuning rounds (roll 1.6, whine .09, motor .15, joint knocks, body levels 1.7–2.2, tram .7,
+  visitor step scale 2.8) the strict survey passed, but the classifier still named neither sound: a tram passing
+  z 0.96 (0.6 before), footsteps z 1.5 to 1.8 (unchanged). Route (b) did not reach 2.5.
+- **Task 14 (leaves).** The plan's low-pass was dropped: every low-passed cut read as rain on a roof. The cut
+  moved to the calm stretch from 100 s (tree wind 3.2, rain 2.24, birds 2.0; the old cut 2.84 / 2.83 / 2.07). In
+  the park mix both cuts read as wind in leaves with birds (3.8) and not as rain (0.6).
+- **Task 15 (recordings).** The user approved four concrete files on 2026-11-10; two are used: "Tram Passing #2"
+  (BigSoundBank, Joseph Sardin; 13 s around the pass) and "light footsteps on concrete walking.wav" (Freesound,
+  rsellick; twelve single footfalls on a 0.3 s grid). `build_audio.py` got the kinds `pass` and `slices`. With the
+  recorded footfalls `walk-surfaces` reads as footsteps (z 3.4 on a step, 2.6 on a stretch).
