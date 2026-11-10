@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createCinema } from './sysworld-cinema.js';
+import { surfaces } from './sysworld-layout.js';
 
 // Warm lamp cones drift a little towards amber at dusk. Both colours are
 // allocated once: setLighting runs on mood changes and every 30 seconds.
@@ -110,7 +111,11 @@ void main(){float d=length(gl_PointCoord-0.5)*2.0;if(d>1.0)discard;gl_FragColor=
 const BEAM = `uniform float strength;uniform vec3 color;varying vec2 vUv;
 void main(){float along=pow(clamp(1.0-vUv.x,0.0,1.0),2.4);float across=pow(clamp(1.0-abs(vUv.y-0.5)*2.0,0.0,1.0),1.7);gl_FragColor=vec4(color*along*across*strength,1.0);}`;
 const LAMP = `uniform vec3 color;uniform float strength;varying vec2 vUv;varying vec3 vNormal,vView;
-void main(){float rim=clamp(1.0-abs(dot(normalize(vNormal),normalize(vView))),0.0,1.0);float a=pow(clamp(vUv.y,0.0,1.0),1.6)*(0.35+0.65*rim)*strength;gl_FragColor=vec4(color*a,1.0);}`;
+void main(){float facing=clamp(abs(dot(normalize(vNormal),normalize(vView))),0.0,1.0);float h=clamp(vUv.y,0.0,1.0);
+float a=pow(h,2.4)*pow(facing,1.5)*strength;gl_FragColor=vec4(color*a,1.0);}`;
+// Soft pool of light on the pavement under each lamp: bright centre, smooth falloff to nothing at the rim.
+const LAMP_POOL = `uniform vec3 color;uniform float strength;varying vec2 vUv;
+void main(){float d=clamp(length(vUv-0.5)*2.0,0.0,1.0);float f=1.0-smoothstep(0.0,1.0,d);f=f*(0.35+0.65*f);gl_FragColor=vec4(color*f*strength,1.0);}`;
 // Distant coastline: a fixed aerial-perspective tint of the haze, darker towards the ridge.
 const COAST = {
   vertex: 'attribute float lift;varying float vLift;void main(){vLift=lift;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
@@ -202,9 +207,27 @@ vec4 mv=modelViewMatrix*p;vView=-mv.xyz;gl_Position=projectionMatrix*mv;}`,
   const scratch = new THREE.Object3D();
   lamps.forEach((lamp, i) => {
     // kit v3 street-lamp: luminaire 1.55 m along local +X, underside 6.5 m up; apex touches it, base circle on the ground
-    scratch.position.set(lamp.x + 1.55 * Math.cos(lamp.angle || 0), (lamp.y || 0) + 3.25, lamp.z - 1.55 * Math.sin(lamp.angle || 0)); scratch.updateMatrix(); lampCones.setMatrixAt(i, scratch.matrix);
+    { const top = (lamp.y || 0) + 6.5, h = top - surfaces.pavement; scratch.position.set(lamp.x + 1.55 * Math.cos(lamp.angle || 0), surfaces.pavement + h / 2, lamp.z - 1.55 * Math.sin(lamp.angle || 0)); scratch.scale.set(1, h / 6.5, 1); scratch.updateMatrix(); scratch.scale.set(1, 1, 1); } lampCones.setMatrixAt(i, scratch.matrix);
   });
   lampCones.count = lamps.length; lampCones.instanceMatrix.needsUpdate = true; group.add(lampCones);
+  // One additive disc per lamp on the ground below the luminaire (radius 3.4 m), a single draw call. It lies 2 cm above the pavement top (surfaces.pavement); the lamps themselves stand 5 cm sunk.
+  const poolMaterial = shader(`varying vec2 vUv;void main(){vUv=uv;vec4 p=vec4(position,1.0);
+#ifdef USE_INSTANCING
+p=instanceMatrix*p;
+#endif
+gl_Position=projectionMatrix*modelViewMatrix*p;}`,
+    LAMP_POOL, { color: { value: new THREE.Color(0xffd9a0) }, strength: { value: .3 } },
+    { ...additive, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const poolGeometry = new THREE.PlaneGeometry(1, 1); poolGeometry.rotateX(-Math.PI / 2);
+  const lampPools = new THREE.InstancedMesh(poolGeometry, poolMaterial, Math.max(1, lamps.length));
+  lampPools.name = 'lamp-pools'; lampPools.renderOrder = 1; lampPools.frustumCulled = false;
+  geometries.push(poolGeometry); materials.push(poolMaterial);
+  lamps.forEach((lamp, i) => {
+    scratch.position.set(lamp.x + 1.55 * Math.cos(lamp.angle || 0), surfaces.pavement + .02, lamp.z - 1.55 * Math.sin(lamp.angle || 0)); scratch.scale.set(6.8, 1, 6.8);
+    scratch.updateMatrix(); lampPools.setMatrixAt(i, scratch.matrix);
+  });
+  scratch.scale.set(1, 1, 1);
+  lampPools.count = lamps.length; lampPools.instanceMatrix.needsUpdate = true; group.add(lampPools);
   // A faint coastline behind and beside the city gives the horizon depth; settlement lights
   // twinkle along it at night. The camera side stays open sea.
   const coastPositions = [], coastLift = [], coastIndex = [], shorePositions = [], shorePhase = [], segments = 360;
@@ -254,7 +277,7 @@ vec4 mv=modelViewMatrix*p;vView=-mv.xyz;gl_Position=projectionMatrix*mv;}`,
   const cinema = createCinema(time), post = cinema.pass;
   let busy = false, tier = 'high', sweep = 0, lampLevel = 1;
   // Lamp cones only read at night: invisible by day, fading in towards dusk (never on low).
-  const showLamps = () => { lampCones.visible = tier !== 'low' && lampLevel > .01; };
+  const showLamps = () => { lampCones.visible = lampPools.visible = tier !== 'low' && lampLevel > .01; };
   return {
     post, sea,
     setLighting(daylight, evening, direction) {
@@ -263,7 +286,7 @@ vec4 mv=modelViewMatrix*p;vView=-mv.xyz;gl_Position=projectionMatrix*mv;}`,
       zenith.set(0x05091a).lerp(new THREE.Color(0x2f6fa8),daylight).lerp(new THREE.Color(0x1d2146),dusk.value*.8);
       horizon.set(0x14324c).lerp(new THREE.Color(0xa9c6d4),daylight).lerp(new THREE.Color(0xc0683e),dusk.value*.85);
       warm.set(evening>.1?0xff8a45:0x7a3d2a);
-      lampMaterial.uniforms.color.value.copy(LAMP_WARM).lerp(LAMP_DUSK,dusk.value);
+      lampMaterial.uniforms.color.value.copy(LAMP_WARM).lerp(LAMP_DUSK,dusk.value); poolMaterial.uniforms.color.value.copy(lampMaterial.uniforms.color.value);
       glow.set(0x4a2a18).lerp(new THREE.Color(0x6b3a22),dusk.value);
       haze.copy(scene.fog.color);stars.visible=daylight<.35;
       sea.material.uniforms.sky.value.copy(horizon).lerp(zenith,dusk.value*.65).multiplyScalar(.7);
@@ -308,7 +331,8 @@ vec4 mv=modelViewMatrix*p;vView=-mv.xyz;gl_Position=projectionMatrix*mv;}`,
       crown.scale.setScalar(1 + Math.sin(time.value * (busy ? 6 : 2.2)) * .18);
       // A barely visible warm flicker keeps the quay lamps from looking painted
       // on. The shared time uniform freezes it under reduced motion.
-      lampMaterial.uniforms.strength.value = .3 * lampLevel * (1 + .035 * Math.sin(time.value * 1.6) + .015 * Math.sin(time.value * 4.1 + 1.2));
+      const lampFlicker = lampLevel * (1 + .035 * Math.sin(time.value * 1.6) + .015 * Math.sin(time.value * 4.1 + 1.2));
+      lampMaterial.uniforms.strength.value = .3 * lampFlicker; poolMaterial.uniforms.strength.value = .6 * lampFlicker;
       sweep += step;
       const night = 1 - day.value;
       searchMaterial.uniforms.strength.value = night * night * .075 * (1 - dusk.value * .7) * (1 - cloud.value * .45);
@@ -323,7 +347,7 @@ vec4 mv=modelViewMatrix*p;vView=-mv.xyz;gl_Position=projectionMatrix*mv;}`,
     stats: () => ({ tier, busy, stars: starCount, dust: dustCount, lamps: lamps.length, lampLevel: +lampLevel.toFixed(2), post: post.enabled, coast: coastIndex.length / 6, shoreLights: shorePhase.length,
       clouds: +cloud.value.toFixed(2), searchlights: searchlights.length, aviation: aviationGeometry.drawRange.count, cinema: cinema.stats() }),
     dispose() {
-      group.removeFromParent(); lampCones.dispose();
+      group.removeFromParent(); lampCones.dispose(); lampPools.dispose();
       geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); cinema.dispose();
     },
   };
