@@ -70,3 +70,28 @@ assert.ok(L.lobbySolids('graph').some(b=>near(b.min[1],4.7+.4)),'atrium lid');
   assert.deepEqual(places[0].place,{id:'lobby-agent',district:'agent',x:0,z:-12,role:'technician',lobby:true});
   console.log(`System World lobbies: ${LOBBIES.length} halls, ${DOORS.length} doors, ${g.nodes.length} graph nodes / ${g.links.length} links; ground, step rule, walls, solids and doors verified.`);
 }
+
+// Colliders (installCityColliders): door gaps open, walls and towers beside them, lintels, ceilings, the lid, fixtures.
+{
+  const fs=await import('node:fs/promises');
+  const {createTraffic}=await import('../ui/js/desktop/apps/sysworld-traffic.js');
+  const {installCityColliders,kitCatalog}=await import('../ui/js/desktop/apps/sysworld-colliders.js');
+  const {districts,placements}=await import('../ui/js/desktop/apps/sysworld-scene.js');
+  const read=f=>fs.readFile(f,'utf8').then(JSON.parse),v1=await read('ui/3d/system-world/v1/manifest.json'),v3=await read('ui/3d/system-world/v3/manifest.json');
+  const traffic=createTraffic();installCityColliders(traffic,kitCatalog(v1,v3),districts,placements);
+  const walker={id:'w',circles:[{x:0,z:0,r:.24}],minY:-2.3,maxY:.4,reach:.24},at=(x,z,y=PODIUM+2.4)=>({x,y,z,heading:0});
+  for(const l of LOBBIES)for(const d of l.doors){
+    const out=at(d.x,l.front+L.WALL_OUT+1.1),inn=at(d.x,l.front-L.WALL-1.1);
+    assert.ok(traffic.clear(walker,out,inn,false),`${l.id}:${d.n} door gap blocked by ${traffic.obstruction(walker,out,inn,false)}`);
+    const side=d.x+d.width/2+.6;
+    assert.match(String(traffic.obstruction(walker,at(side,l.front+1.1),at(side,l.front-L.WALL-1.1),false)),new RegExp('^district:'+l.district+':'),`${l.id}:${d.n} wall beside the door`);
+    const y=PODIUM+d.height+.5;assert.equal(traffic.clear(walker,at(d.x,l.front+1.5,y),at(d.x,l.front-1.5,y),false),false,`${l.id}:${d.n} lintel`);
+  }
+  for(const l of LOBBIES.filter(l=>!l.open)){const [x0,z0,x1,z1]=l.rect,p=at((x0+x1)/2,(z0+z1)/2,l.ceiling+1);assert.equal(traffic.clear(walker,p,p,false),false,l.id+' ceiling');}
+  assert.equal(traffic.clear(walker,at(-43,36,6.1),at(-43,36,6.1),false),false,'atrium lid');
+  assert.ok(traffic.clear(walker,at(-33,36),at(-33,36),false),'old atrium box removed');
+  let fixtures=0;
+  for(const a of v3.assets.filter(a=>a.category==='interior')){const l=LOBBIES.find(l=>l.asset===a.id);
+    for(const b of a.navigation.colliders||[]){const p=at(l.origin[0]+(b[0]+b[3])/2,l.origin[1]+(b[2]+b[5])/2,PODIUM+2.4);assert.equal(traffic.clear(walker,p,p,false),false,a.id+' fixture '+b);fixtures++;}}
+  console.log(`System World lobby colliders: gaps, walls, lintels, ceilings, lid and ${fixtures} interior fixtures verified.`);
+}

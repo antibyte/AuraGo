@@ -1,4 +1,5 @@
 import {footprints,upperSolids} from './sysworld-exploration.js';
+import {LOBBIES,LOBBY_DISTRICTS,lobbySolids} from './sysworld-lobbies.js';
 
 // Ground apertures are authored separately from upper architecture. Using one
 // facade box would close the integration gate and every accessible pavilion.
@@ -12,8 +13,13 @@ export function kitCatalog(...catalogs){
 export function installCityColliders(traffic,catalog,districts,placements) {
   for(const d of districts) {
     const bounds=catalog.get(d.asset).lods[0].bounds;
-    const ground=footprints[d.id]||(d.id==='graph'?[[-10.2,-10.2,10.2,10.2]]:[[-3,-3,3,3]]);
+    const ground=footprints[d.id]||(LOBBY_DISTRICTS.has(d.id)?[]:[[-3,-3,3,3]]);
     ground.forEach(([x0,z0,x1,z1],i)=>traffic.solid('district:'+d.id+':'+i,{x:d.x,z:d.z,min:[x0,0,z0],max:[x1,8,z1]}));
+    // Enterable buildings: walls with door gaps, corner piers, lintels, ceiling slab, towers, struts (registry),
+    // plus the interior's fixtures from its kit v3 manifest (building-local glTF boxes at the district origin).
+    lobbySolids(d.id).forEach((box,i)=>traffic.solid('district:'+d.id+':lobby:'+i,box));
+    for(const asset of new Set(LOBBIES.filter(l=>l.district===d.id).map(l=>l.asset)))
+      (catalog.get(asset)?.navigation?.colliders||[]).forEach((b,i)=>traffic.solid('district:'+d.id+':'+asset+':'+i,{x:d.x,z:d.z,min:[b[0],b[1],b[2]],max:[b[3],b[4],b[5]]}));
     if(upperSolids[d.id])upperSolids[d.id].forEach(([half,from,to],i)=>traffic.solid('district:'+d.id+':upper:'+i,{x:d.x,z:d.z,min:[-half,from,-half],max:[half,to,half]}));
     else traffic.solid('district:'+d.id+':upper',{x:d.x,z:d.z,min:[bounds.min[0],8,bounds.min[2]],max:bounds.max});
   }
