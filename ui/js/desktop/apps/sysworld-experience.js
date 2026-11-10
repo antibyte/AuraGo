@@ -342,6 +342,8 @@ export function createExperience(scene,options){
       const heading=euler.y;s.model.node.visible=true;camera.position.copy(ride.back.position);euler.setFromQuaternion(ride.back.quaternion,'YXZ');euler.y=heading;
       camera.quaternion.setFromEuler(euler);camera.fov=ride.back.fov;camera.updateProjectionMatrix();options.onScope?.(null);
     }
+    // A teleport out of a ride seats the visitor body on a free spot (never on a resident; backlog 27).
+    if(ride.kind==='tram'||ride.kind==='drone'||ride.kind==='lift'||ride.kind==='scope')seat();
     ride=null;options.onRide?.(null);
   }
   function candidates(){

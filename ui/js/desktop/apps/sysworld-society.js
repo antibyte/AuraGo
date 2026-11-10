@@ -122,7 +122,7 @@ export function createSociety(scene,{traffic,camera,floor,catalog,onSelect,onDem
   }
   function suspend() {
     meetings.forEach(endMeeting);meetings.length=0;signals.clear();selected=null;onSelect?.(null);
-    for(const a of actors){a.guide=null;a.pause?.(false,a.body);a.trafficYield=false;a.yieldTram=null;if(!a.pause){release(a);a.state='idle';a.until=clock+1;}}
+    for(const a of actors){a.guide=null;a.pause?.(false,a.body);a.trafficYield=false;a.yieldTram=null;if(!a.pause){release(a);a.state='idle';a.until=clock+1;}else if(a.state==='yield')a.state='patrol';}
   }
   function update(dt,animated) {
     if(disposed)return;
@@ -182,7 +182,7 @@ export function createSociety(scene,{traffic,camera,floor,catalog,onSelect,onDem
       }
       if(a.trafficYield){a.trafficYield=false;a.pause?.(false,a.body);a.state=a.pause?'patrol':a.path.length?'walk':'idle';}
       if(a.meeting)continue;
-      if(a.pause){if(a.state==='greet'&&clock>a.until){a.pause(false);a.state='patrol';}continue;}
+      if(a.pause){if(a.state==='yield'&&!a.trafficYield&&!a.yieldTram)a.state='patrol';if(a.state==='greet'&&clock>a.until){a.pause(false);a.state='patrol';}continue;}
       if(a.guide&&Math.hypot(camera.position.x-a.body.x,camera.position.z-a.body.z)>9){a.play('idle');continue;}
       if(a.back) {
         const t=a.back,bx=t.x-a.body.x,bz=t.z-a.body.z,bd=Math.hypot(bx,bz);
