@@ -94,6 +94,10 @@ export const kitPlacements = [...streetPlacements, ...furnishing().map(f => ({ a
 export const supersededV1 = ['agent-spire', 'memory-archive', 'integration-gate', 'mission-terminal', 'compute-foundry', 'knowledge-atrium',
   'operations-beacon', 'data-tower-a', 'data-tower-b', 'skybridge', 'street-lamp', 'planter'];
 export function kitFor(id, v3Catalog) { return v3Catalog?.has(id) ? 'v3' : 'v1'; }
+// Walking levels the view (phase 6): the pitch eases towards level with this time constant unless the user steered it
+// within STEER_HOLD seconds; entering a lobby levels it at once.
+export const PITCH_TAU = 1.5, STEER_HOLD = .8;
+export function easePitch(pitch, dt, tau = PITCH_TAU) { return dt > 0 && tau > 0 && Number.isFinite(pitch) ? pitch * Math.exp(-dt / tau) : pitch; }
 export const placements = [];
 {
   const place = (asset, x, z, y = 0, angle = 0, scale = [1, 1, 1]) => placements.push({ asset, x, z, y, angle, scale });
@@ -487,7 +491,10 @@ export async function createCity(host, options) {
   function listen(node, event, fn, config) { node.addEventListener(event, fn, config); cleanup.push(() => node.removeEventListener(event, fn, config)); }
   let down = null, dragging = false;
   const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+  let steeredAt = -Infinity, lastLobby = null;
+  function levelView(dt) { euler.setFromQuaternion(camera.quaternion); euler.x = dt === Infinity ? 0 : easePitch(euler.x, dt); camera.quaternion.setFromEuler(euler); }
   function look(dx, dy) {
+    steeredAt = performance.now();
     const k = .0025 * camera.fov / 43;
     euler.setFromQuaternion(camera.quaternion); euler.y -= dx * k; euler.x = THREE.MathUtils.clamp(euler.x - dy * k, -1.35, 1.35);
     camera.quaternion.setFromEuler(euler);
@@ -558,6 +565,7 @@ export async function createCity(host, options) {
       const allowed = (x,z)=>experience.move(x,z,camera.position)&&traffic.clear(visitor,visitor,{x,y:2.4+experience.floor(x,z),z,heading:0});
       if (allowed(camera.position.x + dx, camera.position.z)) camera.position.x += dx;
       if (allowed(camera.position.x, camera.position.z + dz)) camera.position.z += dz;
+      if (performance.now() - steeredAt > STEER_HOLD * 1000) levelView(reduced ? Infinity : dt);
     }
     if (experience.isRiding()) { eye.y = NaN; return; }
     // Anything else that placed the camera (a visit, a landing, a refused step) restarts the spring there.
@@ -595,6 +603,10 @@ export async function createCity(host, options) {
     }
     if(!simulate(Math.min(.1,Math.max(0,dt)))){traffic.begin();traffic.propose(visitor,{...camera.position,heading:0},(_,p)=>camera.position.set(p.x,p.y,p.z));traffic.solve(0);}
     if (lobbyRender.update(camera.position, landmarks)) renderer.shadowMap.needsUpdate = true;
+    // Entering a lobby on foot levels the view at once: the hall, not its ceiling (phase 6).
+    const hall = mode === 'street' && !experience.isRiding() ? experience.lobby() : null;
+    if (hall && hall !== lastLobby) levelView(Infinity);
+    lastLobby = hall;
     // Small furniture (NEAR) is sub-pixel from the orbit views: hidden above NEAR_HEIGHT, fewer draw calls.
     const far = camera.position.y > NEAR_HEIGHT;
     if (far !== nearHidden) { nearHidden = far; staticCity.traverse(n => { if (n.userData.near) n.visible = !far; }); renderer.shadowMap.needsUpdate = true; }
@@ -704,6 +716,6 @@ export async function createCity(host, options) {
       camera.position.copy(end).sub(homeTarget).applyAxisAngle(new THREE.Vector3(0, 1, 0), -.55).multiplyScalar(1.22).add(homeTarget); camera.position.y += 34;
       camera.lookAt(homeTarget); settleCamera(); flyTo(end, homeTarget); if (flight) flight.duration = 3.6;
     },
-    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), windows:windows.stats(), lobbies:lobbyRender.stats(), harbour:harbour.stats(), gulls:gulls.stats(), particles:particles.stats(), furniture:kitPlacements.length-streetPlacements.length,nearHidden,drones:drones.stats(), flow:flow.stats(), companion:companion?.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size,kitModels:{v1:[...cache.keys()].filter(k=>k.startsWith('v1:')).length,v3:[...cache.keys()].filter(k=>k.startsWith('v3:')).length}, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
+    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), windows:windows.stats(), lobbies:lobbyRender.stats(), harbour:harbour.stats(), gulls:gulls.stats(), particles:particles.stats(), furniture:kitPlacements.length-streetPlacements.length,nearHidden,drones:drones.stats(), flow:flow.stats(), companion:companion?.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size,kitModels:{v1:[...cache.keys()].filter(k=>k.startsWith('v1:')).length,v3:[...cache.keys()].filter(k=>k.startsWith('v3:')).length}, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), pitch:+Math.asin(THREE.MathUtils.clamp(camera.getWorldDirection(new THREE.Vector3()).y,-1,1)).toFixed(3), fov:camera.fov, renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
   };
 }

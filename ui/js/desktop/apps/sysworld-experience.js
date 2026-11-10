@@ -480,7 +480,7 @@ export function createExperience(scene,options){
       // Sky deck arrival beside the north-east viewer, looking north over the skyline and coast.
       if(id==='skydeck'){const b=57*Math.PI/180,x=skyDeck.x+Math.sin(b)*7.2,z=skyDeck.z-Math.cos(b)*7.2;camera.position.set(x,skyDeck.floor+2.4,z);camera.lookAt(x,skyDeck.floor+.4,z-10);return;}const s=stations.find(s=>s.id===id);if(s){const offset=visited.has(id)?0:5,x=s.platformX+(s.angle===0?offset:0),z=s.platformZ+(s.angle===0?0:offset);camera.position.set(x,2.4+groundHeight(x,z),z);camera.lookAt(s.platformX,2,s.platformZ===z?s.platformZ+1:s.platformZ);}},
     destination(id){const r=interiors.find(r=>r.id===id);if(r){endRide();ride=null;const z=r.doorZ+r.front*4;camera.position.set(r.x,2.4+groundHeight(r.x,z),z);camera.lookAt(r.x,2.4+groundHeight(r.x,z),r.z);}},
-    isRiding:()=>!!ride,interaction:()=>near,
+    isRiding:()=>!!ride,interaction:()=>near,lobby:()=>lobby,
     rideBody:()=>ride?.kind==='tram'?'tram-'+ride.index:ride?.kind==='scope'?ride.scope.model.owner:ride?.kind==='sky'?sky.lift?.owner||null:null,
     stats:()=>({society:society.stats(),machinery:machinery.stats(),details:[...living].map(([id,m])=>({id,level:m.level})),loaded:[...loaded],bytes,freightEvents,residents:residents.filter(r=>r.node.visible).length,trams:trams.filter(t=>t.node.visible).length,rooms:[...rooms].filter(([,r])=>r.ready).map(([id])=>id),inside:room,lobby,lobbies:lobbyDoors.stats(),ride:ride?.kind||null,station:ride?.station||null,discovered:[...visited],loading,interactions:near?{kind:near.kind,id:near.id}:null,
       landmarks:landmarks.map(l=>l.id),
