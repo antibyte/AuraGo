@@ -380,6 +380,12 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.MustElement(`[data-sw-action="sound"]`).MustClick()
 	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.state==='running'&&SysWorldApp.inspect(cityId).sound.rms>.0001`)
 	page.MustEval(`()=>{if(SysWorldApp.inspect(cityId).sound.effects.weather!=='rain')throw Error('Audio lost the environment selected before unmute');const weather=document.querySelectorAll('.sw-world select')[1];weather.value='clear';weather.dispatchEvent(new Event('change'));}`)
+	// The place-aware soundscape: limiter, zone weights, spaces and the moving sources all report, within the node budget.
+	page.Timeout(10 * time.Second).MustWait(`()=>typeof SysWorldApp.inspect(cityId).sound.soundscape.zones?.harbour==='number'`)
+	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId).sound;if(!s.limiter||s.limiter.trim<.5||typeof s.soundscape.zones?.harbour!=='number'||!s.soundscape.space||!s.soundscape.layers?.movers||!s.graph||s.graph.nodes>400)throw Error('Soundscape incomplete: '+JSON.stringify({limiter:s.limiter,zones:s.soundscape.zones,space:s.soundscape.space,graph:s.graph}));}`)
+	// The CC0 recordings are served by the app itself: every recording of the current tier has to load and decode.
+	page.Timeout(30 * time.Second).MustWait(`()=>{const r=SysWorldApp.inspect(cityId).sound.soundscape.layers.recordings;return !!r&&r.failed===0&&r.loaded.length===(r.tier==='low'?3:6);}`)
+	t.Log(page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId).sound,r=s.soundscape.layers.recordings;return 'recordings: tier='+r.tier+' loaded='+r.loaded.join(',')+' failed='+r.failed+' nodes='+s.graph.nodes;}`).String())
 	page.MustEval(`()=>{document.querySelector('[data-sw-mode="orbit"]').click();}`)
 	page.Timeout(10 * time.Second).MustWait(`()=>!SysWorldApp.inspect(cityId).flying`)
 	// The residents answer for themselves: the foley has to build voices, not only
