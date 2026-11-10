@@ -6,6 +6,7 @@ import validator from 'gltf-validator';
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {interiors,canWalk,groundHeight,daylight} from '../ui/js/desktop/apps/sysworld-exploration.js';
+import {stepFree} from '../ui/js/desktop/apps/sysworld-lobbies.js';
 import {districts} from '../ui/js/desktop/apps/sysworld-scene.js';
 import {createMachinery} from '../ui/js/desktop/apps/sysworld-machinery.js';
 
@@ -63,7 +64,16 @@ for(const room of interiors){
 assert.equal(groundHeight(-80,52),0);assert.equal(groundHeight(-80,46),2);assert.equal(daylight('day').amount,1);assert.equal(daylight('night').amount,0);
 assert.ok(canWalk(43,-10,{x:43,z:-9},()=>false,districts),'Integration passage must stay open');
 assert.ok(canWalk(0,-2,{x:0,z:0},()=>false,districts),'Spire plaza outside ground-floor solid must be usable');
-assert.equal(canWalk(0,-12,{x:0,z:-11},()=>false,districts),false,'Solid spire foundation cannot be crossed');
+// Phase 3: the spire is entered through its lobby door, up real steps; podium edges are walls.
+assert.equal(canWalk(5,-4.7,{x:5,z:-3.9},()=>true,districts),false,'The spire lobby wall stands beside its door');
+assert.equal(canWalk(0,-5.4,{x:0,z:-4.3},()=>false,districts),false,'A closed lobby door cannot be crossed');
+assert.ok(canWalk(0,-5.4,{x:0,z:-4.3},()=>true,districts),'An open lobby door lets the visitor in');
+assert.ok(canWalk(0,-1.9,{x:0,z:.9},()=>true,districts),'The spire stairs climb in steps');
+assert.equal(canWalk(10,-.7,{x:10,z:-.3},()=>true,districts),false,'The podium edge beside the stairs is a wall');
+assert.equal(groundHeight(0,-12),.88);assert.ok(Math.abs(groundHeight(0,.9)-.88/6)<1e-9,'lowest tread');
+assert.ok(stepFree({x:-45,z:-36},{x:-45,z:-34},groundHeight),'A kerb is passable');
+assert.ok(stepFree({x:-74,z:-50},{x:-74,z:-53},groundHeight),'A tram platform is passable');
+assert.ok(canWalk(-33,36,{x:-33,z:37},()=>false,districts),'The atrium podium ring outside the rotunda is walkable');
 assert.ok(canWalk(20,-55,{x:20,z:-54},()=>false,districts),'Space between towers must stay open');
 async function size(dir){let total=0;for(const f of await fs.readdir(dir,{withFileTypes:true})){const p=path.join(dir,f.name);total+=f.isDirectory()?await size(p):(await fs.stat(p)).size;}return total;}
 // Count the renderer, classic app modules, CSS and all sixteen translated sections,
