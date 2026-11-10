@@ -10,6 +10,8 @@ Footprints, podium height and roof heights follow the v1 kit so placements stay 
 from math import atan2, pi
 
 PODIUM = .88          # walkable podium top (v1)
+STEPS = 5             # treads below the podium top; six risers of PODIUM / 6
+TREAD = .32           # tread depth; a flight runs STEPS * TREAD = 1.6 m out from the podium edge
 GROUND = 5.0          # ground floor height above the podium
 FACE_OFFSET = 16      # UV u offset between the faces of one building
 
@@ -46,11 +48,19 @@ def podium(g, w, d, steps=True, stair_x=0.0, stair_w=4.4):
         stairs(g, stair_x, -d/2, stair_w)
 
 
-def stairs(g, x, y, width, count=3):
-    """Steps from the pavement up to the podium on a -Y edge at (x, y)."""
-    rise = .88 / (count + 1)
+def stairs(g, x, y, width, count=STEPS):
+    """Solid steps from the pavement up to the podium on a -Y edge at (x, y), lit under each nosing.
+
+    The renderer walks the same flight: `count` treads of TREAD, count + 1 equal risers.
+    """
+    rise = PODIUM / (count + 1)
     for i in range(count):
-        g.box((x, y - .17 - i*.34, .88 - rise*(i + 1) - rise/2 + .0), (width, .34, rise), 'stone', .02, 1, tint=.95)
+        top = PODIUM - rise * (i + 1)
+        g.box((x, y - TREAD/2 - i*TREAD, top/2), (width, TREAD, top), 'stone', .015, 1, tint=.95)
+        if g.lod == 0:
+            g.box((x, y - (i + 1)*TREAD - .004, top - .035), (width - .3, .012, .022), 'ivory', 0)
+    if g.lod == 0:
+        g.box((x, y - .004, PODIUM - .035), (width - .3, .012, .022), 'ivory', 0)
 
 
 def planter(g, x, y, z, size=(2.4, .7, .5), angle=0):

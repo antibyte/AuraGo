@@ -5,6 +5,11 @@ design, so navigation footprints, the sky deck, the lift shaft, the memory holog
 labels stay valid. What changes is everything one sees from the street: glazed lobbies
 between piers, slab-and-glass storeys with room coordinates, terraces with planting,
 roof plant and real entrances. Fronts face -Y (glTF +Z).
+
+Ground-floor glazing and door leaves form the separate part `lobby`: a stand-in that the
+renderer hides once the real interior of an enterable building (its own kit asset with
+see-through glass and sliding doors) is shown. Every door is at least 2.9 m high, so the
+visitor's eye (2.4 m above the floor) passes below the lintel.
 """
 from math import sin, cos, pi, atan2, hypot
 
@@ -24,14 +29,22 @@ def sphere(g, center, radius, mat, n=None, tint=1.0, squash=1.0):
 def portal(g, x, y, z0, door_w, accent, canopy=True, height=3.5):
     """Bronze-framed glazed doors on a -Y facade line at (x, y), with an optional lit canopy."""
     lod = g.lod
-    g.box((x, y + .25, z0 + height/2), (door_w, .1, height), 'glass', 0)
-    for side in (-1, 1):
-        g.box((x + side * (door_w/2 + .14), y + .12, z0 + height/2 + .1), (.28, .7, height + .2), 'bronze', .04, 1)
-    g.box((x, y + .12, z0 + height + .28), (door_w + .56, .7, .28), 'bronze', .04, 1)
     leaves = max(2, round(door_w / 1.1))
+    # Closed door leaves: part of the stand-in.
+    g.part = 'lobby'
+    g.box((x, y + .25, z0 + height/2), (door_w, .1, height), 'glass', 0)
     if lod < 2:
         for j in range(1, leaves):
             g.box((x - door_w/2 + j * door_w / leaves, y + .2, z0 + height/2), (.05, .08, height), 'titanium', 0)
+    if lod == 0:
+        for j in range(leaves):
+            for side in (-1, 1):
+                g.box((x - door_w/2 + (j + .5) * door_w / leaves + side * .32, y + .14, z0 + 1.3), (.04, .05, .8), 'titanium', 0)
+    g.part = 'structure'
+    for side in (-1, 1):
+        g.box((x + side * (door_w/2 + .14), y + .12, z0 + height/2 + .1), (.28, .7, height + .2), 'bronze', .04, 1)
+    g.box((x, y + .12, z0 + height + .28), (door_w + .56, .7, .28), 'bronze', .04, 1)
+    if lod < 2:
         for side in (-1, 1):
             g.box((x + side * (door_w/2 + .62), y - .08, z0 + height/2 + .15), (.1, .16, height - .2), accent, 0)
         if canopy:
@@ -41,9 +54,6 @@ def portal(g, x, y, z0, door_w, accent, canopy=True, height=3.5):
         else:
             g.box((x, y - .1, z0 + height + .62), (door_w + .4, .12, .22), accent, 0)
     if lod == 0:
-        for j in range(leaves):
-            for side in (-1, 1):
-                g.box((x - door_w/2 + (j + .5) * door_w / leaves + side * .32, y + .14, z0 + 1.3), (.04, .05, .8), 'titanium', 0)
         if canopy:
             for side in (-1, 1):
                 g.beam((x + side * (door_w/2 + 1.0), y - .05, z0 + height + 1.7),
@@ -57,8 +67,10 @@ def lobby(g, w, d, z0, z1, doors=(0.0,), door_w=4.0, accent='ivory', row=-1, at=
     glass_top = z1 - .9
     for index, (p0, u, width) in enumerate(perimeter(w, d, at)):
         cells = max(1, round(width / 3.6))
+        g.part = 'lobby'
         pane(g, p0, u, .6, width - .6, z0 + .35, glass_top,
              (index * FACE_OFFSET, row), (index * FACE_OFFSET + cells, row + 1), .45)
+        g.part = 'structure'
         face_box(g, p0, u, width/2, -.4, z0 + .175, (width - 1.2, .22, .35), 'stone', .02, 1)
         if lod < 2:
             count = max(2, round(width / 3.6))
@@ -263,7 +275,7 @@ def mission_terminal(g):
 def cooling_tower(g, x, y):
     lod = g.lod
     n = (28, 16, 10)[lod]
-    g.lathe((x, y, 0), [(2.95, .88), (2.95, 1.2), (2.55, 1.32)], 'stone', n=n)
+    g.lathe((x, y, 0), [(2.7, .88), (2.7, 1.2), (2.52, 1.32)], 'stone', n=n)
     g.lathe((x, y, 0), [(2.5, 1.3), (2.22, 3.4), (1.98, 6.0), (1.9, 7.4), (2.05, 8.8)], 'titanium', n=n)
     g.lathe((x, y, 0), [(2.05, 8.6), (2.8, 8.7), (2.8, 9.3), (2.5, 9.6), (2.1, 9.6), (2.0, 9.2)], 'graphite', n=n)
     g.ring((x, y, 9.65), 2.35, .09, 'cyan')
@@ -291,12 +303,12 @@ def compute_foundry(g):
     at = (0, 3)
     podium(g, 25, 23, steps=False)
     if lod < 2:
-        for x in (-3.5, 3.5):
-            stairs(g, x, -11.5, 2.2)
-    lobby(g, 20, 12, PODIUM, 4.6, doors=(-3.5, 3.5), door_w=1.6, accent='cyan', at=at, canopy=False)
-    glass_tier(g, 20, 12, 4.6, 13.0, row0=0, floors=3, piers='graphite', belt=0, at=at, bay=2.2)
+        for x in (-3.75, 3.75):
+            stairs(g, x, -11.5, 3.0)
+    lobby(g, 20, 12, PODIUM, 5.4, doors=(-3.75, 3.75), door_w=2.4, accent='cyan', at=at, canopy=False)
+    glass_tier(g, 20, 12, 5.4, 13.0, row0=0, floors=3, piers='graphite', belt=0, at=at, bay=2.2)
     terrace(g, 20, 12, 13.0, at=at, cap='graphite', light='cyan')
-    for x in (-7, 0, 7):
+    for x in (-7.5, 0, 7.5):
         cooling_tower(g, x, -5)
         roof_unit(g, x, at[1] + 1.5, 13.32, (3.5, 1.5, .9))
         if lod < 2:
@@ -315,6 +327,7 @@ def knowledge_atrium(g):
     lod = g.lod
     podium(g, 24, 24, stair_w=4.4)
     sides = 12
+    wall = 4.7        # top of the glazed rotunda wall
     # Face 0 is centred on the front (-Y).
     angles = [-pi / 2 - pi / sides + i * 2 * pi / sides for i in range(sides + 1)]
     radius = 9.45
@@ -326,20 +339,22 @@ def knowledge_atrium(g):
         u = ((p1[0] - p0[0]) / width, (p1[1] - p0[1]) / width)
         front = i == 0
         if not front:
-            pane(g, p0, u, .35, width - .35, PODIUM + .35, 3.2, (i * FACE_OFFSET, -1), (i * FACE_OFFSET + 1, 0), .12)
+            g.part = 'lobby'
+            pane(g, p0, u, .35, width - .35, PODIUM + .35, wall, (i * FACE_OFFSET, -1), (i * FACE_OFFSET + 1, 0), .12)
+            g.part = 'structure'
             face_box(g, p0, u, width/2, -.1, PODIUM + .175, (width - .5, .2, .35), 'stone', .02, 1)
-        g.box((p0[0] * 1.012, p0[1] * 1.012, 2.1), (.7, .7, 2.5), 'ceramic', .06, 2, angle=a0)
+        g.box((p0[0] * 1.012, p0[1] * 1.012, (PODIUM + wall) / 2 + .05), (.7, .7, wall - PODIUM + .1), 'ceramic', .06, 2, angle=a0)
     n = (48, 24, 12)[lod]
-    g.lathe((0, 0, 0), [(9.75, 3.2), (9.95, 3.26), (9.95, 3.48), (9.7, 3.56), (8.4, 3.6)], 'graphite', n=n)
-    g.ring((0, 0, 3.56), 9.4, .08, 'jade')
+    g.lathe((0, 0, 0), [(9.75, wall), (9.95, wall + .06), (9.95, wall + .28), (9.7, wall + .36), (8.4, wall + .4)], 'graphite', n=n)
+    g.ring((0, 0, wall + .36), 9.4, .08, 'jade')
     g.lathe((0, 0, 0), [(0, PODIUM + .02), (9.3, PODIUM + .02)], 'stone', n=n, tint=.85, up=True)
-    portal(g, 0, -radius * cos(pi / sides) - .1, PODIUM, 3.2, 'jade', canopy=True, height=2.2)
+    portal(g, 0, -radius * cos(pi / sides) - .1, PODIUM, 3.2, 'jade', canopy=True, height=3.1)
     # Dome ribs and hoops.
     for i in range(sides):
         a = angles[i]
-        g.beam((8.6*cos(a), 8.6*sin(a), 3.5), (7.8*cos(a), 7.8*sin(a), 13), .22, 'ceramic', bevel=.03)
+        g.beam((8.6*cos(a), 8.6*sin(a), wall + .3), (7.8*cos(a), 7.8*sin(a), 13), .22, 'ceramic', bevel=.03)
         g.beam((7.8*cos(a), 7.8*sin(a), 13), (0, 0, 20), .22, 'ceramic', bevel=.03)
-    for z, r, tube in ((3.6, 8.6, .17), (13, 7.8, .17), (17, 3.35, .17)):
+    for z, r, tube in ((wall + .4, 8.6, .17), (13, 7.8, .17), (17, 3.35, .17)):
         g.ring((0, 0, z), r, tube, 'bronze')
     if lod < 2:
         g.ring((0, 0, 8.25), 8.2, .08, 'bronze')
