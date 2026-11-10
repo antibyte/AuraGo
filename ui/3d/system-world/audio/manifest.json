@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "licence": "CC0-1.0",
+  "channels": 1,
+  "rate": 44100,
+  "total_bytes": 1399523,
+  "recordings": [
+    {
+      "id": "water",
+      "file": "water.ogg",
+      "bytes": 256024,
+      "sha256": "94d71c7c5d77269ac3067274d62415be758212533d5f593c0b48eedcd4a9f696",
+      "seconds": 30,
+      "lufs": -30.1,
+      "true_peak_db": -4.9,
+      "title": "Pontoon, marina",
+      "author": "Joseph SARDIN",
+      "licence": "CC0-1.0"
+    },
+    {
+      "id": "leaves",
+      "file": "leaves.ogg",
+      "bytes": 240055,
+      "sha256": "ac54e5dcc6e93fa096e56ae1b4fa67490db602bdb3ccbb88c95f79e072a35546",
+      "seconds": 30,
+      "lufs": -30.2,
+      "true_peak_db": -7.4,
+      "title": "Wind in the Trees",
+      "author": "Joseph SARDIN",
+      "licence": "CC0-1.0"
+    },
+    {
+      "id": "birds",
+      "file": "birds.ogg",
+      "bytes": 240274,
+      "sha256": "bb888a988d3a4c304336ff3e28a63b74dd8251d2e3c2cb90346b376f2915ef25",
+      "seconds": 30,
+      "lufs": -30.2,
+      "true_peak_db": -14.7,
+      "title": "Birds in the City #1",
+      "author": "Joseph SARDIN",
+      "licence": "CC0-1.0"
+    },
+    {
+      "id": "gulls",
+      "file": "gulls.ogg",
+      "bytes": 169956,
+      "sha256": "c1c67082f56069944beeb27e662c258b64e79ebb4825febb97b4270bbf37eff5",
+      "seconds": 21,
+      "lufs": -30.1,
+      "true_peak_db": -10.9,
+      "title": "Gulls on the Harbor",
+      "author": "Joseph SARDIN",
+      "licence": "CC0-1.0"
+    },
+    {
+      "id": "city",
+      "file": "city.ogg",
+      "bytes": 247033,
+      "sha256": "054bc890a386ba80f897ebd958da0bbd7e674713ce70334bd8c2f0b2895f8a96",
+      "seconds": 30,
+      "lufs": -30.1,
+      "true_peak_db": -15.0,
+      "title": "XY_City hum_Night_River_ambience.wav",
+      "author": "softwalls",
+      "licence": "CC0-1.0"
+    },
+    {
+      "id": "rain",
+      "file": "rain.ogg",
+      "bytes": 246181,
+      "sha256": "3fb91875aa2bb76964795bdea70e5b62553eb2d08be1d460494bea78f325a5ea",
+      "seconds": 26,
+      "lufs": -34.6,
+      "true_peak_db": -2.1,
+      "title": "Rain_light_3.mp3",
+      "author": "SoundAppProject",
+      "licence": "CC0-1.0"
+    }
+  ]
+}
