@@ -8,7 +8,7 @@ import {craftPoses} from './sysworld-harbour.js';
 import {gullPose,FLOCK} from './sysworld-gulls.js';
 import {bearingPan} from './sysworld-zones.js';
 
-export const MOVERS=Object.freeze({tram:.14,squeal:.04,hover:.05,launch:.11,barge:.08,clack:.5,joint:12,axles:2.2,maxClacks:6,release:1.25,
+export const MOVERS=Object.freeze({tram:.45,squeal:.1,hover:.05,launch:.11,barge:.08,roll:.6,whine:.3,clack:.5,joint:12,axles:2.2,maxClacks:6,release:1.25,
   reach:Object.freeze({tram:90,hover:30,launch:120,barge:260,clack:60})});
 export const VOICES=Object.freeze({low:Object.freeze({trams:1,hovers:2,barge:false}),medium:Object.freeze({trams:2,hovers:4,barge:true}),
   high:Object.freeze({trams:2,hovers:4,barge:true}),ultra:Object.freeze({trams:2,hovers:4,barge:true})});
@@ -16,7 +16,7 @@ const clamp01=v=>v<0?0:v>1?1:v;
 export function distanceGain(d,ref,rolloff){return d<=ref?1:ref/(ref+rolloff*(d-ref));}
 export function dopplerRatio(previous,distance,dt){if(!(dt>0)||!Number.isFinite(previous))return 1;return Math.max(.94,Math.min(1.06,343/(343+(distance-previous)/dt)));}
 export function tramLaw(speed,lateral,distance,out={}){const g=distance<MOVERS.reach.tram?distanceGain(distance,6,1):0;
-  out.hum=MOVERS.tram*Math.pow(clamp01(speed/11),.7)*g;out.squeal=MOVERS.squeal*clamp01((lateral-1)/3)*g;out.motor=60+32*clamp01(speed/11);return out;}
+  out.hum=MOVERS.tram*Math.pow(clamp01(speed/11),.7)*g;out.squeal=MOVERS.squeal*clamp01((lateral-1)/3)*g;out.motor=60+32*clamp01(speed/11);out.whine=380+520*clamp01(speed/11);out.roll=600+40*Math.min(11,Math.max(0,speed));return out;}
 // Indices of the `count` nearest items with `on` within `reach` of (x, z), nearest first; -1 pads. No allocation.
 export function nearestSlots(items,count,x,z,reach,out){
   for(let k=0;k<count;k++)out[k]=-1;
@@ -40,7 +40,10 @@ export function createSoundMovers(context,{outdoor,send,noise,tier='high'}){
   function tramVoice(){const v=kit();v.squeal=v.amp(0);v.squeal.connect(v.pan);v.out.connect(v.amp(.35)).connect(send);
     v.noise(.6).connect(v.filter('lowpass',160,.7)).connect(v.amp(.6)).connect(v.out);
     v.motor=v.osc('sawtooth',60);v.motor.connect(v.filter('lowpass',400,.7)).connect(v.amp(.3)).connect(v.out);
-    v.whine=v.osc('sine',90);v.whine.connect(v.amp(.15)).connect(v.out);
+    // Electric whine (380 Hz at rest to 900 Hz at full speed) and wheel-on-rail rolling noise (high-passed noise in a band that
+    // follows the speed); both pass v.out, so they share the hum's speed/distance law, pan and output.
+    v.whine=v.osc('sine',380);v.whine.connect(v.amp(MOVERS.whine)).connect(v.out);
+    v.rollBand=v.filter('bandpass',600,.55);v.noise(.9).connect(v.filter('highpass',220,.7)).connect(v.rollBand).connect(v.amp(MOVERS.roll)).connect(v.out);
     v.noise(1).connect(v.filter('bandpass',2900,14)).connect(v.squeal);v.osc('sine',3150).connect(v.amp(.3)).connect(v.squeal);return start(v);}
   function hoverVoice(k){const v=kit();v.out.connect(v.amp(.2)).connect(send);
     v.osc('sine',180+7*k).connect(v.out);v.osc('sine',271+9*k).connect(v.amp(.4)).connect(v.out);v.noise(1+.05*k).connect(v.filter('bandpass',1200,3)).connect(v.amp(.5)).connect(v.out);return start(v);}
@@ -62,7 +65,7 @@ export function createSoundMovers(context,{outdoor,send,noise,tier='high'}){
       const d=Math.hypot(t.x-ox,t.z-oz);
       if(!t.voice&&d<MOVERS.reach.tram)t.voice=tramVoice();
       if(t.voice){const v=t.voice,r=dopplerRatio(t.distance,d,dt);tramLaw(t.speed,Math.abs(t.turn)*t.speed,d,law);
-        set(v,0,v.out.gain,law.hum,.15);set(v,1,v.squeal.gain,law.squeal,.1);set(v,2,v.motor.frequency,law.motor*r,.2,.05);set(v,3,v.whine.frequency,law.motor*1.5*r,.2,.05);
+        set(v,0,v.out.gain,law.hum,.15);set(v,1,v.squeal.gain,law.squeal,.1);set(v,2,v.motor.frequency,law.motor*r,.2,.05);set(v,3,v.whine.frequency,law.whine*r,.2,.05);set(v,5,v.rollBand.frequency,law.roll,.2,1);
         set(v,4,v.pan.pan,bearingPan(t.x-listener.x,t.z-listener.z,listener.fx,listener.fz),.1,.02);
         while(t.travelled>=MOVERS.joint){t.travelled-=MOVERS.joint;if(d<MOVERS.reach.clack&&law.hum>0){clack(now,law.hum,v.pan);clack(now+MOVERS.axles/Math.max(1,t.speed),law.hum,v.pan);}}
         t.idle=d>MOVERS.reach.tram*1.2?t.idle+dt:0;if(t.idle>MOVERS.release){t.voice=release(t.voice);t.idle=0;}}

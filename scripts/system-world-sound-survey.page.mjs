@@ -32,7 +32,7 @@ function along(points,s,out){let left=s;for(let i=1;i<points.length;i++){const [
 const polyLength=p=>p.slice(1).reduce((n,q,i)=>n+Math.hypot(q[0]-p[i][0],q[1]-p[i][1]),0);
 async function render(s){
   const seconds=s.seconds||30,ctx=new OfflineAudioContext({numberOfChannels:2,length:Math.round(RATE*seconds),sampleRate:RATE}),timers=audioTimers(),m=s.mood||{},weather=m.weather||'clear';
-  const sound=createCityAmbience(()=>{},{context:ctx,offline:true,timers,random:seeded(s.seed||1),voice:false,storage:null,enabled:true,tier:s.tier||'high',load});
+  const sound=createCityAmbience(()=>{},{context:ctx,offline:true,timers,random:seeded(s.seed||1),voice:false,storage:null,enabled:true,tier:s.tier||'high',load:s.bare?async()=>{throw Error('bare');}:load});
   sound.setTier?.(s.tier||'high');sound.setVolume(s.volume??.18);sound.setMood({day:m.day??1,evening:m.evening??0,busy:!!m.busy,weather});sound.setEnvironment(!!s.inside,weather);
   sound.unlock();sound.setActive(true);
   const L=s.listener||{},walk=s.walk||null,walkLength=walk?polyLength(walk):0,pose={x:walk?walk[0][0]:L.x??0,z:walk?walk[0][1]:L.z??0,fx:L.fx??0,fz:L.fz??-1};
@@ -40,7 +40,7 @@ async function render(s){
   const trams=(s.trams||[]).slice(0,2).map(t=>({u:t.u||0,speed:t.speed??11})),walkers=s.walkers||[];
   const frame={time:0,seaTime:0,wind:{x:1,z:0,strength:0},trams:[{x:0,z:0,heading:0,on:false},{x:0,z:0,heading:0,on:false}],companion:{x:0,z:0,phase:0,on:false},doorValue:()=>s.door||0,reduced:false};
   let travelled=0,lastX=pose.x,lastZ=pose.z,steps=0;
-  const track=[];
+  const track=[],squealTrace=[];
   function advance(t){
     timers.run(t);
     if(walk)along(walk,Math.min(walkLength,t*(s.walkSpeed||1.4)),pose);
@@ -55,17 +55,19 @@ async function render(s){
     frame.time=t;frame.seaTime=(s.seaTime||0)+t;windAt(t+(s.windOffset||0),weather,frame.wind);
     if(s.companion){const p=frame.companion,a=t/16*Math.PI*2;p.on=true;p.phase=t*1.7*Math.PI*2;p.x=30+4.5*Math.cos(a);p.z=69.5+2.5*Math.sin(a);}
     sound.frame?.(frame);
+    // trace: the first tram's hum and squeal levels every 0.2 s while it passes (voice laws read back from the engine's stats)
+    if(s.trace&&Math.abs(t*5-Math.round(t*5))<1e-6){const tr=sound.stats().soundscape.layers.movers.trams[0];squealTrace.push({t:+t.toFixed(1),voice:tr.voice,speed:tr.speed,hum:tr.hum,squeal:tr.squeal,dist:tr.distance});}
   }
   advance(0);
   // The first frame starts the recordings' load; nothing is measured before every file is decoded (or has failed).
-  const expected=(s.tier||'high')==='low'?3:6,waitStart=performance.now();let rec=null;
+  const expected=s.bare?0:(s.tier||'high')==='low'?3:6,waitStart=performance.now();let rec=null;
   for(;;){rec=sound.stats().soundscape.layers.recordings;if(rec&&rec.loaded.length+rec.failed>=expected)break;
     if(performance.now()-waitStart>30000){errors.push({where:s.name,message:'recordings not ready after 30 s: '+JSON.stringify(rec)});break;}
     await new Promise(r=>setTimeout(r,25));}
   const samples=[];
   for(let k=1;k<seconds*STEP;k++){const t=k/STEP;ctx.suspend(t).then(()=>{try{advance(t);if(k%(STEP*5)===0)samples.push({t,transient:sound.stats()?.soundscape?.transient??null});}catch(e){errors.push({where:s.name,message:String(e&&e.stack||e)});}return ctx.resume();});}
   const started=performance.now(),buffer=await ctx.startRendering(),renderMs=performance.now()-started,stats=sound.stats();sound.dispose();
-  return {buffer,stats:{renderMs:Math.round(renderMs),realtime:+(seconds*1000/renderMs).toFixed(1),steps,sound:stats,transientSamples:samples,routeLength:+routeLength.toFixed(1),track}};
+  return {buffer,stats:{renderMs:Math.round(renderMs),realtime:+(seconds*1000/renderMs).toFixed(1),steps,sound:stats,transientSamples:samples,routeLength:+routeLength.toFixed(1),track,squealTrace}};
 }
 async function calibrate(){
   const out={trim:LIMITER.trim,ceiling:LIMITER.ceiling};

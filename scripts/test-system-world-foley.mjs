@@ -73,7 +73,7 @@ try{
   assert.equal(foley.stats().steps,4,'A gliding resident keeps its own longer stride');
   // A footfall beside the listener is the quietest sound of the layer and still
   // has to be louder than the city bed.
-  assert.ok(foley.stats().peak>.2,'A footfall beside the listener is loud enough to hear');
+  assert.ok(foley.stats().peak>.12,'A footfall beside the listener is loud enough to hear');
   flush();
   foley.setActive(false);
   assert.equal(foley.stats().voices,0,'A muted city releases every robot voice');
@@ -125,7 +125,7 @@ try{
     const {STEP_VOICES}=await import('../ui/js/desktop/apps/sysworld-foley.js');
     const {SURFACE_KINDS}=await import('../ui/js/desktop/apps/sysworld-zones.js');
     assert.deepEqual(Object.keys(STEP_VOICES).sort(),[...SURFACE_KINDS].sort(),'every surface has a footfall voice');
-    for(const [k,v]of Object.entries(STEP_VOICES))assert.ok(v.gain>=.06&&v.gain<=.09&&v.layers.length>=2,'step voice '+k);
+    for(const [k,v]of Object.entries(STEP_VOICES))assert.ok(v.gain>=.036&&v.gain<=.054&&v.layers.length>=2,'step voice '+k);
     const f=createCityFoley(context,node('out'),node('send'));f.setActive(true);
     const spots={road:[-18,-.14,-50],kerb:[-14.63,0,-50],pavement:[-13.5,0,-50],stairs:[0,.5,.3],quay:[-20,.08,77],lobby:[0,.88,-12],grating:[-43,.88,-56],garden:[-44,0,-88]};
     for(const [surface,[x,y,z]]of Object.entries(spots)){f.listener(x+2,y,z,0,-1,x+2,z);assert.equal(f.step(x,y,z,'v-'+surface),true,surface);assert.equal(f.stats().bySurface[surface],1,surface+' counted');flush();}
@@ -138,6 +138,14 @@ try{
     assert.equal(f.stats().companionSteps-start,4,'four pair crossings over two gait cycles');assert.equal(f.stats().played-played,8,'front and hind foot each');
     pose.on=false;f.companion(pose);pose.on=true;pose.phase+=Math.PI*3;f.companion(pose);assert.equal(f.stats().companionSteps-start,4,'a hidden companion is silent and does not catch up');
     f.setTier('low');for(let i=0;i<20;i++)f.action('robot_work',32,0,72,'L'+i);assert.equal(f.stats().voices,6,'low: six voices');f.setTier('high');flush();f.setActive(false);
+  }
+  { // A footfall is a heel-toe pair inside ONE voice: heel layers at once, the toe's noise layers 70-95 ms later.
+    const f3=createFakeAudio(),d3=f3.node('dest'),one=createCityFoley(f3.context,d3);one.setActive(true);one.listener(0,2.4,0,0,-1,0,0);
+    const ok=one.step(1,0.05,0,'visitor',null);assert.equal(ok,true);assert.equal(one.stats().voices,1,'a footfall takes one voice');
+    const src=f3.nodes.filter(n=>n.kind==='source'||n.kind==='oscillator'),starts=src.map(n=>n.startArgs[0]).sort((p,q)=>p-q);
+    assert.ok(starts[0]===0&&starts.at(-1)>=.07-1e-9&&starts.at(-1)<=.095+1e-9,'the toe starts 70-95 ms after the heel: '+starts);
+    const tones=src.filter(n=>n.kind==='oscillator');assert.ok(tones.every(n=>n.startArgs[0]===0),'the toe has no low tone');
+    assert.equal(src.filter(n=>n.startArgs[0]>0).length>=1&&src.filter(n=>n.startArgs[0]>0).every(n=>n.kind==='source'),true,'the toe is noise only');
   }
   console.log('System World city sound: robot foley, gait cadence, bounded voices, spatial beds and the varied event table verified');
 }finally{

@@ -10,25 +10,25 @@ import {createCityAmbience} from '../ui/js/desktop/apps/sysworld-audio.js';
 const zone=o=>({harbour:0,canyon:0,green:0,plaza:0,height:0,interior:0,open:false,quay:0,...o});
 const mood=o=>({day:1,weather:'clear',busy:false,...o}),wind=s=>({wind:{strength:s}});
 const near=(a,b,m)=>assert.ok(Math.abs(a-b)<1e-9,m+': '+a+' vs '+b);
-const G=R.RECORDINGS;
+const G=R.RECORDINGS,gw=G.water.gain,gg=G.gulls.gain,gc=G.city.gain,gr=G.rain.gain;
 assert.deepEqual(Object.keys(G),['water','leaves','birds','gulls','city','rain']);
-assert.deepEqual(Object.fromEntries(Object.entries(G).map(([k,v])=>[k,v.gain])),{water:1.2,leaves:1.2,birds:.9,gulls:.8,city:1,rain:1.6});
+assert.deepEqual(Object.fromEntries(Object.entries(G).map(([k,v])=>[k,v.gain])),{water:1.95,leaves:1.2,birds:.9,gulls:.9,city:1.5,rain:1.25});
 // --- level laws (the level includes the recording's gain) ---
-near(R.recordingLevel('water',zone({quay:1}),wind(0),mood()),1.2,'quay');near(R.recordingLevel('water',zone({quay:.5}),wind(0),mood()),1.2*Math.pow(.5,1.3),'quay^1.3');
+near(R.recordingLevel('water',zone({quay:1}),wind(0),mood()),gw,'quay');near(R.recordingLevel('water',zone({quay:.5}),wind(0),mood()),gw*Math.pow(.5,1.3),'quay^1.3');
 assert.equal(R.recordingLevel('water',zone({plaza:1}),wind(0),mood()),0,'no water on the plaza');
 near(R.recordingLevel('leaves',zone({green:1}),wind(0),mood()),1.2*.25,'park, no wind');near(R.recordingLevel('leaves',zone({green:1}),wind(1),mood()),1.2,'park, full wind');
 near(R.recordingLevel('leaves',zone({green:.5}),wind(.5),mood()),1.2*.5*(.25+.75*.25),'park in wind');
 near(R.recordingLevel('birds',zone({green:1}),wind(0),mood()),.9,'birds by day');near(R.recordingLevel('birds',zone({green:.2,plaza:1}),wind(0),mood()),.9*.55,'plaza adds .35');
 assert.equal(R.recordingLevel('birds',zone({green:1}),wind(0),mood({day:0})),0,'no birds at night');assert.equal(R.recordingLevel('birds',zone({green:1}),wind(0),mood({weather:'rain'})),0,'none in rain');
 near(R.recordingLevel('birds',zone({green:1}),wind(0),mood({weather:'fog'})),.9*.6,'fog');
-near(R.recordingLevel('gulls',zone({harbour:1}),wind(0),mood()),.8,'gulls by day');near(R.recordingLevel('gulls',zone({harbour:1}),wind(0),mood({day:0})),.8*.35,'gulls at night');
-near(R.recordingLevel('gulls',zone({harbour:1}),wind(0),mood({weather:'rain'})),.8*.4,'gulls in rain');
+near(R.recordingLevel('gulls',zone({harbour:1}),wind(0),mood()),gg,'gulls by day');near(R.recordingLevel('gulls',zone({harbour:1}),wind(0),mood({day:0})),gg*.35,'gulls at night');
+near(R.recordingLevel('gulls',zone({harbour:1}),wind(0),mood({weather:'rain'})),gg*.4,'gulls in rain');
 // street by day, canyon share 1 (never above the cap), a busy open plaza, a roof
-near(R.recordingLevel('city',zone({canyon:1}),wind(0),mood()),1,'street by day');near(R.recordingLevel('city',zone({}),wind(0),mood({day:0})),.35*.7,'empty night');
-near(R.recordingLevel('city',zone({canyon:1}),wind(0),mood({busy:true})),1.25,'busy');near(R.recordingLevel('city',zone({plaza:1}),wind(0),mood()),.35+.65*.6,'plaza');
-near(R.recordingLevel('city',zone({height:1}),wind(0),mood()),.35+.65*.5,'roof');
+near(R.recordingLevel('city',zone({canyon:1}),wind(0),mood()),gc,'street by day');near(R.recordingLevel('city',zone({}),wind(0),mood({day:0})),.35*.7*gc,'empty night');
+near(R.recordingLevel('city',zone({canyon:1}),wind(0),mood({busy:true})),1.25*gc,'busy');near(R.recordingLevel('city',zone({plaza:1}),wind(0),mood()),(.35+.65*.6)*gc,'plaza');
+near(R.recordingLevel('city',zone({height:1}),wind(0),mood()),(.35+.65*.5)*gc,'roof');
 // rain at night in the street, on a roof, and no rain when dry
-near(R.recordingLevel('rain',zone({canyon:1}),wind(0),mood({day:0,weather:'rain'})),1.6,'rain at night');near(R.recordingLevel('rain',zone({height:1}),wind(0),mood({weather:'rain'})),1.6*.5,'rain on a roof');
+near(R.recordingLevel('rain',zone({canyon:1}),wind(0),mood({day:0,weather:'rain'})),gr,'rain at night');near(R.recordingLevel('rain',zone({height:1}),wind(0),mood({weather:'rain'})),gr*.5,'rain on a roof');
 assert.equal(R.recordingLevel('rain',zone({canyon:1}),wind(0),mood()),0);assert.equal(R.recordingLevel('nothing',zone({}),wind(0),mood()),0);
 assert.equal(R.recordingLevel('leaves',zone({green:1}),null,mood()),1.2*.25,'a missing frame means no wind');
 
@@ -103,7 +103,7 @@ const W=zone({quay:1,harbour:1,green:.5,canyon:.3});
   run(-20,77,2);await settle();assert.equal(calls.length,7,'the first frame loads the manifest and six files');run(-20,77);
   const st=sound.stats().soundscape.layers.recordings;assert.equal(st.loaded.length,6);assert.equal(st.failed,0);assert.ok(st.levels.water>.5&&st.levels.gulls>.3,'quay: '+JSON.stringify(st.levels));
   const before=sound.stats().graph.nodes;assert.ok(before>0);
-  run(-13.5,-12);assert.ok(sound.stats().soundscape.layers.recordings.levels.water<.05,'street: no water');
+  run(-13.5,-12);assert.ok(sound.stats().soundscape.layers.recordings.levels.water<.09,'street: no water '+sound.stats().soundscape.layers.recordings.levels.water);
   sound.dispose();assert.equal(fake.live().filter(n=>n.kind!=='destination').length,0,'engine dispose releases the recordings too');
 }
 { // The event hook: with an audible gull recording, the synthesised gull is chosen about .35 as often.

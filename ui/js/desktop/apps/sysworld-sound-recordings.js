@@ -11,8 +11,8 @@
 const clamp01=v=>v<0?0:v>1?1:v;
 // `gain` is the starting level scale (tuned by the sound survey); `send` is the reverb send of the level gain.
 export const RECORDINGS=Object.freeze({
-  water:Object.freeze({gain:1.2,send:0}),leaves:Object.freeze({gain:1.2,send:0}),birds:Object.freeze({gain:.9,send:.2}),
-  gulls:Object.freeze({gain:.8,send:.2}),city:Object.freeze({gain:1,send:0}),rain:Object.freeze({gain:1.6,send:0}),
+  water:Object.freeze({gain:1.95,send:0}),leaves:Object.freeze({gain:1.2,send:0}),birds:Object.freeze({gain:.9,send:.2}),
+  gulls:Object.freeze({gain:.9,send:.2}),city:Object.freeze({gain:1.5,send:0}),rain:Object.freeze({gain:1.25,send:0}),
 });
 export const IDS=Object.freeze(Object.keys(RECORDINGS));
 export const LOW_IDS=Object.freeze(['water','city','rain']);

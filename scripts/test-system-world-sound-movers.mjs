@@ -28,6 +28,18 @@ const L=(x,z,fx=0,fz=-1)=>({x,y:2.4,z,fx,fz,origin:{x,z}}),off={x:0,z:0,heading:
     movers.update(frame([tram]),L(10,0),t,1/60);squeal=Math.max(squeal,movers.stats().trams[0].squeal);}
   assert.ok(squeal>.5*M.MOVERS.squeal,'a 5.3 m curve at 8 m/s squeals: '+squeal);movers.dispose();
 }
+{ // Rolling noise and whine: a tram voice carries a rolling-noise band that follows the speed and a whine that runs 380..900 Hz.
+  assert.equal(M.MOVERS.roll,.6);assert.equal(M.tramLaw(0,0,5,{}).whine,380);assert.equal(M.tramLaw(11,0,5,{}).whine,900);assert.equal(M.tramLaw(11,0,5,{}).roll,1040);
+  const {fake,c,movers}=rig(),tram={x:-60,z:2,heading:Math.PI/2,on:true};
+  for(let k=0;k<4*60;k++){const t=k/60;c.currentTime=t;tram.x=-60+11*t;movers.update(frame([tram]),L(0,0),t,1/60);}
+  const band=fake.nodes.find(n=>n.kind==='filter'&&n.type==='bandpass'&&n.Q.value===.55&&!n.disconnected);assert.ok(band,'a rolling-noise band-pass');
+  assert.ok(Math.abs(band.frequency.value-(600+40*movers.stats().trams[0].speed))<5,'the band follows the speed '+band.frequency.value);
+  assert.ok(fake.nodes.some(n=>n.kind==='filter'&&n.type==='highpass'&&n.frequency.value===220&&!n.disconnected),'high-passed at 220 Hz');
+  const roll=band.links[0];assert.ok(roll&&roll.kind==='gain'&&roll.gain.value===M.MOVERS.roll,'a roll gain right after the band');
+  const hum=fake.nodes.find(n=>n.kind==='gain'&&n.links.some(l=>l.kind==='pan')&&n.gain.ramp.length>0);assert.ok(fake.downstream(roll).has(hum),'the roll shares the hum output (speed/distance law, pan)');
+  for(let k=240;k<240+20*60;k++){const t=k/60;c.currentTime=t;tram.x=-60+11*t;movers.update(frame([tram]),L(0,0),t,1/60);}
+  assert.equal(band.disconnected,true,'released with the voice');movers.dispose();
+}
 for(const [tier,n]of[['low',2],['medium',4],['high',4]]){ // The nearest hover robots win a voice.
   const {c,movers}=rig(tier);for(let i=0;i<12;i++)movers.gait('patrol-'+i,2+i*3,1.6,0,true,'glide');movers.gait('resident-0',1,0,0,true,'');
   for(let k=0;k<30;k++){c.currentTime=k/60;movers.update(frame(),L(0,0),k/60,1/60);}

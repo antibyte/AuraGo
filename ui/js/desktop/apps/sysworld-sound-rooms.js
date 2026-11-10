@@ -5,7 +5,7 @@
 export const FADE=.6,MAX_ROOM_EVENTS=6;
 export const ROOM_TONES=Object.freeze({
   // Agent core: reactor hum that breathes (stronger while the agent is busy), soft interface tones.
-  agent:{beds:[{wave:'sine',f:49,gain:.075,lfo:[.11,.3],busy:1.4},{wave:'sine',f:98,gain:.0375,busy:1.4},{wave:'sine',f:147,gain:.018},{wave:'noise',filter:['lowpass',300,.5],gain:.06}],
+  agent:{beds:[{wave:'sine',f:49,gain:.02625,lfo:[.11,.3],busy:1.4},{wave:'sine',f:98,gain:.013125,busy:1.4},{wave:'sine',f:147,gain:.0063},{wave:'noise',filter:['lowpass',300,.5],gain:.06}],
     events:[{kind:'blip',every:[3,8],gain:.018,notes:[1318.5,1568,1760,2093],dur:.08,double:.3}]},
   // Archive: near silence, page-like ticks in pairs.
   archive:{beds:[{wave:'noise',filter:['lowpass',220,.5],gain:.03},{wave:'sine',f:60,gain:.006}],
@@ -17,7 +17,7 @@ export const ROOM_TONES=Object.freeze({
   departure:{beds:[{wave:'noise',filter:['lowpass',120,.7],gain:.075,lfo:[.8,.3]},{wave:'sine',f:31,gain:.03},{wave:'noise',filter:['bandpass',500,.4],gain:.0225}],
     events:[{kind:'tick',every:[12,25],gain:.021,f:2200,q:1.5,dur:.006,count:[8,20],spacing:[.04,.04]},{kind:'chime',every:[40,70],gain:.03,notes:[1046.5,1318.5,1568],step:.35,murmur:2.2}]},
   // Machine hall: fans, blade pass, coolant flow, mains, an occasional clunk.
-  machine:{beds:[{wave:'noise',filter:['bandpass',180,1],gain:.09},{wave:'sine',f:87,gain:.03},{wave:'sine',f:174,gain:.015},{wave:'noise',filter:['bandpass',900,.6],gain:.03,lfo:[.3,.5]},{wave:'sine',f:50,gain:.0225}],
+  machine:{beds:[{wave:'noise',filter:['bandpass',180,1],gain:.072},{wave:'sine',f:87,gain:.024},{wave:'sine',f:174,gain:.012},{wave:'noise',filter:['bandpass',900,.6],gain:.024,lfo:[.3,.5]},{wave:'sine',f:50,gain:.018}],
     events:[{kind:'clunk',every:[8,20],gain:.045,dur:.06}]},
   // Garden court (open to the sky; leaves come from the green zone): water trickle and drops.
   court:{beds:[{wave:'noise',filter:['bandpass',2400,2],gain:.018,lfo:[5.3,.4]},{wave:'noise',filter:['bandpass',1400,1.2],gain:.009,lfo:[7.1,.3]}],

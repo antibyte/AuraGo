@@ -15,7 +15,7 @@ import {createSoundRecordings} from './sysworld-sound-recordings.js';
 const CHORDS=[[110,164.81,246.94,261.63],[87.31,130.81,220,329.63],[130.81,196,246.94,329.63],[98,146.83,246.94,293.66]];
 const CHIMES=[440,523.25,587.33,659.25,783.99,880,1046.5];
 const MAX_EVENTS=12;
-const VISITOR_STEP=Object.freeze({scale:.6});
+const VISITOR_STEP=Object.freeze({scale:2.2});
 // While a real recording of birds or gulls carries the place, the synthesised calls become occasional accents.
 const RECORDED_KIND=Object.freeze({birds:'birds',gull:'gulls'}),RECORDED_THIN=.35;
 const gullSpot={x:0,y:0,z:0,heading:0,bank:0,flap:0};
@@ -122,7 +122,7 @@ export function createCityAmbience(onState=()=>{},options={}) {
     }
     // Warm detuned saw pad; chords glide slowly and the filter follows the city's mood.
     padFilter=node(context.createBiquadFilter());padFilter.type='lowpass';padFilter.frequency.value=650;padFilter.Q.value=.6;
-    padLevel=node(context.createGain());padLevel.gain.value=.02;
+    padLevel=node(context.createGain());padLevel.gain.value=.014;
     const padSend=node(context.createGain());padSend.gain.value=.9;
     padFilter.connect(padLevel).connect(ambientBus);padLevel.connect(padSend).connect(verb);
     pad=CHORDS[0].map(frequency=>[-6,6].map(detune=>{
@@ -372,7 +372,7 @@ export function createCityAmbience(onState=()=>{},options={}) {
   function applyMood(){
     if(!context)return;const t=context.currentTime;
     padFilter.frequency.setTargetAtTime(mood.busy?1500:650+mood.day*450+mood.evening*150,t,2.5);
-    padLevel.gain.setTargetAtTime((mood.busy?.026:.02)*(mood.weather==='rain'?.75:1),t,2);
+    padLevel.gain.setTargetAtTime((mood.busy?.018:.014)*(mood.weather==='rain'?.75:1),t,2);
   }
   // The beds follow the zones (sysworld-zones.js): water and the lantern hum by the quay proximity, the murmur by the
   // plaza and canyon shares. Glass (sysworld-sound-space.js) damps them indoors, so nothing here is zeroed for the
