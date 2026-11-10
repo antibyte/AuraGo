@@ -12,7 +12,7 @@
  * How it works: a DEBUG bundle of sysworld-scene.js is built in memory with esbuild. An onLoad plugin
  * patches the source text (every patch asserted to match exactly once; nothing under ui/ is modified):
  *   - sysworld-scene.js: exposes globalThis.__sw = {THREE, camera, controls, scene, renderer, composer,
- *     experience, traffic, weather, atmosphere, surfaces, windows, sun, bloom, drones, cancelFlight(), mode()}
+ *     experience, traffic, weather, atmosphere, surfaces, windows, sun, bloom, drones, lobbies, cancelFlight(), mode()}
  *   - sysworld-society.js: adds `actors` to the society object, so residents are reached through
  *     __sw.experience.society.actors (each has .id "resident-N", .body {x,y,z,heading,enabled}, .node).
  * ui/ is served as the web root; the harness page drives the city with its own animation loop.
@@ -78,7 +78,7 @@ function replaceOnce(text, find, replacement, label) {
 }
 
 const EXPOSE = 'globalThis.__sw = { THREE, camera, controls, scene, renderer, composer, experience, traffic, weather, atmosphere, surfaces, windows, sun, bloom, drones, '
-  + 'model, catalogV3: () => catalog3, '
+  + 'model, catalogV3: () => catalog3, lobbies: lobbyRender, '
   + 'cancelFlight: () => { flight = null; }, mode: () => mode };\n  ';
 
 async function buildBundle() {
