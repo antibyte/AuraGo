@@ -7,6 +7,7 @@ import {createCityLife} from '../ui/js/desktop/apps/sysworld-life.js';
 import {createDrones} from '../ui/js/desktop/apps/sysworld-drones.js';
 import {createTraffic,fixedSteps} from '../ui/js/desktop/apps/sysworld-traffic.js';
 import {installCityColliders,kitCatalog} from '../ui/js/desktop/apps/sysworld-colliders.js';
+import {onCarriageway} from '../ui/js/desktop/apps/sysworld-ground.js';
 import {districts,placements,obstacles} from '../ui/js/desktop/apps/sysworld-scene.js';
 
 // Run the real controllers and exported model dimensions, without a WebGL context.
@@ -34,12 +35,13 @@ const droneBytes=await fs.readFile(root+'v1/service-drone.lod0.glb');
 const drone=await new GLTFLoader().parseAsync(droneBytes.buffer.slice(droneBytes.byteOffset,droneBytes.byteOffset+droneBytes.byteLength),'');
 const wait=async check=>{for(let n=0;n<1000;n++){if(errors.length)throw errors[0];if(check())return;await new Promise(r=>setTimeout(r,10));}throw Error('Living city did not load');};
 let time=0,frames=0;
-const starts=new Map(),travel=new Map(),stalled=new Map();
+const starts=new Map(),travel=new Map(),stalled=new Map(),yielded=new Map();
 const seconds=Number(process.env.SYSTEM_WORLD_SIM_SECONDS||120);
 const simulate=fixedSteps(dt=>{
   traffic.begin();time+=dt;
   experience.update(dt,true,'orbit');life.update(dt,true);drones.update(dt,time,true);
   traffic.propose(visitor,{...camera.position,heading:0});traffic.solve(dt);experience.settle(dt);
+  for(const r of experience.stats().society.residents)if(r.state==='yield')yielded.set(r.id,(yielded.get(r.id)||0)+dt);
   if(++frames%30===0)for(const p of traffic.stats().poses){
     const b=traffic.body(p.id);assert.ok(traffic.clear(b,b,b),`Overlap at ${time.toFixed(1)}s: ${JSON.stringify(p)}`);
     const before=starts.get(p.id);if(before){
@@ -67,7 +69,9 @@ try{
   for(const id of ['tram-0','tram-1',...Array.from({length:6},(_,i)=>'drone-'+i),...Array.from({length:5},(_,i)=>'patrol-'+i)])assert.ok(travel.get(id)>15,`${id} stuck: ${JSON.stringify(progress)}`);
   if(seconds>=300)for(const id of ['tram-0','tram-1'])assert.ok(travel.get(id)>seconds*2,`${id} cannot resume its circuit: ${JSON.stringify(progress)}`);
   assert.ok([...travel].filter(([id,d])=>id.startsWith('resident')&&d>8).length>=15,'Most residents should make progress');
-  const resident=experience.stats().society.residents.find(a=>a.role==='courier');
+  const society=experience.stats().society,yieldSeconds=Object.fromEntries([...yielded].map(([id,t])=>[id,Math.round(t*10)/10]));
+  const onRoad=society.residents.filter(r=>r.id.startsWith('resident')&&!['walk','carry','guide'].includes(r.state)&&onCarriageway(r.x,r.z)).map(r=>({id:r.id,x:Math.round(r.x*10)/10,z:Math.round(r.z*10)/10}));
+  const resident=society.residents.find(a=>a.role==='courier');
   experience.society.inspect(resident.id);experience.socialAction('greet');
   assert.equal(selected.state,'greet');assert.equal(selected.source,'ambient');
   const still={...traffic.body(resident.id)};for(let n=0;n<60;n++)simulate(1/60);
@@ -89,7 +93,18 @@ try{
   experience.setWorld(null,false);active=false;experience.society.event({state:'succeeded',from:'agent',to:'infra',at:now});
   active=true;experience.society.event({state:'succeeded',from:'agent',to:'infra',at:now-30000});
   assert.ok(experience.stats().machinery.places.every(p=>p.source==='ambient'),'Hidden/stale events cannot replay on resume');
-  console.log(JSON.stringify({seconds:Math.round(time),traffic:traffic.stats().bodies,completed:experience.stats().society.completed,signals:experience.stats().society.signals.sent,travel:progress}));
+  console.log(JSON.stringify({seconds:Math.round(time),traffic:traffic.stats().bodies,completed:experience.stats().society.completed,byPlace:society.byPlace,byResident:society.byResident,yieldSeconds,onCarriageway:onRoad,signals:experience.stats().society.signals.sent,travel:progress}));
+  if(seconds>=120){
+    assert.ok(society.completed>=40,'The city must complete at least 40 jobs: '+JSON.stringify(society.byPlace));
+    for(const place of ['repair-bay','relay-mast','kinetic-fountain','glass-garden'])assert.ok(society.byPlace[place]>=1,place+' completed no job: '+JSON.stringify(society.byPlace));
+  }
+  assert.equal(onRoad.length,0,'No resident may stand on a carriageway outside a zebra corridor: '+JSON.stringify(onRoad));
+  const jobs=Object.values(society.byResident).sort((x,y)=>y-x);
+  if(seconds>=120){
+    assert.ok(jobs.length>=13,'At least 13 residents complete a job: '+JSON.stringify(society.byResident));
+    assert.ok(jobs.slice(0,3).reduce((x,y)=>x+y,0)*2<=society.completed,'The three busiest residents do at most half of all jobs: '+JSON.stringify(society.byResident));
+  }
+  for(const [id,t] of Object.entries(yieldSeconds).filter(([id])=>id.startsWith('resident')))assert.ok(t<=20,id+' spent '+t+' s yielding: '+JSON.stringify(yieldSeconds));
 }finally{
   life.dispose();experience.dispose();drones.dispose();traffic.dispose();
   Object.assign(globalThis,original);

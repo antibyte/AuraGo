@@ -147,12 +147,15 @@ assert.equal(surfaces.pavement,surfaces.ground,'pavements are flush with the plo
   // A start standing on a zebra may step off it: every sample of that leg off the pavement must lie in a zebra corridor.
   const inCorridor=(x,z)=>zebras().some(zb=>zb.axis==='x'?Math.abs(x-zb.at)<=kerb.opening&&Math.abs(z-zb.line)<=streets.halfWidth:Math.abs(z-zb.at)<=kerb.opening&&Math.abs(x-zb.line)<=streets.halfWidth);
   const onlyOnZebra=(a,b)=>{const n=Math.ceil(Math.hypot(b.x-a.x,b.z-a.z)/.05);for(let i=0;i<=n;i++){const x=a.x+(b.x-a.x)*i/n,z=a.z+(b.z-a.z)*i/n,p=streetProfile(x,z);if(p&&p.kind!=='pavement'&&!inCorridor(x,z))return false;}return true;};
+  // A start on a carriageway or kerb may leave it: leading samples that break the rule are ignored until the leg
+  // has reached open pavement once (0.15 m beyond the kerb top); from then on only zebra corridors are exempt.
+  const leaveOnly=(a,b)=>{let leaving=true;const n=Math.ceil(Math.hypot(b.x-a.x,b.z-a.z)/.05);for(let i=0;i<=n;i++){const x=a.x+(b.x-a.x)*i/n,z=a.z+(b.z-a.z)*i/n,p=streetProfile(x,z);if(!p||(p.kind==='pavement'&&p.d-p.run>=.15)){leaving=false;continue;}if(!leaving&&!inCorridor(x,z))return false;}return true;};
   const bodyAt=(p)=>({id:'walker',circles:[{x:0,z:0,r:.6}],minY:0,maxY:2,reach:.6,heading:0,...p,y:groundHeight(p.x,p.z)});
   const check=(from,to)=>{
     const path=finder.route(bodyAt(from),{...to,y:groundHeight(to.x,to.z)});
     let prev=from,length=0;
     for(const p of path){
-      if(!carriagewayFree(prev,p))assert.ok(zebraLeg(prev,p)||(prev===from&&onlyOnZebra(prev,p)),'route crosses a carriageway away from a zebra: '+JSON.stringify([prev,p]));
+      if(!carriagewayFree(prev,p))assert.ok(zebraLeg(prev,p)||(prev===from&&(onlyOnZebra(prev,p)||leaveOnly(prev,p))),'route crosses a carriageway away from a zebra: '+JSON.stringify([prev,p]));
       length+=Math.hypot(p.x-prev.x,p.z-prev.z);prev=p;
     }
     return {path,length};
@@ -197,4 +200,37 @@ assert.equal(surfaces.pavement,surfaces.ground,'pavements are flush with the plo
     assert.equal(lobbyAt(prev.x,prev.z)?.id,l.id);
   }
   console.log(`System World lobby routes: every hall reached from the pavement over its stairs (${Date.now()-started} ms incl. graph build).`);
+}
+
+// --- Living places: every workpoint reaches every other living place (resident-sized body, real colliders) ---
+{
+  const fs=await import('node:fs/promises');
+  const {createWayfinder,livingPlaces}=await import('../ui/js/desktop/apps/sysworld-places.js');
+  const {createTraffic}=await import('../ui/js/desktop/apps/sysworld-traffic.js');
+  const {groundHeight}=await import('../ui/js/desktop/apps/sysworld-exploration.js');
+  const {installCityColliders,kitCatalog}=await import('../ui/js/desktop/apps/sysworld-colliders.js');
+  const {districts,placements}=await import('../ui/js/desktop/apps/sysworld-scene.js');
+  const read=f=>fs.readFile(f,'utf8').then(JSON.parse),v1=await read('ui/3d/system-world/v1/manifest.json'),v2=await read('ui/3d/system-world/v2/manifest.json'),v3=await read('ui/3d/system-world/v3/manifest.json');
+  const traffic=createTraffic();installCityColliders(traffic,kitCatalog(v1,v3),districts,placements);
+  const entry=id=>v2.assets.find(a=>a.id===id).navigation;
+  for(const p of livingPlaces)entry(p.id).colliders.forEach((b,i)=>traffic.solid('place:'+p.id+':'+i,{x:p.x,z:p.z,min:[b[0],b[1],b[2]],max:[b[3],b[4],b[5]]}));
+  const finder=createWayfinder(traffic,groundHeight,kitCatalog(v3)),started=Date.now();
+  const resident={id:'walker',circles:[{x:0,z:0,r:1.29}],minY:0,maxY:2,reach:1.29,heading:0};
+  const points=p=>entry(p.id).workpoints.map(w=>({x:p.x+w.position[0],z:p.z+w.position[2]}));
+  const built=Date.now();finder.route({...resident,x:0,z:0,y:0},{x:1,z:1,y:0});const buildMs=Date.now()-built;
+  let routes=0;
+  for(const a of livingPlaces)for(const from of points(a)) {
+    for(const b of livingPlaces) {
+      if(a===b)continue;
+      for(const to of points(b)) {
+        const start={...resident,...from,y:groundHeight(from.x,from.z)},path=finder.route(start,{...to,y:groundHeight(to.x,to.z)});
+        assert.ok(path.length,`no route ${a.id} -> ${b.id}: ${JSON.stringify([from,to])}`);
+        let prev=from,length=0;for(const q of path){length+=Math.hypot(q.x-prev.x,q.z-prev.z);prev=q;}
+        const straight=Math.hypot(to.x-from.x,to.z-from.z);
+        assert.ok(length<=2.5*straight,`route ${a.id} -> ${b.id} is ${length.toFixed(1)} m for ${straight.toFixed(1)} m`);
+        routes++;
+      }
+    }
+  }
+  console.log(`System World living places: ${routes} routes between all workpoints exist and stay within 2.5x the straight distance (first route incl. street, approach and place nodes: ${buildMs} ms; all routes ${Date.now()-started} ms).`);
 }

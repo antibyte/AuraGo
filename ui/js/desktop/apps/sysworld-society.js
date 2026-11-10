@@ -1,6 +1,8 @@
 import {createWayfinder,livingPlaces} from './sysworld-places.js';
 import {bodyShape} from './sysworld-traffic.js';
 import {createSocialSignals} from './sysworld-signals.js';
+import {lobbyGround} from './sysworld-lobbies.js';
+import {onCarriageway} from './sysworld-ground.js';
 import {springStep,findRig,adaptFeet} from './sysworld-footing.js';
 
 const turn=(from,to,dt)=>from+Math.atan2(Math.sin(to-from),Math.cos(to-from))*Math.min(1,dt*5);
@@ -9,6 +11,7 @@ const stride=(a,name,speed)=>{const action=a.play?.(name);if(action)action.timeS
 export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate,active,onGait,shadows}) {
   const actors=[],places=new Map(),slots=[],meetings=[],finder=createWayfinder(traffic,floor),signals=createSocialSignals(scene);
   let clock=0,selected=null,replay=false,tier='high',disposed=false,completed=0,selectedStatus='';
+  const byPlace={},byResident={};
   const limit=()=>tier==='low'?3:tier==='medium'?10:19;
   function release(a) {if(a.slot){a.slot.owner=null;a.slot=null;}a.path=[];a.goal=null;}
   function describe(a) {return a?{id:a.id,role:a.role,state:a.state,source:a.source||'ambient',guided:!!a.guide}:null;}
@@ -18,8 +21,12 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
     // A round envelope covers all articulated poses and permits turning in place.
     shape.circles=[{x:0,z:0,r:shape.reach}];
     const near=slots.filter(s=>s.role===role).map(s=>({x:s.x,z:s.z+2.2,y:floor(s.x,s.z+2.2),heading:Math.PI}));
+    // Residents of one role start at different workstations (two slots per place), so every place has a neighbour.
+    near.push(...near.splice(0,Math.floor(index/3)*2%Math.max(1,near.length)));
     const candidates=[...near,...finder.points.map((_,n)=>finder.points[(index*7+n)%finder.points.length])];
     for(const p of candidates) {
+      // Never spawn on a podium or a stair flight.
+      if(lobbyGround(p.x,p.z)!==null)continue;
       body=traffic.register(id,shape,p,1);if(body)break;
     }
     if(!body){model.node.visible=false;return null;}
@@ -34,16 +41,57 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
   function choose(a) {
     release(a);a.source='ambient';a.state='idle';a.until=clock+2;
     const eligible=slots.filter(s=>!s.owner&&(a.role==='courier'?s.place===(a.carrying?'meeting-charge':'parcel-sorter'):s.role===a.role||s.place==='meeting-charge'));
-    for(let n=0;n<eligible.length;n++) {
-      const slot=eligible[(a.trip+n)%eligible.length],path=finder.route(a.body,slot);
-      if(!path.length)continue;
-      slot.owner=a.id;a.slot=slot;a.path=path;a.goal=slot;a.trip++;a.state=a.carrying?'carry':'walk';return;
+    // The first job is the nearest workstation: a resident spawned beside a place starts there.
+    const first=a.trip===a.index;
+    if(first)eligible.sort((p,q)=>Math.hypot(p.x-a.body.x,p.z-a.body.z)-Math.hypot(q.x-a.body.x,q.z-a.body.z));
+    // A short, reachable street walk, taken when no other workstation is free.
+    const wander=()=>{
+      for(let n=0;n<24;n++) {
+        const p=finder.streetPoints[(a.trip++*13+a.index)%finder.streetPoints.length];
+        if(Math.hypot(p.x-a.body.x,p.z-a.body.z)>30)continue;
+        const path=finder.route(a.body,p);
+        if(path.length){a.path=path;a.state='walk';return true;}
+      }
+      return false;
+    };
+    // The place just worked at is skipped for the next two choices. When nothing else is free the resident
+    // walks on instead of working the same place again; it falls back to that place only when it cannot walk.
+    for(const pass of [0,1]) {
+      if(pass===1&&a.avoidLeft>0&&wander()){a.avoidLeft--;return;}
+      for(let n=0;n<eligible.length;n++) {
+        const slot=eligible[((first?0:a.trip)+n)%eligible.length];
+        if(pass===0&&a.avoidLeft>0&&slot.place===a.avoid)continue;
+        const path=finder.route(a.body,slot);
+        if(!path.length)continue;
+        if(a.avoidLeft>0)a.avoidLeft--;
+        slot.owner=a.id;a.slot=slot;a.path=path;a.goal=slot;a.trip++;a.state=a.carrying?'carry':'walk';return;
+      }
     }
     // All workstations occupied: take a short, reachable walk instead of stacking.
-    for(let n=0;n<8;n++) {
-      const p=finder.points[(a.trip++*13+a.index)%finder.points.length],path=finder.route(a.body,p);
-      if(path.length){a.path=path;a.state='walk';return;}
+    wander();
+  }
+  // Stand-off: of two residents in each other's way, the higher index (after waiting 1.2 s) steps aside (or back) and holds, then resumes.
+  function standOff(a,forward,probe) {
+    const obs=traffic.obstruction(a.body,a.body,probe);let p=null;
+    for(const o of actors) {
+      if(o===a||o.index===undefined||o.index>=a.index||!o.body.enabled)continue;
+      const dx=o.body.x-a.body.x,dz=o.body.z-a.body.z;
+      if(o.id===obs||(dx*dx+dz*dz<2.56&&dx*forward.x+dz*forward.z>0)){p=o;break;}
     }
+    if(!p)return false;
+    const px=p.body.x-a.body.x,pz=p.body.z-a.body.z,onRoad=onCarriageway(a.body.x,a.body.z);
+    let tx=a.body.x,tz=a.body.z,best=Infinity;
+    for(const [sx,sz] of [[forward.z,-forward.x],[-forward.z,forward.x]]) {
+      const c={x:a.body.x+sx*.8,y:a.body.y,z:a.body.z+sz*.8,heading:a.body.heading},away=sx*px+sz*pz;
+      if(away>=best||!traffic.clear(a.body,a.body,c)||(!onRoad&&onCarriageway(c.x,c.z)))continue;
+      best=away;tx=c.x;tz=c.z;
+    }
+    if(best===Infinity) {
+      const c={x:a.body.x-forward.x*.8,y:a.body.y,z:a.body.z-forward.z*.8,heading:a.body.heading};
+      if(traffic.clear(a.body,a.body,c)&&(onRoad||!onCarriageway(c.x,c.z))){tx=c.x;tz=c.z;}
+    }
+    a.back={x:tx,z:tz,until:clock+1.5+(a.index%5)*.25};a.wait=0;a.state='idle';
+    return true;
   }
   function endMeeting(m) {
     for(const a of [m.a,m.b]){release(a);a.meeting=null;a.cooldown=clock+12+(a.index||0);a.pause?.(false);a.state=a.pause?'patrol':'idle';a.until=clock+1;}
@@ -112,6 +160,17 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
       if(a.meeting)continue;
       if(a.pause){if(a.state==='greet'&&clock>a.until){a.pause(false);a.state='patrol';}continue;}
       if(a.guide&&Math.hypot(camera.position.x-a.body.x,camera.position.z-a.body.z)>9){a.play('idle');continue;}
+      if(a.back) {
+        const t=a.back,bx=t.x-a.body.x,bz=t.z-a.body.z,bd=Math.hypot(bx,bz);
+        if(clock>=t.until)a.back=null;
+        else {
+          if(bd>.03) {
+            const step=Math.min(bd,1.2*dt),nx=a.body.x+bx/bd*step,nz=a.body.z+bz/bd*step;
+            traffic.propose(a.body,{x:nx,y:floor(nx,nz),z:nz,heading:a.body.heading},(ok,b)=>{a.node.position.set(b.x,b.y,b.z);if(ok)stride(a,'walk',1.2);else a.play('idle');});
+          } else a.play('idle');
+          continue;
+        }
+      }
       if(a.path.length) {
         const goal=a.path[0],dx=goal.x-a.body.x,dz=goal.z-a.body.z,d=Math.hypot(dx,dz),speed=a.guide?1.9:1.65;
         if(d<.18){a.path.shift();continue;}
@@ -119,7 +178,9 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
         let x=a.body.x+forward.x*advance,z=a.body.z+forward.z*advance;
         let heading=turn(a.body.heading,Math.atan2(dx,dz),dt);
         // Predict nearby traffic before entering a gap; prefer the right side.
-        const probe={x:a.body.x+forward.x*1.8,y:floor(x,z),z:a.body.z+forward.z*1.8,heading};
+        // Never look past the waypoint: a goal beside a fixture would otherwise probe into its collider.
+        const look=Math.min(1.8,d);
+        const probe={x:a.body.x+forward.x*look,y:floor(x,z),z:a.body.z+forward.z*look,heading};
         if(!traffic.clear(a.body,a.body,probe)) {
           // Step around the obstruction, but stay committed to one side and keep facing
           // the goal: alternating sides turn the resident left and right on the spot.
@@ -132,6 +193,8 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
           for(const [sx,sz] of order) {
             const candidate={x:a.body.x+sx*1.3,y:a.body.y,z:a.body.z+sz*1.3,heading:a.body.heading};
             if(!traffic.clear(a.body,a.body,candidate))continue;
+            // A sidestep never pushes a resident from pavement or kerb onto a carriageway.
+            if(onCarriageway(candidate.x,candidate.z)&&!onCarriageway(a.body.x,a.body.z))continue;
             // The step must actually open the way. A sidestep that leaves the street
             // blocked sends the resident circling its obstacle instead of past it.
             // The probe starts at the candidate: a diagonal sweep from the resident
@@ -148,12 +211,15 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
           a.node.position.set(b.x,b.y,b.z);a.node.rotation.y=b.heading;
           if(!accepted||!moving){a.wait=(a.wait||0)+dt;a.play('idle');a.state='yield';}
           else{a.wait=0;a.state=a.guide?'guide':a.carrying?'carry':'walk';stride(a,a.carrying?'carry':'walk',speed);}
+          if(a.wait>1.2&&!a.back&&standOff(a,forward,probe))a.play('idle');
+          // Blocked within reach of the workstation by a neighbour or fixture: the work starts from here.
+          else if(a.wait>1.2&&a.slot&&a.path.length===1&&d<2.2){a.path.length=0;a.wait=0;}
           if(a.wait>2.5){a.wait=0;release(a);a.state=a.guide?'guide':'idle';a.until=clock+.5;if(a.guide)a.path=finder.route(a.body,a.guide);}
         });
       } else if(a.state==='walk'||a.state==='carry'||a.state==='guide'||a.state==='yield') {
         if(a.guide&&Math.hypot(a.body.x-a.guide.x,a.body.z-a.guide.z)>.5){a.play('idle');if(clock>a.until){a.path=finder.route(a.body,a.guide);a.until=clock+2.5;}continue;}
         a.guide=null;a.state=a.slot?.place==='meeting-charge'?'charge':a.slot?'work':'idle';a.until=clock+5+(a.index%4);
-        a.play(a.state==='work'?'work':'idle');if(a.slot)onDemonstrate?.(a.slot.place,5);completed++;
+        a.play(a.state==='work'?'work':'idle');if(a.slot)onDemonstrate?.(a.slot.place,5);a.avoid=a.slot?.place||null;a.avoidLeft=a.avoid?2:0;completed++;byResident[a.id]=(byResident[a.id]||0)+1;if(a.slot)byPlace[a.slot.place]=(byPlace[a.slot.place]||0)+1;
       } else if(clock>a.until){
         if(a.role==='courier'&&a.slot&&(a.state==='work'||a.state==='charge')){a.carrying=a.slot.place==='parcel-sorter';a.parcels.forEach(n=>{n.visible=a.carrying;});}
         choose(a);
@@ -230,7 +296,7 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
       const place=livingPlaces.find(p=>p.district===(e.to==='agent'?e.from:e.to));
       if(place&&places.has(place.id))onDemonstrate?.(place.id,2,e.state);
     },
-    stats:()=>({completed,rigs:actors.filter(a=>a.rig).length,meetings:meetings.length,reservations:slots.filter(s=>s.owner).length,signals:signals.stats(),residents:actors.filter(a=>a.body.enabled).map(a=>({...describe(a),x:a.body.x,z:a.body.z,heading:a.body.heading})),places:[...places.keys()]}),
+    stats:()=>({completed,byPlace:{...byPlace},byResident:{...byResident},rigs:actors.filter(a=>a.rig).length,meetings:meetings.length,reservations:slots.filter(s=>s.owner).length,signals:signals.stats(),residents:actors.filter(a=>a.body.enabled).map(a=>({...describe(a),x:a.body.x,z:a.body.z,heading:a.body.heading})),places:[...places.keys()]}),
     dispose(){disposed=true;suspend();actors.forEach(a=>traffic.remove(a.id));actors.length=0;places.clear();slots.length=0;signals.dispose();},
   };
 }

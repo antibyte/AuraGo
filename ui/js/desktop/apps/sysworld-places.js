@@ -1,12 +1,12 @@
 import {surfaces,streets} from './sysworld-layout.js';
 import {pedestrianGraph,carriagewayFree,maxLink,kerb,zebras} from './sysworld-ground.js';
-import {lobbyGraph,lobbyAt,stepFree} from './sysworld-lobbies.js';
+import {lobbyGraph,lobbyAt,lobbyGround,stepFree} from './sysworld-lobbies.js';
 // Fixed places belong to the city, never to a changing telemetry inventory.
 export const livingPlaces = [
-  {id:'repair-bay',district:'infra',x:-28,z:-62,role:'technician'},
-  {id:'parcel-sorter',district:'missions',x:35,z:49,role:'courier'},
-  {id:'relay-mast',district:'integrations',x:57,z:-20,role:'archivist'},
-  {id:'kinetic-fountain',district:'graph',x:-28,z:47,role:'archivist'},
+  {id:'repair-bay',district:'infra',x:-26,z:-62,role:'technician'},
+  {id:'parcel-sorter',district:'missions',x:27.6,z:49.4,role:'courier'},
+  {id:'relay-mast',district:'integrations',x:57.5,z:-23,role:'archivist'},
+  {id:'kinetic-fountain',district:'graph',x:-26,z:47,role:'archivist'},
   {id:'glass-garden',district:'graph',x:40,z:-68,role:'technician'},
   {id:'meeting-charge',district:'operations',x:8,z:46,role:'courier'},
 ];
@@ -48,6 +48,39 @@ export function createWayfinder(traffic, floor, catalog=null) {
       for(let i=0;i<base;i++){const d=length(f,i);if(d<maxLink&&carriagewayFree(points[f],points[i])&&stepFree(points[f],points[i],floor))fixed.push({a:f,b:i,length:d});}});
     return fixed;
   }
+  // Approach nodes: around every living place a 2 m cell grid (workpoints included, one level, off podiums,
+  // halls and carriageways), kept only where the cells connect to the pavement graph. Built once per body shape.
+  const CELL=2,REACH=22;
+  function approach(body,nodes,edges,index) {
+    const street=[];index.forEach((n,k)=>{if(k<base)street.push(n);});
+    const placed=[];
+    for(const p of livingPlaces) {
+      const cells=new Map();
+      for(let i=-5;i<=5;i++)for(let j=-5;j<=8;j++) {
+        const x=p.x+i*CELL,z=p.z+j*CELL,c={x,z,y:floor(x,z),heading:0,lobby:null,cell:true};
+        if(lobbyGround(x,z)!==null||lobbyAt(x,z)||!carriagewayFree(c,c)||!traffic.clear(body,c,c,false))continue;
+        cells.set(i+','+j,{c,i,j,links:[],exit:false});
+      }
+      const join=(u,v)=>{const d=Math.hypot(u.c.x-v.c.x,u.c.z-v.c.z);
+        if(carriagewayFree(u.c,v.c)&&stepFree(u.c,v.c,floor)&&traffic.clear(body,u.c,v.c,false)){u.links.push([v,d]);v.links.push([u,d]);}};
+      for(const u of cells.values())for(const [di,dj]of[[1,0],[0,1],[1,1],[1,-1]]){const v=cells.get((u.i+di)+','+(u.j+dj));if(v)join(u,v);}
+      const exits=[];
+      for(const u of cells.values())for(const n of street) {
+        const d=Math.hypot(u.c.x-nodes[n].x,u.c.z-nodes[n].z);
+        if(d<REACH&&carriagewayFree(u.c,nodes[n])&&stepFree(u.c,nodes[n],floor)&&traffic.clear(body,u.c,nodes[n],false)){u.exit=true;exits.push([u,n,d]);}
+      }
+      const kept=new Set(),queue=[...new Set(exits.map(e=>e[0]))];queue.forEach(u=>kept.add(u));
+      while(queue.length){const u=queue.pop();for(const [v]of u.links)if(!kept.has(v)){kept.add(v);queue.push(v);}}
+      for(const u of kept){u.place=p.id;placed.push(u);u.index=nodes.length;nodes.push(u.c);edges.push([]);}
+      for(const u of kept)for(const [v,d]of u.links)if(u.index<v.index)edges[u.index].push([v.index,d]),edges[v.index].push([u.index,d]);
+      for(const [u,n,d]of exits){edges[u.index].push([n,d]);edges[n].push([u.index,d]);}
+    }
+    // Neighbouring places share a path where their grids meet.
+    for(const u of placed)for(const v of placed) {
+      const d=Math.hypot(u.c.x-v.c.x,u.c.z-v.c.z);
+      if(u.place<v.place&&d<3&&carriagewayFree(u.c,v.c)&&stepFree(u.c,v.c,floor)&&traffic.clear(body,u.c,v.c,false)){edges[u.index].push([v.index,d]);edges[v.index].push([u.index,d]);}
+    }
+  }
   function route(body,destination) {
     if(revision!==traffic.revision()){cache.clear();revision=traffic.revision();}
     const key=body.circles.map(c=>[c.x,c.z,c.r].join(',')).join(';')+':'+body.maxY;
@@ -59,25 +92,34 @@ export function createWayfinder(traffic, floor, catalog=null) {
         const a=index.get(l.a),b=index.get(l.b);if(a===undefined||b===undefined)continue;
         if(traffic.clear(body,nodes[a],nodes[b],false)){edges[a].push([b,l.length]);edges[b].push([a,l.length]);}
       }
+      approach(body,nodes,edges,index);
       cache.set(key,{nodes,edges});
     }
     const cached=cache.get(key),here=lobbyAt(body.x,body.z)?.id||null,there=lobbyAt(destination.x,destination.z)?.id||null;
     const nodes=[...cached.nodes,{x:body.x,y:body.y,z:body.z,heading:body.heading,lobby:here},{...destination,heading:0,lobby:there}];
-    const start=nodes.length-2,end=nodes.length-1,startOnZebra=onZebra(nodes[start]),edges=cached.edges.map(e=>[...e]);edges.push([],[]);
+    const start=nodes.length-2,end=nodes.length-1,startOnZebra=onZebra(nodes[start]),extra=new Map();
+    const link=(u,v,d)=>{for(const [p,q]of[[u,v],[v,u]]){const row=extra.get(p);if(row)row.push([q,d]);else extra.set(p,[[q,d]]);}};
     for(const k of [start,end])for(let i=0;i<k;i++) {
       const a=nodes[k],b=nodes[i],d=Math.hypot(a.x-b.x,a.z-b.z);
-      if(a.lobby!==b.lobby)continue;
+      if(a.lobby!==b.lobby||(b.cell&&d>=10))continue;
       // Only a start standing on a zebra may step off it; every other link stays off carriageways and kerbs.
-      if((d<maxLink||i===start)&&carriagewayFree(a,b,k===start&&startOnZebra&&d<stepOff)&&stepFree(a,b,floor)&&traffic.clear(body,a,b,false)){edges[k].push([i,d]);edges[i].push([k,d]);}
+      // A start standing on a carriageway may leave it; the leg is checked from the start outwards.
+      const fromStart=k===start,toStart=i===start;
+      const free=toStart?carriagewayFree(b,a,false,true):carriagewayFree(a,b,fromStart&&startOnZebra&&d<stepOff,fromStart);
+      if((d<maxLink||i===start)&&free&&stepFree(a,b,floor)&&traffic.clear(body,a,b,false))link(k,i,d);
     }
-    const costs=nodes.map(()=>Infinity),previous=nodes.map(()=>-1),open=new Set(nodes.map((_,i)=>i));costs[start]=0;
-    while(open.size) {
-      let current=-1;for(const i of open)if(current<0||costs[i]<costs[current])current=i;
-      if(!Number.isFinite(costs[current])||current===end)break;open.delete(current);
-      for(const [next,weight]of edges[current])if(costs[current]+weight<costs[next]){costs[next]=costs[current]+weight;previous[next]=current;}
+    // Dijkstra over a binary heap: the approach cells make the graph a few hundred nodes larger.
+    const costs=nodes.map(()=>Infinity),previous=nodes.map(()=>-1),heap=[[0,start]];costs[start]=0;
+    const push=e=>{let n=heap.push(e)-1;while(n>0){const p=(n-1)>>1;if(heap[p][0]<=e[0])break;heap[n]=heap[p];n=p;}heap[n]=e;};
+    const pop=()=>{const top=heap[0],last=heap.pop();if(heap.length){let n=0;for(;;){let c=2*n+1;if(c>=heap.length)break;if(c+1<heap.length&&heap[c+1][0]<heap[c][0])c++;if(heap[c][0]>=last[0])break;heap[n]=heap[c];n=c;}heap[n]=last;}return top;};
+    while(heap.length) {
+      const [cost,current]=pop();if(cost>costs[current])continue;if(current===end)break;
+      const relax=([next,weight])=>{if(cost+weight<costs[next]){costs[next]=cost+weight;previous[next]=current;push([costs[next],next]);}};
+      if(current<cached.edges.length)cached.edges[current].forEach(relax);
+      extra.get(current)?.forEach(relax);
     }
     if(!Number.isFinite(costs[end]))return [];
     const result=[];for(let n=end;n!==start;n=previous[n]){if(n<0)return [];result.unshift(nodes[n]);}return result;
   }
-  return {route,points};
+  return {route,points,streetPoints:points.filter(p=>!p.lobby)};
 }

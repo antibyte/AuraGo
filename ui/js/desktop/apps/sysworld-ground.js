@@ -130,17 +130,24 @@ function onZebra(x,z){
 }
 // True when the straight line a-b never touches a carriageway or kerb face. `allowZebra` lets a start
 // that stands on a zebra step off it (only that crossing corridor is exempt).
-export function carriagewayFree(a,b,allowZebra=false){
+// `leave` lets a start that stands on a carriageway or kerb walk off it: samples that break the rule are
+// ignored until the leg has reached open pavement once; from then on the rule applies as before.
+export function carriagewayFree(a,b,allowZebra=false,leave=false){
   if(!nearCarriageway(a,b))return true;
+  let leaving=leave;
   const n=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.z-a.z)/SAMPLE));
   for(let i=0;i<=n;i++){
     const t=i/n,x=a.x+(b.x-a.x)*t,z=a.z+(b.z-a.z)*t,p=streetProfile(x,z);
-    if(!p||(p.kind==='pavement'&&p.d-p.run>=MARGIN))continue;
+    if(!p||(p.kind==='pavement'&&p.d-p.run>=MARGIN)){leaving=false;continue;}
     if(allowZebra&&onZebra(x,z))continue;
+    if(leaving)continue;
     return false;
   }
   return true;
 }
+
+// True when (x,z) stands on a carriageway outside every zebra corridor.
+export function onCarriageway(x,z){const p=streetProfile(x,z);return !!p&&p.kind==='road'&&!onZebra(x,z);}
 
 // Pavement-centre nodes: one per intersection corner (listed first, (+,+) first, so node 0 starts a
 // straight pavement run), two per zebra. Only zebra links cross a carriageway. Built once; frozen.

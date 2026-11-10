@@ -149,20 +149,20 @@ export function createExperience(scene,options){
       // the street grid and clear of the harbour hover dock, so their small
       // colliders never close a resident route.
       for(const x of[-68,-52,-28,28,52,68])tasks.push(place('quay-lantern',x,75.5,surfaces.quay,0,outdoors));
-      for(const [x,z]of[[-79,68],[-79,-67],[55,2],[8,40],[55,-24]]){tasks.push(place('garden',x,z,0,0,outdoors));tasks.push(place('bench',x+3,z,0,Math.PI/2,outdoors));}
-      for(const [x,z]of[[-30,23],[30,23],[-28,72]])tasks.push(place('arcade',x,z,0,0,outdoors));
+      for(const [x,z]of[[-79,68],[-79,-67],[55,4],[8,40],[45,-23]]){tasks.push(place('garden',x,z,0,0,outdoors));tasks.push(place('bench',x+3,z,0,Math.PI/2,outdoors));}
+      for(const [x,z]of[[-26,23],[30,23],[-28,72]])tasks.push(place('arcade',x,z,0,0,outdoors));
       tasks.push(place('bridge',-78.5,40,2,0,outdoors,[1.75,1,1]),place('ramp',-80,49,0,Math.PI,outdoors),place('stairs',-76.8,49,0,Math.PI,outdoors),place('ramp',-78.5,31,0,0,outdoors));
       tasks.push(place('pad',dronePad.x,dronePad.z,0,0,outdoors));
       tasks.push(place('sky-deck',skyDeck.x,skyDeck.z,skyDeck.floor,0,outdoors));
       for(const b of skyDeck.benches)tasks.push(place('bench',b.x,b.z,skyDeck.floor,b.angle,outdoors));
-      for(const [x,z]of[[-60,-56],[-60,-46],[51,49]])tasks.push(place('charger',x,z,0,0,outdoors));
+      for(const [x,z]of[[-60,-56],[-60,-46],[51,51]])tasks.push(place('charger',x,z,0,0,outdoors));
       await Promise.all(tasks);if(disposed)return;batch(outdoors);
       sky.lift=await place('sky-lift',skyDeck.lift.x,skyDeck.lift.z,skyDeck.lift.base);if(disposed)return;
       sky.cab=sky.lift?.node.getObjectByName('cab')||null;sky.ready=!!sky.cab;
       // Deck viewers look from a virtual objective just beyond the balustrade, so steep views
       // down onto the districts are never blocked by the terrace floor.
       for(const t of skyDeck.telescopes)await addScope(t.id,t.x,t.z,skyDeck.floor,t.angle,{skip:'agent',limit:1.45,pitch:[-1.1,.3],eye:1.25});
-      for(const [x,z]of[[-57,-61],[-57,-52]]){const cooler=await place('cooler',x,z);cooler?.play('operate');}
+      for(const [x,z]of[[-59,-61],[-59,-52]]){const cooler=await place('cooler',x,z);cooler?.play('operate');}
       for(const p of livingPlaces) {
         const model=await place(p.id,p.x,p.z,groundHeight(p.x,p.z),0,group,[1,1,1],2);if(disposed)return;
         if(model){model.level=2;living.set(p.id,model);machinery.attach(p.id,model);society.addPlace(p,manifest.assets.find(a=>a.id===p.id));model.play('operate');}
@@ -185,7 +185,7 @@ export function createExperience(scene,options){
           pads.push({...pad,model,pack:model.node.getObjectByName('pack')||null,docked:true,ix:pad.x+spot[0]*c+spot[2]*s,iz:pad.z-spot[0]*s+spot[2]*c});
         }
       }catch(e){if(!disposed)options.onError?.(e);}
-      const cart=await place('service-cart',55,49,surfaces.ground,Math.PI/2);if(cart)cart.play('open',true);
+      const cart=await place('service-cart',55,51.2,surfaces.ground,Math.PI/2);if(cart)cart.play('open',true);
       for(let i=0;i<19;i++){
         const type=['courier','technician','archivist'][i%3],body=await place('robot-'+type,0,0);if(!body)return;
         body.node.scale.setScalar(1.15);residents.push(body);society.add(body,i,body.bounds);body.play('idle');
