@@ -50,7 +50,7 @@ These were verified in code on 2026-11-09.
 | 1 Ground and gait | New street, crossing and plot models; realistic kerbs with dropped kerbs and zebra crossings; one height profile; pedestrian routes on pavements and crossings; damped walker height, foot adaptation, contact shadows; companion and visitor follow the ground | this document |
 | 2 Windows with life | Real glass with reflections; interior-mapped rooms behind upper-floor and skyline windows (furniture, screens, moving robot silhouettes, lighting by time of day); the seven district buildings and both skyline towers reworked with far more facade detail | `plans/2026-11-09-system-world-beauty-phase-2.md` |
 | 3 Enterable buildings | Six district buildings get a real ground floor to walk into (themed lobby, glass front, door, furniture, working robots visible from outside). The small operations beacon stays exterior-only. Interiors load on approach | `plans/2026-11-10-system-world-beauty-phase-3.md` |
-| 4 City life | Trees and beds with wind, bird flocks, pigeons, boats, street furniture, kiosks, neon signs, steam, fireflies at night | own spec and plan |
+| 4 City life (implemented) | Trees and beds with wind, bird flocks, pigeons, boats, street furniture, kiosks, neon signs, steam, fireflies at night | `plans/2026-11-10-system-world-beauty-phase-4.md` |
 | 5 Soundscape | Master limiter, sound zones (harbour, park, street canyon, each interior), per-space reverb, damping behind glass, continuous traffic and tram bed, footsteps per surface | own spec and plan |
 | 6 Finish | Night lighting, per-tier polish, performance, final acceptance | own spec and plan |
 

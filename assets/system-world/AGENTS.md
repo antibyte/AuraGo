@@ -54,10 +54,27 @@ Own the original Blender city kit, deterministic generator and source scene.
   open left side. Gallery guards use the `railing` module. Verify actual exported
   floor/shaft alignment with `node scripts/test-system-world-layout.mjs`.
 - Kit v3 is authored by `kit3.py` (shared core: materials, baked AO, export) and `build_world3.py`
-  (run entry point, `FAMILIES`). Registered families: `street_assets3.py`, `facade_assets3.py`,
-  `district_assets3.py`, `furniture_assets3.py` and `interior_assets3.py` (31 designs). `life_assets3.py`
-  (phase 4) is not yet registered in `build_world3.py` `FAMILIES`; `interior_assets3.py` imports its
-  `torus` and `face` helpers from it.
+  (run entry point, `FAMILIES`, kit version 3.3.0). Registered families: `street_assets3.py`,
+  `facade_assets3.py`, `district_assets3.py`, `furniture_assets3.py` and `interior_assets3.py` (31 designs
+  together), plus `life_assets3.py` (phase 4, 15 designs; 46 in total). `interior_assets3.py` imports its
+  `torus` and `face` helpers from `life_assets3.py`.
+- Soft parts: a `kit3.py` factory returns `'soft': ['<part>']` in its info, and those parts export with
+  smooth normals at every LOD. Tree canopies (`crown`), the planter and the flower bed (`foliage`) use
+  this; new foliage goes in a soft part. The interior pot plants (`interior_assets3.py` `pot_plant`) do not
+  yet (phase 6 backlog item 23).
+- Street trees (`furniture_assets3.py` `tree`): `tree-round` is 6.4 m tall with a canopy about 4.6 m wide;
+  `tree-column` is 7.6 m tall with a 2.4 m canopy. The canopy starts above head height.
+- `life_assets3.py` (phase 4) authors harbour launch, cargo barge, sail skiff, channel buoy, mooring post,
+  flower bed, cafe set, charge post, info pylon, utility cabinet, three neon signs, banner mast and gull.
+  Boats have their origin on the waterline amidships, bow towards +X. Pivoted parts export as nodes with
+  pivots in Blender axes: `rig` (sail skiff, `(.7, 0, 1.25)`), `lamp` (buoy, `(0, 0, 2.05)`), `banner`
+  (banner mast, `(.14, 0, 6.55)`), and `wing_l`/`wing_r` (gull, hinged at the shoulders). The gull flies
+  towards +X. The banner cloth uses the matt `city.marking` material.
+- The charge post's workpoint `charge` sits on the pad at the origin. Its collider lies at glTF z -0.84 to
+  -0.4, behind the pad on the pylon side.
+- Furniture `navigation.colliders` mirror `SIZES` in `ui/js/desktop/apps/sysworld-furnishing.js`
+  (`[x0, z0, x1, z1]` footprints); `scripts/test-system-world-furnishing.mjs` checks the packed manifest
+  against it.
 - Kit v3 geometry: every primitive carries `COLOR_0` baked ambient occlusion (greyscale,
   multiplied with the albedo by the renderer); node names equal component names; materials are `city.*`.
   New in kit v3: `city.kerb`, `city.setts`, `city.iron`, `city.marking` and `city.tactile`, each
@@ -133,6 +150,8 @@ Own the original Blender city kit, deterministic generator and source scene.
 
 ## Verification
 - `python assets/system-world/check_assets.py`.
+- `node scripts/test-system-world-furnishing.mjs` (furniture rules, `SIZES` against the packed colliders,
+  the charge-post contract).
 - `node scripts/build-system-world-spot.mjs --check` and
   `node scripts/test-system-world-companion.mjs` verify the pinned source,
   the compact derivative, its provenance, licence texts and the model budget.

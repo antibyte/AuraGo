@@ -1504,3 +1504,25 @@ console.log('System World particles: 60 steam quads at 11 vents, 200 fireflies o
 10. **Barge visibility.** At 150–230 m, fog dims the barge. If the gull scene shows only specks, bring the south leg to z 165; the keep-out test guards it.
 11. **Traffic buckets** touch a HIGH-risk shared module. The equivalence test proves identical answers, including insertion order; the coordinator's `impact` and `detect_changes` must show only the listed callers.
 12. **Third tree or hedge** (design). Not planned; needs `SIZES` entries and area slots if the coordinator adds them.
+
+## Execution notes (2026-11-10)
+
+Recorded after the implementation. The code is the truth; the body above is unchanged.
+
+- **Street trees.** Evenly spaced between the inset plot corners at a target of 8 m (`TREE_STEP = 8`, `TREE_INSET = 1.4`), not every 12 m. `scripts/test-system-world-furnishing.mjs` asserts at least 100 street trees; the plan's 120 was an estimate. Truth: `ui/js/desktop/apps/sysworld-furnishing.js`.
+- **Furnishing rules.** `GAP.footLink` (0.55 m) keeps the straight links from each stair foot to the nearest zebra nodes open. `GAP.frontage` (1.5 m) and `FRONTAGE_DEPTH` (18 m) keep street trees out of the front of stair flights. Truth: `sysworld-furnishing.js`; the stair rule is asserted in `scripts/test-system-world-furnishing.mjs`.
+- **Reserved places.** The station pylon moved to z 67.4 (`PYLONS`, was 67). Three `RESERVED` boxes were widened: `service-cart` (z to 1.65), `charger-*` (x and z) and `rack-*` (z to 0.66). Truth: `sysworld-furnishing.js`.
+- **District benches** have alternative offsets along the flight (`[3.2, 1.8, 2.2]`). Truth: the district generator in `sysworld-furnishing.js`.
+- **Ground test.** `scripts/test-system-world-ground.mjs` routes the living places with the society's resident body (`residentShape`, reach about 0.5 m) instead of the former 1.29 m stand-in.
+- **Charge post.** Request 1 was applied as written: `collider(-.26, .4, .26, .84, 1.9)`, which puts the collider at glTF z -0.84 to -0.4. Truth: `assets/system-world/life_assets3.py` `charge_post`.
+- **Task 10.**
+  - The plaza and the cafe register before the residents spawn (`sysworld-experience.js`).
+  - After an outdoor job a resident prefers a free lobby workpoint within 70 m (`sysworld-society.js`).
+  - The cafe's first serving spot is at x 79.2 (`CAFE_POINTS`, was 78.3).
+  - The parcel sorter was not moved: `sysworld-places.js` keeps (27.6, 49.4). Backlog item 13 stays open.
+  - `scripts/test-system-world-lobby-walk.mjs` waits for a free flight foot before it sets the visitor down.
+- **Task 5.** Leaf sway grows with the height above 2 m, and `sway` is `.045` (`KINDS['city.leaf']` in `sysworld-surfaces.js`).
+- **Harbour test.** Tolerances are at float32 precision (1e-3) for instance matrices (`scripts/test-system-world-harbour.mjs`).
+- **Survey harness.** It applies the near-gate from its own camera (`syncNear` in `scripts/system-world-survey.mjs`). The thirteen life scenes were added before Task 11 (`scripts/system-world-survey.scenes.json`).
+- **Commits.** Tasks 6, 7 and 9 landed in one commit (e5d1a5168).
+- **Registration.** `life_assets3.py` is in `build_world3.py` `FAMILIES`; kit version 3.3.0; the manifest holds 46 designs and 138 GLBs. The AGENTS and README notes that said it was not registered are corrected.

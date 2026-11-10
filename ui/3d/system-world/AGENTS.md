@@ -8,6 +8,24 @@ The `v1/`, `v2/` and `v3/` kits plus `white-robot.glb` and its provenance `white
 `v3/` is written only by `scripts/build-system-world-v3.mjs`.
 Authoring belongs to `assets/system-world/`; see its README and DOX contract.
 
+City life (phase 4) runtime ownership, all in `ui/js/desktop/apps/`:
+
+| Concern | Owner |
+| --- | --- |
+| Wind value (direction, strength, gusts) | `sysworld-atmosphere.js` (`windAt`, `wind()`) |
+| Leaf sway (`city.leaf`, instanced draws above the low tier) | `sysworld-surfaces.js` (`SW_SWAY`, `setWind`) |
+| Banner cloth, near-gate, lawn and paving slabs, wiring of every new module | `sysworld-scene.js` |
+| Instanced pivoted parts | `sysworld-parts.js` |
+| Boats and buoys | `sysworld-harbour.js` |
+| Gulls | `sysworld-gulls.js` |
+| Steam and fireflies | `sysworld-particles.js` |
+| Kit workplaces (charging plaza, harbour cafe) | `sysworld-experience.js` (places), `sysworld-society.js` (no demonstrate prompt) |
+
+- Kit placements are solids. `sysworld-scene.js` passes `kitPlacements` to `installCityColliders(…, kit)`,
+  which reads each placed design's `navigation.colliders`, turned with the placement.
+- The lawn and paving materials are scene-owned: they live in the scene's `matSet`, never in the shared
+  materials map.
+
 ## Local Contracts
 - Preserve the 3 v1 designs (`service-drone`, `data-tram`, `server-rack`), three LODs and MIT provenance. The complete
   model directory, including v2 and the original robot, has a 40 MiB ceiling.
@@ -42,8 +60,9 @@ Authoring belongs to `assets/system-world/`; see its README and DOX contract.
   fully usable. The verbatim licence travels here and in `licences/texts/`.
   Authoring and reproduction belong to `assets/system-world/spot-source.json`
   and `scripts/build-system-world-spot.mjs`.
-- `v3/` holds the 31 kit v3 designs (street modules, facades, district buildings, data towers, street
-  furniture and the six lobby interiors; 93 GLBs, 3,789,784 bytes): meshopt-compressed GLBs (`EXT_meshopt_compression`
+- `v3/` holds the 46 kit v3 designs (street modules, facades, district buildings, data towers, street
+  furniture, the six lobby interiors and the phase 4 city life; 138 GLBs, `total_model_bytes` 4,391,656 in the
+  manifest): meshopt-compressed GLBs (`EXT_meshopt_compression`
   required), texture-free, `city.*` materials and `COLOR_0` on every primitive. Load them with
   `GLTFLoader.setMeshoptDecoder(MeshoptDecoder)` and await `MeshoptDecoder.ready` first, as
   `sysworld-scene.js` does.
@@ -80,6 +99,8 @@ Authoring belongs to `assets/system-world/`; see its README and DOX contract.
 Lobbies: `node scripts/test-system-world-lobbies.mjs` (registry), `node scripts/test-system-world-lobby-contract.mjs`
 (registry against the packed GLBs), `node scripts/test-system-world-lobby-walk.mjs` (every door entered and left)
 and `node scripts/test-system-world-lobby-render.mjs` (interior loading against the `lobby-agent` GLBs).
+City life: `node scripts/test-system-world-furnishing.mjs`, `-wind`, `-harbour`, `-gulls` and `-particles`
+(the runtime modules listed under Ownership).
 
 ## Child DOX Index
 None.

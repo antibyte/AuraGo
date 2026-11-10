@@ -74,11 +74,12 @@ The reused ThreeDee robot retains its existing artwork provenance (see below).
 ## Kit v3
 
 `build_world3.py` authors the kit v3 designs in Blender 5.2 LTS. `kit3.py` is the shared core.
-Five families are registered: `street_assets3.py` (street modules), `facade_assets3.py` (slab-and-glass
+Six families are registered: `street_assets3.py` (street modules), `facade_assets3.py` (slab-and-glass
 facades and the skyline data towers), `district_assets3.py` (the seven district buildings and the
 skybridge), `furniture_assets3.py` (the street lamp and planter, trees, bench, bollard, litter bin,
-crossing sign and kiosk) and `interior_assets3.py` (the six lobby interiors). Together they make 31
-designs and 93 GLBs. `life_assets3.py` (phase 4) is not registered yet. Blender writes uncompressed GLBs
+crossing sign and kiosk), `interior_assets3.py` (the six lobby interiors) and `life_assets3.py` (the
+phase 4 city life, see [City life](#city-life)). Together they make 46 designs and 138 GLBs, three LODs
+each. Blender writes uncompressed GLBs
 and `manifest.raw.json` to `disposable/system-world/v3-raw/` and saves
 `production/aurago-world-3.blend`. The Node script then packs them with meshopt and writes
 `ui/3d/system-world/v3/`.
@@ -124,6 +125,33 @@ interior.
   registry (`lobbySolids`). Interior fixtures come from each interior's `navigation.colliders`.
 - Lobby numbers mirror the authoring source; `scripts/test-system-world-lobby-contract.mjs` checks them against
   the packed GLBs.
+
+## City life
+
+`life_assets3.py` (phase 4) adds the harbour craft, the buoy, the gull, and the street pieces that
+furnish the city: flower bed, cafe set, charge post, info pylon, utility cabinet, mooring post, banner mast
+and three neon signs. The runtime loads them in two stages:
+
+- **First display**: the designs in `kitPlacements` (`sysworld-scene.js`). These are the street modules,
+  the street furniture (trees, benches, bollards, litter bins, zebra signs and the kiosk) and the static
+  life designs (flower bed, cafe set, charge post, info pylon, utility cabinet, mooring post, banner mast,
+  and the neon blade, wave and ring).
+- **After the first display**, once `rebuild()` resolves: `harbour-launch`, `harbour-barge`, `sail-skiff`
+  and `harbour-buoy` (`sysworld-harbour.js`), and `gull` at LOD 1 (`sysworld-gulls.js`). Boats load at
+  LOD 2 on low and LOD 1 otherwise; the gull loads on every tier and is shown on medium and above.
+
+Motion and detail by tier (the values are in `sysworld-atmosphere.js`, `sysworld-gulls.js`,
+`sysworld-particles.js` and `sysworld-harbour.js`):
+
+| Tier | Wind | Gulls | Steam | Fireflies | Boats |
+| --- | --- | --- | --- | --- | --- |
+| low | off | none | none | none | LOD 2, parked |
+| medium | on | 6 | 30 | 100 | LOD 1, sailing |
+| high, ultra | on | 12 | 60 | 200 | LOD 1, sailing |
+
+Fireflies show only at night in clear weather. Leaf sway (`city.leaf`) is off on low. Reduced motion freezes the atmosphere clock, so boats and gulls hold
+their poses, and it switches off the wind, steam and fireflies. Runtime module ownership is in
+[ui/3d/system-world/AGENTS.md](../../ui/3d/system-world/AGENTS.md).
 
 ## Surface textures
 

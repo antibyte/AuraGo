@@ -17,9 +17,16 @@ and plan; this file only keeps the findings so they are not lost.
 5. **A soft white blob** in one pane of `phase-2-medium/proof-window-close.png` was never identified.
 6. **Zebra stripes and kerbs** are bright by day; marking was toned down once (0.62 → 0.5), re-check.
 7. **Plots** are plain dark slabs between pavement and buildings; phase 4 furnishes them, the leftover
-   surface still needs a paving pattern.
+   surface still needs a paving pattern. (done in phase 4: lawn and paving slabs over the purpose plots,
+   with leaf and setts surface maps; `sysworld-scene.js`.)
 8. **Aviation lights**: two or three seem to float beside skyline towers at night
    (`phase-2-swap/skyline-night.png`).
+23. **Interior pot plants** (`interior_assets3.py` `pot_plant`) still use the lumpy `blob` and have no soft
+   part. Give them a soft `foliage` part like the planter and the flower bed (`furniture_assets3.py`,
+   `life_assets3.py`).
+24. **Night glare.** The agent tower's lower window rows are close to white at night
+   (`phase-4-look1/facade-agent-night.png`), and a lamp cone close to the camera veils the picture edge
+   (`phase-4-look1/life-street-trees-night.png`).
 
 ## Behaviour
 
@@ -37,6 +44,20 @@ and plan; this file only keeps the findings so they are not lost.
 13. **Parcel sorter** stands 0.7 m beside the mission stairs (wanted 1.5 m); needs a smaller footprint or
     another spot.
 14. **Patrol robots** yield up to 22 s behind trams in the living test (not asserted).
+26. **Patrol robots: stale `yield` label.** The `yield` label stays set while a patrol keeps moving (33–59 s
+   of label time in the living test, no blockage). `sysworld-society.js` walks a patrol in the `yield`
+   state too (the walking branch accepts it). Related to item 14.
+27. **Visitor dropped onto a resident.** Two overlapping bodies cannot step free of each other. The
+   lobby-walk test found it and now waits for a free flight foot (`scripts/test-system-world-lobby-walk.mjs`).
+   Check whether any runtime path can place the visitor on an occupied spot.
+
+## Performance
+
+22. **Triangles at street level.** Furniture is instanced per design city-wide at the tier's level of detail
+   and is never culled (the only hide is `NEAR` above 40 m). About 640,000 triangles are drawn even when the
+   camera looks out to sea; street scenes went from about 455,000 to about 900,000 (`reports/system-world-survey/phase-4-t4`,
+   `phase-4-look2`). Candidate: per-design near and far instance sets (LOD 0 near the camera, LOD 2 far),
+   measured against a frame-time budget (item 19).
 
 ## Tests and tooling
 
@@ -52,3 +73,6 @@ and plan; this file only keeps the findings so they are not lost.
     scene per tier and a budget.
 20. **`build_textures.py --check`** needs Python 3.13 on this machine (PIL missing in 3.14).
 21. **GitNexus** has no index for the worktree; run change detection against `main` before merging.
+25. **Survey harness: camera placement.** Cameras placed inside a tree canopy or beside the visitor body
+   (`life-neon-night`, `life-plaza-day`) give pictures that do not show the place. Move the visitor body
+   with the camera for every scene (item 17).
