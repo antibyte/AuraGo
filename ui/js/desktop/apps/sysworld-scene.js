@@ -169,7 +169,7 @@ export async function createCity(host, options) {
   const windows = createWindows();
   const pmrem = new THREE.PMREMGenerator(renderer), room = new RoomEnvironment();
   const environment = pmrem.fromScene(room, .05);
-  scene.environment = environment.texture; scene.environmentIntensity = .48;
+  scene.environment = environment.texture; scene.environmentIntensity = .48; windows.setEnvironment(environment.texture);
   room.dispose(); pmrem.dispose();
   const hemisphere = new THREE.HemisphereLight(0xc0dcff, 0x10202d, .8);scene.add(hemisphere);
   const sun = new THREE.DirectionalLight(0xc8deff, 3.2);

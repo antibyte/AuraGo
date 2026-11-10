@@ -6,7 +6,7 @@ import fs from 'node:fs/promises';
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
-import {WINDOW_MATERIAL, WINDOW_SHADER, windowLighting, windowLevel, createWindows} from '../ui/js/desktop/apps/sysworld-windows.js';
+import {WINDOW_MATERIAL, WINDOW_SHADER, WINDOW_TONES, WINDOW_ENV, windowLighting, windowLevel, createWindows} from '../ui/js/desktop/apps/sysworld-windows.js';
 import {createSurfaces} from '../ui/js/desktop/apps/sysworld-surfaces.js';
 
 const near = (a, b, e = .005) => Math.abs(a - b) <= e;
@@ -60,6 +60,14 @@ windows.setTier('medium'); assert.ok(m.version > version, 'a level change recomp
 windows.setLighting(0, 1, 0, new THREE.Color(0x2a2638));
 assert.ok(near(windows.uniforms.winState.value.x, .6) && windows.uniforms.winState.value.z === 1, 'evening state');
 assert.equal(windows.uniforms.winSky.value.getHex(), 0x2a2638, 'sky sheen follows the fog colour');
+// Own environment: without a texture envMap stays null; with one the glass uses it, with its own intensity by day and night.
+assert.equal(m.envMap, null, 'no texture, no envMap');
+windows.setLighting(0, 1, 0); assert.ok(near(m.envMapIntensity, WINDOW_ENV.night), 'night env intensity');
+windows.setLighting(1, 0, 0); assert.ok(near(m.envMapIntensity, WINDOW_ENV.day), 'day env intensity');
+const stubTexture = new THREE.Texture(); windows.setEnvironment(stubTexture); assert.equal(m.envMap, stubTexture, 'glass gets the scene texture');
+windows.setLighting(0, 1, 0, new THREE.Color(0x2a2638)); assert.ok(near(m.envMapIntensity, WINDOW_ENV.night));
+windows.setEnvironment(null); assert.equal(m.envMap, null, 'texture removed');
+windows.setLighting(0, 1, 0, new THREE.Color(0x2a2638));
 const t0 = windows.uniforms.winTime.value;
 windows.update(.05, true); assert.ok(near(windows.uniforms.winTime.value - t0, .05, 1e-9), 'time advances');
 windows.update(5, true); assert.ok(near(windows.uniforms.winTime.value - t0, .15, 1e-9), 'dt is clamped to 0.1 s');
@@ -81,6 +89,19 @@ for (const [name, part] of Object.entries(WINDOW_SHADER)) {
   assert.equal((strip.match(/\(/g) || []).length, (strip.match(/\)/g) || []).length, name + ': parentheses');
 }
 assert.ok(code.includes('mix(1.0,winDet,winOk)') && code.includes('max(-dot(winV,winN),0.02)') && code.includes('max(abs(winD),vec3(1e-4))'), 'derivative guards present');
+
+// Phase 6: at least five wall tones, cumulative shares ending at 1, tones distinct and spread in brightness; generated once
+// into the shader; darker furniture; daylight falls to 12 % at the back of a room.
+assert.ok(WINDOW_TONES.length>=5,'five or more wall tones');
+WINDOW_TONES.forEach((t,i)=>{assert.ok(t.upTo>(i?WINDOW_TONES[i-1].upTo:0)&&t.upTo<=1,'ascending shares');assert.equal(t.color.length,3);});
+assert.equal(WINDOW_TONES.at(-1).upTo,1,'the last tone closes the range');
+for(let i=0;i<WINDOW_TONES.length;i++)for(let j=i+1;j<WINDOW_TONES.length;j++)assert.ok(Math.hypot(...WINDOW_TONES[i].color.map((c,k)=>c-WINDOW_TONES[j].color[k]))>=.1,'tones '+i+' and '+j+' too close');
+const lum=c=>.2126*c[0]+.7152*c[1]+.0722*c[2],l=WINDOW_TONES.map(t=>lum(t.color));assert.ok(Math.max(...l)-Math.min(...l)>=.25,'tones spread in brightness');
+assert.equal(WINDOW_SHADER.fragmentPars.split('vec3 winTone(float h)').length,2);assert.equal(WINDOW_SHADER.fragmentMain.split('winTone(winH3)').length,2);
+assert.ok(WINDOW_SHADER.fragmentPars.includes('fill*(0.12+0.88*(1.0-z)*(1.0-z))'),'daylight falls off with depth');
+assert.ok(WINDOW_SHADER.fragmentMain.includes('vec3(0.07,0.065,0.06)'),'darker furniture');
+// Class B: lit rooms are capped before the Fresnel term so they cannot clip on their own.
+assert.ok(compile('high').fragmentShader.includes('#define WIN_CAP')&&WINDOW_SHADER.fragmentMain.includes('min(winRoomCol,vec3(WIN_CAP))'),'room radiance cap');
 
 // 8. Routing: adopt() swaps city.window for the shared material; surfaces never patch it.
 const original = new THREE.MeshStandardMaterial({name: WINDOW_MATERIAL, vertexColors: true});

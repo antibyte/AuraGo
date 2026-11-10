@@ -29,6 +29,20 @@ export function windowLighting(day, evening, overcast = 0) {
   };
 }
 
+// Room wall tones (phase 6): linear albedo and the cumulative share of rooms (the last entry ends at 1). Warm white,
+// cool grey-blue, sage, terracotta, teal and charcoal, so large facades read as rooms, not as rows of pale boxes.
+export const WINDOW_TONES = Object.freeze([
+  Object.freeze({ upTo: .28, color: Object.freeze([.62, .56, .48]) }),
+  Object.freeze({ upTo: .5, color: Object.freeze([.40, .48, .55]) }),
+  Object.freeze({ upTo: .64, color: Object.freeze([.42, .50, .40]) }),
+  Object.freeze({ upTo: .76, color: Object.freeze([.55, .38, .30]) }),
+  Object.freeze({ upTo: .88, color: Object.freeze([.22, .36, .38]) }),
+  Object.freeze({ upTo: 1, color: Object.freeze([.26, .25, .27]) }),
+]);
+const glslFloat = v => (Number.isInteger(v) ? v.toFixed(1) : String(v));
+const TONE_GLSL = 'vec3 winTone(float h){return ' + WINDOW_TONES.slice(0, -1).map(t => 'h<' + glslFloat(t.upTo) + '?vec3(' + t.color.map(glslFloat).join(',') + '):').join('')
+  + 'vec3(' + WINDOW_TONES.at(-1).color.map(glslFloat).join(',') + ');}';
+
 export const WINDOW_SHADER = {
   vertexPars: 'varying vec3 vWinPos;varying vec3 vWinNrm;varying vec2 vWinRoom;varying float vWinSeed;',
   vertexMain: `
@@ -52,8 +66,9 @@ float winHash(vec2 p){vec3 q=fract(vec3(p.xyx)*0.1031);q+=dot(q,q.yzx+33.33);ret
 float winBox(vec2 p,vec2 lo,vec2 hi,vec2 aa){vec2 s=smoothstep(lo-aa,lo+aa,p)*(1.0-smoothstep(hi-aa,hi+aa,p));return s.x*s.y;}
 // Robot silhouette in metres around its feet: two legs, a torso and a round head.
 float winRobot(vec2 r,vec2 aa){float a=max(aa.x,aa.y);return min(1.0,winBox(vec2(abs(r.x),r.y),vec2(0.05,0.0),vec2(0.13,0.78),aa)+winBox(r,vec2(-0.2,0.78),vec2(0.2,1.36),aa)+(1.0-smoothstep(0.13-a,0.13+a,length(r-vec2(0.0,1.52)))));}
-// Light on a room surface: lamp light falls off a little with depth, daylight a lot (2/3 at the back).
-vec3 winLightAt(vec3 lamp,vec3 fill,float z){return min(lamp*(1.0-0.3*z)+fill*(1.0-0.67*z),vec3(1.2));}`,
+// Light on a room surface: lamp light falls off a little with depth, daylight a lot (to 12 % at the back).
+vec3 winLightAt(vec3 lamp,vec3 fill,float z){return min(lamp*(1.0-0.3*z)+fill*(0.12+0.88*(1.0-z)*(1.0-z)),vec3(1.2));}
+${TONE_GLSL}`,
   fragmentMain: `
 // Room cell, per-room hashes and the light state (rooms re-roll their light every 20-60 s).
 vec2 winCell=floor(vWinRoom),winF=vWinRoom-winCell;
@@ -70,7 +85,8 @@ float winEpoch=floor(winTime/(20.0+40.0*winH0)+winH0);
 float winEpoch=0.0;
 #endif
 float winOn=max(step(winHash(winKey+winEpoch*vec2(3.1,1.7)+vec2(5.3,2.9)),winState.x),winLobby*step(0.5,winState.z));
-vec3 winWall=mix(vec3(0.62,0.56,0.48),vec3(0.40,0.48,0.55),step(0.55,winH1));
+float winH3=winHash(winKey*1.73+5.9);
+vec3 winWall=winTone(winH3);
 vec3 winLamp=mix(vec3(1.0,0.8,0.56),vec3(0.8,0.9,1.0),step(0.72,winH1))*mix(vec3(1.0),vec3(1.0,0.92,0.78),winLobby);
 // Light budget (linear radiance before tone mapping): lit walls stay below about 0.85, only the
 // ceiling panel (1.2) and screens and visors (1.15) pass the bloom threshold. Daylight (read back
@@ -78,7 +94,7 @@ vec3 winLamp=mix(vec3(1.0,0.8,0.56),vec3(0.8,0.9,1.0),step(0.72,winH1))*mix(vec3
 float winDusk=clamp((winState.w-0.6)*1.1111,0.0,1.0);
 float winDay=clamp((winState.y-0.012)*10.0,0.0,1.0);
 vec3 winLampL=winLamp*(mix(0.08,0.7,winDusk)*winOn);
-vec3 winFill=vec3(0.94,1.0,1.06)*(0.012+0.26*winDay);
+vec3 winFill=vec3(0.94,1.0,1.06)*(0.012+0.2*winDay);
 float winAlive=max(winOn,winDay*step(fract(winH0*7.7),0.45));
 vec2 winS=vec2(WIN_BAY,WIN_STOREY);
 vec3 winRoomCol;
@@ -122,7 +138,7 @@ vec2 winPf=(winP+winD*winTf).xy;
 float winX0=(0.12+0.3*winH1)*winS.x,winX1=winX0+(0.3+0.2*fract(winH1*7.0))*winS.x;
 vec2 winAf=min(max(fwidth(winPf),vec2(1e-3)),vec2(0.2))*0.6;
 float winFurn=min(1.0,winBox(winPf,vec2(winX0,0.0),vec2(winX1,0.76),winAf)+step(0.5,fract(winH1*13.0))*winBox(winPf,vec2(winS.x-0.42,0.0),vec2(winS.x-0.1,1.9),winAf))*smoothstep(winTf-winAh,winTf+winAh,winHit);
-winRoomCol=mix(winRoomCol,winWall*0.3*winLightAt(winLampL,winFill,0.55),winFurn);
+winRoomCol=mix(winRoomCol,vec3(0.07,0.065,0.06)*(0.8+0.4*fract(winH1*5.0))*winLightAt(winLampL,winFill,0.55),winFurn);
 #if WIN_LEVEL>1
 // Life at 30 % depth in a share of the lit rooms: a robot walking across or standing and bobbing
 // (two in lobbies), and a flickering screen on the back wall of offices.
@@ -152,6 +168,7 @@ winRoomCol=mix(winRoomCol,vec3(0.55,0.5,0.42)*winSlat*winLightAt(winLampL,winFil
 // Low tier: a flat lit or unlit cell, brighter under the ceiling; no parallax, no motion.
 winRoomCol=winWall*winLightAt(winLampL,winFill,0.4)*0.8+winLamp*winOn*mix(0.1,0.2,winDusk)*smoothstep(0.35,1.0,winF.y);
 #endif
+winRoomCol=min(winRoomCol,vec3(WIN_CAP));
 winRoomCol*=1.0-winFres;
 // A faint frame (mullions on the cell's vertical edges, a spandrel at its foot) so the lowest LOD,
 // which has no fins or slabs, still reads as a facade.
@@ -162,6 +179,10 @@ diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.035,0.042,0.05),winFrame);`,
   roughness: '\nroughnessFactor=mix(roughnessFactor,0.55,winFrame);',
   emissive: '\ntotalEmissiveRadiance+=winGlow;',
 };
+
+// Own environment intensity for the glass (the scene environment texture is handed over with setEnvironment): by day the
+// reflection no longer outshines the rooms behind it, at night the glass keeps a faint sheen.
+export const WINDOW_ENV = Object.freeze({ day: .12, night: .08 });
 
 export function createWindows() {
   const uniforms = {
@@ -175,7 +196,7 @@ export function createWindows() {
   });
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uniforms);
-    const head = `#define WIN_LEVEL ${level}\n#define WIN_DEPTH 3.0\n#define WIN_BAY 1.9\n#define WIN_STOREY 3.05\n`;
+    const head = `#define WIN_LEVEL ${level}\n#define WIN_DEPTH 3.0\n#define WIN_BAY 1.9\n#define WIN_STOREY 3.05\n#define WIN_CAP 1.1\n`;
     shader.vertexShader = head + shader.vertexShader
       .replace('#include <common>', '#include <common>\n' + WINDOW_SHADER.vertexPars)
       .replace('#include <begin_vertex>', '#include <begin_vertex>' + WINDOW_SHADER.vertexMain);
@@ -207,6 +228,13 @@ export function createWindows() {
       const l = windowLighting(day, evening, overcast);
       uniforms.winState.value.set(l.share, l.ambient, l.lobby, l.glow);
       if (sky) uniforms.winSky.value.copy(sky);
+      material.envMapIntensity = WINDOW_ENV.night + (WINDOW_ENV.day - WINDOW_ENV.night) * clamp01(day);
+    },
+    // The same PMREM texture the scene uses; null leaves the glass on the scene environment.
+    setEnvironment(texture) {
+      const next = texture || null;
+      if (material.envMap === next) return;
+      material.envMap = next; material.needsUpdate = true;
     },
     setTier(value) {
       tier = value;
