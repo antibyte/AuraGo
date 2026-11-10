@@ -86,7 +86,7 @@ try{
   assert.ok(ambience.stats().soundscape.scheduled,'The soundscape schedules while audible');
   ambience.effect('robot_greet',2,0,0,'resident-1');
   assert.equal(ambience.stats().foley.played,1,'A robot action reaches the foley');
-  ambience.effect('step',2,0,0);
+  ambience.effect('door',2,0,0);
   assert.equal(ambience.stats().foley.played,1,'A world interaction never reaches the foley');
   ambience.gait('resident-1',0,0,0,false,false);
   ambience.gait('resident-1',1,0,0,true,false);

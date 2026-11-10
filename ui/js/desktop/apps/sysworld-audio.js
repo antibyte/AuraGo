@@ -1,6 +1,11 @@
 import { createTowerVoice } from './sysworld-voice.js';
 import { createCityEffects } from './sysworld-effects.js';
 import { createCityFoley } from './sysworld-foley.js';
+import {zoneWeights,createZoneTracker,doorState} from './sysworld-zones.js';
+import {createSoundSpace} from './sysworld-sound-space.js';
+import {createSoundBeds} from './sysworld-sound-beds.js';
+import {createSoundMovers} from './sysworld-sound-movers.js';
+import {createRoomTones} from './sysworld-sound-rooms.js';
 // Synthesized city soundscape: a sub drone, an evolving reverberant chord pad, filtered air with
 // wind gusts, harbour water and a low population murmur as spatial beds, plus sparse distant
 // events (data chimes, traffic swooshes, harbour gulls and horn, night crickets, rain drips, a
@@ -9,6 +14,8 @@ import { createCityFoley } from './sysworld-foley.js';
 const CHORDS=[[110,164.81,246.94,261.63],[87.31,130.81,220,329.63],[130.81,196,246.94,329.63],[98,146.83,246.94,293.66]];
 const CHIMES=[440,523.25,587.33,659.25,783.99,880,1046.5];
 const MAX_EVENTS=12;
+const VISITOR_STEP=Object.freeze({scale:.45});
+const gullSpot={x:0,y:0,z:0,heading:0,bank:0,flap:0};
 // Master protection (phase 5): a DynamicsCompressor with the design's settings, a fixed trim that cancels the gain the
 // Web Audio spec adds by itself ((1/fullRangeGain)^0.6, about +4.3 dB here), and a wave-shaper ceiling that is linear
 // below `linear` and never passes `ceiling` (-1 dBFS). The sound survey measures the trim (--calibrate).
@@ -25,26 +32,36 @@ export function createLimiter(context){
 // Fixed places the city owns. An event either comes from one of these anchors or from a ring
 // around the listener, so the pan always matches the direction the sound arrives from.
 const ANCHORS={harbour:{x:0,z:79},quay:{x:0,z:72},tower:{x:0,z:-12},square:{x:8,z:40}};
-// Weighted event table. Every entry carries its own mood condition, so the same city sounds
-// different at noon, at night, in rain and while the agent is busy.
+// Weighted event table. Every entry carries its own mood condition, so the same city sounds different at noon, at
+// night, in rain and while the agent is busy. `zone` scales the weight by where the listener stands (outdoor shares
+// of sysworld-zones.js). Behind glass only `indoor` events stay (loud enough to pass it; the glass damps them), so no
+// bird sings in a machine hall; the open garden court keeps the whole table.
 const EVENTS=[
-  {kind:'chime',weight:15},{kind:'swoosh',weight:13},{kind:'gust',weight:7},
-  {kind:'birds',weight:8,when:m=>m.day>.45&&m.weather==='clear'},
-  {kind:'gull',weight:6,when:m=>m.day>.2&&m.weather==='clear'},
-  {kind:'pigeon',weight:4,when:m=>m.day>.6&&!m.busy},
-  {kind:'cricket',weight:6,when:m=>m.day<.25&&m.weather!=='rain'},
-  {kind:'horn',weight:4,when:m=>m.day<.45&&m.weather!=='rain'},
-  {kind:'bell',weight:3,when:m=>m.day<.7},
-  {kind:'hammer',weight:4,when:m=>m.day>.3},
-  {kind:'drip',weight:10,when:m=>m.weather==='rain'},
-  {kind:'windchime',weight:4,when:m=>m.weather==='clear'&&!m.busy},
-  {kind:'siren',weight:2,when:m=>m.evening>.3&&m.busy},
+  {kind:'chime',weight:15,indoor:true},
+  {kind:'swoosh',weight:13,zone:z=>.3+1.4*z.canyon+.4*z.plaza},
+  {kind:'gust',weight:7,zone:z=>.4+z.height+.6*z.harbour+.4*z.green},
+  {kind:'birds',weight:8,when:m=>m.day>.45&&m.weather==='clear',zone:z=>.15+2.2*z.green+.3*z.plaza},
+  {kind:'gull',weight:6,when:m=>m.day>.2&&m.weather==='clear',zone:z=>.1+2.6*z.harbour+.6*z.height},
+  {kind:'pigeon',weight:4,when:m=>m.day>.6&&!m.busy,zone:z=>.2+1.2*z.plaza+.8*z.canyon},
+  {kind:'cricket',weight:6,when:m=>m.day<.25&&m.weather!=='rain',zone:z=>.1+2.4*z.green},
+  {kind:'horn',weight:4,when:m=>m.day<.45&&m.weather!=='rain',indoor:true,zone:z=>.5+1.5*z.harbour},
+  {kind:'bell',weight:3,when:m=>m.day<.7,indoor:true},
+  {kind:'hammer',weight:4,when:m=>m.day>.3,zone:z=>.4+z.canyon+.5*z.plaza},
+  {kind:'drip',weight:10,when:m=>m.weather==='rain',zone:z=>.3+z.canyon+.6*z.green},
+  {kind:'windchime',weight:4,when:m=>m.weather==='clear'&&!m.busy,zone:z=>.2+1.6*z.harbour},
+  {kind:'siren',weight:2,when:m=>m.evening>.3&&m.busy,indoor:true},
 ];
-// Exported for the acceptance check: the weighted event table and its mood filter.
-export function citySoundscapeEvents(mood={}) {
+export const INDOOR_GATE=.5;
+export function eventWeight(e,mood,zones){
+  if(e.when&&!e.when(mood))return 0;
+  if(zones){if(zones.interior>=INDOOR_GATE&&!zones.open&&!e.indoor)return 0;if(e.zone)return e.weight*e.zone(zones);}
+  return e.weight;
+}
+// Exported for the acceptance check: the weighted event table, its mood filter and (with zones) the zone weights.
+export function citySoundscapeEvents(mood={},zones=null) {
   const state={busy:!!mood.busy,day:Number.isFinite(mood.day)?mood.day:0,evening:Number.isFinite(mood.evening)?mood.evening:0,
     weather:['clear','rain','fog'].includes(mood.weather)?mood.weather:'clear'};
-  return EVENTS.filter(e=>!e.when||e.when(state)).map(e=>({kind:e.kind,weight:e.weight}));
+  return EVENTS.map(e=>({kind:e.kind,weight:eventWeight(e,state,zones)})).filter(e=>e.weight>0);
 }
 function impulse(context,seconds,decay){
   const length=Math.floor(context.sampleRate*seconds),buffer=context.createBuffer(2,length,context.sampleRate);
@@ -64,8 +81,9 @@ export function createCityAmbience(onState=()=>{},options={}) {
   const nodes=[], sources=[], samples=new Float32Array(256), transient=new Set();
   let volume=.18,effects=null,foley=null,ambientBus=null,effectsBus=null,voiceBus=null,inside=false,weather='clear';
   let pad=[],padFilter=null,padLevel=null,airFilter=null,airGain=null,verb=null,noise=null;
-  let waterGain=null,murmurGain=null,lampGain=null,bedWater='0.000',bedMurmur='0.000',bedLamp='0.000';
+  let waterGain=null,murmurGain=null,lampGain=null,bedWater=0,bedMurmur=0,bedLamp=0;
   let eventTimer=0,chordTimer=0,chord=0,events=0;
+  let space=null,tracker=null,lastFrame=0,soundFrame=null,beds=null,movers=null,rooms=null;const raw={},door={};
   const listener={x:0,y:2.4,z:0,fx:0,fz:-1,origin:{x:0,z:0}};
   const mood={busy:false,day:0,evening:0,weather:'clear'};
   const levels={ambience:1,effects:1,voice:1};
@@ -85,9 +103,11 @@ export function createCityAmbience(onState=()=>{},options={}) {
     effectsBus=node(context.createGain());effectsBus.gain.value=levels.effects;effectsBus.connect(master);
     voiceBus=node(context.createGain());voiceBus.gain.value=levels.voice;voiceBus.connect(master);
     verb=node(context.createConvolver());verb.buffer=impulse(context,3.4,2.6);
-    const verbReturn=node(context.createGain());verbReturn.gain.value=.55;verb.connect(verbReturn).connect(ambientBus);
+    space=createSoundSpace(context,{ambience:ambientBus,verb,tier});tracker=createZoneTracker();
+    zoneWeights(listener.x,listener.y,listener.z,listener.origin.x,listener.origin.z,raw);   // builds the zone fields during the gesture
+    const verbReturn=node(context.createGain());verbReturn.gain.value=.55;verb.connect(verbReturn).connect(space.outdoor);
     voice=options.voice===false?null:createTowerVoice(context,voiceBus);effects=createCityEffects(context,effectsBus,ambientBus);effects.environment(inside,weather);
-    foley=createCityFoley(context,effectsBus,ambientBus);foley.environment(inside);foley.listener(listener.x,listener.y,listener.z,listener.fx,listener.fz,listener.origin.x,listener.origin.z);
+    foley=createCityFoley(context,effectsBus,space.sendLocal);foley.setTier(tier);foley.environment(inside);foley.listener(listener.x,listener.y,listener.z,listener.fx,listener.fz,listener.origin.x,listener.origin.z);
     for(const [frequency,gain] of [[55,.07],[82.4069,.022],[110,.01]]) {
       const oscillator=source(context.createOscillator()), level=node(context.createGain());
       oscillator.frequency.value=frequency;level.gain.value=gain;
@@ -112,7 +132,7 @@ export function createCityAmbience(onState=()=>{},options={}) {
     for(let i=0;i<data.length;i++)data[i]-=seam*i/(data.length-1);
     const air=source(context.createBufferSource());airFilter=node(context.createBiquadFilter());airGain=node(context.createGain());
     air.buffer=buffer;air.loop=true;airFilter.type='lowpass';airFilter.frequency.value=680;airFilter.Q.value=.25;airGain.gain.value=.32;
-    air.connect(airFilter).connect(airGain).connect(ambientBus);air.start();
+    air.connect(airFilter).connect(airGain).connect(space.outdoor);air.start();
     const drift=source(context.createOscillator()), depth=node(context.createGain());
     drift.frequency.value=.075;depth.gain.value=160;drift.connect(depth).connect(airFilter.frequency);drift.start();
     noise=context.createBuffer(1,context.sampleRate*2,context.sampleRate);
@@ -124,13 +144,13 @@ export function createCityAmbience(onState=()=>{},options={}) {
     const swell=source(context.createOscillator()),swellDepth=node(context.createGain());
     swell.frequency.value=.08;swellDepth.gain.value=140;swell.connect(swellDepth).connect(washBand.frequency);swell.start();
     waterGain=node(context.createGain());waterGain.gain.value=0;
-    wash.connect(washBand).connect(waterGain).connect(ambientBus);wash.start();
+    wash.connect(washBand).connect(waterGain).connect(space.outdoor);wash.start();
     const crowd=source(context.createBufferSource());crowd.buffer=noise;crowd.loop=true;
     const crowdBand=node(context.createBiquadFilter());crowdBand.type='bandpass';crowdBand.frequency.value=320;crowdBand.Q.value=.7;
     const crowdDrift=source(context.createOscillator()),crowdDepth=node(context.createGain());
     crowdDrift.frequency.value=.13;crowdDepth.gain.value=90;crowdDrift.connect(crowdDepth).connect(crowdBand.frequency);crowdDrift.start();
     murmurGain=node(context.createGain());murmurGain.gain.value=0;
-    crowd.connect(crowdBand).connect(murmurGain).connect(ambientBus);crowd.start();
+    crowd.connect(crowdBand).connect(murmurGain).connect(space.outdoor);crowd.start();
     // Warm harbour lanterns: a very quiet two-tone hum with a slow breath. It
     // is a continuous bed, only opens near the quay after dusk, and never adds
     // a transient voice to the bounded event pool.
@@ -143,8 +163,12 @@ export function createCityAmbience(onState=()=>{},options={}) {
     const lampFilter=node(context.createBiquadFilter());lampFilter.type='lowpass';lampFilter.frequency.value=420;lampFilter.Q.value=.4;
     lampGain=node(context.createGain());lampGain.gain.value=0;
     lamp.connect(lampTrem);harmonic.connect(harmonicLevel).connect(lampTrem);
-    lampTrem.connect(lampFilter).connect(lampGain).connect(ambientBus);
+    lampTrem.connect(lampFilter).connect(lampGain).connect(space.outdoor);
     lamp.start();harmonic.start();
+    // Phase 5 layers: zone-shaped beds, moving sources, room tones (outdoor ones behind the glass).
+    beds=createSoundBeds(context,{outdoor:space.outdoor,send:space.sendOutdoor,local:ambientBus,noise,random,tier});beds.setMood(mood);
+    movers=createSoundMovers(context,{outdoor:space.outdoor,send:space.sendOutdoor,noise,tier});
+    rooms=createRoomTones(context,{room:space.room,send:space.roomSend,noise,random,tier});rooms.setMood(mood);
     applyMood();
     updateBeds();
   }
@@ -154,9 +178,10 @@ export function createCityAmbience(onState=()=>{},options={}) {
     const entry={release(){if(!transient.delete(entry))return;for(const n of list){try{n.stop?.();}catch(_){}try{n.disconnect();}catch(_){}}}};
     transient.add(entry);list[0].onended=entry.release;events++;return entry;
   }
+  // Outdoor events (phase 5) pass the outdoor bus, so glass damps them indoors, and send into the outdoor spaces.
   function out(level,pan,send){
     const panner=context.createStereoPanner(),reverb=context.createGain();panner.pan.value=pan;reverb.gain.value=send;
-    level.connect(panner).connect(ambientBus);panner.connect(reverb).connect(verb);return [panner,reverb];
+    level.connect(panner).connect(space.outdoor);panner.connect(reverb).connect(space.sendOutdoor);return [panner,reverb];
   }
   // Distance and direction of a world position against the listener frame. The
   // distance runs from the acoustic origin (where the view rests), the pan from
@@ -168,7 +193,7 @@ export function createCityAmbience(onState=()=>{},options={}) {
     return {distance,pan:Math.max(-1,Math.min(1,(cx*-listener.fz+cz*listener.fx)/view)),fade:1/(1+distance*.02)};
   }
   function positionFor(kind){
-    if(kind==='horn'||kind==='gull')return ANCHORS.harbour;
+    if(kind==='gull')return movers?.gull(soundFrame,random,gullSpot)||ANCHORS.harbour;if(kind==='horn')return ANCHORS.harbour;
     if(kind==='windchime')return ANCHORS.quay;
     if(kind==='bell')return ANCHORS.tower;
     if(kind==='pigeon')return ANCHORS.square;
@@ -310,17 +335,16 @@ export function createCityAmbience(onState=()=>{},options={}) {
   }
   const VOICES={chime,swoosh,gust,horn,birds,gull,pigeon,cricket,bell,hammer,drip,windchime,siren};
   function pickEvent(){
-    const pool=EVENTS.filter(e=>!e.when||e.when(mood));
-    if(!pool.length)return 'chime';
-    let total=0;for(const e of pool)total+=e.weight;
+    const z=tracker?tracker.weights:null;let total=0;
+    for(let i=0;i<EVENTS.length;i++)total+=eventWeight(EVENTS[i],mood,z);
+    if(total<=0)return null;
     let roll=random()*total;
-    for(const e of pool){roll-=e.weight;if(roll<=0)return e.kind;}
-    return pool[pool.length-1].kind;
+    for(let i=0;i<EVENTS.length;i++){const w=eventWeight(EVENTS[i],mood,z);if(w<=0)continue;roll-=w;if(roll<=0)return EVENTS[i].kind;}
+    return null;
   }
   function event(){
     if(transient.size>=MAX_EVENTS)return;
-    const kind=pickEvent(),position=positionFor(kind);
-    VOICES[kind]?.(position);
+    const kind=pickEvent();if(kind)VOICES[kind]?.(positionFor(kind));
   }
   function schedule(){
     clearTimeout(eventTimer);eventTimer=0;if(!running())return;
@@ -333,34 +357,25 @@ export function createCityAmbience(onState=()=>{},options={}) {
       pad.forEach((pair,i)=>pair.forEach(o=>o.frequency.setTargetAtTime(CHORDS[chord][i],context.currentTime,1.8)));progress();
     },16000);
   }
-  function quiet(){clearTimeout(eventTimer);clearTimeout(chordTimer);eventTimer=chordTimer=0;for(const v of [...transient])v.release();}
+  function quiet(){clearTimeout(eventTimer);clearTimeout(chordTimer);eventTimer=chordTimer=0;for(const v of [...transient])v.release();beds?.clear();movers?.clear();rooms?.clear();}
   function applyMood(){
     if(!context)return;const t=context.currentTime;
     padFilter.frequency.setTargetAtTime(mood.busy?1500:650+mood.day*450+mood.evening*150,t,2.5);
     padLevel.gain.setTargetAtTime((mood.busy?.055:.042)*(mood.weather==='rain'?.75:1),t,2);
   }
-  // The beds follow the listener: water grows near the quay, the murmur follows the
-  // city's population. Values are quantized so a per-frame listener update does not
-  // queue a new ramp every frame.
+  // The beds follow the zones (sysworld-zones.js): water and the lantern hum by the quay proximity, the murmur by the
+  // plaza and canyon shares. Glass (sysworld-sound-space.js) damps them indoors, so nothing here is zeroed for the
+  // inside flag. Levels are quantized to 1/1000 so a per-frame listener update queues no ramp while nothing changes.
   function updateBeds(){
     if(!context||!waterGain||!murmurGain||!lampGain||!running())return;
-    // The harbour is a bed right at the quay and a faint wash across the city.
-    const quayX=Math.max(-76,Math.min(76,listener.origin.x)),distance=Math.hypot(listener.origin.x-quayX,listener.origin.z-77);
-    const near=Math.max(0,1-(distance-6)/42);
-    const wash=Math.max(0,1-(distance-25)/110)*.18;
-    const water=(inside?0:Math.min(1,near+wash)*.05*(weather==='rain'?1.2:1)).toFixed(3);
-    const crowd=((mood.busy?.03:.012)*(.35+mood.day*.65)*(inside?.25:1)).toFixed(3);
-    // The lantern hum follows the same quay proximity and fades out by noon;
-    // indoors it is completely silent. Its ceiling is far below the city bed.
-    const lampDistance=Math.hypot(listener.origin.x-quayX,listener.origin.z-75.5);
-    const lampNear=Math.max(0,1-(lampDistance-8)/46);
-    const lamp=(inside?0:Math.min(1,lampNear)*.012*(1-mood.day)*(weather==='rain'?.6:1)).toFixed(3);
+    zoneWeights(listener.x,listener.y,listener.z,listener.origin.x,listener.origin.z,raw);
+    const water=Math.round(raw.quay*.05*(weather==='rain'?1.2:1)*1000);
+    const crowd=Math.round((mood.busy?.03:.012)*(.35+mood.day*.65)*(.5+.5*Math.min(1,raw.plaza+raw.canyon))*1000);
+    const lamp=Math.round(raw.quay*.012*(1-mood.day)*(weather==='rain'?.6:1)*1000);
     if(water===bedWater&&crowd===bedMurmur&&lamp===bedLamp)return;
     bedWater=water;bedMurmur=crowd;bedLamp=lamp;
     const t=context.currentTime;
-    waterGain.gain.setTargetAtTime(Number(water),t,.5);
-    murmurGain.gain.setTargetAtTime(Number(crowd),t,.8);
-    lampGain.gain.setTargetAtTime(Number(lamp),t,.8);
+    waterGain.gain.setTargetAtTime(water/1000,t,.5);murmurGain.gain.setTargetAtTime(crowd/1000,t,.8);lampGain.gain.setTargetAtTime(lamp/1000,t,.8);
   }
   // The listener-driven parts, refreshed on every unmute (setListener skips them while silent).
   function refresh(){voice?.setListener(listener.x,listener.y,listener.z,listener.fx,listener.fz);effects?.listener(listener.x,listener.y,listener.z,listener.fx,listener.fz);
@@ -397,14 +412,23 @@ export function createCityAmbience(onState=()=>{},options={}) {
       if(running())refresh();},
     setChannel(key,value){if(!(key in levels)||!Number.isFinite(value))return;levels[key]=Math.max(0,Math.min(1,value));const bus={ambience:ambientBus,effects:effectsBus,voice:voiceBus}[key];if(bus)bus.gain.setTargetAtTime(levels[key],context.currentTime,.05);save('aurago.desktop.sysworld.channels',JSON.stringify(levels));sync();},
     // World interactions keep their own channel; robot actions are routed to the foley.
-    effect(kind,x,y,z,id){if(String(kind).startsWith('robot_')){foley?.action(kind,x,y,z,id);return;}effects?.play(kind,x,y,z);},
-    gait(id,x,y,z,moving,carrying,style){foley?.gait(id,x,y,z,moving,carrying,style);},
+    effect(kind,x,y,z,id){if(String(kind).startsWith('robot_')){foley?.action(kind,x,y,z,id);return;}
+      // The visitor's own steps (phase 5): a surface voice from the foley at the floor under the eye (2.4 m).
+      if(kind==='step'||kind==='step_inside'){foley?.step(x,y-2.4,z,'visitor',VISITOR_STEP);return;}
+      effects?.play(kind,x,y,z);},
+    gait(id,x,y,z,moving,carrying,style){foley?.gait(id,x,y,z,moving,carrying,style);movers?.gait(id,x,y,z,moving,style);},
     setEnvironment(interior,condition){inside=!!interior;if(['clear','rain','fog'].includes(condition))weather=condition;effects?.environment(inside,weather);foley?.environment(inside);updateBeds();},
     setMood(value={}){Object.assign(mood,{busy:!!value.busy,day:Number.isFinite(value.day)?value.day:mood.day,evening:Number.isFinite(value.evening)?value.evening:mood.evening,
-      weather:['clear','rain','fog'].includes(value.weather)?value.weather:mood.weather});applyMood();updateBeds();},
+      weather:['clear','rain','fog'].includes(value.weather)?value.weather:mood.weather});beds?.setMood(mood);rooms?.setMood(mood);applyMood();updateBeds();},
     // Per-frame scene input (phase 5; sysworld-sound-frame.js). Returns at once while silent.
-    frame(f){if(!running()||!f)return;frames++;},
-    setTier(value){if(!['low','medium','high','ultra'].includes(value)||value===tier)return;tier=value;},
+    frame(f){
+      if(!running()||!space||!f)return;
+      const now=context.currentTime,dt=lastFrame?Math.min(.25,Math.max(0,now-lastFrame)):0;lastFrame=now;frames++;soundFrame=f;
+      if(raw.harbour===undefined)updateBeds();
+      doorState(listener.x,listener.y,listener.z,f.doorValue,door);tracker.update(raw,door,dt,listener);space.update(tracker.weights,dt);
+      beds.update(f,tracker.weights,listener,now);movers.update(f,listener,now,dt);rooms.update(tracker.weights,now);foley?.companion(f.companion);
+    },
+    setTier(value){if(!['low','medium','high','ultra'].includes(value)||value===tier)return;tier=value;space?.setTier(value);foley?.setTier(value);beds?.setTier(value);movers?.setTier(value);rooms?.setTier(value);},
     // Rolling thunder after a lightning flash; the delay (s) doubles as a distance cue.
     thunder(delay=1){
       if(!running()||inside||transient.size>=MAX_EVENTS)return;
@@ -417,8 +441,8 @@ export function createCityAmbience(onState=()=>{},options={}) {
       src.connect(low).connect(level);track([src,low,level,...out(level,random()*.8-.4,.8)]);src.start(t);src.stop(t+5.6);
     },
     stats() {let rms=0;if(analyser&&context.state==='running'){analyser.getFloatTimeDomainData(samples);for(const x of samples)rms+=x*x;}
-      return {voice:voice?.stats(),effects:effects?.stats(),foley:foley?.stats(),channels:{...levels},enabled,active,state:context?.state||'uninitialized',volume,rms:Math.sqrt(rms/samples.length),limiter:compressor?{threshold:LIMITER.threshold,trim:LIMITER.trim,reduction:+(Number(compressor.reduction)||0).toFixed(2)}:null,graph:{nodes:nodes.length,sources:sources.length,tier,frames},
-        soundscape:{chord,events,transient:transient.size,scheduled:!!eventTimer,mood:{...mood},beds:{water:Number(bedWater),murmur:Number(bedMurmur),lamp:Number(bedLamp)},listener:{x:listener.x,z:listener.z}}};},
-    dispose() {if(disposed)return;disposed=true;quiet();foley?.dispose();effects?.dispose();voice?.dispose();clearTimeout(fadeTimer);sources.forEach(n=>{try{n.stop();}catch(_){}});nodes.forEach(n=>n.disconnect());if(context&&!options.context&&context.close)void context.close().catch(()=>{});},
+      return {voice:voice?.stats(),effects:effects?.stats(),foley:foley?.stats(),channels:{...levels},enabled,active,state:context?.state||'uninitialized',volume,rms:Math.sqrt(rms/samples.length),limiter:compressor?{threshold:LIMITER.threshold,trim:LIMITER.trim,reduction:+(Number(compressor.reduction)||0).toFixed(2)}:null,graph:{nodes:nodes.length+(space?space.stats().nodes:0)+(beds?beds.stats().nodes:0)+(movers?movers.stats().nodes:0)+(rooms?rooms.stats().nodes:0),sources:sources.length,tier,frames},
+        soundscape:{chord,events,transient:transient.size,scheduled:!!eventTimer,mood:{...mood},beds:{water:bedWater/1000,murmur:bedMurmur/1000,lamp:bedLamp/1000},listener:{x:listener.x,z:listener.z},zones:tracker?{...tracker.weights}:null,space:space?space.stats():null,layers:{beds:beds?.stats()||null,movers:movers?.stats()||null,rooms:rooms?.stats()||null}}};},
+    dispose() {if(disposed)return;disposed=true;quiet();foley?.dispose();effects?.dispose();voice?.dispose();clearTimeout(fadeTimer);sources.forEach(n=>{try{n.stop();}catch(_){}});beds?.dispose();movers?.dispose();rooms?.dispose();space?.dispose();nodes.forEach(n=>n.disconnect());if(context&&!options.context&&context.close)void context.close().catch(()=>{});},
   };
 }

@@ -58,3 +58,48 @@ const ramps=fake=>fake.nodes.reduce((n,x)=>n+x.gain.ramp.length+x.frequency.ramp
   a.sound.dispose();b.sound.dispose();
 }
 console.log('System World soundscape: limiter chain, stored levels, gesture and owner rules, deterministic injection verified');
+
+// --- Task 10: zones, glass, gating, beds by zone, visitor steps ---------------------------------------------------
+{
+  const {fake,sound}=city({enabled:true});sound.unlock();sound.setActive(true);
+  const run=(x,y,z,fx,fz,f,seconds=2)=>{for(let i=0;i<seconds*60;i++){fake.context.currentTime+=1/60;sound.setListener(x,y,z,fx,fz);sound.frame(f);}};
+  run(-13.5,2.4,-12,0,-1,frameOf());let s=sound.stats().soundscape;
+  assert.ok(s.zones.canyon>.5&&s.space.glass===0,'street: canyon, no glass '+JSON.stringify(s.zones));
+  run(0,3.28,-12,0,1,frameOf());s=sound.stats().soundscape;
+  assert.equal(s.zones.room,'lobby:agent');assert.ok(s.space.glass>.95&&s.space.cutoff<1000,'shut lobby '+JSON.stringify(s.space));
+  const inside=citySoundscapeEvents({day:1,weather:'clear'},s.zones).map(e=>e.kind);
+  assert.ok(inside.length&&inside.every(k=>['chime','horn','bell','siren'].includes(k)),'only glass-passing events indoors: '+inside);
+  run(0,3.28,-12,0,1,frameOf({doorValue:()=>1}));s=sound.stats().soundscape;assert.ok(s.space.glass>.2&&s.space.glass<.4,'open doors let the city in '+s.space.glass);
+  run(-43,3.28,36,0,1,frameOf());s=sound.stats().soundscape;assert.equal(s.zones.open,true);
+  assert.ok(citySoundscapeEvents({day:1,weather:'clear'},s.zones).some(e=>e.kind==='birds'),'the open court keeps its birds');
+  run(3,2.4,-1,0,-1,frameOf({doorValue:k=>k==='lobby:agent:0'?1:0}));s=sound.stats().soundscape;
+  assert.ok(s.zones.leakRoom==='lobby:agent'&&s.zones.leak>.5&&s.zones.leakPan<0,'the open door on the left leaks');
+  run(-20,2.48,77,0,1,frameOf());assert.ok(sound.stats().soundscape.beds.water>.04,'water by the quay proximity');
+  sound.setListener(2,2.4,0,0,-1);   // the visitor stands where the step happens (a step beyond the foley's 48 m reach is dropped)
+  const played=sound.stats().foley.played;sound.effect('step',2,2.4,0);
+  assert.equal(sound.stats().foley.played,played+1,'the visitor step is a foley voice');assert.equal(sound.stats().foley.bySurface.stairs,1,'on the agent stairs');
+  assert.deepEqual(citySoundscapeEvents({day:1,weather:'clear'}),citySoundscapeEvents({day:1,weather:'clear'},null),'without zones the table is unchanged');
+  sound.dispose();
+}
+console.log('System World soundscape: zones, glass, indoor gate, open court, door leak, beds by zone and visitor steps verified');
+
+// --- Task 11: layers, tiers and the budget -------------------------------------------------------------------------
+const budget={};
+for(const tier of['low','medium','high']){
+  const {fake,sound}=city({enabled:true,tier});sound.unlock();sound.setActive(true);
+  const trams=[{x:-18,z:-40,heading:0,on:true},{x:-18,z:20,heading:Math.PI,on:true}];
+  for(let i=0;i<180;i++){fake.context.currentTime+=1/60;for(const t of trams)t.z+=(t.heading?-1:1)*11/60;
+    for(let k=0;k<12;k++)sound.gait('patrol-'+k,-13.5+(k%2?1:-1)*(2+k*3),1.6,-12,true,false,'glide');
+    sound.setListener(-13.5,2.4,-12,0,-1);sound.frame(frameOf({trams}));fake.flush();}
+  const st=sound.stats(),live=fake.live();
+  budget[tier]={nodes:st.graph.nodes,live:live.length,sources:live.filter(n=>n.kind==='source'||n.kind==='oscillator').length,reverbs:live.filter(n=>n.kind==='reverb').length,
+    hovers:st.soundscape.layers.movers.hovers.length,trams:st.soundscape.layers.movers.trams.filter(t=>t.voice).length,foley:st.foley.voices,events:st.soundscape.transient};
+  assert.ok(budget[tier].foley<=(tier==='low'?6:10)&&budget[tier].events<=12);
+  sound.dispose();assert.equal(fake.live().filter(n=>n.kind!=='destination').length,0,tier+': dispose releases every node');
+}
+assert.deepEqual([budget.low.hovers,budget.medium.hovers,budget.high.hovers],[2,4,4],'hover voices per tier');
+assert.deepEqual([budget.low.trams,budget.high.trams],[1,2],'tram voices per tier');
+assert.equal(budget.low.reverbs,1,'low: the open-air verb only');assert.ok(budget.medium.reverbs<=2&&budget.high.reverbs<=3);
+assert.ok(budget.low.live<budget.high.live&&budget.high.live<=320&&budget.low.live<=220,'node budget '+JSON.stringify(budget));
+console.table(budget);
+console.log('System World soundscape: layers, tiers, voice caps and node budget verified');
