@@ -120,6 +120,25 @@ try{
   assert.ok(rain.has('drip')&&!rain.has('cricket')&&!rain.has('birds'),'Rain replaces the animals with drips');
   assert.ok(evening.has('siren'),'A busy evening carries a distant siren');
   assert.ok([...day,...night,...rain,...evening].length>=13,'The soundscape offers many different events');
+  // --- Phase 5: footfalls by surface, the companion, the low tier --------------------------------------------------
+  {
+    const {STEP_VOICES}=await import('../ui/js/desktop/apps/sysworld-foley.js');
+    const {SURFACE_KINDS}=await import('../ui/js/desktop/apps/sysworld-zones.js');
+    assert.deepEqual(Object.keys(STEP_VOICES).sort(),[...SURFACE_KINDS].sort(),'every surface has a footfall voice');
+    for(const [k,v]of Object.entries(STEP_VOICES))assert.ok(v.gain>=.06&&v.gain<=.09&&v.layers.length>=2,'step voice '+k);
+    const f=createCityFoley(context,node('out'),node('send'));f.setActive(true);
+    const spots={road:[-18,-.14,-50],kerb:[-14.63,0,-50],pavement:[-13.5,0,-50],stairs:[0,.5,.3],quay:[-20,.08,77],lobby:[0,.88,-12],grating:[-43,.88,-56],garden:[-44,0,-88]};
+    for(const [surface,[x,y,z]]of Object.entries(spots)){f.listener(x+2,y,z,0,-1,x+2,z);assert.equal(f.step(x,y,z,'v-'+surface),true,surface);assert.equal(f.stats().bySurface[surface],1,surface+' counted');flush();}
+    // A carried stride lowers the voice by the CARRY pitch (0.85).
+    context.currentTime+=1;f.listener(0,0,-50,0,-1,0,-50);const before=nodes.length;f.gait('c',0,0,-50,true,true);f.gait('c',1.2,0,-50,true,true);
+    const tone=nodes.slice(before).find(n=>n.kind==='oscillator');assert.ok(tone&&Math.abs(tone.frequency.ramp[0][1]-104*.85)<1e-6,'carried stride on pavement at 88.4 Hz');flush();
+    // The companion: two crossings of a diagonal pair per gait cycle, each a front and a hind foot.
+    f.listener(30,0,72,0,-1,30,72);const pose={x:30,z:69.5,phase:0,on:true},played=f.stats().played,start=f.stats().companionSteps;
+    for(let i=0;i<=40;i++){context.currentTime+=.03;pose.phase=i*Math.PI/10;f.companion(pose);flush();}
+    assert.equal(f.stats().companionSteps-start,4,'four pair crossings over two gait cycles');assert.equal(f.stats().played-played,8,'front and hind foot each');
+    pose.on=false;f.companion(pose);pose.on=true;pose.phase+=Math.PI*3;f.companion(pose);assert.equal(f.stats().companionSteps-start,4,'a hidden companion is silent and does not catch up');
+    f.setTier('low');for(let i=0;i<20;i++)f.action('robot_work',32,0,72,'L'+i);assert.equal(f.stats().voices,6,'low: six voices');f.setTier('high');flush();f.setActive(false);
+  }
   console.log('System World city sound: robot foley, gait cadence, bounded voices, spatial beds and the varied event table verified');
 }finally{
   Object.assign(globalThis,{setTimeout:native.setTimeout,clearTimeout:native.clearTimeout,window:native.window,localStorage:native.localStorage});
