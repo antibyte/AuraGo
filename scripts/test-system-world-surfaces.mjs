@@ -29,6 +29,8 @@ assert.ok(total < 1.5 * 1024 * 1024, 'Surface textures exceed 1.5 MiB: ' + total
 const untextured = new Set(['city.garden-glass', 'city.cyan', 'city.jade', 'city.lantern-glow']);
 // Kit v3 window panes are interior-mapped by sysworld-windows.js, never by the surface maps.
 const windowPanes = new Set([WINDOW_MATERIAL]);
+// Lobby glazing is the shared transparent material of sysworld-lobby-render.js, never the surface maps.
+const lobbyGlass = new Set(['city.pane']);
 const names = new Set();
 for (const kit of ['v1', 'v2', 'v3']) {
   const files = await fs.readdir(`ui/3d/system-world/${kit}`).catch(() => []);
@@ -39,7 +41,7 @@ for (const kit of ['v1', 'v2', 'v3']) {
     for (const material of json.materials || []) names.add(material.name);
   }
 }
-for (const name of names) assert.ok(KINDS[name] || WINDOWS.has(name) || untextured.has(name) || windowPanes.has(name), 'Unmapped kit material: ' + name);
+for (const name of names) assert.ok(KINDS[name] || WINDOWS.has(name) || untextured.has(name) || windowPanes.has(name) || lobbyGlass.has(name), 'Unmapped kit material: ' + name);
 
 // Separate four-vertex panes get their own constant seed; larger lit parts are fixtures (2).
 const quad = (x, y) => [[x, y, 0], [x + 1, y, 0], [x + 1, y + 1, 0], [x, y + 1, 0]];
@@ -86,6 +88,9 @@ assert.ok(glass.text.includes('diffuseColor.rgb*=swAlbedoF'), 'Kit glass takes t
 const pane = new THREE.MeshStandardMaterial({name: 'city.window', vertexColors: true});
 surfaces.apply(pane);
 assert.equal(pane.onBeforeCompile, THREE.Material.prototype.onBeforeCompile, 'city.window belongs to sysworld-windows.js');
+const lobbyPane = new THREE.MeshStandardMaterial({name: 'city.pane', vertexColors: true});
+surfaces.apply(lobbyPane);
+assert.equal(lobbyPane.onBeforeCompile, THREE.Material.prototype.onBeforeCompile, 'city.pane belongs to sysworld-lobby-render.js');
 // Vertex-coloured (kit v3) warm/ivory parts are light fixtures: one seed 2, never per-face switching.
 {
   const fixture = new THREE.BufferGeometry();

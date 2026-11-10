@@ -102,7 +102,11 @@ if (windowDesigns.size) assert.match(manifest.pack ?? '', /-vtf\b/, 'Room coordi
 console.log('System World v3 window panes: ' + (windowDesigns.size ? windowDesigns.size + ' designs, ' + paneTriangles + ' pane triangles verified' : 'none shipped yet'));
 // Phase 2: kit v3 takes over twelve v1 designs and ships street furniture that is not placed yet.
 const furniture = ['tree-round', 'tree-column', 'street-bench', 'bollard', 'litter-bin', 'zebra-sign', 'kiosk'];
-assert.equal(manifest.assets.length, 25, '6 street + 12 superseded + 7 new furniture designs');
+// Phase 3: the six lobby interiors ship together (Task 0) or not at all.
+const lobbyIds = ['lobby-agent', 'lobby-memory', 'lobby-integrations', 'lobby-missions', 'lobby-infra', 'lobby-graph'];
+const lobbiesShipped = lobbyIds.filter(id => ids.includes(id)).length;
+assert.ok(lobbiesShipped === 0 || lobbiesShipped === 6, 'Interiors ship together: ' + lobbiesShipped);
+assert.equal(manifest.assets.length, 25 + lobbiesShipped, '6 street + 12 superseded + 7 furniture designs (+ 6 lobby interiors)');
 for (const id of [...supersededV1, ...furniture]) assert.ok(ids.includes(id), 'Missing v3 design ' + id);
 const catalogV3 = new Map(manifest.assets.map(a => [a.id, a]));
 for (const id of supersededV1) assert.equal(kitFor(id, catalogV3), 'v3', id + ' must load from v3');
