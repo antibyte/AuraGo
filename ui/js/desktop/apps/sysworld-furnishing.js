@@ -165,6 +165,18 @@ function streetTrees(){
   }
   return out;
 }
+// Neon (decision 9), mount points from the facade registries: a wide sign standing on each rectangular hall's top beam
+// (ceiling + 0.9 m, 0.27 m in front of the facade line, centred on the hall); a round sign on the wall beside each
+// pavilion door (the pavilions face north); blade signs on the data towers' south fronts, 6 m up, projecting south.
+// Survey tuning ranges: wave y +0..+0.4, z +0.2..+0.5; ring y 2.4..3.4; blade TOWER_FRONT 6.3..8.1.
+export const TOWER_FRONT=6.5;
+export function neonSigns(){
+  const out=[];
+  for(const l of LOBBIES)if(l.rect)out.push(item('neon-wave',(l.rect[0]+l.rect[2])/2,l.front+.27,0,'neon',l.ceiling+.95));
+  for(const r of interiors)out.push(item('neon-ring',r.x+4,r.doorZ-.2,PI,'neon',2.6));
+  for(const t of towers)for(const s of[-1,1])out.push(item('neon-blade',t.x+s*6.6,t.z+TOWER_FRONT,0,'neon',6));
+  return out;
+}
 let cache=null;
 // Deterministic and cached: areas first (all must fit), then district extras, pavement pieces and street trees.
 // An array candidate lists alternatives; the first that fits is taken.
@@ -173,7 +185,7 @@ export function furnishing(){
   const accepted=[],boxes=[];
   for(const c of[...areaItems(),...districtExtras(),...pavementPieces(),...streetTrees()])
     for(const it of Array.isArray(c)?c:[c])if(!violations(it,boxes).length){accepted.push(Object.freeze(it));boxes.push(footprint(it));break;}
-  return cache=Object.freeze(accepted);
+  return cache=Object.freeze([...accepted,...neonSigns().map(i=>Object.freeze(i))]);
 }
 // Lawn and paving slabs over the purpose plots (backlog item 7), 0.2 m inside the plot edges.
 export const SURFACES=Object.freeze([
@@ -184,7 +196,7 @@ export const PLACES=Object.freeze([
   Object.freeze({id:'charge-plaza',district:'integrations',role:'technician',x:79,z:-55}),
   Object.freeze({id:'harbour-cafe',district:'missions',role:'archivist',x:79,z:69.5}),
 ]);
-const CAFE_POINTS=[['serve-0',78.3,67.4],['serve-1',75.4,70.4]];
+const CAFE_POINTS=[['serve-0',79.2,67.4],['serve-1',75.4,70.4]];
 const entryOf=(catalog,id)=>catalog instanceof Map?catalog.get(id):catalog?.assets?.find(a=>a.id===id);
 // A standing spot for a resident body (0.5 m plus the 0.06 m traffic gap) at a workpoint: pushed along the design's
 // +Z (its front) until it clears the design's own colliders.

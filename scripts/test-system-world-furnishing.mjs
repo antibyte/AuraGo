@@ -3,7 +3,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import * as F from '../ui/js/desktop/apps/sysworld-furnishing.js';
-import {streets,stations,hoverPads,tramWaypoints} from '../ui/js/desktop/apps/sysworld-layout.js';
+import {streets,stations,hoverPads,tramWaypoints,interiors,towers} from '../ui/js/desktop/apps/sysworld-layout.js';
+import {LOBBIES} from '../ui/js/desktop/apps/sysworld-lobbies.js';
 import {kerb,zebras,pedestrianGraph,plotSlabs,streetProfile,onCarriageway} from '../ui/js/desktop/apps/sysworld-ground.js';
 import {PODIUMS,DOORS,FLIGHT,lobbyGround,lobbyGraph} from '../ui/js/desktop/apps/sysworld-lobbies.js';
 import {streetCurve} from '../ui/js/desktop/apps/sysworld-navigation.js';
@@ -93,4 +94,16 @@ console.log(`System World furnishing: ${items.length} pieces (${count('street')}
   assert.ok(obstacles.some(o=>o.asset==='litter-bin')&&obstacles.some(o=>o.asset==='bollard'),'street robots steer around pavement pieces');
   assert.ok(!obstacles.some(o=>/^tree-/.test(o.asset)),'plot pieces stay out of the robot obstacles');
   console.log(`System World furniture colliders: ${checked} pieces solid and clear of every other solid by 1 m.`);
+}
+// Neon (decision 9): wide signs on the six rectangular halls' top beams, round signs beside the pavilion doors,
+// blade signs on the data-tower fronts. Signs have no colliders.
+{
+  const neon=items.filter(i=>i.area==='neon');
+  assert.deepEqual(['neon-wave','neon-ring','neon-blade'].map(a=>neon.filter(i=>i.asset===a).length),[6,3,6]);
+  for(const i of neon.filter(i=>i.asset==='neon-wave')){const l=LOBBIES.find(l=>l.rect&&Math.abs((l.rect[0]+l.rect[2])/2-i.x)<1e-9&&Math.abs(i.z-l.front)<=.5);
+    assert.ok(l&&Math.abs(i.z-l.front)<=.5&&i.y>=l.ceiling+.9&&i.y+1.1<=l.ceiling+3&&i.angle===0,'wave off its beam '+JSON.stringify(i));}
+  for(const i of neon.filter(i=>i.asset==='neon-ring'))assert.ok(interiors.some(r=>Math.abs(i.z-r.doorZ)<=.5&&Math.abs(i.x-r.x)<=6)&&i.angle===Math.PI&&i.y>=2,'ring off a pavilion front '+JSON.stringify(i));
+  for(const i of neon.filter(i=>i.asset==='neon-blade'))assert.ok(towers.some(t=>Math.abs(i.z-t.z-6.5)<1e-9&&Math.abs(Math.abs(i.x-t.x)-6.6)<1e-9)&&i.y===6,'blade off a tower front '+JSON.stringify(i));
+  assert.ok(neon.every(i=>!F.SIZES[i.asset]),'signs carry no colliders');
+  console.log(`System World neon: ${neon.length} signs on registry mount points, no colliders.`);
 }
