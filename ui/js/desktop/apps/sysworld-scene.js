@@ -576,7 +576,7 @@ export async function createCity(host, options) {
     const mood = weather.mood();
     flow.update(dt,!reduced,1-(mood.day||0));
     // Window interiors: lit share, lobbies and glass sheen follow the time of day; no motion freezes them.
-    windows.setLighting(mood.day, mood.evening, mood.weather === 'clear' ? 0 : 1, scene.fog.color); windows.update(dt, !reduced);
+    windows.setLighting(mood.day, mood.evening, mood.weather === 'clear' ? 0 : 1, scene.fog.color); lobbyRender.setLighting(mood.day); windows.update(dt, !reduced);
     if(!reduced){
       // The selection ripple opens out from the district and fades away.
       if(rippleTime<1.4){rippleTime+=dt;const p=Math.min(1,rippleTime/1.4);

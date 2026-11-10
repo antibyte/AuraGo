@@ -158,7 +158,7 @@ export function lobbyPlaces(catalog){
   return out;
 }
 // Residents' graph: per flight a foot (pavement) and a landing (podium); per door a porch (outside) and an
-// entry (inside); per hall a GRID (1 m) of inside cells with 8-neighbour links, and its workpoints. Entries and
+// entry (inside); per hall a GRID (.5 m) of inside cells with 8-neighbour links, and its workpoints. Entries and
 // workpoints tie to every cell within TIE. Inside nodes carry `lobby`. Cells are only geometric (clear of the walls);
 // the wayfinder drops what a body shape cannot stand on, walk through, or reach from an entry.
 export function lobbyGraph(catalog=null){
