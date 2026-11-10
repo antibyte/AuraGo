@@ -135,6 +135,9 @@ const AVIATION = {
 vA=0.22+0.78*pow(max(0.0,sin(time*1.9+phase)),10.0);gl_PointSize=clamp(1.5*pointScale/max(1.0,-mv.z),2.0,14.0);}`,
   fragment: 'varying float vA;void main(){float d=length(gl_PointCoord-0.5)*2.0;if(d>1.0)discard;gl_FragColor=vec4(vec3(3.2,0.35,0.25)*pow(1.0-d,2.0)*vA,1.0);}',
 };
+// The sea shader's own height function (SEA.fragment `height`), in JS: harbour hulls ride it. Keep both in step;
+// scripts/test-system-world-harbour.mjs evaluates the GLSL text against this function.
+export function seaHeight(x, z, t) { return .36 * Math.sin(x * .09 + t * .9 + Math.sin(z * .07) * 1.5) + .26 * Math.sin(z * .11 - t * .7 + x * .03) + .12 * Math.sin((x + z) * .21 + t * 1.4) + .07 * Math.sin(x * .52 - z * .37 + t * 2.2); }
 // Wind (phase 4): one slowly turning direction with gusts, written into `out` (no allocation). Rain blows harder,
 // fog calms it. Leaves (sysworld-surfaces.js), banners, skiff rigs and steam read it; the leaf sound will (phase 5).
 export function windAt(t, weather = 'clear', out = {}) {
@@ -326,6 +329,7 @@ gl_Position=projectionMatrix*modelViewMatrix*p;}`,
     setBusy(value) { busy = !!value; },
     setPointScale(value) { pointScale.value = value; },
     wind: () => wind,
+    seaTime: () => time.value,
     update(dt, elapsed, camera, animated) {
       const step = animated ? Math.min(.1, Math.max(0, dt)) : 0;
       time.value += step;

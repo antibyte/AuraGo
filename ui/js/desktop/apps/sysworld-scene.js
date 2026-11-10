@@ -29,6 +29,9 @@ import { createLobbyRender } from './sysworld-lobby-render.js';
 import { streetModules, plotSlabs, island } from './sysworld-ground.js';
 import { furnishing, SIZES as furnitureSizes, NEAR, NEAR_HEIGHT, SURFACES } from './sysworld-furnishing.js';
 import { createPartInstances, partOf } from './sysworld-parts.js';
+import { createHarbour } from './sysworld-harbour.js';
+import { createGulls } from './sysworld-gulls.js';
+import { createParticles } from './sysworld-particles.js';
 export { createCityAmbience } from './sysworld-audio.js';
 
 // Metres, Y up. Stable district anchors are shared with the accessible map.
@@ -228,6 +231,7 @@ export async function createCity(host, options) {
   const hologram = createMemoryHologram(scene, memoryDistrict, { roof: 21, label: options.memoryLabel });
   const drones = createDrones(scene,{traffic,surfaces});
   const weather = createWeather(scene,{sun,rim,hemisphere,atmosphere,surfaces,onThunder:delay=>options.onThunder?.(delay)});
+  const particles = createParticles(scene);
   let moodKey = '', nearHidden = null;
   let banners = null, bannerAngle = 0;
   const bannerTurn = new THREE.Matrix4(), bannerRotation = () => bannerTurn.makeRotationY(bannerAngle);
@@ -294,6 +298,9 @@ export async function createCity(host, options) {
     v1: { catalog, url: file => options.assetURL(file), loader: () => new GLTFLoader() },
     v3: { catalog: catalog3, url: file => options.resourceURL('/3d/system-world/v3/' + file), loader: () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder) },
   };
+  // Harbour craft and gulls load after the first display (not part of expectedBytes).
+  const lifeLoad = (id, lod) => catalog3.has(id) ? model(id, lod, 'v3') : Promise.reject(Error('Kit v3 design missing: ' + id));
+  const harbour = createHarbour({ group: world, load: lifeLoad }); const gulls = createGulls({ group: world, load: lifeLoad });
   async function model(id, lod, kit = 'v1') {
     const key = kit + ':' + id + ':' + lod;
     if (!cache.has(key)) cache.set(key, (async () => {
@@ -399,7 +406,7 @@ export async function createCity(host, options) {
     const dpr = Math.min(devicePixelRatio || 1, tiers[tier].dpr, Math.sqrt(3840 * 2160 / (width * height)));
     renderer.setPixelRatio(dpr); renderer.setSize(width, height, false); composer.setPixelRatio(dpr); composer.setSize(width, height);
     camera.aspect = width / height; camera.updateProjectionMatrix();
-    hologram.setPointScale(height * dpr); atmosphere.setPointScale(height * dpr); flow.setPointScale(height * dpr);
+    hologram.setPointScale(height * dpr); atmosphere.setPointScale(height * dpr); flow.setPointScale(height * dpr); particles.setPointScale(height * dpr);
   }
   function setQuality(value) {
     quality = value in tiers || value === 'auto' ? value : 'auto';
@@ -413,7 +420,7 @@ export async function createCity(host, options) {
       sun.shadow.mapSize.set(config.shadow, config.shadow);
       sun.shadow.map?.dispose(); sun.shadow.map = null;
     }
-    renderer.shadowMap.needsUpdate = true; bloom.enabled = config.bloom; surfaces.setTier(tier); windows.setTier(tier); lobbyRender.setTier(tier); atmosphere.setTier(tier);experience.setTier(tier);weather.setTier(tier);drones.setTier(tier);flow.setTier(tier);
+    renderer.shadowMap.needsUpdate = true; bloom.enabled = config.bloom; surfaces.setTier(tier); windows.setTier(tier); lobbyRender.setTier(tier); harbour.setTier(tier); gulls.setTier(tier); particles.setTier(tier); atmosphere.setTier(tier);experience.setTier(tier);weather.setTier(tier);drones.setTier(tier);flow.setTier(tier);
     resize(); options.onQuality?.(quality, tier);
   }
   function flyTo(position, target) {
@@ -610,6 +617,9 @@ export async function createCity(host, options) {
     const mood = weather.mood();
     // City life (phase 4): the atmosphere's wind moves leaves and banners; the atmosphere clock drives the harbour.
     const wind = atmosphere.wind(), seaTime = atmosphere.seaTime?.() ?? elapsed; surfaces.setWind(wind); swingBanners(wind, seaTime);
+    harbour.update(seaTime, mood.day, wind, !reduced);
+    gulls.update(seaTime, harbour.barge());
+    particles.setMood(mood.day, mood.weather); particles.update(dt, !reduced, wind);
     flow.update(dt,!reduced,1-(mood.day||0));
     // Window interiors: lit share, lobbies and glass sheen follow the time of day; no motion freezes them.
     windows.setLighting(mood.day, mood.evening, mood.weather === 'clear' ? 0 : 1, scene.fog.color); lobbyRender.setLighting(mood.day); windows.update(dt, !reduced);
@@ -656,7 +666,7 @@ export async function createCity(host, options) {
     if (disposed) return; disposed = true; generation++; abort.abort(); requests.forEach(c => c.abort());
     keys.clear(); if(document.pointerLockElement === canvas) document.exitPointerLock();
     options.signal?.removeEventListener('abort', dispose); cleanup.forEach(fn => fn()); observer?.disconnect(); controls.dispose();
-    life?.dispose();companion?.dispose();experience?.dispose();weather.dispose(); hologram.dispose(); drones.dispose();contact.dispose();traffic.dispose(); atmosphere.dispose(); surfaces.dispose(); windows.dispose(); lobbyRender.dispose(); flow.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose(); plots.dispose(); groundCover.forEach(m => m.dispose());
+    life?.dispose();companion?.dispose();experience?.dispose();weather.dispose(); hologram.dispose(); drones.dispose();contact.dispose();traffic.dispose(); atmosphere.dispose(); surfaces.dispose(); windows.dispose(); lobbyRender.dispose(); harbour.dispose(); gulls.dispose(); particles.dispose(); flow.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose(); plots.dispose(); groundCover.forEach(m => m.dispose());
     geoSet.forEach(g => g.dispose()); matSet.forEach(m => m.dispose());
     composer.passes.forEach(p => p.dispose?.()); composer.dispose(); environment.dispose(); sun.shadow.dispose();
     renderer.dispose(); renderer.forceContextLoss(); canvas.remove(); cache.clear(); materials.clear();
@@ -665,7 +675,7 @@ export async function createCity(host, options) {
   // A missing or broken companion never stops the city from loading.
   companion = createCompanion({scene, resourceURL:options.resourceURL, signal:abort.signal, shadows:contact, onError:options.onCompanionError});
   hologram.setReducedMotion(!!reduced); windows.setReducedMotion(!!reduced);
-  try { applyTier(); await rebuild(); } catch(e) { dispose(); throw e; }
+  try { applyTier(); await rebuild(); } catch(e) { dispose(); throw e; } harbour.start(); gulls.start();
   return {
     districts, canvas, update, focus(id) { cancelTour(); focus(id); }, setMode, setQuality, setData, dispose,
     interact(){experience.interact();},socialAction:experience.socialAction,
@@ -687,6 +697,6 @@ export async function createCity(host, options) {
       camera.position.copy(end).sub(homeTarget).applyAxisAngle(new THREE.Vector3(0, 1, 0), -.55).multiplyScalar(1.22).add(homeTarget); camera.position.y += 34;
       camera.lookAt(homeTarget); settleCamera(); flyTo(end, homeTarget); if (flight) flight.duration = 3.6;
     },
-    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), windows:windows.stats(), lobbies:lobbyRender.stats(), furniture:kitPlacements.length-streetPlacements.length,nearHidden,drones:drones.stats(), flow:flow.stats(), companion:companion?.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size,kitModels:{v1:[...cache.keys()].filter(k=>k.startsWith('v1:')).length,v3:[...cache.keys()].filter(k=>k.startsWith('v3:')).length}, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
+    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), windows:windows.stats(), lobbies:lobbyRender.stats(), harbour:harbour.stats(), gulls:gulls.stats(), particles:particles.stats(), furniture:kitPlacements.length-streetPlacements.length,nearHidden,drones:drones.stats(), flow:flow.stats(), companion:companion?.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size,kitModels:{v1:[...cache.keys()].filter(k=>k.startsWith('v1:')).length,v3:[...cache.keys()].filter(k=>k.startsWith('v3:')).length}, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
   };
 }
