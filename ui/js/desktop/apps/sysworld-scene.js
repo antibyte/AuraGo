@@ -27,7 +27,7 @@ import { createSurfaces } from './sysworld-surfaces.js';
 import { createWindows } from './sysworld-windows.js';
 import { createLobbyRender } from './sysworld-lobby-render.js';
 import { streetModules, plotSlabs, island } from './sysworld-ground.js';
-import { furnishing, SIZES as furnitureSizes } from './sysworld-furnishing.js';
+import { furnishing, SIZES as furnitureSizes, NEAR, NEAR_HEIGHT, SURFACES } from './sysworld-furnishing.js';
 export { createCityAmbience } from './sysworld-audio.js';
 
 // Metres, Y up. Stable district anchors are shared with the accessible map.
@@ -206,6 +206,16 @@ export async function createCity(host, options) {
   slabs.forEach((s, i) => plots.setMatrixAt(i, new THREE.Matrix4().compose(new THREE.Vector3((s.x0 + s.x1) / 2, (s.top + s.bottom) / 2, (s.z0 + s.z1) / 2),
     new THREE.Quaternion(), new THREE.Vector3(s.x1 - s.x0, s.top - s.bottom, s.z1 - s.z0))));
   world.add(plots);
+  // Lawn and paving over the purpose plots (backlog item 7): 2 cm instanced slabs, one draw each, surface maps of
+  // the leaf and setts kinds (the lawn is not `city.leaf`, so it never sways).
+  const lawnMaterial = new THREE.MeshStandardMaterial({ name: 'lawn', color: 0x1f3a26, metalness: 0, roughness: .9 });
+  const pavingMaterial = new THREE.MeshStandardMaterial({ name: 'paving', color: 0x3a4146, metalness: .05, roughness: .75 });
+  matSet.add(lawnMaterial); matSet.add(pavingMaterial); surfaces.apply(lawnMaterial, 'world', 'city.leaf'); surfaces.apply(pavingMaterial, 'world', 'city.setts');
+  const groundCover = [['lawn', lawnMaterial], ['paving', pavingMaterial]].map(([kind, material]) => {
+    const rects = SURFACES.filter(s => s.kind === kind), mesh = new THREE.InstancedMesh(slabGeometry, material, Math.max(1, rects.length));
+    rects.forEach((s, i) => mesh.setMatrixAt(i, new THREE.Matrix4().compose(new THREE.Vector3((s.x0 + s.x1) / 2, .01, (s.z0 + s.z1) / 2), new THREE.Quaternion(), new THREE.Vector3(s.x1 - s.x0, .02, s.z1 - s.z0))));
+    mesh.count = rects.length; mesh.name = kind; mesh.receiveShadow = true; world.add(mesh); return mesh;
+  });
   // Sky, clouds, stars, moon, animated sea, mist, dust, spire beacon, lamp cones, searchlights,
   // aviation lights and the cinematic grade.
   const atmosphere = createAtmosphere(scene, { sunDirection: sun.position, lamps: placements.filter(p => p.asset === 'street-lamp') });
@@ -217,7 +227,7 @@ export async function createCity(host, options) {
   const hologram = createMemoryHologram(scene, memoryDistrict, { roof: 21, label: options.memoryLabel });
   const drones = createDrones(scene,{traffic,surfaces});
   const weather = createWeather(scene,{sun,rim,hemisphere,atmosphere,surfaces,onThunder:delay=>options.onThunder?.(delay)});
-  let moodKey = '';
+  let moodKey = '', nearHidden = null;
   let experience=null;
   // Selection: dashed, slowly turning, pulsing in the district's state colour. Hover: a quiet solid ring.
   const ringTime = { value: 0 }, ringGeometry = new THREE.RingGeometry(1, 1.045, 96); geoSet.add(ringGeometry);
@@ -346,17 +356,18 @@ export async function createCity(host, options) {
           new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.angle), new THREE.Vector3(...p.scale));
         template.traverse(n => {
           if (!n.isMesh) return;
-          if (!batches.has(n.uuid)) batches.set(n.uuid, { node: n, matrices: [] });
+          if (!batches.has(n.uuid)) batches.set(n.uuid, { node: n, matrices: [], near: NEAR.has(p.asset) });
           batches.get(n.uuid).matrices.push(new THREE.Matrix4().multiplyMatrices(matrix, n.matrixWorld));
         });
       };
       for (const p of placements) add(p, (p.z < -100 ? distant : loaded).get(p.asset));
       for (const p of kitPlacements) if (kit.has(p.asset)) add(p, kit.get(p.asset));
-      for (const { node, matrices } of batches.values()) {
+      for (const { node, matrices, near } of batches.values()) {
         const mesh = new THREE.InstancedMesh(node.geometry, node.material, matrices.length);
         matrices.forEach((m, i) => mesh.setMatrixAt(i, m));
-        mesh.castShadow = true; mesh.receiveShadow = true; staticCity.add(mesh);
+        mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData.near = near; staticCity.add(mesh);
       }
+      nearHidden = null;
       for (const d of districts) {
         const mesh = loaded.get(d.asset).clone(true); mesh.position.set(d.x, 0, d.z);
         mesh.userData.district = d.id; landmarks.add(mesh); objects.push(mesh);
@@ -561,6 +572,9 @@ export async function createCity(host, options) {
     }
     if(!simulate(Math.min(.1,Math.max(0,dt)))){traffic.begin();traffic.propose(visitor,{...camera.position,heading:0},(_,p)=>camera.position.set(p.x,p.y,p.z));traffic.solve(0);}
     if (lobbyRender.update(camera.position, landmarks)) renderer.shadowMap.needsUpdate = true;
+    // Small furniture (NEAR) is sub-pixel from the orbit views: hidden above NEAR_HEIGHT, fewer draw calls.
+    const far = camera.position.y > NEAR_HEIGHT;
+    if (far !== nearHidden) { nearHidden = far; staticCity.traverse(n => { if (n.userData.near) n.visible = !far; }); renderer.shadowMap.needsUpdate = true; }
     if(travelling){
       if(camera.position.distanceToSquared(requested)>.000001){travelling.wait=(travelling.wait||0)+dt;travelling.time=flightTime;flight=travelling.wait<6?travelling:null;}
       else travelling.wait=0;
@@ -626,7 +640,7 @@ export async function createCity(host, options) {
     if (disposed) return; disposed = true; generation++; abort.abort(); requests.forEach(c => c.abort());
     keys.clear(); if(document.pointerLockElement === canvas) document.exitPointerLock();
     options.signal?.removeEventListener('abort', dispose); cleanup.forEach(fn => fn()); observer?.disconnect(); controls.dispose();
-    life?.dispose();companion?.dispose();experience?.dispose();weather.dispose(); hologram.dispose(); drones.dispose();contact.dispose();traffic.dispose(); atmosphere.dispose(); surfaces.dispose(); windows.dispose(); lobbyRender.dispose(); flow.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose(); plots.dispose();
+    life?.dispose();companion?.dispose();experience?.dispose();weather.dispose(); hologram.dispose(); drones.dispose();contact.dispose();traffic.dispose(); atmosphere.dispose(); surfaces.dispose(); windows.dispose(); lobbyRender.dispose(); flow.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose(); plots.dispose(); groundCover.forEach(m => m.dispose());
     geoSet.forEach(g => g.dispose()); matSet.forEach(m => m.dispose());
     composer.passes.forEach(p => p.dispose?.()); composer.dispose(); environment.dispose(); sun.shadow.dispose();
     renderer.dispose(); renderer.forceContextLoss(); canvas.remove(); cache.clear(); materials.clear();
@@ -657,6 +671,6 @@ export async function createCity(host, options) {
       camera.position.copy(end).sub(homeTarget).applyAxisAngle(new THREE.Vector3(0, 1, 0), -.55).multiplyScalar(1.22).add(homeTarget); camera.position.y += 34;
       camera.lookAt(homeTarget); settleCamera(); flyTo(end, homeTarget); if (flight) flight.duration = 3.6;
     },
-    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), windows:windows.stats(), lobbies:lobbyRender.stats(), drones:drones.stats(), flow:flow.stats(), companion:companion?.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size,kitModels:{v1:[...cache.keys()].filter(k=>k.startsWith('v1:')).length,v3:[...cache.keys()].filter(k=>k.startsWith('v3:')).length}, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
+    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), windows:windows.stats(), lobbies:lobbyRender.stats(), furniture:kitPlacements.length-streetPlacements.length,nearHidden,drones:drones.stats(), flow:flow.stats(), companion:companion?.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size,kitModels:{v1:[...cache.keys()].filter(k=>k.startsWith('v1:')).length,v3:[...cache.keys()].filter(k=>k.startsWith('v3:')).length}, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
   };
 }
