@@ -1,6 +1,6 @@
 // Metres, Y up. Roads, plots, transport and walkable surfaces share this layout.
 export const streets = {xs:[-67,-18,18,67],zs:[-77,-32,13,59],halfWidth:6,laneHalfWidth:3.3,minX:-85,maxX:85,minZ:-94,maxZ:80,quayZ:74};
-export const surfaces = {ground:0,road:.12,pavement:.5,quay:.08,room:.16,gallery:4.16};
+export const surfaces = {ground:0,road:-.14,pavement:0,quay:.08,room:.16,gallery:4.16};
 // The waterfront pavilions face north, onto the southern boulevard. Their
 // complete footprints (including walls) stay beyond its southern pavement.
 export const interiors = ['agent','memory','missions'].map((id,i)=>{
@@ -35,7 +35,7 @@ export const dronePad={x:78,z:30};
 // open pavement beside a lane (never on the tram rails) with every other placement at least 3 m away and at least 2 m from every pedestrian node (no dock on a zebra or its dropped kerb);
 // scripts/test-system-world-hover.mjs checks them against the real colliders and walkability.
 export const hoverPads=[
-  {id:'south',x:-7.8,z:63.6,angle:Math.PI},
+  {id:'south',x:-7.8,z:63.75,angle:Math.PI},
   {id:'harbour',x:23.3,z:75,angle:-Math.PI/2},
   {id:'west',x:-72.3,z:-22,angle:Math.PI/2},
   {id:'east',x:72.3,z:42,angle:-Math.PI/2},
@@ -45,10 +45,6 @@ export const towers=[{x:30.5,z:-55,scale:1},{x:49,z:-55,scale:1.25},{x:-3,z:-57,
 export function streetAt(x,z,halfWidth=streets.halfWidth){
   return x>=streets.minX&&x<=streets.maxX&&z>=streets.minZ&&z<=streets.maxZ&&
     (streets.xs.some(v=>Math.abs(x-v)<=halfWidth)||streets.zs.some(v=>Math.abs(z-v)<=halfWidth));
-}
-export function streetHeight(x,z){
-  if(!streetAt(x,z))return surfaces.ground;
-  return streetAt(x,z,streets.laneHalfWidth)?surfaces.road:surfaces.pavement;
 }
 export function galleryContains(r,x,z,margin=0){
   return x>=r.x-5.85+margin&&x<=r.x+2.4-margin&&z>=r.z+margin&&z<=r.z+5.85-margin;

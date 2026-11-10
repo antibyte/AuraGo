@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {createTraffic,bodyShape,fixedSteps} from '../ui/js/desktop/apps/sysworld-traffic.js';
 import * as THREE from 'three';
+import {surfaces} from '../ui/js/desktop/apps/sysworld-layout.js';
 import {createSociety} from '../ui/js/desktop/apps/sysworld-society.js';
 import {createSocialSignals} from '../ui/js/desktop/apps/sysworld-signals.js';
 
@@ -68,7 +69,7 @@ const p=(x,z,y=0,heading=0)=>({x,y,z,heading});
   // Reproduce a rail bend where another resident blocks a straight sidestep.
   const world=createTraffic(),scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera();
   const shape={circles:[{x:-1.222,z:0,r:2.451},{x:1.218,z:0,r:2.451}],minY:-.4,maxY:6.4,reach:3.673};
-  const vehicle=world.register('tram-1',tram,p(-64.2724,-75.8183,.15,-.98866),3);
+  const vehicle=world.register('tram-1',tram,p(-64.2724,-75.8183,surfaces.road+.03,-.98866),3);
   const walker=world.register('patrol-4',shape,p(-62.2673,-70.3926,1.6,1.85416));
   const blocker=world.register('resident-6',{circles:[{x:0,z:0,r:1.5}],minY:0,maxY:2.5,reach:1.5},p(-58.2369,-66.3072));
   assert.ok(vehicle&&walker&&blocker);

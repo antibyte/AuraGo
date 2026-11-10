@@ -15,7 +15,7 @@ def check():
     files, ids = set(), set()
     assert manifest['up_axis'] == 'Y' and manifest['units'] == 'metres'
     assert manifest['license'] == 'MIT' and manifest['textures'] == 0
-    assert len(manifest['assets']) == 17, 'Incomplete asset catalog'
+    assert len(manifest['assets']) == 15, 'Incomplete asset catalog'
     for asset in manifest['assets']:
         assert asset['id'] not in ids
         ids.add(asset['id'])

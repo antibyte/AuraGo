@@ -28,7 +28,7 @@ export function createExperience(scene,options){
     return height;
   }
   // Street level under any point whatever height the visitor flies at; the hover flight and its landing use it.
-  const groundAt=(x,z)=>Math.max(placeFloor(x,z),buildingFloor(x,z,options.districts||[])),pads=[],visitorBody=()=>traffic.body('visitor'),hoverPose=new THREE.Vector3();
+  const groundAt=(x,z)=>{const podium=buildingFloor(x,z,options.districts||[]);return podium>0?Math.max(placeFloor(x,z),podium):placeFloor(x,z);},pads=[],visitorBody=()=>traffic.body('visitor'),hoverPose=new THREE.Vector3();
   const flight=createHoverFlight({ground:groundAt,reduced:()=>options.reduced(),
     clear:(from,to)=>options.clear?options.clear(from,to):!visitorBody()||traffic.clear(visitorBody(),{...from,heading:0},{...to,heading:0},false),
     // A landing spot is open street-level pavement or ground: never a pavilion interior, a building or a resident.

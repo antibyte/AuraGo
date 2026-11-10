@@ -4,6 +4,8 @@ import {streets,surfaces} from '../ui/js/desktop/apps/sysworld-layout.js';
 import {kerb,moduleLength,maxLink,island,rampRun,streetLines,streetSegments,streetModules,zebras,streetProfile,plotSlabs,pedestrianGraph,carriagewayFree} from '../ui/js/desktop/apps/sysworld-ground.js';
 
 const R=surfaces.road,P=surfaces.road+kerb.rise,near=(a,b,e=1e-9)=>Math.abs(a-b)<=e;
+assert.equal(surfaces.pavement,surfaces.road+kerb.rise,'kerb rise joins road and pavement');
+assert.equal(surfaces.pavement,surfaces.ground,'pavements are flush with the plots');
 
 // --- Cross-section on a straight far from any zebra (z = -32 street at x = -45) ---
 {

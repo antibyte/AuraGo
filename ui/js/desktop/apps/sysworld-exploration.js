@@ -1,5 +1,6 @@
 // Pure navigation contract, shared by the renderer and deterministic tests.
-import {interiors,stations,towers,surfaces,streetHeight} from './sysworld-layout.js';
+import {interiors,stations,towers,surfaces} from './sysworld-layout.js';
+import {streetProfile} from './sysworld-ground.js';
 export {interiors,stations,tramWaypoints,dronePad} from './sysworld-layout.js';
 // Ground-level solids authored from build_city.py, not the skyline or picking radius.
 // Integration gate's central passage and space between towers remain walkable.
@@ -26,7 +27,8 @@ export function groundHeight(x,z){
   if(roomAt(x,z))return surfaces.room;
   for(const s of stations){const rotated=!!s.angle&&Math.abs(s.angle)!==Math.PI;
     if(Math.abs(x-s.platformX)<(rotated?2:4.5)&&Math.abs(z-s.platformZ)<(rotated?4.5:2))return surfaces.pavement+.3;}
-  return Math.max(streetHeight(x,z),z>=74&&z<=80&&x>=-80&&x<=80?surfaces.quay:surfaces.ground);
+  const street=streetProfile(x,z);if(street)return street.height;
+  return z>=74&&z<=80&&x>=-80&&x<=80?surfaces.quay:surfaces.ground;
 }
 export function canWalk(x,z,from,doorOpen,districts){
   if(Math.abs(x)>84||z < -90||z > 79)return false;

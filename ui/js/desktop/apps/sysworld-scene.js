@@ -24,6 +24,7 @@ import { createContactShadows } from './sysworld-contact.js';
 import {createTraffic,fixedSteps} from './sysworld-traffic.js';
 import {installCityColliders} from './sysworld-colliders.js';
 import { createSurfaces } from './sysworld-surfaces.js';
+import { streetModules, plotSlabs, island } from './sysworld-ground.js';
 export { createCityAmbience } from './sysworld-audio.js';
 
 // Metres, Y up. Stable district anchors are shared with the accessible map.
@@ -74,26 +75,12 @@ const homeTarget = new THREE.Vector3(0, 22, -12);
 // (COLOR_0) must never be reused by a v1/v2 mesh without that attribute.
 export function sharedMaterialKey(material) { return material.name + (material.vertexColors ? '|vertex-colours' : ''); }
 // Kit v3 placements, instanced like `placements` but loaded from ui/3d/system-world/v3/.
-export const kitPlacements = [];
+// Kit v3 streets: fixed-length modules, never stretched (layout and order from sysworld-ground.js).
+export const kitPlacements = streetModules().map(m => ({ asset: m.id, x: m.x, z: m.z, y: 0, angle: m.angle, scale: [1, 1, 1] }));
 export const placements = [];
 {
   const place = (asset, x, z, y = 0, angle = 0, scale = [1, 1, 1]) => placements.push({ asset, x, z, y, angle, scale });
   const {xs,zs} = streets;
-  for (const z of zs) {
-    for (const x of xs) place('street-crossing', x, z);
-    const edges = [streets.minX, ...xs, streets.maxX];
-    for (let i = 0; i < edges.length - 1; i++) {
-      const a = edges[i] + (i ? 6 : 0), b = edges[i + 1] - (i < edges.length - 2 ? 6 : 0);
-      place('street-tile', (a + b) / 2, z, 0, 0, [(b - a) / 16, 1, 1]);
-    }
-  }
-  for (const x of xs) {
-    const edges = [streets.minZ, ...zs, streets.maxZ];
-    for (let i = 0; i < edges.length - 1; i++) {
-      const a = edges[i] + (i ? 6 : 0), b = edges[i + 1] - (i < edges.length - 2 ? 6 : 0);
-      place('street-tile', x, (a + b) / 2, 0, Math.PI / 2, [(b - a) / 16, 1, 1]);
-    }
-  }
   // Lamps and planters stand 5 cm into the pavement. Each planter sits on the block-centre side of
   // its lamp (towards x = +-43), clear of every zebra crossing and its dropped kerb.
   const sunk = groundLevels.pavement - .05;
@@ -186,10 +173,21 @@ export async function createCity(host, options) {
   function ownMesh(geometry, material) {
     geoSet.add(geometry); matSet.add(material); return new THREE.Mesh(geometry, material);
   }
-  // Plaza slabs on top, board-formed concrete quay walls on the sides.
-  const ground = ownMesh(new THREE.BoxGeometry(170, 3, 174),
-    new THREE.MeshStandardMaterial({ color: 0x1d2a31, metalness: .05, roughness: .82 }));
-  ground.position.set(0, -1.5, -7); ground.receiveShadow = true; world.add(ground); surfaces.apply(ground.material, 'world', 'ground');
+  // Island body: board-formed concrete quay walls on the sides. Its dark road-like top only shows
+  // through hairline seams between the street modules. Plot and quay slabs sit flush at ground level.
+  const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x1d2a31, metalness: .05, roughness: .82 });
+  const seamMaterial = new THREE.MeshStandardMaterial({ color: 0x15191d, metalness: .05, roughness: .9 });
+  matSet.add(groundMaterial); matSet.add(seamMaterial);
+  const bodyGeometry = new THREE.BoxGeometry(streets.maxX - streets.minX, island.top - island.bottom, streets.maxZ - streets.minZ); geoSet.add(bodyGeometry);
+  const ground = new THREE.Mesh(bodyGeometry, [groundMaterial, groundMaterial, seamMaterial, groundMaterial, groundMaterial, groundMaterial]);
+  ground.position.set((streets.minX + streets.maxX) / 2, (island.top + island.bottom) / 2, (streets.minZ + streets.maxZ) / 2);
+  ground.receiveShadow = true; world.add(ground);
+  surfaces.apply(groundMaterial, 'world', 'ground'); surfaces.apply(seamMaterial, 'world', 'city.road');
+  const slabs = plotSlabs(), slabGeometry = new THREE.BoxGeometry(1, 1, 1); geoSet.add(slabGeometry);
+  const plots = new THREE.InstancedMesh(slabGeometry, groundMaterial, slabs.length); plots.name = 'plots'; plots.receiveShadow = true;
+  slabs.forEach((s, i) => plots.setMatrixAt(i, new THREE.Matrix4().compose(new THREE.Vector3((s.x0 + s.x1) / 2, (s.top + s.bottom) / 2, (s.z0 + s.z1) / 2),
+    new THREE.Quaternion(), new THREE.Vector3(s.x1 - s.x0, s.top - s.bottom, s.z1 - s.z0))));
+  world.add(plots);
   // Sky, clouds, stars, moon, animated sea, mist, dust, spire beacon, lamp cones, searchlights,
   // aviation lights and the cinematic grade.
   const atmosphere = createAtmosphere(scene, { sunDirection: sun.position, lamps: placements.filter(p => p.asset === 'street-lamp') });
@@ -595,7 +593,7 @@ export async function createCity(host, options) {
     if (disposed) return; disposed = true; generation++; abort.abort(); requests.forEach(c => c.abort());
     keys.clear(); if(document.pointerLockElement === canvas) document.exitPointerLock();
     options.signal?.removeEventListener('abort', dispose); cleanup.forEach(fn => fn()); observer?.disconnect(); controls.dispose();
-    life?.dispose();companion?.dispose();experience?.dispose();weather.dispose(); hologram.dispose(); drones.dispose();contact.dispose();traffic.dispose(); atmosphere.dispose(); surfaces.dispose(); flow.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose();
+    life?.dispose();companion?.dispose();experience?.dispose();weather.dispose(); hologram.dispose(); drones.dispose();contact.dispose();traffic.dispose(); atmosphere.dispose(); surfaces.dispose(); flow.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose(); plots.dispose();
     geoSet.forEach(g => g.dispose()); matSet.forEach(m => m.dispose());
     composer.passes.forEach(p => p.dispose?.()); composer.dispose(); environment.dispose(); sun.shadow.dispose();
     renderer.dispose(); renderer.forceContextLoss(); canvas.remove(); cache.clear(); materials.clear();
