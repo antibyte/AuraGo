@@ -45,7 +45,7 @@ PALETTE = {
     'kerb': ((.30, .33, .34, 1), .05, .6, 0, 1),
     'setts': ((.085, .10, .11, 1), .08, .7, 0, 1),
     'iron': ((.022, .026, .03, 1), .85, .48, 0, 1),
-    'marking': ((.62, .63, .58, 1), .02, .62, 0, 1),
+    'marking': ((.5, .51, .47, 1), .02, .62, 0, 1),
     'tactile': ((.50, .47, .36, 1), .04, .64, 0, 1),
     # Window panes: the renderer replaces this material with the interior shader. UV0 holds
     # room coordinates (one unit per bay along the facade and per floor upwards).
