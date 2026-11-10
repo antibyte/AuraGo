@@ -12,10 +12,14 @@
  * How it works: a DEBUG bundle of sysworld-scene.js is built in memory with esbuild. An onLoad plugin
  * patches the source text (every patch asserted to match exactly once; nothing under ui/ is modified):
  *   - sysworld-scene.js: exposes globalThis.__sw = {THREE, camera, controls, scene, renderer, composer,
- *     experience, traffic, weather, atmosphere, surfaces, windows, sun, bloom, drones, lobbies, cancelFlight(), mode()}
+ *     experience, traffic, weather, atmosphere, surfaces, windows, sun, bloom, drones, lobbies, staticCity, nearHeight, cancelFlight(), mode()}
  *   - sysworld-society.js: adds `actors` to the society object, so residents are reached through
  *     __sw.experience.society.actors (each has .id "resident-N", .body {x,y,z,heading,enabled}, .node).
  * ui/ is served as the web root; the harness page drives the city with its own animation loop.
+ *
+ * Near furniture: sysworld-scene.js hides meshes with userData.near above NEAR_HEIGHT by ITS camera logic. The harness
+ * poses its own camera, so it sets that visibility itself from the survey camera's height (syncNear: before every
+ * capture and after every frame of the city's update) and reports the applied state as stats.nearHidden.
  *
  * Scene format (JSON array; see system-world-survey.scenes.json):
  *   name           file name (sanitised to [a-z0-9-])
@@ -79,6 +83,7 @@ function replaceOnce(text, find, replacement, label) {
 
 const EXPOSE = 'globalThis.__sw = { THREE, camera, controls, scene, renderer, composer, experience, traffic, weather, atmosphere, surfaces, windows, sun, bloom, drones, '
   + 'model, catalogV3: () => catalog3, lobbies: lobbyRender, '
+  + 'staticCity, nearHeight: NEAR_HEIGHT, '
   + 'cancelFlight: () => { flight = null; }, mode: () => mode };\n  ';
 
 async function buildBundle() {
@@ -147,8 +152,18 @@ async function main() {
   if (!sw) throw Error('__sw was not exposed');
   city.setData([], []); city.setWorld(undefined, false); city.setMode('orbit'); sw.cancelFlight();
   // Own animation loop, like the app's tick().
+  // Near furniture follows the SURVEY camera's height, like the scene's own rule (camera.y > NEAR_HEIGHT hides it).
+  let nearApplied = null, surveying = false;
+  const syncNear = () => {
+    const far = sw.camera.position.y > sw.nearHeight;
+    // Always walk the near meshes: the scene's own rule may have flipped them back since the last call.
+    let changed = far !== nearApplied;
+    nearApplied = far;
+    sw.staticCity.traverse(n => { if (n.userData && n.userData.near && n.visible === far) { n.visible = !far; changed = true; } });
+    if (changed) sw.renderer.shadowMap.needsUpdate = true;
+  };
   let last = 0, elapsed = 0;
-  const tick = time => { const dt = last ? Math.min(0.2, (time - last) / 1000) : 1 / 60; last = time; elapsed += dt; city.update(dt, elapsed); tickCount++; requestAnimationFrame(tick); };
+  const tick = time => { const dt = last ? Math.min(0.2, (time - last) / 1000) : 1 / 60; last = time; elapsed += dt; city.update(dt, elapsed); if (surveying) syncNear(); tickCount++; requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
   // Loading settled: createCity resolved (kit loaded); the experience (v2 models, residents) streams on.
   const signature = () => { const s = city.stats(); return [s.loadedBytes, s.experience.loading, s.experience.society.residents.length, s.experience.loaded.length, s.cachedModels].join('|'); };
@@ -189,12 +204,14 @@ async function main() {
     return { position: pos, target: tgt };
   }
   const sub = s => ({ tier: s.tier, mode: s.mode, calls: s.calls, triangles: s.triangles, geometries: s.geometries, loadedBytes: s.loadedBytes, frames: s.frames,
-    weather: s.weather && { time: s.weather.time, weather: s.weather.weather, daylight: round(s.weather.daylight) } });
+    weather: s.weather && { time: s.weather.time, weather: s.weather.weather, daylight: round(s.weather.daylight) },
+    furniture: s.furniture, nearHidden: nearApplied });
 
   for (const scene of config.scenes) {
     try {
       city.setEnvironment({ time: scene.environment || 'day', weather: scene.weather || 'clear' });
       let wanted = applyCamera(scene);
+      surveying = true; syncNear();
       await nextFrames(scene.frames === undefined ? 40 : scene.frames);
       await sleep(scene.waitMs === undefined ? 400 : scene.waitMs);
       if (scene.eval) await new AsyncFunction('city', '__sw', 'scene', scene.eval)(city, sw, scene);
@@ -204,6 +221,7 @@ async function main() {
         const name = count > 1 ? scene.name + '-' + String(i).padStart(2, '0') : scene.name;
         // Camera, render and PNG encode start in one task.
         wanted = applyCamera(scene) || wanted;
+        syncNear();
         sw.renderer.info.reset();
         const pending = city.capture();
         const stats = sub(city.stats());
