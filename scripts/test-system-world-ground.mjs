@@ -175,3 +175,26 @@ assert.equal(surfaces.pavement,surfaces.ground,'pavements are flush with the plo
   assert.ok(resolved/tried>=.7,`most random routes resolve (${resolved}/${tried})`);
   console.log(`System World routes: ${resolved}/${tried} resolve (${(100*resolved/tried).toFixed(1)}%), mean detour x${(detour/resolved).toFixed(2)}, no leg off a zebra touches a carriageway.`);
 }
+
+// --- Lobby routes: up the stairs, through a door, into every hall (real colliders) ---
+{
+  const fs=await import('node:fs/promises');
+  const {createWayfinder}=await import('../ui/js/desktop/apps/sysworld-places.js');
+  const {createTraffic}=await import('../ui/js/desktop/apps/sysworld-traffic.js');
+  const {groundHeight}=await import('../ui/js/desktop/apps/sysworld-exploration.js');
+  const {installCityColliders,kitCatalog}=await import('../ui/js/desktop/apps/sysworld-colliders.js');
+  const {districts,placements}=await import('../ui/js/desktop/apps/sysworld-scene.js');
+  const {LOBBIES,lobbyAt,stepFree}=await import('../ui/js/desktop/apps/sysworld-lobbies.js');
+  const read=f=>fs.readFile(f,'utf8').then(JSON.parse),v1=await read('ui/3d/system-world/v1/manifest.json'),v3=await read('ui/3d/system-world/v3/manifest.json');
+  const traffic=createTraffic();installCityColliders(traffic,kitCatalog(v1,v3),districts,placements);
+  const finder=createWayfinder(traffic,groundHeight,kitCatalog(v3)),started=Date.now();
+  const body=p=>({id:'walker',circles:[{x:0,z:0,r:.45}],minY:0,maxY:2,reach:.45,heading:0,...p,y:groundHeight(p.x,p.z)});
+  for(const l of LOBBIES){
+    const goal=finder.points.find(p=>p.lobby===l.id&&traffic.clear(body(p),p,p,false));assert.ok(goal,'no free inside node in '+l.id);
+    const start=pedestrianGraph().nodes.reduce((a,n)=>Math.hypot(n.x-goal.x,n.z-goal.z)<Math.hypot(a.x-goal.x,a.z-goal.z)?n:a);
+    const path=finder.route(body(start),{x:goal.x,z:goal.z,y:groundHeight(goal.x,goal.z)});assert.ok(path.length,'no route into '+l.id);
+    let prev=start;for(const p of path){assert.ok(stepFree(prev,p,groundHeight),'leg breaks the step rule: '+JSON.stringify([prev,p]));prev=p;}
+    assert.equal(lobbyAt(prev.x,prev.z)?.id,l.id);
+  }
+  console.log(`System World lobby routes: every hall reached from the pavement over its stairs (${Date.now()-started} ms incl. graph build).`);
+}
