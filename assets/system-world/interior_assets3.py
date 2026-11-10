@@ -157,15 +157,45 @@ def low_table(g, x, y, radius=.5, mat='bronze'):
     g.cyl((x, y, z + .42), radius, .04, mat, n=n)
 
 
+def frond(g, base, heading, length, width, pitch, bend, tint=1.0):
+    """One arching leaf, seen from both sides. It leaves `base` at `pitch` above the floor towards `heading`
+    and bends down by `bend` (radians) on the way to its tip; the blade folds along the midrib."""
+    steps = (5, 3, 2)[g.lod]
+    c, s = cos(heading), sin(heading)
+    rows, out, up, slope = [], 0.0, 0.0, pitch
+    for i in range(steps + 1):
+        t = i / steps
+        half = width * .5 * (.88 * sin(pi * t) ** .75 + .12 * (1 - t))
+        px, py, pz = base[0] + c * out, base[1] + s * out, base[2] + up
+        edge = pz + .18 * half
+        rows.append([(px + s * half, py - c * half, edge), (px, py, pz), (px - s * half, py + c * half, edge)])
+        out, up, slope = out + length / steps * cos(slope), up + length / steps * sin(slope), slope - bend / steps
+    g.loft(rows, ['leaf', 'leaf'], [tint, tint * .92])
+    # The underside is its own skin a few millimetres below, so both sides keep their own smooth normals.
+    g.loft([[(px, py, pz - .004) for px, py, pz in row] for row in rows], ['leaf', 'leaf'], [tint * .7, tint * .66], flip=True)
+
+
 def pot_plant(g, x, y, size=1.0):
+    """Ceramic pot with soil and a broad-leaved plant. The leaves form the soft part `foliage` (smooth
+    normals): upright young leaves in the middle, older ones arching outwards, turned by where the plant
+    stands, so no two plants look alike. A lobby that places pot plants lists `foliage` under `soft`."""
     lod = g.lod
     z = FLOOR
-    g.lathe((x, y, 0), [(.2 * size, z), (.3 * size, z + .52 * size), (.27 * size, z + .55 * size), (0, z + .5 * size)],
-            'ceramic', n=(12, 8, 6)[lod])
-    blob(g, (x, y, z + 1.0 * size), .52 * size, tint=1.25, squash=1.0, lumpy=.24)
-    if lod < 2:
-        blob(g, (x + .22 * size, y - .12 * size, z + 1.45 * size), .34 * size, tint=1.45, squash=.9, lumpy=.24)
-        blob(g, (x - .2 * size, y + .16 * size, z + .78 * size), .3 * size, tint=1.1, squash=.8, lumpy=.2)
+    n = (12, 8, 6)[lod]
+    g.lathe((x, y, 0), [(.2 * size, z), (.3 * size, z + .52 * size), (.27 * size, z + .55 * size), (.24 * size, z + .5 * size)],
+            'ceramic', n=n)
+    g.lathe((x, y, 0), [(.245 * size, z + .5 * size), (0, z + .5 * size)], 'road', n=n, tint=1.6)
+    part, g.part = g.part, 'foliage'
+    if lod == 2:
+        blob(g, (x, y, z + 1.05 * size), .5 * size, tint=1.25, squash=1.1, n=n, steps=3)
+    else:
+        lean = x * 1.7 + y * .9
+        count = (15, 10)[lod]
+        for k in range(count):
+            t = k / (count - 1)
+            frond(g, (x, y, z + .5 * size), lean + k * 2.39996, size * (1.38 - .5 * t + .08 * sin(k * 1.9 + lean)),
+                  size * (.33 + .09 * t), 1.42 - .95 * t, .45 + .8 * t, tint=1.5 - .35 * t + .1 * (k % 2))
+    g.part = part
 
 
 def floor_lamp(g, x, y):
@@ -246,7 +276,7 @@ def lobby_agent(g):
     points = [workpoint('reception-west', -1.85, -1.0), workpoint('reception-east', 1.85, -1.0),
               workpoint('briefing-west', -4.5, 3.6), workpoint('briefing-east', 4.5, 3.6),
               workpoint('lounge-west', -4.3, -2.9), workpoint('lounge-east', 4.3, -2.9)]
-    return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots,
+    return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots, 'soft': ['foliage'],
             'occlusion': {'ground': PODIUM, 'distance': 1.8}}
 
 
@@ -342,7 +372,7 @@ def lobby_memory(g):
     colliders.append(block(-1.9, 1.9, -5.3, -4.3, 1.1))
     points = [workpoint('enquiry', 0, -3.4), workpoint('core', 0, -1.3), workpoint('stacks-west', -4.65, 4.2),
               workpoint('stacks-east', 4.65, 4.2), workpoint('reading-west', -6.6, -1.5), workpoint('reading-east', 6.6, -1.5)]
-    return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots,
+    return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots, 'soft': ['foliage'],
             'occlusion': {'ground': PODIUM, 'distance': 1.8}}
 
 
@@ -379,7 +409,7 @@ def lobby_integrations(g):
                  block(5.65, 8.05, .7, 1.7, 1.1), block(5.9, 10.1, 3.2, 3.8, 2.7), block(9.5, 10.1, -3.0, -1.8, 2.1)]
     points = [workpoint('switchboard', -8, 2.6), workpoint('patching', -7.0, .1), workpoint('counter', 6.9, 2.4),
               workpoint('queue', 6.9, -.2)]
-    return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots,
+    return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots, 'soft': ['foliage'],
             'occlusion': {'ground': PODIUM, 'distance': 1.6}}
 
 
@@ -436,7 +466,7 @@ def lobby_missions(g):
         totem(g, side * 12.0, -1.0, -side * pi / 2, screen='warm' if side < 0 else 'cyan')
     points = [workpoint('counter-%d' % (i + 1), x, 2.5) for i, x in enumerate(doors)]
     points += [workpoint('belt-west', -5.5, 5.6), workpoint('belt-east', 5.5, 5.6), workpoint('waiting', 0, -3.4)]
-    return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots,
+    return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots, 'soft': ['foliage'],
             'occlusion': {'ground': PODIUM, 'distance': 1.8}}
 
 
@@ -477,7 +507,7 @@ def lobby_infra(g):
         pot_plant(g, side * 8.9, 1.0, .9)
     points = [workpoint('console-west', -1.2, -.7), workpoint('console-east', 1.2, -.7), workpoint('aisle-west', -4.8, 6.2),
               workpoint('aisle-east', 4.8, 6.2), workpoint('racks-front', 0, 3.9)]
-    return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots,
+    return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots, 'soft': ['foliage'],
             'occlusion': {'ground': PODIUM, 'distance': 1.6}}
 
 
@@ -519,13 +549,16 @@ def lobby_graph(g):
     for i in range(5):
         a = pi / 2 + (i - 2) * .62
         arc_block(g, (0, 0), 7.7, 8.95, z, z + .34, a - .24, a + .24, ('kerb', 'kerb', 'road'), n=(8, 5, 3)[lod])
+        # Shrubs and blossoms of a bed are soft like the pot plants.
+        g.part = 'foliage'
         for k in range((5, 3, 1)[lod]):
             b = a - .17 + .34 * k / max(1, (4, 2, 1)[lod])
             r = 8.3 + .2 * ((k * 3) % 3 - 1)
-            blob(g, (r * cos(b), r * sin(b), z + .6), .42, tint=1.2 + .15 * (k % 2), squash=.75, lumpy=.24)
+            blob(g, (r * cos(b), r * sin(b), z + .6), .42, tint=1.2 + .15 * (k % 2), squash=.75, lumpy=.07)
             if lod < 2:
                 blob(g, ((r - .25) * cos(b + .03), (r - .25) * sin(b + .03), z + .98), .09, colours[(i + k) % 4], squash=.7,
                      n=(7, 5)[lod], steps=(4, 3)[lod])
+        g.part = 'structure'
         colliders.append(block(8.3 * cos(a) - 1.4, 8.3 * cos(a) + 1.4, 8.3 * sin(a) - 1.2, 8.3 * sin(a) + 1.2, .8))
     for i in range(4):
         a = pi / 4 + i * pi / 2
@@ -540,7 +573,7 @@ def lobby_graph(g):
         floor_lamp(g, 6.4 * cos(a + .32), 6.4 * sin(a + .32))
     points = [workpoint('terminal-east', 5.4, .75), workpoint('terminal-west', -5.4, .75), workpoint('tree-south', 0, -3.4),
               workpoint('tree-north', 0, 3.5), workpoint('garden', 2.6, 6.4)]
-    return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots,
+    return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots, 'soft': ['foliage'],
             'occlusion': {'ground': PODIUM, 'distance': 1.6}}
 
 

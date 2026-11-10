@@ -12,7 +12,7 @@
     "facade_assets3.py": "c9ef0e5f0d15c54c2a7cad0f8c5d41db5212698bde57344d05cd65163b4979d2",
     "district_assets3.py": "491643796981c5716b1ade594dbfedb02738e93bab140b48c9a3b8277c686ada",
     "furniture_assets3.py": "ee137babb6077c53b4921aeab060ddaf03be67a4564417c16cd05ae7f7636030",
-    "interior_assets3.py": "21b88f1094b80c9b1c66d08b407f4344c3d86bdd17fec145bda0520269b8e796",
+    "interior_assets3.py": "38dc6cc5d151291c6775eb8aa0b5bfce5eda63ff6198448929991c2aec9840c4",
     "life_assets3.py": "73f65950084fd4aaa5926b0542139cc69da9e10c22f56cab8c54d2ddd853b982"
   },
   "assets": [
@@ -1889,7 +1889,7 @@
       "lods": [
         {
           "file": "lobby-agent.lod0.glb",
-          "triangles": 6990,
+          "triangles": 7518,
           "bounds": {
             "min": [
               -7.18,
@@ -1903,12 +1903,12 @@
             ]
           },
           "level": 0,
-          "bytes": 91920,
-          "sha256": "669389f8ee40cc5108a6e15c91dd9394dd3c6c0e903b85f185dd23c88bcb54ca"
+          "bytes": 101604,
+          "sha256": "4a9f49cc893597378eb2ab815616d04f6851cd50bab026d712c3cd6d8c128377"
         },
         {
           "file": "lobby-agent.lod1.glb",
-          "triangles": 3854,
+          "triangles": 3950,
           "bounds": {
             "min": [
               -7.18,
@@ -1922,12 +1922,12 @@
             ]
           },
           "level": 1,
-          "bytes": 62836,
-          "sha256": "a8445f7f87b27b4eb84dba82936243e7581ccb694cf0f19e2682910fe4e51bd3"
+          "bytes": 66756,
+          "sha256": "76757e0798e5585cca1350ddd57fd49f004b7710a832769bbb7b5d740c0b9cd0"
         },
         {
           "file": "lobby-agent.lod2.glb",
-          "triangles": 1044,
+          "triangles": 1092,
           "bounds": {
             "min": [
               -7.18,
@@ -1941,13 +1941,14 @@
             ]
           },
           "level": 2,
-          "bytes": 26204,
-          "sha256": "2a492bd74862925324ff611efec6f7382d5e8bcc72c6b9fbc461d4ebba964dcf"
+          "bytes": 27060,
+          "sha256": "22d943c81fa53ea21ccb09526c91e946560866dcb0d78ea3f0912c81414cf1b0"
         }
       ],
       "components": [
         "door_0_l",
         "door_0_r",
+        "foliage",
         "structure"
       ],
       "navigation": {
@@ -2125,7 +2126,7 @@
       "lods": [
         {
           "file": "lobby-memory.lod0.glb",
-          "triangles": 10606,
+          "triangles": 11134,
           "bounds": {
             "min": [
               -10.68,
@@ -2139,12 +2140,12 @@
             ]
           },
           "level": 0,
-          "bytes": 138964,
-          "sha256": "4428f0c7a9009f1a3e76da9d57a9813daeadcf1a8ba170e1e57525422f2bb100"
+          "bytes": 148264,
+          "sha256": "4cf509aa18cc5544c428174fe3150477cfcc752a1f515dbd2f695143fc8d3f6b"
         },
         {
           "file": "lobby-memory.lod1.glb",
-          "triangles": 3912,
+          "triangles": 4008,
           "bounds": {
             "min": [
               -10.68,
@@ -2158,12 +2159,12 @@
             ]
           },
           "level": 1,
-          "bytes": 62340,
-          "sha256": "2328fa94f272d99f117f18fb6e1733d85f23ab996f92e0d119efa2f68a43b8c3"
+          "bytes": 66276,
+          "sha256": "c1b1398e285a2fcfbfeaaf59e5342df046e0576d45dcfc0528f6363737b27e4e"
         },
         {
           "file": "lobby-memory.lod2.glb",
-          "triangles": 820,
+          "triangles": 868,
           "bounds": {
             "min": [
               -10.68,
@@ -2177,8 +2178,8 @@
             ]
           },
           "level": 2,
-          "bytes": 24068,
-          "sha256": "d8cb6bb16a16a27da1f771ab61be0e4ad2a8e5cad4999a3dbc1bc10a7c153fee"
+          "bytes": 24856,
+          "sha256": "a63eb93828f59cfd4287459dd4a0b0f57bb8cd331bf8a1903b4c856cc9295841"
         }
       ],
       "components": [
@@ -2186,6 +2187,7 @@
         "door_0_r",
         "door_1_l",
         "door_1_r",
+        "foliage",
         "structure"
       ],
       "navigation": {
@@ -2331,7 +2333,7 @@
       "lods": [
         {
           "file": "lobby-integrations.lod0.glb",
-          "triangles": 3880,
+          "triangles": 4144,
           "bounds": {
             "min": [
               -10.68,
@@ -2345,12 +2347,12 @@
             ]
           },
           "level": 0,
-          "bytes": 65932,
-          "sha256": "f72faedab26086c5fcdeca60b8a62a67f0085c464b480e9df6510374801e90c7"
+          "bytes": 71156,
+          "sha256": "7287934813f1e5846cc29b7d844bf3fcd745599edeeab9dc4b4302fc4df420cc"
         },
         {
           "file": "lobby-integrations.lod1.glb",
-          "triangles": 1672,
+          "triangles": 1720,
           "bounds": {
             "min": [
               -10.68,
@@ -2364,12 +2366,12 @@
             ]
           },
           "level": 1,
-          "bytes": 38612,
-          "sha256": "eaf81d0c8dca011130eb363a99a601905544df8bc75ee4def3f56217c673e5b7"
+          "bytes": 40900,
+          "sha256": "1c95669fc21b37ecc5ed212cbf45f92174d966945e823acd7f3b0f0b1cd9fc47"
         },
         {
           "file": "lobby-integrations.lod2.glb",
-          "triangles": 484,
+          "triangles": 508,
           "bounds": {
             "min": [
               -10.68,
@@ -2383,8 +2385,8 @@
             ]
           },
           "level": 2,
-          "bytes": 19120,
-          "sha256": "4ecf333cf743d27deecfbd7211d75d8e3dc76479ef668aee52c94e37387954a5"
+          "bytes": 19940,
+          "sha256": "7fd3f9a913b5ca750fc639910c4ddfe3f88e522d3a82ef243fcee8c35374788c"
         }
       ],
       "components": [
@@ -2392,6 +2394,7 @@
         "door_0_r",
         "door_1_l",
         "door_1_r",
+        "foliage",
         "structure"
       ],
       "navigation": {
@@ -2489,7 +2492,7 @@
       "lods": [
         {
           "file": "lobby-missions.lod0.glb",
-          "triangles": 6946,
+          "triangles": 7474,
           "bounds": {
             "min": [
               -12.68,
@@ -2497,18 +2500,18 @@
               -8.18
             ],
             "max": [
-              12.68,
+              12.69829,
               6.1,
               6.345
             ]
           },
           "level": 0,
-          "bytes": 112120,
-          "sha256": "72db0c7e7d608e0debe0c5388ac2e8f92c8559f0c483b96c3defdfe8cc85b0d1"
+          "bytes": 120996,
+          "sha256": "02207063b234e465595c54f495e12f1884015c0db7aee2d65f4fcf5c043c3bf4"
         },
         {
           "file": "lobby-missions.lod1.glb",
-          "triangles": 3264,
+          "triangles": 3360,
           "bounds": {
             "min": [
               -12.68,
@@ -2522,12 +2525,12 @@
             ]
           },
           "level": 1,
-          "bytes": 67012,
-          "sha256": "5385aa4678395e0c4d3513b75fbaf73ff2639fd09694a15976853c860bea7d66"
+          "bytes": 70344,
+          "sha256": "2a46e359bfed2608df75750d8851c092311d7de5b217637b8de8f784ed07b6a0"
         },
         {
           "file": "lobby-missions.lod2.glb",
-          "triangles": 1020,
+          "triangles": 1068,
           "bounds": {
             "min": [
               -12.68,
@@ -2541,8 +2544,8 @@
             ]
           },
           "level": 2,
-          "bytes": 32604,
-          "sha256": "d85ef937d521d14590d0f8cd1cfdda4fc6cac9f971dd39b2be2e2b3588a0bde7"
+          "bytes": 32720,
+          "sha256": "d2d89d3660d90cc832ab72edcda920785399a2e54b7603f6ecee7f5fceee0b42"
         }
       ],
       "components": [
@@ -2554,6 +2557,7 @@
         "door_2_r",
         "door_3_l",
         "door_3_r",
+        "foliage",
         "structure"
       ],
       "navigation": {
@@ -2699,7 +2703,7 @@
       "lods": [
         {
           "file": "lobby-infra.lod0.glb",
-          "triangles": 7100,
+          "triangles": 7364,
           "bounds": {
             "min": [
               -9.68,
@@ -2707,18 +2711,18 @@
               -8.68
             ],
             "max": [
-              9.68,
+              9.79696,
               4.5,
               2.845
             ]
           },
           "level": 0,
-          "bytes": 109084,
-          "sha256": "f1a7dafaec293c297604835209004f9a4dcae4e6a242ceca1a6ee35f68ef3e01"
+          "bytes": 114192,
+          "sha256": "c27faf7314f4a26e824ceb93ca959b78b0b894c876529ed1d21d38c0d8019031"
         },
         {
           "file": "lobby-infra.lod1.glb",
-          "triangles": 3004,
+          "triangles": 3052,
           "bounds": {
             "min": [
               -9.68,
@@ -2726,18 +2730,18 @@
               -8.68
             ],
             "max": [
-              9.68,
+              9.71091,
               4.5,
               2.845
             ]
           },
           "level": 1,
-          "bytes": 54604,
-          "sha256": "0f2e16aed626c1cb13aadcd3b5f1746725af63c6c52ec03d4f924e4ae94373fc"
+          "bytes": 56968,
+          "sha256": "5006a945fa5683568070dcf3bec28fc32e739a4d692d8077426a71ab0908a72d"
         },
         {
           "file": "lobby-infra.lod2.glb",
-          "triangles": 542,
+          "triangles": 566,
           "bounds": {
             "min": [
               -9.68,
@@ -2751,8 +2755,8 @@
             ]
           },
           "level": 2,
-          "bytes": 20652,
-          "sha256": "a13a4b2771ef908cd9218412f0331a30dbefc3129142f367f2dade3b8951352a"
+          "bytes": 21472,
+          "sha256": "4ae5b281892ae630ec623408d3d4b9d8a61c1300312022de9675c14dd9ff67aa"
         }
       ],
       "components": [
@@ -2760,6 +2764,7 @@
         "door_0_r",
         "door_1_l",
         "door_1_r",
+        "foliage",
         "structure"
       ],
       "navigation": {
@@ -2903,8 +2908,8 @@
             ]
           },
           "level": 0,
-          "bytes": 87256,
-          "sha256": "51365df1fbd7cbef6d02bd3102b223095df4e918b8c9a98f5cf8bf815dae1805"
+          "bytes": 66784,
+          "sha256": "4d8e2f8b74b5b98dcb4b2525ef5754168168d6d2d92e00f37d4b6e8bc6e21774"
         },
         {
           "file": "lobby-graph.lod1.glb",
@@ -2922,8 +2927,8 @@
             ]
           },
           "level": 1,
-          "bytes": 41876,
-          "sha256": "26d4590566470c507d9912ab5d04a70c192b795942da75ce73d7f6a33d390400"
+          "bytes": 36720,
+          "sha256": "e3b85dd24de7b571eae79438264a7166e167be60f86c3f56cc393107c7fd2dda"
         },
         {
           "file": "lobby-graph.lod2.glb",
@@ -2941,13 +2946,14 @@
             ]
           },
           "level": 2,
-          "bytes": 22060,
-          "sha256": "85878aa2ab930e5bcea5e2416a690842f53ed2910d3817379eeded0b26935e2b"
+          "bytes": 21352,
+          "sha256": "4432385406b7dde69020334cdf3a51f1f9ab81afa95b344d81d38ea40e57b1b6"
         }
       ],
       "components": [
         "door_0_l",
         "door_0_r",
+        "foliage",
         "structure"
       ],
       "navigation": {
@@ -4293,6 +4299,6 @@
   ],
   "compression": "EXT_meshopt_compression",
   "pack": "gltfpack@1.3.0 -cc -kn -km -ke -kv -vtf",
-  "total_model_bytes": 4391656,
+  "total_model_bytes": 4422752,
   "validator_errors": 0
 }
