@@ -372,6 +372,22 @@ verified by exact size and SHA-256 before use.
   85) to check every detector start. Attribution is not required by CC0 and is given
   here for provenance.
 
+## System World ambience recordings
+
+Six ambience loops ship in `ui/3d/system-world/audio/` (`water`, `leaves`, `birds`, `gulls`, `city`, `rain`).
+Each is released under CC0 1.0 Universal (public domain dedication). Attribution is not required by CC0; the
+title, author and source page are given here for provenance. Each loop is cut from its source and encoded
+by `assets/system-world/build_audio.py`; the source hashes and cuts are in `assets/system-world/audio-sources.json`.
+
+- **water.ogg**: "Pontoon, marina" by Joseph SARDIN, https://bigsoundbank.com/pontoon-marina-s1444.html
+- **leaves.ogg**: "Wind in the Trees" by Joseph SARDIN, https://bigsoundbank.com/forest-wind-in-the-trees-s0904.html
+- **birds.ogg**: "Birds in the City #1" by Joseph SARDIN, https://bigsoundbank.com/birds-in-the-city-1-s3575.html
+- **gulls.ogg**: "Gulls on the Harbor" by Joseph SARDIN, https://bigsoundbank.com/gulls-on-the-harbor-s2573.html
+- **city.ogg**: "XY_City hum_Night_River_ambience.wav" by softwalls, https://freesound.org/people/softwalls/sounds/385104/ (the site's MP3 preview; the WAV needs an account)
+- **rain.ogg**: "Rain_light_3.mp3" by SoundAppProject, https://freesound.org/people/SoundAppProject/sounds/537558/ (the site's MP3 preview; the original MP3 needs an account)
+
+The BigSoundBank pages state "CC0 (public domain): Free and royalty-free"; the Freesound pages state "Creative Commons 0".
+
 ## Pixel AI background removal models
 
 The Pixel image editor (`internal/pixelmatte`, Cutout panel) can remove backgrounds with two ONNX

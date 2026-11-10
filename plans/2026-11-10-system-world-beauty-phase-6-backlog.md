@@ -76,3 +76,19 @@ and plan; this file only keeps the findings so they are not lost.
 25. **Survey harness: camera placement.** Cameras placed inside a tree canopy or beside the visitor body
    (`life-neon-night`, `life-plaza-day`) give pictures that do not show the place. Move the visitor body
    with the camera for every scene (item 17).
+
+## Sound
+
+28. **Tram and footsteps do not read as such.** Coordinator's classifier finding on the rendered mix: the tram
+   pass sits 6.7 LU over its background, with mid-band rolling noise, and a footfall lasts about 140 ms.
+   Candidates: CC0 recordings of a tram pass and of footsteps (needs the user's approval again), or richer synthesis.
+29. **The `leaves` loop** reads as rain-like hiss to the classifier (coordinator's finding). Try a darker cut or
+   another source (`assets/system-world/audio-sources.json`, `leaves`, high-pass 110 Hz).
+30. **Browsers that cannot decode Ogg Vorbis** get the synthesis only: the recording layer stays silent
+   (`sysworld-sound-recordings.js`). A second format would cover them, if that matters.
+31. **The street** reads as a quiet hum with steps (coordinator's finding). Its vehicle sounds are the traffic wash
+   (`BEDS.traffic`) and the swoosh event; more tram and robot presence would add to it.
+32. **The gulls loop** is 21 s. Its cut starts at 72.6 s, and the source note says the stretches before 72 s and
+   after 95 s may carry voices. A longer clean source would repeat less.
+33. **Height is not localised** (no HRTF): overhead gulls only pan, because the mixer uses stereo panners and
+   no `PannerNode` (plan risk 11).

@@ -319,6 +319,12 @@ Not third-party, listed for completeness:
 | Storymaker click takes, rendered with earshot 0.4.0 from a fit of "Plastic Clicks.flac" by qubodup | `assets/storymaker/sfx/click_*.wav`, `ui/img/storymaker/sfx/click_*.wav` | CC0 1.0 Universal | https://freesound.org/people/qubodup/sounds/167829/ |
 | Storymaker ding and success takes, rendered with earshot 0.4.0 from a fit of "Small Bell #2" by steffcaffrey | `assets/storymaker/sfx/ding_*.wav`, `assets/storymaker/sfx/success_*.wav`, the same names in `ui/img/storymaker/sfx/` | CC0 1.0 Universal | https://freesound.org/people/steffcaffrey/sounds/452379/ |
 | Storymaker pop, error and typing takes, code-made with earshot 0.4.0 forge sounds, no recording | `assets/storymaker/sfx/pop_*.wav`, `assets/storymaker/sfx/error_*.wav`, `assets/storymaker/sfx/typing_*.wav`, the same names in `ui/img/storymaker/sfx/` | earshot is MIT; the rights reading of rendered output is open, see `assets/storymaker/README.md` | earshot 0.4.0 (git 591fa3e) |
+| System World ambience loop "Pontoon, marina" by Joseph SARDIN (`water`), cut and encoded with ffmpeg | `ui/3d/system-world/audio/water.ogg` | CC0 1.0 Universal | https://bigsoundbank.com/pontoon-marina-s1444.html |
+| System World ambience loop "Wind in the Trees" by Joseph SARDIN (`leaves`), cut and encoded with ffmpeg | `ui/3d/system-world/audio/leaves.ogg` | CC0 1.0 Universal | https://bigsoundbank.com/forest-wind-in-the-trees-s0904.html |
+| System World ambience loop "Birds in the City #1" by Joseph SARDIN (`birds`), cut and encoded with ffmpeg | `ui/3d/system-world/audio/birds.ogg` | CC0 1.0 Universal | https://bigsoundbank.com/birds-in-the-city-1-s3575.html |
+| System World ambience loop "Gulls on the Harbor" by Joseph SARDIN (`gulls`), cut and encoded with ffmpeg | `ui/3d/system-world/audio/gulls.ogg` | CC0 1.0 Universal | https://bigsoundbank.com/gulls-on-the-harbor-s2573.html |
+| System World ambience loop "XY_City hum_Night_River_ambience.wav" by softwalls (`city`), from the Freesound MP3 preview, cut and encoded with ffmpeg | `ui/3d/system-world/audio/city.ogg` | CC0 1.0 Universal | https://freesound.org/people/softwalls/sounds/385104/ |
+| System World ambience loop "Rain_light_3.mp3" by SoundAppProject (`rain`), from the Freesound MP3 preview, cut and encoded with ffmpeg | `ui/3d/system-world/audio/rain.ogg` | CC0 1.0 Universal | https://freesound.org/people/SoundAppProject/sounds/537558/ |
 
 ---
 

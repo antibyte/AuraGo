@@ -60,7 +60,7 @@ First display has a separate 20 MiB budget; interior furnishings and alternate
 LODs are lazy. Exterior shells are present at first display. Modular floor seams
 and lift landings use exact planar edges; the platform top matches its declared
 zero-height surface and its left side opens onto the gallery.
-Sound is synthesized locally through the opt-in mixer, with no external audio files.
+Sound is synthesized locally through the opt-in mixer; the only audio files are six CC0 ambience loops, described under Sound below.
 Use `scripts/build-system-world-review.mjs` and the `AURAGO_SYSTEM_WORLD_MODELS=1`
 browser test for contact sheets of every exported model, LOD and clip. Review
 outputs stay under ignored `reports/aurora/`; they are not runtime resources.
@@ -152,6 +152,37 @@ Motion and detail by tier (the values are in `sysworld-atmosphere.js`, `sysworld
 Fireflies show only at night in clear weather. Leaf sway (`city.leaf`) is off on low. Reduced motion freezes the atmosphere clock, so boats and gulls hold
 their poses, and it switches off the wind, steam and fireflies. Runtime module ownership is in
 [ui/3d/system-world/AGENTS.md](../../ui/3d/system-world/AGENTS.md).
+
+## Sound
+
+The opt-in mixer (`ui/js/desktop/apps/sysworld-audio.js`) places each sound with the city's zones
+(`sysworld-zones.js`): harbour, street canyon, green, open plaza and height above the roofs, plus the
+room the listener stands in. Open air, the street canyon and the interior are three acoustic spaces with
+their own sends; the low tier sends all three to one reverb.
+Glass damps the city behind a closed lobby or pavilion door. Moving sources are trams (hum, whine,
+rolling noise, squeal in curves, rail clacks), hover robots, the harbour launch and barge, and gull
+calls from the visible flock. Every lobby and pavilion has its own room tone. Footsteps sound like the
+surface under the foot. A limiter guards the master at -1 dBFS. The six recordings carry the place and
+the synthesis reacts on top. The owner of each module is listed in `ui/js/desktop/apps/AGENTS.md`.
+
+Survey: `node scripts/system-world-sound-survey.mjs --label <name> [--baseline <label>] [--strict]`
+renders the 15 situations of `scripts/system-world-sound-survey.situations.json` offline and writes WAV
+files and `report.json` to `reports/system-world-sound/<label>/` (git-ignored). `--strict` checks the
+true peak (-1 dBTP), day against night rain (2 LU), a shut lobby (3 LU under the street by day) and the
+rise over a baseline (3 LU).
+
+### Recordings pipeline
+
+`audio-sources.json` records each recording: title, author, licence (`CC0-1.0`), source page and file,
+the source SHA-256, the cut (start and loop length) and the high-pass. The source downloads are not kept in
+the repository. `python assets/system-world/build_audio.py --sources <dir>` takes one folder per id
+(`<dir>/<id>/<source_file>`), verifies each hash, cuts the loop, crossfades a 1 s seam, high-passes it,
+levels it to -30 LUFS and encodes mono Ogg Vorbis (libvorbis) into `ui/3d/system-world/audio/`, then
+rewrites `manifest.json`. It needs ffmpeg with libvorbis on `PATH`.
+`python assets/system-world/build_audio.py --check` needs no sources: it verifies the shipped files
+against the manifest, the manifest against `audio-sources.json`, the CC0 licences and the budget
+(1,572,864 bytes; the shipped total is 1,399,523). The shipped `.ogg` files travel through
+`assets/web-assets.json`. Adding a recording needs the user's approval; see `assets/system-world/AGENTS.md`.
 
 ## Surface textures
 

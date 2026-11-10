@@ -2236,3 +2236,35 @@ console.log('System World soundscape: layers, tiers, voice caps and node budget 
 10. **Street-tree density** may push the quay or street fixtures' shares (could-not-verify 5). The levers are `ZONE.treeRadius` and `treeShare`, never looser rankings.
 11. **No HRTF/PannerNode.** Height is not localised (gulls overhead pan only). A possible phase 6 item if the listening pass asks for it.
 12. **Recordings (Task 14)** stay out unless the user agrees. Synthesis remains the reacting layer either way.
+
+## Execution notes (2026-11-10)
+
+The plan body above is unchanged. These are the departures from it, as the code shows. The named file holds the truth.
+
+- **Recordings before the listening pass.** The user approved the downloads on 2026-11-10 (`assets/system-world/audio-sources.json`, `note`). Six loops ship (`ui/3d/system-world/audio/manifest.json`). They are not mixed under the synthesis at −8 dB as Task 14 step 4 outlines: `RECORDINGS` in `ui/js/desktop/apps/sysworld-sound-recordings.js` sets gains of 0.9 to 1.95, and the synthesis reacts on top.
+- **Format.** Mono, 44.1 kHz, Ogg Vorbis at libvorbis quality 2 (`assets/system-world/audio-sources.json`, `target`). Task 14 step 2 says 48 kHz and quality 3.
+- **Loading.** The recordings load on the first frame while the sound runs, through the app's versioned `assetURL` (`ui/js/desktop/apps/sysworld.js`, the options of `createCityAmbience` in `sysworld-audio.js`), not after `rebuild()` through `resourceURL`.
+- **Synthesised calls thinned.** `birds` and `gull` events are thinned to `RECORDED_THIN` (.35) while their recording is audible (`sysworld-audio.js`, `weigh`).
+- **Tram.** A rolling-noise layer (`MOVERS.roll`) and a whine that rises from 380 to 900 Hz with speed (`sysworld-sound-movers.js`, `tramVoice`, `tramLaw`).
+- **Footfalls.** A heel and a toe in one voice (`sysworld-foley.js`, `PAIR`, `PAIRS`). The companion's four light footfalls come from `soundPose` (`sysworld-companion.js`, `sysworld-foley.js`, `companion`); its front and hind step scales are .48 and .41 (`FRONT`, `HIND`).
+- **Gull positions.** Only medium and above; low keeps the harbour anchor (`sysworld-sound-movers.js`, `gull`; `sysworld-gulls.js`, `FLOCK`).
+- **`tram-corner`.** The tram starts at route position `u` 0.7182 with speed 11 (`scripts/system-world-sound-survey.situations.json`).
+- **Survey additions.** `--pcm24`; the situation fields `trace` (a per-second trace of the first tram) and `bare` (the recording loader fails, so only the synthesis renders); the `squealTrace` report field; the page serves the recordings from its own server and waits up to 30 s for them (`scripts/system-world-sound-survey.mjs`, `scripts/system-world-sound-survey.page.mjs`).
+- **App shell.** `sysworld.js` forwards the frame through `onSoundFrame` as an optional call, sets the tier on `onQuality`, and passes `assetURL`.
+- **Step gains.** `STEP_VOICES` gains are .0434 to .0525, below the plan's .06 to .09. The foley test asserts .036 to .054 (`scripts/test-system-world-foley.mjs`).
+- **Tuning beyond the plan's ranges.** The table gives each final value from the code against the plan's start and range. The plan gives no start for the sub drone or the pad.
+
+| Constant (file) | Plan start | Final | Plan range | In range |
+| --- | --- | --- | --- | --- |
+| Sub drone 55 / 82.4 / 110 Hz (`sysworld-audio.js`, `ensure`) | not in plan | .022 / .007 / .0032 | — | — |
+| Pad level, normal / busy (`sysworld-audio.js`, `applyMood`; ×.75 in rain) | not in plan | .014 / .018 | — | — |
+| `airGain` (`sysworld-audio.js`) | .32 | .16 | ±3 dB | no (−6 dB) |
+| `BEDS` leaves / laps / steam / traffic / rain / patter (`sysworld-sound-beds.js`) | .05 / .05 / .03 / .012 / .02 / .02 | .1 / .16 / .06 / .05 / .04 / .05 | .03–.08 / .03–.08 / .015–.05 / .006–.02 / .01–.04 / .01–.04 | no, except rain (top of range) |
+| `MOVERS` tram / squeal / hover / launch / barge (`sysworld-sound-movers.js`) | .06 / .02 / .025 / .05 / .04 | .45 / .1 / .05 / .11 / .08 | .03–.09 / .01–.035 / .012–.04 / .03–.08 / .02–.06 | no |
+| Room-tone bed gains (`sysworld-sound-rooms.js`) | Task 7 table | ×1.5 (machine beds ×1.2; agent sine beds ×0.525) | ×0.5–×2, max .08 | yes |
+| `STEP_VOICES` gains (`sysworld-foley.js`) | .062–.075 | .0434–.0525 | .06–.09 | no |
+| `VISITOR_STEP.scale` (`sysworld-audio.js`) | .45 | 1.9 | .3–.7 | no |
+| `RECORDINGS` gains (`sysworld-sound-recordings.js`) | −8 dB (≈ .40) | water 1.95, leaves 1.2, birds .9, gulls .9, city 1.5, rain 1.25 | −12…−4 dB (≈ .25–.63), Task 14 step 4 | no (above −4 dB) |
+| `LIMITER.trim` (`sysworld-audio.js`) | .607 | .607 | .55–.68 | yes |
+
+- **Final survey (coordinator's run, measured on 2026-11-10; not re-derived here).** True peak −16.4 dBTP (limit −1); day against night rain 1.0 LU (limit 2); shut lobby 5.6 LU under the street (limit 3); highest situation +2.9 LU over the baseline (limit 3).

@@ -148,6 +148,11 @@ Own the original Blender city kit, deterministic generator and source scene.
   reproduces the payload without writing. The licence text lives in
   `licences/texts/system-world-spot-BSD-3-Clause.txt` and travels with the asset.
 
+- Sound recordings (`audio-sources.json`, `build_audio.py`, `ui/3d/system-world/audio/`): add or replace a
+  recording only with the user's explicit approval for that download. Each source must be CC0-1.0; record
+  its page, author, licence and source SHA-256 in `audio-sources.json`. The shipped `manifest.json` carries
+  no URLs and stays that way. Never hand-edit the shipped `audio/` folder; rebuild it with `build_audio.py`.
+
 ## Verification
 - `python assets/system-world/check_assets.py`.
 - `node scripts/test-system-world-furnishing.mjs` (furniture rules, `SIZES` against the packed colliders,
@@ -157,6 +162,9 @@ Own the original Blender city kit, deterministic generator and source scene.
   the compact derivative, its provenance, licence texts and the model budget.
 - `node scripts/test-system-world-expansion.mjs` (42 designs, 126 GLBs),
   `node scripts/test-system-world-foley.mjs` (city beds and the lantern hum).
+- Sound: `node scripts/test-system-world-soundscape.mjs`, `-zones`, `-sound-meter`, `-sound-space`, `-sound-beds`,
+  `-sound-movers`, `-sound-rooms`, `-sound-frame` and `-recordings` (in `scripts/`; the shared fake of the
+  Web Audio graph is `scripts/system-world-audio-fake.mjs`), and `python assets/system-world/build_audio.py --check`.
 - `node scripts/build-system-world-v3.mjs --check` (validates the packed kit v3 files and sources and
   reproduces them byte for byte when `disposable/system-world/v3-raw/` exists),
   `node scripts/test-system-world-v3.mjs` (manifest schema 3, LODs, hashes, budget),

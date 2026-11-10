@@ -4926,27 +4926,36 @@ registration lives in `internal/desktop/types.go`.
   RAF. Coalesce bursts, expire by wall time, discard hidden/map/reduced-motion starts,
   and never replay retained events when a window opens or resumes. Robot geometry
   and the shared legacy Three.js remain unchanged.
-- `sysworld-audio.js` owns quiet native Web Audio synthesis. Sound is opt-in,
-  persisted, gesture-unlocked, volume-bounded and fades/suspends when the app is
-  hidden, unfocused or in map mode. Close releases oscillators, nodes and AudioContexts.
-  The soundscape is a sub drone, a detuned saw pad gliding through four chords
-  (16 s) into a generated convolution reverb, air with wind gusts and at most 12
-  transient events (swooshes, chimes, day birds, harbour gulls and horn, night
-  crickets, rain drips, a civic bell, construction hammering, evening sirens,
-  thunder). Three continuous beds follow the acoustic origin: harbour water grows
-  near the quay, a low population murmur follows the mood, and a very quiet warm
-  lantern hum (two low sines, slow breath, ceiling .012) opens only near the
-  waterfront after dusk; `stats().soundscape.beds.lamp` reports its level. It adds
-  no transient voice and stays well below the browser test's RMS ceiling. Events come from fixed city
-  anchors (harbour, quay, tower, square) or from a ring around that origin, so the
-  stereo pan always matches the direction the sound arrives from; nothing invents
-  telemetry. Event/chord timers run only while audible and `quiet()` releases every
-  voice on inactivity. `setMood` (busy/day/evening/weather from the scene) opens the
-  pad filter and reweights the event table. The master carries a `DynamicsCompressorNode` (`LIMITER`) only together with its
-  fixed trim, which cancels the automatic makeup gain (about +4.3 dB, measured by
-  `scripts/system-world-sound-survey.mjs --calibrate`), and a wave-shaper ceiling at
-  -1 dBFS; without the trim the mix rises above the browser test's 0.05 RMS voice
-  ceiling.
+- `sysworld-audio.js` owns the opt-in Web Audio mixer. Sound is opt-in, persisted,
+  gesture-unlocked, volume-bounded and fades or suspends when the app is hidden,
+  unfocused or in map mode. Close releases oscillators, nodes and AudioContexts.
+  - Master chain: the ambience, effects and voice buses → `master` → `LIMITER` → `analyser`
+    → destination. `LIMITER` is a `DynamicsCompressorNode`, then a fixed trim (`.607`) that
+    cancels the makeup gain the Web Audio spec adds (about +4.3 dB; measure it with
+    `scripts/system-world-sound-survey.mjs --calibrate`), then a wave-shaper ceiling at
+    -1 dBFS. Never add the compressor without its trim and ceiling.
+  - `createCityAmbience(onState, options)` takes an injected `context`, `timers`, `random`,
+    `storage`, `load`, `assetURL`, `tier` and `offline`. The offline survey and the node tests
+    inject them; the app uses the live browser defaults.
+  - Stored levels: `aurago.desktop.sysworld.volume` and `aurago.desktop.sysworld.channels`
+    persist like the on/off switch.
+  - Score and events: a sub drone, a detuned saw pad through four chords (16 s) into a
+    convolution reverb, and air with wind gusts. At most 12 transient events are drawn from
+    a weighted table (mood × zone weight). Behind closed glass only `indoor` events stay
+    (`INDOOR_GATE`). An audible birds or gulls recording thins the synthesised call to
+    `RECORDED_THIN` (.35). Events come from fixed anchors or from a ring around the acoustic
+    origin, so the pan matches the direction of arrival.
+  - Layers: the harbour water, murmur and lantern beds follow the zones (`zoneWeights`).
+    Beds, movers, room tones, spaces and recordings are built in `ensure()`; see the modules below.
+  - Frame contract: `sysworld.js` forwards `onSoundFrame` to `sound.frame()`, which runs door
+    state, the zone tracker, space, beds, movers, rooms, recordings and the companion in that
+    order. It returns at once while silent. `setListener` only refreshes the listener. `setTier`
+    follows `onQuality`.
+  - Tiers: low keeps one reverb (no canyon or interior convolver), no leaves, steam or patter
+    beds, one tram, two hover voices, no barge, no gull call positions, the first bed of each
+    room tone with no room events, six foley voices, and only the water, city and rain
+    recordings. Laps play on every tier. Medium adds the interior convolver; high and ultra
+    add the canyon convolver.
 - `sysworld-foley.js` owns the residents' own sounds: a servo settle, a footfall, a
   parcel rustle, a tool tap, a greeting chirp and a steering whine, all synthesized
   from oscillators and filtered noise without assets. A changed animation clip is the
@@ -4963,6 +4972,11 @@ registration lives in `internal/desktop/types.go`.
   above the bed and a resident at the far edge of the district only murmurs.
   `stats().foley.peak` reports the loudest level, so a layer that only counts
   events cannot pass as a working one.
+  Footfalls by surface (`STEP_VOICES`, one voice for each `surfaceAt` kind: road,
+  pavement, kerb, stairs, quay, lobby, grating, garden) are a heel and a toe in one voice
+  (`PAIR`). The companion is heard, never in traffic or telemetry: its gait (`soundPose`)
+  gives a front and a hind foot 25 ms apart on each diagonal beat, four light footfalls per
+  gait cycle. The pool is six voices on low and ten otherwise (`setTier`).
 - The sound layer listens from the **acoustic origin**, not from the camera: on the
   street you stand on, or — from the overview, where the camera floats 100 m above
   the city — the district the view rests on. `onListener` carries that origin as its
@@ -5133,10 +5147,15 @@ registration lives in `internal/desktop/types.go`.
   blockade/sidestep units and a 60-minute five-robot simulation), `node
   scripts/build-system-world.js --check`, `node scripts/build-system-world-spot.mjs --check`,
   `node scripts/test-system-world-companion.mjs`, `node scripts/test-system-world-foley.mjs`,
-  `node scripts/test-system-world-expansion.mjs`, focused Sysworld Go tests, `go test
+  `node scripts/test-system-world-expansion.mjs`, the sound tests
+  (`node scripts/test-system-world-{soundscape,zones,sound-meter,sound-space,sound-beds,sound-movers,sound-rooms,sound-frame,recordings}.mjs`)
+  and the sound survey (`node scripts/system-world-sound-survey.mjs --label <name> [--baseline <label>] --strict`;
+  output in the git-ignored `reports/system-world-sound/`), focused Sysworld Go tests, `go test
   ./internal/server -run SystemWorld`, and the real-shell browser matrix:
   `AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_SYSTEM_WORLD_MATRIX=1 go test ./ui
-  -run '^TestDesktopAuroraBrowser$'`. The browser run mocks the artifact feed,
+  -run '^TestDesktopAuroraBrowser$'`. The new soundscape and city-life assertions run only on the main city
+  path (`AURAGO_SYSTEM_WORLD_MATRIX=1` without `AURAGO_SYSTEM_WORLD_EXPANSION=1`), so the regression needs
+  both that run and the expansion run (`AURAGO_SYSTEM_WORLD_EXPANSION=1`). The browser run mocks the artifact feed,
   asserts live hologram/atmosphere/drone stats without text leaks, captures
   Three.js console errors, and fails when the canvas renders flat (blank
   post-processing). Screenshot/performance reports stay ignored.
@@ -5972,7 +5991,14 @@ registration lives in `internal/desktop/types.go`.
 - `sysworld-atmosphere.js` - Sky, aurora, stars, moon, sea, mist, dust, spire
   beacon, lamp cones and the vignette/grain post pass.
 - `sysworld-drones.js` - Three patrolling service drones on closed spline loops.
-- `sysworld-audio.js` - Gesture-unlocked opt-in ambient audio and shared master mixer.
+- `sysworld-audio.js` - Gesture-unlocked opt-in ambient audio, master limiter and shared mixer; owns the score, the event table and the tiers.
+- `sysworld-zones.js` - Pure sound zones: harbour, canyon, green, plaza and height shares, interior rooms and their doors, and `surfaceAt`. Its sampled fields are built once.
+- `sysworld-sound-space.js` - Glass (low pass and gain by door openness), reverb sends, the street-canyon and interior convolvers per tier, and the room bus.
+- `sysworld-sound-beds.js` - Leaves, laps, steam, traffic wash, rain and glass patter, shaped by the zones.
+- `sysworld-sound-movers.js` - Tram hum, whine, rolling noise, squeal and clacks; hover-robot whirs; the launch and the barge; gull call positions.
+- `sysworld-sound-rooms.js` - Room tones for the lobbies and pavilions, with sparse room events.
+- `sysworld-sound-frame.js` - The scene's per-frame sound input (clocks, wind, trams, companion, door openness), filled in place.
+- `sysworld-sound-recordings.js` - The six CC0 ambience loops: loaded on the first frame while the sound runs, level laws by zone, wind, daylight and weather; silent on failure.
 - `sysworld-voice.js` - Transient TTS phrase playback, spatial echo/reverb and cancellation.
   These modules need no additional child DOX.
 - `openscad-editor.js` - CodeMirror editor integration for SCAD source with
