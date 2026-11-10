@@ -92,7 +92,7 @@ def tree_pit(g, size=1.7):
     lod = g.lod
     half = size / 2
     g.grid([-half, -half + .08, half - .08, half], [-half, -half + .08, half - .08, half], .012,
-           lambda i, j: None if i == 1 and j == 1 else 'kerb')
+           lambda i, j: None if i == 1 and j == 1 else 'kerb', tint=.6)
     if lod == 2:
         g.grid([-half + .08, half - .08], [-half + .08, half - .08], .01, 'iron', tint=.7)
         return
@@ -105,49 +105,79 @@ def tree_pit(g, size=1.7):
 
 
 def tree(g, height, spread, columnar=False):
+    """Street tree: grate, tapering trunk, limbs and a canopy of soft puffs.
+
+    `spread` is the canopy's width. The canopy is its own part (`crown`), listed under
+    `soft`, so it keeps smooth normals at every level of detail and reads as foliage. The
+    canopy starts above head height: a street stays visible below it.
+    """
     lod = g.lod
     # Every random value is drawn up front, so all three LODs describe the same tree.
-    draws = [g.rng.random() for _ in range(40)]
+    draws = [g.rng.random() for _ in range(56)]
     tree_pit(g)
-    trunk_h = height * (.42 if not columnar else .3)
+    half = spread / 2
+    trunk_h = height * (.45 if not columnar else .29)
     n = (10, 7, 5)[lod]
-    g.lathe((0, 0, 0), [(.26, .0), (.2, .25), (.15, trunk_h * .5), (.12, trunk_h), (.07, height * .72)], 'bronze',
+    g.lathe((0, 0, 0), [(.27, .0), (.2, .22), (.15, trunk_h * .5), (.115, trunk_h), (.06, height * .74)], 'bronze',
             n=n, tint=.4)
     limbs = 4 if not columnar else 3
     tips = []
     for i in range(limbs):
         r = draws[i * 4:i * 4 + 4]
         a = i * 2 * pi / limbs - .3 + .6 * r[0]
-        reach = spread * (.45 if not columnar else .2) * (.85 + .25 * r[1])
-        tip = (reach * cos(a), reach * sin(a), trunk_h + height * (.18 + .1 * r[2]))
+        reach = half * (.5 if not columnar else .34) * (.88 + .2 * r[1])
+        tip = (reach * cos(a), reach * sin(a), trunk_h + height * (.13 + .07 * r[2]))
         tips.append(tip)
         if lod < 2:
-            g.pipe((0, 0, trunk_h * (.82 + .16 * r[3])), tip, .06, 'bronze', n=(6, 5)[lod], tint=.42)
-    # Canopy: a crown plus one cluster per limb, then a few fillers on top.
-    crown_z = height * (.78 if not columnar else .68)
-    crown_r = spread * (.5 if not columnar else .36)
-    blobs = [((0, 0, crown_z), crown_r, .95 if not columnar else 1.7)]
-    for i, tip in enumerate(tips):
-        blobs.append(((tip[0] * 1.25, tip[1] * 1.25, tip[2] + crown_r * .25), crown_r * (.62 + .18 * draws[16 + i]),
-                      .85 if not columnar else 1.25))
-    if not columnar:
+            g.pipe((0, 0, trunk_h * (.8 + .16 * r[3])), tip, .055, 'bronze', n=(6, 5)[lod], tint=.42)
+    # Canopy puffs as (centre, radius, squash, tint): darker below, lighter on top. The first `core` puffs
+    # carry the silhouette and are all the lowest level of detail keeps.
+    puffs = []
+    if columnar:
+        core = 3
+        puffs.append(((0, 0, height * .46), half * .86, 1.25, .78))
+        puffs.append(((0, 0, height * .62), half * .95, 1.3, .86))
+        puffs.append(((0, 0, height * .8), half * .74, 1.5, .97))
+        for i, tip in enumerate(tips):
+            puffs.append(((tip[0], tip[1], tip[2] + .5 + .9 * i), half * (.56 + .08 * draws[16 + i]), 1.2,
+                          .74 + .14 * draws[20 + i]))
+    else:
+        core = 1 + limbs
+        crown_z = height * .74
+        puffs.append(((0, 0, crown_z), half * .74, .86, .86))
+        for i, tip in enumerate(tips):
+            puffs.append(((tip[0], tip[1], tip[2] + half * .2), half * (.5 + .07 * draws[16 + i]), .84,
+                          .72 + .12 * draws[20 + i]))
         for i in range(3):
-            a = 2 * pi * draws[20 + i]
-            blobs.append(((crown_r * .6 * cos(a), crown_r * .6 * sin(a), crown_z + crown_r * .55), crown_r * .5, .8))
-    count = len(blobs) if lod < 2 else 1 + limbs
-    for index, (center, radius, squash) in enumerate(blobs[:count]):
-        blob(g, center, radius, tint=.74 + .22 * draws[24 + index], squash=squash, n=(14, 9, 6)[lod], steps=(8, 5, 4)[lod],
-             lumpy=.22)
+            a = 2 * pi * (i / 3 + .25 * draws[24 + i])
+            puffs.append(((half * .33 * cos(a), half * .33 * sin(a), crown_z + half * .34),
+                          half * (.44 + .05 * draws[28 + i]), .8, .95 + .05 * draws[32 + i]))
+    g.part = 'crown'
+    rings, steps = ((12, 6), (8, 4), (6, 3))[lod]
+    for center, radius, squash, tint in (puffs if lod < 2 else puffs[:core]):
+        blob(g, center, radius, tint=tint, squash=squash, n=rings, steps=steps, lumpy=.07)
+    if lod == 0:
+        # Small tufts on the outside break the outline.
+        count = 6 if not columnar else 4
+        for i in range(count):
+            a = 2 * pi * (i / count + .1 * draws[36 + i])
+            if columnar:
+                reach, z, radius = half * .82, height * (.42 + .42 * i / count + .05 * draws[42 + i]), half * (.3 + .08 * draws[48 + i])
+            else:
+                reach, z, radius = half * (.86 + .12 * draws[42 + i]), height * (.64 + .22 * draws[48 + i]), half * (.19 + .05 * draws[42 + i])
+            blob(g, (reach * cos(a), reach * sin(a), z), radius, tint=.92 + .12 * draws[36 + i], squash=.85, n=7, steps=4,
+                 lumpy=.07)
+    g.part = 'structure'
     return {'navigation': {'colliders': [collider(-.3, -.3, .3, .3, trunk_h)]},
-            'occlusion': {'ground': 0.0, 'distance': 2.2}}
+            'soft': ['crown'], 'occlusion': {'ground': 0.0, 'distance': 2.2}}
 
 
 def tree_round(g):
-    return tree(g, 7.6, 5.2)
+    return tree(g, 6.4, 4.6)
 
 
 def tree_column(g):
-    return tree(g, 8.4, 2.6, columnar=True)
+    return tree(g, 7.6, 2.4, columnar=True)
 
 
 def street_bench(g):

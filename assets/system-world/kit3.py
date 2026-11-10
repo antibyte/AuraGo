@@ -299,7 +299,9 @@ def create_asset(asset_id, factory, lod, collection, mats):
         bm.normal_update()
         bm.to_mesh(mesh)
         bm.free()
-        mesh.set_sharp_from_angle(angle=radians(SHARP_ANGLE))
+        # Parts listed under `soft` in the factory's info (foliage) keep smooth normals at every level of detail.
+        if part not in (info.get('soft') or ()):
+            mesh.set_sharp_from_angle(angle=radians(SHARP_ANGLE))
         mesh.update()
         obj = bpy.data.objects.new(part, mesh)
         obj.parent = root

@@ -6,12 +6,12 @@
   "units": "metres",
   "up_axis": "Y",
   "sources": {
-    "kit3.py": "d57187cf1c402c0366ab63fae0db2b3bf36c92615f17a5f76a73152193a2b460",
+    "kit3.py": "75003c6eb52784e1eecf90142c809129157e4ffc0c362db38797bbb48e4fd083",
     "build_world3.py": "28f9ed1050ccf2baabf5f0d4fd226525f41b8036c906429fa149c5d14a09a91e",
     "street_assets3.py": "26f8d0e7d515516c19c510f4eb1880644818ff0d9b11fc8095314a294a729fc1",
     "facade_assets3.py": "c9ef0e5f0d15c54c2a7cad0f8c5d41db5212698bde57344d05cd65163b4979d2",
     "district_assets3.py": "491643796981c5716b1ade594dbfedb02738e93bab140b48c9a3b8277c686ada",
-    "furniture_assets3.py": "f64e279f64d8ff2fa8aa9becb828bca7d8b263970859b3b4953c75c4e97cfd69",
+    "furniture_assets3.py": "31edc48b024c177dff38f1bf9c4e7fb3eca7fab0d73ecd491a39fcf4d253f2d3",
     "interior_assets3.py": "21b88f1094b80c9b1c66d08b407f4344c3d86bdd17fec145bda0520269b8e796",
     "life_assets3.py": "93ab3ff7bb95e550d774c25e8a551b6dc4a769084a8e32b6dd7dc123c6e220a1"
   },
@@ -1326,63 +1326,64 @@
       "lods": [
         {
           "file": "tree-round.lod0.glb",
-          "triangles": 1780,
+          "triangles": 1424,
           "bounds": {
             "min": [
-              -4.82618,
+              -2.69578,
               0,
-              -4.94975
+              -2.56401
             ],
             "max": [
-              4.49736,
-              8.41166,
-              4.80919
+              2.31967,
+              6.4082,
+              2.55001
             ]
           },
           "level": 0,
-          "bytes": 23512,
-          "sha256": "cc41b0f5b86268cc9541b5c88e0252998444da41004c6e46ad4a36da1ff31b0a"
+          "bytes": 14656,
+          "sha256": "4b9701410989ccd6d60e8a65b39a0234fe19346f3d77976f72803087ac21f723"
         },
         {
           "file": "tree-round.lod1.glb",
-          "triangles": 732,
+          "triangles": 540,
           "bounds": {
             "min": [
-              -4.42892,
+              -2.40774,
               0,
-              -5.08042
+              -2.37975
             ],
             "max": [
-              4.39561,
-              8.398,
-              4.83599
+              2.27537,
+              6.4082,
+              2.34573
             ]
           },
           "level": 1,
-          "bytes": 13248,
-          "sha256": "854345cb50d25317a77681b77a497c6ec5197e441e9bff80bac999e897db5c05"
+          "bytes": 9192,
+          "sha256": "1a4b3793751a40322222e5d2817677e6cd50ee2602764abc5459c35a2194c045"
         },
         {
           "file": "tree-round.lod2.glb",
-          "triangles": 238,
+          "triangles": 178,
           "bounds": {
             "min": [
-              -4.36101,
+              -2.22959,
               0,
-              -4.56531
+              -2.29642
             ],
             "max": [
-              4.42756,
-              8.398,
-              4.47633
+              2.113,
+              6.19972,
+              2.26261
             ]
           },
           "level": 2,
-          "bytes": 7828,
-          "sha256": "ed0bdd3a4d23b0578ca89c9d5f83035506ffe24618377f86835ef447e248f03b"
+          "bytes": 6052,
+          "sha256": "b7c7619077fe4a8299b98498f38eca0c9c2857f9c855c9897f9ba4c28992855d"
         }
       ],
       "components": [
+        "crown",
         "structure"
       ],
       "navigation": {
@@ -1392,7 +1393,7 @@
             0,
             -0.3,
             0.3,
-            3.192,
+            2.88,
             0.3
           ]
         ]
@@ -1406,63 +1407,64 @@
       "lods": [
         {
           "file": "tree-column.lod0.glb",
-          "triangles": 976,
+          "triangles": 1080,
           "bounds": {
             "min": [
-              -1.05176,
+              -1.25313,
               0,
-              -1.41186
+              -1.3682
             ],
             "max": [
-              1.23045,
-              7.3032,
-              1.19616
+              1.21096,
+              7.412,
+              1.38107
             ]
           },
           "level": 0,
-          "bytes": 15268,
-          "sha256": "838393629443bbb5e69289a836b861f62e664df4e2088573e744f4a337be9bc8"
+          "bytes": 12228,
+          "sha256": "e722063663d37e94c50fb59ee658ce1ef264ab7a7a45a75788e9ac1e10d18525"
         },
         {
           "file": "tree-column.lod1.glb",
           "triangles": 428,
           "bounds": {
             "min": [
-              -1.017,
+              -1.12014,
               0,
-              -1.32575
+              -1.21513
             ],
             "max": [
-              1.30528,
-              7.3032,
-              1.15165
+              1.15986,
+              7.412,
+              1.06487
             ]
           },
           "level": 1,
-          "bytes": 9660,
-          "sha256": "e4a9dcc103f03e4f893436bc579f09e40041b09b2fc146f7584b48950293cd74"
+          "bytes": 8084,
+          "sha256": "95b58b33869bbc940610fdc5b498a06d84cda74f94cd7189e5c114e4c73af095"
         },
         {
           "file": "tree-column.lod2.glb",
-          "triangles": 202,
+          "triangles": 130,
           "bounds": {
             "min": [
-              -1.14457,
+              -0.97007,
               0,
-              -1.17908
+              -0.99425
             ],
             "max": [
-              1.342,
-              7.3032,
-              1.15194
+              1.00447,
+              7.412,
+              0.98029
             ]
           },
           "level": 2,
-          "bytes": 7092,
-          "sha256": "0e9fee08a584ce6206076a72648e3ad253b7ae3e11f56a2459d5da9bb6d4b3e6"
+          "bytes": 5620,
+          "sha256": "47177f49ee907cb86f5a29c9f8bd36ff9ac1796cae2bd8a68341af4b9a813699"
         }
       ],
       "components": [
+        "crown",
         "structure"
       ],
       "navigation": {
@@ -1472,7 +1474,7 @@
             0,
             -0.3,
             0.3,
-            2.52,
+            2.204,
             0.3
           ]
         ]
@@ -4289,6 +4291,6 @@
   ],
   "compression": "EXT_meshopt_compression",
   "pack": "gltfpack@1.3.0 -cc -kn -km -ke -kv -vtf",
-  "total_model_bytes": 4440124,
+  "total_model_bytes": 4419348,
   "validator_errors": 0
 }
