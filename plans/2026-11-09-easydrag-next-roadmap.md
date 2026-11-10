@@ -1,11 +1,11 @@
 # EasyDrag Next: Living Flows (roadmap, 2026-11-09)
 
-Status: proposed roadmap, not started. This plan builds on `plans/2026-11-04-easydrag-flagship-plan.md`, whose workstreams A–J have largely shipped. It covers the next generation of EasyDrag: what to build, in what order, why, and what to leave out. It is not an implementation plan, a design spec or a schedule. S, M, L and XL are relative sizes. Every number comes from the current-state brief of 2026-11-09 or is marked as a target or a design bound. Nothing in this plan was measured or built.
+Status: proposed roadmap, not started. On 2026-11-10 the owner chose strategy A, craft first (§5), and the waves in this document follow it. This plan builds on `plans/2026-11-04-easydrag-flagship-plan.md`, whose workstreams A–J have largely shipped. It covers the next generation of EasyDrag: what to build, in what order, why, and what to leave out. It is not an implementation plan, a design spec or a schedule. S, M, L and XL are relative sizes. Every number comes from the current-state brief of 2026-11-09 or is marked as a target or a design bound. Nothing in this plan was measured or built.
 
 This revision applies a completeness review and a feasibility review of the first draft, plus a fact-check of its statements about the current code: 140 claims checked, 5 corrected. The main changes:
 - Every scoped item now has a wave.
 - Each wave demo uses only work from the same wave or an earlier one.
-- Waves 4 and 5 are each split in two.
+- The craft phase is Waves 0 to 4, and the power phase is Waves 5 to 7b (§6).
 - The epics now carry the safety rules the reviews found missing: input trust, taint on seeded runs, layering, source trust and unknown effects.
 
 Where this revision departs from a review suggestion, §10 says so in one line.
@@ -19,15 +19,17 @@ Names used in this document: a short module name such as runs.js means `ui/js/de
 | Wave | Theme | What the owner notices at the end | Main epics |
 |---|---|---|---|
 | 0 | Clear the deck | Readable cards; a clean run looks clean; tests start in Simulation; a typed token moves into the vault with one click | E1, first parts of E2 and E3 |
-| 1 | Readable and honest | A first result in about a minute; one status pill and a Stop that never moves; flows first on the home; start conditions, time windows and a "Ein Ablauf ist fehlgeschlagen" trigger | E2, E4, E5, E8, first parts of E9 and E10 |
-| 2 | Red to green, a run you can watch | The Testbank strip; live progress with timers and counts; from a failed run to the field to "Behoben"; living cards and semantic zoom; expressions, Retry 2.0 and fallback values | E5, E6, E3, E9, first parts of E11 and E13 |
-| 3 | The system comes to you | The "Heute" strip, run health on every card, approvals that announce themselves (durable mode on), a publish review with the next run, version compare and live rollback; flow memory and "Nur neue Einträge" | E7, E8, E4, E11 |
-| 4a | Build with real things | Pickers with real devices and chats, captured test events, Home Assistant depth, calendar, Durchsage, "Mit Formular starten", flows in Spotlight, the phone step list, recipe instances | E9, E13, E14, E16, E8 |
-| 4b | The house talks back | Chat commands ("/gutenacht"), service outages, watch presets, folder intake, "Warten auf Ereignis", trigger rules with debounce and quiet hours, missed schedules | E10, E11 |
-| 5a | Co-author | AI that edits the open draft through reviewed change sets, with a ghost review and one undo; an AI cost cap; keyboard wiring | E15, the last part of E3 |
-| 5b | Act at scale | Effect receipts, "Ab hier fortsetzen", one action per item, long waits, approvals for effectful steps, flows as tools for Aura | E12, E14 |
+| 1 | Readable and honest | A first result in about a minute; one status pill and a Stop that never moves; flows first on the home; one glyph and one word for every status, in every theme | E2, E4, E5, E8, E3, the first part of E9 |
+| 2 | Red to green, a run you can watch | The Testbank strip; live progress with timers and counts; from a failure notification to the failed run, to the field, to "Behoben"; living cards and semantic zoom; sample forms and live previews of mapped fields; deep links that work | E5, E6, E3, E4, E7 (deep links), the UX parts of E9 |
+| 3 | The system comes to you | The "Heute" strip, run health on every card, approvals that announce themselves (durable mode on), a publish review with the next run, version compare and live rollback; recipe cards that state their needs; "Bis hier simulieren" | E7, E8, E4, E5 |
+| 4 | Phone first, a canvas that handles like a design tool | The phone step list with bottom sheets and a bottom bar; edge scroll, even spacing and F2 rename; keyboard wiring and a screen-reader pass; peek previews; "erhält" while connecting, ">" commands in quick-add and a palette sorted by topic | E16, E3, E2, E5, the UX parts of E9 and E13 |
+| 5 | Flows that listen and remember | Start conditions, time windows and an "Ein Ablauf ist fehlgeschlagen" trigger; pickers with real devices and chats, and captured test events; expressions, Retry 2.0, fallback values and generic steps that fail honestly; flow memory and "Nur neue Einträge" | E10, E9, E11, E13 |
+| 6a | Real devices and chat commands | Chat commands ("/gutenacht"); Home Assistant depth, calendar, Durchsage and Desktop-Hinweis; "Mit Formular starten" and flows in Spotlight; recipe instances | E10, E13, E14, E7, E8 |
+| 6b | The house talks back | Service outages, watch presets, folder intake, "Warten auf Ereignis", trigger rules with debounce and quiet hours, missed schedules | E10, E11, E8 |
+| 7a | Co-author | AI that edits the open draft through reviewed change sets, with a ghost review and one undo; an AI cost cap | E15 |
+| 7b | Act at scale | Effect receipts, "Ab hier fortsetzen", one action per item, long waits, approvals for effectful steps, flows as tools for Aura | E12, E14 |
 
-Recommended strategy: C, journey slices (§5). The next unit to specify is S0, "Room, trust and legibility" (§7).
+Strategy: A, craft first, chosen by the owner on 2026-11-10 (§5, §6). The next unit to specify is S0, "Room, trust and legibility" (§7).
 
 ## 1. Where EasyDrag stands
 
@@ -110,7 +112,7 @@ Each experience names the wave whose exit demo it is (§6). A demo uses only ite
 - *Before:* one card glows, and Stop is inserted mid-row, pushing Publish about 107 px to the right (run-live).
 - *After:* the labelled Stop appears in its reserved header slot, so nothing moves. The docked Testbank strip shows "Schritt 2 von 5 · 1,8 s". The active card counts its own time. Finished cards show "0,4 s · 3 Einträge", and count chips land on the wires. "Zum aktiven Schritt" brings the work into view. The camera follows only if the owner switches "Folgen" on.
 
-**3.3 Fixing a failure (07:01)** (Wave 2 demo).
+**3.3 Fixing a failure (07:01)** (Wave 2 demo; the notification opens the run through the OP-13 run link).
 - *Before:* the raw provider text "chat not found", a 7 px caption at 64 % zoom, and a written instruction (run-error).
 - *After:*
   1. The notification opens the run. The card reads "Telegram kennt diesen Chat nicht" at readable size.
@@ -129,7 +131,7 @@ Each experience names the wave whose exit demo it is (§6). A demo uses only ite
   - The waiting step on the canvas pulses three times, "Wartet auf Dich", and then stays still.
 
   Where durable mode is off, the library instead shows a "Freigaben einrichten" card. It says that a restart is needed and that only pure-local flows can be approved (decision 11).
-- *Later (Wave 5b, if decision 11 (b) is taken):* the same moment gates a Rechnungslauf before any invoice is sent, and the card lists the reviewed effects.
+- *Later (Wave 7b, if decision 11 (b) is taken):* the same moment gates a Rechnungslauf before any invoice is sent, and the card lists the reviewed effects.
 
 **3.5 The morning library** (Wave 3 demo; the content-first toolbar ships in Wave 1).
 - *Before:* a hero, five equal buttons, filters, a disclaimer and folders all come before the first flow. At 390 px no flow is visible (ux-library-standard-390).
@@ -145,18 +147,18 @@ Each experience names the wave whose exit demo it is (§6). A demo uses only ite
 
   After the server confirms, the pill flips to "Live v3". There is no confetti.
 
-**3.7 A flow reacting to the home** (Wave 4b demo; capture, pickers and Durchsage arrive in Wave 4a).
+**3.7 A flow reacting to the home** (Wave 6b demo; capture and pickers arrive in Wave 5, Durchsage in Wave 6a).
 - The washing machine's power sensor flaps on MQTT. In the trigger inspector the owner presses "Auf Testereignis warten" and starts the machine. The real payload lands as the sample, and the draft starts no run.
 - The owner adds "Nur starten, wenn power < 5" and "Ruhe 60 s". The card reads "startet bei 1 von 214 Ereignissen".
 - A "Durchsage" step speaks "Die Wäsche ist fertig" in the kitchen, and a time condition keeps it quiet between 22:00 and 07:00. If PI-09 slips, the demo uses a Push step instead.
 
-**3.8 A chat command** (Wave 4b demo). In bed, the owner types "/gutenacht" in Telegram. AuraGo matches the owner's private chat before any LLM call. It starts the published flow, switches off three lamps, and answers in the same chat: "Gute Nacht · 3 Lampen aus · Haustür zu". The same text from another account, from a group or as a forwarded message starts nothing and reaches Aura unchanged.
+**3.8 A chat command** (Wave 6a demo). In bed, the owner types "/gutenacht" in Telegram. AuraGo matches the owner's private chat before any LLM call. It starts the published flow, switches off three lamps, and answers in the same chat: "Gute Nacht · 3 Lampen aus · Haustür zu". The same text from another account, from a group or as a forwarded message starts nothing and reaches Aura unchanged.
 
-**3.9 Building with the copilot** (Wave 5a demo).
+**3.9 Building with the copilot** (Wave 7a demo).
 - *Before:* the proposal is goal-only. Apply deletes and re-adds every node with model-generated ids and replaces the groups.
 - *After:* in "Ändern mit KI" the owner types "Um 06:30 statt 07:00, und zusätzlich per WhatsApp". The copilot asks one question, "An welchen Chat?", with the owner's configured chats as buttons. The change appears on the owner's own canvas: one changed card and one ghost card. The owner accepts both, and one Ctrl+Z restores everything. Ids, positions, groups and schedules stay intact.
 
-**3.10 Editing on the phone** (Wave 4a demo).
+**3.10 Editing on the phone** (Wave 4 demo).
 - *Before:* window chrome and three or four header rows take about 30 % of the height, and the results card covers the canvas (editor-phone).
 - *After:* at 390 px the flow opens as a list of steps in run order, each with its key setting. Tapping "Müll rausbringen · Push" opens a bottom sheet, and the edit is one undo step. "Testen" sits in the bottom bar, and a labelled Stop replaces it during a run.
 
@@ -264,12 +266,14 @@ Pillars: foundation, safety.
   - Wave 0: runs.js, editor.js, home.js and fields.js (above).
   - Wave 2 entry:
     - Card rendering moves from canvas.js (923 lines) into `easydrag-card.js`, before UI-04, UI-05 and the FD-04 tiers.
-    - PE-10's JS evaluator goes into a new `easydrag-expr.js`, and template.js (911) does not grow.
-  - detail.js (878) takes no new code until Wave 4a:
+    - template.js (911) does not grow from here on, and the template-side JS for UX-05 and UX-06 goes into `easydrag-preview.js` or `easydrag-transform.js`.
+  - Wave 5 entry:
+    - PE-10's JS evaluator goes into a new `easydrag-expr.js`.
+  - detail.js (878) takes no new code until its split at the Wave 4 entry:
     - E6 field focus goes into `easydrag-repair.js`, and E9 previews into `easydrag-preview.js`.
-    - At the Wave 4a entry, detail.js splits before the PI-14 pickers.
-    - The E15 KI tab goes into `easydrag-aiview.js`.
-  - model.js (921) does not grow. New model helpers go into a new `easydrag-model-ops.js`: the client-side change-set apply for E15 and the run-order projection for E16.
+    - At the Wave 4 entry, detail.js splits before E16, JY-03 and the PI-14 pickers in Wave 5.
+    - The E15 KI tab goes into `easydrag-aiview.js` in Wave 7a.
+  - model.js (921) does not grow. New model helpers go into a new `easydrag-model-ops.js`, created at the Wave 4 entry (or earlier, if a craft wave needs a model helper first): the upstream and downstream walk for the canvas-handling track and the run-order projection for E16. E15 reuses it in Wave 7a for the client-side change-set apply.
 - [FD-17, AI-16] Trust sweep:
   - Fence the string leaves inside the ai.decision `state`.
   - Bound sticky notes on the server and scrub them from exports and AI payloads.
@@ -295,7 +299,7 @@ Pillars: foundation, safety.
     - the docked palette not restored after the run view below 900 px;
     - a duplicated "Vergangener Lauf";
     - U9/V4 targets under 24 px;
-  - "StartResult surfaced" is an entry criterion for PE-16 (Wave 1), so trigger start failures reach run_failed and OP-01;
+  - "StartResult surfaced" is an entry criterion for OP-01 (Wave 3) and PE-16 (Wave 5), fixed in S0c by the Wave 2 exit, so trigger start failures reach run_failed and OP-01;
   - "SSE redaction verified" is an entry criterion for the Wave 2 Testbank, which adds SSE consumers.
 - [FD-16] (S0c) Generated manual reference blocks and an agent manual, shared with OP-17.
 
@@ -312,7 +316,7 @@ Pillars: foundation, safety.
 - FD-20: every listed item has an outcome before the Wave 2 exit.
 
 **Size:** L (several S and M items).
-**Waves:** 0 (S0 and S0b). The S0c hygiene track runs through Wave 2. Split-before-use checks run at the entries of Waves 2 and 4a.
+**Waves:** 0 (S0 and S0b). The S0c hygiene track runs through Wave 2. Split-before-use checks run at the entries of Waves 2 and 4.
 **Dependencies:** none. FD-13's new code uses the FD-19 classes once they exist (Wave 2), otherwise one translated code.
 
 **Guardrails and invariants**
@@ -365,7 +369,7 @@ Pillars: ui, foundation, joy.
 - [CS-01] "vN" replaces Revision and Version in the UI.
 - [UX-18, CS-20] Outcome-first copy, one form of address (decision 1), limits shown only when reached, and no notifications about the user's own actions.
 - [FD-14] Conformance lab: the first scenes in Wave 1 and about 24 scenes by Wave 3. It runs contrast, target, clipping and accessibility-tree checks, and builds a contact sheet across the 14 themes.
-- [FD-07] WCAG 2.2 AA closure: an NVDA smoke test of the header, the Testbank and the canvas at the Wave 3 exit, and the scripted NVDA and VoiceOver pass in Wave 5b.
+- [FD-07] WCAG 2.2 AA closure: an NVDA smoke test of the header, the Testbank and the canvas at the Wave 3 exit, and the scripted NVDA and VoiceOver pass at the Wave 4 exit, which must still hold at the Wave 7b exit.
 - [CS-17] Concept ledger and a control-count budget for the header and the home.
 - [JY-01] Delight kernel: one motion gate and a "Lebendigkeit" setting (Ruhig or Normal).
 
@@ -387,7 +391,7 @@ Pillars: ui, foundation, joy.
 - 0: UI-03, in S0.
 - 1: the core, the status map, the action registry, UX-18 and CS-20, the first lab scenes, CS-17.
 - 3: the NVDA smoke test.
-- 5b: the FD-07 pass.
+- 4: the scripted NVDA and VoiceOver pass (FD-07), which must still hold at the Wave 7b exit.
 
 **Dependencies:** E1 (module room); decision 1 before the copy work.
 
@@ -426,15 +430,15 @@ Pillars: ui, foundation, joy.
 - [UI-04] (Wave 2) Living cards at 232×80 with a key-parameter line, a status line and an effect chip, rendered by `easydrag-card.js`.
 - [UI-05] (Wave 2) Silhouettes. The wait ring ships with JY-06.
 - [UI-08] (Wave 2) Neutral wires with chevrons, count pills and keyboard focus.
-- [FD-02, JY-16] (Wave 3) Uncapped layering, with a glide that is instant under reduced motion.
-- [UI-09] (part, Wave 3) Insert-with-room, reconnect from the output end, and a ghost card while inserting.
-- [UI-12] (part, Wave 3) Colour swatches and a header band for groups.
-- Canvas handling (Wave 3):
+- [FD-02, JY-16] (Wave 4) Uncapped layering, with a glide that is instant under reduced motion.
+- [UI-09] (part, Wave 4) Insert-with-room, reconnect from the output end, and a ghost card while inserting.
+- [UI-12] (part, Wave 4) Colour swatches and a header band for groups.
+- Canvas handling (Wave 4):
   - one edge auto-scroll helper, built on visibleArea(), for drag, connect and box select;
   - distribute and equal-gap guides, with Tidy as one undo;
   - F2 inline rename;
   - select upstream and downstream.
-- [FD-06] (Wave 5a) Keyboard wiring and narrated runs.
+- [FD-06] (Wave 4) Keyboard wiring and narrated runs.
 - Deferred: UI-06 (ships with E12), UI-10, rendering of UI-11, knife and detach.
 
 **Acceptance criteria**
@@ -456,8 +460,8 @@ Pillars: ui, foundation, joy.
 - 0: UI-02.
 - 1: UI-13, FD-01, FD-05.
 - 2: the canvas track (FD-04, UI-04, UI-05, UI-08).
-- 3: the canvas-handling track.
-- 5a: FD-06.
+- 4: the canvas-handling track, with FD-02, JY-16 and the UI-09 and UI-12 parts.
+- 4: FD-06, last, so the keyboard wiring covers the new gestures.
 
 **Dependencies:** FD-03 counters (E1); type tokens and the status map (E2); the F.2 next-run accessor (built in Wave 1 with E4, shared with E7).
 
@@ -534,7 +538,7 @@ Pillars: ui, ux, joy.
 **Main code areas**
 - `easydrag-header.js` and `easydrag-run-stop.js` (from E1).
 - New modules: `easydrag-inspector-layout.js`, `easydrag-selection-bar.js`, `easydrag-diff.js`.
-- `easydrag-publish.js`, and `easydrag-detail.js` (touched only to delegate until its Wave 4a split).
+- `easydrag-publish.js`, and `easydrag-detail.js` (touched only to delegate until its Wave 4 split).
 - The server versions and diff handlers; the read-only next-fire accessor in `timers.go`.
 
 ### E5. The Testbank
@@ -563,8 +567,8 @@ Pillars: ux, joy, power.
 - [UX-10] (Wave 3) Redesigned without a paused-run state, built on the Wave 2 pins:
   - a breakpoint ends the simulation and captures the outputs so far;
   - "Weiter" starts a new simulation seeded with those captured values.
-- [JY-17] (Wave 5a) Peek.
-- [JY-08] (Wave 5b, after PE-05) Outcome cards, in the security-redesigned form. They show the delivered text from the receipt's scrubbed excerpt (E12), never a client rebuild.
+- [JY-17] (Wave 4) Peek.
+- [JY-08] (Wave 7b, after PE-05) Outcome cards, in the security-redesigned form. They show the delivered text from the receipt's scrubbed excerpt (E12), never a client rebuild.
 
 **Acceptance criteria**
 - On a flow with doc.pdf_create and notify.telegram, Test preselects Simulieren, and the real-test card names one message and one file. Enter never starts a real test.
@@ -577,11 +581,11 @@ Pillars: ux, joy, power.
 
 **Size:** XL.
 **Waves:**
-- 0 and 1: UX-07, UX-19, CS-06, JY-04.
+- 1: UX-07, UX-19, CS-06, JY-04.
 - 2: UX-08, UX-09, the test path outline, JY-05, JY-06.
 - 3: UX-10.
-- 5a: JY-17.
-- 5b: JY-08.
+- 4: JY-17.
+- 7b: JY-08.
 
 **Dependencies:** the runs.js split (E1); the kit, the status map and JY-01 (E2); neutral wire tokens (UI-03, Wave 0); count chips need UI-08 (Wave 2 canvas track); D.3 and D.4.
 
@@ -635,7 +639,7 @@ Pillars: ux, foundation, joy.
 - Target (advisory): 4 of 5 session participants fix the seeded error within 2 minutes (plan §9 metric).
 
 **Size:** L.
-**Waves:** 2 (FD-19, UX-12, UX-11, JY-07, AI-05 tier 1). The resume hook is used in Wave 5b.
+**Waves:** 2 (FD-19, UX-12, UX-11, JY-07, AI-05 tier 1). The resume hook is used in Wave 7b.
 **Dependencies:** E1; E5 (pins and the Testbank); FD-11; the PI-14 chat slice (E9, Wave 2) for the 3.3 demo.
 
 **Guardrails and invariants**
@@ -668,7 +672,7 @@ Pillars: ops, ux.
 - Where durable mode is off, a "Freigaben einrichten" card that says a restart is needed and that only pure-local flows can be approved.
 - Notification settings per flow: on error, on success, "läuft wieder", and "stumm bis …".
 - Working deep links everywhere, including from dashboard cron rows.
-- Flows in Spotlight (Wave 4a).
+- Flows in Spotlight (Wave 6a).
 - Run search on the server, and run labels.
 
 **Scope**
@@ -684,7 +688,7 @@ Pillars: ops, ux.
 - [CS-03] Per decision 11 (a): where durable mode is off, the approvals entry becomes the "Freigaben einrichten" card. It fails open.
 - [JY-02] Two sounds only: an approval waits, and a background run fails.
 - [OP-04] Run search and labels. The label column is designed into the Wave 3 migration.
-- [OP-11] (Wave 4a) Flows in Spotlight. Its run action uses the PE-11 form.
+- [OP-11] (Wave 6a) Flows in Spotlight. Its run action uses the PE-11 form.
 - Out of scope this cycle:
   - enabling durable mode without a restart;
   - approval forms, editable review values and outcome ports (brief §7 pattern 9; deferred in §9).
@@ -704,7 +708,7 @@ Pillars: ops, ux.
 - The attention endpoint keeps its row caps and answers within 300 ms with 200 flows of 200 runs each (target, reference profile).
 
 **Size:** XL.
-**Waves:** 3 (everything except OP-11), 4a (OP-11).
+**Waves:** 2 (OP-13), 3 (everything except OP-11 and OP-13), 6a (OP-11).
 **Dependencies:** E1; the E2 kit and status map; the F.2 accessor (Wave 1); H.6; the Wave 3 migration. Entry for OP-07 and UX-16: the durable path is accepted on aurago-test with durable_enabled=true.
 
 **Guardrails and invariants**
@@ -752,8 +756,8 @@ Pillars: ux, joy, power.
 - [UX-03, JY-13] (Wave 1) First-run checklist.
 - [JY-20] (Wave 3) Calm library updates.
 - Pack drop target (Wave 3, with CS-02).
-- [PI-16] (Wave 4a) Recipe instances, with the recipe link in the Wave 3 migration.
-- [PI-17] (Waves 4a and 4b) New recipes, each shipping with the trigger it needs.
+- [PI-16] (Wave 6a) Recipe instances, with the recipe link in the Wave 5 migration.
+- [PI-17] (Waves 6a and 6b) New recipes, each shipping with the trigger it needs.
 - [CS-15] (Wave 3) The two-minute automation, used as an acceptance journey.
 - Deferred: JY-15 empty-state drawings (§9).
 
@@ -770,10 +774,10 @@ Pillars: ux, joy, power.
 **Waves:**
 - 1: the content-first slice, UX-01, UX-03.
 - 3: recipe cards, CS-10, JY-20, the drop target, CS-15.
-- 4a: PI-16 and PI-17.
-- 4b: PI-17.
+- 6a: PI-16, and the PI-17 recipes whose triggers exist.
+- 6b: the remaining PI-17 recipes as their triggers land.
 
-**Dependencies:** the home-grid extraction (E1), the E2 kit, the E7 endpoint (Wave 3 parts), and PI-14 (E9, Wave 4a) for recipe instances.
+**Dependencies:** the home-grid extraction (E1), the E2 kit, the E7 endpoint (Wave 3 parts), and PI-14 (E9, Wave 5) for recipe instances.
 
 **Guardrails and invariants**
 - Recipes and AI drafts open only as drafts.
@@ -800,19 +804,19 @@ Pillars: ux, power.
 - Pickers with live labels and an explicit "Prüfen" check. The chat picker for message steps comes first (Wave 2).
 - "Auf Testereignis warten" captures a real event as the sample.
 - "erhält: text" while connecting, with a one-click mapping offer.
-- Context-aware quick-add: "Schritte nach: X" from Wave 1; synonyms, favorites first and ">" commands from Wave 4a.
+- Context-aware quick-add: "Schritte nach: X" from Wave 1; synonyms, favorites first and ">" commands from Wave 4.
 
 **Scope**
 - [UX-05] (Wave 2), with the explicit list choice first, all or join (flagship C.3).
 - [UX-06] (Wave 2).
 - [PI-14] Pickers:
   - Wave 2: the chat options for notify.* steps, from the configured channels and without probing;
-  - Wave 4a: the full family, after the detail.js split;
+  - Wave 5: the full family, after the detail.js split in Wave 4;
   - plus [OP-09]'s resource-kind metadata only.
-- [PI-20], [JY-03] (Wave 4a).
+- [PI-20] (Wave 5), [JY-03] (Wave 4).
 - [UX-04] Quick-add:
   - Wave 1 (size S): the pin-drag header "Schritte nach: X", suggested next steps and "Alle anzeigen";
-  - Wave 4a: synonyms, favorites first (flagship B.2) and ">" commands on the action registry.
+  - Wave 4: synonyms, favorites first (flagship B.2) and ">" commands on the action registry.
 - [AI-07] is deferred.
 
 **Acceptance criteria**
@@ -822,15 +826,16 @@ Pillars: ux, power.
 - The MQTT picker lists topics from existing subscriptions seen in the last hour, with the last payload and its age, and it never adds a wildcard subscription. A value that no longer exists shows "nicht mehr vorhanden" and a publish issue, without changing the draft.
 - Listening on a topic and publishing one message shows the payload within 1 s. The draft starts no run, while a live version bound to the same topic still runs. Capture ends at the first event or after 2 minutes.
 - One click fills the Telegram text, and one Ctrl+Z removes it. A catalog-wide test proves that no offer is ever made for secret_ref, URL host, instruction or SensitiveSink fields.
-- From a trigger's "+", the quick-add header reads "Schritte nach: Zeitplan" and lists suggested steps first; "Alle anzeigen" opens the full palette (Wave 1). Typing ">" lists commands from the action registry, "Nachricht" finds "Telegram senden", and the synonym keys exist in all 16 locales (Wave 4a).
+- From a trigger's "+", the quick-add header reads "Schritte nach: Zeitplan" and lists suggested steps first; "Alle anzeigen" opens the full palette (Wave 1). Typing ">" lists commands from the action registry, "Nachricht" finds "Telegram senden", and the synonym keys exist in all 16 locales (Wave 4).
 
 **Size:** XL.
 **Waves:**
 - 1: the UX-04 header slice.
 - 2: UX-05, C.3, UX-06, the PI-14 chat slice.
-- 4a: PI-14, PI-20, JY-03, the rest of UX-04.
+- 4: JY-03 and the rest of UX-04.
+- 5: PI-14 (full family), PI-20.
 
-**Dependencies:** E1 (the detail.js split before Wave 4a); E2 (the action registry); E5 (samples for previews); plan C.1, C.2 and J.3.
+**Dependencies:** E1 (the detail.js split before Wave 4); E2 (the action registry); E5 (samples for previews); plan C.1, C.2 and J.3.
 
 **Guardrails and invariants**
 - Picker labels go through esc(), are truncated and scrubbed, and are fetched with the admin session from bounded sources. Drafts keep ids only.
@@ -847,7 +852,7 @@ Pillars: ux, power.
 - Mapping offers come from the lint metadata and are linted again after insertion.
 
 **Main code areas**
-- `easydrag-mapping.js`, `easydrag-transform.js`, `easydrag-palette.js`; `easydrag-detail.js` after its Wave 4a split.
+- `easydrag-mapping.js`, `easydrag-transform.js`, `easydrag-palette.js`; `easydrag-detail.js` after its Wave 4 split.
 - New modules: `easydrag-picker.js`, `easydrag-preview.js`, `easydrag-commands.js`.
 - `flows_handlers_options.go`; a capture endpoint; catalog `OptionsSource` and `ResourceKind`.
 
@@ -869,17 +874,17 @@ Pillars: power, ops.
 - Missed schedules shown, with an explicit catch-up policy.
 
 **Scope**
-- Wave 1 (cheap-power track):
+- Wave 5 (cheap-power track):
   - [PE-15] and [PI-19], on the conditions editor split out in Wave 0;
   - [PE-16], merged with the failure trigger of [PI-05] and [OP-08];
   - nested condition groups (flagship G.3) are deferred (§9).
-- Wave 4b:
-  - [PE-14];
-  - [PI-01] (decision 7);
+- Waves 6a and 6b:
+  - [PE-14] (Wave 6b);
+  - [PI-01] (decision 7; Wave 6a);
   - [PI-02];
   - [PI-03] phase 1 only (named presets, per the security redesign; phase 2 deferred);
   - [PI-04] (verify first that the email trigger carries attachments);
-  - [PE-08] short waits (long waits come with PE-07 in Wave 5b);
+  - [PE-08] short waits (long waits come with PE-07 in Wave 7b);
   - [PE-18].
 
 **Acceptance criteria**
@@ -896,19 +901,19 @@ Pillars: power, ops.
 - With catch-up set to "auslassen", a risky flow runs nothing after a 2-hour outage and shows the missed slots. "Alle nachholen" is refused for a flow with an unavailable node.
 
 **Size:** XL.
-**Waves:** 1 (PE-15, PI-19, PE-16), 4b (the rest).
+**Waves:** 5 (PE-15, PI-19, PE-16), 6a (PI-01), 6b (the rest).
 
 **Dependencies (per item)**
 - PE-15, PI-19 and PE-16: only E1 (the fields.js split, and StartResult surfaced for PE-16) and the shared Go/JS condition vectors.
 - PE-14: PE-15, and the trigger-rule rows in the field-kind registry.
-- PI-01: the PI-14 pickers for chat identities (Wave 4a); decision 7.
-- PI-02, PI-03 and PI-04: PI-14 and PI-20 (E9, Wave 4a); the watch tables in the Wave 3 migration; E7 notifications.
-- PE-08 short waits: PE-19 (E11, Wave 4b). Long waits: PE-05 and PE-07 (E12, Wave 5b).
-- PE-18: the missed-run table in the Wave 3 migration, and the F.2 accessor.
+- PI-01: the PI-14 pickers for chat identities (Wave 5); decision 7.
+- PI-02, PI-03 and PI-04: PI-14 and PI-20 (E9, Wave 5); the watch tables in the Wave 5 migration; E7 notifications.
+- PE-08 short waits: PE-19 (E11, Wave 6b). Long waits: PE-05 and PE-07 (E12, Wave 7b).
+- PE-18: the missed-run table in the Wave 5 migration, and the F.2 accessor.
 
 **Guardrails and invariants**
 - Conditions use parity vectors shared by Go and JS.
-- Ignored-event statistics stay in memory, bounded per trigger: a counter plus the last 50 ignored events with their reasons, labelled "seit Neustart". They never create run rows. The Wave 3 migration may persist the counter.
+- Ignored-event statistics stay in memory, bounded per trigger: a counter plus the last 50 ignored events with their reasons, labelled "seit Neustart". They never create run rows. The Wave 5 migration may persist the counter.
 - Safety-relevant triggers:
   - bypass quiet hours and duplicate windows;
   - are held by debounce or throttle for at most 60 s;
@@ -966,12 +971,12 @@ Pillars: power.
 - Waits that free their worker, merge deadlines ("2/3 angekommen") and concurrency keys.
 
 **Scope**
-- [PE-10] (Wave 2). The JS evaluator lives in `easydrag-expr.js`.
-- [PE-04, CS-13] (Wave 2, after FD-19), with timeline lanes for retry backoff and wait spans (flagship E.1).
-- [PE-17] (Wave 2).
-- [PE-02, CS-19] (Wave 3): one store with HMAC keys, designed once in the Wave 3 migration.
-- [PE-01] (Wave 3), then [PE-03] (Wave 5b) once the demand is clear.
-- [PE-19] (Wave 4b).
+- [PE-10] (Wave 5). The JS evaluator lives in `easydrag-expr.js`.
+- [PE-04, CS-13] (Wave 5, after FD-19), with timeline lanes for retry backoff and wait spans (flagship E.1).
+- [PE-17] (Wave 5).
+- [PE-02, CS-19] (Wave 5): one store with HMAC keys, designed once in the Wave 5 migration.
+- [PE-01] (Wave 5), then [PE-03] (Wave 7b) once the demand is clear.
+- [PE-19] (Wave 6b).
 
 **Acceptance criteria**
 - `{{ (sensor.value - 32) / 1.8 | round(1) }}` gives 21.5 in Go and JS from one shared vector. An expression with more than 256 operations fails validation, and a tainted URL built with "&" is refused.
@@ -989,8 +994,8 @@ Pillars: power.
 - With one worker, branch A waits 60 s while branch B finishes on its own schedule.
 
 **Size:** XL.
-**Waves:** 2 (PE-10, PE-04, PE-17), 3 (PE-02, PE-01), 4b (PE-19), 5b (PE-03 if confirmed).
-**Dependencies:** E1; the Wave 3 migration from the schema roadmap (§8); FD-19 classes for retry-on.
+**Waves:** 5 (PE-10, PE-04, PE-17, PE-02, PE-01), 6b (PE-19), 7b (PE-03 if confirmed).
+**Dependencies:** E1; the Wave 5 migration from the schema roadmap (§8); FD-19 classes for retry-on.
 
 **Guardrails and invariants**
 - Memory is read only through a step. There is no `vars` root at render time, so replays stay deterministic.
@@ -999,7 +1004,7 @@ Pillars: power.
 - Values are scrubbed. Caps apply per value, per flow and globally.
 - An item is marked as seen only after the downstream step succeeds.
 - Memory is excluded from exports and packs. Simulation reads fixtures and never writes memory. Real tests read live memory but write to a per-test overlay that is discarded at the end.
-- Validate refuses the parallel policy for flows with Merken or Nur-neue steps until the PE-19 concurrency keys land (Wave 4b).
+- Validate refuses the parallel policy for flows with Merken or Nur-neue steps until the PE-19 concurrency keys land (Wave 6b).
 - retry_on can only narrow the retryable set. New risky steps retry only on failures that provably happened before sending.
 - Retry-After is honoured only up to the step's maximum delay (at most 3,600 s, model.go) and the remaining run timeout. Above that, the attempt fails as not retryable. Jitter is seeded from the run id, node and attempt.
 - Expressions have no now(). Date math uses `run.started_at`, which Simulation freezes.
@@ -1022,7 +1027,7 @@ Pillars: power, safety.
 - Approvals for flows with outward effects, if decision 11 (b) is taken.
 
 **Scope**
-- [PE-05]: the contract starts in Wave 0; the implementation lands in Wave 5b with its own migration.
+- [PE-05]: the contract starts in Wave 0; the implementation lands in Wave 7b with its own migration.
 - [PE-06].
 - [PE-09], in its security-redesigned form (decision 5).
 - [PE-07] and the long waits of [PE-08] (decision 9).
@@ -1040,7 +1045,7 @@ Pillars: power, safety.
 - An approved effectful step's digest covers the reviewed effects, and changing an effect after the review voids the approval.
 
 **Size:** XL. This is the long pole.
-**Waves:** 0 (the PE-05 contract), 5b (everything else).
+**Waves:** 0 (the PE-05 contract), 7b (everything else).
 **Dependencies:** `plans/2026-11-04-easydrag-durable-execution-contract.md` and `plans/2026-11-05-easydrag-durable-approval-contract.md`; PE-19 (E11); E1; the shared seeding function (E6).
 
 **Guardrails and invariants**
@@ -1076,16 +1081,16 @@ Pillars: power, ux.
 
 **What the user gets**
 - Home Assistant: read several states, browse services with a generated form, target areas.
-- Generic tool steps that fail when the tool fails, with known outputs and labels translated in all 16 locales (Wave 2).
+- Generic tool steps that fail when the tool fails, with known outputs and labels translated in all 16 locales (Wave 5).
 - The palette grouped by topic. "Einrichten" opens the right settings page.
 - Calendar and todos as data, including a ready-made `agenda_text`.
 - A "Durchsage" step with "Probehören".
 - A "Desktop-Hinweis" step with "Lauf öffnen".
 
 **Scope**
-- [PI-12] (Wave 2 power track).
-- [PI-06], [PI-13], [PI-07], [PI-09] (Wave 4a).
-- [OP-18] (Wave 4a), merged with [PI-18]. PI-18's "Ergebnis öffnen" action comes later. Verify first how OP-18 overlaps the generic virtual_desktop tool and how that tool's effect is classified (§10).
+- [PI-12] (Wave 5, compute and memory track).
+- [PI-06], [PI-07], [PI-09] (Wave 6a), and [PI-13] (Wave 4).
+- [OP-18] (Wave 6a), merged with [PI-18]. PI-18's "Ergebnis öffnen" action comes later. Verify first how OP-18 overlaps the generic virtual_desktop tool and how that tool's effect is classified (§10).
 - Deferred: PI-08, PI-10, PI-11, PI-15 and OP-19.
 
 **Acceptance criteria**
@@ -1098,8 +1103,8 @@ Pillars: power, ux.
 - In Simulation, a Desktop-Hinweis shows nothing, and markup in its text renders literally.
 
 **Size:** L.
-**Waves:** 2 (PI-12), 4a (the rest).
-**Dependencies:** PI-14 (E9); PI-19 (E10, Wave 1) for quiet hours; the media SSRF hardening branch (`claude/media-ssrf-hardening`, ac606f609, not merged yet) merged and verified before PI-09 (Wave 4a entry criterion).
+**Waves:** 5 (PI-12), 4 (PI-13), 6a (the rest).
+**Dependencies:** PI-14 (E9); PI-19 (E10, Wave 5) for quiet hours; the media SSRF hardening branch (`claude/media-ssrf-hardening`, ac606f609, not merged yet) merged and verified before PI-09 (Wave 6a entry criterion).
 
 **Guardrails and invariants**
 - The HA script-domain refusal stays. Area targets add the effect "kann mehrere Geräte schalten". Attributes come from an allowlist. Multi-state reads are untrusted, like the ha_state trigger.
@@ -1123,9 +1128,9 @@ Pillars: power, ai.
 - Aura can call reviewed flows that the owner has opted in, as typed tools. Risky flows ask for confirmation in the signed-in session.
 
 **Scope**
-- [PE-11] (Wave 4a), rendered through the field-kind registry.
-- The run action of [OP-11] uses this form (Wave 4a).
-- [AI-18] Phase 1, chat only, per the security redesign (Wave 5b, after PE-05).
+- [PE-11] (Wave 6a), rendered through the field-kind registry.
+- The run action of [OP-11] uses this form (Wave 6a).
+- [AI-18] Phase 1, chat only, per the security redesign (Wave 7b, after PE-05).
 - Deferred: [PE-12], [PE-13], and MCP exposure (decision 8).
 
 **Acceptance criteria**
@@ -1137,7 +1142,7 @@ Pillars: power, ai.
 - Autonomous missions, co-agents and inner-voice turns never see flow tools (test).
 
 **Size:** L.
-**Waves:** 4a (PE-11, the OP-11 run action), 5b (AI-18).
+**Waves:** 6a (PE-11, the OP-11 run action), 7b (AI-18).
 **Dependencies:** the enforced switches from E1; E7 (OP-13); E12 receipts before risky flows are offered as tools.
 
 **Guardrails and invariants**
@@ -1188,7 +1193,7 @@ Pillars: ai, ux.
 - The KI tab shows model, latency, tokens, attempts and the fenced parts of every AI step, with secrets shown only as vault key names.
 
 **Size:** XL.
-**Waves:** 5a.
+**Waves:** 7a.
 **Dependencies:** FD-13 and FD-17 (E1) before any draft digest reaches a model; CS-18 (E4); E2; `easydrag-model-ops.js` (E1).
 
 **Guardrails and invariants**
@@ -1228,7 +1233,7 @@ Pillars: ux, joy.
 - Every canvas edit action can be reached from the list.
 
 **Size:** L.
-**Waves:** 4a.
+**Waves:** 4.
 **Dependencies:** the kit sheets, the status map and the action registry (E2); the selection bar, the one Stop and the header (E4); card text (E3); the Testbank as a sheet (E5); `easydrag-model-ops.js` for the run-order projection (E1).
 
 **Guardrails and invariants**
@@ -1275,24 +1280,77 @@ Pillars: ux, joy.
 | Rework | Low | High: UI rebuilt after the tokens and kit | Low to medium |
 | Visible progress per wave | High early, flat later | Low early, high later | High in every wave |
 
-**Recommendation: C.** It is the only strategy that addresses all three judges:
-- the principal engineer's gates come first: splits, the trust sweep and measurement;
-- the design director's rule holds: tokens and kit come before any new screen;
-- the power user gets start conditions, time windows and the run_failed trigger in Wave 1, with their own demo and gates, and memory and events by Waves 3–4b.
+**Decision (2026-11-10): the owner chose A.** Craft comes first:
+- Wave 0 stays as planned.
+- Waves 1–4 finish the visual system, the canvas, the chrome, the Testbank, diagnosis, the home, attention and approvals, and the phone layout.
+- Waves 5–7b add the power and AI epics E9 to E15 into that finished UI (§6).
 
-It also follows the flagship plan's own advice to "build a small number of complete, exemplary journeys first" (`plans/2026-11-04-easydrag-flagship-plan.md`:45).
+C remains the fastest way to new power. It was recommended for two reasons. It served all three judges at once, with start conditions and run_failed in Wave 1 and memory and events by Waves 3–4b. It also follows the flagship plan's advice to "build a small number of complete, exemplary journeys first" (`plans/2026-11-04-easydrag-flagship-plan.md`:45).
 
-## 6. Recommended roadmap
+§5 names three risks for A: the result is polished but not more capable, the power-user judge's priorities sit idle, and the PE-05 long pole starts late. This roadmap limits them as follows:
+- Wave 0 is unchanged, so the principal engineer's gates still come first: the splits, the trust sweep and the counter baseline.
+- The PE-05 receipts contract and the schema roadmap still start in Wave 0. The long pole and all three migrations (Waves 3, 5 and 7b) are designed before the first craft wave, and Wave 7b can slip without delaying Wave 7a.
+- The one power slice a craft demo needs ships early: the PI-14 chat slice in Wave 2, for 3.3.
+- Prerequisites stay early, so the power waves start on split modules and on the finished error taxonomy:
+  - the F.2 accessor in Wave 1;
+  - FD-19 at the start of Wave 2;
+  - StartResult (FD-20), fixed in S0c by the Wave 2 exit, which gates OP-01 in Wave 3 and PE-16 in Wave 5;
+  - the detail.js split and `easydrag-model-ops.js` at the Wave 4 entry.
+- The split-before-use guardrails do not relax. template.js stops growing from the Wave 2 entry, and model.js never grows.
+- The pure UX parts of the power epics ship in the craft phase: UX-04, PI-13, UX-05 with C.3, UX-06 and JY-03. Authoring is finished before the pickers arrive.
+- The power phase opens with the power-user judge's highest-rated items, each with its own demo and gates. PI-14, PE-15, PI-19, PE-16, PE-02 and PE-10 come in Wave 5, then PI-01, PI-06 and PE-11 in Wave 6a. Every wave that adds a trigger or reading step gates on the source-trust catalog test.
+- The craft phase ends on a hard gate. Four checks must pass at the Wave 4 exit before power work begins:
+  - the screenshot critiques (craft ≥8, joy ≥7);
+  - the owner's Freude median (≥4/5);
+  - the scripted NVDA and VoiceOver pass;
+  - the full XL performance gate.
+- The critiques, the screen-reader pass and the performance gate must still hold at the Wave 7b exit. The Freude median is checked at Wave 4 and again by the release gate.
+
+The cost of A is later power and a longer roadmap:
+- four waves later than under C (Wave 1 to 5): start conditions, time windows and run_failed;
+- three waves later (2 to 5): expressions, Retry 2.0, fallback values and generic steps;
+- two waves later (3 to 5): memory and only-new;
+- one or two waves later: the work C placed in Waves 4a to 5b.
+
+The ten waves sum to 22.5 relative units instead of 20.5, for two reasons. The power work no longer runs as small tracks beside craft waves. C's single power-and-craft migration in Wave 3 splits into two.
+
+## 6. Roadmap (strategy A, chosen by the owner on 2026-11-10)
 
 **Rules for every wave**
 - A demo may only use items scheduled in the same wave or an earlier one.
 - Every Appendix A row that names an epic names its wave in the Wave column, or points to §9. Split items name the wave of each part. A review checks this at each wave's entry.
-- The split-before-use list (E1) is checked at each wave's entry.
+- The plan has two phases. The craft phase is Waves 1–4 and the power phase is Waves 5–7b.
+  - A power item enters the craft phase only as a slice that a craft demo needs. The one case is the PI-14 chat slice in Wave 2, for 3.3.
+  - Pure UX items from the power epics stay in the craft phase: UX-04 (both slices), UX-05 with C.3, UX-06 and JY-03 (E9), and PI-13 (E13, the palette by topic, which reworks the same palette module as UX-04).
+  - Prerequisites of craft and power work stay early:
+    - the F.2 next-fire accessor in Wave 1 (before UI-04, UX-13 and OP-02);
+    - FD-19 first in Wave 2 (before UX-12, and before PE-04 in Wave 5);
+    - StartResult surfaced (FD-20), fixed in S0c by the Wave 2 exit (before OP-01 in Wave 3 and PE-16 in Wave 5).
+- The split-before-use list (E1) is checked at each wave's entry. Under strategy A it reads:
+  - Wave 0: runs.js, editor.js, home.js and fields.js;
+  - Wave 2 entry:
+    - card rendering moves into `easydrag-card.js`, before UI-04, UI-05 and the FD-04 tiers;
+    - from here on, template.js (911 lines) does not grow. The template-side JS for UX-05 and UX-06 goes into `easydrag-preview.js` or `easydrag-transform.js`;
+  - Wave 4 entry:
+    - detail.js splits, before E16, JY-03 and the full PI-14 family in Wave 5;
+    - `easydrag-model-ops.js` is created, before both the canvas-handling track (select upstream and downstream, distribute) and E16 (the run-order projection). E15 reuses it in Wave 7a for the client-side change-set apply;
+  - Wave 5 entry: `easydrag-expr.js` is created for PE-10's JS evaluator;
+  - standing rules:
+    - model.js (921 lines) does not grow. New model helpers go into `easydrag-model-ops.js`. If a craft wave needs a model helper before the Wave 4 entry, the module is created then;
+    - until its split, detail.js takes no new code. E6 field focus stays in `easydrag-repair.js` and E9 previews in `easydrag-preview.js`. The E15 KI tab goes into `easydrag-aiview.js` in Wave 7a.
 - Each wave gate adds a smoke test at 390×844 and 360×480 for that wave's new surfaces.
 - Parallel tracks have their own gates. A wave does not exit until they pass, or until an item is explicitly moved to the next wave with a note.
-- Relative durations were re-estimated from the Appendix A sizes after the review. The first draft summed to 15; this plan sums to 20.5. They are not a schedule.
+- Parallel tracks own disjoint modules. Where two tracks must change the same file, the wave names that file, its owner and the order of the changes (Wave 5).
+- Every wave that adds a trigger or reading step gates on the source-trust catalog test for it (§8). From Wave 5 on this applies to Waves 5, 6a and 6b.
+- Every wave that adds a gesture gates on its keyboard path (the FD-06 wiring, from Wave 4) and on CDP touch emulation (§8).
+- Relative durations were re-estimated from the Appendix A sizes for strategy A and sum to 22.5 (strategy C: 20.5).
+  - Wave 1 keeps 2.5: it lost only C's small parallel power track.
+  - Wave 3 rises to 2.5, because it is the heaviest craft wave: six L items, a migration and the durable acceptance on aurago-test.
+  - The extra 2 units have two causes. The power work that C ran as small tracks beside craft waves now runs in its own waves. C's Wave 3 migration splits into a craft migration (Wave 3) and a power migration (Wave 5).
+  - The durations are not a schedule.
+- This section and the Appendix A Wave column are the schedule. All wave references in §3, §4 and §7 to §10 were updated to strategy A on 2026-11-10; if one still disagrees, this section decides.
 
-**Wave 0: Clear the deck** (relative duration 1.5).
+**Wave 0: Clear the deck** (relative duration 1.5; unchanged from strategy C).
 - *Includes:* S0 and S0b (§7):
   - S0: the FD-03 counter baseline (step 0); the FD-10 splits of runs.js, editor.js, home.js and fields.js; the FD-17, AI-16 and OP-17 trust sweep; the FD-12 subset; UI-02 and UI-03 from E3 and E2;
   - S0b: FD-13 and FD-18.
@@ -1307,11 +1365,10 @@ It also follows the flagship plan's own advice to "build a small number of compl
 - *Parallel tracks:*
   - S0c, the rolling hygiene track (FD-15, FD-16, FD-20 and the rest of FD-12). It starts with short verification spikes and runs through Wave 2;
   - the PE-05 receipts contract (design only);
-  - the schema roadmap (design only, §8).
+  - the schema roadmap (design only, §8). It now specifies three migrations: Wave 3, Wave 5 and Wave 7b.
 - *Decisions due:* 1, 3 and 4.
 
 **Wave 1: Readable and honest** (relative duration 2.5).
-- *Entry:* StartResult surfaced (FD-20), before PE-16.
 - *Includes:*
   - E2: FD-08 with the status map, UI-17, FD-09, FD-11, CS-01, UI-15, JY-01, the action registry, UX-18 and CS-20, the first FD-14 scenes, and the CS-17 ledger and control budgets;
   - E4: UI-14 with the primary-action states and the one Stop, plus the read-only F.2 next-fire accessor;
@@ -1321,9 +1378,7 @@ It also follows the flagship plan's own advice to "build a small number of compl
   - E3: UI-13, FD-01, FD-05;
   - the touch audit (FD-15 tier T1).
 - *Order:* the FD-08 tokens and the status map first. Then FD-09 and CS-01. Then UI-14 (after the F.2 accessor) and the home slice. UX-07 comes before UX-19.
-- *Demo:*
-  - signature experience 3.1 in Standard dark and Fruity light and dark, with the result in the UX-19 results panel (the Testbank strip arrives in Wave 2);
-  - power: a washing machine on MQTT with "Nur starten, wenn power < 5" and the time condition "nicht zwischen 22:00 und 07:00" starts one run out of 12 samples, and a run_failed recovery flow fires on a seeded failure.
+- *Demo:* signature experience 3.1 in Standard dark and Fruity light and dark, with the result in the UX-19 results panel (the Testbank strip arrives in Wave 2).
 - *Gates:*
   - zero idle animations;
   - the OKLab token checks across the 14 themes in the lab's first scenes, and the status-map lint;
@@ -1331,47 +1386,50 @@ It also follows the flagship plan's own advice to "build a small number of compl
   - plural tests;
   - exactly one visible Stop per window, and equal control positions before and after a run at 390, 900 and 1440 px;
   - at 390 px, the toolbar and the first three flows are visible without scrolling;
-  - power:
-    - the shared Go/JS condition vectors pass;
-    - ignored events add no run rows;
-    - 23:30 and 06:59 fall inside 22:00–07:00 on a DST day;
-    - run_failed starts within 1 s, and a flow cannot select itself;
   - screenshot critiques: craft ≥7/10 and joy ≥5/10.
-- *Parallel track:* cheap power: PE-15, PI-19, PE-16.
+- *Parallel track:* S0c continues (FD-15 tiers T0 and T1, FD-16, FD-20 and the rest of FD-12).
+  - StartResult surfaced is fixed with a test here or in Wave 2, and is not deferred.
+  - Strategy C's cheap-power track (PE-15, PI-19, PE-16) moves to Wave 5.
 - *Decisions due:* 13 by the Wave 1 exit; 2 after the Wave 1 sessions.
 
-**Wave 2: Red to green, and a run you can watch** (relative duration 3).
-- *Entry:* SSE redaction verified (FD-20); `easydrag-card.js` split out of canvas.js; `easydrag-expr.js` created.
+**Wave 2: Red to green, and a run you can watch** (relative duration 2.5).
+- *Entry:*
+  - SSE redaction verified (FD-20);
+  - `easydrag-card.js` split out of canvas.js;
+  - template.js stops growing (split-before-use list).
 - *Includes:*
   - E6: FD-19, UX-12, UX-11 with the shared seeding function, JY-07, AI-05 tier 1;
-  - E5: UX-08, UX-09, the test path outline, JY-05, JY-06;
-  - E9: UX-05 with the C.3 list choice, UX-06, and the PI-14 chat slice for notify.* steps;
-  - E4: UI-16.
-- *Order:* FD-19 first, because UX-12 and PE-04 need its classes. UX-09 before JY-05. FD-04 culling before UI-04 adds DOM per card.
+  - E5: UX-08 with the deterministic tier of AI-08, UX-09, the test path outline, JY-05, JY-06;
+  - E9: UX-05 with the C.3 list choice, UX-06 (their template-side JS in `easydrag-preview.js` or `easydrag-transform.js`), and the PI-14 chat slice for notify.* steps;
+  - E4: UI-16 with CS-12;
+  - E7: OP-13, the deep-link contract. Run links from notifications and the dashboard's "managed in EasyDrag" cron rows go through `openInitialDesktopApp`, which today passes context only for findit.
+- *Order:* FD-19 first, because UX-12 needs its classes and PE-04 reads them in Wave 5. UX-09 before JY-05. FD-04 culling before UI-04 adds DOM per card. OP-13 before the 3.3 demo.
 - *Demo:* signature experiences 3.2 and 3.3, run after the canvas track's UI-04 and UI-08 land.
+  - 3.3 starts from the failure notification, which opens the failed run through the OP-13 run link.
+  - 3.3 keeps the PI-14 chat slice in this wave rather than changing the demo, for three reasons. The slice is small: options come from the configured channels, with no probing. It is the fix that the 3.3 failure needs. Without it, the repair journey would end with typing a chat id, which goes against principle 5.
 - *Gates:*
   - the FLOW_* registry test;
   - zero invoker calls from Simulation;
   - the seeded-retest taint test;
   - the recovery journey as a scripted test (3 actions plus the effect confirmation). The five-person session is advisory (target: 4 of 5 within 2 minutes);
+  - the deep-link whitelist test (OP-13);
   - XL counters do not regress, and the first reference-hardware timings are recorded;
-  - power:
-    - the expression vector `(sensor.value - 32) / 1.8 | round(1)` gives 21.5 in Go and JS;
-    - the seeded-jitter and date-math vectors pass;
-    - the Retry 2.0 golden test passes;
-    - a generic step that returns IsError takes its error port;
-  - phone: at 360×480 the Testbank is one 44 px bar, and the canvas keeps at least 50 % of the height.
+  - phone: at 360×480 the Testbank is one 44 px bar, and the canvas keeps at least 50 % of the height;
+  - S0c is closed: every FD-20 item has an outcome, and StartResult is surfaced with a test.
 - *Parallel tracks:*
   - canvas: FD-04 with UI-01, UI-04, UI-05, UI-08;
-  - power: PE-10, PE-04 with CS-13 and the timeline lanes (E.1), PE-17, PI-12.
+  - S0c closes: every FD-20 item has an outcome before the Wave 2 exit. StartResult surfaced must be fixed, not deferred, because it gates OP-01 in Wave 3.
 - *Decisions due:* 10, before the human review round.
 
-**Wave 3: The system comes to you** (relative duration 3).
-- *Entry:* the durable path is accepted on aurago-test with durable_enabled=true (decision 11), and the schema roadmap specifies the Wave 3 migration.
+**Wave 3: The system comes to you** (relative duration 2.5).
+- *Entry:*
+  - StartResult surfaced (FD-20), before OP-01, so trigger start failures reach the attention strip;
+  - the durable path is accepted on aurago-test with durable_enabled=true (decision 11);
+  - the schema roadmap specifies the Wave 3 migration: run labels and notification mute state. The memory, recipe-link, watch and missed-run tables move to the Wave 5 migration.
 - *Includes:*
-  - E7: OP-01 with the "Republish needed" tile, UX-15, OP-02, OP-07 with UX-16, OP-13, OP-06, CS-03 as the "Freigaben einrichten" card, JY-02, OP-04;
+  - E7: OP-01 with the "Republish needed" tile, UX-15 with JY-09, OP-02, OP-07 with UX-16, OP-06, CS-03 as the "Freigaben einrichten" card, JY-02, OP-04 (OP-13 landed in Wave 2);
   - E8: the UX-02 recipe cards, CS-10, JY-20, the pack drop target, and CS-15 as the acceptance journey;
-  - E4: UX-13 (review content), CS-18, UX-14 with OP-05, JY-19, UI-07;
+  - E4: UX-13 (review content), CS-18, UX-14 with OP-05, JY-19, UI-07 with CS-16;
   - E5: UX-10 (stop point plus seeded continue, Simulation only, on the Wave 2 pins).
 - *Order:* the migration first. The OP-01 endpoint before UX-15 and OP-02. CS-18 before UX-13 and UX-14.
 - *Demo:* signature experiences 3.4 (pure-local), 3.5 and 3.6.
@@ -1381,63 +1439,143 @@ It also follows the flagship plan's own advice to "build a small number of compl
   - the migration takes a verified backup and refuses old binaries;
   - with durable mode on aurago-test, one full round trip passes: notification, signed-in review, decision with undo;
   - the idle-load check: badge, strip and marks update from the bus, and no timer polls more often than every 60 s while the window is hidden;
-  - an NVDA smoke test of the header, the Testbank and the canvas;
-  - power: the PE-02 learn fixture, the PE-01 counter, the real-test overlay, and the refused parallel policy;
-  - screenshot critiques: craft ≥8/10 and joy ≥7/10; the owner's median Freude on the shipped signature journeys is at least 4/5.
-- *Parallel tracks:*
-  - canvas handling: FD-02 with JY-16, the UI-09 and UI-12 parts, edge auto-scroll, distribute and equal-gap guides, F2 rename, select upstream and downstream;
-  - power: the migration, then PE-02 and PE-01.
+  - an NVDA smoke test of the header, the Testbank and the canvas.
+- *Parallel track:* UX-10 (the stop point and capture in `simulation.go`, and the Testbank modules), whose modules are disjoint from those of E7 and E4.
 - *Decisions due:* 11 (a) and 12.
 
-**Wave 4a: Build with real things** (relative duration 2.5).
-- *Entry:* detail.js is split, and the media SSRF hardening branch (`claude/media-ssrf-hardening`) is merged and verified (before PI-09).
+**Wave 4: Phone first, and a canvas that handles like a design tool** (relative duration 2).
+- *Entry:*
+  - detail.js is split, before E16, JY-03 and the Wave 5 pickers;
+  - `easydrag-model-ops.js` is created, before the canvas-handling track and E16. It starts with the upstream and downstream walk that select upstream and downstream and E16's run-order projection both call. After the entry, each track adds only its own functions.
 - *Includes:*
-  - E9: PI-14 in full, PI-20, JY-03, and the rest of UX-04 (synonyms, favorites first, ">" commands);
-  - E13 remainder: PI-06, PI-13, PI-07, PI-09, OP-18 (PI-12 landed in Wave 2);
-  - E14: PE-11; E7: OP-11;
-  - E16;
-  - E8: PI-16, and the PI-17 recipes whose triggers exist.
-- *Order:* the detail.js split, then PI-14, then PI-16 and PI-20. PE-11 before OP-11.
+  - E16: UX-17 with UI-19, with the run-order projection in `easydrag-model-ops.js`;
+  - E3: FD-06 (keyboard wiring and narrated runs), and the canvas-handling track below;
+  - E2: FD-07, the scripted NVDA (Chrome and Firefox) and VoiceOver (Safari) pass;
+  - E5: JY-17;
+  - E9: the rest of UX-04 (synonyms, favorites first, ">" commands on the action registry), and JY-03 in the canvas-handling track;
+  - E13: PI-13, the palette by topic, next to UX-04. Step types added from Wave 5 on declare their topic.
+- *Order:*
+  - the detail.js split and `easydrag-model-ops.js` first. Then E16 and the canvas-handling track run in parallel;
+  - the UX-04 rest and PI-13 one after the other, because both rework `easydrag-palette.js`;
+  - the canvas-handling actions (F2 rename, select upstream and downstream, distribute) are registered in the action registry as they land. E16's "every canvas edit action can be reached from the list" test runs at the wave exit;
+  - FD-06, then FD-07, last, so the keyboard wiring and the scripted pass cover the new gestures.
 - *Demo:*
-  - the first half of 3.7: capture the real payload, pick the kitchen speaker, map the text in one click, "Probehören";
-  - "Mit Formular starten" from Mission Control;
-  - signature experience 3.10.
+  - signature experience 3.10;
+  - a 120-step chain laid out in 120 columns and undone with one Ctrl+Z;
+  - in quick-add, ">" lists commands and "Nachricht" finds "Telegram senden", and the palette groups steps by topic.
 - *Gates:*
-  - phone journeys at 320 and 390 px;
-  - the picker label-scrub test and the no-wildcard test;
-  - capture copies the event, and a live version on the same topic still runs;
-  - prefilled run-form values stay untrusted until the owner changes them.
-- *Decisions due:* 7, before Wave 4b.
+  - phone journeys at 320 and 390 px. Every canvas edit action can be reached from the phone list;
+  - the FD-06 keyboard wiring tests;
+  - the scripted NVDA and VoiceOver pass (FD-07);
+  - the full XL performance gate on reference hardware (§8);
+  - CDP touch emulation at 1024×768 and 390×844 for the gestures this wave adds (§8);
+  - screenshot critiques: craft ≥8/10 and joy ≥7/10. The owner's median Freude on the shipped signature journeys (3.1 to 3.6 and 3.10) is at least 4/5.
+  - This is the exit gate of the craft phase. Power work starts only on a UI that has passed it.
+- *Parallel track:* canvas handling (one track, because these items all touch `easydrag-interact.js`):
+  - FD-02 with JY-16 (FD-02 before the glide);
+  - the UI-09 and UI-12 parts;
+  - edge auto-scroll for drag, connect and box select;
+  - distribute and equal-gap guides, F2 rename, select upstream and downstream;
+  - then JY-03 ("erhält" while connecting), after the edge auto-scroll helper, because both change the connect gesture.
+- *Decisions due:* none.
 
-**Wave 4b: The house talks back** (relative duration 2.5).
+**Wave 5: Flows that listen and remember** (relative duration 2.5).
+- *Entry:*
+  - `easydrag-expr.js` created (before PE-10);
+  - StartResult surfaced (FD-20) before PE-16. It was fixed in S0c by the Wave 2 exit and has gated OP-01 since Wave 3;
+  - the schema roadmap specifies the Wave 5 migration: memory, the recipe link, and the watch and missed-run tables.
 - *Includes:*
-  - E11: PE-19;
-  - E10: PE-14, PI-01, PI-02, PI-03 phase 1, PI-04, PE-08 (short waits), PE-18;
-  - E8: the remaining PI-17 recipes as their triggers land.
-- *Order:* PE-19 before PE-08. PE-14 before PI-02 and PI-03, which debounce through it.
-- *Demo:* signature experiences 3.7 (complete) and 3.8.
+  - E10: PE-15 and PI-19 on the conditions editor split out in Wave 0; PE-16, merged with the failure trigger of PI-05 and OP-08;
+  - E9: PI-14 in full, with OP-09's resource-kind metadata, and PI-20;
+  - E11: PE-10; PE-04 with CS-13 and the timeline lanes (E.1); PE-17; the migration; PE-02 with CS-19; PE-01;
+  - E13: PI-12.
+- *Order:*
+  - PE-15, PI-19 and PE-16 come first: they rank high with the power-user judge and depend only on E1.
+  - PI-14 comes before PI-20, which shares its capture endpoint.
+  - The migration comes before PE-02 and PE-01.
+- *Shared files:* the tracks below own disjoint modules except `engine.go`, the run coordinator and `validate.go`. Work on these files is serialised:
+  - `engine.go` and the run coordinator, in this order: the PE-16 self-selection check ("a flow cannot select itself"), the PE-04 retry loop, then the PE-02 and PE-01 commit path in the run's terminal transaction (after the migration);
+  - `validate.go` has one owner, the compute-and-memory track. It lands the PE-10 operation limit and the PE-02 parallel-policy refusal, and it takes the validation changes of the other tracks.
+- *Demo:*
+  - a washing machine on MQTT: "Auf Testereignis warten" captures the real payload as the sample, and the MQTT picker lists the topic;
+  - with "Nur starten, wenn power < 5" and the time condition "nicht zwischen 22:00 und 07:00", the flow starts one run out of 12 samples;
+  - a run_failed recovery flow fires on a seeded failure;
+  - a "Nur neue Einträge" flow learns its items and then passes only the new ones;
+  - a mapped expression shows "= 21,5".
+- *Gates:*
+  - start conditions and triggers:
+    - the shared Go/JS condition vectors pass;
+    - ignored events add no run rows;
+    - 23:30 and 06:59 fall inside 22:00–07:00 on a DST day;
+    - run_failed starts within 1 s, and a flow cannot select itself;
+  - expressions and steps:
+    - the expression vector `(sensor.value - 32) / 1.8 | round(1)` gives 21.5 in Go and JS;
+    - the seeded-jitter and date-math vectors pass;
+    - the Retry 2.0 golden test passes;
+    - a generic step that returns IsError takes its error port;
+  - pickers and capture: the picker label-scrub test and the no-wildcard test; capture copies the event, and a live version on the same topic still runs;
+  - the source-trust catalog test for every new trigger or reading step: the run_failed trigger (untrusted payload), captured test events and the generic reading steps;
+  - memory:
+    - the migration takes a verified backup and refuses old binaries;
+    - the PE-02 learn fixture, the PE-01 counter and the real-test overlay pass;
+    - the parallel policy is refused.
+- *Parallel tracks:* three tracks:
+  - conditions and triggers: PE-15, PI-19, PE-16;
+  - compute and memory, as one track because PE-04, PE-02 and PE-01 change `engine.go` and the run coordinator, and PE-10 and PE-02 change `validate.go`: the migration, PE-10, PE-04, PE-17, PI-12, PE-02, PE-01;
+  - real things: PI-14, PI-20.
+- *Decisions due:* 7, before Wave 6a.
+
+**Wave 6a: Real devices and chat commands** (relative duration 2).
+- *Entry:*
+  - the media SSRF hardening branch (`claude/media-ssrf-hardening`) is merged and verified, before PI-09;
+  - the OP-18 overlap with the generic virtual_desktop tool is verified (§10);
+  - decision 7 is taken, before PI-01.
+- *Includes:*
+  - E10: PI-01;
+  - E13 remainder: PI-06, PI-07, PI-09, OP-18 with PI-18 (PI-13 landed in Wave 4, PI-12 in Wave 5);
+  - E14: PE-11; E7: OP-11;
+  - E8: PI-16, and the PI-17 recipes whose triggers exist.
+- *Order:* PE-11 before OP-11. PI-16 builds on the Wave 5 pickers and recipe link.
+- *Demo:*
+  - signature experience 3.8;
+  - the first half of 3.7: capture the real payload, pick the kitchen speaker, map the text in one click, "Probehören";
+  - "Mit Formular starten" from Mission Control.
 - *Gates:*
   - owner-only, group and forwarded-message tests for chat commands, and the reserved built-in names;
+  - prefilled run-form values stay untrusted until the owner changes them;
+  - the source-trust catalog test for every new trigger or reading step: chat commands (PI-01), multi-state reads (PI-06) and calendar data (PI-07).
+- *Decisions due:* 9, the shape of the "Warten" step, before Wave 6b.
+
+**Wave 6b: The house talks back** (relative duration 2).
+- *Entry:* it is verified that the email trigger carries attachments, before PI-04 (§10).
+- *Includes:*
+  - E11: PE-19;
+  - E10: PE-14, PI-02, PI-03 phase 1, PI-04, PE-08 (short waits), PE-18;
+  - E8: the remaining PI-17 recipes as their triggers land.
+- *Order:* PE-19 before PE-08. PE-14 before PI-02 and PI-03, which debounce through it.
+- *Demo:* signature experience 3.7 (complete).
+- *Gates:*
   - a watcher idle-load check on aurago-test;
   - the safety-relevant bypass test;
-  - the source-trust catalog test for every new trigger;
-  - the unknown-effect catch-up fixture.
+  - the source-trust catalog test for every new trigger or reading step;
+  - the unknown-effect catch-up fixture;
+  - new gestures (the PE-14 rule rows) have keyboard paths and pass CDP touch emulation.
+- *Decisions due:* none new; 6 is due in Wave 7a.
 
-**Wave 5a: Co-author** (relative duration 2.5).
-- *Includes:* E15 (the I.4 budget check first); E3: FD-06; E5: JY-17.
+**Wave 7a: Co-author** (relative duration 2).
+- *Includes:* E15, with the I.4 budget check first.
 - *Demo:* signature experience 3.9.
 - *Gates:*
   - the AI corpus with real providers (pass rate against the first real-provider baseline);
   - the per-run AI cost cap;
-  - the FD-06 keyboard wiring tests.
+  - new gestures (E15's per-step accept) have keyboard paths and pass CDP touch emulation.
 - *Decisions due:* 6.
 
-**Wave 5b: Act at scale** (relative duration 3).
+**Wave 7b: Act at scale** (relative duration 3).
 - *Includes:*
   - E12: PE-05 with its own migration, then PE-06, PE-09 with UI-06 (if decision 5 allows it), PE-07 and the long waits of PE-08 (decision 9), and durable approvals for effectful steps (decision 11 (b));
   - E14: AI-18 phase 1, after PE-05;
   - E5: JY-08, after PE-05;
-  - E2: FD-07;
   - PE-03, if the demand is confirmed.
 - *Order:* PE-05 first, then PE-06, then PE-09, PE-07 and the approvals. AI-18 and JY-08 come last.
 - *Demo:*
@@ -1446,13 +1584,15 @@ It also follows the flagship plan's own advice to "build a small number of compl
   - with decision 11 (b), the Rechnungslauf version of 3.4.
 - *Gates:*
   - the receipts crash matrix;
-  - the scripted NVDA and VoiceOver pass;
-  - the XL performance gate on reference hardware;
+  - the scripted NVDA and VoiceOver pass still holds, now including the power-phase surfaces;
+  - the XL performance gate still holds on reference hardware;
   - the screenshot critiques hold craft ≥8/10 and joy ≥7/10;
   - the release gates (§8).
 - *Decisions due:* 5, 8, 9 and 11 (b).
 
-5a and 5b are the default split. 5b is the riskiest wave, because PE-05 is the long pole. It can slip without delaying 5a.
+7a and 7b are the default split. 7b is the riskiest wave, because PE-05 is the long pole, and under strategy A its implementation starts two waves later than under C. The Wave 0 contract and the schema roadmap keep it designed from the start, and 7b can slip without delaying 7a.
+
+Wave 5 is the most crowded power wave: three tracks and a migration. Its shared files (`engine.go`, the run coordinator and `validate.go`) are serialised as listed. An item that misses the exit moves to Wave 6a with a note.
 
 ## 7. First sub-project: S0 "Room, trust and legibility"
 
@@ -1516,12 +1656,12 @@ It also follows the flagship plan's own advice to "build a small number of compl
 - At the 0.86 floor, fewer cards fit when a flow opens. Check the groups-fifty fixture.
 - The colour change is visible in every flow. Mitigation: a before-and-after contact sheet reviewed by the owner.
 - The OKLab rule leaves less room for hues. The plan already drops to six hues plus two neutral categories, and the icon tile carries identity first.
-- The fields.js split touches the conditions editor right before PE-15 extends it. Mitigation: the split lands first, with its own impact check.
+- The fields.js split touches the conditions editor that PE-15 extends in Wave 5. Mitigation: the split lands first, with its own impact check.
 - Other sessions commit in the same checkout. Mitigation: a dedicated worktree.
 
 **S0b and S0c**
 - *S0b (Wave 0, server):* FD-13 and FD-18, accepted by the E1 lines for the purge (database, WAL and backups) and for the S8 fixture.
-- *S0c (rolling hygiene track, Waves 0–2):* FD-15 tiers T0 and T1 with the Wave 1 touch audit; FD-16; FD-20, each item verify-first; and the rest of FD-12. It starts with short verification spikes. Its two entry criteria, StartResult surfaced and SSE redaction verified, gate Waves 1 and 2.
+- *S0c (rolling hygiene track, Waves 0–2):* FD-15 tiers T0 and T1 with the Wave 1 touch audit; FD-16; FD-20, each item verify-first; and the rest of FD-12. It starts with short verification spikes. Its two entry criteria, SSE redaction verified (by the Wave 2 entry) and StartResult surfaced (by the Wave 2 exit, before OP-01 in Wave 3 and PE-16 in Wave 5), gate Wave 2 and the later items.
 
 ## 8. Quality gates and measures
 
@@ -1531,13 +1671,13 @@ It also follows the flagship plan's own advice to "build a small number of compl
   - p95 input ≤100 ms and p95 pan or drag frame ≤33 ms at 500 steps and 2,000 wires;
   - warm open of a 100-step flow ≤1 s.
 
-  These are plan targets. Nothing has been measured yet. The first reference-hardware timings are recorded at the Wave 2 exit, and each later wave compares against them. The full XL gate is asserted at the Wave 5b exit.
+  These are plan targets. Nothing has been measured yet. The first reference-hardware timings are recorded at the Wave 2 exit, and each later wave compares against them. The full XL gate is asserted at the Wave 4 exit and must still hold at the Wave 7b exit.
 - Each feature that adds DOM per card must show an unchanged or improved counter first.
 
 **Accessibility**
 - Lab checks on every scene from Wave 1: text 4.5:1, non-text 3:1, targets of 24 px or more (44 px for coarse pointers), names present, and no state shown by colour alone.
 - Accessibility-tree snapshots in CI.
-- An NVDA smoke test of the header, the Testbank and the canvas at the Wave 3 exit. The scripted NVDA (Chrome and Firefox) and VoiceOver (Safari) pass in Wave 5b.
+- An NVDA smoke test of the header, the Testbank and the canvas at the Wave 3 exit. The scripted NVDA (Chrome and Firefox) and VoiceOver (Safari) pass is asserted at the Wave 4 exit and must still hold at the Wave 7b exit.
 - Every gesture has a keyboard path, a single-pointer path and a tap path, and nothing is hover-only. Touch reachability is checked with CDP touch emulation at 1024×768 and 390×844: first in the Wave 1 touch audit, then in every wave that adds a gesture.
 
 **Themes**
@@ -1566,7 +1706,7 @@ It also follows the flagship plan's own advice to "build a small number of compl
 - No external assets (TestShippedWebAssetsLoadNothingExternal).
 - Schema:
   - A schema roadmap is written in Wave 0.
-  - Each wave that needs tables takes one migration. Wave 3 adds memory, run labels, the recipe link, the watch and missed-run tables, and notification mute state. Wave 5b adds receipts.
+  - Each wave that needs tables takes one migration. Wave 3 adds run labels and notification mute state. Wave 5 adds memory, the recipe link, and the watch and missed-run tables. Wave 7b adds receipts.
   - FD-13 takes a migration only if its purge marks do not fit existing columns.
   - Every migration takes a verified backup and refuses older binaries.
   - Backups taken after FD-13 hold no typed credentials.
@@ -1584,13 +1724,15 @@ It also follows the flagship plan's own advice to "build a small number of compl
 |---|---|
 | Every wave | Layering import test; no external assets; secret-leak tests for new surfaces; earlier waves' journeys still pass; phone smoke at 390×844 and 360×480 |
 | 0 | Counter baseline before UI-02, unchanged by UI-02 and UI-03; headroom ratchet (no module above 1,000); fence, notes and read_only tests; S8 fixture; FD-13 purge clean (database, WAL, backups) |
-| 1 | Zero idle animations; OKLab token checks in 14 themes; status-map lint; header and home control budgets; plural tests; one visible Stop and equal control positions; 390 px home shows toolbar and three flows; power: shared Go/JS condition vectors, ignored events add no run rows, 23:30 and 06:59 inside 22:00–07:00 on a DST day, run_failed within 1 s and no self-selection; critiques craft ≥7, joy ≥5 |
-| 2 | FLOW_* registry test; Simulation zero-call test; seeded-retest taint test; scripted recovery journey; XL counters do not regress; first reference-hardware timings recorded; power: expression vector 21.5 in Go and JS, seeded jitter and date math, Retry 2.0 golden test, generic IsError takes its error port; Testbank bar at 360×480 |
-| 3 | Attention endpoint within its caps; remote-message redaction test; migration with verified backup and old-binary refusal; durable round trip on aurago-test; idle-load check; NVDA smoke; power: PE-02 learn fixture, PE-01 counter, real-test overlay, parallel policy refused; critiques craft ≥8, joy ≥7; owner's Freude median ≥4/5 |
-| 4a | Phone journeys at 320 and 390 px; picker scrub and no-wildcard tests; capture copy test; prefilled-input trust test |
-| 4b | Owner-only, group and forwarded-message tests for chat commands; reserved command names; watcher idle-load check on aurago-test; safety-relevant bypass test; source-trust catalog test; unknown-effect catch-up fixture |
-| 5a | Real-provider corpus against its baseline; per-run AI cost cap; FD-06 keyboard wiring |
-| 5b | Receipts crash matrix; NVDA and VoiceOver pass; reference-hardware performance; critiques hold craft ≥8, joy ≥7 |
+| 1 | Zero idle animations; OKLab token checks in 14 themes; status-map lint; header and home control budgets; plural tests; one visible Stop and equal control positions; 390 px home shows toolbar and three flows; critiques craft ≥7, joy ≥5 |
+| 2 | FLOW_* registry test; Simulation zero-call test; seeded-retest taint test; scripted recovery journey; deep-link whitelist test (OP-13); XL counters do not regress; first reference-hardware timings recorded; Testbank bar at 360×480; S0c closed, with StartResult surfaced and tested (FD-20) |
+| 3 | Attention endpoint within its caps; remote-message redaction test; migration (run labels, mute state) with verified backup and old-binary refusal; durable round trip on aurago-test; idle-load check; NVDA smoke |
+| 4 | Phone journeys at 320 and 390 px; every canvas edit action reachable from the phone list; FD-06 keyboard wiring; scripted NVDA and VoiceOver pass; XL performance gate on reference hardware; touch emulation for the new gestures; critiques craft ≥8, joy ≥7; owner's Freude median ≥4/5 (craft-phase exit) |
+| 5 | Shared Go/JS condition vectors; ignored events add no run rows; 23:30 and 06:59 inside 22:00–07:00 on a DST day; run_failed within 1 s and no self-selection; expression vector 21.5 in Go and JS; seeded jitter and date math; Retry 2.0 golden test; generic IsError takes its error port; picker scrub and no-wildcard tests; capture copy test; source-trust catalog test for every new trigger or reading step; migration (memory, recipe link, watch and missed-run tables) with verified backup and old-binary refusal; PE-02 learn fixture, PE-01 counter, real-test overlay, parallel policy refused |
+| 6a | Owner-only, group and forwarded-message tests for chat commands; reserved command names; prefilled-input trust test; source-trust catalog test for every new trigger or reading step |
+| 6b | Watcher idle-load check on aurago-test; safety-relevant bypass test; source-trust catalog test for every new trigger or reading step; unknown-effect catch-up fixture; keyboard path and touch emulation for new gestures |
+| 7a | Real-provider corpus against its baseline; per-run AI cost cap; keyboard path and touch emulation for new gestures |
+| 7b | Receipts crash matrix; NVDA and VoiceOver pass still holds; reference-hardware performance still holds; critiques hold craft ≥8, joy ≥7 |
 | Release | 8 of 10 newcomers succeed within 5 minutes; median Freude ≥4/5 across session participants on the signature journeys |
 
 **Checking joy without telemetry**
@@ -1607,13 +1749,13 @@ It also follows the flagship plan's own advice to "build a small number of compl
   | Live rollback | about 6 | 3 |
   | Phone edit | about 6 | 2 |
 
-- *Screenshot critiques (hard gates):* the two screenshot critiques are re-run with the same rubric at the exits of Waves 1, 3 and 5b. Targets:
+- *Screenshot critiques (hard gates):* the two screenshot critiques are re-run with the same rubric at the exits of Waves 1, 4 and 7b. Targets:
   - Wave 1: craft ≥7/10 and joy ≥5/10 (interim targets set by this plan);
-  - Wave 3: craft ≥8/10 and joy ≥7/10;
-  - Wave 5b: the Wave 3 scores held.
+  - Wave 4: craft ≥8/10 and joy ≥7/10;
+  - Wave 7b: the Wave 4 scores held.
 
   Missing a target blocks the wave like any other gate.
-- *Freude ratings:* at the Wave 3 exit, the owner rates every signature journey shipped so far from 1 to 5. The median must be at least 4 (hard gate).
+- *Freude ratings:* at the Wave 4 exit, the owner rates every signature journey shipped so far from 1 to 5. The median must be at least 4 (hard gate).
 - *Usability sessions, five per wave (advisory):* the owner, two newcomers, one power user and one person on a phone. Think aloud, fixed tasks, and record success, time and errors. After each task, ask for a 1–5 "Freude" rating and one word. The release gates are the plan's 8 of 10 newcomers within 5 minutes and a median Freude of at least 4/5 across participants on the signature journeys.
 - *Screenshot surveys:* the lab contact sheet at five widths. The owner marks each scene legible, calm, delightful or confusing. Any scene that gets worse blocks the wave.
 - *Moment checklist:* every signature moment shows a real outcome, plays at most one sound, uses motion only with meaning, reaches the same end state under reduced motion, and uses outcome-first copy.
@@ -1636,7 +1778,7 @@ It also follows the flagship plan's own advice to "build a small number of compl
 - Environments and staging: draft versus live, Simulation, Testfälle and live rollback cover staging at personal scale.
 - Tools inside ai.step: the same reason as the AI-19 cut (plan §7, no uncontrolled tool calls).
 
-**Deferred** (revisit after Wave 5b or when a dependency lands)
+**Deferred** (revisit after Wave 7b or when a dependency lands)
 - *Canvas and visuals:*
   - UI-10 routing;
   - UI-18 theme character;
@@ -1645,7 +1787,7 @@ It also follows the flagship plan's own advice to "build a small number of compl
   - JY-18 replay;
   - JY-15 empty-state drawings: revisit after the Wave 3 home redesign. Until then, empty states get outcome-first copy and one action.
 - *Runs and data:*
-  - E.2 media previews in runs: after JY-08 (Wave 5b) proves the scrubbed-outcome path. Until then, files stay inert chips.
+  - E.2 media previews in runs: after JY-08 (Wave 7b) proves the scrubbed-outcome path. Until then, files stay inert chips.
   - H.5 compensation: after PE-05. Compensation is never presented as undo.
   - G.3 nested AND/OR condition groups: the flat all/any groups cover the start-condition and time-window cases in this plan. The condition format reserves one nesting level, so G.3 can land without a migration.
 - *Approvals:* approval forms, editable review values and outcome ports (brief §7 pattern 9; brief §8.5, "approve or reject only"). The approval contract resolves the review once at suspension and has no alternate branch. Forms wait until decision 11 (b) has run on aurago-test.
@@ -1719,17 +1861,17 @@ It also follows the flagship plan's own advice to "build a small number of compl
 - "Ready means checked configuration": revised for PI-14. "Prüfen" is a probe the user starts. It is rate-limited and never runs in the background. OP-10 stays deferred.
 
 **Notable overrides of the judges' scores**
-- OP-07 and UX-16 (7.3 and 7.0) wait until Wave 3 and ship as decision 11 (a). Approvals exist only on the durable path, which is off by default and has never been activated in production. Gating effectful steps waits for PE-05 (decision 11 (b), Wave 5b).
+- OP-07 and UX-16 (7.3 and 7.0) wait until Wave 3 and ship as decision 11 (a). Approvals exist only on the durable path, which is off by default and has never been activated in production. Gating effectful steps waits for PE-05 (decision 11 (b), Wave 7b).
 - PI-14 (8.3) lands in two parts:
   - the chat picker for notify.* steps in Wave 2, because it fixes the failure shown in 3.3;
-  - the full picker family in Wave 4a, after the detail.js split and next to the capture endpoint it shares.
-- PI-01 (7.7) waits for Wave 4b, after the pickers and event capture of Wave 4a, as the power-user judge advised.
-- PE-09 (7.3) moves to Wave 5b, because it needs receipts and decision 5.
+  - the full picker family in Wave 5, after the detail.js split and next to the capture endpoint it shares.
+- PI-01 (7.7) waits for Wave 6a, after the pickers and event capture of Wave 5, as the power-user judge advised.
+- PE-09 (7.3) moves to Wave 7b, because it needs receipts and decision 5.
 - JY-05 (5.7) stays in, because it is the live-run signature experience.
 - FD-03 (5.3) moves to Wave 0 as S0 step 0, because the principal engineer rated it 8/must and every later counter gate needs its baseline.
 - UX-03 (5.0, one cut vote) stays in Wave 1: it closes flagship A.3 and A.4 and serves the joy target. JY-13's quest framing is dropped.
 - CS-17 (4.3, one cut vote) is a gate only for the header and home control counts.
-- PI-09 (5.0) stays as the payoff of 3.7. If the media SSRF branch is not merged by Wave 4a, 3.7 uses a Push step instead.
+- PI-09 (5.0) stays as the payoff of 3.7. If the media SSRF branch is not merged by Wave 6a, 3.7 uses a Push step instead.
 - FD-15 (4.3) and FD-16 (4.7) leave Wave 0 for the S0c hygiene track. Only the agent manual's switch section ships in S0.
 - JY-15 (3.7, one cut vote) is deferred.
 
@@ -1751,22 +1893,22 @@ It also follows the flagship plan's own advice to "build a small number of compl
    - *Needed by:* Wave 0 (S0c applies it).
 5. **Effectful item mode (PE-09).** It revises the non-goal "no effectful batches". Options: never, or after receipts with a confirmation threshold and hard rate limits.
    - *Default:* after PE-05, with a threshold of 5 items.
-   - *Needed by:* Wave 5b.
+   - *Needed by:* Wave 7b.
 6. **Copilot surface.** Options: an "Ändern mit KI" bar with one clarifying round, or a docked multi-turn pane (AI-02).
    - *Default:* the bar first; the pane only if the AI-13 corpus meets its target.
-   - *Needed by:* Wave 5a.
+   - *Needed by:* Wave 7a.
 7. **Scope of chat commands.** Options: all channels, or Telegram and AuraGo chat first; risky commands allowed or not.
    - *Default:* Telegram and AuraGo chat, owner-only, risky commands only with an opt-in per command.
-   - *Needed by:* Wave 4b.
+   - *Needed by:* Wave 6a, before PI-01 (chat commands land in Wave 6a).
 8. **External call surfaces.** Options: per-flow API tokens (PE-12) and MCP tools now, or later.
    - *Default:* none this cycle; Aura chat tools only.
-   - *Needed by:* Wave 5b, because it bounds AI-18.
+   - *Needed by:* Wave 7b, because it bounds AI-18.
 9. **Long waits.** Options:
    - (a) keep durable mode as the only persistent wait;
    - (b) build PE-07 continuations;
    - (c) as (b), and offer one user-facing "Warten" step with three modes (Dauer, Uhrzeit, Ereignis). The engine path is chosen by duration, and durable_wait stays hidden.
-   - *Default:* (c). Durable mode stays off by default. The step ships with short waits in Wave 4b and gains long waits only after PE-19 and PE-05 (Wave 5b). With durable mode off, the continuation key is derived from the master key (E12).
-   - *Needed by:* Wave 4b for the step shape, Wave 5b for long waits.
+   - *Default:* (c). Durable mode stays off by default. The step ships with short waits in Wave 6b and gains long waits only after PE-19 and PE-05 (Wave 7b). With durable mode off, the continuation key is derived from the master key (E12).
+   - *Needed by:* Wave 6b for the step shape, Wave 7b for long waits.
 10. **Portuguese locale.** Options: pt-PT or pt-BR for "pt".
     - *Default:* make the choice before the Wave 2 human review, so translators work against one variant.
     - *Needed by:* the Wave 2 review round.
@@ -1774,8 +1916,8 @@ It also follows the flagship plan's own advice to "build a small number of compl
     - (a) keep durable mode opt-in, and replace CS-03's hiding with a "Freigaben einrichten" card that says a restart is needed and that only pure-local flows can be approved;
     - (b) after PE-05 receipts, let durable_approval gate effectful steps, with the reviewed effects inside the approval digest;
     - (c) turn durable mode on by default once the receipts crash matrix passes.
-    - *Default:* (a) in Wave 3 and (b) in Wave 5b. (c) is decided after (b) has run on aurago-test. Enabling durable mode without a restart is out of scope this cycle.
-    - *Needed by:* (a) before Wave 3, (b) before Wave 5b.
+    - *Default:* (a) in Wave 3 and (b) in Wave 7b. (c) is decided after (b) has run on aurago-test. Enabling durable mode without a restart is out of scope this cycle.
+    - *Needed by:* (a) before Wave 3, (b) before Wave 7b.
 12. **Where notification settings live (OP-06).** Options:
     - in the flow document: muting then creates "Entwurf geändert" and needs a publish;
     - in library metadata: CollectEffects then cannot show the routing as an outbound effect.
@@ -1786,25 +1928,24 @@ It also follows the flagship plan's own advice to "build a small number of compl
     - *Needed by:* the Wave 1 exit.
 
 **Engineering questions** (settled by the named epic, verify first)
-- Does the email trigger carry attachments? Settles PI-04 (E10), before Wave 4b.
-- Can flows reach the generic virtual_desktop tool, and how is its effect classified? Settles OP-18's overlap (E13), before Wave 4a.
+- Does the email trigger carry attachments? Settles PI-04 (E10), before Wave 6b.
+- Can flows reach the generic virtual_desktop tool, and how is its effect classified? Settles OP-18's overlap (E13), before Wave 6a.
 - Can ai.decision images reach an external provider, and how are they charged? Settles AI-09 and AI-10 (E15).
 - What does a retry do when it hits FLOW_FILE_EXISTS? Settles decision 4 and PE-04's retry classes (E11).
 - Is fencing the owner's own proposal goal the intended trust model? Settles the AI-01 digest (E15).
 - Do FD-13's purge marks fit existing columns? Settles the schema roadmap (Wave 0).
 
 **Where this revision departs from a review suggestion**
-- The UI-09 and UI-12 parts and the new canvas-handling set sit in the Wave 3 canvas track with FD-02, not in Wave 2 as proposed, because Wave 2 also gains UI-08, the PI-14 chat slice and AI-05 tier 1.
-- E16 sits in Wave 4a rather than 4b as proposed, to balance the halves; 4b carries five new event sources.
+- The UI-09 and UI-12 parts and the canvas-handling set sit with FD-02 and E16 in Wave 4, the phone-and-canvas wave, and not in Wave 2 as proposed, because Wave 2 also gains UI-08, OP-13, the PI-14 chat slice and AI-05 tier 1.
 - AI-05 tier 1 stays in Wave 2 with E6. The feasibility review proposed Wave 3; the completeness review proposed Wave 2.
 - E6's simulated pass reads "Simulation geklappt", the status-map word, not the proposed "Simulation bestanden".
-- The Wave 3 Freude gate uses the owner's own ratings, because five-person sessions are advisory per wave. The five-person median is a release gate.
+- The Freude gate at the Wave 4 exit (the craft-phase exit) uses the owner's own ratings, because five-person sessions are advisory per wave. The five-person median is a release gate.
 
 ## Appendix A. Idea index
 
 Verification: P = partly exists, N = new, U = unclear, C = conflicts. Security verdict: g = OK with guardrails, r = redesign, o = OK, blank = not reviewed. "→ X" means merged into idea X.
 
-Wave: 0 to 5b as in §6. S0c = the rolling hygiene track (Waves 0–2). A slash lists the waves of a split item. "–" = cut or deferred (§9). "dec. N" = waits for decision N.
+Wave: 0 to 7b as in §6 (strategy A). S0c = the rolling hygiene track (Waves 0–2). A slash lists the waves of a split item. "–" = cut or deferred (§9). "dec. N" = waits for decision N.
 
 | ID | Title | Epic or status | Wave | Size | Verif. | Score |
 |---|---|---|---|---|---|---|
@@ -1813,25 +1954,25 @@ Wave: 0 to 5b as in §6. S0c = the rolling hygiene track (Waves 0–2). A slash 
 | UI-03 | Two palettes | E2 (S0) | 0 | S | P | 9.0 |
 | UI-04 | Living node cards | E3 | 2 | L | P/g | 7.7 |
 | UI-05 | Shapes per concept | E3 | 2 | M | P | 6.0 |
-| UI-06 | Port glyphs | E12 (with PE-09) | 5b | M | N | 4.7 |
+| UI-06 | Port glyphs | E12 (with PE-09) | 7b | M | N | 4.7 |
 | UI-07 | One selection toolbar | E4 | 3 | M | N | 7.0 |
 | UI-08 | Wires: direction, counts, focus | E3 | 2 | M | P | 6.3 |
-| UI-09 | Wire gestures | E3 (insert with room, output-end reconnect, insert ghost); knife and detach cut | 3 | L | P | 5.3 |
+| UI-09 | Wire gestures | E3 (insert with room, output-end reconnect, insert ghost); knife and detach cut | 4 | L | P | 5.3 |
 | UI-10 | Orthogonal routing | Deferred | – | L | N/g | 3.3 |
 | UI-11 | Sticky notes | Decision 3; bounds in E1 | 0 | M | P/g | 5.3 |
-| UI-12 | Groups as places | E3 (swatches, header band); super-cards deferred | 3 | M | P | 5.3 |
+| UI-12 | Groups as places | E3 (swatches, header band); super-cards deferred | 4 | M | P | 5.3 |
 | UI-13 | Framing and minimap | E3 | 1 | M | P | 7.0 |
 | UI-14 | Header: one pill | E4 | 1 | M | P/g | 8.0 |
 | UI-15 | Labelled rail, icon map | E2; decision 2 | 1 | S | P | 5.7 |
 | UI-16 | Inspector as one form | E4 | 2 | M | P | 7.3 |
 | UI-17 | Token system lint | E2 | 1 | M | P | 6.0 |
 | UI-18 | Theme canvas character | Deferred | – | L | P | 3.3 |
-| UI-19 | Phone lane view | E16 → UX-17 | 4a | L | N | 4.0 |
+| UI-19 | Phone lane view | E16 → UX-17 | 4 | L | N | 4.0 |
 | UI-20 | Render budget | E3 → FD-01/03/04/05 | 0–2 | L | N | 4.3 |
 | UX-01 | New flow without modal | E8 | 1 | S | P | 7.0 |
 | UX-02 | Neu split button, honest recipes | E8 (Neu menu, then recipe cards) | 1/3 | M | P | 6.7 |
 | UX-03 | First-result checklist | E8 | 1 | M | P | 5.0 |
-| UX-04 | Context quick-add, commands | E9 (header slice, then synonyms and commands) | 1/4a | M | P | 6.3 |
+| UX-04 | Context quick-add, commands | E9 (header slice, then synonyms and commands) | 1/4 | M | P | 6.3 |
 | UX-05 | Data tree search, target chip | E9 | 2 | S | P | 7.7 |
 | UX-06 | Live previews, pipeline | E9 | 2 | M | P/g | 7.3 |
 | UX-07 | Safe testing by default | E5 (part in S0) | 0/1 | S | P/g | 8.0 |
@@ -1844,76 +1985,76 @@ Wave: 0 to 5b as in §6. S0c = the rolling hygiene track (Waves 0–2). A slash 
 | UX-14 | Versions: compare, clone, roll back | E4 | 3 | M | P/g | 5.3 |
 | UX-15 | Heute strip | E7 | 3 | M | P | 7.3 |
 | UX-16 | Approvals that find you | E7 (with OP-07); decision 11 | 3 | L | P/g | 7.0 |
-| UX-17 | Phone step list | E16 | 4a | L | N | 6.7 |
+| UX-17 | Phone step list | E16 | 4 | L | N | 6.7 |
 | UX-18 | One voice | E2; decision 1 | 1 | M | P | 6.3 |
 | UX-19 | Success shows the result | E5 | 1 | S | P | 8.0 |
-| PE-01 | Flow memory | E11 | 3 | L | N/g | 6.7 |
-| PE-02 | Only new items | E11 | 3 | M | N/g | 7.7 |
-| PE-03 | Digest basket | E11 (late, if demand is confirmed) | 5b | M | N/g | 5.7 |
-| PE-04 | Retry 2.0 | E11 | 2 | S | P/g | 6.3 |
-| PE-05 | Effect receipts | E12 (contract in Wave 0) | 0/5b | XL | P/g | 6.7 |
-| PE-06 | Resume from failed step | E12 | 5b | L | N/g | 6.3 |
-| PE-07 | Long waits | E12; decision 9 | 5b | L | P/g | 5.7 |
-| PE-08 | Wait for event | E10 (short waits); long waits in E12 | 4b/5b | L | N/g | 6.7 |
-| PE-09 | Item mode | E12 (redesigned); decision 5 | 5b | L | P/r | 7.3 |
-| PE-10 | Expressions | E11 | 2 | M | N/g | 7.0 |
-| PE-11 | Run with form | E14 | 4a | M | P/g | 7.7 |
+| PE-01 | Flow memory | E11 | 5 | L | N/g | 6.7 |
+| PE-02 | Only new items | E11 | 5 | M | N/g | 7.7 |
+| PE-03 | Digest basket | E11 (late, if demand is confirmed) | 7b | M | N/g | 5.7 |
+| PE-04 | Retry 2.0 | E11 | 5 | S | P/g | 6.3 |
+| PE-05 | Effect receipts | E12 (contract in Wave 0) | 0/7b | XL | P/g | 6.7 |
+| PE-06 | Resume from failed step | E12 | 7b | L | N/g | 6.3 |
+| PE-07 | Long waits | E12; decision 9 | 7b | L | P/g | 5.7 |
+| PE-08 | Wait for event | E10 (short waits); long waits in E12 | 6b/7b | L | N/g | 6.7 |
+| PE-09 | Item mode | E12 (redesigned); decision 5 | 7b | L | P/r | 7.3 |
+| PE-10 | Expressions | E11 | 5 | M | N/g | 7.0 |
+| PE-11 | Run with form | E14 | 6a | M | P/g | 7.7 |
 | PE-12 | Callable API endpoint | Deferred; decision 8 | – | L | N/g | 5.3 |
 | PE-13 | Call a flow | Deferred | – | XL | P/g | 4.7 |
-| PE-14 | Trigger rules | E10 | 4b | M | P/g | 7.0 |
-| PE-15 | Start conditions | E10 | 1 | S | N | 8.0 |
-| PE-16 | run_failed trigger | E10 | 1 | S | P/g | 7.0 |
-| PE-17 | Fallback value | E11 | 2 | S | N/g | 5.7 |
-| PE-18 | Missed schedules | E10 | 4b | M | P/g | 5.3 |
-| PE-19 | Parallel control | E11 | 4b | M | P | 5.3 |
-| PI-01 | Chat commands | E10; decision 7 | 4b | L | P/g | 7.7 |
-| PI-02 | Service health | E10 | 4b | L | P/g | 7.0 |
-| PI-03 | Watch presets | E10 (phase 1, redesigned); phase 2 deferred | 4b | XL | N/r | 6.7 |
-| PI-04 | Document intake | E10 | 4b | L | N/g | 6.3 |
-| PI-05 | AuraGo events as triggers | E10 → PE-16; egg/nest deferred | 1 | M | P/g | 4.0 |
-| PI-06 | Home Assistant in depth | E13 | 4a | M | P/g | 7.3 |
-| PI-07 | Calendar and todos | E13 | 4a | M | P/g | 6.0 |
+| PE-14 | Trigger rules | E10 | 6b | M | P/g | 7.0 |
+| PE-15 | Start conditions | E10 | 5 | S | N | 8.0 |
+| PE-16 | run_failed trigger | E10 | 5 | S | P/g | 7.0 |
+| PE-17 | Fallback value | E11 | 5 | S | N/g | 5.7 |
+| PE-18 | Missed schedules | E10 | 6b | M | P/g | 5.3 |
+| PE-19 | Parallel control | E11 | 6b | M | P | 5.3 |
+| PI-01 | Chat commands | E10; decision 7 | 6a | L | P/g | 7.7 |
+| PI-02 | Service health | E10 | 6b | L | P/g | 7.0 |
+| PI-03 | Watch presets | E10 (phase 1, redesigned); phase 2 deferred | 6b | XL | N/r | 6.7 |
+| PI-04 | Document intake | E10 | 6b | L | N/g | 6.3 |
+| PI-05 | AuraGo events as triggers | E10 → PE-16; egg/nest deferred | 5 | M | P/g | 4.0 |
+| PI-06 | Home Assistant in depth | E13 | 6a | M | P/g | 7.3 |
+| PI-07 | Calendar and todos | E13 | 6a | M | P/g | 6.0 |
 | PI-08 | Office documents | Deferred | – | M | P/g | 3.7 |
-| PI-09 | Durchsage | E13 | 4a | M | P/g | 5.0 |
+| PI-09 | Durchsage | E13 | 6a | M | P/g | 5.0 |
 | PI-10 | Knowledge steps | Deferred | – | M | N/g | 4.7 |
 | PI-11 | Paid steps with cap | Deferred (redesign) | – | L | P/r | 4.3 |
-| PI-12 | Generic steps first-class | E13 | 2 | M | P/g | 7.3 |
-| PI-13 | Palette by topic | E13 | 4a | S | P | 6.0 |
-| PI-14 | Resource pickers | E9 (chat slice, then full) | 2/4a | L | P/g | 8.3 |
+| PI-12 | Generic steps first-class | E13 | 5 | M | P/g | 7.3 |
+| PI-13 | Palette by topic | E13 | 4 | S | P | 6.0 |
+| PI-14 | Resource pickers | E9 (chat slice, then full) | 2/5 | L | P/g | 8.3 |
 | PI-15 | Automate from other apps | Deferred | – | M | P/g | 5.0 |
-| PI-16 | Recipe instances | E8 | 4a | L | P | 6.3 |
-| PI-17 | Second recipe wave | E8 (with their triggers) | 4a/4b | M | N | 5.3 |
-| PI-18 | Desktop notification step | E13 → OP-18 | 4a | S | P/g | 3.7 |
-| PI-19 | Time conditions | E10 | 1 | S | P | 7.3 |
-| PI-20 | Wait for test event | E9 | 4a | M | N/g | 7.0 |
-| AI-01 | Change sets | E15 | 5a | L | N/g | 7.0 |
-| AI-02 | Copilot pane | E15; decision 6 | 5a | L | N/g | 6.0 |
-| AI-03 | Ghost review | E15 | 5a | M | P/o | 6.0 |
-| AI-04 | One repair round | E15 | 5a | S | N/g | 5.7 |
-| AI-05 | Explain a failure ("Warum?") | E6 (tier 1), E15 (tier 2) | 2/5a | M | P/g | 6.0 |
+| PI-16 | Recipe instances | E8 | 6a | L | P | 6.3 |
+| PI-17 | Second recipe wave | E8 (with their triggers) | 6a/6b | M | N | 5.3 |
+| PI-18 | Desktop notification step | E13 → OP-18 | 6a | S | P/g | 3.7 |
+| PI-19 | Time conditions | E10 | 5 | S | P | 7.3 |
+| PI-20 | Wait for test event | E9 | 5 | M | N/g | 7.0 |
+| AI-01 | Change sets | E15 | 7a | L | N/g | 7.0 |
+| AI-02 | Copilot pane | E15; decision 6 | 7a | L | N/g | 6.0 |
+| AI-03 | Ghost review | E15 | 7a | M | P/o | 6.0 |
+| AI-04 | One repair round | E15 | 7a | S | N/g | 5.7 |
+| AI-05 | Explain a failure ("Warum?") | E6 (tier 1), E15 (tier 2) | 2/7a | M | P/g | 6.0 |
 | AI-06 | Repair workshop | Deferred | – | L | N/g | 4.7 |
 | AI-07 | Expressions from language | Deferred | – | M | N/g | 4.7 |
 | AI-08 | Test data on demand | E5 (deterministic tier); AI tier deferred | 2 | M | N/g | 4.7 |
-| AI-09 | Cost per step and run | E15 | 5a | M | P/g | 5.7 |
-| AI-10 | Fallback provider | E15 | 5a | S | N/g | 4.7 |
-| AI-11 | What the AI saw | E15 | 5a | M | N/o | 5.7 |
+| AI-09 | Cost per step and run | E15 | 7a | M | P/g | 5.7 |
+| AI-10 | Fallback provider | E15 | 7a | S | N/g | 4.7 |
+| AI-11 | What the AI saw | E15 | 7a | M | N/o | 5.7 |
 | AI-12 | Real-AI scenario bench | Deferred | – | L | N/g | 3.3 |
-| AI-13 | Quality corpus | E15 | 5a | M | P/g | 4.3 |
+| AI-13 | Quality corpus | E15 | 7a | M | P/g | 4.3 |
 | AI-14 | Suggested names | Cut | – | S | N/g | 3.0 |
 | AI-15 | Sanitize and guard steps | Deferred | – | M | N/g | 4.7 |
 | AI-16 | ai.decision fence | E1 (S0) → FD-17 | 0 | S | N/g | 7.0 |
 | AI-17 | Teach Aura, honest switches | E1 → OP-17 | 0 | S | P/o | 4.3 |
-| AI-18 | Flows as Aura's tools | E14 (chat-only, redesigned) | 5b | XL | N/r | 6.0 |
+| AI-18 | Flows as Aura's tools | E14 (chat-only, redesigned) | 7b | XL | N/r | 6.0 |
 | AI-19 | Agent step | Cut (conflicts) | – | L | C/r | 3.3 |
 | AI-20 | Save chat as automation | Deferred | – | L | N/g | 5.0 |
 | JY-01 | Delight kernel | E2 | 1 | M | P | 5.7 |
 | JY-02 | Desktop sounds | E7 (two sounds) | 3 | S | P | 4.3 |
-| JY-03 | Snap and "erhält" | E9 | 4a | M | P/g | 6.7 |
+| JY-03 | Snap and "erhält" | E9 | 4 | M | P/g | 6.7 |
 | JY-04 | Success sweep | E5 | 1 | S | P | 5.3 |
 | JY-05 | Run theatre | E5 | 2 | L | P/g | 5.7 |
 | JY-06 | Hourglass waits | E5 | 2 | S | P/g | 5.7 |
 | JY-07 | Behoben moment | E6 | 2 | M | P/g | 5.0 |
-| JY-08 | Outcome cards | E5 (late, redesigned; reads the receipt excerpt) | 5b | L | N/r | 5.7 |
+| JY-08 | Outcome cards | E5 (late, redesigned; reads the receipt excerpt) | 7b | L | N/r | 5.7 |
 | JY-09 | Good-morning card | E7 → UX-15 | 3 | M | N/g | 4.0 |
 | JY-10 | Milestone celebrations | Cut | – | M | N | 2.7 |
 | JY-11 | Impact counters | Cut | – | L | N/g | 3.0 |
@@ -1921,8 +2062,8 @@ Wave: 0 to 5b as in §6. S0c = the rolling hygiene track (Waves 0–2). A slash 
 | JY-13 | First-result quest | E8 → UX-03 | 1 | M | P | 2.3 |
 | JY-14 | Theme run flavours | Cut | – | L | P/g | 2.0 |
 | JY-15 | Empty-state art | Deferred | – | M | P | 3.7 |
-| JY-16 | Tactile canvas | E3 (glide, with FD-02) | 3 | M | P | 5.0 |
-| JY-17 | Peek previews | E5 (late) | 5a | M | P/g | 5.3 |
+| JY-16 | Tactile canvas | E3 (glide, with FD-02) | 4 | M | P | 5.0 |
+| JY-17 | Peek previews | E5 (late) | 4 | M | P/g | 5.3 |
 | JY-18 | Run replay | Deferred | – | M | P | 3.3 |
 | JY-19 | Publish moment | E4 (pill flip only) | 3 | S | P | 4.7 |
 | JY-20 | Calm library | E8 | 3 | M | N | 5.7 |
@@ -1933,29 +2074,29 @@ Wave: 0 to 5b as in §6. S0c = the rolling hygiene track (Waves 0–2). A slash 
 | OP-05 | Live rollback | E4 → UX-14 | 3 | M | N/g | 5.7 |
 | OP-06 | Notifications per flow | E7; decision 12 | 3 | M | P/g | 6.3 |
 | OP-07 | Approvals announce themselves | E7; decision 11 | 3 | M | P/g | 7.3 |
-| OP-08 | Flow status as data | E10 (trigger → PE-16); rest deferred | 1 | L | P/g | 4.3 |
-| OP-09 | Dependency map | E9 (metadata); map deferred | 4a | L | N/g | 5.0 |
+| OP-08 | Flow status as data | E10 (trigger → PE-16); rest deferred | 5 | L | P/g | 4.3 |
+| OP-09 | Dependency map | E9 (metadata); map deferred | 5 | L | N/g | 5.0 |
 | OP-10 | Integration status | Deferred | – | M | P | 5.0 |
-| OP-11 | Flows in Spotlight | E7 | 4a | M | N/g | 5.7 |
+| OP-11 | Flows in Spotlight | E7 | 6a | M | N/g | 5.7 |
 | OP-12 | Status widget | Deferred | – | M | N | 4.0 |
-| OP-13 | Deep-link contract | E7 | 3 | S | P | 6.7 |
+| OP-13 | Deep-link contract | E7 | 2 | S | P | 6.7 |
 | OP-14 | Packs 2.0 | Deferred (redesign) | – | L | P/r | 3.7 |
 | OP-15 | Migration importer | Deferred (redesign) | – | XL | N/r | 3.3 |
 | OP-16 | Check against past runs | Deferred | – | L | P/g | 5.0 |
 | OP-17 | Agent manual, real switches | E1 | 0 | S | P/g | 5.0 |
-| OP-18 | Desktop notice step | E13 | 4a | S | N/g | 4.3 |
+| OP-18 | Desktop notice step | E13 | 6a | S | N/g | 4.3 |
 | OP-19 | Automate with EasyDrag | Deferred → PI-15 | – | L | N/g | 4.3 |
 | OP-20 | Trash, archive, backup | Deferred (archive cut) | – | L | N/g | 5.0 |
 | FD-01 | Hot-path diet | E3 | 1 | M | N | 6.0 |
-| FD-02 | Uncapped auto-layout | E3 | 3 | M | N | 5.7 |
+| FD-02 | Uncapped auto-layout | E3 | 4 | M | N | 5.7 |
 | FD-03 | Performance gate | E1 (S0 step 0) | 0 | M | P | 5.3 |
 | FD-04 | Semantic zoom and culling | E3 | 2 | L | P/g | 6.7 |
 | FD-05 | Paint diet | E3 | 1 | S | N | 5.3 |
-| FD-06 | Keyboard and screen-reader graph | E3 (late) | 5a | L | P/g | 5.3 |
-| FD-07 | WCAG 2.2 AA closure | E2 (NVDA smoke in Wave 3) | 3/5b | M | N | 5.3 |
+| FD-06 | Keyboard and screen-reader graph | E3 (late) | 4 | L | P/g | 5.3 |
+| FD-07 | WCAG 2.2 AA closure | E2 (NVDA smoke in Wave 3) | 3/4 | M | N | 5.3 |
 | FD-08 | Design-token layer | E2 (with the status map) | 1 | M | P | 7.3 |
 | FD-09 | Component kit | E2 | 1 | M | P | 6.7 |
-| FD-10 | Module splits | E1 (S0; split-before-use list) | 0/2/4a | M | N | 7.3 |
+| FD-10 | Module splits | E1 (S0; split-before-use list) | 0/2/4/5 | M | N | 7.3 |
 | FD-11 | i18n engine | E2 | 1 | M | N | 6.3 |
 | FD-12 | Defect sweep | E1 (S0 subset; rest in S0c) | 0/S0c | S | N/g | 6.7 |
 | FD-13 | Credential hygiene | E1 (S0b, redesigned) | 0 | M | N/r | 6.7 |
@@ -1978,13 +2119,13 @@ Wave: 0 to 5b as in §6. S0c = the rolling hygiene track (Waves 0–2). A slash 
 | CS-10 | Blocks in the library | E8 (as filter) | 3 | M | P | 4.3 |
 | CS-11 | One filter popover | E8 (saved filters kept) | 1 | M | P | 3.3 |
 | CS-12 | Inspector summary line | E4 → UI-16 | 2 | L | P/g | 5.3 |
-| CS-13 | Retry defaults for reads | E11 → PE-04 | 2 | M | P/g | 5.3 |
+| CS-13 | Retry defaults for reads | E11 → PE-04 | 5 | M | P/g | 5.3 |
 | CS-14 | Testfälle noun | E5 → UX-08 | 2 | L | P/g | 5.0 |
 | CS-15 | Two-minute automation | E8 (acceptance journey) | 3 | L | P/g | 5.3 |
 | CS-16 | Selection toolbar | E4 → UI-07 | 3 | M | P | 3.7 |
 | CS-17 | Complexity budget | E2 (ledger, control budget) | 1 | M | P | 4.3 |
 | CS-18 | One diff, three places | E4 | 3 | L | P/g | 7.0 |
-| CS-19 | Only if new or changed | E11 → PE-02 (HMAC) | 3 | L | N/r | 5.7 |
+| CS-19 | Only if new or changed | E11 → PE-02 (HMAC) | 5 | L | N/r | 5.7 |
 | CS-20 | Say less | E2 → UX-18 | 1 | M | N/g | 4.7 |
 
 ## Appendix B. External references
