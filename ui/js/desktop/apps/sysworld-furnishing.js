@@ -8,8 +8,9 @@ import {kerb,zebras,pedestrianGraph,plotSlabs,streetProfile,streetSegments} from
 import {PODIUMS,LOBBIES,DOORS,FLIGHT,lobbyGraph} from './sysworld-lobbies.js';
 import {livingPlaces,landmarkPlaces} from './sysworld-places.js';
 
-export const GAP=Object.freeze({node:1.2,line:1.2,pavementLine:.6,footLink:.55,dock:3,rail:2.5,platform:2.5,stair:2,door:2,podium:.5,solid:1,living:3,crown:4.5,zebra:2.1,inset:.4,behindKerb:.5});
+export const GAP=Object.freeze({node:1.2,line:1.2,pavementLine:.6,footLink:.55,dock:3,rail:2.5,platform:2.5,stair:2,door:2,podium:.5,solid:1,living:3,crown:4.5,zebra:2.1,inset:.4,behindKerb:.5,frontage:1.5});
 export const TREE_STEP=8,TREE_INSET=1.4,NEAR_HEIGHT=40,RAIL_HALF=.9;
+export const FRONTAGE_DEPTH=18;
 export const SIZES=Object.freeze({'tree-round':[-.3,-.3,.3,.3],'tree-column':[-.3,-.3,.3,.3],'street-bench':[-1,-.32,1,.3],bollard:[-.12,-.12,.12,.12],
   'litter-bin':[-.3,-.3,.3,.3],'zebra-sign':[-.1,-.1,.1,.1],kiosk:[-1.6,-1.1,1.6,1.6],'flower-bed':[-1.6,-.7,1.6,.7],'cafe-set':[-1,-1,1,1],
   'charge-post':[-.26,-.84,.26,-.4],'info-pylon':[-.48,-.22,.48,.22],'utility-cabinet':[-.65,-.25,.65,.25],'mooring-post':[-.3,-.3,.3,.3],'banner-mast':[-.25,-.25,.25,.25]});
@@ -55,6 +56,7 @@ const NODES=[...pedestrianGraph().nodes,...lobbyGraph().nodes.filter(n=>n.kind==
 const FOOT_LINKS=lobbyGraph().nodes.filter(n=>n.kind==='foot').flatMap(n=>{const zebraNodes=pedestrianGraph().nodes.filter(p=>p.kind==='zebra');
   return[-1,1].map(side=>zebraNodes.filter(p=>Math.sign(p.x-n.x)===side).sort((a,b)=>Math.hypot(a.x-n.x,a.z-n.z)-Math.hypot(b.x-n.x,b.z-n.z))[0]).filter(Boolean).map(p=>[Math.min(n.x,p.x),Math.min(n.z,p.z),Math.max(n.x,p.x),Math.max(n.z,p.z),n.x,n.z,p.x,p.z]);});
 const STAIRS=PODIUMS.flatMap(p=>p.stairs.map(f=>[f.x-f.width/2,p.z1,f.x+f.width/2,p.z1+FLIGHT]));
+const FRONTAGES=PODIUMS.flatMap(p=>p.stairs.map(f=>[f.x-f.width/2-GAP.frontage,p.z1,f.x+f.width/2+GAP.frontage,p.z1+FRONTAGE_DEPTH]));
 const DOOR_BOXES=DOORS.map(d=>[d.x-d.width/2,d.z-.6,d.x+d.width/2,d.z+.6]);
 const PODIUM_BOXES=PODIUMS.map(p=>[p.x0,p.z0,p.x1,p.z1]);
 const SLABS=plotSlabs().map(s=>[s.x0+GAP.inset,s.z0+GAP.inset,s.x1-GAP.inset,s.z1-GAP.inset]);
@@ -84,6 +86,9 @@ export function violations(item,placed=[]){
   for(const r of RESERVED)if(gap(r.box,f)<(r.kind==='platform'?GAP.platform:r.kind==='living'?GAP.living:GAP.solid))out.push(r.id);
   if(placed.some(g=>gap(g,f)<GAP.solid))out.push('solid');
   if(/^tree-/.test(item.asset)&&LAMPS.some(p=>Math.hypot(p.x-item.x,p.z-item.z)<GAP.crown))out.push('crown');
+  // Entrances stay visible from the street: a tree (the only tall piece) never stands in the strip in front of a stair flight,
+  // GAP.frontage wider than the flight on each side and FRONTAGE_DEPTH deep from the podium edge. Benches, beds and signs are low.
+  if(/^tree-/.test(item.asset)&&FRONTAGES.some(s=>item.x>=s[0]&&item.x<=s[2]&&item.z>=s[1]&&item.z<=s[3]))out.push('frontage');
   return out;
 }
 const item=(asset,x,z,angle,area,y=0)=>({asset,x,z,y,angle,area});

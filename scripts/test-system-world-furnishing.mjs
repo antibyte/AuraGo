@@ -50,6 +50,9 @@ for(const it of ground){
   for(const b of platforms)assert.ok(gap(b,f)>=2.5-1e-9,name+' within 2.5 m of a platform');
   for(const s of stairs)assert.ok(gap(s,f)>=2-1e-9,name+' within 2 m of stairs');
   for(const d of DOORS)assert.ok(gap([d.x-d.width/2,d.z,d.x+d.width/2,d.z],f)>=2-1e-9,name+' within 2 m of a door');
+  // Entrances stay visible from the street: no tree in the strip 1.5 m beyond each flight's width, from the podium edge 18 m out.
+  if(/^tree-/.test(it.asset))for(const p of PODIUMS)for(const s of p.stairs)
+    assert.ok(!(it.x>=s.x-s.width/2-1.5&&it.x<=s.x+s.width/2+1.5&&it.z>=p.z1&&it.z<=p.z1+18),name+' stands in front of a stair flight');
   for(const r of F.RESERVED)assert.ok(gap(r.box,f)>=(r.kind==='living'?3:1)-1e-9,name+' too close to '+r.id);
 }
 const fps=ground.map(footprint);
