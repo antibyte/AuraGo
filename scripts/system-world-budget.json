@@ -1,0 +1,31 @@
+{
+  "reference": "ANGLE (Intel, Intel(R) Arc(TM) B580 Graphics (0x0000E20B) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "margin": 0.1,
+  "triangles": {
+    "scene": "street-agent",
+    "tier": "high",
+    "max": 650000
+  },
+  "frameMs": {
+    "overview-day": {
+      "low": 10.3,
+      "medium": 10.4,
+      "high": 10.9
+    },
+    "street-agent": {
+      "low": 9.6,
+      "medium": 10.8,
+      "high": 10.8
+    },
+    "facade-agent-night": {
+      "low": 10.2,
+      "medium": 11.7,
+      "high": 10.6
+    },
+    "life-park-day": {
+      "low": 10.4,
+      "medium": 10.7,
+      "high": 10.6
+    }
+  }
+}
