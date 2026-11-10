@@ -464,23 +464,11 @@ def server_rack(g):
     g.box((0, -.58, 3), (.8, .05, .09), 'cyan', 0)
 
 
+# Kit v3 (build_world3.py) superseded the buildings, towers, skybridge, street tiles, lamp and planter;
+# their factories above stay as reference, only the designs below are still built and shipped.
 ASSETS = [
-    ('agent-spire', 'Agent reactor spire', 'agent', agent_spire),
-    ('memory-archive', 'Terraced memory archive', 'memory', memory_archive),
-    ('integration-gate', 'Integration gateway', 'integration', integration_gate),
-    ('mission-terminal', 'Mission logistics terminal', 'missions', mission_terminal),
-    ('compute-foundry', 'Compute and cooling foundry', 'infrastructure', compute_foundry),
-    ('knowledge-atrium', 'Knowledge tree atrium', 'knowledge', knowledge_atrium),
-    ('data-tower-a', 'Data tower A', 'building', lambda g: data_tower(g, 0)),
-    ('data-tower-b', 'Data tower B', 'building', lambda g: data_tower(g, 1)),
-    ('operations-beacon', 'Operations beacon', 'operations', operations_beacon),
-    ('skybridge', 'Modular covered skybridge', 'connector', skybridge),
-    ('street-tile', '16 metre street and sidewalk', 'street', street_tile),
-    ('street-crossing', 'Matching four-way street crossing', 'street', street_crossing),
     ('service-drone', 'Service quadrotor', 'vehicle', service_drone),
     ('data-tram', 'Data transit tram', 'vehicle', data_tram),
-    ('street-lamp', 'Cantilever street lamp', 'prop', street_lamp),
-    ('planter', 'Sculpted city planter', 'prop', planter),
     ('server-rack', 'Exposed service rack', 'prop', server_rack),
 ]
 

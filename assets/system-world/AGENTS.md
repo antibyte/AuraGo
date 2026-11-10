@@ -87,9 +87,9 @@ Own the original Blender city kit, deterministic generator and source scene.
   v1 designs (`agent-spire`, `memory-archive`, `integration-gate`, `mission-terminal`,
   `compute-foundry`, `knowledge-atrium`, `operations-beacon`, `data-tower-a`, `data-tower-b`,
   `skybridge`, `street-lamp`, `planter`). v1 now holds three designs (`service-drone`, `data-tram`,
-  `server-rack`), and `check_assets.py` asserts 3. `build_city.py` still lists every retired design, so
-  a v1 rebuild from it would write them back and fail `check_assets.py`. Trim `build_city.py` before
-  any v1 rebuild. This is not done yet.
+  `server-rack`), and `check_assets.py` asserts 3. `build_city.py` `ASSETS` lists only these three; the
+  factories of the retired designs stay in the file as reference. Its hash is pinned in the v2 manifest
+  `sources`, so any edit to `build_city.py` needs that entry updated.
 - `robot_assets.py` and `hover_assets.py` are called from `build_expansion.py`. Each
   LOD of a part keeps one material list and stable mesh names (the material lists are
   asserted at build time), so the runtime swaps LODs by name. The `hover-pack` `pack`

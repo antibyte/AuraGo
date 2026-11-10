@@ -4045,7 +4045,7 @@
   "budget_bytes": 50331648,
   "model_budget_bytes": 12582912,
   "sources": {
-    "build_city.py": "9b34e63f85137ab571698ec62382ae0160110c1afd5866ca5513e150771d7a0c",
+    "build_city.py": "ba4ce3e0300a763b0ce02c43ce7b0a3abc42fbbf6aa0ac1ea3b32351729cb300",
     "build_expansion.py": "371163ce265a621be47268f8ec436e9d0dba48bb3d814db1cac6b8a2684769fa",
     "living_assets.py": "21ca67e291914a3d40ec0b9179b0377dc887ffba940e2295cc409888e815057b",
     "landmark_assets.py": "4cf53ff1a292e5316751f39f8c73688c2efc8929911a4765651072eb922b0159",
