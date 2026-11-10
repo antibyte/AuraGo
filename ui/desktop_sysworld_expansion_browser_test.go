@@ -95,6 +95,19 @@ func verifySystemWorldExpansion(t *testing.T, page *rod.Page, dir string) {
 			page.Timeout(12 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).position[1]<2.6&&SysWorldApp.inspect(cityId).experience.ride===null`)
 		}
 	}
+	// Phase 3: up the spire stairs, through the sliding doors into the agent lobby and out again. The door
+	// state is asserted through inspect (a resident standing closer can win the interaction prompt).
+	page.MustEval(`()=>{document.querySelector('[data-sw-mode="street"]').click();document.querySelector('[data-sw-district="agent"]').click();}`)
+	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).lobbies.shown.includes('lobby-agent')`)
+	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).experience.lobbies.ready.includes('agent')`)
+	axis(2, -3.2, input.KeyS, input.KeyW)
+	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).experience.lobbies.open.includes('lobby:agent:0')`)
+	axis(2, -8, input.KeyS, input.KeyW)
+	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).experience.lobby==='agent'`)
+	page.MustScreenshot(filepath.Join(dir, "world2-lobby-agent.png"))
+	axis(2, 4, input.KeyS, input.KeyW)
+	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).experience.lobby===null`)
+	t.Logf("loaded after the lobby visit: %d bytes", page.MustEval(`()=>SysWorldApp.inspect(cityId).loadedBytes`).Int())
 	// Sky deck: arrive from the exploration panel, use a viewer, then ride the tower lift down and up.
 	skyDeck := `()=>{document.querySelector('.sw-world').open=true;document.querySelector('[data-world-sky]').click();}`
 	page.MustEval(skyDeck)
