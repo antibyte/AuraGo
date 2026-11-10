@@ -8,8 +8,11 @@
  *
  *   node scripts/system-world-survey.mjs --out <dir> [--scenes <file>] [--only a,b] [--tier low|medium|high|ultra]
  *        [--width 1600] [--height 900] [--timeout 300] [--keep-open] [--timing]
- *   --timing: after each scene's picture, steps 90 more frames the same way (own loop: city.update + near sync), calls
- *        gl.finish() after each so GPU work counts, and writes frameMs {median, p95} (milliseconds) into that scene's report.json entry.
+ *   --timing: after each scene's picture, runs 100 frames in one synchronous loop outside requestAnimationFrame (no yielding, so vsync
+ *        and presentation cannot pace it): city.update(1/60) + near sync + render, then gl.finish() so GPU work counts, one timing per
+ *        iteration. The first 10 are warm-up and dropped; frameMs {median, p95} (milliseconds, 90 samples) goes into that scene's report.json entry.
+ *   --without-furniture: measuring aid for A/B runs. Patches the in-memory copy of sysworld-scene.js so kitPlacements holds only the
+ *        street pieces (no furnishing() pieces); report.json gets withoutFurniture: true. Nothing on disk changes.
  *
  * How it works: a DEBUG bundle of sysworld-scene.js is built in memory with esbuild. An onLoad plugin
  * patches the source text (every patch asserted to match exactly once; nothing under ui/ is modified):
@@ -58,7 +61,7 @@ const uiRoot = path.join(root, 'ui');
 // ---------- CLI ----------
 function parseArgs(argv) {
   const o = { out: 'reports/system-world-survey/latest', scenes: path.join(here, 'system-world-survey.scenes.json'),
-    only: null, tier: 'high', width: 1600, height: 900, timeout: 300, keepOpen: false, timing: false };
+    only: null, tier: 'high', width: 1600, height: 900, timeout: 300, keepOpen: false, timing: false, withoutFurniture: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i], next = () => { if (i + 1 >= argv.length) throw Error('Missing value for ' + a); return argv[++i]; };
     if (a === '--out') o.out = next();
@@ -70,6 +73,7 @@ function parseArgs(argv) {
     else if (a === '--timeout') o.timeout = Number(next());
     else if (a === '--keep-open') o.keepOpen = true;
     else if (a === '--timing') o.timing = true;
+    else if (a === '--without-furniture') o.withoutFurniture = true;
     else throw Error('Unknown argument ' + a);
   }
   if (!['low', 'medium', 'high', 'ultra'].includes(o.tier)) throw Error('--tier must be low|medium|high|ultra');
@@ -89,7 +93,7 @@ const EXPOSE = 'globalThis.__sw = { THREE, camera, controls, scene, renderer, co
   + 'staticCity, nearHeight: NEAR_HEIGHT, harbour, gulls, particles, '
   + 'cancelFlight: () => { flight = null; }, mode: () => mode };\n  ';
 
-async function buildBundle() {
+async function buildBundle(withoutFurniture) {
   const sceneFile = path.join(uiRoot, 'js/desktop/apps/sysworld-scene.js');
   const societyFile = path.join(uiRoot, 'js/desktop/apps/sysworld-society.js');
   const same = (a, b) => path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
@@ -101,6 +105,7 @@ async function buildBundle() {
         if (!isScene && !isSociety) return null;
         let text = (await fs.readFile(args.path, 'utf8')).replace(/\r\n/g, '\n');
         if (isScene) {
+          if (withoutFurniture) text = replaceOnce(text, '...furnishing().map(', '...furnishing().filter(() => false).map(', 'drop the furnishing pieces from kitPlacements');
           text = replaceOnce(text, '  return {\n    districts, canvas, update, focus(id)', '  ' + EXPOSE + 'return {\n    districts, canvas, update, focus(id)', 'expose internals before createCity return');
         } else {
           text = replaceOnce(text, '    add,patrol,update,suspend,\n', '    add,patrol,update,suspend,actors,\n', 'expose society actors');
@@ -131,7 +136,7 @@ window.addEventListener('unhandledrejection', e => addError('unhandledrejection'
 const origError = console.error.bind(console);
 console.error = (...args) => { const t = args.map(a => (a && a.message) || String(a)).join(' '); if (/THREE|WebGL|shader/i.test(t)) addError('console.error', t); origError(...args); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-let tickCount = 0, timingSamples = null;
+let tickCount = 0, timingLoop = false;
 const nextFrames = n => new Promise((resolve, reject) => {
   const target = tickCount + n, started = performance.now();
   const poll = () => { if (tickCount >= target) resolve(); else if (performance.now() - started > 30000) reject(Error('animation frames stopped (page hidden?)')); else setTimeout(poll, 10); };
@@ -166,8 +171,7 @@ async function main() {
     if (changed) sw.renderer.shadowMap.needsUpdate = true;
   };
   let last = 0, elapsed = 0;
-  const tick = time => { const dt = last ? Math.min(0.2, (time - last) / 1000) : 1 / 60; last = time; elapsed += dt; const t0 = timingSamples ? performance.now() : 0; city.update(dt, elapsed); if (surveying) syncNear();
-    if (timingSamples) { sw.renderer.getContext().finish(); timingSamples.push(performance.now() - t0); }
+  const tick = time => { const dt = last ? Math.min(0.2, (time - last) / 1000) : 1 / 60; last = time; elapsed += dt; if (!timingLoop) { city.update(dt, elapsed); if (surveying) syncNear(); }
     tickCount++; requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
   // Loading settled: createCity resolved (kit loaded); the experience (v2 models, residents) streams on.
@@ -241,13 +245,15 @@ async function main() {
       }
       if (config.timing) {
         applyCamera(scene); syncNear();
-        timingSamples = []; await nextFrames(90); const ms = timingSamples.slice().sort((a, b) => a - b); timingSamples = null;
+        await nextFrames(2); timingLoop = true; const gl = sw.renderer.getContext(), ms = [];
+        for (let i = 0; i < 100; i++) { const t0 = performance.now(); elapsed += 1 / 60; city.update(1 / 60, elapsed); syncNear(); gl.finish(); if (i >= 10) ms.push(performance.now() - t0); }
+        timingLoop = false; ms.sort((a, b) => a - b);
         shots[shots.length - 1].frameMs = { median: round(ms[Math.floor(ms.length / 2)], 2), p95: round(ms[Math.min(ms.length - 1, Math.ceil(ms.length * 0.95) - 1)], 2) };
         log('frameMs ' + scene.name + ' median ' + shots[shots.length - 1].frameMs.median + ' p95 ' + shots[shots.length - 1].frameMs.p95);
       }
     } catch (e) { addError('scene ' + scene.name, e && e.stack || e); }
   }
-  const info = { tier: config.tier, canvas: [sw.renderer.domElement.width, sw.renderer.domElement.height], loadMs, renderer: city.stats().renderer };
+  const info = { tier: config.tier, withoutFurniture: !!config.withoutFurniture, canvas: [sw.renderer.domElement.width, sw.renderer.domElement.height], loadMs, renderer: city.stats().renderer };
   await post('/__survey/report', JSON.stringify({ info, shots, errors }), 'application/json');
 }
 main().catch(e => addError('main', e && e.stack || e)).finally(async () => {
@@ -294,8 +300,8 @@ async function main() {
   await fs.mkdir(outDir, { recursive: true });
 
   console.log('building debug bundle ...');
-  const bundle = await buildBundle();
-  const config = Buffer.from(JSON.stringify({ tier: opts.tier, scenes, timing: opts.timing }));
+  const bundle = await buildBundle(opts.withoutFurniture);
+  const config = Buffer.from(JSON.stringify({ tier: opts.tier, scenes, timing: opts.timing, withoutFurniture: opts.withoutFurniture }));
 
   const notFound = new Set();
   let saved = 0, report = null, finish;
