@@ -13,14 +13,14 @@ import {surfaceAt} from './sysworld-zones.js';
 // Footfalls by surface (phase 5). The emitter's position decides the surface (sysworld-zones.js surfaceAt), so every
 // kind in SURFACE_KINDS needs a voice here. Gains stay >= .06: a footfall beside the listener must clear the bed.
 export const STEP_VOICES=Object.freeze({
-  road:{gain:.042,layers:[{wave:'noise',f:900,q:.8,dur:.06,lvl:.5},{wave:'noise',f:2600,q:1.4,dur:.03,lvl:.25},{wave:'tone',f:90,f2:70,dur:.08,lvl:.25}]},
-  pavement:{gain:.042,layers:[{wave:'noise',f:1900,q:1.7,dur:.05,lvl:.5},{wave:'noise',f:520,q:.9,dur:.1,lvl:.4},{wave:'tone',f:104,f2:74,dur:.12,lvl:.3}]},
-  kerb:{gain:.0432,layers:[{wave:'noise',f:2400,q:2,dur:.03,lvl:.6},{wave:'noise',f:700,q:1,dur:.07,lvl:.3},{wave:'tone',f:180,f2:120,dur:.06,lvl:.35}]},
-  stairs:{gain:.045,layers:[{wave:'noise',f:1700,q:1.3,dur:.04,lvl:.5},{wave:'noise',f:600,q:.8,dur:.11,lvl:.4},{wave:'tone',f:140,f2:95,dur:.09,lvl:.35},{wave:'noise',f:3800,q:1,dur:.05,lvl:.15,delay:.06}]},
-  quay:{gain:.045,layers:[{wave:'tone',f:170,f2:130,dur:.14,lvl:.45,type:'triangle'},{wave:'noise',f:700,q:2.5,dur:.12,lvl:.35},{wave:'noise',f:2000,q:1,dur:.03,lvl:.2}]},
-  lobby:{gain:.0408,layers:[{wave:'noise',f:3200,q:2.2,dur:.035,lvl:.55},{wave:'noise',f:1100,q:1.4,dur:.07,lvl:.3},{wave:'tone',f:220,f2:160,dur:.07,lvl:.2}]},
-  grating:{gain:.042,layers:[{wave:'noise',f:3000,q:3,dur:.025,lvl:.45},{wave:'tone',f:820,dur:.18,lvl:.18},{wave:'tone',f:1370,dur:.14,lvl:.12},{wave:'tone',f:95,f2:70,dur:.08,lvl:.25}]},
-  garden:{gain:.0372,layers:[{wave:'noise',f:4200,q:.7,dur:.09,lvl:.4},{wave:'noise',f:1800,q:.6,dur:.07,lvl:.3},{wave:'noise',f:600,q:.8,dur:.06,lvl:.15}]},
+  road:{gain:.049,layers:[{wave:'noise',f:900,q:.8,dur:.06,lvl:.5},{wave:'noise',f:2600,q:1.4,dur:.03,lvl:.25},{wave:'tone',f:90,f2:70,dur:.08,lvl:.25}]},
+  pavement:{gain:.049,layers:[{wave:'noise',f:1900,q:1.7,dur:.05,lvl:.5},{wave:'noise',f:520,q:.9,dur:.1,lvl:.4},{wave:'tone',f:104,f2:74,dur:.12,lvl:.3}]},
+  kerb:{gain:.0504,layers:[{wave:'noise',f:2400,q:2,dur:.03,lvl:.6},{wave:'noise',f:700,q:1,dur:.07,lvl:.3},{wave:'tone',f:180,f2:120,dur:.06,lvl:.35}]},
+  stairs:{gain:.0525,layers:[{wave:'noise',f:1700,q:1.3,dur:.04,lvl:.5},{wave:'noise',f:600,q:.8,dur:.11,lvl:.4},{wave:'tone',f:140,f2:95,dur:.09,lvl:.35},{wave:'noise',f:3800,q:1,dur:.05,lvl:.15,delay:.06}]},
+  quay:{gain:.0525,layers:[{wave:'tone',f:170,f2:130,dur:.14,lvl:.45,type:'triangle'},{wave:'noise',f:700,q:2.5,dur:.12,lvl:.35},{wave:'noise',f:2000,q:1,dur:.03,lvl:.2}]},
+  lobby:{gain:.0476,layers:[{wave:'noise',f:3200,q:2.2,dur:.035,lvl:.55},{wave:'noise',f:1100,q:1.4,dur:.07,lvl:.3},{wave:'tone',f:220,f2:160,dur:.07,lvl:.2}]},
+  grating:{gain:.049,layers:[{wave:'noise',f:3000,q:3,dur:.025,lvl:.45},{wave:'tone',f:820,dur:.18,lvl:.18},{wave:'tone',f:1370,dur:.14,lvl:.12},{wave:'tone',f:95,f2:70,dur:.08,lvl:.25}]},
+  garden:{gain:.0434,layers:[{wave:'noise',f:4200,q:.7,dur:.09,lvl:.4},{wave:'noise',f:1800,q:.6,dur:.07,lvl:.3},{wave:'noise',f:600,q:.8,dur:.06,lvl:.15}]},
 });
 
 // A footfall is a heel strike followed by the sole (the toe): the heel is the surface voice with longer decays (low
@@ -37,7 +37,7 @@ const PAIRS=Object.freeze(Object.fromEntries(Object.entries(STEP_VOICES).map(([n
   return [name,[...heel,...toe]];})));
 
 export function createCityFoley(context,destination,ambience=destination) {
-  const MAX_DISTANCE=48,RETRIGGER=.25,CARRY={pitch:.85,length:1.2,scale:1.07},FRONT={scale:.56,pitch:1.6,length:.6},HIND={scale:.48,pitch:1.5,length:.6,delay:.025};
+  const MAX_DISTANCE=48,RETRIGGER=.25,CARRY={pitch:.85,length:1.2,scale:1.07},FRONT={scale:.48,pitch:1.6,length:.6},HIND={scale:.41,pitch:1.5,length:.6,delay:.025};
   let maxVoices=10,companionBeat=null,companionSteps=0;const bySurface=Object.fromEntries(Object.keys(STEP_VOICES).map(k=>[k,0]));
   // The robot layer has to be heard over the city bed. The bed sits at a mixed
   // RMS of roughly .01, so a footfall that stays below that is swallowed by the

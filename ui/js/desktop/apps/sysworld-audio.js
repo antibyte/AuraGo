@@ -15,7 +15,7 @@ import {createSoundRecordings} from './sysworld-sound-recordings.js';
 const CHORDS=[[110,164.81,246.94,261.63],[87.31,130.81,220,329.63],[130.81,196,246.94,329.63],[98,146.83,246.94,293.66]];
 const CHIMES=[440,523.25,587.33,659.25,783.99,880,1046.5];
 const MAX_EVENTS=12;
-const VISITOR_STEP=Object.freeze({scale:2.2});
+const VISITOR_STEP=Object.freeze({scale:1.9});
 // While a real recording of birds or gulls carries the place, the synthesised calls become occasional accents.
 const RECORDED_KIND=Object.freeze({birds:'birds',gull:'gulls'}),RECORDED_THIN=.35;
 const gullSpot={x:0,y:0,z:0,heading:0,bank:0,flap:0};

@@ -73,7 +73,7 @@ try{
   assert.equal(foley.stats().steps,4,'A gliding resident keeps its own longer stride');
   // A footfall beside the listener is the quietest sound of the layer and still
   // has to be louder than the city bed.
-  assert.ok(foley.stats().peak>.12,'A footfall beside the listener is loud enough to hear');
+  assert.ok(foley.stats().peak>.14,'A footfall beside the listener is loud enough to hear');
   flush();
   foley.setActive(false);
   assert.equal(foley.stats().voices,0,'A muted city releases every robot voice');
@@ -125,7 +125,7 @@ try{
     const {STEP_VOICES}=await import('../ui/js/desktop/apps/sysworld-foley.js');
     const {SURFACE_KINDS}=await import('../ui/js/desktop/apps/sysworld-zones.js');
     assert.deepEqual(Object.keys(STEP_VOICES).sort(),[...SURFACE_KINDS].sort(),'every surface has a footfall voice');
-    for(const [k,v]of Object.entries(STEP_VOICES))assert.ok(v.gain>=.036&&v.gain<=.054&&v.layers.length>=2,'step voice '+k);
+    for(const [k,v]of Object.entries(STEP_VOICES))assert.ok(v.gain>=.042&&v.gain<=.063&&v.layers.length>=2,'step voice '+k);
     const f=createCityFoley(context,node('out'),node('send'));f.setActive(true);
     const spots={road:[-18,-.14,-50],kerb:[-14.63,0,-50],pavement:[-13.5,0,-50],stairs:[0,.5,.3],quay:[-20,.08,77],lobby:[0,.88,-12],grating:[-43,.88,-56],garden:[-44,0,-88]};
     for(const [surface,[x,y,z]]of Object.entries(spots)){f.listener(x+2,y,z,0,-1,x+2,z);assert.equal(f.step(x,y,z,'v-'+surface),true,surface);assert.equal(f.stats().bySurface[surface],1,surface+' counted');flush();}
