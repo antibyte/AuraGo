@@ -1,9 +1,10 @@
 import {createWayfinder,livingPlaces} from './sysworld-places.js';
 import {bodyShape} from './sysworld-traffic.js';
 import {createSocialSignals} from './sysworld-signals.js';
-import {lobbyGround} from './sysworld-lobbies.js';
+import {lobbyGround,treadCentre} from './sysworld-lobbies.js';
 import {onCarriageway} from './sysworld-ground.js';
 import {springStep,findRig,adaptFeet} from './sysworld-footing.js';
+const STAIRS={snap:treadCentre};   // feet on the flights (phase 6); presentation only
 
 // A walking robot is about 0.8 m across the shoulders; swinging arms may overlap furniture. The traffic body keeps
 // the model's height but clamps the lateral half-extents so that the envelope (routing reach) is 0.5 m, which
@@ -280,7 +281,7 @@ export function createSociety(scene,{traffic,camera,floor,catalog,onSelect,onDem
       const fx=Math.sin(b.heading),fz=Math.cos(b.heading),slope=floor(b.x+fx*.35,b.z+fz*.35)-floor(b.x-fx*.35,b.z-fz*.35);
       const pitch=springStep(a.pitch,Math.max(-.08,Math.min(.08,Math.atan2(slope,.7)*.5)),dt);
       a.node.position.set(b.x,y,b.z);a.node.rotation.y=b.heading;a.node.rotation.x=-pitch;
-      if(feet&&a.rig)adaptFeet(a.rig,a.node,floor);
+      if(feet&&a.rig)adaptFeet(a.rig,a.node,floor,STAIRS);
       a.shadow?.set(b.x,floor(b.x,b.z),b.z,.62,.5);
     }
   }

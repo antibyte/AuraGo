@@ -68,23 +68,41 @@ export function findRig(root){
 // Runs after the mixer has posed the clip and the body has its final position for this step.
 // Lowers the body until the lowest stance foot reaches the ground, then bends each knee so no
 // sole stays below the ground. Writes root.position.y and the leg/shin/foot quaternions only.
-export function adaptFeet(rig,root,ground,{maxDrop=.25,maxRaise=.35}={}){
+// Stairs (phase 6): with `snap(x,z)` (the z of the tread centre under a point, NaN off the flights) a stance foot whose
+// heel and toe stand on different heights moves along z onto that centre (at most SNAP_REACH), is planted on the height
+// under its centre, and may then also be lowered.
+export const SNAP_REACH=.25;
+export function adaptFeet(rig,root,ground,{maxDrop=.25,maxRaise=.35,snap=null}={}){
   root.updateMatrixWorld(true);
-  const feet=rig.legs.map(l=>({l,lift:soleLift(l.foot,root),pen:penetration(l.foot,ground)}));
+  const feet=rig.legs.map(l=>{
+    const lift=soleLift(l.foot,root);let shift=0,snapped=false,pen=0;   // soleLift leaves _a/_b at this foot's contacts
+    if(snap&&Math.abs(ground(_a.x,_a.z)-ground(_b.x,_b.z))>.01){
+      const cx=(_a.x+_b.x)/2,cz=(_a.z+_b.z)/2,c=snap(cx,cz),w=stanceWeight(lift);
+      if(Number.isFinite(c)&&Math.abs(c-cz)<=SNAP_REACH&&w>0){shift=(c-cz)*w;snapped=true;pen=ground(cx,cz+shift)-Math.min(_a.y,_b.y);}
+    }
+    if(!snapped)pen=penetration(l.foot,ground);
+    return {l,lift,pen,shift,snapped};
+  });
   let drop=0;for(const f of feet)drop=Math.max(drop,stanceWeight(f.lift)*Math.max(0,-f.pen));
   drop=Math.min(drop,maxDrop);if(drop<1e-4)drop=0;
   if(drop){root.position.y-=drop;root.updateMatrixWorld(true);}
   const raised=[];
   for(const f of feet){
-    const raise=Math.min(maxRaise,f.pen+drop);raised.push(Math.max(0,raise));
-    if(raise<=5e-4)continue;
+    const raise=f.snapped?Math.max(-maxDrop,Math.min(maxRaise,f.pen+drop)):Math.min(maxRaise,f.pen+drop);raised.push(Math.max(0,raise));
+    if(f.snapped?Math.abs(raise)<=5e-4&&Math.abs(f.shift)<=5e-4:raise<=5e-4)continue;
     const {leg,shin,foot}=f.l;
     leg.getWorldPosition(_hip);shin.getWorldPosition(_knee);foot.getWorldPosition(_ankle);
-    _target.copy(_ankle);_target.y+=raise;_hinge.setFromMatrixColumn(leg.matrixWorld,0);
+    _target.copy(_ankle);_target.y+=raise;_target.z+=f.shift;_hinge.setFromMatrixColumn(leg.matrixWorld,0);
     const s=solveLeg(_hip,_knee,_ankle,_target,_hinge);if(!s)continue;
     foot.getWorldQuaternion(_f);
     rotateWorld(shin,s.knee);rotateWorld(leg,s.hip);leg.updateMatrixWorld(true);
     shin.getWorldQuaternion(_q);foot.quaternion.copy(_q.invert().multiply(_f));foot.updateMatrixWorld(true);
   }
   return {drop,raised};
+}
+// Measurement for tests and the survey: per leg, the lower sole contact's height above the ground under the sole centre
+// (matrices must be current).
+export function soleGaps(rig,ground,out=[]){
+  for(let i=0;i<rig.legs.length;i++){contacts(rig.legs[i].foot);out[i]=Math.min(_a.y,_b.y)-ground((_a.x+_b.x)/2,(_a.z+_b.z)/2);}
+  out.length=rig.legs.length;return out;
 }

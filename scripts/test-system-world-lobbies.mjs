@@ -3,6 +3,14 @@ import assert from 'node:assert/strict';
 import * as L from '../ui/js/desktop/apps/sysworld-lobbies.js';
 const {PODIUMS,LOBBIES,DOORS,PODIUM,FLIGHT,RISER,TREAD,STEPS,DOOR_TIME,SOLID_TOP}=L;
 const near=(a,b,eps=1e-9)=>Math.abs(a-b)<=eps;
+// Tread centres (phase 6): where a resident sole is planted on a flight.
+{ const {treadCentre,lobbyGround,FOOT_HALF}=L,p=PODIUMS.find(q=>q.id==='agent');
+  assert.ok(near(treadCentre(0,p.z1+.1),p.z1+TREAD/2),'first tread centre');
+  assert.ok(near(treadCentre(0,p.z1+1.5),p.z1+4.5*TREAD),'last tread centre');
+  assert.ok(near(treadCentre(0,p.z1-.05),p.z1-FOOT_HALF),'landing lip: the sole stays behind the top edge');
+  assert.ok(near(treadCentre(0,p.z1-.3),p.z1-.3),'deeper on the podium: unchanged');
+  assert.ok(Number.isNaN(treadCentre(20,p.z1+.5)),'beside the flight');assert.ok(Number.isNaN(treadCentre(0,p.z1+FLIGHT+.1)),'below the flight');
+  for(let s=.01;s<FLIGHT;s+=.07)assert.ok(near(lobbyGround(0,treadCentre(0,p.z1+s)),lobbyGround(0,p.z1+s)),'the centre lies on the same tread'); }
 // Design table (plans/2026-11-10-system-world-beauty-phase-3-design.md) and the kit v3 stair profile.
 assert.ok(near(FLIGHT,1.6)&&near(RISER,.88/6)&&STEPS===5&&TREAD===.32&&PODIUM===.88,'stair profile');
 assert.deepEqual(PODIUMS.map(p=>p.id),['agent','memory','integrations','missions','infra','graph','operations']);

@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {springStep,stanceWeight,solveLeg,findRig,adaptFeet,soleLift,SOLE} from '../ui/js/desktop/apps/sysworld-footing.js';
+import {springStep,stanceWeight,solveLeg,findRig,adaptFeet,soleLift,soleGaps,SOLE} from '../ui/js/desktop/apps/sysworld-footing.js';
+import {lobbyGround,treadCentre,PODIUMS} from '../ui/js/desktop/apps/sysworld-lobbies.js';
 import {createContactShadows} from '../ui/js/desktop/apps/sysworld-contact.js';
 
 // --- Spring ---
@@ -83,12 +84,27 @@ const soles=foot=>SOLE.map(p=>new THREE.Vector3(...p).applyMatrix4(foot.matrixWo
   assert.equal(findRig(new THREE.Group()),null);
   const odd=rig();odd.getObjectByName('foot_l').position.y=-.3;assert.equal(findRig(odd),null,'soles away from the origin are rejected');
 }
+{ // stairs: the agent flight; body origins every 8 cm from the podium lip down the flight, walking up and down
+  const p=PODIUMS.find(q=>q.id==='agent'),ground=(x,z)=>lobbyGround(x,z)??0;let worst=0,before=0;
+  for(let k=0;k<=21;k++)for(const heading of [0,Math.PI]){   // k 22..24 put the sole centre below the flight (street under it, last tread under the heel): not a stair case
+    const z=p.z1-.2+k*.08,make=()=>{const root=rig();root.rotation.y=heading;root.position.set(0,ground(0,z),z);return root;};
+    const old=make(),ro=findRig(old);adaptFeet(ro,old,ground);old.updateMatrixWorld(true);before=Math.max(before,...soleGaps(ro,ground).map(Math.abs));
+    const root=make(),r=findRig(root);adaptFeet(r,root,ground,{snap:treadCentre});root.updateMatrixWorld(true);worst=Math.max(worst,...soleGaps(r,ground).map(Math.abs));
+  }
+  assert.ok(worst<=.02,'both soles within 2 cm of the tread under them: '+worst.toFixed(3));
+  assert.ok(before>.05,'without the snap a sole hangs over a riser (the defect this fixes): '+before.toFixed(3));
+}
+{ // the snap changes nothing off the flights: kerb case with and without it
+  const a=rig(),b=rig(),ra=findRig(a),rb=findRig(b),ground=x=>x<0?.14:0;adaptFeet(ra,a,ground);adaptFeet(rb,b,ground,{snap:treadCentre});
+  ra.legs.forEach((l,i)=>['leg','shin','foot'].forEach(k=>assert.ok(l[k].quaternion.angleTo(rb.legs[i][k].quaternion)<1e-6,'kerb pose changed by the snap')));
+}
 // --- The shipped resident models ---
 const loader=new GLTFLoader();
 for(const name of['courier','technician','archivist']){
   const data=fs.readFileSync(new URL(`../ui/3d/system-world/v2/robot-${name}.lod0.glb`,import.meta.url));
   const gltf=await loader.parseAsync(data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength),'');
   const root=new THREE.Group();root.add(gltf.scene);root.scale.setScalar(1.15);root.updateMatrixWorld(true);
+  const pristine=gltf.scene.clone(true);   // unposed copy for the stair check below (the kerb check poses gltf.scene)
   const r=findRig(root);assert.ok(r,name+': findRig accepts the real model');
   const rest=r.legs.flatMap(l=>[l.leg,l.shin,l.foot]).map(n=>n.quaternion.clone());
   const flat=adaptFeet(r,root,()=>0);root.updateMatrixWorld(true);
@@ -102,6 +118,9 @@ for(const name of['courier','technician','archivist']){
   assert.ok(left>=.14-.005,name+': left sole not below the kerb: '+left);
   assert.ok(left<=.14+.01,name+': left sole on the kerb: '+left);
   assert.ok(Math.abs(right)<.005,name+': right foot still reaches its ground: '+right);
+  { const p=PODIUMS.find(q=>q.id==='agent'),g=(x,z)=>lobbyGround(x,z)??0,root2=new THREE.Group();root2.add(pristine);root2.scale.setScalar(1.15);
+    root2.position.set(0,g(0,p.z1+.3),p.z1+.3);root2.rotation.y=Math.PI;const r2=findRig(root2);adaptFeet(r2,root2,g,{snap:treadCentre});root2.updateMatrixWorld(true);
+    assert.ok(Math.max(...soleGaps(r2,g).map(Math.abs))<=.02,name+': soles on the treads'); }
 }
 {
   const scene=new THREE.Scene(),pool=createContactShadows(scene,{capacity:2}),a=pool.claim(),b=pool.claim();

@@ -58,6 +58,15 @@ export function lobbyGround(x,z){
     for(const f of p.stairs)if(Math.abs(x-f.x)<=f.width/2)return PODIUM-RISER*(Math.min(STEPS-1,Math.floor(s/TREAD))+1);}
   return null;
 }
+// Feet on the flights (phase 6): the z of the tread centre under (x, z) on a stair flight; on the podium within one tread of
+// a flight's top edge, the furthest z that keeps a resident sole (FOOT_HALF, half of the 0.41 m sole at scale 1.15)
+// behind the edge; NaN elsewhere. Pure.
+export const FOOT_HALF=.21;
+export function treadCentre(x,z){
+  for(const p of PODIUMS){const s=z-p.z1;if(s<=-TREAD||s>=FLIGHT)continue;
+    for(const f of p.stairs)if(Math.abs(x-f.x)<=f.width/2)return s<=0?Math.min(z,p.z1-FOOT_HALF):p.z1+(Math.min(STEPS-1,Math.floor(s/TREAD))+.5)*TREAD;}
+  return NaN;
+}
 // The lobby whose clear room (facade line minus WALL) holds the point.
 export function lobbyAt(x,z){return LOBBIES.find(l=>reach(l,x,z)<=-WALL)||null;}
 export function lobbyAirspace(x,y,z){return y<SOLID_TOP&&!!lobbyAt(x,z);}
