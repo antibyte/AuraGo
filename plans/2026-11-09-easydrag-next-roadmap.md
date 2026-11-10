@@ -22,7 +22,7 @@ Names used in this document: a short module name such as runs.js means `ui/js/de
 | 1 | Readable and honest | A first result in about a minute; one status pill and a Stop that never moves; flows first on the home; one glyph and one word for every status, in every theme | E2, E4, E5, E8, E3, the first part of E9 |
 | 2 | Red to green, a run you can watch | The Testbank strip; live progress with timers and counts; from a failure notification to the failed run, to the field, to "Behoben"; living cards and semantic zoom; sample forms and live previews of mapped fields; deep links that work | E5, E6, E3, E4, E7 (deep links), the UX parts of E9 |
 | 3 | The system comes to you | The "Heute" strip, run health on every card, approvals that announce themselves (durable mode on), a publish review with the next run, version compare and live rollback; recipe cards that state their needs; "Bis hier simulieren" | E7, E8, E4, E5 |
-| 4 | Phone first, a canvas that handles like a design tool | The phone step list with bottom sheets and a bottom bar; edge scroll, even spacing and F2 rename; keyboard wiring and a screen-reader pass; peek previews; "erhält" while connecting, ">" commands in quick-add and a palette sorted by topic | E16, E3, E2, E5, the UX parts of E9 and E13 |
+| 4 | Phone first, a canvas that handles like a design tool | The phone step list with bottom sheets and a bottom bar; edge scroll, even spacing, F2 rename and sticky notes; keyboard wiring and a screen-reader pass; peek previews; "erhält" while connecting, ">" commands in quick-add and a palette sorted by topic | E16, E3, E2, E5, the UX parts of E9 and E13 |
 | 5 | Flows that listen and remember | Start conditions, time windows and an "Ein Ablauf ist fehlgeschlagen" trigger; pickers with real devices and chats, and captured test events; expressions, Retry 2.0, fallback values and generic steps that fail honestly; flow memory and "Nur neue Einträge" | E10, E9, E11, E13 |
 | 6a | Real devices and chat commands | Chat commands ("/gutenacht"); Home Assistant depth, calendar, Durchsage and Desktop-Hinweis; "Mit Formular starten" and flows in Spotlight; recipe instances | E10, E13, E14, E7, E8 |
 | 6b | The house talks back | Service outages, watch presets, folder intake, "Warten auf Ereignis", trigger rules with debounce and quiet hours, missed schedules | E10, E11, E8 |
@@ -282,7 +282,7 @@ Pillars: foundation, safety.
   - model.js (921) does not grow. New model helpers go into a new `easydrag-model-ops.js`, created at the Wave 4 entry (or earlier, if a craft wave needs a model helper first): the upstream and downstream walk for the canvas-handling track and the run-order projection for E16. E15 reuses it in Wave 7a for the client-side change-set apply.
 - [FD-17, AI-16] Trust sweep:
   - Fence the string leaves inside the ai.decision `state`.
-  - Bound sticky notes on the server and scrub them from exports and AI payloads.
+  - Bound sticky notes on the server: 100 notes, 2,048 runes each, Cf characters refused, note bytes counted toward the 2 MiB document cap. Redact registered secrets in note text in exports, packs and the run view, and keep notes out of AI payloads by allowlist. Notes stay in exports and packs, because they become a canvas feature in Wave 4 (decision 3).
   - Enforce `flows.agent.read_only` on run and run_now, and show allow_publish as unavailable [OP-17, AI-17]. The agent manual's switch section ships with this.
   - On upgrade, the startup compatibility check (`internal/flows/service_compat.go`) marks a live flow as "Republish needed" when its ai.decision mode cannot take a fenced state, and names the step.
   - Stored notes above the new limits are truncated on load with a one-time notice, instead of refusing the draft.
@@ -313,7 +313,7 @@ Pillars: foundation, safety.
 - runs.js has at most 400 lines; editor.js, home.js and fields.js at most 900. The budget test warns at 900 and fails at 1,100. From the Wave 0 exit on, no EasyDrag module ends a wave above 1,000 lines, and the list of modules above 900 can only shrink.
 - The counter baseline is committed before UI-02, and UI-02 and UI-03 leave every counter unchanged.
 - An instruction-override payload in the ai.decision state reaches a stub provider inside fence markers. The existing `choice_<id>` and uncertain-port tests pass unchanged.
-- A 2,049-rune note or a 101st note is refused with a translated code, and exported flows contain no note text. A stored draft with an over-long note opens with the note truncated and a one-time notice.
+- A 2,049-rune note or a 101st note is refused with a translated code. A registered secret inside a note never appears in an export or a pack, and the AI proposal payload contains no note text. A stored draft with an over-long note opens with the note truncated and a one-time notice.
 - Right after the upgrade, a live flow whose ai.decision mode cannot take a fenced state shows "Republish needed" with the step named.
 - With read_only on, the agent's run_now on a flow mission is refused, while list and history still work.
 - After "In den Tresor verschieben", a republish and a purge, no plaintext token is found in the fixture's flows.db, its WAL file or any flows backup in the data directory. Versions still pinned by a run survive until they are unpinned.
@@ -444,8 +444,9 @@ Pillars: ui, foundation, joy.
   - distribute and equal-gap guides, with Tidy as one undo;
   - F2 inline rename;
   - select upstream and downstream.
+- [UI-11] (Wave 4) Sticky notes. N, or "Notiz" in the selection bar, drops a note at the pointer. Notes look like paper cards with a folded corner and a visible "Notiz" label. They come in five paper tints that pass the colour rule of §2 principle 2; there is no yellow, because yellow means warning. They hold plain text with bold and bullet lists, and links show as plain text. They resize on the 8 px grid, are edited in place and are part of undo. Notes never connect or run and sit beneath the cards. They can be pinned to a group so they move with it, show as a small glyph in the overview tier, and are listed in the outline under "Notizen".
 - [FD-06] (Wave 4) Keyboard wiring and narrated runs.
-- Deferred: UI-06 (ships with E12), UI-10, rendering of UI-11, knife and detach.
+- Deferred: UI-06 (ships with E12), UI-10, knife and detach.
 
 **Acceptance criteria**
 - Text size: at 100 % zoom no canvas text is below 12 px. At every automatic fit, on screen, names render at 13.8 px or more and parameter lines at 12 px or more. Pills, port labels and the status line render at 10.3 px or more until the compact tier hides them. None of the 12 recipe layouts gains an overlapping card.
@@ -460,13 +461,18 @@ Pillars: ui, foundation, joy.
 - A 120-step chain gets 120 columns, and one Ctrl+Z undoes the layout.
 - Dragging a connection to the window edge scrolls the canvas and stops on release. Distribute is one Ctrl+Z.
 - In touch emulation, tapping a wire shows its "+" and delete.
+- Sticky notes:
+  - Creating, editing and deleting a note are single undo steps and never change the scenario fingerprint.
+  - Note text with `<img onerror>` or a `javascript:` link renders as plain text.
+  - No note renders inside the publish review or the approval dialogs.
+  - A note pinned to a group moves with the group.
 
 **Size:** XL.
 **Waves:**
 - 0: UI-02.
 - 1: UI-13, FD-01, FD-05.
 - 2: the canvas track (FD-04, UI-04, UI-05, UI-08).
-- 4: the canvas-handling track, with FD-02, JY-16 and the UI-09 and UI-12 parts.
+- 4: the canvas-handling track, with FD-02, JY-16, the UI-09 and UI-12 parts, and UI-11 sticky notes.
 - 4: FD-06, last, so the keyboard wiring covers the new gestures.
 
 **Dependencies:** FD-03 counters (E1); type tokens and the status map (E2); the F.2 next-run accessor (built in Wave 1 with E4, shared with E7).
@@ -476,10 +482,14 @@ Pillars: ui, foundation, joy.
 - View state stays per device. Selected, focused, hovered, running and connect-target items are never culled. Edge auto-scroll only moves the view and never bumps `model.version`.
 - `card_summary` is a catalog template with typed placeholders, rendered through textContent. A secret_ref shows only its vault key name.
 - The effect chip comes from CollectEffects. Unknown or unavailable effects show a neutral "unklar" chip with a glyph, never a warning colour.
+- Sticky notes:
+  - Their text renders through createElement and textContent only, never innerHTML.
+  - A fixed note frame with a "Notiz" label keeps a note from posing as system UI.
+  - Notes never reach AI payloads (allowlist test) and never affect execution, fingerprints or block pins.
 
 **Main code areas**
 - `easydrag-canvas.js`, `easydrag-wires.js`, `easydrag-groups.js`, `easydrag-interact.js`.
-- New modules: `easydrag-card.js`, `easydrag-spatial.js`, `easydrag-layout.js`.
+- New modules: `easydrag-card.js`, `easydrag-spatial.js`, `easydrag-layout.js`, `easydrag-notes.js`.
 - The catalog `card_summary` field in `internal/flows`; `ui/css/desktop-app-easydrag.css`.
 
 ### E4. Calm chrome, confident publishing
@@ -1467,11 +1477,13 @@ The ten waves sum to 22.5 relative units instead of 20.5, for two reasons. The p
   - FD-06, then FD-07, last, so the keyboard wiring and the scripted pass cover the new gestures.
 - *Demo:*
   - signature experience 3.10;
+  - a sticky note explains a group, is pinned to it and moves with it;
   - a 120-step chain laid out in 120 columns and undone with one Ctrl+Z;
   - in quick-add, ">" lists commands and "Nachricht" finds "Telegram senden", and the palette groups steps by topic.
 - *Gates:*
   - phone journeys at 320 and 390 px. Every canvas edit action can be reached from the phone list;
   - the FD-06 keyboard wiring tests;
+  - the sticky-note tests: undo, fingerprint, markup shown as text, no note in the review or approval dialogs;
   - the scripted NVDA and VoiceOver pass (FD-07);
   - the full XL performance gate on reference hardware (§8);
   - CDP touch emulation at 1024×768 and 390×844 for the gestures this wave adds (§8);
@@ -1482,6 +1494,7 @@ The ten waves sum to 22.5 relative units instead of 20.5, for two reasons. The p
   - the UI-09 and UI-12 parts;
   - edge auto-scroll for drag, connect and box select;
   - distribute and equal-gap guides, F2 rename, select upstream and downstream;
+  - UI-11 sticky notes in `easydrag-notes.js`, after the UI-12 group swatches so that notes can pin to groups;
   - then JY-03 ("erhält" while connecting), after the edge auto-scroll helper, because both change the connect gesture.
 - *Decisions due:* none.
 
@@ -1612,7 +1625,7 @@ Wave 5 is the most crowded power wave: three tracks and a migration. Its shared 
    - a headroom ratchet test, with the load list and `DESKTOP_APP_ASSETS` updated.
 2. [FD-17, AI-16, OP-17 enforcement] Trust sweep:
    - fence the ai.decision `state`;
-   - add server bounds for sticky notes and strip them from exports, packs and AI payloads. Stored notes above the bounds are truncated on load with a one-time notice;
+   - add server bounds for sticky notes (100 notes, 2,048 runes each, Cf characters refused, counted toward the document cap), redact registered secrets in note text in exports, packs and the run view, and keep notes out of AI payloads by allowlist. Notes stay in exports, because they become a canvas feature in Wave 4 (decision 3). Stored notes above the bounds are truncated on load with a one-time notice;
    - enforce read_only on agent run and run_now;
    - show allow_publish as unavailable, with its reason, and update the agent manual's switch section;
    - at startup, mark live flows that the fence would fail closed as "Republish needed" (`service_compat.go`).
@@ -1644,7 +1657,7 @@ Wave 5 is the most crowded power wave: three tracks and a migration. Its shared 
   - each recipe step name at 16 px fits the card, or is truncated with an ellipsis and keeps the full name in the accessible name.
 - In Standard dark and Fruity light and dark, every category and group token passes the hue-window and distance rule (§2 principle 2), and no category colour appears outside the icon tile. Status ink reaches 4.5:1 and category tiles 3:1. The other 11 themes pass in a representative screenshot survey.
 - On the run-done fixture, no wire or card border uses a category colour.
-- The fence regression tests pass for route mode, evaluate mode and the uncertain port. The read_only refusal and the notes refusal are tested. No exported flow contains note text.
+- The fence regression tests pass for route mode, evaluate mode and the uncertain port. The read_only refusal and the notes refusal are tested. A registered secret in a note never appears in an export or a pack, and the AI proposal payload contains no note text.
 - A flow with notify.telegram opens Test with Simulieren selected, and Enter never starts a real test.
 
 **Key design decisions**
@@ -1654,7 +1667,7 @@ Wave 5 is the most crowded power wave: three tracks and a migration. Its shared 
   - Rejected alternatives: 14 px for all canvas text, which grows cards to about 84 px and means re-checking every recipe layout; and a floor of 1.0, which fits fewer cards.
   - An explicit Fit keeps zooming to any level.
 - Fence each string leaf of the decision state, keeping the JSON type. A mode that cannot take a fenced state fails closed with FLOW_PARAM_INVALID. The startup check names affected live flows before their next run.
-- Sticky notes are bounded and stripped, not rendered (decision 3).
+- Sticky notes are bounded and secret-scrubbed now, and rendered in Wave 4 (decision 3).
 - Before enforcing read_only, confirm the actual configuration key and its default. Show a one-time notice.
 
 **Risks**
@@ -1789,7 +1802,6 @@ Wave 5 is the most crowded power wave: three tracks and a migration. Its shared 
   - UI-10 routing;
   - UI-18 theme character;
   - super-cards for groups (part of UI-12);
-  - UI-11 note rendering (decision 3);
   - JY-18 replay;
   - JY-15 empty-state drawings: revisit after the Wave 3 home redesign. Until then, empty states get outcome-first copy and one action.
 - *Runs and data:*
@@ -1838,7 +1850,7 @@ Wave 5 is the most crowded power wave: three tracks and a migration. Its shared 
 **Contrarian recommendations not accepted**
 - "No breakpoints": UX-10 is kept in a form without a paused-run state, which removes the worker-holding concern.
 - "No variables": PE-01 is kept on the same bounded store, because the power-user judge rated it 9/must.
-- "Retire sticky notes" and "retire the rail" become owner decisions instead.
+- "Retire sticky notes": the owner declined it (decision 3). "Retire the rail" stays decision 2.
 
 **Retained non-goals**
 - No framework or engine replacement.
@@ -1889,9 +1901,9 @@ Wave 5 is the most crowded power wave: three tracks and a migration. Its shared 
 2. **The rail.** Options: label it (UI-15), or retire it in favour of a "+ Schritt" button and menus (CS-08).
    - *Default:* label it in Wave 1, and decide on retiring it after the Wave 1 sessions.
    - *Needed by:* the Wave 2 entry.
-3. **Sticky notes.** Options: render free notes (UI-11), or retire the field and use groups with notes.
-   - *Default:* bound and strip them in S0, and retire the field unless the owner wants free-floating notes.
-   - *Needed by:* S0.
+3. **Sticky notes.** **Decided on 2026-11-10: free notes on the canvas (UI-11)**. This was the owner's choice; the proposed default was to retire the field.
+   - S0 bounds notes on the server and redacts secrets in their text.
+   - Wave 4 renders them (E3).
 4. **file.write default.** Options:
    - keep "overwrite", which is idempotent on retry and will be shown on the card as "überschreibt";
    - switch new steps to "unique", which never overwrites but duplicates files on retry.
@@ -1965,7 +1977,7 @@ Wave: 0 to 7b as in §6 (strategy A). S0c = the rolling hygiene track (Waves 0�
 | UI-08 | Wires: direction, counts, focus | E3 | 2 | M | P | 6.3 |
 | UI-09 | Wire gestures | E3 (insert with room, output-end reconnect, insert ghost); knife and detach cut | 4 | L | P | 5.3 |
 | UI-10 | Orthogonal routing | Deferred | – | L | N/g | 3.3 |
-| UI-11 | Sticky notes | Decision 3; bounds in E1 | 0 | M | P/g | 5.3 |
+| UI-11 | Sticky notes | E3 (rendering); bounds and secret scrub in E1 (S0); decision 3 | 0/4 | M | P/g | 5.3 |
 | UI-12 | Groups as places | E3 (swatches, header band); super-cards deferred | 4 | M | P | 5.3 |
 | UI-13 | Framing and minimap | E3 | 1 | M | P | 7.0 |
 | UI-14 | Header: one pill | E4 | 1 | M | P/g | 8.0 |
