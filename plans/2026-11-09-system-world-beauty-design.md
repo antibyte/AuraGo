@@ -49,7 +49,7 @@ These were verified in code on 2026-11-09.
 | 0 Foundation | v3 pipeline (meshopt compression, baked vertex ambient occlusion), raised budgets, line-ending-safe provenance, survey harness with baseline pictures | this document |
 | 1 Ground and gait | New street, crossing and plot models; realistic kerbs with dropped kerbs and zebra crossings; one height profile; pedestrian routes on pavements and crossings; damped walker height, foot adaptation, contact shadows; companion and visitor follow the ground | this document |
 | 2 Windows with life | Real glass with reflections; interior-mapped rooms behind upper-floor and skyline windows (furniture, screens, moving robot silhouettes, lighting by time of day); the seven district buildings and both skyline towers reworked with far more facade detail | `plans/2026-11-09-system-world-beauty-phase-2.md` |
-| 3 Enterable buildings | Six district buildings get a real ground floor to walk into (themed lobby, glass front, door, furniture, working robots visible from outside). The small operations beacon stays exterior-only. Interiors load on approach | own spec and plan |
+| 3 Enterable buildings | Six district buildings get a real ground floor to walk into (themed lobby, glass front, door, furniture, working robots visible from outside). The small operations beacon stays exterior-only. Interiors load on approach | `plans/2026-11-10-system-world-beauty-phase-3.md` |
 | 4 City life | Trees and beds with wind, bird flocks, pigeons, boats, street furniture, kiosks, neon signs, steam, fireflies at night | own spec and plan |
 | 5 Soundscape | Master limiter, sound zones (harbour, park, street canyon, each interior), per-space reverb, damping behind glass, continuous traffic and tram bed, footsteps per surface | own spec and plan |
 | 6 Finish | Night lighting, per-tier polish, performance, final acceptance | own spec and plan |
@@ -71,6 +71,8 @@ The budget measures are the existing ones. "First display" is bytes loaded befor
 Actual use is reported at the end of every phase.
 
 Phase 2 actual use: the model directory `ui/3d/system-world` is 11,101,682 bytes (about 10.6 MiB) of its 40 MiB limit. First display and whole-app figures are measured in the final regression of phase 2.
+
+Phase 3 actual use: the model directory `ui/3d/system-world` is 12,200,238 bytes (about 11.6 MiB) of its 40 MiB limit. First display and whole-app figures are measured in the final regression of phase 3.
 
 Known places that pin the old numbers:
 

@@ -55,8 +55,9 @@ Own the original Blender city kit, deterministic generator and source scene.
   floor/shaft alignment with `node scripts/test-system-world-layout.mjs`.
 - Kit v3 is authored by `kit3.py` (shared core: materials, baked AO, export) and `build_world3.py`
   (run entry point, `FAMILIES`). Registered families: `street_assets3.py`, `facade_assets3.py`,
-  `district_assets3.py` and `furniture_assets3.py` (25 designs). `interior_assets3.py` (phase 3)
-  and `life_assets3.py` (phase 4) are not yet registered in `build_world3.py` `FAMILIES`.
+  `district_assets3.py`, `furniture_assets3.py` and `interior_assets3.py` (31 designs). `life_assets3.py`
+  (phase 4) is not yet registered in `build_world3.py` `FAMILIES`; `interior_assets3.py` imports its
+  `torus` and `face` helpers from it.
 - Kit v3 geometry: every primitive carries `COLOR_0` baked ambient occlusion (greyscale,
   multiplied with the albedo by the renderer); node names equal component names; materials are `city.*`.
   New in kit v3: `city.kerb`, `city.setts`, `city.iron`, `city.marking` and `city.tactile`, each
@@ -74,6 +75,26 @@ Own the original Blender city kit, deterministic generator and source scene.
   GLBs: bays 0.8-6 m, storeys 1.2-6 m, u running left to right from outside, and `-vtf` in the manifest.
 - No separate lit-window quads exist in kit v3. Vertex-coloured `city.ivory` and `city.warm` parts
   (light lines, diffusers) are light fixtures in the renderer and do not switch per pane.
+- Enterable lobby contract (`interior_assets3.py`, category `interior`): `lobby-agent`, `lobby-memory`,
+  `lobby-integrations` (two halls in one asset), `lobby-missions`, `lobby-infra` and `lobby-graph`.
+  Each is authored in its building's own frame (same origin, front towards -Y in Blender, glTF +Z).
+  The floor finish sits at `FLOOR` = `PODIUM` + 0.02 m. The glazing uses palette key `pane`
+  (`city.pane`) at the positions of the stand-in panes; the renderer swaps in its own material.
+- Door leaves are separate nodes `door_<n>_l` and `door_<n>_r`. Underscores only: `GLTFLoader` strips dots
+  from node names. Each leaf is half a door wide, its pivot is at its bottom centre on the podium top, and
+  it is authored closed. The renderer slides the leaves along X.
+- `navigation.colliders` (fixture boxes) and `navigation.workpoints` are building-local glTF values. A
+  collider is `[min x, min y, min z, max x, max y, max z]` with base `PODIUM`; workpoints stand at `FLOOR`.
+  Authoring rules: each workpoint keeps at least 0.6 m from every fixture box, and aisles and passages beside
+  counters are at least 1.4 m wide (a resident's routing body is about 1 m across).
+- Anything that hangs in the doorway of the closed building (for example the mission terminal's dock rails)
+  belongs to the building's `lobby` stand-in part, not to the interior.
+- Exterior `lobby` part: the ground-floor panes (`city.window`, room coordinates) and the closed door glass
+  (`city.glass`, 2.92 to 3.5 m high, sill at `PODIUM`). The renderer hides it while the interior is shown.
+- Stairs (`facade_assets3.py` `stairs`): `STEPS` = 5 treads of `TREAD` = 0.32 m; six equal risers of
+  `PODIUM / 6` under the `PODIUM` = 0.88 m top.
+- Every number mirrors `ui/js/desktop/apps/sysworld-lobbies.js`. `scripts/test-system-world-lobby-contract.mjs`
+  checks the packed GLBs against it.
 - Kit v3 street modules follow `ui/js/desktop/apps/sysworld-ground.js` (`kerb`, `streetProfile`,
   `streetModules`) within 1.5 cm at LOD 0, 2 cm at LOD 1 and 3 cm at LOD 2. Corner arcs use
   10, 6 and 4 segments per 90 degrees at LOD 0, 1 and 2. `street-end` overlays the outer 0.64 m

@@ -74,10 +74,11 @@ The reused ThreeDee robot retains its existing artwork provenance (see below).
 ## Kit v3
 
 `build_world3.py` authors the kit v3 designs in Blender 5.2 LTS. `kit3.py` is the shared core.
-Four families are registered: `street_assets3.py` (street modules), `facade_assets3.py` (slab-and-glass
+Five families are registered: `street_assets3.py` (street modules), `facade_assets3.py` (slab-and-glass
 facades and the skyline data towers), `district_assets3.py` (the seven district buildings and the
-skybridge) and `furniture_assets3.py` (the street lamp and planter, trees, bench, bollard, litter bin,
-crossing sign and kiosk). Together they make 25 designs and 75 GLBs. Blender writes uncompressed GLBs
+skybridge), `furniture_assets3.py` (the street lamp and planter, trees, bench, bollard, litter bin,
+crossing sign and kiosk) and `interior_assets3.py` (the six lobby interiors). Together they make 31
+designs and 93 GLBs. `life_assets3.py` (phase 4) is not registered yet. Blender writes uncompressed GLBs
 and `manifest.raw.json` to `disposable/system-world/v3-raw/` and saves
 `production/aurago-world-3.blend`. The Node script then packs them with meshopt and writes
 `ui/3d/system-world/v3/`.
@@ -99,6 +100,30 @@ The v3 `manifest.json` has `schema_version` 3 and these fields: `version`, `lice
 
 The renderer loads these GLBs with `GLTFLoader.setMeshoptDecoder(MeshoptDecoder)`
 (`sysworld-scene.js`).
+
+## Enterable lobbies
+
+Six district buildings (agent, memory, integrations, missions, infra, graph) have a real ground floor. Each
+has a `lobby` stand-in part (ground-floor panes and closed door glass) in its exterior GLB. The
+interior GLB replaces it on approach. The operations beacon has podium and stairs in the registry but no
+interior.
+
+- Runtime: `sysworld-lobbies.js` is the pure registry (podiums, stairs, halls, doors, the 0.35 m step rule,
+  wall and solid boxes, door states, the residents' lobby graph). `sysworld-lobby-render.js` loads, shows,
+  hides and disposes the interiors.
+- Interiors load within 45 m of a door (3D, measured at eye height) and are released beyond 70 m. They are
+  not part of the first display.
+- Tiers: medium loads the LOD 1 interior, high and ultra load LOD 0, and low loads no interiors. On low the
+  stand-ins stay in place.
+- Visitors climb the stairs. No step above 0.35 m is allowed between samples, so the podium edges are closed
+  except at the stairs. Door leaves open when a visitor or a resident comes near; the visitor's doors open
+  only when the interior is shown and the tier is not low.
+- Residents route over the pavement, the stairs, the porches, the doors and the lobby grid, and they work at
+  the interior workpoints (`sysworld-places.js` `createWayfinder`).
+- Collision: lobby walls with door gaps, corner piers, lintels, ceiling slabs and the atrium lid come from the
+  registry (`lobbySolids`). Interior fixtures come from each interior's `navigation.colliders`.
+- Lobby numbers mirror the authoring source; `scripts/test-system-world-lobby-contract.mjs` checks them against
+  the packed GLBs.
 
 ## Surface textures
 

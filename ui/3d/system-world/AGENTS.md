@@ -42,8 +42,8 @@ Authoring belongs to `assets/system-world/`; see its README and DOX contract.
   fully usable. The verbatim licence travels here and in `licences/texts/`.
   Authoring and reproduction belong to `assets/system-world/spot-source.json`
   and `scripts/build-system-world-spot.mjs`.
-- `v3/` holds the 25 kit v3 designs (street modules, facades, district buildings, data towers and
-  street furniture): meshopt-compressed GLBs (`EXT_meshopt_compression`
+- `v3/` holds the 31 kit v3 designs (street modules, facades, district buildings, data towers, street
+  furniture and the six lobby interiors; 93 GLBs, 3,789,784 bytes): meshopt-compressed GLBs (`EXT_meshopt_compression`
   required), texture-free, `city.*` materials and `COLOR_0` on every primitive. Load them with
   `GLTFLoader.setMeshoptDecoder(MeshoptDecoder)` and await `MeshoptDecoder.ready` first, as
   `sysworld-scene.js` does.
@@ -54,6 +54,18 @@ Authoring belongs to `assets/system-world/`; see its README and DOX contract.
   for every pane, adopted in `sysworld-scene.js` `model()` before material sharing. It never enters the
   shared-material map, and `sysworld-surfaces.js` never patches it. Vertex-coloured `city.ivory` and
   `city.warm` parts are light fixtures.
+- `city.pane` (interior glazing of the lobbies) is owned by `ui/js/desktop/apps/sysworld-lobby-render.js`
+  (`PANE_MATERIAL`): one shared transparent material, adopted in `sysworld-scene.js` `model()` next to the
+  window adoption. It never enters the shared-material map, `sysworld-surfaces.js` and `sysworld-windows.js`
+  never touch it, and only `lobbyRender.dispose()` releases it.
+- Lobby interiors are loaded by `createLobbyRender` in `sysworld-lobby-render.js`. An interior loads within
+  45 m (3D, at eye height) of one of its doors and is released beyond 70 m. Medium loads LOD 1, high and ultra
+  LOD 0, and low loads none. While an interior shows, its building's `lobby` node is hidden. Interiors are not
+  counted in the first display.
+- `installCityColliders` (`sysworld-colliders.js`) adds, per enterable district, `lobbySolids(district)` (walls
+  with door gaps, corner piers, lintels, ceiling slab, atrium lid, foundry towers and pipes, spire struts) and
+  each interior's `navigation.colliders` from the catalog (installed with the city, not on load). Door leaves have no colliders; the visitor is
+  held at the leaf line by `lobbyPassage` in `canWalk`.
 - Street-lamp light cones are off by day. `lampLevel` in `sysworld-atmosphere.js` fades them in towards dusk.
 - Materials with vertex colours are keyed by `sharedMaterialKey` with a `|vertex-colours`
   suffix, so v3 materials are not shared with same-named v1/v2 materials that lack vertex colours.
@@ -65,6 +77,9 @@ Authoring belongs to `assets/system-world/`; see its README and DOX contract.
 `node scripts/build-system-world-v3.mjs --check`, `node scripts/test-system-world-v3.mjs`,
 `node scripts/test-system-world-street-models.mjs` and `node scripts/test-system-world-ground.mjs`.
 `node scripts/test-system-world-windows.mjs` and `node scripts/test-system-world-lamps.mjs`.
+Lobbies: `node scripts/test-system-world-lobbies.mjs` (registry), `node scripts/test-system-world-lobby-contract.mjs`
+(registry against the packed GLBs), `node scripts/test-system-world-lobby-walk.mjs` (every door entered and left)
+and `node scripts/test-system-world-lobby-render.mjs` (interior loading against the `lobby-agent` GLBs).
 
 ## Child DOX Index
 None.
