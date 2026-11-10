@@ -8,9 +8,9 @@ import {springStep,findRig,adaptFeet} from './sysworld-footing.js';
 const turn=(from,to,dt)=>from+Math.atan2(Math.sin(to-from),Math.cos(to-from))*Math.min(1,dt*5);
 // The walk and carry clips are authored for 1.65 m/s with planted feet; a faster stride plays them faster.
 const stride=(a,name,speed)=>{const action=a.play?.(name);if(action)action.timeScale=speed/1.65;};
-export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate,active,onGait,shadows}) {
-  const actors=[],places=new Map(),slots=[],meetings=[],finder=createWayfinder(traffic,floor),signals=createSocialSignals(scene);
-  let clock=0,selected=null,replay=false,tier='high',disposed=false,completed=0,selectedStatus='';
+export function createSociety(scene,{traffic,camera,floor,catalog,onSelect,onDemonstrate,active,onGait,shadows}) {
+  const actors=[],places=new Map(),slots=[],meetings=[],finder=createWayfinder(traffic,floor,catalog),signals=createSocialSignals(scene);
+  let clock=0,selected=null,replay=false,tier='high',disposed=false,completed=0,selectedStatus='',lobbyVisits=0;
   const byPlace={},byResident={};
   const limit=()=>tier==='low'?3:tier==='medium'?10:19;
   function release(a) {if(a.slot){a.slot.owner=null;a.slot=null;}a.path=[];a.goal=null;}
@@ -38,9 +38,16 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
     return a;
   }
   function patrol(id,body,node,pause) {const a={id,body,node,pause,role:'patrol',state:'patrol',cooldown:7+actors.length,path:[],soundX:body.x,soundZ:body.z};actors.push(a);return a;}
+  // A route whose first real leg is already blocked at the body's own look-ahead probe cannot be walked from here
+  // (a body that stands a hand's breadth off the graph line clips a fixture the line itself passes). Choose another.
+  function openAhead(a,path) {
+    const w=path.find(p=>Math.hypot(p.x-a.body.x,p.z-a.body.z)>.5);if(!w)return true;
+    const dx=w.x-a.body.x,dz=w.z-a.body.z,d=Math.hypot(dx,dz),look=Math.min(1.8,d);
+    return traffic.clear(a.body,a.body,{x:a.body.x+dx/d*look,y:a.body.y,z:a.body.z+dz/d*look,heading:a.body.heading});
+  }
   function choose(a) {
     release(a);a.source='ambient';a.state='idle';a.until=clock+2;
-    const eligible=slots.filter(s=>!s.owner&&(a.role==='courier'?s.place===(a.carrying?'meeting-charge':'parcel-sorter'):s.role===a.role||s.place==='meeting-charge'));
+    const eligible=slots.filter(s=>!s.owner&&!(s.lobby&&tier==='low')&&(a.role==='courier'?s.place===(a.carrying?'meeting-charge':'parcel-sorter'):s.role===a.role||s.place==='meeting-charge'));
     // The first job is the nearest workstation: a resident spawned beside a place starts there.
     const first=a.trip===a.index;
     if(first)eligible.sort((p,q)=>Math.hypot(p.x-a.body.x,p.z-a.body.z)-Math.hypot(q.x-a.body.x,q.z-a.body.z));
@@ -50,7 +57,7 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
         const p=finder.streetPoints[(a.trip++*13+a.index)%finder.streetPoints.length];
         if(Math.hypot(p.x-a.body.x,p.z-a.body.z)>30)continue;
         const path=finder.route(a.body,p);
-        if(path.length){a.path=path;a.state='walk';return true;}
+        if(path.length&&openAhead(a,path)){a.path=path;a.state='walk';return true;}
       }
       return false;
     };
@@ -62,7 +69,7 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
         const slot=eligible[((first?0:a.trip)+n)%eligible.length];
         if(pass===0&&a.avoidLeft>0&&slot.place===a.avoid)continue;
         const path=finder.route(a.body,slot);
-        if(!path.length)continue;
+        if(!path.length||!openAhead(a,path))continue;
         if(a.avoidLeft>0)a.avoidLeft--;
         slot.owner=a.id;a.slot=slot;a.path=path;a.goal=slot;a.trip++;a.state=a.carrying?'carry':'walk';return;
       }
@@ -219,7 +226,7 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
       } else if(a.state==='walk'||a.state==='carry'||a.state==='guide'||a.state==='yield') {
         if(a.guide&&Math.hypot(a.body.x-a.guide.x,a.body.z-a.guide.z)>.5){a.play('idle');if(clock>a.until){a.path=finder.route(a.body,a.guide);a.until=clock+2.5;}continue;}
         a.guide=null;a.state=a.slot?.place==='meeting-charge'?'charge':a.slot?'work':'idle';a.until=clock+5+(a.index%4);
-        a.play(a.state==='work'?'work':'idle');if(a.slot)onDemonstrate?.(a.slot.place,5);a.avoid=a.slot?.place||null;a.avoidLeft=a.avoid?2:0;completed++;byResident[a.id]=(byResident[a.id]||0)+1;if(a.slot)byPlace[a.slot.place]=(byPlace[a.slot.place]||0)+1;
+        a.play(a.state==='work'?'work':'idle');if(a.slot&&!a.slot.lobby)onDemonstrate?.(a.slot.place,5);if(a.slot?.lobby)lobbyVisits++;a.avoid=a.slot?.place||null;a.avoidLeft=a.avoid?2:0;completed++;byResident[a.id]=(byResident[a.id]||0)+1;if(a.slot)byPlace[a.slot.place]=(byPlace[a.slot.place]||0)+1;
       } else if(clock>a.until){
         if(a.role==='courier'&&a.slot&&(a.state==='work'||a.state==='charge')){a.carrying=a.slot.place==='parcel-sorter';a.parcels.forEach(n=>{n.visible=a.carrying;});}
         choose(a);
@@ -266,11 +273,11 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
     settle,
     addPlace(place,entry) {
       if(places.has(place.id))return;places.set(place.id,place);
-      for(const point of entry.navigation.workpoints||[])slots.push({id:place.id+':'+point.id,place:place.id,role:place.role,x:place.x+point.position[0],y:floor(place.x,place.z),z:place.z+point.position[2],owner:null});
+      for(const point of entry.navigation.workpoints||[])slots.push({id:place.id+':'+point.id,place:place.id,role:place.role,x:place.x+point.position[0],y:floor(place.x,place.z),z:place.z+point.position[2],owner:null,lobby:!!place.lobby});
     },
     nearby() {
       const rows=[];for(const a of actors)if(a.body.enabled){const distance=Math.hypot(camera.position.x-a.body.x,camera.position.z-a.body.z);if(distance<5&&Math.abs(camera.position.y-a.body.y)<8)rows.push({kind:'resident',id:a.id,distance,x:a.body.x,z:a.body.z});}
-      for(const p of places.values()){const distance=Math.hypot(camera.position.x-p.x,camera.position.z-p.z);if(distance<7)rows.push({kind:'demonstrate',id:p.id,distance,x:p.x,z:p.z});}return rows;
+      for(const p of places.values()){if(p.lobby)continue;const distance=Math.hypot(camera.position.x-p.x,camera.position.z-p.z);if(distance<7)rows.push({kind:'demonstrate',id:p.id,distance,x:p.x,z:p.z});}return rows;
     },
     inspect(id){const a=actors.find(a=>a.id===id);select(a);return describe(a);},
     action(verb,destination) {
@@ -296,7 +303,7 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
       const place=livingPlaces.find(p=>p.district===(e.to==='agent'?e.from:e.to));
       if(place&&places.has(place.id))onDemonstrate?.(place.id,2,e.state);
     },
-    stats:()=>({completed,byPlace:{...byPlace},byResident:{...byResident},rigs:actors.filter(a=>a.rig).length,meetings:meetings.length,reservations:slots.filter(s=>s.owner).length,signals:signals.stats(),residents:actors.filter(a=>a.body.enabled).map(a=>({...describe(a),x:a.body.x,z:a.body.z,heading:a.body.heading})),places:[...places.keys()]}),
+    stats:()=>({completed,lobbyVisits,byPlace:{...byPlace},byResident:{...byResident},rigs:actors.filter(a=>a.rig).length,meetings:meetings.length,reservations:slots.filter(s=>s.owner).length,signals:signals.stats(),residents:actors.filter(a=>a.body.enabled).map(a=>({...describe(a),x:a.body.x,z:a.body.z,heading:a.body.heading})),places:[...places.keys()]}),
     dispose(){disposed=true;suspend();actors.forEach(a=>traffic.remove(a.id));actors.length=0;places.clear();slots.length=0;signals.dispose();},
   };
 }

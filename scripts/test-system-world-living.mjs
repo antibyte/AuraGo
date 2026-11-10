@@ -24,11 +24,12 @@ globalThis.fetch=async url=>{
 const root='ui/3d/system-world/',catalog=JSON.parse(await fs.readFile(root+'v1/manifest.json','utf8'));
 const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(),traffic=createTraffic(),errors=[];
 camera.position.set(18,2.5,57);
-installCityColliders(traffic,kitCatalog(catalog,JSON.parse(await fs.readFile(root+'v3/manifest.json','utf8'))),districts,placements);
+const v3=JSON.parse(await fs.readFile(root+'v3/manifest.json','utf8'));
+installCityColliders(traffic,kitCatalog(catalog,v3),districts,placements);
 const visitor=traffic.register('visitor',{circles:[{x:0,z:0,r:.38}],minY:-2.3,maxY:.4,reach:.38},camera.position,100);
 assert.ok(visitor);
 let ready=false,active=true,selected=null;
-const experience=createExperience(scene,{traffic,camera,districts,tier:'high',assetURL:x=>root+'v2/'+x,reduced:()=>false,active:()=>active,onError:e=>errors.push(e),onReady:()=>{ready=true;},onSociety:s=>{selected=s;}});
+const experience=createExperience(scene,{traffic,camera,districts,tier:'high',kit3:kitCatalog(v3),assetURL:x=>root+'v2/'+x,reduced:()=>false,active:()=>active,onError:e=>errors.push(e),onReady:()=>{ready=true;},onSociety:s=>{selected=s;}});
 const life=createCityLife(scene,districts,{traffic,society:experience.society,robotURL:root+'white-robot.glb',obstacles,active:()=>active,onError:e=>errors.push(e)});
 const drones=createDrones(scene,{traffic});
 const droneBytes=await fs.readFile(root+'v1/service-drone.lod0.glb');
@@ -52,7 +53,7 @@ const simulate=fixedSteps(dt=>{
   }
 });
 try{
-  await wait(()=>ready&&experience.stats().society.places.length===6&&life.stats().robots===5);
+  await wait(()=>ready&&experience.stats().society.places.length===12&&life.stats().robots===5);
   drones.setTemplate(drone.scene);
   assert.equal(experience.stats().society.residents.length,24,'All five patrols and nineteen residents have safe spawn positions');
   assert.equal(experience.stats().society.rigs,19,'Every resident exposes its leg rig (structure, leg/shin/foot per side) with soles at its origin');
@@ -65,6 +66,7 @@ try{
   const progress=Object.fromEntries([...travel].map(([id,distance])=>[id,Math.round(distance)]));
   if(process.env.SYSTEM_WORLD_DIAGNOSTICS)console.log(JSON.stringify({bodies:traffic.stats().poses,progress,society:experience.stats().society,drones:drones.stats()}));
   assert.ok(experience.stats().society.completed>0,'Robots must reach workstations, not just avoid collisions');
+  assert.ok(experience.stats().society.lobbyVisits>0,'Residents must also work inside the lobbies');
   assert.ok(experience.stats().society.signals.sent>0,'Ambient meetings must complete directed exchanges');
   for(const id of ['tram-0','tram-1',...Array.from({length:6},(_,i)=>'drone-'+i),...Array.from({length:5},(_,i)=>'patrol-'+i)])assert.ok(travel.get(id)>15,`${id} stuck: ${JSON.stringify(progress)}`);
   if(seconds>=300)for(const id of ['tram-0','tram-1'])assert.ok(travel.get(id)>seconds*2,`${id} cannot resume its circuit: ${JSON.stringify(progress)}`);

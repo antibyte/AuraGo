@@ -8,6 +8,7 @@ import {livingPlaces,landmarkPlaces} from './sysworld-places.js';
 import {createSociety} from './sysworld-society.js';
 import {createMachinery} from './sysworld-machinery.js';
 import {createHoverFlight} from './sysworld-hover.js';
+import {lobbyAt,lobbyGround,lobbyAirspace,createLobbyDoors,lobbyPlaces,DOORS,SENSE,PODIUM,SOLID_TOP} from './sysworld-lobbies.js';
 
 // All art is Blender-authored. This layer owns poses, navigation, interactions and
 // animation mixers; it is stepped by the existing city RAF, never its own timer.
@@ -22,6 +23,7 @@ export function createExperience(scene,options){
   const sky={ready:false,lift:null,cab:null,value:0,motion:null,idle:0},scopes=[],euler=new THREE.Euler(0,0,0,'YXZ');
   const wrapAngle=a=>Math.atan2(Math.sin(a),Math.cos(a)),smooth=t=>t<=0?0:t>=1?1:t*t*(3-2*t);
   const traffic=options.traffic||createTraffic(),machinery=createMachinery(scene),living=new Map();
+  const lobbyDoors=createLobbyDoors();let lobby=null;
   function placeFloor(x,z){
     let height=groundHeight(x,z);
     for(const place of livingPlaces)for(const s of manifest?.assets.find(a=>a.id===place.id)?.navigation.surfaces||[]){const [x0,z0,x1,z1]=s.rect;if(x>=place.x+x0&&x<=place.x+x1&&z>=place.z+z0&&z<=place.z+z1)height=Math.max(height,groundHeight(place.x,place.z)+s.height);}
@@ -30,10 +32,10 @@ export function createExperience(scene,options){
   // Street level under any point whatever height the visitor flies at; the hover flight and its landing use it.
   const groundAt=(x,z)=>{const podium=buildingFloor(x,z,options.districts||[]);return podium>0?Math.max(placeFloor(x,z),podium):placeFloor(x,z);},pads=[],visitorBody=()=>traffic.body('visitor'),hoverPose=new THREE.Vector3();
   const flight=createHoverFlight({ground:groundAt,reduced:()=>options.reduced(),
-    clear:(from,to)=>options.clear?options.clear(from,to):!visitorBody()||traffic.clear(visitorBody(),{...from,heading:0},{...to,heading:0},false),
-    // A landing spot is open street-level pavement or ground: never a pavilion interior, a building or a resident.
-    walkable:(x,z)=>{if(roomAt(x,z)||!canWalk(x,z,{x,z},()=>false,options.districts||[]))return false;const p={x,y:groundAt(x,z)+2.4,z,heading:0};return !visitorBody()||traffic.clear(visitorBody(),p,p);}});
-  const society=createSociety(scene,{traffic,camera,floor:placeFloor,onSelect:options.onSociety,onDemonstrate:machinery.demonstrate,active:options.active,onGait:options.onGait,shadows:options.shadows});
+    clear:(from,to)=>!lobbyAirspace(to.x,to.y,to.z)&&(options.clear?options.clear(from,to):!visitorBody()||traffic.clear(visitorBody(),{...from,heading:0},{...to,heading:0},false)),
+    // A landing spot is open street-level pavement or ground: never a pavilion, lobby, stair, podium, building or resident.
+    walkable:(x,z)=>{if(roomAt(x,z)||lobbyGround(x,z)!==null||!canWalk(x,z,{x,z},()=>false,options.districts||[]))return false;const p={x,y:groundAt(x,z)+2.4,z,heading:0};return !visitorBody()||traffic.clear(visitorBody(),p,p);}});
+  const society=createSociety(scene,{traffic,camera,floor:placeFloor,catalog:options.kit3,onSelect:options.onSociety,onDemonstrate:machinery.demonstrate,active:options.active,onGait:options.onGait,shadows:options.shadows});
   let placementSequence=0,lodClock=0;
   try{visited=new Set(JSON.parse(localStorage.getItem('aurago.desktop.sysworld.discoveries')||'[]').filter(id=>stations.some(s=>s.id===id)));}catch(_){}
   const route=streetCurve(tramWaypoints),length=route.getLength();
@@ -195,6 +197,8 @@ export function createExperience(scene,options){
         const mover=traffic.register('tram-'+i,bodyShape(body.bounds),{x:tmp.x,y:surfaces.road+.03,z:tmp.z,heading:Math.atan2(ahead.x,ahead.z)},3);
         trams.push({...body,body:mover,u,speed:0,dwell:5,stop:i?3:0,door});}
       for(let i=0;i<3;i++){const box=await place('cargo',43,70);if(box){traffic.removeOwner(box.owner);box.node.visible=false;freight.push({...box,body:null,elapsed:9,direction:1});}}
+      // Lobby workplaces (kit v3 interiors' workpoints); the interiors themselves load in the scene on approach.
+      for(const {place,entry}of lobbyPlaces(options.kit3))society.addPlace(place,entry);
       options.onReady?.();
     }catch(e){if(!disposed)options.onError?.(e);}
   }
@@ -301,6 +305,7 @@ export function createExperience(scene,options){
     if(near.kind==='skyup'||near.kind==='skydown'){rideSky(near.kind==='skyup'?skyDeck.lift.travel:0);return;}
     if(near.kind==='resident'){society.inspect(near.id);return;}
     if(near.kind==='demonstrate'){society.demonstrate(near.id,options.reduced());options.onSociety?.({id:near.id,role:'installation',state:options.reduced()?'idle':'work',source:'ambient'});return;}
+    if(near.kind==='door'&&near.id.startsWith('lobby:')){if(lobbyDoors.hold(near.id))callSound('door',camera.position,near.id);return;}
     if(near.kind==='door'){const d=doors.get(near.id);if(d){d.open=!d.open;callSound('door',d.node.position);const r=interiors.find(r=>r.id===near.id);void loadRoom(r);}}
     if(near.kind==='discover'){visited.add(near.id);try{localStorage.setItem('aurago.desktop.sysworld.discoveries',JSON.stringify([...visited]));}catch(_){}options.onDiscover?.(near.id);callSound('discover',camera.position);}
     if(near.kind==='tram'&&!options.reduced()){ride={kind:'waiting',station:near.id};options.onRide?.('waiting');}
@@ -350,10 +355,14 @@ export function createExperience(scene,options){
       if(distance<(top?3.6:2.4)&&(top||camera.position.y<10))result.push({kind:sky.motion||Math.abs(sky.value-here)>.05?'skycall':top?'skydown':'skyup',id:'sky',distance});
     }
     for(const s of scopes)if(Math.abs(camera.position.y-(s.floor+2.4))<1.5)add('telescope',s.id,s.x,s.z,1.7);
+    if(camera.position.y<SOLID_TOP)for(const d of DOORS)if(lobbyDoors.usable(d.key))add('door',d.key,d.x,d.z,SENSE*.75);
     return result.sort((a,b)=>a.distance-b.distance);
   }
   function update(dt,animated,mode){
-    if(disposed||!manifest)return;const step=animated?Math.min(dt,.05):0;clock+=step;room=(ride?.kind==='hover'&&camera.position.y>8.3?null:roomAt(camera.position.x,camera.position.z)?.id)||null;
+    if(disposed||!manifest)return;const step=animated?Math.min(dt,.05):0;clock+=step;
+    const high=ride?.kind==='hover'&&camera.position.y>8.3,hall=high||camera.position.y>SOLID_TOP?null:lobbyAt(camera.position.x,camera.position.z);lobby=hall?.id||null;
+    // The atrium is open to the sky: a place, but not indoors for rain and audio.
+    room=(high?null:roomAt(camera.position.x,camera.position.z)?.id)||(hall&&!hall.open?hall.id:null)||null;
     lodClock+=dt;if(lodClock>.5){lodClock=0;for(const [id,model]of living){const distance=camera.position.distanceTo(model.node.position),level=tier==='low'||distance>55?2:tier==='medium'||distance>32?1:0;void livingLOD(id,model,level);}}
     if(!options.traffic)traffic.begin();
     for(const r of interiors)if(Math.hypot(camera.position.x-r.x,camera.position.z-r.z)<32)void loadRoom(r);
@@ -369,6 +378,10 @@ export function createExperience(scene,options){
     if(ride?.kind==='scope')updateScope(dt);
     for(const [id,r]of rooms){if(!r.liftAction)continue;r.liftValue=THREE.MathUtils.damp(r.liftValue,r.liftTarget,1.8,Math.min(dt,.1));if(Math.abs(r.liftValue-r.liftTarget)<.02)r.liftValue=r.liftTarget;r.liftAction.time=r.liftValue/4*r.liftAction.getClip().duration;r.lift.mixer.update(0);if(ride?.kind==='lift'&&ride.id===id){const pos=interiors.find(i=>i.id===id);camera.position.set(pos.liftX,2.4+surfaces.room+r.liftValue,pos.liftZ);if(r.liftValue===r.liftTarget){ride=null;options.onRide?.(null);}}}
     society.update(step,animated);machinery.update(step,animated);
+    // Lobby doors slide for residents on every tier and for the visitor once the interior is shown (never on low).
+    const crowd=[];for(let i=0;i<residents.length;i++){const b=traffic.body('resident-'+i);if(b?.enabled)crowd.push(b);}
+    for(const d of lobbyDoors.update(Math.min(dt,.1),mode==='street'&&!ride?camera.position:null,crowd,!animated))
+      if(Math.hypot(camera.position.x-d.x,camera.position.z-d.z)<20)callSound('door',{x:d.x,y:PODIUM+1.5,z:d.z},d.key);
     trams.forEach((t,i)=>{
       t.node.visible=!!t.body&&i<(tier==='low'?1:2);
       if(t.body){if(t.node.visible&&!t.body.enabled&&!traffic.clear({...t.body,enabled:true},t.body,t.body))t.node.visible=false;t.body.enabled=t.node.visible;}
@@ -411,13 +424,13 @@ export function createExperience(scene,options){
     if(!options.traffic){traffic.solve(step);society.settle(step);}
     options.onInteraction?.(near,visited.size,room);
   }
-  async function setTier(value){tier=value;if(!manifest)return;const level=value==='low'?2:value==='medium'?1:0;
+  async function setTier(value){tier=value;lobbyDoors.setTier(value);if(!manifest)return;const level=value==='low'?2:value==='medium'?1:0;
     society.setTier(value);machinery.setTier(value);
     try{const replacements=new Map(await Promise.all([...loaded].filter(id=>!living.has(id)).map(async id=>{const gltf=await template(id,level),parts=new Map();gltf.scene.traverse(n=>{if(n.isMesh)parts.set(n.name,n);});return [id,parts];})));
       if(disposed||tier!==value)return;for(const mesh of bindings){const n=replacements.get(mesh.userData.worldAsset)?.get(mesh.userData.worldPart);if(n){mesh.geometry=n.geometry;mesh.material=n.material;}}options.onReady?.();
     }catch(e){if(!disposed)options.onError?.(e);}
   }
-  return {update,interact,endRide,setTier,society,
+  return {update,interact,endRide,setTier,society,lobbies:lobbyDoors,
     settle(dt){if(!disposed&&manifest)society.settle(dt);},
     suspend(){society.suspend();machinery.clear();missionSeeded=false;for(const box of freight){box.elapsed=9;box.node.visible=false;if(box.body)traffic.remove(box.body.id);box.body=null;}},
     syncRide(){if(ride?.kind==='tram'){const t=trams[ride.index];route.getTangentAt(t.u,ahead);camera.position.copy(t.node.position).addScaledVector(ahead,ride.offset);camera.position.y+=2.3;camera.lookAt(t.node.position.x+ahead.x*16,camera.position.y,t.node.position.z+ahead.z*16);}},
@@ -452,7 +465,7 @@ export function createExperience(scene,options){
         if(liftContains(r,x,z)&&!(x<r.liftX+1.25&&Math.abs(z-r.liftZ)<1.25&&rooms.get(r.id)?.liftValue===0))return false;
         if(Math.hypot(x-(r.x-1),z-r.z)<1.55||[-3,0].some(dx=>Math.abs(x-r.x-dx)<1.1&&Math.abs(z-r.z-3)<.8))return false;
       }
-      return canWalk(x,z,from,id=>doors.get(id)?.value>.85&&!!rooms.get(id)?.ready,options.districts);},
+      return canWalk(x,z,from,id=>id.startsWith('lobby:')?lobbyDoors.passable(id):doors.get(id)?.value>.85&&!!rooms.get(id)?.ready,options.districts);},
     floor(x,z){if(camera.position.y>40)return skyDeck.floor;const r=roomAt(x,z);if(r&&camera.position.y>5&&upperWalkable(r,x,z,rooms.get(r.id)?.liftValue===4))return surfaces.gallery;return groundAt(x,z);},
     visit(id){endRide();ride=null;
       const place=livingPlaces.find(p=>p.id===id);if(place){const point=manifest?.assets.find(a=>a.id===id)?.navigation.interaction[0]?.position||[0,1.5,4];camera.position.set(place.x,2.4+groundHeight(place.x,place.z),place.z+point[2]+1);camera.lookAt(place.x,2,place.z);return;}
@@ -462,7 +475,7 @@ export function createExperience(scene,options){
     destination(id){const r=interiors.find(r=>r.id===id);if(r){endRide();ride=null;const z=r.doorZ+r.front*4;camera.position.set(r.x,2.4+groundHeight(r.x,z),z);camera.lookAt(r.x,2.4+groundHeight(r.x,z),r.z);}},
     isRiding:()=>!!ride,interaction:()=>near,
     rideBody:()=>ride?.kind==='tram'?'tram-'+ride.index:ride?.kind==='scope'?ride.scope.model.owner:ride?.kind==='sky'?sky.lift?.owner||null:null,
-    stats:()=>({society:society.stats(),machinery:machinery.stats(),details:[...living].map(([id,m])=>({id,level:m.level})),loaded:[...loaded],bytes,freightEvents,residents:residents.filter(r=>r.node.visible).length,trams:trams.filter(t=>t.node.visible).length,rooms:[...rooms].filter(([,r])=>r.ready).map(([id])=>id),inside:room,ride:ride?.kind||null,station:ride?.station||null,discovered:[...visited],loading,interactions:near?{kind:near.kind,id:near.id}:null,
+    stats:()=>({society:society.stats(),machinery:machinery.stats(),details:[...living].map(([id,m])=>({id,level:m.level})),loaded:[...loaded],bytes,freightEvents,residents:residents.filter(r=>r.node.visible).length,trams:trams.filter(t=>t.node.visible).length,rooms:[...rooms].filter(([,r])=>r.ready).map(([id])=>id),inside:room,lobby,lobbies:lobbyDoors.stats(),ride:ride?.kind||null,station:ride?.station||null,discovered:[...visited],loading,interactions:near?{kind:near.kind,id:near.id}:null,
       landmarks:landmarks.map(l=>l.id),
       sky:{ready:sky.ready,value:+sky.value.toFixed(2),moving:!!sky.motion},telescopes:scopes.length,
       hover:(s=>({pads:pads.length,docked:pads.filter(p=>p.docked).length,flying:!!s,altitude:s?+s.altitude.toFixed(1):0,speed:s?+(s.speed*3.6).toFixed(1):0,landing:!!s?.landing}))(ride?.kind==='hover'?flight.state():null),
