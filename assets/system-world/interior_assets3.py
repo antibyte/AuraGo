@@ -4,7 +4,7 @@ Each interior is authored in the frame of its building (same origin, front towar
 is shown by the renderer in place of the building's `lobby` stand-in part. The building
 itself already provides the podium (floor at PODIUM), the piers and the slab above; an
 interior adds the floor finish, ceiling lights, the see-through glazing (`city.pane`) at
-the position of the stand-in panes, sliding door leaves (`door.<n>.l` / `door.<n>.r`, each
+the position of the stand-in panes, sliding door leaves (`door_<n>_l` / `door_<n>_r`, each
 a separate node with a pivot) and the furniture. Workpoints tell residents where to work;
 colliders are [min x, min y, min z, max x, max y, max z] in glTF axes (Y up).
 """
@@ -115,7 +115,7 @@ def shell(g, w, d, z1, doors, door_w, door_h, at=(0, 0), tile=1.15, floor=('kerb
     for n, x in enumerate(doors, first):
         cx, cy = at[0] + x, at[1] - d/2 + .25
         for tag, side in (('l', -1), ('r', 1)):
-            g.part = f'door.{n}.{tag}'
+            g.part = f'door_{n}_{tag}'
             lx = cx + side * door_w / 4
             g.box((lx, cy, z0 + door_h/2), (door_w/2 - .03, .04, door_h - .04), PANE, 0)
             g.box((lx, cy, z0 + door_h - .05), (door_w/2 - .03, .07, .1), 'titanium', 0)
@@ -502,7 +502,7 @@ def lobby_graph(g):
     pivots = {}
     cy = -radius * cos(pi / sides) - .1 + .25
     for tag, side in (('l', -1), ('r', 1)):
-        g.part = f'door.0.{tag}'
+        g.part = f'door_0_{tag}'
         lx = side * .8
         g.box((lx, cy, PODIUM + 1.55), (1.57, .04, 3.06), PANE, 0)
         g.box((lx, cy, PODIUM + 3.05), (1.57, .07, .1), 'titanium', 0)

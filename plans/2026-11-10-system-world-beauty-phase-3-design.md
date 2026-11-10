@@ -74,7 +74,7 @@ operations beacon stays exterior-only.
 7. **Glass.** `city.pane` is one shared transparent material (dark teal, opacity about 0.2, roughness 0.05,
    strong environment reflection, no depth write, double-sided). `sysworld-surfaces.js` and
    `sysworld-windows.js` leave it alone.
-8. **Doors.** Each door has two leaves as separate nodes `door.<n>.l` and `door.<n>.r`, authored closed.
+8. **Doors.** Each door has two leaves as separate nodes `door_<n>_l` and `door_<n>_r` (no dots: three.js strips them from node names), authored closed.
    They slide apart along the facade by their own width when a visitor or resident is within 3.2 m and
    the interior is ready (0.6 s ease, reduced motion: instant).
 9. **Inside flag.** `lobbyAt(x, z)` feeds the same chain as `roomAt`. The knowledge atrium is flagged
