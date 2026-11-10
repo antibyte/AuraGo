@@ -1,0 +1,17 @@
+[
+{"name":"quay-day","seconds":30,"seed":11,"listener":{"x":-20,"z":77,"fx":0,"fz":1},"mood":{"day":1,"evening":0,"busy":false,"weather":"clear"},"companion":true},
+{"name":"quay-dusk","seconds":30,"seed":12,"listener":{"x":-35,"z":77,"fx":0,"fz":1},"mood":{"day":0.2,"evening":0.8,"busy":false,"weather":"clear"}},
+{"name":"street-day","seconds":30,"seed":13,"listener":{"x":-13.5,"z":-12,"fx":0,"fz":-1},"mood":{"day":1,"evening":0,"busy":false,"weather":"clear"},"walkers":[{"id":"resident-0","from":[-13,-20],"to":[-13,0],"speed":1.2},{"id":"resident-1","from":[-14.5,-2],"to":[-14.5,-24],"speed":1.1,"carrying":true},{"id":"patrol-0","from":[-16,-30],"to":[-16,6],"speed":1.6,"style":"glide"}]},
+{"name":"street-night-rain","seconds":30,"seed":13,"listener":{"x":-13.5,"z":-12,"fx":0,"fz":-1},"mood":{"day":0,"evening":0,"busy":false,"weather":"rain"},"walkers":[{"id":"resident-0","from":[-13,-20],"to":[-13,0],"speed":1.2},{"id":"resident-1","from":[-14.5,-2],"to":[-14.5,-24],"speed":1.1,"carrying":true},{"id":"patrol-0","from":[-16,-30],"to":[-16,6],"speed":1.6,"style":"glide"}]},
+{"name":"street-busy-rain-120","seconds":120,"seed":14,"listener":{"x":-13.5,"z":-12,"fx":0,"fz":-1},"mood":{"day":0.3,"evening":0.6,"busy":true,"weather":"rain"},"trams":[{"u":0,"speed":11},{"u":0.5,"speed":11}],"walkers":[{"id":"resident-0","from":[-13,-20],"to":[-13,0],"speed":1.2},{"id":"patrol-0","from":[-16,-30],"to":[-16,6],"speed":1.6,"style":"glide"}]},
+{"name":"park-wind","seconds":30,"seed":15,"listener":{"x":-44,"z":-88,"fx":0,"fz":-1},"mood":{"day":1,"evening":0,"busy":false,"weather":"clear"},"windOffset":0},
+{"name":"lobby-agent-shut","seconds":30,"seed":16,"listener":{"x":0,"z":-12,"fx":0,"fz":1},"inside":true,"door":0,"mood":{"day":1,"evening":0,"busy":false,"weather":"clear"}},
+{"name":"lobby-agent-open","seconds":30,"seed":16,"listener":{"x":0,"z":-12,"fx":0,"fz":1},"inside":true,"door":1,"mood":{"day":1,"evening":0,"busy":false,"weather":"clear"}},
+{"name":"lobby-departure","seconds":30,"seed":17,"listener":{"x":43,"z":35,"fx":0,"fz":1},"inside":true,"door":0,"mood":{"day":1,"evening":0,"busy":true,"weather":"clear"}},
+{"name":"machine-hall","seconds":30,"seed":18,"listener":{"x":-43,"z":-56,"fx":0,"fz":1},"inside":true,"door":0,"mood":{"day":1,"evening":0,"busy":false,"weather":"clear"}},
+{"name":"garden-court","seconds":30,"seed":19,"listener":{"x":-43,"z":36,"fx":0,"fz":1},"inside":false,"door":0,"mood":{"day":1,"evening":0,"busy":false,"weather":"clear"}},
+{"name":"plaza-charging","seconds":30,"seed":20,"listener":{"x":79,"z":-55,"fx":-1,"fz":0},"mood":{"day":1,"evening":0,"busy":true,"weather":"clear"},"walkers":[{"id":"resident-2","from":[76,-62],"to":[76,-46],"speed":1.2}]},
+{"name":"tram-corner","seconds":30,"seed":21,"listener":{"x":-60,"z":-70,"fx":-1,"fz":0},"mood":{"day":1,"evening":0,"busy":false,"weather":"clear"},"trams":[{"u":0.79,"speed":11}]},
+{"name":"overview-day","seconds":30,"seed":22,"listener":{"x":120,"y":110,"z":183,"fx":-0.55,"fz":-0.83},"origin":[0,-12],"mood":{"day":1,"evening":0,"busy":false,"weather":"clear"}},
+{"name":"walk-surfaces","seconds":20,"seed":23,"walk":[[2,13],[2,6.5],[2,0.2],[2,-3],[2,-9]],"walkSpeed":1.4,"door":1,"mood":{"day":1,"evening":0,"busy":false,"weather":"clear"}}
+]
