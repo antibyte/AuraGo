@@ -130,18 +130,18 @@ Each experience names the wave whose exit demo it is (§6). A demo uses only ite
 **3.4 An approval arriving** (Wave 3 demo, on the pure-local durable path).
 - *Before:* nothing happens. The inbox fetches only when opened, and a request that expires after 10 minutes can lapse unseen (approval-inbox-standard-dark-1440).
 - *After:* durable mode is switched on. A manually started pure-local flow, "Wochenplan bestätigen", builds the plan and reaches its Freigabe step.
-  - A desktop notification reads "Wochenplan bestätigen wartet auf Deine Freigabe · läuft in 9:58 ab", and the notification-centre badge shows 1.
+  - A desktop notification reads "Wochenplan bestätigen wartet auf deine Freigabe · läuft in 9:58 ab", and the notification-centre badge shows 1.
   - The phone gets a link to the signed-in review, never a decision button.
   - The card leads with the question and the review data.
   - "Freigeben" waits 5 seconds with "Rückgängig" before the decision is sent.
-  - The waiting step on the canvas pulses three times, "Wartet auf Dich", and then stays still.
+  - The waiting step on the canvas pulses three times, "Wartet auf dich", and then stays still.
 
   Where durable mode is off, the library instead shows a "Freigaben einrichten" card. It says that a restart is needed and that only pure-local flows can be approved (decision 11).
 - *Later (Wave 7b, if decision 11 (b) is taken):* the same moment gates a Rechnungslauf before any invoice is sent, and the card lists the reviewed effects.
 
 **3.5 The morning library** (Wave 3 demo; the content-first toolbar ships in Wave 1).
 - *Before:* a hero, five equal buttons, filters, a disclaimer and folders all come before the first flow. At 390 px no flow is visible (ux-library-standard-390).
-- *After:* one toolbar, then a "Heute" line: "Alles ruhig · 7 Läufe seit gestern 22:14 · nächster Lauf 07:00". If something needs attention, at most four tiles appear instead, each opening its exact target. Every card shows its last ten live runs as marks with glyphs, plus its next run. At 390 px the Heute block is one line, "2 brauchen Dich ›", above the flows, and it opens as a sheet.
+- *After:* one toolbar, then a "Heute" line: "Alles ruhig · 7 Läufe seit gestern 22:14 · nächster Lauf 07:00". If something needs attention, at most four tiles appear instead, each opening its exact target. Every card shows its last ten live runs as marks with glyphs, plus its next run. At 390 px the Heute block is one line, "2 brauchen dich ›", above the flows, and it opens as a sheet.
 
 **3.6 Publishing with confidence** (Wave 3 demo; the primary-action states ship in Wave 1).
 - *Before:* Publish is the primary button even when nothing changed. The dialog says "Neu: 1 · Verbindungen geändert" and names nothing (publish-dialog).
@@ -209,13 +209,13 @@ Each experience names the wave whose exit demo it is (§6). A demo uses only ite
  approval = person tile, AI = inner line
 ```
 
-### Wireframe C: home with the attention strip (1440 px; below 560 px the HEUTE block is one line, "2 brauchen Dich ›", that opens as a sheet)
+### Wireframe C: home with the attention strip (1440 px; below 560 px the HEUTE block is one line, "2 brauchen dich ›", that opens as a sheet)
 
 ```
 +------------------------------------------------------------------------------+
 | [Suchen ...]  (Alle)(Aktiv)(Braucht Aufmerksamkeit) [Filter v] [##|=] [Neu v]|
 +------------------------------------------------------------------------------+
-| HEUTE  [Braucht Dich: 1 Freigabe · laeuft in 8 Min. ab  > Ansehen]           |
+| HEUTE  [Braucht dich: 1 Freigabe · laeuft in 8 Min. ab  > Ansehen]           |
 |        [2 Flows mit Fehlern seit gestern                > Laeufe]            |
 |        [naechster Lauf 07:00 · Morgenbriefing]                               |
 +------------------------------------------------------------------------------+
@@ -668,7 +668,7 @@ Pillars: ops, ux.
 **Goal.** Problems, approvals and next runs reach the owner once, in plain words, with one action that lands on the exact target.
 
 **What the user gets**
-- The "Heute" strip, with at most four tiles and the overnight summary folded in [JY-09]. On a phone it is one line, "2 brauchen Dich ›", that opens as a sheet.
+- The "Heute" strip, with at most four tiles and the overnight summary folded in [JY-09]. On a phone it is one line, "2 brauchen dich ›", that opens as a sheet.
 - A run-health line on every card: ten marks with glyphs, plus the next run.
 - Approvals that announce themselves, where durable mode is on:
   - a notification with a countdown;
@@ -1227,7 +1227,7 @@ Pillars: ux, joy.
 - Bottom-sheet editing.
 - A bottom bar with Testen, Läufe and "⋯", and a labelled Stop during runs.
 - A "Liste | Karte" switch and no rail.
-- On the home, the one-line attention summary ("2 brauchen Dich ›") above the flows, opening as a sheet (E7).
+- On the home, the one-line attention summary ("2 brauchen dich ›") above the flows, opening as a sheet (E7).
 
 **Scope:** [UX-17, UI-19].
 
@@ -1883,9 +1883,9 @@ Wave 5 is the most crowded power wave: three tracks and a migration. Its shared 
 
 ## 10. Open decisions for the owner
 
-1. **German form of address.** Options: capital "Du", lowercase "du", or "Sie".
-   - *Default:* capital "Du". A count found about 51 capital and 10 lowercase forms in `ui/lang/easydrag/de.json`; sentence-initial forms are included, so this is approximate. The desktop locale is split about evenly.
-   - *Needed by:* Wave 0, because S0 translates trigger samples and the touched keys. UX-18 applies it everywhere in Wave 1.
+1. **German form of address.** **Decided on 2026-11-10: lowercase "du"** (the owner's choice; the proposed default was capital "Du").
+   - Options were capital "Du", lowercase "du" and "Sie". A count found about 51 capital and 10 lowercase forms in `ui/lang/easydrag/de.json`; sentence-initial forms are included, so this is approximate. The desktop locale is split about evenly.
+   - Consequence: S0 writes every touched or new German key with lowercase "du", "dich", "dir" and "dein". The forms keep a capital only at the start of a sentence. UX-18 (Wave 1) converts the remaining capital forms in `ui/lang/easydrag/de.json`. A lint fails on a capital "Du", "Dich", "Dir" or "Dein…" that is not at the start of a sentence.
 2. **The rail.** Options: label it (UI-15), or retire it in favour of a "+ Schritt" button and menus (CS-08).
    - *Default:* label it in Wave 1, and decide on retiring it after the Wave 1 sessions.
    - *Needed by:* the Wave 2 entry.
