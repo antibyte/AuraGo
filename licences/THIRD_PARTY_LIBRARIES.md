@@ -325,6 +325,8 @@ Not third-party, listed for completeness:
 | System World ambience loop "Gulls on the Harbor" by Joseph SARDIN (`gulls`), cut and encoded with ffmpeg | `ui/3d/system-world/audio/gulls.ogg` | CC0 1.0 Universal | https://bigsoundbank.com/gulls-on-the-harbor-s2573.html |
 | System World ambience loop "XY_City hum_Night_River_ambience.wav" by softwalls (`city`), from the Freesound MP3 preview, cut and encoded with ffmpeg | `ui/3d/system-world/audio/city.ogg` | CC0 1.0 Universal | https://freesound.org/people/softwalls/sounds/385104/ |
 | System World ambience loop "Rain_light_3.mp3" by SoundAppProject (`rain`), from the Freesound MP3 preview, cut and encoded with ffmpeg | `ui/3d/system-world/audio/rain.ogg` | CC0 1.0 Universal | https://freesound.org/people/SoundAppProject/sounds/537558/ |
+| System World recording "Tram Passing #2" by Joseph SARDIN (`tram`), cut and encoded with ffmpeg | `ui/3d/system-world/audio/tram.ogg` | CC0 1.0 Universal | https://bigsoundbank.com/sound-3541-tramway-qui-passe-2.html |
+| System World recording "light footsteps on concrete walking.wav" by rsellick (`steps`), from the Freesound MP3 preview, cut and encoded with ffmpeg | `ui/3d/system-world/audio/steps.ogg` | CC0 1.0 Universal | https://freesound.org/people/rsellick/sounds/545543/ |
 
 ---
 

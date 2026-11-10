@@ -114,7 +114,7 @@ export function createCityAmbience(onState=()=>{},options={}) {
     zoneWeights(listener.x,listener.y,listener.z,listener.origin.x,listener.origin.z,raw);   // builds the zone fields during the gesture
     const verbReturn=node(context.createGain());verbReturn.gain.value=.55;verb.connect(verbReturn).connect(space.outdoor);
     voice=options.voice===false?null:createTowerVoice(context,voiceBus);effects=createCityEffects(context,effectsBus,ambientBus);effects.environment(inside,weather);
-    foley=createCityFoley(context,effectsBus,space.sendLocal);foley.setTier(tier);foley.environment(inside);foley.listener(listener.x,listener.y,listener.z,listener.fx,listener.fz,listener.origin.x,listener.origin.z);
+    foley=createCityFoley(context,effectsBus,space.sendLocal,{steps:()=>{const b=recordings?.buffer('steps'),s=recordings?.slices('steps');return b&&s?{buffer:b,slot:s.slot,count:s.count}:null;}});foley.setTier(tier);foley.environment(inside);foley.listener(listener.x,listener.y,listener.z,listener.fx,listener.fz,listener.origin.x,listener.origin.z);
     for(const [frequency,gain] of [[55,.022],[82.4069,.007],[110,.0032]]) {
       const oscillator=source(context.createOscillator()), level=node(context.createGain());
       oscillator.frequency.value=frequency;level.gain.value=gain;
@@ -174,7 +174,7 @@ export function createCityAmbience(onState=()=>{},options={}) {
     lamp.start();harmonic.start();
     // Phase 5 layers: zone-shaped beds, moving sources, room tones (outdoor ones behind the glass).
     beds=createSoundBeds(context,{outdoor:space.outdoor,send:space.sendOutdoor,local:ambientBus,noise,random,tier});beds.setMood(mood);
-    movers=createSoundMovers(context,{outdoor:space.outdoor,send:space.sendOutdoor,noise,tier,random});
+    movers=createSoundMovers(context,{outdoor:space.outdoor,send:space.sendOutdoor,noise,tier,random,buffer:id=>recordings?.buffer(id)??null});
     rooms=createRoomTones(context,{room:space.room,send:space.roomSend,noise,random,tier});rooms.setMood(mood);
     recordings=createSoundRecordings(context,{outdoor:space.outdoor,send:space.sendOutdoor,load,tier});recordings.setMood(mood);
     applyMood();

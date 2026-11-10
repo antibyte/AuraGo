@@ -89,6 +89,33 @@ const W=zone({quay:1,harbour:1,green:.5,canyon:.3});
 { // Disposed while the load is in flight: nothing is built.
   const {fake,layer}=rig();layer.update(wind(0),W);layer.dispose();await settle();assert.equal(fake.live('source').length,0);
 }
+// --- one-shot recordings (phase 6): decoded buffers only ---
+{
+  assert.deepEqual(R.SHOT_IDS,['tram','steps']);assert.deepEqual([R.SHOTS.tram.kind,R.SHOTS.steps.kind],['pass','slices']);
+  const entries=(over={},pass={})=>[...R.IDS.map(id=>({id,file:id+'.ogg'})),{id:'tram',file:'tram.ogg',kind:'pass',...pass},{id:'steps',file:'steps.ogg',kind:'slices',slot:.3,count:12,...over}];
+  const rig2=(list,opts={})=>{const fake=createFakeAudio(),c=fake.context,calls=[],manifest=new TextEncoder().encode(JSON.stringify({recordings:list})).buffer;
+    c.decodeAudioData=async()=>({duration:10,numberOfChannels:1,sampleRate:8000,getChannelData:()=>new Float32Array(4)});
+    const load=async path=>{calls.push(path);if(opts.fail?.includes(path))throw Error('missing '+path);return path==='manifest.json'?manifest:bytes;};
+    return {fake,calls,layer:R.createSoundRecordings(c,{outdoor:fake.node('outdoor'),send:fake.node('send'),load,tier:opts.tier||'high'})};};
+  { const {fake,calls,layer}=rig2(entries());assert.equal(layer.buffer('tram'),null,'nothing before the load');layer.update(wind(0),W);layer.update(wind(0),W);await settle();
+    assert.deepEqual(calls,['manifest.json',...R.IDS.map(id=>id+'.ogg'),'tram.ogg','steps.ogg'],'the shots load once, with the loops');
+    for(let i=0;i<4;i++)layer.update(wind(0),W);await settle();assert.equal(calls.length,9,'never reloaded');
+    assert.equal(layer.buffer('tram').duration,10);assert.equal(layer.buffer('steps').duration,10);assert.equal(layer.buffer('water'),null,'only shots are served');assert.equal(layer.buffer('nothing'),null);
+    assert.deepEqual(layer.slices('steps'),{slot:.3,count:12});assert.equal(layer.slices('tram'),null,'a pass has no slices');assert.equal(layer.slices('water'),null);
+    const st=layer.stats();assert.deepEqual(st.loaded.slice().sort(),[...R.IDS].sort(),'loaded lists exactly the six loops');assert.equal(st.failed,0);assert.deepEqual(st.shots,{loaded:['tram','steps'],failed:0});
+    assert.equal(fake.live('source').length,12,'a shot builds no source and no node');layer.dispose();assert.equal(layer.buffer('tram'),null,'dispose drops the buffers');assert.equal(layer.slices('steps'),null); }
+  { const {calls,layer}=rig2(entries(),{tier:'low'});layer.update(wind(0),W);await settle();
+    assert.deepEqual(calls,['manifest.json','water.ogg','city.ogg','rain.ogg'],'low does not load the shots');assert.equal(layer.buffer('tram'),null);assert.equal(layer.slices('steps'),null);
+    layer.setTier('high');await settle();assert.equal(layer.buffer('tram').duration,10,'raising the tier loads them once');assert.equal(calls.filter(p=>p==='tram.ogg').length,1);
+    layer.setTier('low');assert.equal(layer.buffer('tram'),null,'low serves no shot');layer.dispose(); }
+  for(const [label,over]of[['no kind',{kind:undefined}],['slot 0',{slot:0}],['slot over 2',{slot:2.5}],['count 0',{count:0}],['count 1.5',{count:1.5}],['count 65',{count:65}],['longer than the buffer',{slot:.9,count:12}],['wrong kind',{kind:'pass'}]]){
+    const {layer}=rig2(entries(over));layer.update(wind(0),W);await settle();assert.equal(layer.slices('steps'),null,'rejected: '+label);assert.ok(layer.buffer('steps'),label+': the buffer itself loads');layer.dispose();}
+  { const {layer}=rig2(entries({slot:.5,count:20}));layer.update(wind(0),W);await settle();assert.deepEqual(layer.slices('steps'),{slot:.5,count:20},'exactly the buffer length is accepted');layer.dispose(); }
+  { const {layer}=rig2(entries(),{fail:['tram.ogg']});layer.update(wind(0),W);await settle();const st=layer.stats();
+    assert.equal(layer.buffer('tram'),null);assert.ok(layer.slices('steps'),'the other shot still works');assert.equal(st.shots.failed,1);assert.deepEqual(st.shots.loaded,['steps']);
+    assert.equal(st.failed,0);assert.equal(st.loaded.length,6,'a failing shot does not disturb the loops');layer.dispose(); }
+  { const {layer}=rig2(R.IDS.map(id=>({id,file:id+'.ogg'})));layer.update(wind(0),W);await settle();assert.equal(layer.buffer('tram'),null,'shots missing from the manifest are silent');assert.equal(layer.stats().shots.failed,2);assert.equal(layer.stats().loaded.length,6);layer.dispose(); }
+}
 // --- engine wiring ---
 {
   const fake=createFakeAudio(),calls=[];fake.context.decodeAudioData=async()=>({duration:10,numberOfChannels:1,sampleRate:8000,getChannelData:()=>new Float32Array(4)});
@@ -128,7 +155,9 @@ const W=zone({quay:1,harbour:1,green:.5,canyon:.3});
 // --- shipped assets ---
 {
   const dir=fileURLToPath(new URL('../ui/3d/system-world/audio/',import.meta.url)),text=fs.readFileSync(dir+'manifest.json','utf8'),man=JSON.parse(text);
-  assert.deepEqual(man.recordings.map(r=>r.id).sort(),[...R.IDS].sort(),'the manifest lists exactly the recordings');
+  assert.deepEqual(man.recordings.map(r=>r.id).sort(),[...R.IDS,...R.SHOT_IDS].sort(),'the manifest lists exactly the eight recordings (six loops and two one-shots)');
+  for(const id of R.SHOT_IDS)assert.equal(man.recordings.find(r=>r.id===id).kind,R.SHOTS[id].kind,id+' kind');
+  assert.deepEqual(man.recordings.filter(r=>!R.SHOTS[r.id]).map(r=>r.kind),[undefined,undefined,undefined,undefined,undefined,undefined],'the loops have no kind');
   let total=0;
   for(const r of man.recordings){const data=fs.readFileSync(dir+r.file);total+=data.length;assert.equal(data.length,r.bytes,r.id+' bytes');
     assert.equal(crypto.createHash('sha256').update(data).digest('hex'),r.sha256,r.id+' sha256');assert.equal(r.licence,'CC0-1.0',r.id+' licence');}

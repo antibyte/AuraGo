@@ -30,7 +30,7 @@ export const STEP_VOICES=Object.freeze({
 // tail follows), the toe is the surface's noise layers only, a little brighter (x1.25), 55 % of the heel's level, 80 ms long, 70-95 ms after the heel. Both live in one voice's node chain,
 // so a footfall still takes one voice. PAIRS[surface] is the layer list; layers with `toe` start after the gap. A surface with a
 // `body` adds one narrow resonance layer (`body:true`) to the heel; the toe never copies it.
-export const PAIR={toeGap:Object.freeze([.07,.095]),toeLevel:.55,toeBright:1.25,toeDur:.08,heelTone:.12,heelNoise:Object.freeze([.08,.09]),rustle:Object.freeze([.2,.16,.12])};
+export const PAIR={sample:Object.freeze({road:.7,pavement:.8,kerb:.8,stairs:.75,quay:.6,lobby:.85}),toeGap:Object.freeze([.07,.095]),toeLevel:.55,toeBright:1.25,toeDur:.08,heelTone:.12,heelNoise:Object.freeze([.08,.09]),rustle:Object.freeze([.2,.16,.12])};
 export const PAIRS=Object.freeze(Object.fromEntries(Object.entries(STEP_VOICES).map(([name,spec])=>{
   let rustle=0;const heel=spec.layers.map(l=>{
     if(l.wave==='noise'&&name==='garden')return {...l,dur:PAIR.rustle[Math.min(rustle++,PAIR.rustle.length-1)]};
@@ -39,7 +39,7 @@ export const PAIRS=Object.freeze(Object.fromEntries(Object.entries(STEP_VOICES).
   const toe=spec.layers.filter(l=>l.wave==='noise'&&!l.delay).map(l=>({...l,f:l.f*PAIR.toeBright,lvl:l.lvl*PAIR.toeLevel,dur:PAIR.toeDur,toe:true}));
   return [name,[...heel,...(spec.body?[{wave:'noise',f:spec.body.f,q:spec.body.q,dur:.07,lvl:spec.body.lvl,body:true}]:[]),...toe]];})));
 
-export function createCityFoley(context,destination,ambience=destination) {
+export function createCityFoley(context,destination,ambience=destination,{steps:recordedSteps=()=>null}={}) {
   const MAX_DISTANCE=48,RETRIGGER=.25,CARRY={pitch:.85,length:1.2,scale:1.07},FRONT={scale:.48,pitch:1.6,length:.6},HIND={scale:.41,pitch:1.5,length:.6,delay:.025};
   let maxVoices=10,companionBeat=null,companionSteps=0;const bySurface=Object.fromEntries(Object.keys(STEP_VOICES).map(k=>[k,0]));
   // The robot layer has to be heard over the city bed. The bed sits at a mixed
@@ -56,7 +56,7 @@ export function createCityFoley(context,destination,ambience=destination) {
   const rejected={kind:0,inactive:0,distant:0,pool:0,retrigger:0,quiet:0};
 
   const noise=context.createBuffer(1,context.sampleRate*2,context.sampleRate);
-  let seed=9371,toeSeed=4417;const toeRandom=()=>(toeSeed=(Math.imul(toeSeed,1664525)+1013904223)>>>0)/4294967296;
+  let seed=9371,toeSeed=4417;const toeRandom=()=>(toeSeed=(Math.imul(toeSeed,1664525)+1013904223)>>>0)/4294967296,lastSlice={k:-1},sliceCount={n:0};
   const samples=noise.getChannelData(0);
   for(let i=0;i<samples.length;i++){seed=Math.imul(seed,1664525)+1013904223|0;samples[i]=(seed>>>0)/2147483648-1;}
 
@@ -147,6 +147,15 @@ export function createCityFoley(context,destination,ambience=destination) {
       const end=at+dur*(surface?1.5:1)+.02;if(end>latestEnd){latestEnd=end;latest=source;}
       source.start(at);source.stop(end);
     }
+    // A recorded footfall under each hard-surface step: one slice of the steps recording (never the same slice twice in a row),
+    // through the voice's own tone node, so it shares the voice's distance filter, level, pan and send and its release.
+    const sample=surface&&PAIR.sample[surface]?recordedSteps():null;
+    if(sample&&sample.buffer&&sample.count>=1){
+      const r=toeRandom(),r2=toeRandom(),k=lastSlice.k<0?Math.floor(r2*sample.count)%sample.count:(lastSlice.k+1+Math.floor(r2*(sample.count-1)))%sample.count,
+        at=now+(mod?.delay||0),len=Math.min(sample.slot,.28),rate=(mod?.pitch??1)*(.94+.12*r),src=context.createBufferSource(),gain=context.createGain();
+      lastSlice.k=k;sliceCount.n++;src.buffer=sample.buffer;src.playbackRate.value=rate;gain.gain.value=PAIR.sample[surface];src.connect(gain).connect(tone);
+      nodes.push(src,gain);const end=at+len/rate+.02;if(end>latestEnd){latestEnd=end;latest=src;}src.start(at,k*sample.slot,len);src.stop(end);
+    }
     // Only the longest layer ends the voice, so a two-note greeting is not cut.
     if(latest)latest.onended=entry.release;
     played++;if(surface)bySurface[surface]++;
@@ -196,7 +205,7 @@ export function createCityFoley(context,destination,ambience=destination) {
     gait,
     step(x,y,z,id,mod){return voice('step',x,y,z,id,surfaceAt(x,y,z),mod);},companion,setTier(value){maxVoices=value==='low'?6:10;},
     reset(){gaits.clear();recent.clear();},
-    stats:()=>({voices:voices.size,played,steps,companionSteps,bySurface:{...bySurface},gaits:gaits.size,inside,peak:+peak.toFixed(4),rejected:{...rejected}}),
+    stats:()=>({voices:voices.size,played,steps,samples:sliceCount.n,companionSteps,bySurface:{...bySurface},gaits:gaits.size,inside,peak:+peak.toFixed(4),rejected:{...rejected}}),
     dispose(){active=false;clear();},
   };
 }

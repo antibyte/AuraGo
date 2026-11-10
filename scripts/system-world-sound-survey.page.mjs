@@ -60,8 +60,8 @@ async function render(s){
   }
   advance(0);
   // The first frame starts the recordings' load; nothing is measured before every file is decoded (or has failed).
-  const expected=s.bare?0:(s.tier||'high')==='low'?3:6,waitStart=performance.now();let rec=null;
-  for(;;){rec=sound.stats().soundscape.layers.recordings;if(rec&&rec.loaded.length+rec.failed>=expected)break;
+  const expected=s.bare?0:(s.tier||'high')==='low'?3:6,expectedShots=s.bare||(s.tier||'high')==='low'?0:2,waitStart=performance.now();let rec=null;
+  for(;;){rec=sound.stats().soundscape.layers.recordings;if(rec&&rec.loaded.length+rec.failed>=expected&&(!expectedShots||rec.shots.loaded.length+rec.shots.failed>=expectedShots))break;
     if(performance.now()-waitStart>30000){errors.push({where:s.name,message:'recordings not ready after 30 s: '+JSON.stringify(rec)});break;}
     await new Promise(r=>setTimeout(r,25));}
   const samples=[];

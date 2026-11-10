@@ -149,7 +149,8 @@ Own the original Blender city kit, deterministic generator and source scene.
   `licences/texts/system-world-spot-BSD-3-Clause.txt` and travels with the asset.
 
 - Sound recordings (`audio-sources.json`, `build_audio.py`, `ui/3d/system-world/audio/`): add or replace a
-  recording only with the user's explicit approval for that download. Each source must be CC0-1.0; record
+  recording only with the user's explicit approval for that download. Rebuild one recording with
+  `build_audio.py --sources <dir> --only <id>,<id>`. Each source must be CC0-1.0; record
   its page, author, licence and source SHA-256 in `audio-sources.json`. The shipped `manifest.json` carries
   no URLs and stays that way. Never hand-edit the shipped `audio/` folder; rebuild it with `build_audio.py`.
 

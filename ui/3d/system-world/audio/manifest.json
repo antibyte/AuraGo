@@ -3,7 +3,7 @@
   "licence": "CC0-1.0",
   "channels": 1,
   "rate": 44100,
-  "total_bytes": 1400171,
+  "total_bytes": 1537920,
   "recordings": [
     {
       "id": "water",
@@ -75,6 +75,34 @@
       "true_peak_db": -2.1,
       "title": "Rain_light_3.mp3",
       "author": "SoundAppProject",
+      "licence": "CC0-1.0"
+    },
+    {
+      "id": "tram",
+      "file": "tram.ogg",
+      "bytes": 105027,
+      "sha256": "2a8824593c372097f8c59c19d9c92e435c0d76fd5359ffb90defcd86534a309f",
+      "seconds": 13,
+      "lufs": -19.4,
+      "true_peak_db": -1.7,
+      "kind": "pass",
+      "title": "Tram Passing #2",
+      "author": "Joseph SARDIN",
+      "licence": "CC0-1.0"
+    },
+    {
+      "id": "steps",
+      "file": "steps.ogg",
+      "bytes": 32722,
+      "sha256": "2d4abe547dfc0d9ae960fac34c57a5345bf938c94f3f87035332ce39583a9dab",
+      "seconds": 3.6,
+      "lufs": -26.0,
+      "true_peak_db": -2.6,
+      "kind": "slices",
+      "slot": 0.3,
+      "count": 12,
+      "title": "light footsteps on concrete walking.wav",
+      "author": "rsellick",
       "licence": "CC0-1.0"
     }
   ]

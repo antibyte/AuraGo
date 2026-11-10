@@ -13,6 +13,12 @@ loop per recording to ui/3d/system-world/audio/<id>.ogg plus manifest.json:
   * a high-pass removes rumble below `highpass` Hz;
   * the loop is levelled to the target integrated loudness and encoded with libvorbis.
 
+Two kinds are not loops. `"kind": "pass"` is one event played once (a tram passing): `seconds`
+from `start`, faded over `fade_in` and `fade_out`, levelled to `peak_db`. `"kind": "slices"` is
+a row of single short events (footfalls): each start in `slices` gives `slice_seconds` of sound,
+levelled to `peak_db` and placed on a grid of `slot` seconds, so slice k starts at k * slot; the
+manifest carries `slot` and `count` for the player.
+
 --only rebuilds the named recordings and keeps the shipped files and manifest entries of the
 others, so re-cutting one loop does not re-encode the rest.
 
@@ -58,6 +64,12 @@ def loudness(path):
     return integrated, peak
 
 
+def peak_db(path):
+    """Sample peak (dBFS); works on clips too short for the loudness meter."""
+    report = run(['ffmpeg', '-hide_banner', '-nostats', '-i', str(path), '-af', 'volumedetect', '-f', 'null', '-'])
+    return float(re.search(r'max_volume:\s+(-?[\d.]+) dB', report).group(1))
+
+
 def build(sources_dir, only=None):
     spec = json.loads(SOURCES.read_text(encoding='utf-8'))
     target = spec['target']
@@ -83,29 +95,59 @@ def build(sources_dir, only=None):
                 sys.exit(f'missing source: {source}')
             if sha256(source) != rec['source_sha256']:
                 sys.exit(f"{source}: sha256 differs from audio-sources.json")
-            loop = rec['loop_seconds']
-            # head fades in over the seam while the second after the cut fades out: out[0] == source[loop].
-            graph = (
-                f"[0:a]aformat=channel_layouts=mono,aresample={rate},highpass=f={rec['highpass']},asplit=3[a][b][c];"
-                f"[a]atrim=0:{seam},asetpts=PTS-STARTPTS,afade=t=in:d={seam}:curve=qsin[head];"
-                f"[b]atrim={loop}:{loop + seam},asetpts=PTS-STARTPTS,afade=t=out:d={seam}:curve=qsin[tail];"
-                f"[head][tail]amix=inputs=2:normalize=0[x];"
-                f"[c]atrim={seam}:{loop},asetpts=PTS-STARTPTS[mid];"
-                f"[x][mid]concat=n=2:v=0:a=1[out]"
-            )
+            kind = rec.get('kind', 'loop')
             raw = Path(scratch) / f"{rec['id']}.wav"
-            run(['ffmpeg', '-hide_banner', '-nostats', '-y', '-ss', str(rec['start']), '-t', str(loop + seam), '-i', str(source),
-                 '-filter_complex', graph, '-map', '[out]', '-c:a', 'pcm_f32le', str(raw)])
-            measured, peak = loudness(raw)
-            gain = target['lufs'] - measured
-            if peak + gain > -1.0:
-                gain = -1.0 - peak
+            clean = f"aformat=channel_layouts=mono,aresample={rate},highpass=f={rec['highpass']}"
+            extra = {}
+            if kind == 'loop':
+                seconds = rec['loop_seconds']
+                # head fades in over the seam while the second after the cut fades out: out[0] == source[loop].
+                graph = (
+                    f"[0:a]{clean},asplit=3[a][b][c];"
+                    f"[a]atrim=0:{seam},asetpts=PTS-STARTPTS,afade=t=in:d={seam}:curve=qsin[head];"
+                    f"[b]atrim={seconds}:{seconds + seam},asetpts=PTS-STARTPTS,afade=t=out:d={seam}:curve=qsin[tail];"
+                    f"[head][tail]amix=inputs=2:normalize=0[x];"
+                    f"[c]atrim={seam}:{seconds},asetpts=PTS-STARTPTS[mid];"
+                    f"[x][mid]concat=n=2:v=0:a=1[out]"
+                )
+                run(['ffmpeg', '-hide_banner', '-nostats', '-y', '-ss', str(rec['start']), '-t', str(seconds + seam), '-i', str(source),
+                     '-filter_complex', graph, '-map', '[out]', '-c:a', 'pcm_f32le', str(raw)])
+                measured, peak = loudness(raw)
+                gain = target['lufs'] - measured
+                if peak + gain > -1.0:
+                    gain = -1.0 - peak
+            elif kind == 'pass':
+                # One event from start to end (a vehicle passing): faded in and out, played once, never looped.
+                seconds = rec['seconds']
+                run(['ffmpeg', '-hide_banner', '-nostats', '-y', '-ss', str(rec['start']), '-t', str(seconds), '-i', str(source), '-af',
+                     f"{clean},afade=t=in:d={rec['fade_in']},afade=t=out:st={seconds - rec['fade_out']}:d={rec['fade_out']}",
+                     '-c:a', 'pcm_f32le', str(raw)])
+                gain = rec['peak_db'] - peak_db(raw)
+                extra = {'kind': kind}
+            elif kind == 'slices':
+                # Single short events (footfalls) on a fixed grid: slice k starts at k * slot, each at the same peak.
+                slot, length, parts = rec['slot'], rec['slice_seconds'], []
+                for index, start in enumerate(rec['slices']):
+                    cut, part = Path(scratch) / f"{rec['id']}-{index}-cut.wav", Path(scratch) / f"{rec['id']}-{index}.wav"
+                    run(['ffmpeg', '-hide_banner', '-nostats', '-y', '-ss', str(start), '-t', str(length), '-i', str(source), '-af',
+                         f"{clean},afade=t=in:d=0.003,afade=t=out:st={length - .04}:d=0.04", '-c:a', 'pcm_f32le', str(cut)])
+                    run(['ffmpeg', '-hide_banner', '-nostats', '-y', '-i', str(cut), '-af',
+                         f"volume={rec['peak_db'] - peak_db(cut):.2f}dB,apad=whole_dur={slot}", '-c:a', 'pcm_f32le', str(part)])
+                    parts.append(part)
+                inputs = [arg for part in parts for arg in ('-i', str(part))]
+                run(['ffmpeg', '-hide_banner', '-nostats', '-y', *inputs, '-filter_complex',
+                     ''.join(f'[{i}:a]' for i in range(len(parts))) + f'concat=n={len(parts)}:v=0:a=1[out]', '-map', '[out]',
+                     '-c:a', 'pcm_f32le', str(raw)])
+                seconds, gain = round(slot * len(parts), 3), 0.0
+                extra = {'kind': kind, 'slot': slot, 'count': len(parts)}
+            else:
+                sys.exit(f"{rec['id']}: unknown kind {kind}")
             final = OUT / f"{rec['id']}.ogg"
             run(['ffmpeg', '-hide_banner', '-nostats', '-y', '-i', str(raw), '-af', f'volume={gain:.2f}dB', '-map_metadata', '-1',
                  '-fflags', '+bitexact', '-flags:a', '+bitexact', '-c:a', target['codec'], '-q:a', str(target['quality']), str(final)])
             level, top = loudness(final)
             entries.append({'id': rec['id'], 'file': final.name, 'bytes': final.stat().st_size, 'sha256': sha256(final),
-                            'seconds': loop, 'lufs': round(level, 1), 'true_peak_db': round(top, 1),
+                            'seconds': seconds, 'lufs': round(level, 1), 'true_peak_db': round(top, 1), **extra,
                             'title': rec['title'], 'author': rec['author'], 'licence': rec['licence']})
             print(f"BUILT {rec['id']:7s} {final.stat().st_size:7d} bytes  {level:6.1f} LUFS  {top:5.1f} dBTP  gain {gain:+.1f} dB")
     manifest = {'schema_version': 1, 'licence': 'CC0-1.0', 'channels': target['channels'], 'rate': rate,
@@ -133,7 +175,7 @@ def check():
     assert shipped == sorted(e['file'] for e in manifest['recordings']), f'unlisted audio files: {shipped}'
     assert total == manifest['total_bytes'], 'total_bytes differs'
     assert total <= spec['target']['budget_bytes'], f"audio budget exceeded: {total} > {spec['target']['budget_bytes']}"
-    print(f"System World audio verified: {len(shipped)} CC0 loops, {total} bytes of {spec['target']['budget_bytes']}")
+    print(f"System World audio verified: {len(shipped)} CC0 recordings, {total} bytes of {spec['target']['budget_bytes']}")
 
 
 if __name__ == '__main__':

@@ -8,6 +8,8 @@
 // 0.707 each (a wide, decorrelated bed from a mono loop), into one level gain, into the outdoor bus (so glass damps them
 // indoors); birds and gulls also send a little into the outdoor reverb. update() allocates nothing and schedules a
 // level only when its value quantized to 1/500 changes. Low tier: water, city and rain only.
+// One-shot recordings (phase 6): SHOTS are decoded buffers only (a tram pass, a bank of footfall slices). They load with the loops
+// (not on low), the movers and the foley play them through buffer(id) / slices(id); this module connects nothing for them.
 const clamp01=v=>v<0?0:v>1?1:v;
 // `gain` is the starting level scale (tuned by the sound survey); `send` is the reverb send of the level gain.
 export const RECORDINGS=Object.freeze({
@@ -15,6 +17,8 @@ export const RECORDINGS=Object.freeze({
   gulls:Object.freeze({gain:.9,send:.2}),city:Object.freeze({gain:1.5,send:0}),rain:Object.freeze({gain:1.25,send:0}),
 });
 export const IDS=Object.freeze(Object.keys(RECORDINGS));
+export const SHOTS=Object.freeze({tram:Object.freeze({kind:'pass'}),steps:Object.freeze({kind:'slices'})});
+export const SHOT_IDS=Object.freeze(Object.keys(SHOTS));
 export const LOW_IDS=Object.freeze(['water','city','rain']);
 export const LEVEL_STEP=500,LEVEL_TAU=.6,PRESENT=.05,HALF=.707,SPREAD=.6;
 // The level of one recording (its law times its gain). w: the tracker's zone weights; f: the sound frame (wind
@@ -33,9 +37,9 @@ export function recordingLevel(id,w,f,mood){
   return law*spec.gain;
 }
 export function createSoundRecordings(context,{outdoor,send,load,tier='high'}){
-  let level=['low','medium','high','ultra'].includes(tier)?tier:'high',started=false,disposed=false,failed=0,manifest=null,loading=false;
-  const mood={day:0,weather:'clear',busy:false},attempted=new Set(),buffers=new Map(),voices=new Map();
-  const wanted=()=>level==='low'?LOW_IDS:IDS;
+  let level=['low','medium','high','ultra'].includes(tier)?tier:'high',started=false,disposed=false,failed=0,manifest=null,loading=false,shotsFailed=0;
+  const mood={day:0,weather:'clear',busy:false},attempted=new Set(),buffers=new Map(),voices=new Map(),shotInfo=new Map();
+  const wanted=()=>level==='low'?LOW_IDS:IDS,wantedShots=()=>level==='low'?[]:SHOT_IDS,pending=()=>[...wanted(),...wantedShots()].filter(id=>!attempted.has(id));
   function build(id,buffer){
     const spec=RECORDINGS[id],nodes=[],own=n=>(nodes.push(n),n),out=own(context.createGain());out.gain.value=0;out.connect(outdoor);
     if(spec.send>0){const wet=own(context.createGain());wet.gain.value=spec.send;out.connect(wet).connect(send);}
@@ -56,11 +60,11 @@ export function createSoundRecordings(context,{outdoor,send,load,tier='high'}){
   async function fetchOne(id){
     attempted.add(id);
     try{
-      const entry=manifest.get(id);if(!entry)throw Error('not in the manifest');
+      const shot=!!SHOTS[id],entry=shot?shotInfo.get(id)?.file:manifest.get(id);if(!entry)throw Error('not in the manifest');
       const bytes=await load(entry),buffer=await context.decodeAudioData(bytes);
       if(!buffer||!(buffer.duration>0))throw Error('empty');
       if(disposed)return;buffers.set(id,buffer);
-    }catch(_){if(!disposed)failed++;}
+    }catch(_){if(!disposed){if(SHOTS[id])shotsFailed++;else failed++;}}
   }
   async function begin(){
     if(loading)return;loading=true;
@@ -68,11 +72,12 @@ export function createSoundRecordings(context,{outdoor,send,load,tier='high'}){
       if(!manifest){
         try{
           const list=JSON.parse(new TextDecoder().decode(await load('manifest.json'))).recordings,map=new Map();
-          for(const r of Array.isArray(list)?list:[])if(r&&RECORDINGS[r.id]&&/^[a-z0-9-]+\.ogg$/.test(String(r.file)))map.set(r.id,r.file);
+          for(const r of Array.isArray(list)?list:[]){if(!r||!/^[a-z0-9-]+\.ogg$/.test(String(r.file)))continue;
+            if(RECORDINGS[r.id])map.set(r.id,r.file);else if(SHOTS[r.id])shotInfo.set(r.id,{file:r.file,kind:r.kind,slot:r.slot,count:r.count});}
           manifest=map;
-        }catch(_){if(!disposed){failed+=wanted().filter(id=>!attempted.has(id)).length;for(const id of wanted())attempted.add(id);}if(!manifest)manifest=new Map();return;}
+        }catch(_){if(!disposed){failed+=wanted().filter(id=>!attempted.has(id)).length;shotsFailed+=wantedShots().filter(id=>!attempted.has(id)).length;for(const id of [...wanted(),...wantedShots()])attempted.add(id);}if(!manifest)manifest=new Map();return;}
       }
-      for(let todo=wanted().filter(id=>!attempted.has(id));todo.length&&!disposed;todo=wanted().filter(id=>!attempted.has(id))){   // a tier change meanwhile adds ids
+      for(let todo=pending();todo.length&&!disposed;todo=pending()){   // a tier change meanwhile adds ids
         await Promise.all(todo.map(fetchOne));sync();
       }
       sync();
@@ -92,13 +97,20 @@ export function createSoundRecordings(context,{outdoor,send,load,tier='high'}){
     setMood(m){mood.busy=!!m?.busy;mood.weather=m?.weather||'clear';mood.day=Number.isFinite(m?.day)?m.day:mood.day;},
     setTier(value){
       if(!['low','medium','high','ultra'].includes(value)||value===level)return;level=value;
-      if(started&&manifest&&manifest.size&&wanted().some(id=>!attempted.has(id)))void begin();else sync();
+      if(started&&manifest&&manifest.size&&pending().length)void begin();else sync();
     },
     // True while the recording of `id` is loaded and audible enough to carry its place (the synthesised events thin out).
     carries:id=>{const v=voices.get(id);return !!v&&v.level>PRESENT;},
+    // The decoded one-shot buffer of a SHOTS id, or null (not loaded, failed, or the low tier).
+    buffer:id=>SHOTS[id]&&level!=='low'?buffers.get(id)||null:null,
+    // {slot,count} of a 'slices' recording: the manifest's grid, valid only when it fits the buffer (slot*count <= duration + 1 ms).
+    slices(id){const info=shotInfo.get(id),b=SHOTS[id]&&level!=='low'?buffers.get(id):null;
+      if(!info||!b||info.kind!=='slices'||!(SHOTS[id].kind==='slices'))return null;
+      const {slot,count}=info;if(!(Number.isFinite(slot)&&slot>0&&slot<=2)||!Number.isInteger(count)||count<1||count>64||slot*count>b.duration+.001)return null;
+      return {slot,count};},
     clear(){},
     stats(){const levels={};for(const v of voices.values())levels[v.id]=+v.level.toFixed(3);
-      return {tier:level,loaded:[...voices.keys()],failed,levels,nodes:[...voices.values()].reduce((n,v)=>n+v.nodes.length,0)};},
+      return {tier:level,loaded:[...voices.keys()],failed,shots:{loaded:SHOT_IDS.filter(id=>buffers.has(id)),failed:shotsFailed},levels,nodes:[...voices.values()].reduce((n,v)=>n+v.nodes.length,0)};},
     dispose(){disposed=true;for(const v of [...voices.values()])drop(v);buffers.clear();},
   };
 }

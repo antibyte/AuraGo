@@ -151,6 +151,28 @@ try{
     const tones=src.filter(n=>n.kind==='oscillator');assert.ok(tones.every(n=>n.startArgs[0]===0),'the toe has no low tone');
     assert.equal(src.filter(n=>n.startArgs[0]>0).length>=1&&src.filter(n=>n.startArgs[0]>0).every(n=>n.kind==='source'),true,'the toe is noise only');
   }
+  { // A recorded footfall under each hard-surface step (phase 6): one slice source per voice, never the same slice twice in a row.
+    const {PAIR}=await import('../ui/js/desktop/apps/sysworld-foley.js');
+    assert.deepEqual(PAIR.sample,{road:.7,pavement:.8,kerb:.8,stairs:.75,quay:.6,lobby:.85});
+    const slot=.3,count=12,rec={duration:3.6},spots={road:[-18,-.14,-50],kerb:[-14.63,0,-50],pavement:[-13.5,0,-50],stairs:[0,.5,.3],quay:[-20,.08,77],lobby:[0,.88,-12],grating:[-43,.88,-56],garden:[-44,0,-88]};
+    const make=withSteps=>{const fk=createFakeAudio(),d=fk.node('dest'),f=createCityFoley(fk.context,d,d,withSteps?{steps:()=>({buffer:rec,slot,count})}:undefined);f.setActive(true);return {fk,f};};
+    const slices=(fk,before)=>fk.nodes.slice(before).filter(n=>n.kind==='source'&&n.startArgs?.length===3);
+    const withS=make(true),without=make(false),offsets=[];
+    for(const [surface,[x,y,z]]of Object.entries(spots)){
+      for(const r of[withS,without]){r.fk.context.currentTime+=1;r.f.listener(x+2,y,z,0,-1,x+2,z);}
+      const b1=withS.fk.nodes.length,b0=without.fk.nodes.length;assert.equal(withS.f.step(x,y,z,'v-'+surface),true);assert.equal(without.f.step(x,y,z,'v-'+surface),true);
+      const hard=surface!=='garden'&&surface!=='grating',got=slices(withS.fk,b1);
+      assert.equal(got.length,hard?1:0,surface+': a sample source only on the hard surfaces');assert.equal(slices(without.fk,b0).length,0,surface+': none without steps');
+      assert.equal(withS.fk.nodes.length-b1,without.fk.nodes.length-b0+(hard?2:0),surface+': the sample adds exactly a source and a gain');
+      if(hard){const s=got[0],g=s.links[0];assert.equal(g.gain.value,PAIR.sample[surface],surface+' sample gain');assert.ok(s.buffer===rec&&s.playbackRate.value>=.94&&s.playbackRate.value<=1.06);}
+      withS.fk.flush();without.fk.flush();
+    }
+    for(let i=0;i<50;i++){withS.fk.context.currentTime+=1;const before=withS.fk.nodes.length;const [x,y,z]=spots.pavement;withS.f.listener(x+2,y,z,0,-1,x+2,z);
+      assert.equal(withS.f.step(x,y,z,'w-'+i),true);const got=slices(withS.fk,before);assert.equal(got.length,1);withS.fk.flush();
+      const [at,off,len]=got[0].startArgs,k=Math.round(off/slot);assert.ok(Math.abs(off-k*slot)<1e-9&&k>=0&&k<count,'offset is a multiple of the slot: '+off);assert.ok(len<=.28+1e-12&&at>=0);offsets.push(k);}
+    for(let i=1;i<offsets.length;i++)assert.notEqual(offsets[i],offsets[i-1],'no slice twice in a row at step '+i);
+    assert.ok(new Set(offsets).size>=6,'the slices vary: '+offsets.join(','));
+  }
   console.log('System World city sound: robot foley, gait cadence, bounded voices, spatial beds and the varied event table verified');
 }finally{
   Object.assign(globalThis,{setTimeout:native.setTimeout,clearTimeout:native.clearTimeout,window:native.window,localStorage:native.localStorage});

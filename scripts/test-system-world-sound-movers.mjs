@@ -10,7 +10,7 @@ assert.equal(M.tramLaw(0,0,5,{}).hum,0);assert.equal(M.tramLaw(11,0,5,{}).hum,M.
 assert.ok(M.tramLaw(11,0,100,{}).hum>0,'a tram is still heard at 100 m (reach 120)');assert.equal(M.tramLaw(11,0,121,{}).hum,0,'beyond reach');assert.equal(M.tramLaw(11,.5,5,{}).squeal,0,'a straight run does not squeal');
 const items=[{x:10,z:0,on:true},{x:2,z:0,on:true},{x:5,z:0,on:false},{x:40,z:0,on:true},{x:3,z:0,on:true}],out=new Int32Array(3);
 assert.deepEqual([...M.nearestSlots(items,3,0,0,30,out)],[1,4,0]);assert.deepEqual([...M.nearestSlots(items,3,0,0,4,out)],[1,4,-1]);
-function rig(tier='high',random){const fake=createFakeAudio(),c=fake.context,outdoor=fake.node('outdoor'),send=fake.node('send');return {fake,c,movers:M.createSoundMovers(c,{outdoor,send,noise:c.createBuffer(1,c.sampleRate*2),tier,...(random?{random}:{})})};}
+function rig(tier='high',random,buffer){const fake=createFakeAudio(),c=fake.context,outdoor=fake.node('outdoor'),send=fake.node('send');return {fake,c,movers:M.createSoundMovers(c,{outdoor,send,noise:c.createBuffer(1,c.sampleRate*2),tier,...(random?{random}:{}),...(buffer?{buffer}:{})})};}
 const L=(x,z,fx=0,fz=-1)=>({x,y:2.4,z,fx,fz,origin:{x,z}}),off={x:0,z:0,heading:0,on:false},frame=(trams=[],seaTime=0)=>({seaTime,trams:[trams[0]||off,trams[1]||off]});
 { // A tram passes along x at 11 m/s, 2 m from the listener.
   const {fake,c,movers}=rig(),tram={x:-150,z:2,heading:Math.PI/2,on:true};let built=null,approach=0,recede=0,maxClacks=0;
@@ -48,6 +48,33 @@ const L=(x,z,fx=0,fz=-1)=>({x,y:2.4,z,fx,fz,origin:{x,z}}),off={x:0,z:0,heading:
   const straight=run(0),curve=run(.3);assert.ok(straight>=3&&straight<=15,'straight ticks '+straight);assert.ok(curve>straight,'a curve ticks more: '+curve+' vs '+straight);
   const {c,movers}=rig('high');movers.gait('patrol-far',40,1.6,0,true,'glide');for(let k=0;k<30;k++){c.currentTime=k/60;movers.update(frame(),L(0,0),k/60,1/60);}
   assert.deepEqual(movers.stats().hovers,['patrol-far'],'a hover glider at 40 m gets a voice');movers.dispose();
+}
+{ // The recorded tram pass: one per approach, in reach, fast enough, armed; it shares the voice's out gain and dies with the voice.
+  const rec={duration:13},have=id=>id==='tram'?rec:null,P=M.MOVERS.pass;
+  assert.deepEqual([P.level,P.reach,P.speed,P.rearm],[.9,70,4,95],'pass constants');assert.equal(M.MOVERS.tram,.28,'the synthesis sits under the recording');
+  const drive=(r,x0,v,seconds,z=2,after)=>{const tram={x:x0,z,heading:v>=0?Math.PI/2:-Math.PI/2,on:true};
+    for(let k=0;k<seconds*60;k++){const t=k/60;r.c.currentTime=t;tram.x=x0+v*t;r.movers.update(frame([tram]),L(0,0),t,1/60);after?.(t,tram);}return tram;};
+  // the voice's out gain: the gain the tram's sawtooth motor ends in (its chain: osc -> lowpass -> amp -> out)
+  const outOf=r=>{const motor=r.fake.nodes.find(n=>n.kind==='oscillator'&&n.type==='sawtooth');let g=motor.links[0].links[0].links[0];return g;};
+  const passSources=r=>r.fake.nodes.filter(n=>n.kind==='source'&&n.buffer===rec);
+  { const r=rig('high',undefined,have);let startX=null,src=null,wired=false;
+    drive(r,-150,11,30,2,(t,tram)=>{if(startX===null&&r.movers.stats().passes===1){startX=tram.x;[src]=passSources(r);
+      const gain=src.links[0],ds=r.fake.downstream(gain);
+      wired=src.links.length===1&&gain.kind==='gain'&&gain.links.some(l=>l.kind==='pan')&&gain.links.some(l=>l.kind==='gain'&&l.gain.value===.35)&&ds.has(r.fake.nodes.find(n=>n.kind==='send'))&&!ds.has(outOf(r));}});
+    assert.equal(r.movers.stats().passes,1,'one pass per approach');assert.ok(startX>-72&&startX<-66,'it starts inside 70 m: '+startX);
+    assert.ok(src&&src.loop===false&&src.startArgs.length>=1,'a one-shot source');assert.ok(wired,'the recording runs into its own pass gain, which reaches the pan and the send but not the voice out gain');
+    assert.equal(M.tramLaw(11,0,7,{}).pass,P.level,'level at the closest point');assert.ok(Math.abs(M.tramLaw(11,0,30,{}).pass-P.level*Math.sqrt(M.distanceGain(30,8,.7)))<1e-9,'the square root of the distance gain');
+    assert.equal(M.tramLaw(11,0,121,{}).pass,0,'beyond reach');assert.equal(M.tramLaw(0,0,7,{}).pass,0,'a standing tram');
+    assert.equal(r.movers.stats().trams[0].voice,false);assert.ok(src.stopped&&src.disconnected,'a released voice stops and disconnects its pass');r.movers.dispose(); }
+  { const r=rig('high',undefined,have);drive(r,50,11,5);assert.equal(r.movers.stats().passes,0,'none while receding');r.movers.dispose(); }
+  { const r=rig('high',undefined,have);drive(r,-60,3,20);assert.equal(r.movers.stats().passes,0,'none below the speed');r.movers.dispose(); }
+  { const r=rig();drive(r,-150,11,20);assert.equal(r.movers.stats().passes,0,'none without a buffer');r.movers.dispose(); }
+  const there=turnX=>{const r=rig('high',undefined,have),tTurn=(turnX+150)/11,total=tTurn+(turnX+100)/11,tram={x:-150,z:2,heading:Math.PI/2,on:true};let atTurn=null;
+    for(let k=0;k<total*60;k++){const t=k/60;r.c.currentTime=t;tram.x=t<tTurn?-150+11*t:turnX-11*(t-tTurn);tram.heading=t<tTurn?Math.PI/2:-Math.PI/2;r.movers.update(frame([tram]),L(0,0),t,1/60);r.fake.flush();
+      if(atTurn===null&&t>=tTurn)atTurn=r.movers.stats().passes;}
+    const out=[atTurn,r.movers.stats().passes];r.movers.dispose();return out;};
+  assert.deepEqual(there(80),[1,1],'turning back at 80 m (never beyond 95 m): no second pass until re-armed');
+  assert.deepEqual(there(130),[1,2],'beyond 95 m it re-arms, and the next approach plays again');
 }
 for(const [tier,n]of[['low',2],['medium',4],['high',4]]){ // The nearest hover robots win a voice.
   const {c,movers}=rig(tier);for(let i=0;i<12;i++)movers.gait('patrol-'+i,2+i*3,1.6,0,true,'glide');movers.gait('resident-0',1,0,0,true,'');

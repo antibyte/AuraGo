@@ -374,9 +374,9 @@ verified by exact size and SHA-256 before use.
 
 ## System World ambience recordings
 
-Six ambience loops ship in `ui/3d/system-world/audio/` (`water`, `leaves`, `birds`, `gulls`, `city`, `rain`).
+Six ambience loops and two one-shot recordings ship in `ui/3d/system-world/audio/` (the loops `water`, `leaves`, `birds`, `gulls`, `city`, `rain`; the recordings `tram` and `steps`).
 Each is released under CC0 1.0 Universal (public domain dedication). Attribution is not required by CC0; the
-title, author and source page are given here for provenance. Each loop is cut from its source and encoded
+title, author and source page are given here for provenance. Each recording is cut from its source and encoded
 by `assets/system-world/build_audio.py`; the source hashes and cuts are in `assets/system-world/audio-sources.json`.
 
 - **water.ogg**: "Pontoon, marina" by Joseph SARDIN, https://bigsoundbank.com/pontoon-marina-s1444.html
@@ -385,6 +385,8 @@ by `assets/system-world/build_audio.py`; the source hashes and cuts are in `asse
 - **gulls.ogg**: "Gulls on the Harbor" by Joseph SARDIN, https://bigsoundbank.com/gulls-on-the-harbor-s2573.html
 - **city.ogg**: "XY_City hum_Night_River_ambience.wav" by softwalls, https://freesound.org/people/softwalls/sounds/385104/ (the site's MP3 preview; the WAV needs an account)
 - **rain.ogg**: "Rain_light_3.mp3" by SoundAppProject, https://freesound.org/people/SoundAppProject/sounds/537558/ (the site's MP3 preview; the original MP3 needs an account)
+- **tram.ogg**: "Tram Passing #2" by Joseph SARDIN, https://bigsoundbank.com/sound-3541-tramway-qui-passe-2.html
+- **steps.ogg**: "light footsteps on concrete walking.wav" by rsellick, https://freesound.org/people/rsellick/sounds/545543/ (the site's MP3 preview; the original WAV needs an account)
 
 The BigSoundBank pages state "CC0 (public domain): Free and royalty-free"; the Freesound pages state "Creative Commons 0".
 

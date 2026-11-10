@@ -60,7 +60,7 @@ First display has a separate 20 MiB budget; interior furnishings and alternate
 LODs are lazy. Exterior shells are present at first display. Modular floor seams
 and lift landings use exact planar edges; the platform top matches its declared
 zero-height surface and its left side opens onto the gallery.
-Sound is synthesized locally through the opt-in mixer; the only audio files are six CC0 ambience loops, described under Sound below.
+Sound is synthesized locally through the opt-in mixer; the only audio files are six CC0 ambience loops and two CC0 one-shot recordings (`tram`, `steps`), described under Sound below.
 Use `scripts/build-system-world-review.mjs` and the `AURAGO_SYSTEM_WORLD_MODELS=1`
 browser test for contact sheets of every exported model, LOD and clip. Review
 outputs stay under ignored `reports/aurora/`; they are not runtime resources.
@@ -162,8 +162,8 @@ their own sends; the low tier sends all three to one reverb.
 Glass damps the city behind a closed lobby or pavilion door. Moving sources are trams (hum, whine,
 rolling noise, squeal in curves, rail clacks), hover robots, the harbour launch and barge, and gull
 calls from the visible flock. Every lobby and pavilion has its own room tone. Footsteps sound like the
-surface under the foot. A limiter guards the master at -1 dBFS. The six recordings carry the place and
-the synthesis reacts on top. The owner of each module is listed in `ui/js/desktop/apps/AGENTS.md`.
+surface under the foot. A limiter guards the master at -1 dBFS. The six ambience loops carry the place, one-shot
+recordings sit under the tram and the footsteps, and the synthesis reacts on top. The owner of each module is listed in `ui/js/desktop/apps/AGENTS.md`.
 
 Survey: `node scripts/system-world-sound-survey.mjs --label <name> [--baseline <label>] [--strict]`
 renders the 15 situations of `scripts/system-world-sound-survey.situations.json` offline and writes WAV
@@ -178,10 +178,12 @@ the source SHA-256, the cut (start and loop length) and the high-pass. The sourc
 the repository. `python assets/system-world/build_audio.py --sources <dir>` takes one folder per id
 (`<dir>/<id>/<source_file>`), verifies each hash, cuts the loop, crossfades a 1 s seam, high-passes it,
 levels it to -30 LUFS and encodes mono Ogg Vorbis (libvorbis) into `ui/3d/system-world/audio/`, then
-rewrites `manifest.json`. It needs ffmpeg with libvorbis on `PATH`.
+rewrites `manifest.json`. `--only <id>,<id>` rebuilds just the named recordings. The `pass` kind (`tram`)
+and the `slices` kind (`steps`) are not loops: a pass is one event played once with fades, and slices
+are single short events placed on a grid of `slot` seconds in one file. It needs ffmpeg with libvorbis on `PATH`.
 `python assets/system-world/build_audio.py --check` needs no sources: it verifies the shipped files
 against the manifest, the manifest against `audio-sources.json`, the CC0 licences and the budget
-(1,572,864 bytes; the shipped total is 1,399,523). The shipped `.ogg` files travel through
+(1,572,864 bytes; the shipped total is 1,537,920). The shipped `.ogg` files travel through
 `assets/web-assets.json`. Adding a recording needs the user's approval; see `assets/system-world/AGENTS.md`.
 
 ## Surface textures

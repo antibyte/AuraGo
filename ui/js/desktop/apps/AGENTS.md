@@ -5998,7 +5998,7 @@ registration lives in `internal/desktop/types.go`.
 - `sysworld-sound-movers.js` - Tram hum, whine, rolling noise, squeal and clacks; hover-robot whirs; the launch and the barge; gull call positions.
 - `sysworld-sound-rooms.js` - Room tones for the lobbies and pavilions, with sparse room events.
 - `sysworld-sound-frame.js` - The scene's per-frame sound input (clocks, wind, trams, companion, door openness), filled in place.
-- `sysworld-sound-recordings.js` - The six CC0 ambience loops: loaded on the first frame while the sound runs, level laws by zone, wind, daylight and weather; silent on failure.
+- `sysworld-sound-recordings.js` - The six CC0 ambience loops and the two CC0 one-shot recordings (`tram`, `steps`): loaded on the first frame while the sound runs, level laws by zone, wind, daylight and weather; silent on failure.
 - `sysworld-voice.js` - Transient TTS phrase playback, spatial echo/reverb and cancellation.
   These modules need no additional child DOX.
 - `openscad-editor.js` - CodeMirror editor integration for SCAD source with

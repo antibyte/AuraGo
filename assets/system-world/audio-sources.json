@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "note": "Ambience recordings under the synthesised System World soundscape. Every source is CC0 1.0 (public-domain dedication) as stated on its own page; the user approved these downloads on 2026-11-10. The sources are not kept in the repository: download them into <dir>/<id>/<source_file> and run build_audio.py --sources <dir>.",
+  "note": "Ambience recordings under the synthesised System World soundscape. Every source is CC0 1.0 (public-domain dedication) as stated on its own page; the user approved these downloads on 2026-11-10 (the six ambience loops first, the tram pass and the footsteps in a second approval the same day). The sources are not kept in the repository: download them into <dir>/<id>/<source_file> and run build_audio.py --sources <dir>.",
   "target": {"lufs": -30, "rate": 44100, "channels": 1, "codec": "libvorbis", "quality": 2, "seam_seconds": 1, "budget_bytes": 1572864},
   "recordings": [
     {
@@ -103,6 +103,48 @@
       "start": 2.0,
       "loop_seconds": 26,
       "highpass": 120
+    },
+    {
+      "id": "tram",
+      "kind": "pass",
+      "role": "A tram passing without stopping; plays once under the synthesised tram when one comes close.",
+      "title": "Tram Passing #2",
+      "author": "Joseph SARDIN",
+      "licence": "CC0-1.0",
+      "licence_statement": "CC0 (public domain): Free and royalty-free",
+      "page_url": "https://bigsoundbank.com/sound-3541-tramway-qui-passe-2.html",
+      "source_url": "https://bigsoundbank.com/UPLOAD/ogg/3541.ogg",
+      "source_file": "3541.ogg",
+      "source_bytes": 420507,
+      "source_sha256": "756241a0a579e1e2c8641f957f6099e17d7cf2ffe89851545c40307df546af4b",
+      "start": 8.5,
+      "seconds": 13,
+      "fade_in": 1.5,
+      "fade_out": 2.5,
+      "highpass": 60,
+      "peak_db": -3,
+      "cut_note": "The pass itself: the recording rises for 13 s before it and dies away for 14 s after it. The loudest stretch lies 4.5 to 8.5 s into the cut."
+    },
+    {
+      "id": "steps",
+      "kind": "slices",
+      "role": "Single footfalls of light shoes on concrete; one plays under each synthesised footfall on a hard surface.",
+      "title": "light footsteps on concrete walking.wav",
+      "author": "rsellick",
+      "licence": "CC0-1.0",
+      "licence_statement": "Creative Commons 0",
+      "page_url": "https://freesound.org/people/rsellick/sounds/545543/",
+      "source_url": "https://cdn.freesound.org/previews/545/545543_6233742-hq.mp3",
+      "source_file": "545543_6233742-hq.mp3",
+      "source_bytes": 609554,
+      "source_sha256": "5095847e78536d84140188a906fc1ea93024c3f49a0027986b2476a54d40c03d",
+      "source_note": "The site's MP3 preview; the original WAV needs an account.",
+      "slices": [23.8, 20.451, 12.847, 2.093, 30.325, 18.959, 6.566, 7.159, 3.434, 0.958, 9.658, 26.738],
+      "slot": 0.3,
+      "slice_seconds": 0.28,
+      "highpass": 120,
+      "peak_db": -3,
+      "cut_note": "Twelve footfalls that the listening classifier reads as a single footstep on a hard floor (z 3.6 to 4.7), each starting 5 ms before its attack."
     }
   ]
 }
