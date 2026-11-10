@@ -345,9 +345,11 @@ def flower_bed(g):
         g.box((0, side * (d/2 - .07), h/2), (w, .14, h), 'kerb', .025, 1)
         g.box((side * (w/2 - .07), 0, h/2), (.14, d - .28, h), 'kerb', .025, 1)
     g.grid([-w/2 + .14, w/2 - .14], [-d/2 + .14, d/2 - .14], h - .06, 'road', tint=.6)
+    # Mounds, blossoms and grass form the soft part `foliage` (smooth normals).
+    g.part = 'foliage'
     mounds = [(-1.05, .1, .36), (-.25, -.14, .42), (.55, .12, .38), (1.18, -.08, .32)]
     for i, (x, y, r) in enumerate(mounds):
-        blob(g, (x, y, h + r * .3), r, tint=.95 + .12 * (i % 2), squash=.62, lumpy=.22)
+        blob(g, (x, y, h + r * .3), r, tint=.95 + .12 * (i % 2), squash=.62, lumpy=.07)
     colours = ('warm', 'ivory', 'cyan', 'jade', 'warm', 'ivory', 'cyan')
     for i in range((30, 14, 4)[lod]):
         x, y, r = mounds[i % 4]
@@ -363,7 +365,9 @@ def flower_bed(g):
             x = -w/2 + .28 + draws[100 + i] * (w - .56)
             y = (-1, 1)[i % 2] * (d/2 - .27)
             g.cyl((x, y, h + .2), .08, .56, 'leaf', top=.004, n=5, caps=(False, False), tint=1.5 + .5 * draws[i])
-    return {'navigation': {'colliders': [collider(-w/2, -d/2, w/2, d/2, .9)]}, 'occlusion': {'ground': 0.0}}
+    g.part = 'structure'
+    return {'navigation': {'colliders': [collider(-w/2, -d/2, w/2, d/2, .9)]}, 'soft': ['foliage'],
+            'occlusion': {'ground': 0.0}}
 
 
 def cafe_set(g):
@@ -547,11 +551,12 @@ def banner_mast(g):
     g.part = 'banner'
     rows_count, columns = (8, 4, 1)[lod], (2, 1, 1)[lod]
     rows = [[(.14 + .86 * c / columns, 0, 6.55 - 3.3 * r / rows_count) for c in range(columns + 1)] for r in range(rows_count + 1)]
-    sheet(g, rows, 'bronze', lambda r, k: .95 if r % 2 else .86)
+    # Matt off-white cloth (the marking paint's material) with a bronze emblem and a luminous stripe.
+    sheet(g, rows, 'marking', lambda r, k: 1.0 if r % 2 else .9)
     if lod < 2:
         for s in (-1, 1):
             emblem = [[(.34 + .46 * c, s * .006, 5.9 - .5 * r) for c in range(2)] for r in range(2)]
-            g.loft(emblem, ['ivory'], flip=s > 0)
+            g.loft(emblem, ['bronze'], flip=s > 0)
             stripe = [[(.2 + .74 * c, s * .006, 3.75 - .12 * r) for c in range(2)] for r in range(2)]
             g.loft(stripe, ['cyan'], flip=s > 0)
     g.part = 'structure'

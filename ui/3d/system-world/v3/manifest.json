@@ -11,9 +11,9 @@
     "street_assets3.py": "26f8d0e7d515516c19c510f4eb1880644818ff0d9b11fc8095314a294a729fc1",
     "facade_assets3.py": "c9ef0e5f0d15c54c2a7cad0f8c5d41db5212698bde57344d05cd65163b4979d2",
     "district_assets3.py": "491643796981c5716b1ade594dbfedb02738e93bab140b48c9a3b8277c686ada",
-    "furniture_assets3.py": "31edc48b024c177dff38f1bf9c4e7fb3eca7fab0d73ecd491a39fcf4d253f2d3",
+    "furniture_assets3.py": "ee137babb6077c53b4921aeab060ddaf03be67a4564417c16cd05ae7f7636030",
     "interior_assets3.py": "21b88f1094b80c9b1c66d08b407f4344c3d86bdd17fec145bda0520269b8e796",
-    "life_assets3.py": "93ab3ff7bb95e550d774c25e8a551b6dc4a769084a8e32b6dd7dc123c6e220a1"
+    "life_assets3.py": "73f65950084fd4aaa5926b0542139cc69da9e10c22f56cab8c54d2ddd853b982"
   },
   "assets": [
     {
@@ -1246,26 +1246,26 @@
       "lods": [
         {
           "file": "planter.lod0.glb",
-          "triangles": 1172,
+          "triangles": 1300,
           "bounds": {
             "min": [
-              -1.78,
+              -1.82522,
               0,
-              -0.84614
+              -0.83
             ],
             "max": [
-              1.82678,
-              2.0466,
-              0.99425
+              1.92141,
+              1.973,
+              0.86381
             ]
           },
           "level": 0,
-          "bytes": 19744,
-          "sha256": "0a1ac1d391b96545f608eae3326280997509a7baa3f88885f5a85614f730b394"
+          "bytes": 15204,
+          "sha256": "54464302da9df67236a6fdcec3e6de7f1c2fcc64456c41578541bef3f6fd310d"
         },
         {
           "file": "planter.lod1.glb",
-          "triangles": 756,
+          "triangles": 788,
           "bounds": {
             "min": [
               -1.78,
@@ -1273,14 +1273,14 @@
               -0.83
             ],
             "max": [
-              1.78104,
-              2.0466,
-              0.99804
+              1.8734,
+              1.973,
+              0.92641
             ]
           },
           "level": 1,
-          "bytes": 16468,
-          "sha256": "1fd689f65965efb5753c221477ce3533a4a070ead87be4e30174a594cf97be21"
+          "bytes": 11852,
+          "sha256": "f9ba8765b088ebeb564bbde173e15da5146c3d0499c07f694fa0f21bb3ffd4b8"
         },
         {
           "file": "planter.lod2.glb",
@@ -1293,16 +1293,17 @@
             ],
             "max": [
               1.75,
-              2.0466,
+              1.973,
               0.8
             ]
           },
           "level": 2,
-          "bytes": 5760,
-          "sha256": "8ecaa6ebe4336ef0e9110f69730427c8d4581cd62cf54179b815837f0b9fb855"
+          "bytes": 4984,
+          "sha256": "5047a7632f09b5677a28af64b3ac218bff2ed42d81495087312faad7db4de63e"
         }
       ],
       "components": [
+        "foliage",
         "structure"
       ],
       "navigation": {
@@ -3532,8 +3533,8 @@
             ]
           },
           "level": 0,
-          "bytes": 34664,
-          "sha256": "5ac7f922904b6a6649b35fbdea58ab1761f796c5b065faa00d18af0dffbb20b8"
+          "bytes": 21712,
+          "sha256": "f245cb2d53515cb6d4167092357f9dcb8fe9428a6a7962e5bb541086bd7b6a59"
         },
         {
           "file": "flower-bed.lod1.glb",
@@ -3551,8 +3552,8 @@
             ]
           },
           "level": 1,
-          "bytes": 15208,
-          "sha256": "d51cadfe94119c654948a6b4caed21e0c70b9ca1546154278dd9445ce29a4a89"
+          "bytes": 11500,
+          "sha256": "02110ad11b214f440c055c96b3131c2a246bb5b4be52d5a7e756232ce309021d"
         },
         {
           "file": "flower-bed.lod2.glb",
@@ -3570,11 +3571,12 @@
             ]
           },
           "level": 2,
-          "bytes": 8840,
-          "sha256": "0270770d495b52d029fd4dc462159539bfee8b2dd0710c062f5b1140b7f9cff9"
+          "bytes": 7696,
+          "sha256": "92336223649e42a0f187c3e469fc7ee0355800bf539ca75cb45ac93b539bdac8"
         }
       ],
       "components": [
+        "foliage",
         "structure"
       ],
       "navigation": {
@@ -4155,8 +4157,8 @@
             ]
           },
           "level": 0,
-          "bytes": 9120,
-          "sha256": "61108797e8a018bb1d3afc1ef4157b7d4ca2ac29925f9a8552dfb46595cd5346"
+          "bytes": 9052,
+          "sha256": "91509bbaf3b57dcf2f1cb1291b7d743b1fa38585fa64345334856bf0d71ef8b5"
         },
         {
           "file": "banner-mast.lod1.glb",
@@ -4174,8 +4176,8 @@
             ]
           },
           "level": 1,
-          "bytes": 8756,
-          "sha256": "8253b17f6bfb8a5d8852606b3b3848a8563754672035b1db8df8437696e90280"
+          "bytes": 8692,
+          "sha256": "cfc2a0345f1063d2a71c0cd1c70d7ced065f3380cf2930d2066029080347ec10"
         },
         {
           "file": "banner-mast.lod2.glb",
@@ -4193,8 +4195,8 @@
             ]
           },
           "level": 2,
-          "bytes": 6116,
-          "sha256": "4d911c6c8a367638936f59d3368b28b134bd27fbca6bae4b67a04ff3c6693763"
+          "bytes": 6292,
+          "sha256": "6f35d40d66641dfa31b8bce2e7cb98d62e2bc6493998b41623ace8fe3fa9e187"
         }
       ],
       "components": [
@@ -4291,6 +4293,6 @@
   ],
   "compression": "EXT_meshopt_compression",
   "pack": "gltfpack@1.3.0 -cc -kn -km -ke -kv -vtf",
-  "total_model_bytes": 4419348,
+  "total_model_bytes": 4391656,
   "validator_errors": 0
 }

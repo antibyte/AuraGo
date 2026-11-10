@@ -76,15 +76,27 @@ def planter(g):
     g.box((0, 0, .9), (3.24, 1.34, .06), 'road', 0, tint=.7)
     if lod < 2:
         g.box((0, 0, .07), (3.56, 1.66, .14), 'stone', .03, 1)
-    spots = [(-1.15, .1, .62), (-.35, -.15, .78), (.45, .12, .7), (1.2, -.05, .6)]
+    # Shrubs and blossoms form the soft part `foliage` (smooth normals): each shrub is a mound with two
+    # smaller puffs leaning on it.
+    g.part = 'foliage'
+    spots = [(-1.15, .1, .6), (-.35, -.15, .74), (.45, .12, .68), (1.2, -.05, .58)]
     for index, (x, y, r) in enumerate(spots):
-        blob(g, (x, y, .9 + r * .62), r, tint=.82 + .06 * (index % 3), squash=.85, lumpy=.2)
+        blob(g, (x, y, .9 + r * .6), r, tint=.8 + .07 * (index % 3), squash=.85, n=(10, 8, 6)[lod], steps=(5, 4, 3)[lod],
+             lumpy=.07)
+        if lod == 2:
+            continue
+        for k in range((2, 1)[lod]):
+            a = 1.1 + index * 1.9 + k * 2.6
+            blob(g, (x + r * .72 * cos(a), y + r * .42 * sin(a), .9 + r * (.78 - .22 * k)), r * (.6 - .08 * k),
+                 tint=.94 + .06 * k, squash=.85, n=(8, 6)[lod], steps=(4, 3)[lod], lumpy=.07)
     if lod < 2:
         for i in range(9):
             x = -1.5 + i * .375
             for y in (-.56, .56):
                 blob(g, (x, y, .98), .13, 'warm' if i % 3 == 0 else 'jade', squash=.7, n=6, steps=3)
-    return {'navigation': {'colliders': [collider(-1.75, -.8, 1.75, .8, 1.6)]}, 'occlusion': {'ground': 0.0}}
+    g.part = 'structure'
+    return {'navigation': {'colliders': [collider(-1.75, -.8, 1.75, .8, 1.6)]}, 'soft': ['foliage'],
+            'occlusion': {'ground': 0.0}}
 
 
 def tree_pit(g, size=1.7):
