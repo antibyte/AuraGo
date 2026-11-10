@@ -434,7 +434,10 @@ export function createExperience(scene,options){
       if(disposed||tier!==value)return;for(const mesh of bindings){const n=replacements.get(mesh.userData.worldAsset)?.get(mesh.userData.worldPart);if(n){mesh.geometry=n.geometry;mesh.material=n.material;}}options.onReady?.();
     }catch(e){if(!disposed)options.onError?.(e);}
   }
-  return {update,interact,endRide,setTier,society,lobbies:lobbyDoors,
+  // Door openness for the soundscape (phase 5): 'pavilion:<id>' for the waterfront pavilions, lobby door keys otherwise.
+  const PAVILION_KEYS=new Map(interiors.map(r=>['pavilion:'+r.id,r.id]));
+  function doorValue(key){const id=PAVILION_KEYS.get(key);return id!==undefined?(doors.get(id)?.value||0):lobbyDoors.value(key);}
+  return {update,interact,endRide,setTier,society,lobbies:lobbyDoors,doorValue,
     settle(dt){if(!disposed&&manifest)society.settle(dt);},
     suspend(){society.suspend();machinery.clear();missionSeeded=false;for(const box of freight){box.elapsed=9;box.node.visible=false;if(box.body)traffic.remove(box.body.id);box.body=null;}},
     syncRide(){if(ride?.kind==='tram'){const t=trams[ride.index];route.getTangentAt(t.u,ahead);camera.position.copy(t.node.position).addScaledVector(ahead,ride.offset);camera.position.y+=2.3;camera.lookAt(t.node.position.x+ahead.x*16,camera.position.y,t.node.position.z+ahead.z*16);}},

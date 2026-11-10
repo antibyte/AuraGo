@@ -7,7 +7,7 @@ import { springStep } from './sysworld-footing.js';
 // on one level (no kerb, no carriageway); height and pitch still follow the ground.
 // The GLB is a meshopt-compressed derivative of the pinned BSD-3-Clause
 // MuJoCo Menagerie Spot (see assets/system-world/spot-source.json). It is
-// scenery, not an actor: it never joins traffic, telemetry or the robot foley.
+// scenery, not an actor: it never joins traffic or telemetry; the soundscape reads its gait (soundPose).
 // One bounded loop, one accumulated clock, no per-frame allocations.
 
 export const LOOP = { cx: 30, cz: 69.5, rx: 4.5, rz: 2.5, seconds: 16, gaitHz: 1.7 };
@@ -93,6 +93,8 @@ export function createCompanion({ scene, resourceURL, signal, ground = groundHei
 
   return {
     ready, update,
+    // Gait for the soundscape (phase 5): position and phase written into `out`, no allocation.
+    soundPose(out) { out.on = !!model && group.visible && !disposed; out.x = group.position.x; out.z = group.position.z; out.phase = time * LOOP.gaitHz * Math.PI * 2; return out; },
     stats: () => ({ loaded: !!model, failed, time: +time.toFixed(2), joints: Object.keys(joints).filter(k => joints[k]).length,
       position: [+group.position.x.toFixed(2), +group.position.z.toFixed(2)] }),
     dispose() {

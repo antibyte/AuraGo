@@ -32,6 +32,7 @@ import { createPartInstances, partOf } from './sysworld-parts.js';
 import { createHarbour } from './sysworld-harbour.js';
 import { createGulls } from './sysworld-gulls.js';
 import { createParticles } from './sysworld-particles.js';
+import { createSoundFrame } from './sysworld-sound-frame.js';
 export { createCityAmbience } from './sysworld-audio.js';
 
 // Metres, Y up. Stable district anchors are shared with the accessible map.
@@ -232,7 +233,7 @@ export async function createCity(host, options) {
   const drones = createDrones(scene,{traffic,surfaces});
   const weather = createWeather(scene,{sun,rim,hemisphere,atmosphere,surfaces,onThunder:delay=>options.onThunder?.(delay)});
   const particles = createParticles(scene);
-  let moodKey = '', nearHidden = null;
+  let moodKey = '', nearHidden = null, soundFrame = null;
   let banners = null, bannerAngle = 0;
   const bannerTurn = new THREE.Matrix4(), bannerRotation = () => bannerTurn.makeRotationY(bannerAngle);
   // Banner cloth swings about the mast with the wind (zero wind: at rest).
@@ -620,6 +621,9 @@ export async function createCity(host, options) {
     harbour.update(seaTime, mood.day, wind, !reduced);
     gulls.update(seaTime, harbour.barge());
     particles.setMood(mood.day, mood.weather); particles.update(dt, !reduced, wind);
+    // Soundscape (phase 5): one reused frame after the listener (onListener above) and the wind; the audio reads the
+    // clocks, trams, the companion's gait, door openness and wind from it. Nothing here allocates.
+    if (soundFrame) options.onSoundFrame?.(soundFrame.fill(elapsed, seaTime, wind, mood.weather, reduced));
     flow.update(dt,!reduced,1-(mood.day||0));
     // Window interiors: lit share, lobbies and glass sheen follow the time of day; no motion freezes them.
     windows.setLighting(mood.day, mood.evening, mood.weather === 'clear' ? 0 : 1, scene.fog.color); lobbyRender.setLighting(mood.day); windows.update(dt, !reduced);
@@ -674,6 +678,7 @@ export async function createCity(host, options) {
   life = createCityLife(scene, districts, {traffic,society:experience.society,robotURL:options.resourceURL('/3d/system-world/white-robot.glb'), signal:options.signal, onError:options.onRobotError, active:()=>visible&&!failed&&mode!=='map'&&!options.replaying?.(), obstacles, shadows:contact});
   // A missing or broken companion never stops the city from loading.
   companion = createCompanion({scene, resourceURL:options.resourceURL, signal:abort.signal, shadows:contact, onError:options.onCompanionError});
+  soundFrame = createSoundFrame({ traffic, experience, companion });
   hologram.setReducedMotion(!!reduced); windows.setReducedMotion(!!reduced);
   try { applyTier(); await rebuild(); } catch(e) { dispose(); throw e; } harbour.start(); gulls.start();
   return {
