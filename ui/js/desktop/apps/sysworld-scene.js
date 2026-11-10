@@ -27,6 +27,7 @@ import { createSurfaces } from './sysworld-surfaces.js';
 import { createWindows } from './sysworld-windows.js';
 import { createLobbyRender } from './sysworld-lobby-render.js';
 import { streetModules, plotSlabs, island } from './sysworld-ground.js';
+import { furnishing, SIZES as furnitureSizes } from './sysworld-furnishing.js';
 export { createCityAmbience } from './sysworld-audio.js';
 
 // Metres, Y up. Stable district anchors are shared with the accessible map.
@@ -78,7 +79,10 @@ const homeTarget = new THREE.Vector3(0, 22, -12);
 export function sharedMaterialKey(material) { return material.name + (material.vertexColors ? '|vertex-colours' : ''); }
 // Kit v3 placements, instanced like `placements` but loaded from ui/3d/system-world/v3/.
 // Kit v3 streets: fixed-length modules, never stretched (layout and order from sysworld-ground.js).
-export const kitPlacements = streetModules().map(m => ({ asset: m.id, x: m.x, z: m.z, y: 0, angle: m.angle, scale: [1, 1, 1] }));
+// Kit v3 placements, instanced like `placements` but loaded from ui/3d/system-world/v3/: the street modules (fixed
+// length, never stretched; sysworld-ground.js) and the phase 4 furniture and signs (sysworld-furnishing.js).
+export const streetPlacements = streetModules().map(m => ({ asset: m.id, x: m.x, z: m.z, y: 0, angle: m.angle, scale: [1, 1, 1] }));
+export const kitPlacements = [...streetPlacements, ...furnishing().map(f => ({ asset: f.asset, x: f.x, z: f.z, y: f.y, angle: f.angle, scale: [1, 1, 1], area: f.area }))];
 // Designs kit v3 took over from v1 in phase 2. Wherever both kits ship an id, v3 wins: districts,
 // skyline, towers, lamps and planters load the v3 design (kitFor), colliders read its bounds.
 export const supersededV1 = ['agent-spire', 'memory-archive', 'integration-gate', 'mission-terminal', 'compute-foundry', 'knowledge-atrium',
@@ -115,7 +119,9 @@ export const placements = [];
     place(random() < .5 ? 'data-tower-a' : 'data-tower-b', x, z, -3, 0, [1.1, .55 + random() * 1.1, 1.1]);
   }
 }
-export const obstacles = [...obstaclesFrom(placements), ...interiors.flatMap(r=>[-3,3].flatMap(dx=>[-3,3].map(dz=>({x:r.x+dx,z:r.z+dz,r:4.25,asset:'interior'}))))];
+// Street robots also steer around the kit pieces standing in a street band (the pavement furniture).
+const inStreet = p => streets.xs.some(x => Math.abs(p.x - x) <= streets.halfWidth) || streets.zs.some(z => Math.abs(p.z - z) <= streets.halfWidth);
+export const obstacles = [...obstaclesFrom([...placements, ...kitPlacements.filter(p => furnitureSizes[p.asset] && inStreet(p))], furnitureSizes), ...interiors.flatMap(r=>[-3,3].flatMap(dx=>[-3,3].map(dz=>({x:r.x+dx,z:r.z+dz,r:4.25,asset:'interior'}))))];
 
 export async function createCity(host, options) {
   let disposed = false, visible = true, mode = 'orbit', quality = options.quality || 'auto';
@@ -255,7 +261,7 @@ export async function createCity(host, options) {
     const kit = response.ok ? await response.json() : null;
     if (kit?.schema_version === 3 && Array.isArray(kit.assets)) for (const a of kit.assets) catalog3.set(a.id, a);
   } catch (error) { if (abort.signal.aborted) { dispose(); throw error; } }
-  installCityColliders(traffic,kitCatalog(catalog,catalog3),districts,placements);
+  installCityColliders(traffic,kitCatalog(catalog,catalog3),districts,placements,kitPlacements);
   experience=createExperience(scene,{
     shadows:contact,
     camera,districts,tier,traffic,kit3:catalog3,reduced:()=>reduced,active:()=>visible&&!failed&&mode!=='map'&&!reduced&&!options.replaying?.(),
@@ -319,7 +325,7 @@ export async function createCity(host, options) {
   async function rebuild() {
     const token = ++generation, config = tiers[tier], lod = config.lod;
     const ids = [...new Set([...placements.map(p => p.asset), ...districts.map(d => d.asset), 'service-drone'])];
-    const kitIds = [...new Set(kitPlacements.map(p => p.asset))];
+    const kitIds = [...new Set(kitPlacements.map(p => p.asset))].filter(id => catalog3.has(id));
     // A v3 design replaces the v1 design with the same id everywhere it is placed.
     const kitOf = id => kitFor(id, catalog3);
     const size = (id, level, kit = kitOf(id)) => (kit === 'v3' ? catalog3 : catalog).get(id)?.lods.find(l => l.level === level)?.bytes || 0;
@@ -345,7 +351,7 @@ export async function createCity(host, options) {
         });
       };
       for (const p of placements) add(p, (p.z < -100 ? distant : loaded).get(p.asset));
-      for (const p of kitPlacements) add(p, kit.get(p.asset));
+      for (const p of kitPlacements) if (kit.has(p.asset)) add(p, kit.get(p.asset));
       for (const { node, matrices } of batches.values()) {
         const mesh = new THREE.InstancedMesh(node.geometry, node.material, matrices.length);
         matrices.forEach((m, i) => mesh.setMatrixAt(i, m));

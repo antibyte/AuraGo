@@ -76,9 +76,9 @@ assert.ok(L.lobbySolids('graph').some(b=>near(b.min[1],4.7+.4)),'atrium lid');
   const fs=await import('node:fs/promises');
   const {createTraffic}=await import('../ui/js/desktop/apps/sysworld-traffic.js');
   const {installCityColliders,kitCatalog}=await import('../ui/js/desktop/apps/sysworld-colliders.js');
-  const {districts,placements}=await import('../ui/js/desktop/apps/sysworld-scene.js');
+  const {districts,placements,kitPlacements}=await import('../ui/js/desktop/apps/sysworld-scene.js');
   const read=f=>fs.readFile(f,'utf8').then(JSON.parse),v1=await read('ui/3d/system-world/v1/manifest.json'),v3=await read('ui/3d/system-world/v3/manifest.json');
-  const traffic=createTraffic();installCityColliders(traffic,kitCatalog(v1,v3),districts,placements);
+  const traffic=createTraffic();installCityColliders(traffic,kitCatalog(v1,v3),districts,placements,kitPlacements);
   const walker={id:'w',circles:[{x:0,z:0,r:.24}],minY:-2.3,maxY:.4,reach:.24},at=(x,z,y=PODIUM+2.4)=>({x,y,z,heading:0});
   for(const l of LOBBIES)for(const d of l.doors){
     const out=at(d.x,l.front+L.WALL_OUT+1.1),inn=at(d.x,l.front-L.WALL-1.1);

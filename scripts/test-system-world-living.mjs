@@ -8,7 +8,7 @@ import {createDrones} from '../ui/js/desktop/apps/sysworld-drones.js';
 import {createTraffic,fixedSteps} from '../ui/js/desktop/apps/sysworld-traffic.js';
 import {installCityColliders,kitCatalog} from '../ui/js/desktop/apps/sysworld-colliders.js';
 import {onCarriageway} from '../ui/js/desktop/apps/sysworld-ground.js';
-import {districts,placements,obstacles} from '../ui/js/desktop/apps/sysworld-scene.js';
+import {districts,placements,kitPlacements,obstacles} from '../ui/js/desktop/apps/sysworld-scene.js';
 import {LOBBIES,WALL,WALL_OUT} from '../ui/js/desktop/apps/sysworld-lobbies.js';
 
 // Run the real controllers and exported model dimensions, without a WebGL context.
@@ -26,7 +26,7 @@ const root='ui/3d/system-world/',catalog=JSON.parse(await fs.readFile(root+'v1/m
 const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(),traffic=createTraffic(),errors=[];
 camera.position.set(18,2.5,57);
 const v3=JSON.parse(await fs.readFile(root+'v3/manifest.json','utf8'));
-installCityColliders(traffic,kitCatalog(catalog,v3),districts,placements);
+installCityColliders(traffic,kitCatalog(catalog,v3),districts,placements,kitPlacements);
 const visitor=traffic.register('visitor',{circles:[{x:0,z:0,r:.38}],minY:-2.3,maxY:.4,reach:.38},camera.position,100);
 assert.ok(visitor);
 let ready=false,active=true,selected=null;

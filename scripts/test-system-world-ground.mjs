@@ -186,10 +186,10 @@ assert.equal(surfaces.pavement,surfaces.ground,'pavements are flush with the plo
   const {createTraffic}=await import('../ui/js/desktop/apps/sysworld-traffic.js');
   const {groundHeight}=await import('../ui/js/desktop/apps/sysworld-exploration.js');
   const {installCityColliders,kitCatalog}=await import('../ui/js/desktop/apps/sysworld-colliders.js');
-  const {districts,placements}=await import('../ui/js/desktop/apps/sysworld-scene.js');
+  const {districts,placements,kitPlacements}=await import('../ui/js/desktop/apps/sysworld-scene.js');
   const {LOBBIES,lobbyAt,stepFree}=await import('../ui/js/desktop/apps/sysworld-lobbies.js');
   const read=f=>fs.readFile(f,'utf8').then(JSON.parse),v1=await read('ui/3d/system-world/v1/manifest.json'),v3=await read('ui/3d/system-world/v3/manifest.json');
-  const traffic=createTraffic();installCityColliders(traffic,kitCatalog(v1,v3),districts,placements);
+  const traffic=createTraffic();installCityColliders(traffic,kitCatalog(v1,v3),districts,placements,kitPlacements);
   const finder=createWayfinder(traffic,groundHeight,kitCatalog(v3)),started=Date.now();
   const body=p=>({id:'walker',circles:[{x:0,z:0,r:.45}],minY:0,maxY:2,reach:.45,heading:0,...p,y:groundHeight(p.x,p.z)});
   for(const l of LOBBIES){
@@ -209,13 +209,17 @@ assert.equal(surfaces.pavement,surfaces.ground,'pavements are flush with the plo
   const {createTraffic}=await import('../ui/js/desktop/apps/sysworld-traffic.js');
   const {groundHeight}=await import('../ui/js/desktop/apps/sysworld-exploration.js');
   const {installCityColliders,kitCatalog}=await import('../ui/js/desktop/apps/sysworld-colliders.js');
-  const {districts,placements}=await import('../ui/js/desktop/apps/sysworld-scene.js');
+  const {districts,placements,kitPlacements}=await import('../ui/js/desktop/apps/sysworld-scene.js');
   const read=f=>fs.readFile(f,'utf8').then(JSON.parse),v1=await read('ui/3d/system-world/v1/manifest.json'),v2=await read('ui/3d/system-world/v2/manifest.json'),v3=await read('ui/3d/system-world/v3/manifest.json');
-  const traffic=createTraffic();installCityColliders(traffic,kitCatalog(v1,v3),districts,placements);
+  const traffic=createTraffic();installCityColliders(traffic,kitCatalog(v1,v3),districts,placements,kitPlacements);
   const entry=id=>v2.assets.find(a=>a.id===id).navigation;
   for(const p of livingPlaces)entry(p.id).colliders.forEach((b,i)=>traffic.solid('place:'+p.id+':'+i,{x:p.x,z:p.z,min:[b[0],b[1],b[2]],max:[b[3],b[4],b[5]]}));
   const finder=createWayfinder(traffic,groundHeight,kitCatalog(v3)),started=Date.now();
-  const resident={id:'walker',circles:[{x:0,z:0,r:1.29}],minY:0,maxY:2,reach:1.29,heading:0};
+  // The society's resident envelope (the former 1.29 m stand-in was the arm-span envelope from before residents got their slim body).
+  const {residentShape}=await import('../ui/js/desktop/apps/sysworld-society.js');
+  const shape=residentShape({min:[-.4,0,-.4],max:[.4,1.8,.4]});
+  assert.ok(shape.reach>=.45&&shape.reach<=.55,'resident routing radius is about 0.5 m: '+shape.reach);
+  const resident={id:'walker',...shape,heading:0};
   const points=p=>entry(p.id).workpoints.map(w=>({x:p.x+w.position[0],z:p.z+w.position[2]}));
   const built=Date.now();finder.route({...resident,x:0,z:0,y:0},{x:1,z:1,y:0});const buildMs=Date.now()-built;
   let routes=0;
@@ -232,7 +236,7 @@ assert.equal(surfaces.pavement,surfaces.ground,'pavements are flush with the plo
       }
     }
   }
-  console.log(`System World living places: ${routes} routes between all workpoints exist and stay within 2.5x the straight distance (first route incl. street, approach and place nodes: ${buildMs} ms; all routes ${Date.now()-started} ms).`);
+  console.log(`System World living places: ${routes} routes between all workpoints exist and stay within 2.5x the straight distance for the resident body (r ${shape.reach}) (first route incl. street, approach and place nodes: ${buildMs} ms; all routes ${Date.now()-started} ms).`);
 }
 
 // --- Lobby workpoints: every workpoint of every hall is routable from the pavement for the resident body ---
@@ -242,11 +246,11 @@ assert.equal(surfaces.pavement,surfaces.ground,'pavements are flush with the plo
   const {createTraffic}=await import('../ui/js/desktop/apps/sysworld-traffic.js');
   const {groundHeight}=await import('../ui/js/desktop/apps/sysworld-exploration.js');
   const {installCityColliders,kitCatalog}=await import('../ui/js/desktop/apps/sysworld-colliders.js');
-  const {districts,placements}=await import('../ui/js/desktop/apps/sysworld-scene.js');
+  const {districts,placements,kitPlacements}=await import('../ui/js/desktop/apps/sysworld-scene.js');
   const {LOBBIES,workpointsOf,stepFree}=await import('../ui/js/desktop/apps/sysworld-lobbies.js');
   const {residentShape}=await import('../ui/js/desktop/apps/sysworld-society.js');
   const read=f=>fs.readFile(f,'utf8').then(JSON.parse),v1=await read('ui/3d/system-world/v1/manifest.json'),v3=await read('ui/3d/system-world/v3/manifest.json');
-  const catalog=kitCatalog(v3),traffic=createTraffic();installCityColliders(traffic,kitCatalog(v1,v3),districts,placements);
+  const catalog=kitCatalog(v3),traffic=createTraffic();installCityColliders(traffic,kitCatalog(v1,v3),districts,placements,kitPlacements);
   const finder=createWayfinder(traffic,groundHeight,catalog),pavement=pedestrianGraph().nodes;
   // The resident envelope exactly as the society builds it from a robot-sized model (0.8 m across, 1.8 m tall).
   const shape=residentShape({min:[-.4,0,-.4],max:[.4,1.8,.4]});

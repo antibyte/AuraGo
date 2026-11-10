@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import * as THREE from 'three';
 import {createHoverFlight,hoverLimits} from '../ui/js/desktop/apps/sysworld-hover.js';
 import {createExperience} from '../ui/js/desktop/apps/sysworld-experience.js';
-import {districts,placements} from '../ui/js/desktop/apps/sysworld-scene.js';
+import {districts,placements,kitPlacements} from '../ui/js/desktop/apps/sysworld-scene.js';
 import {streetCurve} from '../ui/js/desktop/apps/sysworld-navigation.js';
 import {canWalk,groundHeight,roomAt,tramWaypoints,dronePad} from '../ui/js/desktop/apps/sysworld-exploration.js';
 import {streets,streetAt,hoverPads} from '../ui/js/desktop/apps/sysworld-layout.js';
@@ -171,7 +171,7 @@ async function city({withPack,reduced=false}){
     return {ok:true,json:async()=>JSON.parse(bytes),arrayBuffer:async()=>bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength)};
   };
   const traffic=createTraffic(),scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(),errors=[],flights=[],sounds=[],state={reduced,ready:false};
-  installCityColliders(traffic,kitCatalog(v1,v3),districts,placements);
+  installCityColliders(traffic,kitCatalog(v1,v3),districts,placements,kitPlacements);
   const pad=hoverPads[0],stand={x:pad.x+1.2*Math.sin(pad.angle),z:pad.z+1.2*Math.cos(pad.angle)};camera.position.set(stand.x,2.9,stand.z);
   const visitor=traffic.register('visitor',walker,camera.position,100);assert.ok(visitor,'The visitor fits at the first dock');
   const experience=createExperience(scene,{camera,districts,tier:'high',traffic,assetURL:x=>x,reduced:()=>state.reduced,active:()=>true,onError:e=>errors.push(e),onReady:()=>{state.ready=true;},

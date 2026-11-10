@@ -8,7 +8,7 @@ import {kerb,zebras,pedestrianGraph,plotSlabs,streetProfile,streetSegments} from
 import {PODIUMS,LOBBIES,DOORS,FLIGHT,lobbyGraph} from './sysworld-lobbies.js';
 import {livingPlaces,landmarkPlaces} from './sysworld-places.js';
 
-export const GAP=Object.freeze({node:1.2,line:1.2,pavementLine:.6,dock:3,rail:2.5,platform:2.5,stair:2,door:2,podium:.5,solid:1,living:3,crown:4.5,zebra:2.1,inset:.4,behindKerb:.5});
+export const GAP=Object.freeze({node:1.2,line:1.2,pavementLine:.6,footLink:.55,dock:3,rail:2.5,platform:2.5,stair:2,door:2,podium:.5,solid:1,living:3,crown:4.5,zebra:2.1,inset:.4,behindKerb:.5});
 export const TREE_STEP=8,TREE_INSET=1.4,NEAR_HEIGHT=40,RAIL_HALF=.9;
 export const SIZES=Object.freeze({'tree-round':[-.3,-.3,.3,.3],'tree-column':[-.3,-.3,.3,.3],'street-bench':[-1,-.32,1,.3],bollard:[-.12,-.12,.12,.12],
   'litter-bin':[-.3,-.3,.3,.3],'zebra-sign':[-.1,-.1,.1,.1],kiosk:[-1.6,-1.1,1.6,1.6],'flower-bed':[-1.6,-.7,1.6,.7],'cafe-set':[-1,-1,1,1],
@@ -51,6 +51,9 @@ const LINES=[...zs.flatMap(z=>[-P,P].map(o=>[streets.minX,z+o,streets.maxX,z+o])
 const ZEBRA_LINKS=ZEBRAS.map(zb=>zb.axis==='x'?[zb.at,zb.line-P,zb.at,zb.line+P]:[zb.line-P,zb.at,zb.line+P,zb.at]);
 const RAILS=tramWaypoints.map((p,i)=>{const q=tramWaypoints[(i+1)%tramWaypoints.length];return [Math.min(p[0],q[0]),Math.min(p[1],q[1]),Math.max(p[0],q[0]),Math.max(p[1],q[1])];});
 const NODES=[...pedestrianGraph().nodes,...lobbyGraph().nodes.filter(n=>n.kind==='foot'||n.kind==='porch')].map(n=>[n.x,n.z,n.x,n.z]);
+// The wayfinder joins every stair foot straight to the pavement nodes: keep the links to the nearest zebra on each side open.
+const FOOT_LINKS=lobbyGraph().nodes.filter(n=>n.kind==='foot').flatMap(n=>{const zebraNodes=pedestrianGraph().nodes.filter(p=>p.kind==='zebra');
+  return[-1,1].map(side=>zebraNodes.filter(p=>Math.sign(p.x-n.x)===side).sort((a,b)=>Math.hypot(a.x-n.x,a.z-n.z)-Math.hypot(b.x-n.x,b.z-n.z))[0]).filter(Boolean).map(p=>[Math.min(n.x,p.x),Math.min(n.z,p.z),Math.max(n.x,p.x),Math.max(n.z,p.z),n.x,n.z,p.x,p.z]);});
 const STAIRS=PODIUMS.flatMap(p=>p.stairs.map(f=>[f.x-f.width/2,p.z1,f.x+f.width/2,p.z1+FLIGHT]));
 const DOOR_BOXES=DOORS.map(d=>[d.x-d.width/2,d.z-.6,d.x+d.width/2,d.z+.6]);
 const PODIUM_BOXES=PODIUMS.map(p=>[p.x0,p.z0,p.x1,p.z1]);
@@ -64,12 +67,16 @@ function onPavement(item,f){
     if(across<=halfWidth&&along<GAP.zebra)return false;}
   const p=streetProfile(item.x,item.z);return p.d-p.run<=GAP.behindKerb+1e-9;
 }
+// Distance from the footprint box f to the segment l=[..,x0,z0,x1,z1] (sampled every 5 cm).
+function segGap(l,f){const [,,,,ax,az,bx,bz]=l,n=Math.max(2,Math.ceil(Math.hypot(bx-ax,bz-az)/.05));let m=Infinity;
+  for(let i=0;i<=n;i++){const x=ax+(bx-ax)*i/n,z=az+(bz-az)*i/n;m=Math.min(m,gap([x,z,x,z],f));if(m===0)break;}return m;}
 // Rule names an item breaks (empty: it fits). `placed` holds the footprints of the pieces accepted before it.
 export function violations(item,placed=[]){
   const f=footprint(item),pave=PAVEMENT.has(item.asset),out=[];
   if(pave?!onPavement(item,f):!SLABS.some(s=>inside(f,s)))out.push('ground');
   if(NODES.some(n=>gap(n,f)<GAP.node))out.push('node');
   if(LINES.some(l=>gap(l,f)<(pave?GAP.pavementLine:GAP.line))||ZEBRA_LINKS.some(l=>gap(l,f)<GAP.line))out.push('line');
+  if(FOOT_LINKS.some(l=>segGap(l,f)<GAP.footLink))out.push('footlink');
   if(DOCKS.some(d=>gap(d,f)<GAP.dock))out.push('dock');
   if(RAILS.some(r=>gap(r,f)<GAP.rail+RAIL_HALF))out.push('rail');
   if(STAIRS.some(s=>gap(s,f)<GAP.stair)||DOOR_BOXES.some(d=>gap(d,f)<GAP.door))out.push('stair');
@@ -116,7 +123,7 @@ const PYLONS=[[-75.5,-60.5,PI/2],[-75.5,-17.5,PI/2],[-34.8,67,0],[7.8,67.4,0],[3
 function districtExtras(){
   const out=[];
   for(const p of PODIUMS)for(const f of p.stairs)for(const s of[-1,1])
-    out.push(item('flower-bed',f.x+s*(f.width/2+GAP.stair+1.7),p.z1+1.25,0,'district'),item('street-bench',f.x+s*(f.width/2+3.2),p.z1+FLIGHT+3.2,face.north,'district'));
+    out.push(item('flower-bed',f.x+s*(f.width/2+GAP.stair+1.7),p.z1+1.25,0,'district'),[3.2,1.8,2.2].map(d=>item('street-bench',f.x+s*(f.width/2+3.2),p.z1+FLIGHT+d,face.north,'district')));
   for(const s of plotSlabs()){
     if(s.kind!=='plot'||s.x1-s.x0<20||purpose(s))continue;
     const north=zs.some(z=>Math.abs(s.z0-(z+halfWidth))<1e-6);

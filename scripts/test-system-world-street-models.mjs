@@ -8,7 +8,7 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
 import {streets} from '../ui/js/desktop/apps/sysworld-layout.js';
 import {streetProfile} from '../ui/js/desktop/apps/sysworld-ground.js';
-import {kitPlacements} from '../ui/js/desktop/apps/sysworld-scene.js';
+import {streetPlacements as kitPlacements} from '../ui/js/desktop/apps/sysworld-scene.js';
 
 const dir='ui/3d/system-world/v3/',manifest=JSON.parse(await fs.readFile(dir+'manifest.json','utf8')),H=.1,LIMIT=[.015,.02,.03];
 const ids=[...new Set(kitPlacements.map(p=>p.asset))];

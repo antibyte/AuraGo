@@ -10,7 +10,7 @@ export function kitCatalog(...catalogs){
   for(const c of catalogs)for(const [id,a] of c instanceof Map?c:(c?.assets||[]).map(a=>[a.id,a]))merged.set(id,a);
   return merged;
 }
-export function installCityColliders(traffic,catalog,districts,placements) {
+export function installCityColliders(traffic,catalog,districts,placements,kit=[]) {
   for(const d of districts) {
     const bounds=catalog.get(d.asset).lods[0].bounds;
     const ground=footprints[d.id]||(LOBBY_DISTRICTS.has(d.id)?[]:[[-3,-3,3,3]]);
@@ -33,4 +33,8 @@ export function installCityColliders(traffic,catalog,districts,placements) {
     }
     traffic.solid('city:'+i,{x:p.x,z:p.z,heading:p.angle,min,max});
   });
+  // Kit v3 placements (phase 4 furniture; street modules have none): every navigation collider of the design,
+  // model-local glTF boxes turned with the placement. The owner lets a probe ignore one piece's own solids.
+  kit.forEach((p,i)=>(catalog.get(p.asset)?.navigation?.colliders||[]).forEach((b,k)=>traffic.solid('kit:'+i+':'+k,
+    {owner:'kit:'+i,x:p.x,z:p.z,heading:p.angle,min:[b[0],p.y+b[1],b[2]],max:[b[3],p.y+b[4],b[5]]})));
 }

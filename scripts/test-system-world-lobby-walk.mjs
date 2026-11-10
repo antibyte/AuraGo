@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import {createExperience} from '../ui/js/desktop/apps/sysworld-experience.js';
 import {createTraffic} from '../ui/js/desktop/apps/sysworld-traffic.js';
 import {installCityColliders,kitCatalog} from '../ui/js/desktop/apps/sysworld-colliders.js';
-import {districts,placements} from '../ui/js/desktop/apps/sysworld-scene.js';
+import {districts,placements,kitPlacements} from '../ui/js/desktop/apps/sysworld-scene.js';
 import {LOBBIES,PODIUMS,PODIUM,FLIGHT,WALL,WALL_OUT} from '../ui/js/desktop/apps/sysworld-lobbies.js';
 
 const original={fetch:globalThis.fetch,localStorage:globalThis.localStorage,self:globalThis.self,createImageBitmap:globalThis.createImageBitmap};
@@ -14,7 +14,7 @@ globalThis.self=globalThis;globalThis.createImageBitmap=async()=>({width:1,heigh
 globalThis.fetch=async url=>{const bytes=await fs.readFile(String(url));return {ok:true,json:async()=>JSON.parse(bytes),arrayBuffer:async()=>bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength)};};
 const root='ui/3d/system-world/',read=f=>fs.readFile(root+f,'utf8').then(JSON.parse),v1=await read('v1/manifest.json'),v3=await read('v3/manifest.json');
 const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(),traffic=createTraffic(),errors=[],sounds=[];
-installCityColliders(traffic,kitCatalog(v1,v3),districts,placements);camera.position.set(18,2.4,57);
+installCityColliders(traffic,kitCatalog(v1,v3),districts,placements,kitPlacements);camera.position.set(18,2.4,57);
 const visitor=traffic.register('visitor',{circles:[{x:0,z:0,r:.24}],minY:-2.3,maxY:.4,reach:.24},camera.position,100);
 let ready=false;
 const experience=createExperience(scene,{traffic,camera,districts,tier:'high',kit3:kitCatalog(v3),assetURL:x=>root+'v2/'+x,reduced:()=>false,active:()=>false,

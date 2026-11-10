@@ -33,7 +33,9 @@ export function streetRoute(corners) {
 // Street furniture footprints as circles (metres) covering the kit's exported bounds: trams are
 // 7.6 x 2.9, planters 3.5 x 1.6, racks 1.4 x 1.2 and lamps a slim pole whose arm overhangs the
 // sidewalk. The robot radius is added during probing.
-export function obstaclesFrom(placements) {
+// Kit pieces listed in `sizes` (collider footprints [x0,z0,x1,z1], see sysworld-furnishing.js SIZES): square
+// boxes are round pieces and take the inscribed radius; longer boxes a chain of circles along their long axis.
+export function obstaclesFrom(placements, sizes = {}) {
   const out = [];
   const add = (p, dx, dz, r) => {
     const c = Math.cos(p.angle), s = Math.sin(p.angle);
@@ -45,6 +47,12 @@ export function obstaclesFrom(placements) {
     else if (p.asset === 'server-rack') add(p, 0, 0, .8);
     else if (p.asset === 'street-lamp') add(p, 0, 0, .5);
     else if (p.asset === 'planter') { add(p, -.9, 0, .85); add(p, .9, 0, .85); }
+    else if (sizes[p.asset]) {
+      const [x0, z0, x1, z1] = sizes[p.asset], hx = (x1 - x0) / 2, hz = (z1 - z0) / 2, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+      if (Math.abs(hx - hz) < .05) add(p, cx, cz, Math.max(hx, hz));
+      else { const longX = hx > hz, major = Math.max(hx, hz), minor = Math.min(hx, hz), n = Math.ceil(major / Math.max(.3, minor)), half = major / n;
+        for (let k = 0; k < n; k++) { const o = -major + half + 2 * half * k; add(p, cx + (longX ? o : 0), cz + (longX ? 0 : o), Math.hypot(minor, half)); } }
+    }
   }
   return out;
 }
@@ -68,11 +76,15 @@ export function createNavigator({ routes, obstacles = [], robotRadius = 1.3, lan
     a.fx = T.x; a.fz = T.z; a.rx = -T.z; a.rz = T.x;
     a.x = P.x + a.rx * a.lane; a.z = P.z + a.rz * a.lane;
   }
+  // Obstacles are bucketed in 8 m cells; a probe visits the cells within the largest reach.
+  const CELL = 8, buckets = new Map(), reachMax = Math.max(0, ...obstacles.map(o => o.r)) + robotRadius;
+  for (const o of obstacles) { const k = Math.floor(o.x / CELL) * 4096 + Math.floor(o.z / CELL); if (!buckets.has(k)) buckets.set(k, []); buckets.get(k).push(o); }
   function hitsObstacle(x, z) {
-    for (const o of obstacles) {
-      const r = o.r + robotRadius;
-      if ((x - o.x) ** 2 + (z - o.z) ** 2 < r * r) return true;
-    }
+    for (let i = Math.floor((x - reachMax) / CELL); i <= Math.floor((x + reachMax) / CELL); i++)
+      for (let j = Math.floor((z - reachMax) / CELL); j <= Math.floor((z + reachMax) / CELL); j++) {
+        const list = buckets.get(i * 4096 + j);
+        if (list) for (const o of list) { const r = o.r + robotRadius; if ((x - o.x) ** 2 + (z - o.z) ** 2 < r * r) return true; }
+      }
     return false;
   }
   // A lane is clear when the next eighteen metres at that offset avoid every static footprint;

@@ -74,3 +74,23 @@ if(life.length){
 }
 console.log(`System World furnishing: ${items.length} pieces (${count('street')} street trees, ${count('pavement')} pavement, ${count('district')+count('station')} district/station, `
   +`${items.length-count('street')-count('pavement')-count('district')-count('station')} in purpose areas); clearances, sizes and reserved boxes verified; life designs `+(life.length?'shipped':'not shipped yet')+'.');
+// Real colliders: installCityColliders reads every kit design's navigation.colliders; nothing else within 1 m.
+{
+  const {createTraffic}=await import('../ui/js/desktop/apps/sysworld-traffic.js');
+  const {installCityColliders,kitCatalog}=await import('../ui/js/desktop/apps/sysworld-colliders.js');
+  const {districts,placements,kitPlacements,obstacles}=await import('../ui/js/desktop/apps/sysworld-scene.js');
+  const traffic=createTraffic();installCityColliders(traffic,kitCatalog(v1,v3),districts,placements,kitPlacements);
+  let checked=0;
+  kitPlacements.forEach((p,i)=>{
+    if(!F.SIZES[p.asset]||!(v3ids.get(p.asset)?.navigation?.colliders||[]).length)return;
+    const f=footprint(p),probe={id:'probe',ignore:'kit:'+i,circles:[{x:0,z:0,r:.9}],minY:0,maxY:2.4,reach:.9},clearAt=(x,z)=>traffic.obstruction(probe,{x,y:p.y,z,heading:0},{x,y:p.y,z,heading:0},false);
+    const mid={x:(f[0]+f[2])/2,y:p.y+.5,z:(f[1]+f[3])/2,heading:0};
+    assert.equal(traffic.clear({id:'in',circles:[{x:0,z:0,r:.05}],minY:0,maxY:.1,reach:.05},mid,mid,false),false,JSON.stringify(p)+' has no solid');
+    for(let x=f[0];x<=f[2]+1e-9;x+=Math.max(.2,(f[2]-f[0])/4))for(const z of[f[1],f[3]])assert.equal(clearAt(x,z),null,JSON.stringify(p)+' has '+clearAt(x,z)+' within 1 m');
+    for(let z=f[1];z<=f[3]+1e-9;z+=Math.max(.2,(f[3]-f[1])/4))for(const x of[f[0],f[2]])assert.equal(clearAt(x,z),null,JSON.stringify(p)+' has '+clearAt(x,z)+' within 1 m');
+    checked++;});
+  assert.ok(checked>=300,'placed furniture with solids: '+checked);
+  assert.ok(obstacles.some(o=>o.asset==='litter-bin')&&obstacles.some(o=>o.asset==='bollard'),'street robots steer around pavement pieces');
+  assert.ok(!obstacles.some(o=>/^tree-/.test(o.asset)),'plot pieces stay out of the robot obstacles');
+  console.log(`System World furniture colliders: ${checked} pieces solid and clear of every other solid by 1 m.`);
+}
