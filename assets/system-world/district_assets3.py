@@ -248,8 +248,11 @@ def mission_terminal(g):
         g.beam((x, -7.8, 6.6), (x, 1, 10), .38, 'ceramic', bevel=.04)
         g.beam((x, 1, 10), (x, 8, 7.4), .38, 'ceramic', bevel=.04)
         if lod < 2:
+            # Roller-door rails across each closed dock portal: stand-in only, gone when the hall is open.
+            g.part = 'lobby'
             for z in (2.2, 3.1, 4.0):
                 g.box((x, at[1] - 7.32, z), (3.8, .06, .1), 'titanium', 0)
+            g.part = 'structure'
     g.beam((-10, 1, 10), (10, 1, 10), .3, 'ceramic', bevel=.03)
     # Control tower.
     tower = (8, 2)
