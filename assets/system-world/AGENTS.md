@@ -5,7 +5,9 @@ Own the original Blender city kit, deterministic generator and source scene.
 
 ## Ownership
 - Authoring: this directory.
-- Runtime payload: `ui/3d/system-world/v1/`, `v2/`, plus `white-robot.glb/json` in its parent.
+- Runtime payload: `ui/3d/system-world/v1/`, `v2/`, `v3/`, plus `white-robot.glb/json` in its parent.
+- Kit v3 output: `ui/3d/system-world/v3/` (written only by `scripts/build-system-world-v3.mjs`,
+  including its `LICENSE.txt`); raw scratch `disposable/system-world/v3-raw/` (written by `build_world3.py`).
 - Temporary tools: `disposable/system-world/`; visual checks: `reports/system-world-assets/`.
 - Surface textures: `build_textures.py` writes `ui/3d/system-world/textures/v1/` (six seeded,
   periodic RGB WebP data maps plus manifest and MIT license).
@@ -51,6 +53,29 @@ Own the original Blender city kit, deterministic generator and source scene.
   joining edges; the lift platform top is zero with four metres of travel and an
   open left side. Gallery guards use the `railing` module. Verify actual exported
   floor/shaft alignment with `node scripts/test-system-world-layout.mjs`.
+- Kit v3 is authored by `kit3.py` (shared core: materials, baked AO, export),
+  `street_assets3.py` (registered) and `build_world3.py` (run entry point, `FAMILIES`).
+  `facade_assets3.py`, `district_assets3.py`, `furniture_assets3.py` and `life_assets3.py`
+  are not yet registered in `build_world3.py` `FAMILIES`.
+- Kit v3 geometry: every primitive carries `COLOR_0` baked ambient occlusion (greyscale,
+  multiplied with the albedo by the renderer); node names equal component names; materials are `city.*`.
+  New in kit v3: `city.kerb`, `city.setts`, `city.iron`, `city.marking` and `city.tactile`, each
+  mapped in `sysworld-surfaces.js` `KINDS`; `city.window` is defined in `kit3.py` for window panes
+  with room coordinates in TEXCOORD_0 (phase 2; no registered design uses it yet).
+- Kit v3 packing: `gltfpack@1.3.0 -cc -kn -km -ke -kv`, no simplification (the packed triangle
+  count must equal the raw count). Every LOD keeps the carriageway, kerb and pavement surfaces.
+- Kit v3 street modules follow `ui/js/desktop/apps/sysworld-ground.js` (`kerb`, `streetProfile`,
+  `streetModules`) within 1.5 cm at LOD 0, 2 cm at LOD 1 and 3 cm at LOD 2. Corner arcs use
+  10, 6 and 4 segments per 90 degrees at LOD 0, 1 and 2. `street-end` overlays the outer 0.64 m
+  and its wall reaches −0.62 m.
+- Kit v3 heights as authored: carriageway −0.14, pavement 0 (level with the plots), kerb rise
+  0.14 over a 0.14 m splay, dropped kerbs at zebra crossings. The island body top is −0.2
+  (`island.top` in `sysworld-ground.js`).
+- The v3 manifest pins SHA-256 hashes of its authoring sources (`kit3.py`, `build_world3.py`,
+  `street_assets3.py`), computed over LF-normalised bytes.
+- The v1 `street-tile` and `street-crossing` are retired. Before the next v1 rebuild, remove them
+  from `build_city.py` and change the design count in `check_assets.py` from 17 to 15; otherwise
+  `check_assets.py` fails.
 - `robot_assets.py` and `hover_assets.py` are called from `build_expansion.py`. Each
   LOD of a part keeps one material list and stable mesh names (the material lists are
   asserted at build time), so the runtime swaps LODs by name. The `hover-pack` `pack`
@@ -78,6 +103,11 @@ Own the original Blender city kit, deterministic generator and source scene.
   the compact derivative, its provenance, licence texts and the model budget.
 - `node scripts/test-system-world-expansion.mjs` (42 designs, 126 GLBs),
   `node scripts/test-system-world-foley.mjs` (city beds and the lantern hum).
+- `node scripts/build-system-world-v3.mjs --check` (validates the packed kit v3 files and sources and
+  reproduces them byte for byte when `disposable/system-world/v3-raw/` exists),
+  `node scripts/test-system-world-v3.mjs` (manifest schema 3, LODs, hashes, budget),
+  `node scripts/test-system-world-street-models.mjs` (street models against the profile),
+  `node scripts/test-system-world-ground.mjs` (street profile, module assembly, pedestrian graph).
 - `node scripts/test-system-world-layout.mjs` checks exported tram window sight lines
   from inside and outside, including closed doors at all three LODs.
 - `python assets/system-world/build_textures.py --check` and `node scripts/test-system-world-surfaces.mjs`;

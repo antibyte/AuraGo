@@ -4,11 +4,12 @@
 Versioned compact GLB assets for the integrated System World data metropolis.
 
 ## Ownership
-The `v1/` and `v2/` kits plus `white-robot.glb` and its provenance `white-robot.json` ship.
+The `v1/`, `v2/` and `v3/` kits plus `white-robot.glb` and its provenance `white-robot.json` ship.
+`v3/` is written only by `scripts/build-system-world-v3.mjs`.
 Authoring belongs to `assets/system-world/`; see its README and DOX contract.
 
 ## Local Contracts
-- Preserve the 17 v1 designs, three LODs and MIT provenance. The complete
+- Preserve the 15 v1 designs, three LODs and MIT provenance. The complete
   model directory, including v2 and the original robot, has a 40 MiB ceiling.
 - No Blender source, previews, dependency caches, loose images or remote assets here. The
   only images are the generated runtime surface maps in `textures/v1/` (MIT, manifest-pinned
@@ -41,10 +42,19 @@ Authoring belongs to `assets/system-world/`; see its README and DOX contract.
   fully usable. The verbatim licence travels here and in `licences/texts/`.
   Authoring and reproduction belong to `assets/system-world/spot-source.json`
   and `scripts/build-system-world-spot.mjs`.
+- `v3/` holds the kit v3 street designs: meshopt-compressed GLBs (`EXT_meshopt_compression`
+  required), texture-free, `city.*` materials and `COLOR_0` on every primitive. Load them with
+  `GLTFLoader.setMeshoptDecoder(MeshoptDecoder)` and await `MeshoptDecoder.ready` first, as
+  `sysworld-scene.js` does.
+- Materials with vertex colours are keyed by `sharedMaterialKey` with a `|vertex-colours`
+  suffix, so v3 materials are not shared with same-named v1/v2 materials that lack vertex colours.
+- v3 bytes count toward the 40 MiB model directory ceiling, which the v3 build and test enforce.
 - Load and instance models through the isolated renderer; do not mutate shared legacy Three.js.
 
 ## Verification
 `python assets/system-world/check_assets.py`, glTF validation and rendered asset review.
+`node scripts/build-system-world-v3.mjs --check`, `node scripts/test-system-world-v3.mjs`,
+`node scripts/test-system-world-street-models.mjs` and `node scripts/test-system-world-ground.mjs`.
 
 ## Child DOX Index
 None.

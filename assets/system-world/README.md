@@ -71,6 +71,32 @@ metal, tinted glass, bronze details and restrained warm interior lighting.
 The original city-kit geometry and materials were authored for AuraGo under MIT.
 The reused ThreeDee robot retains its existing artwork provenance (see below).
 
+## Kit v3
+
+`build_world3.py` authors the kit v3 street designs in Blender 5.2 LTS. `kit3.py` is the
+shared core and `street_assets3.py` is the registered family. Blender writes uncompressed GLBs
+and `manifest.raw.json` to `disposable/system-world/v3-raw/` and saves
+`production/aurago-world-3.blend`. The Node script then packs them with meshopt and writes
+`ui/3d/system-world/v3/`.
+
+```powershell
+& 'D:/Blender 5.2/blender.exe' --background --factory-startup --python assets/system-world/build_world3.py
+node scripts/build-system-world-v3.mjs
+node scripts/build-system-world-v3.mjs --check
+```
+
+`--preview` also renders LOD 0 views to `reports/system-world-assets/v3/` (ignored, not shipped).
+`--only <ids>` builds a subset and leaves the manifest and the source scene untouched.
+
+The v3 `manifest.json` has `schema_version` 3 and these fields: `version`, `license`,
+`generator`, `units`, `up_axis`, `sources` (SHA-256 of each authoring source), `assets`
+(each with `id`, `name`, `category`, `components`, `navigation`, `animations` and
+`lods`), `compression` (`EXT_meshopt_compression`), `pack`, `total_model_bytes` and
+`validator_errors`. Each LOD entry has `level`, `file`, `triangles`, `bounds`, `bytes` and `sha256`.
+
+The renderer loads these GLBs with `GLTFLoader.setMeshoptDecoder(MeshoptDecoder)`
+(`sysworld-scene.js`).
+
 ## Surface textures
 
 The kit's GLBs carry no UVs, so surface detail is a separate runtime set:
@@ -94,8 +120,8 @@ resource manifest already includes that directory and the GLB/JSON/TXT formats.
 Blender, MCP, Python scripts, source scenes and review renders are authoring tools;
 none are required or shipped to run the app.
 
-- 17 asset designs; three separately loadable LODs per design.
-- 51 self-contained GLB files. The original v1 kit retains its **8 MiB** gate;
+- 15 asset designs; three separately loadable LODs per design.
+- 45 self-contained GLB files. The original v1 kit retains its **8 MiB** gate;
   the combined v1/v2/robot runtime directory has a **40 MiB** ceiling.
 - No image textures, external URIs, Draco decoder, skeletal animation or lights.
 - Standard metallic/roughness materials and `KHR_materials_emissive_strength`.
@@ -104,7 +130,7 @@ none are required or shipped to run the app.
 
 Assets: agent reactor spire, memory archive, integration gateway, mission terminal,
 compute foundry, knowledge atrium, two data towers, operations beacon, skybridge,
-street segment, crossing, service drone, data tram, street lamp, planter and server rack.
+service drone, data tram, street lamp, planter and server rack.
 
 ## Integration contract
 
@@ -125,9 +151,12 @@ The assets are integrated through the isolated city renderer in System World.
 - Cache source geometry by asset/LOD. Instance repeated mesh primitives and
   deduplicate materials by their `city.*` names. Clone a material only when a
   specific entity needs its own appearance; preserve the shared base material.
-- The street segment is 16 by 12 metres and the crossing 12 by 12 metres.
-  Stretch the segment along its local X axis to fill the space between crossings.
-  Do not overlay complete streets through crossings.
+- Kit v3 streets are assembled from modules that are never stretched: 4 m plain and drain
+  modules, one 4 m zebra module on each intersection arm (centred 8 m from the intersection),
+  1 m filler modules for whole-metre remainders, 12 by 12 m four-way intersections, and end
+  caps at the island and quay edges. `streetModules()` in `sysworld-ground.js` gives the
+  placement list. Street segments stop at the intersection edges, so no street module runs
+  through a crossing.
 - Keep collision/navigation geometry separate. Use the manifest bounds for
   coarse picking/culling and simplified building obstacles, never detailed facade
   triangles for walking collision.
