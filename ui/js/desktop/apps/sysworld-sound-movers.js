@@ -1,0 +1,108 @@
+// Moving sources (System World beauty pass, phase 5): the trams' rail hum with a squeal in curves and rail-joint clacks,
+// a whir for the nearest hover robots (the gliding street patrols of sysworld-life.js, reported through the residents'
+// gait calls), the harbour launch's engine and the barge's drone (craftPoses on the atmosphere clock), and positions for
+// gull calls (gullPose). A voice is built when its source comes within reach and released MOVERS.release seconds
+// after it leaves, so a quiet district costs nothing; update() allocates only at those edges and for a clack. Distance
+// runs from the acoustic origin, the pan from the camera (the city's convention).
+import {craftPoses} from './sysworld-harbour.js';
+import {gullPose,FLOCK} from './sysworld-gulls.js';
+import {bearingPan} from './sysworld-zones.js';
+
+export const MOVERS=Object.freeze({tram:.06,squeal:.02,hover:.025,launch:.05,barge:.04,clack:.5,joint:12,axles:2.2,maxClacks:6,release:1.25,
+  reach:Object.freeze({tram:90,hover:30,launch:120,barge:260,clack:60})});
+export const VOICES=Object.freeze({low:Object.freeze({trams:1,hovers:2,barge:false}),medium:Object.freeze({trams:2,hovers:4,barge:true}),
+  high:Object.freeze({trams:2,hovers:4,barge:true}),ultra:Object.freeze({trams:2,hovers:4,barge:true})});
+const clamp01=v=>v<0?0:v>1?1:v;
+export function distanceGain(d,ref,rolloff){return d<=ref?1:ref/(ref+rolloff*(d-ref));}
+export function dopplerRatio(previous,distance,dt){if(!(dt>0)||!Number.isFinite(previous))return 1;return Math.max(.94,Math.min(1.06,343/(343+(distance-previous)/dt)));}
+export function tramLaw(speed,lateral,distance,out={}){const g=distance<MOVERS.reach.tram?distanceGain(distance,6,1):0;
+  out.hum=MOVERS.tram*Math.pow(clamp01(speed/11),.7)*g;out.squeal=MOVERS.squeal*clamp01((lateral-1)/3)*g;out.motor=60+32*clamp01(speed/11);return out;}
+// Indices of the `count` nearest items with `on` within `reach` of (x, z), nearest first; -1 pads. No allocation.
+export function nearestSlots(items,count,x,z,reach,out){
+  for(let k=0;k<count;k++)out[k]=-1;
+  for(let i=0;i<items.length;i++){const it=items[i];if(!it.on)continue;const d=Math.hypot(it.x-x,it.z-z);if(d>reach)continue;
+    for(let k=0;k<count;k++){const j=out[k];if(j<0||d<Math.hypot(items[j].x-x,items[j].z-z)){for(let m=count-1;m>k;m--)out[m]=out[m-1];out[k]=i;break;}}}
+  return out;
+}
+export function createSoundMovers(context,{outdoor,send,noise,tier='high'}){
+  let level=VOICES[tier]?tier:'high',hoverClock=0,clacks=0,clacksPlayed=0;
+  const trams=[0,1].map(()=>({voice:null,x:0,z:0,heading:0,speed:0,turn:0,distance:NaN,travelled:0,idle:0,fresh:true}));
+  const gliders=[],gliderIds=new Map(),slots=Array.from({length:4},()=>({voice:null,index:-1,idle:0})),picks=new Int32Array(4);
+  const launch={voice:null,idle:0},barge={voice:null,idle:0},poses=craftPoses(0),law={hum:0,squeal:0,motor:60},live=new Set();
+  function kit(){const v={nodes:[],last:new Float64Array(6).fill(NaN)},own=n=>(v.nodes.push(n),n);
+    v.amp=x=>{const g=own(context.createGain());g.gain.value=x;return g;};
+    v.filter=(type,f,q)=>{const n=own(context.createBiquadFilter());n.type=type;n.frequency.value=f;n.Q.value=q;return n;};
+    v.noise=rate=>{const s=own(context.createBufferSource());s.buffer=noise;s.loop=true;s.playbackRate.value=rate;return s;};
+    v.osc=(type,f)=>{const o=own(context.createOscillator());o.type=type;o.frequency.value=f;return o;};
+    v.out=v.amp(0);v.pan=own(context.createStereoPanner());v.out.connect(v.pan).connect(outdoor);return v;}
+  function start(v){for(const n of v.nodes)if(n.start)n.start();live.add(v);return v;}
+  function release(v){if(!v)return null;for(const n of v.nodes){try{n.stop?.();}catch(_){}try{n.disconnect();}catch(_){}}live.delete(v);return null;}
+  function tramVoice(){const v=kit();v.squeal=v.amp(0);v.squeal.connect(v.pan);v.out.connect(v.amp(.35)).connect(send);
+    v.noise(.6).connect(v.filter('lowpass',160,.7)).connect(v.amp(.6)).connect(v.out);
+    v.motor=v.osc('sawtooth',60);v.motor.connect(v.filter('lowpass',400,.7)).connect(v.amp(.3)).connect(v.out);
+    v.whine=v.osc('sine',90);v.whine.connect(v.amp(.15)).connect(v.out);
+    v.noise(1).connect(v.filter('bandpass',2900,14)).connect(v.squeal);v.osc('sine',3150).connect(v.amp(.3)).connect(v.squeal);return start(v);}
+  function hoverVoice(k){const v=kit();v.out.connect(v.amp(.2)).connect(send);
+    v.osc('sine',180+7*k).connect(v.out);v.osc('sine',271+9*k).connect(v.amp(.4)).connect(v.out);v.noise(1+.05*k).connect(v.filter('bandpass',1200,3)).connect(v.amp(.5)).connect(v.out);return start(v);}
+  function launchVoice(){const v=kit(),am=v.amp(.6);v.out.connect(v.amp(.3)).connect(send);
+    v.osc('sawtooth',46).connect(v.filter('lowpass',260,.7)).connect(am).connect(v.out);v.osc('sine',7.5).connect(v.amp(.4)).connect(am.gain);return start(v);}
+  function bargeVoice(){const v=kit(),lp=v.filter('lowpass',120,.7);lp.connect(v.out);v.osc('sine',33).connect(lp);v.osc('sine',66).connect(v.amp(.5)).connect(lp);return start(v);}
+  function set(v,slot,param,value,tau,eps=2e-4){const prev=v.last[slot];if(Math.abs(value-prev)<=Math.max(eps,Math.abs(prev)*.004))return;v.last[slot]=value;param.setTargetAtTime(value,context.currentTime,tau);}
+  function clack(at,gain,pan){if(clacks>=MOVERS.maxClacks)return;clacks++;clacksPlayed++;
+    const src=context.createBufferSource(),band=context.createBiquadFilter(),env=context.createGain();src.buffer=noise;src.loop=true;band.type='bandpass';band.frequency.value=1800;band.Q.value=2;
+    env.gain.setValueAtTime(0,at);env.gain.linearRampToValueAtTime(gain*MOVERS.clack,at+.002);env.gain.exponentialRampToValueAtTime(.0001,at+.012);
+    src.connect(band).connect(env).connect(pan);src.onended=()=>{clacks--;for(const n of[src,band,env])try{n.disconnect();}catch(_){}};src.start(at);src.stop(at+.02);}
+  function moveTram(t,src,listener,now,dt){
+    const ox=listener.origin.x,oz=listener.origin.z;
+    if(src&&src.on){
+      const step=Math.hypot(src.x-t.x,src.z-t.z);
+      if(t.fresh||step>20){t.x=src.x;t.z=src.z;t.heading=src.heading;t.speed=0;t.turn=0;t.fresh=false;t.distance=NaN;}
+      else if(dt>0){const k=1-Math.exp(-dt/.25),dh=Math.atan2(Math.sin(src.heading-t.heading),Math.cos(src.heading-t.heading));
+        t.speed+=(step/dt-t.speed)*k;t.turn+=(dh/dt-t.turn)*k;t.travelled+=step;t.x=src.x;t.z=src.z;t.heading=src.heading;}
+      const d=Math.hypot(t.x-ox,t.z-oz);
+      if(!t.voice&&d<MOVERS.reach.tram)t.voice=tramVoice();
+      if(t.voice){const v=t.voice,r=dopplerRatio(t.distance,d,dt);tramLaw(t.speed,Math.abs(t.turn)*t.speed,d,law);
+        set(v,0,v.out.gain,law.hum,.15);set(v,1,v.squeal.gain,law.squeal,.1);set(v,2,v.motor.frequency,law.motor*r,.2,.05);set(v,3,v.whine.frequency,law.motor*1.5*r,.2,.05);
+        set(v,4,v.pan.pan,bearingPan(t.x-listener.x,t.z-listener.z,listener.fx,listener.fz),.1,.02);
+        while(t.travelled>=MOVERS.joint){t.travelled-=MOVERS.joint;if(d<MOVERS.reach.clack&&law.hum>0){clack(now,law.hum,v.pan);clack(now+MOVERS.axles/Math.max(1,t.speed),law.hum,v.pan);}}
+        t.idle=d>MOVERS.reach.tram*1.2?t.idle+dt:0;if(t.idle>MOVERS.release){t.voice=release(t.voice);t.idle=0;}}
+      else t.travelled%=MOVERS.joint;
+      t.distance=d;
+    }else{t.fresh=true;if(t.voice){set(t.voice,0,t.voice.out.gain,0,.15);set(t.voice,1,t.voice.squeal.gain,0,.1);t.idle+=dt;if(t.idle>MOVERS.release){t.voice=release(t.voice);t.idle=0;}}}
+  }
+  function moveHovers(listener,dt){
+    const n=VOICES[level].hovers,ox=listener.origin.x,oz=listener.origin.z;hoverClock+=dt;
+    if(hoverClock>=.2||dt===0){hoverClock=0;nearestSlots(gliders,n,ox,oz,MOVERS.reach.hover,picks);
+      for(let k=0;k<slots.length;k++){const s=slots[k],j=k<n?picks[k]:-1;if(j>=0){s.index=j;s.idle=0;if(!s.voice)s.voice=hoverVoice(k);}else s.index=-1;}}
+    for(let k=0;k<slots.length;k++){const s=slots[k];if(!s.voice)continue;
+      if(s.index<0){set(s.voice,0,s.voice.out.gain,0,.3);s.idle+=dt;if(s.idle>MOVERS.release){s.voice=release(s.voice);s.idle=0;}continue;}
+      const g=gliders[s.index],d=Math.hypot(g.x-ox,g.z-oz);
+      set(s.voice,0,s.voice.out.gain,MOVERS.hover*distanceGain(d,3,.6)*(g.moving?1:.6),.15);set(s.voice,1,s.voice.pan.pan,bearingPan(g.x-listener.x,g.z-listener.z,listener.fx,listener.fz),.1,.02);}
+  }
+  function boat(b,pose,make,gain,ref,rolloff,reach,listener,dt,allowed){
+    const d=Math.hypot(pose.x-listener.origin.x,pose.z-listener.origin.z);
+    if(allowed&&!b.voice&&d<reach)b.voice=make();if(!b.voice)return;
+    const on=allowed&&d<reach*1.2;set(b.voice,0,b.voice.out.gain,on?gain*distanceGain(d,ref,rolloff):0,.4);
+    set(b.voice,1,b.voice.pan.pan,bearingPan(pose.x-listener.x,pose.z-listener.z,listener.fx,listener.fz),.3,.02);
+    b.idle=on?0:b.idle+dt;if(b.idle>MOVERS.release){b.voice=release(b.voice);b.idle=0;}
+  }
+  return {
+    gait(id,x,y,z,moving,style){if(style!=='glide')return;let g=gliderIds.get(id);if(!g){if(gliders.length>=32)return;g={id,x,y,z,on:true,moving:false};gliderIds.set(id,g);gliders.push(g);}
+      g.x=x;g.y=y;g.z=z;g.moving=!!moving;},
+    update(f,listener,now,dt){
+      for(let i=0;i<trams.length;i++)moveTram(trams[i],i<VOICES[level].trams&&f&&f.trams?f.trams[i]:null,listener,now,dt);
+      moveHovers(listener,dt);craftPoses(f&&f.seaTime||0,poses);
+      boat(launch,poses[0],launchVoice,MOVERS.launch,10,.15,MOVERS.reach.launch,listener,dt,true);
+      boat(barge,poses[1],bargeVoice,MOVERS.barge,20,.08,MOVERS.reach.barge,listener,dt,VOICES[level].barge);
+    },
+    // A position for a gull call: one bird of the visible flock (none on low: the caller keeps its harbour anchor).
+    gull(f,random,out){const n=FLOCK[level]||0;if(!n)return null;const t=f&&f.seaTime||0;craftPoses(t,poses);return gullPose(Math.floor(random()*n)%n,t,poses[1],out);},
+    setTier(value){if(VOICES[value])level=value;},
+    clear(){},
+    stats:()=>({tier:level,trams:trams.map(t=>({voice:!!t.voice,speed:+t.speed.toFixed(2),hum:t.voice?+(t.voice.last[0]||0).toFixed(4):0,squeal:t.voice?+(t.voice.last[1]||0).toFixed(4):0,
+        distance:Number.isFinite(t.distance)?+t.distance.toFixed(1):null})),
+      hovers:slots.filter(s=>s.voice&&s.index>=0).map(s=>gliders[s.index].id),gliders:gliders.length,launch:!!launch.voice,barge:!!barge.voice,clacks,clacksPlayed,
+      nodes:[...live].reduce((n,v)=>n+v.nodes.length,0)}),
+    dispose(){for(const v of[...live])release(v);for(const t of trams)t.voice=null;for(const s of slots)s.voice=null;launch.voice=barge.voice=null;},
+  };
+}
