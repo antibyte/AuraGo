@@ -77,7 +77,7 @@ func TestUmlautMapEntriesAreSound(t *testing.T) {
 	}
 	replacer := strings.NewReplacer("ä", "a", "ö", "o", "ü", "u")
 	// ASCII spellings that are German words of their own: they must never be keys.
-	realWords := []string{"wurde", "wurden", "fuhren", "losen", "losung", "losungen", "wahlen", "andern", "hohe", "schon"}
+	realWords := []string{"wurde", "wurden", "fuhren", "losen", "losung", "losungen", "wahlen", "andern", "hohe", "schon", "konnte", "konnten", "mochte", "mochten", "gerate"}
 	for key, value := range entries {
 		if key != strings.ToLower(key) || value != strings.ToLower(value) {
 			t.Errorf("%q: keys and values are lower case", key)
@@ -160,11 +160,7 @@ func TestRepairUmlautsOnTheRealFirewallRun(t *testing.T) {
   "unmoglich": "unmöglich",
   "moglichkeit": "möglichkeit",
   "konnen": "können",
-  "konnte": "könnte",
-  "konnten": "könnten",
   "mussen": "müssen",
-  "mochte": "möchte",
-  "mochten": "möchten",
   "fuhrt": "führt",
   "zuruck": "zurück",
   "naturlich": "natürlich",
@@ -175,7 +171,6 @@ func TestRepairUmlautsOnTheRealFirewallRun(t *testing.T) {
   "kunftig": "künftig",
   "schadlich": "schädlich",
   "gerat": "gerät",
-  "gerate": "geräte",
   "zuverlassig": "zuverlässig",
   "fahigkeit": "fähigkeit",
   "verschlusselung": "verschlüsselung",
@@ -198,7 +193,7 @@ func TestRepairUmlautsOnTheRealFirewallRun(t *testing.T) {
   "lucke": "lücke"
 }
 ```
-The map holds `fur` and `mochte` on purpose: neither is a German word. It has no `uber` alone (`uberall`, `ubertragen` and the like are in): a bare "uber" appears in English text and brand names.
+The map holds `fur` on purpose: it is not a German word. It has no `konnte`, `konnten`, `mochte`, `mochten` or `gerate`: those are German words (forms of können, mögen and geraten), and repairing them would change what the sentence says. A reviewer found this during execution; the test lists them in `realWords`. It has no `uber` alone (`uberall`, `ubertragen` and the like are in): a bare "uber" appears in English text and brand names.
 - [ ] **Step 4: Create `internal/storymaker/studio_umlauts.go`:**
 
 ```go
