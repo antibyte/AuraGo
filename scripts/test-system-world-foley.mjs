@@ -1,38 +1,16 @@
 import assert from 'node:assert/strict';
 import {createCityFoley} from '../ui/js/desktop/apps/sysworld-foley.js';
 import {createCityAmbience,citySoundscapeEvents} from '../ui/js/desktop/apps/sysworld-audio.js';
+import {createFakeAudio} from './system-world-audio-fake.mjs';
 
-// A deterministic Web Audio double. Only the parts the city sound engine uses are
-// modelled: parameters, sources, filters, panners and the event timers.
+// The shared deterministic Web Audio double (scripts/system-world-audio-fake.mjs).
 const native={setTimeout,clearTimeout,window:globalThis.window,localStorage:globalThis.localStorage};
-let tasks=new Map(),id=0,nodes=[];
-const parameter=()=>({value:0,ramp:[],
-  setValueAtTime(value,time){this.value=value;this.ramp.push(['set',value,time]);return this;},
-  linearRampToValueAtTime(value,time){this.value=value;this.ramp.push(['linear',value,time]);return this;},
-  exponentialRampToValueAtTime(value,time){this.value=value;this.ramp.push(['exp',value,time]);return this;},
-  setTargetAtTime(value,time,constant){this.value=value;this.ramp.push(['target',value,time]);return this;},
-  cancelScheduledValues(){this.ramp.length=0;}});
-function node(kind){
-  const n={kind,links:[],gain:parameter(),frequency:parameter(),Q:parameter(),pan:parameter(),delayTime:parameter(),detune:parameter(),type:'',
-    connect(other){this.links.push(other);return other;},disconnect(){this.disconnected=true;},start(){this.started=true;},stop(){this.stopped=true;},
-    getFloatTimeDomainData(target){target.fill(0);}};
-  nodes.push(n);return n;
-}
-const context={currentTime:0,state:'running',sampleRate:8000,destination:node('destination'),
-  createGain:()=>node('gain'),createBiquadFilter:()=>node('filter'),createBufferSource:()=>node('source'),
-  createOscillator:()=>node('oscillator'),
-  createDelay:()=>node('delay'),createConvolver:()=>node('reverb'),createWaveShaper:()=>node('limit'),
-  createStereoPanner:()=>node('pan'),createAnalyser:()=>node('analyser'),
-  createBuffer:(channels,length)=>({channels,length,data:Array.from({length:channels},()=>new Float32Array(length)),getChannelData(c){return this.data[c];}}),
-  decodeAudioData:async()=>({duration:1,numberOfChannels:1,getChannelData:()=>new Float32Array([0,.8,-.8,0])}),
-  resume:()=>Promise.resolve(),suspend:()=>Promise.resolve(),close:()=>Promise.resolve()};
-// A source ends when the engine stops it. The real API reports that asynchronously.
-const flush=()=>{for(const n of nodes)if(n.onended&&!n.ended){n.ended=true;n.onended();}};
+const fake=createFakeAudio(),{context,nodes,node,flush}=fake;
 const kinds=()=>nodes.filter(n=>n.kind==='pan').map(n=>n.pan.value);
 
 try{
-  globalThis.setTimeout=(fn,ms)=>(tasks.set(++id,{fn,ms}),id);
-  globalThis.clearTimeout=handle=>tasks.delete(handle);
+  globalThis.setTimeout=fake.timers.setTimeout;
+  globalThis.clearTimeout=fake.timers.clearTimeout;
   globalThis.window={AudioContext:function(){return context;}};
   globalThis.localStorage={getItem:()=>null,setItem:()=>{}};
 

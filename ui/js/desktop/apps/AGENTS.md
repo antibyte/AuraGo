@@ -4942,8 +4942,10 @@ registration lives in `internal/desktop/types.go`.
   stereo pan always matches the direction the sound arrives from; nothing invents
   telemetry. Event/chord timers run only while audible and `quiet()` releases every
   voice on inactivity. `setMood` (busy/day/evening/weather from the scene) opens the
-  pad filter and reweights the event table. Do not add a `DynamicsCompressorNode`:
-  its automatic makeup gain lifts the mix above the browser test's 0.05 RMS voice
+  pad filter and reweights the event table. The master carries a `DynamicsCompressorNode` (`LIMITER`) only together with its
+  fixed trim, which cancels the automatic makeup gain (about +4.3 dB, measured by
+  `scripts/system-world-sound-survey.mjs --calibrate`), and a wave-shaper ceiling at
+  -1 dBFS; without the trim the mix rises above the browser test's 0.05 RMS voice
   ceiling.
 - `sysworld-foley.js` owns the residents' own sounds: a servo settle, a footfall, a
   parcel rustle, a tool tap, a greeting chirp and a steering whine, all synthesized

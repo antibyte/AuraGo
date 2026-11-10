@@ -137,7 +137,7 @@
         const refresh=btn('refresh',L('desktop.context_refresh'),'refresh');refresh.addEventListener('click',()=>NS.data.refresh());
         const sound=btn('sound',L('sysworld.city.sound_on'),'speaker');sound.disabled=true;sound.setAttribute('aria-pressed','false');
         sound.addEventListener('click',()=>inst.toggleSound());
-        const volume=el('input','sw-volume');volume.type='range';volume.min=0;volume.max=35;volume.value=18;volume.hidden=true;
+        const volume=el('input','sw-volume');volume.type='range';volume.min=0;volume.max=35;volume.value=(()=>{try{const raw=localStorage.getItem('aurago.desktop.sysworld.volume'),v=Number(raw);return raw!=null&&Number.isFinite(v)?String(Math.round(Math.max(0,Math.min(.35,v))*100)):'18';}catch(_){return '18';}})();volume.hidden=true;
         volume.setAttribute('aria-label',L('desktop.radio_volume'));volume.title=L('desktop.radio_volume');
         volume.addEventListener('input',()=>inst.setVolume(Number(volume.value)/100));
         const photo=btn('photo',L('sysworld.city.photo'),'camera');photo.disabled=true;photo.setAttribute('aria-pressed','false');

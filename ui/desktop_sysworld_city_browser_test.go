@@ -74,6 +74,7 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.MustEval(`()=>{
         localStorage.setItem('aurago.desktop.sysworld.quality','high');
         localStorage.setItem('aurago.desktop.sysworld.sound','false');
+        localStorage.removeItem('aurago.desktop.sysworld.volume');localStorage.removeItem('aurago.desktop.sysworld.channels');
         window.cityAudioContexts=[];window.cityOriginalAudio=window.AudioContext;
         window.AudioContext=class extends cityOriginalAudio{constructor(...args){super(...args);cityAudioContexts.push(this);}};
         window.cityIssueSeverity='warning';
