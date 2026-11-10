@@ -14,5 +14,22 @@
   {"name":"rain-crossing","position":[26,3,21],"target":[18,0,13],"fov":43,"environment":"day","weather":"rain","frames":60,"waitMs":600},
   {"name":"resident-feet-0","followResident":0,"offset":[2.2,0.7,2.2],"lookHeight":0.5,"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400,"sequence":4,"intervalMs":350},
   {"name":"resident-feet-5","followResident":5,"offset":[2.2,0.7,2.2],"lookHeight":0.5,"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400,"sequence":4,"intervalMs":350},
-  {"name":"resident-feet-11","followResident":11,"offset":[2.2,0.7,2.2],"lookHeight":0.5,"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400,"sequence":4,"intervalMs":350}
+  {"name":"resident-feet-11","followResident":11,"offset":[2.2,0.7,2.2],"lookHeight":0.5,"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400,"sequence":4,"intervalMs":350},
+  {"name":"facade-agent-day","position":[6,1.7,17.5],"target":[0,12,-12],"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400},
+  {"name":"facade-agent-evening","position":[6,1.7,17.5],"target":[0,12,-12],"fov":43,"environment":"evening","weather":"clear","frames":40,"waitMs":400},
+  {"name":"facade-agent-night","position":[6,1.7,17.5],"target":[0,12,-12],"fov":43,"environment":"night","weather":"clear","frames":40,"waitMs":400},
+  {"name":"facade-memory-day","position":[-37,1.7,17.5],"target":[-43,8,-10],"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400},
+  {"name":"facade-memory-evening","position":[-37,1.7,17.5],"target":[-43,8,-10],"fov":43,"environment":"evening","weather":"clear","frames":40,"waitMs":400},
+  {"name":"facade-memory-night","position":[-37,1.7,17.5],"target":[-43,8,-10],"fov":43,"environment":"night","weather":"clear","frames":40,"waitMs":400},
+  {"name":"facade-missions-day","position":[50,1.7,63.5],"target":[43,7,36],"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400},
+  {"name":"facade-missions-evening","position":[50,1.7,63.5],"target":[43,7,36],"fov":43,"environment":"evening","weather":"clear","frames":40,"waitMs":400},
+  {"name":"facade-missions-night","position":[50,1.7,63.5],"target":[43,7,36],"fov":43,"environment":"night","weather":"clear","frames":40,"waitMs":400},
+  {"name":"facade-integration-night","position":[37,1.7,17.5],"target":[43,11,-10],"fov":43,"environment":"night","weather":"clear","frames":40,"waitMs":400},
+  {"name":"facade-atrium-night","position":[-36,1.7,63.5],"target":[-43,5,36],"fov":43,"environment":"night","weather":"clear","frames":40,"waitMs":400},
+  {"name":"facade-beacon-night","position":[5,1.7,63.5],"target":[0,7,36],"fov":43,"environment":"night","weather":"clear","frames":40,"waitMs":400},
+  {"name":"facade-foundry-night","position":[-37,1.7,-27.5],"target":[-43,6,-53],"fov":43,"environment":"night","weather":"clear","frames":40,"waitMs":400},
+  {"name":"facade-tower-night","position":[36,1.7,-27.5],"target":[30.5,16,-55],"fov":43,"environment":"night","weather":"clear","frames":40,"waitMs":400},
+  {"name":"lobby-agent-night","position":[2.5,2.0,3.0],"target":[0,3.0,-4.9],"fov":43,"environment":"night","weather":"clear","frames":40,"waitMs":400},
+  {"name":"skyline-night","position":[10,45,-75],"target":[0,35,-220],"fov":43,"environment":"night","weather":"clear","frames":40,"waitMs":400},
+  {"name":"overview-night","position":[95,70,120],"target":[0,10,-10],"fov":43,"environment":"night","weather":"clear","frames":40,"waitMs":400}
 ]

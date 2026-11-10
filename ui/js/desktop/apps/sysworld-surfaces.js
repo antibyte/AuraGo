@@ -25,9 +25,13 @@ export const KINDS = {
   'city.iron': {top: 'panels', side: 'panels', albedo: .25, rough: .45, bump: .008, wet: .9},
   'city.marking': {top: 'asphalt', side: 'concrete', albedo: .25, rough: .5, bump: .006, wet: 1, puddle: [.447, .442]},
   'city.tactile': {top: 'concrete', side: 'concrete', albedo: .4, rough: .6, bump: .02, wet: 1},
+  // Kit glass (doors and small panes, opaque by design): faint panel detail, streaks when wet.
+  'city.glass': {top: 'panels', side: 'panels', albedo: .15, rough: .3, bump: .002, wet: .6},
   ground: {top: 'pavers', side: 'concrete', albedo: .55, rough: .6, bump: .014, wet: 1, topScale: .5, puddle: [.523, .516], waterline: true},
 };
 export const WINDOWS = new Set(['city.ivory', 'city.warm']);
+// Kit v3 window panes belong to sysworld-windows.js and never take the projected maps.
+const PANES = 'city.window';
 const LEVELS = {low: 0, medium: 1, high: 2, ultra: 2};
 const float = value => Number(value).toFixed(4);
 const VERTEX_PARS = `varying vec3 vSwPos;varying vec3 vSwNrm;
@@ -118,9 +122,12 @@ totalEmissiveRadiance*=mix(swWindow.w,mix(swWindow.z,swWindow.y,step(vSwSeed,swW
 #endif`;
 
 // One seed per connected component: every window pane is its own four-vertex quad in the kit.
-export function windowSeeds(geometry) {
+export function windowSeeds(geometry, fixture = false) {
   const position = geometry?.getAttribute('position');
   if (!position || geometry.getAttribute('swSeed')) return;
+  // Kit v3 has no lit-window quads: its warm/ivory parts (light lines, diffusers) are fixtures
+  // that only follow the day/night brightness, so every vertex gets the fixture seed.
+  if (fixture) { geometry.setAttribute('swSeed', new THREE.BufferAttribute(new Float32Array(position.count).fill(2), 1)); return; }
   const count = position.count, parent = new Int32Array(count), index = geometry.getIndex();
   for (let i = 0; i < count; i++) parent[i] = i;
   const find = i => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
@@ -184,7 +191,7 @@ export function createSurfaces(renderer, options = {}) {
   }
   // Materials are shared by name; patching is idempotent and survives LOD rebuilds.
   function apply(material, space = 'world', kindName = material?.name) {
-    if (!material?.isMeshStandardMaterial || patched.has(material)) return;
+    if (!material?.isMeshStandardMaterial || patched.has(material) || material.name === PANES) return;
     const kind = KINDS[kindName] ? kindName : '', windows = WINDOWS.has(material.name);
     if (!kind && !windows) return;
     patched.set(material, { kind, windows, space });
@@ -197,7 +204,7 @@ export function createSurfaces(renderer, options = {}) {
     if (!mesh?.isMesh) return;
     for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
       apply(material, dynamic ? 'object' : 'world');
-      if (WINDOWS.has(material?.name)) windowSeeds(mesh.geometry);
+      if (WINDOWS.has(material?.name)) windowSeeds(mesh.geometry, !!material.vertexColors);
     }
   }
   const url = file => options.url?.(file);

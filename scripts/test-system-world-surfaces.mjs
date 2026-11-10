@@ -25,7 +25,9 @@ assert.ok(total < 1.5 * 1024 * 1024, 'Surface textures exceed 1.5 MiB: ' + total
 // Every kit material is textured, a window, or deliberately left untextured (glass and signals).
 // Emissive lamp glass stays untextured: a triplanar albedo/roughness pass would
 // dim the glow instead of adding detail.
-const untextured = new Set(['city.glass', 'city.garden-glass', 'city.cyan', 'city.jade', 'city.lantern-glow']);
+const untextured = new Set(['city.garden-glass', 'city.cyan', 'city.jade', 'city.lantern-glow']);
+// Kit v3 window panes are interior-mapped by sysworld-windows.js, never by the surface maps.
+const windowPanes = new Set(['city.window']);
 const names = new Set();
 for (const kit of ['v1', 'v2', 'v3']) {
   const files = await fs.readdir(`ui/3d/system-world/${kit}`).catch(() => []);
@@ -36,7 +38,7 @@ for (const kit of ['v1', 'v2', 'v3']) {
     for (const material of json.materials || []) names.add(material.name);
   }
 }
-for (const name of names) assert.ok(KINDS[name] || WINDOWS.has(name) || untextured.has(name), 'Unmapped kit material: ' + name);
+for (const name of names) assert.ok(KINDS[name] || WINDOWS.has(name) || untextured.has(name) || windowPanes.has(name), 'Unmapped kit material: ' + name);
 
 // Separate four-vertex panes get their own constant seed; larger lit parts are fixtures (2).
 const quad = (x, y) => [[x, y, 0], [x + 1, y, 0], [x + 1, y + 1, 0], [x, y + 1, 0]];
@@ -77,9 +79,20 @@ for (const tier of ['low', 'medium', 'high']) {
 const window = compile('city.ivory', 'world', 'high');
 assert.ok(window.text.includes('attribute float swSeed') && window.text.includes('swPane') && !window.text.includes('#define SW_SURFACE'), 'Window material injection');
 assert.ok(window.text.includes('#define SW_LEVEL 0'), 'Window material must define SW_LEVEL for #if');
-const glass = new THREE.MeshStandardMaterial({name: 'city.glass'});
-surfaces.apply(glass);
-assert.equal(glass.onBeforeCompile, THREE.Material.prototype.onBeforeCompile, 'Glass must stay untouched');
+// Kit glass (doors, small panes) takes the surface maps; window panes never do.
+const glass = compile('city.glass', 'world', 'high');
+assert.ok(glass.text.includes('diffuseColor.rgb*=swAlbedoF'), 'Kit glass takes the surface maps');
+const pane = new THREE.MeshStandardMaterial({name: 'city.window', vertexColors: true});
+surfaces.apply(pane);
+assert.equal(pane.onBeforeCompile, THREE.Material.prototype.onBeforeCompile, 'city.window belongs to sysworld-windows.js');
+// Vertex-coloured (kit v3) warm/ivory parts are light fixtures: one seed 2, never per-face switching.
+{
+  const fixture = new THREE.BufferGeometry();
+  fixture.setAttribute('position', new THREE.Float32BufferAttribute(vertices.flat(), 3));
+  fixture.setIndex(indices);
+  surfaces.prepare(new THREE.Mesh(fixture, new THREE.MeshStandardMaterial({name: 'city.ivory', vertexColors: true})));
+  assert.ok(fixture.getAttribute('swSeed').array.every(s => s === 2), 'Kit v3 light parts must be fixtures');
+}
 
 // Pane lighting: few panes by day, most at night; wetness follows weather, instantly without motion.
 surfaces.setLighting(1, 0);

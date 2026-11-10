@@ -7,6 +7,9 @@
  * Khronos validator, checks the kit contract and writes ui/3d/system-world/v3/
  * with a manifest that pins bytes and SHA-256 of the packed files.
  *
+ * -vtf keeps window room coordinates (TEXCOORD_0, up to about 70) as floats; quantised texture
+ * coordinates would be normalised to 0..1 because the kit has no textures to carry the transform.
+ *
  * Run: node scripts/build-system-world-v3.mjs [--check]
  * --check never writes. It verifies the committed kit and, when the raw
  * directory exists, that repacking reproduces the committed files byte for byte.
@@ -24,7 +27,7 @@ const outDir = 'ui/3d/system-world/v3';
 const modelRoot = 'ui/3d/system-world';
 const sourceDir = 'assets/system-world';
 const PACK_VERSION = 'gltfpack@1.3.0';
-const PACK_FLAGS = ['-cc', '-kn', '-km', '-ke', '-kv'];
+const PACK_FLAGS = ['-cc', '-kn', '-km', '-ke', '-kv', '-vtf'];
 const PACK_LABEL = PACK_VERSION + ' ' + PACK_FLAGS.join(' ');
 const CEILING = 40 * 1024 * 1024;
 const FILE_RE = /^[a-z0-9-]+\.lod[0-2]\.glb$/;
