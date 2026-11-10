@@ -10,6 +10,8 @@ colliders are [min x, min y, min z, max x, max y, max z] in glTF axes (Y up).
 """
 from math import sin, cos, pi
 
+from mathutils import Matrix
+
 import kit3
 from facade_assets3 import PODIUM, perimeter, along
 from furniture_assets3 import blob, collider
@@ -65,8 +67,11 @@ def glazing(g, p0, u, s0, s1, z0, z1):
 
 
 def shell(g, w, d, z1, doors, door_w, door_h, at=(0, 0), tile=1.15, floor=('kerb', 'stone'), border='bronze',
-          light='ivory', pitch=2.8, lights=lambda x, y: True):
-    """Floor finish, ceiling lights, glazing and door leaves of a rectangular lobby. Returns the door pivots."""
+          light='ivory', pitch=2.8, lights=lambda x, y: True, first=0):
+    """Floor finish, ceiling lights, glazing and door leaves of a rectangular lobby.
+
+    Returns the door pivots; `first` is the number of the first door (for a second hall in one asset).
+    """
     lod = g.lod
     z0, glass_top = PODIUM, z1 - .9
     x0, x1, y0, y1 = at[0] - w/2 + .62, at[0] + w/2 - .62, at[1] - d/2 + .62, at[1] + d/2 - .62
@@ -107,7 +112,7 @@ def shell(g, w, d, z1, doors, door_w, door_h, at=(0, 0), tile=1.15, floor=('kerb
                 glazing(g, p0, u, g0, g1, z0 + door_h + .42, glass_top)
     # Sliding door leaves, authored closed.
     pivots = {}
-    for n, x in enumerate(doors):
+    for n, x in enumerate(doors, first):
         cx, cy = at[0] + x, at[1] - d/2 + .25
         for tag, side in (('l', -1), ('r', 1)):
             g.part = f'door.{n}.{tag}'
@@ -244,6 +249,305 @@ def lobby_agent(g):
             'occlusion': {'ground': PODIUM, 'distance': 1.8}}
 
 
+def cabinet(g, x, y, angle, size, lights=('cyan', 'jade'), rows=4, cap='bronze'):
+    """Server rack row or archive stack with lit strips and cassettes on both long faces; size = (length, depth, height)."""
+    lod = g.lod
+    z = FLOOR
+    length, depth, height = size
+    g.box((x, y, z + height/2), size, 'graphite', .02, 1, angle=angle)
+    if lod == 2:
+        return
+    g.box((x, y, z + height + .03), (length + .06, depth + .06, .06), cap, 0, angle=angle)
+    cells = max(2, round(length / .9))
+    for side in (-1, 1):
+        for r in range(rows):
+            level = z + height * (r + .5) / rows
+            px, py = turn(x, y, angle, 0, side * (depth/2 + .006))
+            g.box((px, py, level + height / rows * .38), (length - .12, .012, .03), lights[r % 2], 0, angle=angle, tint=.7)
+            if lod == 0:
+                for c in range(cells):
+                    if (c * 7 + r * 3 + (side > 0)) % 4 == 0:
+                        continue
+                    cx, cy = turn(x, y, angle, -length/2 + (c + .5) * length / cells, side * (depth/2 + .008))
+                    g.box((cx, cy, level - .03), (length / cells - .08, .014, height / rows * .56),
+                          ('ceramic', 'titanium', 'ceramic', 'stone')[(c + r) % 4], 0, angle=angle, tint=.9)
+
+
+def counter(g, x, y, width, angle, top='bronze', front='ceramic', screens=1, glow='cyan'):
+    """Service counter: customers stand at its local -Y, staff at +Y."""
+    lod = g.lod
+    z = FLOOR
+    g.box((x, y, z + .5), (width, .7, 1.0), front, .03, 1, angle=angle)
+    g.box((x, y, z + 1.03), (width + .1, .82, .06), top, .015, 1, angle=angle)
+    if lod == 2:
+        return
+    fx, fy = turn(x, y, angle, 0, -.356)
+    g.box((fx, fy, z + .12), (width - .1, .012, .05), glow, 0, angle=angle, tint=.8)
+    for i in range(screens):
+        offset = (i - (screens - 1) / 2) * 1.1
+        sx, sy = turn(x, y, angle, offset, .12)
+        g.box((sx, sy, z + 1.28), (.46, .03, .3), 'graphite', .01, 1, angle=angle)
+        qx, qy = turn(x, y, angle, offset, .138)
+        g.box((qx, qy, z + 1.28), (.4, .012, .24), 'cyan', 0, angle=angle, tint=.6)
+
+
+def table(g, x, y, width, depth, angle, lamp=True, stools=0):
+    lod = g.lod
+    z = FLOOR
+    g.box((x, y, z + .74), (width, depth, .05), 'bronze', .012, 1, angle=angle, tint=.85)
+    for side in (-1, 1):
+        lx, ly = turn(x, y, angle, side * (width/2 - .2), 0)
+        g.box((lx, ly, z + .36), (.06, depth - .2, .72), 'graphite', 0, angle=angle)
+    if lamp and lod < 2:
+        g.box((x, y, z + 1.16), (width - .5, .05, .025), 'ivory', 0, angle=angle)
+        for side in (-1, 1):
+            lx, ly = turn(x, y, angle, side * (width/2 - .3), 0)
+            g.box((lx, ly, z + .96), (.02, .02, .4), 'bronze', 0, angle=angle)
+    for i in range(stools if lod < 2 else 0):
+        for side in (-1, 1):
+            sx, sy = turn(x, y, angle, -width/2 + (i + .5) * width / stools, side * (depth/2 + .32))
+            g.cyl((sx, sy, z + .25), .03, .5, 'graphite', n=(6, 5)[lod], caps=(False, False))
+            g.cyl((sx, sy, z + .5), .17, .05, 'titanium', n=(12, 8)[lod])
+
+
+def lobby_memory(g):
+    """Archive hall: glowing data stacks, reading tables and the memory core on its plinth."""
+    lod = g.lod
+    at = (0, 1)
+    pivots = shell(g, 22, 18, 7.0, (-5, 5), 2.8, 3.5, at=at, pitch=3.3, floor=('ceramic', 'kerb'),
+                   lights=lambda x, y: abs(x) > 1.5 or abs(y - 1) > 2.5)
+    z = FLOOR
+    # Memory core: plinth, glowing core and orbit rings.
+    n = (20, 12, 8)[lod]
+    g.lathe((0, 1, 0), [(1.5, z), (1.5, z + .16), (1.05, z + .3), (.95, z + .9), (1.15, z + 1.0), (0, z + 1.0)], 'graphite', n=n)
+    blob(g, (0, 1, z + 2.0), .62, 'jade', squash=1.0, n=(14, 10, 6)[lod], steps=(8, 6, 4)[lod], lumpy=.12)
+    annulus(g, (0, 1), .5, 1.0, z + 1.004, 'jade', tint=.5)
+    if lod < 2:
+        torus(g, (0, 1, z + 2.0), 1.05, .03, 'bronze')
+        torus(g, (0, 1, z + 2.0), 1.25, .025, 'ivory', rot=Matrix.Rotation(1.1, 3, 'X'))
+        annulus(g, (0, 1), 2.6, 2.68, z + .012, 'bronze', tint=.8)
+    # Stacks in the back half, reading tables at the front, an enquiry desk between the doors.
+    colliders = [block(-1.5, 1.5, -.5, 2.5, 2.8)]
+    for side in (-1, 1):
+        for i, x in enumerate((3.4, 5.9, 8.4)):
+            cabinet(g, side * x, 5.2, pi / 2, (6.2, .8, 3.9), ('jade', 'ivory'), rows=5)
+            colliders.append(block(side * (x - .45), side * (x + .45), 2.0, 8.4, 4.0))
+        table(g, side * 6.6, -3.4, 4.4, 1.2, 0, stools=4)
+        colliders.append(block(side * 4.3, side * 8.9, -4.4, -2.4, .8))
+        pot_plant(g, side * 9.5, -6.5, 1.15)
+        pot_plant(g, side * 9.6, 8.7, 1.0)
+        floor_lamp(g, side * 9.55, -1.0)
+    counter(g, 0, -4.8, 3.6, 0, screens=2, glow='jade')
+    colliders.append(block(-1.9, 1.9, -5.3, -4.3, 1.1))
+    points = [workpoint('enquiry', 0, -4.0), workpoint('core', 0, -1.3), workpoint('stacks-west', -4.65, 4.2),
+              workpoint('stacks-east', 4.65, 4.2), workpoint('reading-west', -6.6, -2.2), workpoint('reading-east', 6.6, -2.2)]
+    return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots,
+            'occlusion': {'ground': PODIUM, 'distance': 1.8}}
+
+
+def lobby_integrations(g):
+    """Two gate halls: a switchboard in the west tower, a service counter in the east tower."""
+    lod = g.lod
+    z = FLOOR
+    pivots = shell(g, 6, 9, 5.2, (0.0,), 2.0, 2.92, at=(-8, 0), tile=1.0, pitch=2.4)
+    pivots.update(shell(g, 6, 9, 5.2, (0.0,), 2.0, 2.92, at=(8, 0), tile=1.0, pitch=2.4, first=1))
+    # West: switchboard wall with jacks and patch cords, operator desk.
+    g.box((-8, 3.55, z + 1.5), (4.3, .3, 2.7), 'graphite', .03, 1)
+    g.box((-8, 3.55, z + 2.9), (4.4, .36, .08), 'bronze', .02, 1)
+    if lod < 2:
+        columns, rows = (14, 7)[lod], (7, 4)[lod]
+        for c in range(columns):
+            for r in range(rows):
+                if (c * 3 + r * 5) % 7 == 0:
+                    continue
+                g.box((-8 - 1.95 + (c + .5) * 3.9 / columns, 3.39, z + .5 + (r + .5) * 2.2 / rows),
+                      (.11, .012, .11), ('jade', 'cyan', 'ivory', 'jade', 'warm')[(c + 2 * r) % 5], 0, tint=.75)
+    if lod == 0:
+        for i in range(5):
+            x0, x1 = -9.6 + i * .7, -8.9 + i * .62
+            g.pipe((x0, 3.37, z + 2.3 - i * .22), (x1, 3.3, z + 1.0 + i * .12), .014, 'tactile', n=4)
+    counter(g, -8, 1.4, 2.6, pi, screens=2, glow='jade')
+    sofa(g, -10.0, -1.6, 1.8, pi / 2, 'titanium', .8)
+    pot_plant(g, -6.1, -3.3, .9)
+    # East: service counter, parcel shelves behind it, a queue totem.
+    counter(g, 8, 1.2, 3.4, 0, screens=2)
+    cabinet(g, 8, 3.5, 0, (4.0, .5, 2.6), ('cyan', 'ivory'), rows=4)
+    totem(g, 9.8, -2.4, -pi / 2, height=2.0)
+    pot_plant(g, 6.1, -3.3, .9)
+    colliders = [block(-10.2, -5.8, 3.3, 3.9, 2.9), block(-9.4, -6.6, .9, 1.9, 1.1), block(-10.4, -9.5, -2.6, -.6, 1.0),
+                 block(6.2, 9.8, .7, 1.7, 1.1), block(5.9, 10.1, 3.2, 3.8, 2.7), block(9.5, 10.1, -3.0, -1.8, 2.1)]
+    points = [workpoint('switchboard', -8, 2.6), workpoint('patching', -7.0, .5), workpoint('counter', 8, 2.3),
+              workpoint('queue', 8, -.2)]
+    return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots,
+            'occlusion': {'ground': PODIUM, 'distance': 1.6}}
+
+
+def lobby_missions(g):
+    """Departure hall: the big board, four counters behind the four doors, a parcel belt along the back."""
+    lod = g.lod
+    at = (0, 1)
+    doors = (-9, -3, 3, 9)
+    pivots = shell(g, 26, 15, 7.0, doors, 4.0, 3.5, at=at, pitch=3.2, tile=1.3)
+    z = FLOOR
+    # Departure board hung from the slab.
+    g.box((0, 3.6, 4.5), (10.5, .24, 2.3), 'graphite', .03, 1)
+    for x in (-4.4, 4.4):
+        g.pipe((x, 3.6, 5.65), (x, 3.6, 6.1), .03, 'titanium')
+    if lod == 2:
+        g.box((0, 3.47, 4.5), (10.0, .012, 1.8), 'warm', 0, tint=.3)
+    else:
+        for r in range(6):
+            level = 5.33 - r * .33
+            if lod == 1:
+                g.box((0, 3.47, level), (9.9, .012, .17), 'warm', 0, tint=.55)
+                continue
+            for c in range(14):
+                if (c * 5 + r * 3) % 7 == 0:
+                    continue
+                g.box((-4.95 + (c + .5) * 9.9 / 14, 3.47, level), (9.9 / 14 - .06, .012, .17),
+                      'cyan' if c == 0 else 'warm', 0, tint=.7)
+        g.box((0, 3.47, 3.52), (9.9, .012, .05), 'ivory', 0)
+    # Counters and belt.
+    colliders = []
+    for i, x in enumerate(doors):
+        counter(g, x, 1.4, 3.0, 0, screens=1, glow='warm')
+        colliders.append(block(x - 1.6, x + 1.6, .9, 1.9, 1.1))
+        if lod < 2:
+            g.box((x + 1.9, 1.4, z + .12), (.7, .9, .24), 'titanium', .02, 1)
+            g.box((x, 1.75, z + 2.5), (1.6, .05, .34), 'graphite', 0)
+            g.box((x, 1.72, z + 2.5), (1.4, .012, .22), 'cyan', 0, tint=.6)
+            g.pipe((x - .7, 1.75, z + 2.67), (x - .7, 1.75, 6.1), .012, 'titanium', n=4)
+            g.pipe((x + .7, 1.75, z + 2.67), (x + .7, 1.75, 6.1), .012, 'titanium', n=4)
+    g.box((0, 7.0, z + .4), (21, 1.0, .8), 'titanium', .03, 1, tint=.8)
+    g.box((0, 7.0, z + .81), (20.6, .8, .03), 'road', 0, tint=1.5)
+    colliders.append(block(-10.6, 10.6, 6.4, 7.6, 1.5))
+    crates = (('bronze', .8, .7), ('ceramic', .9, .5), ('titanium', .9, .6), ('graphite', 1.6, .55), ('bronze', .65, .45))
+    for i in range((12, 7, 0)[lod]):
+        mat, tint, size = crates[i % 5]
+        g.box((-9.6 + i * (19.2 / (11, 6, 1)[lod]), 7.0 + .08 * ((i * 3) % 3 - 1), z + .83 + size / 2), (size * 1.25, size, size), mat,
+              .03, 1, tint=tint)
+    for side in (-1, 1):
+        for row in (-2.4, -4.3):
+            sofa(g, side * 6.0, row, 2.4, pi, 'titanium', .78)
+            colliders.append(block(side * 4.7, side * 7.3, row - .5, row + .5, 1.0))
+        pot_plant(g, side * 11.6, -4.9, 1.2)
+        pot_plant(g, side * 11.6, 5.2, 1.0)
+        totem(g, side * 12.0, -1.0, -side * pi / 2, screen='warm' if side < 0 else 'cyan')
+    points = [workpoint('counter-%d' % (i + 1), x, 2.5) for i, x in enumerate(doors)]
+    points += [workpoint('belt-west', -5.5, 5.9), workpoint('belt-east', 5.5, 5.9), workpoint('waiting', 0, -3.4)]
+    return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots,
+            'occlusion': {'ground': PODIUM, 'distance': 1.8}}
+
+
+def lobby_infra(g):
+    """Machine hall: two rows of racks under coolant pipes, a control desk between the doors."""
+    lod = g.lod
+    at = (0, 3)
+    pivots = shell(g, 20, 12, 5.4, (-3.75, 3.75), 2.4, 3.12, at=at, pitch=3.0, floor=('stone', 'setts'), border='titanium')
+    z = FLOOR
+    colliders = []
+    for row, y in enumerate((5.0, 7.4)):
+        for i in range(4):
+            x = -7.2 + i * 4.8
+            cabinet(g, x, y, 0, (3.9, .95, 2.6), ('cyan', 'jade'), rows=4, cap='titanium')
+            colliders.append(block(x - 2.0, x + 2.0, y - .5, y + .5, 2.7))
+    # Cold aisle grating between the rows and coolant pipes overhead.
+    g.grid([-9.2, 9.2], [5.75, 6.65], z + .012, 'iron', tint=1.8)
+    if lod == 0:
+        for i in range(46):
+            g.grid([-9.1 + i * .4, -8.9 + i * .4], [5.8, 6.6], z + .016, 'iron', tint=.6)
+    for y, mat in ((5.0, 'titanium'), (7.4, 'titanium')):
+        g.pipe((-9.2, y, 4.05), (9.2, y, 4.05), .13, mat, n=(10, 7, 5)[lod])
+        if lod < 2:
+            for i in range(4):
+                x = -7.2 + i * 4.8
+                g.pipe((x, y, 3.92), (x, y, z + 2.66), .06, 'titanium', n=(8, 6)[lod])
+                torus(g, (x + 1.0, y, 4.05), .135, .02, 'cyan', rot=Matrix.Rotation(pi / 2, 3, 'Y'), n=10, sides=4)
+    # Control desk.
+    counter(g, 0, .6, 5.0, pi, top='graphite', front='titanium', screens=4)
+    colliders.append(block(-2.6, 2.6, .1, 1.1, 1.1))
+    if lod < 2:
+        g.box((0, 1.6, z + 2.3), (3.6, .08, 1.1), 'graphite', .02, 1)
+        g.box((0, 1.55, z + 2.3), (3.4, .012, .9), 'cyan', 0, tint=.45)
+        for x in (-1.6, 1.6):
+            g.pipe((x, 1.6, z + 2.85), (x, 1.6, 4.5), .02, 'titanium', n=5)
+    for side in (-1, 1):
+        totem(g, side * 8.6, -1.3, -side * pi / 2, height=2.0)
+        pot_plant(g, side * 8.9, 1.0, .9)
+    points = [workpoint('console-west', -1.2, -.3), workpoint('console-east', 1.2, -.3), workpoint('aisle-west', -4.8, 6.2),
+              workpoint('aisle-east', 4.8, 6.2), workpoint('racks-front', 0, 3.9)]
+    return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots,
+            'occlusion': {'ground': PODIUM, 'distance': 1.6}}
+
+
+def lobby_graph(g):
+    """Garden court around the knowledge tree, open to the sky: paths, beds, benches and reading terminals."""
+    lod = g.lod
+    z = FLOOR
+    sides, radius, wall = 12, 9.45, 4.7
+    angles = [-pi / 2 - pi / sides + i * 2 * pi / sides for i in range(sides + 1)]
+    # Paved court with an inlaid ring; the tree's own plinth stays visible in the middle.
+    annulus(g, (0, 0), 2.75, 9.05, z + .012, 'kerb', n=(48, 24, 12)[lod])
+    if lod < 2:
+        annulus(g, (0, 0), 4.1, 4.18, z + .024, 'bronze', tint=.8)
+        annulus(g, (0, 0), 7.0, 7.08, z + .024, 'bronze', tint=.8)
+    # Glazing in every wall face except the front one, which holds the doors.
+    for i in range(1, sides):
+        a0, a1 = angles[i], angles[i + 1]
+        p0, p1 = (radius * cos(a0), radius * sin(a0)), (radius * cos(a1), radius * sin(a1))
+        width = ((p1[0] - p0[0]) ** 2 + (p1[1] - p0[1]) ** 2) ** .5
+        u = ((p1[0] - p0[0]) / width, (p1[1] - p0[1]) / width)
+        a, b = along(p0, u, .35, -.12), along(p0, u, width - .35, -.12)
+        g.quad((a[0], a[1], PODIUM + .35), (b[0], b[1], PODIUM + .35), (b[0], b[1], wall), (a[0], a[1], wall), PANE)
+    pivots = {}
+    cy = -radius * cos(pi / sides) - .1 + .25
+    for tag, side in (('l', -1), ('r', 1)):
+        g.part = f'door.0.{tag}'
+        lx = side * .8
+        g.box((lx, cy, PODIUM + 1.55), (1.57, .04, 3.06), PANE, 0)
+        g.box((lx, cy, PODIUM + 3.05), (1.57, .07, .1), 'titanium', 0)
+        g.box((lx, cy, PODIUM + .06), (1.57, .07, .12), 'titanium', 0)
+        g.box((lx - side * .76, cy, PODIUM + 1.55), (.05, .07, 3.1), 'titanium', 0)
+        if lod < 2:
+            g.box((lx - side * .56, cy - .07, PODIUM + 1.2), (.04, .05, .7), 'bronze', 0)
+        pivots[g.part] = (lx, cy, PODIUM)
+    g.part = 'structure'
+    # Beds along the wall, benches around the tree, terminals between them.
+    colliders = [block(-1.6, 1.6, -1.6, 1.6, 4.0)]
+    colours = ('warm', 'ivory', 'cyan', 'jade')
+    for i in range(5):
+        a = pi / 2 + (i - 2) * .62
+        arc_block(g, (0, 0), 7.7, 8.95, z, z + .34, a - .24, a + .24, ('kerb', 'kerb', 'road'), n=(8, 5, 3)[lod])
+        for k in range((5, 3, 1)[lod]):
+            b = a - .17 + .34 * k / max(1, (4, 2, 1)[lod])
+            r = 8.3 + .2 * ((k * 3) % 3 - 1)
+            blob(g, (r * cos(b), r * sin(b), z + .6), .42, tint=1.2 + .15 * (k % 2), squash=.75, lumpy=.24)
+            if lod < 2:
+                blob(g, ((r - .25) * cos(b + .03), (r - .25) * sin(b + .03), z + .98), .09, colours[(i + k) % 4], squash=.7,
+                     n=(7, 5)[lod], steps=(4, 3)[lod])
+        colliders.append(block(8.3 * cos(a) - 1.4, 8.3 * cos(a) + 1.4, 8.3 * sin(a) - 1.2, 8.3 * sin(a) + 1.2, .8))
+    for i in range(4):
+        a = pi / 4 + i * pi / 2
+        arc_block(g, (0, 0), 4.6, 5.15, z, z + .44, a - .3, a + .3, ('bronze', 'bronze', 'bronze'), n=(8, 5, 3)[lod], tint=.8)
+        if lod < 2:
+            arc_block(g, (0, 0), 5.15, 5.25, z + .44, z + .86, a - .3, a + .3, ('bronze', 'bronze', 'bronze'), n=(8, 5)[lod], tint=.7)
+        colliders.append(block(4.9 * cos(a) - .9, 4.9 * cos(a) + .9, 4.9 * sin(a) - .9, 4.9 * sin(a) + .9, .9))
+    for i, a in enumerate((pi * .04, pi * .96, -pi * .22, -pi * .78)):
+        x, y = 6.9 * cos(a), 6.9 * sin(a)
+        totem(g, x, y, a - pi / 2, screen=('jade', 'cyan')[i % 2], height=2.0)
+        colliders.append(block(x - .6, x + .6, y - .6, y + .6, 2.1))
+        floor_lamp(g, 6.4 * cos(a + .32), 6.4 * sin(a + .32))
+    points = [workpoint('terminal-east', 5.8, .75), workpoint('terminal-west', -5.8, .75), workpoint('tree-south', 0, -3.4),
+              workpoint('tree-north', 0, 3.5), workpoint('garden', 2.6, 6.4)]
+    return {'navigation': {'colliders': colliders, 'workpoints': points}, 'pivots': pivots,
+            'occlusion': {'ground': PODIUM, 'distance': 1.6}}
+
+
 ASSETS = [
     ('lobby-agent', 'Agent core lobby', 'interior', lobby_agent),
+    ('lobby-memory', 'Archive hall', 'interior', lobby_memory),
+    ('lobby-integrations', 'Gate halls', 'interior', lobby_integrations),
+    ('lobby-missions', 'Departure hall', 'interior', lobby_missions),
+    ('lobby-infra', 'Machine hall', 'interior', lobby_infra),
+    ('lobby-graph', 'Knowledge garden court', 'interior', lobby_graph),
 ]
