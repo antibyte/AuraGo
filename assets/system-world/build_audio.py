@@ -1,6 +1,6 @@
 """System World ambience recordings: cut, loop, level and encode the CC0 sources.
 
-    python assets/system-world/build_audio.py --sources <dir>
+    python assets/system-world/build_audio.py --sources <dir> [--only <id>,<id>]
     python assets/system-world/build_audio.py --check
 
 Reads audio-sources.json (provenance and the cut of each recording). With --sources it expects
@@ -12,6 +12,9 @@ loop per recording to ui/3d/system-world/audio/<id>.ogg plus manifest.json:
     end of the loop runs into its start without a click;
   * a high-pass removes rumble below `highpass` Hz;
   * the loop is levelled to the target integrated loudness and encoded with libvorbis.
+
+--only rebuilds the named recordings and keeps the shipped files and manifest entries of the
+others, so re-cutting one loop does not re-encode the rest.
 
 --check needs no sources: the shipped files must match the manifest (bytes, sha256), the
 manifest must list exactly the recordings of audio-sources.json, every licence must be
@@ -55,14 +58,26 @@ def loudness(path):
     return integrated, peak
 
 
-def build(sources_dir):
+def build(sources_dir, only=None):
     spec = json.loads(SOURCES.read_text(encoding='utf-8'))
     target = spec['target']
     seam, rate = target['seam_seconds'], target['rate']
     OUT.mkdir(parents=True, exist_ok=True)
     entries = []
+    keep = {}
+    if only:
+        unknown = only - {rec['id'] for rec in spec['recordings']}
+        if unknown:
+            sys.exit(f"--only names recordings that audio-sources.json does not list: {', '.join(sorted(unknown))}")
+        current = json.loads((OUT / 'manifest.json').read_text(encoding='utf-8'))
+        keep = {e['id']: e for e in current['recordings']}
     with tempfile.TemporaryDirectory() as scratch:
         for rec in spec['recordings']:
+            if only and rec['id'] not in only:
+                if rec['id'] not in keep:
+                    sys.exit(f"{rec['id']}: not in the shipped manifest; rebuild it too")
+                entries.append(keep[rec['id']])
+                continue
             source = Path(sources_dir) / rec['id'] / rec['source_file']
             if not source.is_file():
                 sys.exit(f'missing source: {source}')
@@ -124,10 +139,11 @@ def check():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--sources', help='directory with one folder per recording id')
+    parser.add_argument('--only', help='comma-separated recording ids to rebuild; the others keep their shipped files and manifest entries')
     parser.add_argument('--check', action='store_true')
     options = parser.parse_args()
     if options.sources:
-        build(options.sources)
+        build(options.sources, set(options.only.split(',')) if options.only else None)
     elif options.check:
         check()
     else:

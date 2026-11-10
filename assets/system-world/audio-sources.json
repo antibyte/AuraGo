@@ -32,9 +32,10 @@
       "source_file": "0904.ogg",
       "source_bytes": 6512039,
       "source_sha256": "b223d4f79901b15349c8d912c48bbbe1b3a4f9e21ed4b21a857c6af0090fd977",
-      "start": 15.0,
+      "start": 100.0,
       "loop_seconds": 30,
-      "highpass": 110
+      "highpass": 110,
+      "cut_note": "The calm middle of the recording. The gusty first minute reads as rain as much as leaves, the stretches after 106 s carry birdsong, and a low-pass makes any cut read as rain on a roof, so the cut stays unfiltered."
     },
     {
       "id": "birds",

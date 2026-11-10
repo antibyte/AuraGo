@@ -3,7 +3,7 @@
   "licence": "CC0-1.0",
   "channels": 1,
   "rate": 44100,
-  "total_bytes": 1399523,
+  "total_bytes": 1400171,
   "recordings": [
     {
       "id": "water",
@@ -20,11 +20,11 @@
     {
       "id": "leaves",
       "file": "leaves.ogg",
-      "bytes": 240055,
-      "sha256": "ac54e5dcc6e93fa096e56ae1b4fa67490db602bdb3ccbb88c95f79e072a35546",
+      "bytes": 240703,
+      "sha256": "172988848aba8de379da358fd5683e27d976bd08b92e9610cd49de112a46b1bb",
       "seconds": 30,
       "lufs": -30.2,
-      "true_peak_db": -7.4,
+      "true_peak_db": -12.5,
       "title": "Wind in the Trees",
       "author": "Joseph SARDIN",
       "licence": "CC0-1.0"
