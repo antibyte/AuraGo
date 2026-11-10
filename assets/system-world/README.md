@@ -73,8 +73,11 @@ The reused ThreeDee robot retains its existing artwork provenance (see below).
 
 ## Kit v3
 
-`build_world3.py` authors the kit v3 street designs in Blender 5.2 LTS. `kit3.py` is the
-shared core and `street_assets3.py` is the registered family. Blender writes uncompressed GLBs
+`build_world3.py` authors the kit v3 designs in Blender 5.2 LTS. `kit3.py` is the shared core.
+Four families are registered: `street_assets3.py` (street modules), `facade_assets3.py` (slab-and-glass
+facades and the skyline data towers), `district_assets3.py` (the seven district buildings and the
+skybridge) and `furniture_assets3.py` (the street lamp and planter, trees, bench, bollard, litter bin,
+crossing sign and kiosk). Together they make 25 designs and 75 GLBs. Blender writes uncompressed GLBs
 and `manifest.raw.json` to `disposable/system-world/v3-raw/` and saves
 `production/aurago-world-3.blend`. The Node script then packs them with meshopt and writes
 `ui/3d/system-world/v3/`.
@@ -120,17 +123,18 @@ resource manifest already includes that directory and the GLB/JSON/TXT formats.
 Blender, MCP, Python scripts, source scenes and review renders are authoring tools;
 none are required or shipped to run the app.
 
-- 15 asset designs; three separately loadable LODs per design.
-- 45 self-contained GLB files. The original v1 kit retains its **8 MiB** gate;
-  the combined v1/v2/robot runtime directory has a **40 MiB** ceiling.
+- 3 asset designs; three separately loadable LODs per design.
+- 9 self-contained GLB files. The original v1 kit retains its **8 MiB** gate;
+  the combined v1/v2/v3/robot runtime directory has a **40 MiB** ceiling.
 - No image textures, external URIs, Draco decoder, skeletal animation or lights.
 - Standard metallic/roughness materials and `KHR_materials_emissive_strength`.
 - Shared named materials; static geometry is batched by material.
 - Every manifest entry records SHA-256, file size, triangle count and Y-up bounds.
 
-Assets: agent reactor spire, memory archive, integration gateway, mission terminal,
-compute foundry, knowledge atrium, two data towers, operations beacon, skybridge,
-service drone, data tram, street lamp, planter and server rack.
+Assets: service drone, data tram and server rack. Kit v3 supersedes the other twelve
+v1 designs (agent reactor spire, memory archive, integration gateway, mission terminal,
+compute foundry, knowledge atrium, two data towers, operations beacon, skybridge, street
+lamp and planter), and their files are no longer in v1.
 
 ## Integration contract
 
@@ -157,6 +161,12 @@ The assets are integrated through the isolated city renderer in System World.
   caps at the island and quay edges. `streetModules()` in `sysworld-ground.js` gives the
   placement list. Street segments stop at the intersection edges, so no street module runs
   through a crossing.
+- Kit v3 wins per id. `kitFor(id, catalog3)` in `sysworld-scene.js` loads the v3 design whenever
+  the v3 manifest ships that id, and colliders read `kitCatalog(v1, v3)`.
+- Window panes (`city.window`) are drawn by `ui/js/desktop/apps/sysworld-windows.js` as one shared
+  glossy material with interior-mapped rooms. Low tier shows flat lit or unlit cells, medium adds
+  parallax, and high adds robots and screens. Lit rooms follow the time of day. Surface maps never
+  touch them.
 - Keep collision/navigation geometry separate. Use the manifest bounds for
   coarse picking/culling and simplified building obstacles, never detailed facade
   triangles for walking collision.

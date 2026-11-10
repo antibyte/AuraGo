@@ -53,17 +53,27 @@ Own the original Blender city kit, deterministic generator and source scene.
   joining edges; the lift platform top is zero with four metres of travel and an
   open left side. Gallery guards use the `railing` module. Verify actual exported
   floor/shaft alignment with `node scripts/test-system-world-layout.mjs`.
-- Kit v3 is authored by `kit3.py` (shared core: materials, baked AO, export),
-  `street_assets3.py` (registered) and `build_world3.py` (run entry point, `FAMILIES`).
-  `facade_assets3.py`, `district_assets3.py`, `furniture_assets3.py` and `life_assets3.py`
-  are not yet registered in `build_world3.py` `FAMILIES`.
+- Kit v3 is authored by `kit3.py` (shared core: materials, baked AO, export) and `build_world3.py`
+  (run entry point, `FAMILIES`). Registered families: `street_assets3.py`, `facade_assets3.py`,
+  `district_assets3.py` and `furniture_assets3.py` (25 designs). `interior_assets3.py` (phase 3)
+  and `life_assets3.py` (phase 4) are not yet registered in `build_world3.py` `FAMILIES`.
 - Kit v3 geometry: every primitive carries `COLOR_0` baked ambient occlusion (greyscale,
   multiplied with the albedo by the renderer); node names equal component names; materials are `city.*`.
   New in kit v3: `city.kerb`, `city.setts`, `city.iron`, `city.marking` and `city.tactile`, each
-  mapped in `sysworld-surfaces.js` `KINDS`; `city.window` is defined in `kit3.py` for window panes
-  with room coordinates in TEXCOORD_0 (phase 2; no registered design uses it yet).
-- Kit v3 packing: `gltfpack@1.3.0 -cc -kn -km -ke -kv`, no simplification (the packed triangle
+  mapped in `sysworld-surfaces.js` `KINDS`. `city.window` is the window pane material (see Window contract).
+- Kit v3 packing: `gltfpack@1.3.0 -cc -kn -km -ke -kv -vtf`, no simplification (the packed triangle
   count must equal the raw count). Every LOD keeps the carriageway, kerb and pavement surfaces.
+  `-vtf` keeps TEXCOORD_0 as floats; quantised texture coordinates would be normalised to 0..1 and
+  lose the window room coordinates.
+- Window contract: `city.window` panes come from `pane()` in `facade_assets3.py`, used by `glass_tier`,
+  `tower` and the district buildings. One flat quad per face per glass tier; a tower adds a ground-floor
+  lobby pane per face. TEXCOORD_0 holds room coordinates: u is one unit per bay, left to right seen from
+  outside, +16 per face; v is one unit per storey, 0 at the first upper floor, -1 for the lobby, and
+  +20 per tier in district buildings. Corners sit on whole rooms. The exporter flips V and the renderer
+  undoes it (`sysworld-windows.js`). `scripts/test-system-world-v3.mjs` checks every pane of the decoded
+  GLBs: bays 0.8-6 m, storeys 1.2-6 m, u running left to right from outside, and `-vtf` in the manifest.
+- No separate lit-window quads exist in kit v3. Vertex-coloured `city.ivory` and `city.warm` parts
+  (light lines, diffusers) are light fixtures in the renderer and do not switch per pane.
 - Kit v3 street modules follow `ui/js/desktop/apps/sysworld-ground.js` (`kerb`, `streetProfile`,
   `streetModules`) within 1.5 cm at LOD 0, 2 cm at LOD 1 and 3 cm at LOD 2. Corner arcs use
   10, 6 and 4 segments per 90 degrees at LOD 0, 1 and 2. `street-end` overlays the outer 0.64 m
@@ -73,9 +83,13 @@ Own the original Blender city kit, deterministic generator and source scene.
   (`island.top` in `sysworld-ground.js`).
 - The v3 manifest pins SHA-256 hashes of its authoring sources (`kit3.py`, `build_world3.py`,
   `street_assets3.py`), computed over LF-normalised bytes.
-- The v1 `street-tile` and `street-crossing` are retired. Before the next v1 rebuild, remove them
-  from `build_city.py` and change the design count in `check_assets.py` from 17 to 15; otherwise
-  `check_assets.py` fails.
+- The v1 `street-tile` and `street-crossing` have left the payload, and kit v3 supersedes twelve more
+  v1 designs (`agent-spire`, `memory-archive`, `integration-gate`, `mission-terminal`,
+  `compute-foundry`, `knowledge-atrium`, `operations-beacon`, `data-tower-a`, `data-tower-b`,
+  `skybridge`, `street-lamp`, `planter`). v1 now holds three designs (`service-drone`, `data-tram`,
+  `server-rack`), and `check_assets.py` asserts 3. `build_city.py` still lists every retired design, so
+  a v1 rebuild from it would write them back and fail `check_assets.py`. Trim `build_city.py` before
+  any v1 rebuild. This is not done yet.
 - `robot_assets.py` and `hover_assets.py` are called from `build_expansion.py`. Each
   LOD of a part keeps one material list and stable mesh names (the material lists are
   asserted at build time), so the runtime swaps LODs by name. The `hover-pack` `pack`
