@@ -86,11 +86,11 @@ Most UI fixes are in the presentation layer. Most power fixes need small, bounde
    - pills, port labels and the status line render at 10.3 px or more, until the FD-04 compact tier (Wave 2) hides them.
 
    Checked by a computed-style browser test.
-2. **Colour means status, categories stay colourful.** Status colours appear only where state is shown: the card ring, wire states, chips, and the status glyph and word. Every status carries a glyph and a word from one status map. Categories are colourful, but only on the icon tile: a saturated tile with a light icon. This follows the owner's decision of 2026-11-10 for colourful categories rather than muted ones. The test, run in all 14 themes:
+2. **Colour means status, categories stay colourful.** Status colours appear only where state is shown: the card ring, wire states, chips, and the status glyph and word. Every status carries a glyph and a word from one status map. Categories are colourful, but category colour marks identity, never state: above all the icon tile (a saturated tile with a light icon), plus a few other identity marks (palette and recipe dots, flow-preview and minimap rects, source-tinted mapping chips; list in the S0 spec `plans/2026-11-10-easydrag-s0-spec.md` §8). This follows the owner's decision of 2026-11-10 for colourful categories rather than muted ones. The test, run in all 14 themes:
    - Every coloured category tile keeps an OKLCH hue distance of at least 30° from every status hue of the theme.
    - Every category tile keeps an OKLab distance of at least 0.20 from every status token. Tiles below chroma 0.05 (the neutral categories) are exempt from the hue rule.
    - Group colours, wires, effect chips, the simulation frame, and selection and focus rings use tokens that pass the same distance test.
-   - A lint fails when a category colour appears outside the icon tile.
+   - A lint fails when a category colour appears outside those identity marks.
 
    Checked by a token test plus a forced-colors check.
 3. **One next action.** Each screen has at most one filled primary button. Control positions before and after a run are equal at each width (x-positions compared at 390, 900 and 1440 px). Exactly one Stop is visible per window.
@@ -284,7 +284,7 @@ Pillars: foundation, safety.
   - Fence the string leaves inside the ai.decision `state`.
   - Bound sticky notes on the server: 100 notes, 2,048 runes each, Cf characters refused, note bytes counted toward the 2 MiB document cap. Redact registered secrets in note text in exports, packs and the run view, and keep notes out of AI payloads by allowlist. Notes stay in exports and packs, because they become a canvas feature in Wave 4 (decision 3).
   - Enforce `flows.agent.read_only` on run and run_now, and show allow_publish as unavailable [OP-17, AI-17]. The agent manual's switch section ships with this.
-  - On upgrade, the startup compatibility check (`internal/flows/service_compat.go`) marks a live flow as "Republish needed" when its ai.decision mode cannot take a fenced state, and names the step.
+  - The fence keeps JSON types and only the model reads `state`, so live flows keep running and no startup "Republish needed" check is needed. Instead, a state that exceeds the decisions size limit after fencing fails with FLOW_PARAM_INVALID before the model is called (`plans/2026-11-10-easydrag-s0-spec.md` §5.1).
   - Stored notes above the new limits are truncated on load with a one-time notice, instead of refusing the draft.
 - [FD-12] Defect sweep:
   - In S0: goal counter, Simulation default and label, translated trigger samples (A9).
@@ -314,7 +314,7 @@ Pillars: foundation, safety.
 - The counter baseline is committed before UI-02, and UI-02 and UI-03 leave every counter unchanged.
 - An instruction-override payload in the ai.decision state reaches a stub provider inside fence markers. The existing `choice_<id>` and uncertain-port tests pass unchanged.
 - A 2,049-rune note or a 101st note is refused with a translated code. A registered secret inside a note never appears in an export or a pack, and the AI proposal payload contains no note text. A stored draft with an over-long note opens with the note truncated and a one-time notice.
-- Right after the upgrade, a live flow whose ai.decision mode cannot take a fenced state shows "Republish needed" with the step named.
+- A decision state above the size limit after fencing fails with FLOW_PARAM_INVALID before the model is called, and fence markers reach the model readable (no JSON escaping of `<`).
 - With read_only on, the agent's run_now on a flow mission is refused, while list and history still work.
 - After "In den Tresor verschieben", a republish and a purge, no plaintext token is found in the fixture's flows.db, its WAL file or any flows backup in the data directory. Versions still pinned by a run survive until they are unpinned.
 - The S8 fixture is refused: a popup to 169.254.169.254 and a WebSocket to a private address. The fixture passes once live on aurago-test.
@@ -336,7 +336,7 @@ Pillars: foundation, safety.
   - runs VACUUM (or secure_delete) and a WAL checkpoint;
   - encrypts the pre-purge backup with the master key, or deletes it once the purge is verified;
   - shows, in the same dialog, the older migration snapshots that contain typed credentials (`.flows-v2-backup-*` and `.flows-v3-backup-*`, store.go:274-281) and offers to delete them.
-- read_only only removes abilities, and a one-time notice explains the change.
+- read_only only removes abilities; no notice is needed.
 - The FD-18 proxy binds to loopback, uses credentials created per call that never appear on a command line, and fails the step closed if the proxy dies.
 
 **Main code areas**
@@ -361,7 +361,7 @@ Pillars: ui, foundation, joy.
 
 **Scope**
 - [UI-03, FD-08] Two palettes and the token layer:
-  - six saturated category hues on the icon tile only (in Standard dark: indigo for triggers, violet for AI, berry for messages, teal for web, petrol for the planner, olive for the smart home), a warm-neutral documents tile and two neutral categories (logic, tool). Hues stay outside a ±30° window around every status hue. Teal and petrol sit close together, so the icon carries that difference;
+  - six saturated category hues on the icon tile and the other identity marks (in Standard dark: indigo for triggers, violet for AI, berry for messages, teal for web, petrol for the planner, olive for the smart home), a warm-neutral documents tile and two neutral categories (logic, tool). Hues stay outside a ±30° window around every status hue. Teal and petrol sit close together, so the icon carries that difference;
   - group colour names mapped to category hues;
   - neutral wires;
   - a neutral "unpublished" chip;
@@ -381,7 +381,7 @@ Pillars: ui, foundation, joy.
 
 **Acceptance criteria**
 - Colour tokens in all 14 themes:
-  - Every coloured `--ed-cat-*` tile keeps an OKLCH hue distance of at least 30° from every status hue, and every category and group token keeps an OKLab distance of at least 0.20 from every status token (§2 principle 2). A lint fails when a category colour is used outside the icon tile.
+  - Every coloured `--ed-cat-*` tile keeps an OKLCH hue distance of at least 30° from every status hue, and every category and group token keeps an OKLab distance of at least 0.20 from every status token (§2 principle 2). A lint fails when a category colour is used outside the identity marks of §2 principle 2.
   - Effect chips use neutral ink plus a glyph and never a warning token.
   - The simulation frame passes the same test. So do selection and focus rings in every theme whose accent falls within that distance.
   - Status ink reaches 4.5:1, and category tiles and icons 3:1.
@@ -1615,6 +1615,8 @@ Wave 5 is the most crowded power wave: three tracks and a migration. Its shared 
 
 ## 7. First sub-project: S0 "Room, trust and legibility"
 
+The design spec for S0 is `plans/2026-11-10-easydrag-s0-spec.md` (2026-11-10). Where it differs from this section, the spec decides.
+
 **Scope**
 0. [FD-03] A counter baseline on seeded S, M and XL fixtures: wires painted per drag, group renders, `allRects` calls and card re-renders per run event. It is committed before the module splits and before UI-02.
 1. [FD-10] Behaviour-preserving splits:
@@ -1635,7 +1637,7 @@ Wave 5 is the most crowded power wave: three tracks and a migration. Its shared 
    - Trigger samples translated in all 16 locales.
 4. [UI-02] Card type: names 16 px, parameter lines 14 px upright, and captions, pills and port labels 12 px, so no canvas text is below 12 px at 100 %. The automatic-fit floor rises from 0.8 to 0.86.
 5. [UI-03] Two palettes:
-   - category, group, delivered-wire and unpublished-chip tokens move off the status hues. Categories become six saturated hues on the icon tile only, plus a warm-neutral documents tile and two neutral categories (logic, tool). Delivered wires and the unpublished chip become neutral. All of it is checked with the hue-window and distance rule (§2 principle 2; colourful categories by the owner's decision of 2026-11-10);
+   - category, group, delivered-wire and unpublished-chip tokens move off the status hues. Categories become six saturated hues on the icon tile and the other identity marks, plus a warm-neutral documents tile and two neutral categories (logic, tool). Delivered wires and the unpublished chip become neutral. All of it is checked with the hue-window and distance rule (§2 principle 2; colourful categories by the owner's decision of 2026-11-10);
    - stored group colour names keep their meaning in documents; only rendering changes.
 
 **Out of scope**
@@ -1655,7 +1657,7 @@ Wave 5 is the most crowded power wave: three tracks and a migration. Its shared 
   - at every automatic fit, on screen, names render at 13.8 px or more and parameter lines at 12 px or more, and captions, pills and port labels at 10.3 px or more;
   - none of the 12 recipe layouts overlaps;
   - each recipe step name at 16 px fits the card, or is truncated with an ellipsis and keeps the full name in the accessible name.
-- In Standard dark and Fruity light and dark, every category and group token passes the hue-window and distance rule (§2 principle 2), and no category colour appears outside the icon tile. Status ink reaches 4.5:1 and category tiles 3:1. The other 11 themes pass in a representative screenshot survey.
+- In Standard dark and Fruity light and dark, every category and group token passes the hue-window and distance rule (§2 principle 2), and no category colour appears outside the identity marks. Status ink reaches 4.5:1 and category tiles 3:1. The other 11 themes pass in a representative screenshot survey.
 - On the run-done fixture, no wire or card border uses a category colour.
 - The fence regression tests pass for route mode, evaluate mode and the uncertain port. The read_only refusal and the notes refusal are tested. A registered secret in a note never appears in an export or a pack, and the AI proposal payload contains no note text.
 - A flow with notify.telegram opens Test with Simulieren selected, and Enter never starts a real test.
@@ -1666,9 +1668,9 @@ Wave 5 is the most crowded power wave: three tracks and a migration. Its shared 
   - At 0.86, captions, pills and port labels render at 10.3 px. They keep that size until the FD-04 compact tier (Wave 2) hides them.
   - Rejected alternatives: 14 px for all canvas text, which grows cards to about 84 px and means re-checking every recipe layout; and a floor of 1.0, which fits fewer cards.
   - An explicit Fit keeps zooming to any level.
-- Fence each string leaf of the decision state, keeping the JSON type. A mode that cannot take a fenced state fails closed with FLOW_PARAM_INVALID. The startup check names affected live flows before their next run.
+- Fence each string leaf of the decision state, keeping the JSON type, and encode the state without HTML escaping so the markers stay readable. A guard sentence reaches the decision model only when the state holds fenced data. A state above the size limit after fencing fails with FLOW_PARAM_INVALID. No startup check is needed (`plans/2026-11-10-easydrag-s0-spec.md` §5.1).
 - Sticky notes are bounded and secret-scrubbed now, and rendered in Wave 4 (decision 3).
-- Before enforcing read_only, confirm the actual configuration key and its default. Show a one-time notice.
+- read_only is enforced in the agent dispatch for run and run_now on flow missions; the key is `flows.agent.read_only` (default false). No notice is shown.
 
 **Risks**
 - Regressions from the moves. Mitigation: one commit per module, a GitNexus impact check per moved function, and the full EasyDrag test set.
