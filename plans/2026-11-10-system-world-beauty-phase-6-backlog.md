@@ -77,6 +77,13 @@ and plan; this file only keeps the findings so they are not lost.
    (`life-neon-night`, `life-plaza-day`) give pictures that do not show the place. Move the visitor body
    with the camera for every scene (item 17).
 
+34. **Main-path browser run and the sound start.** In the phase 5 regression the run with
+   `AURAGO_SYSTEM_WORLD_MATRIX=1` alone failed twice in the test agent's shell at the 10 s wait for
+   `sound.state==='running'` with `rms>.0001` (`ui/desktop_sysworld_city_browser_test.go`, after the click on
+   the sound button) and passed on the same commit (`b28901de0`) in the coordinator's shell (106 s; six
+   recordings loaded, foley peak .063). Cause not established: no audio device in that shell, or the wait is
+   too short while the larger sound graph is built. Find out which; if it is time, wait longer for the state.
+
 ## Sound
 
 28. **Tram and footsteps do not read as such.** Coordinator's classifier finding on the rendered mix: the tram
