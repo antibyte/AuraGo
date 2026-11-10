@@ -6,11 +6,11 @@
   "units": "metres",
   "up_axis": "Y",
   "sources": {
-    "kit3.py": "003132f1f993bdf6b1490642b04c28e37f31179030d0d4014c743d57a4a38c0a",
+    "kit3.py": "d57187cf1c402c0366ab63fae0db2b3bf36c92615f17a5f76a73152193a2b460",
     "build_world3.py": "e3f325b51453504ad057c544caddff386dad14531cbf0953cec4ff71f5afbc96",
     "street_assets3.py": "26f8d0e7d515516c19c510f4eb1880644818ff0d9b11fc8095314a294a729fc1",
     "facade_assets3.py": "c9ef0e5f0d15c54c2a7cad0f8c5d41db5212698bde57344d05cd65163b4979d2",
-    "district_assets3.py": "d61ac75e84c2bfab20cbf72abd00c6e7c567bddf8bf0d84d1df9975107bea4dc",
+    "district_assets3.py": "491643796981c5716b1ade594dbfedb02738e93bab140b48c9a3b8277c686ada",
     "furniture_assets3.py": "f64e279f64d8ff2fa8aa9becb828bca7d8b263970859b3b4953c75c4e97cfd69",
     "interior_assets3.py": "6a1bf58d0f4433c4490dfb69d59b067da08bb5e89807ac23299ae2a06957c8ed"
   },
@@ -590,7 +590,7 @@
       "lods": [
         {
           "file": "agent-spire.lod0.glb",
-          "triangles": 23448,
+          "triangles": 23484,
           "bounds": {
             "min": [
               -11.5,
@@ -604,12 +604,12 @@
             ]
           },
           "level": 0,
-          "bytes": 256456,
-          "sha256": "ab425e3a5527ba9ea402bde12dc0f261851152b6c3ee356f3f250a676f6cb181"
+          "bytes": 256860,
+          "sha256": "4e9b4ffb1651e81271bd989d28a39af802cae35f513883a02a42138b9582b779"
         },
         {
           "file": "agent-spire.lod1.glb",
-          "triangles": 11384,
+          "triangles": 11420,
           "bounds": {
             "min": [
               -11.5,
@@ -623,12 +623,12 @@
             ]
           },
           "level": 1,
-          "bytes": 150432,
-          "sha256": "c2078eaf1dafcaf9eafa45f815e2b33922916e667ce03aaad3725f5f89e578eb"
+          "bytes": 151040,
+          "sha256": "3ca4c2821fb43bc42e4c1544c24d67439959432dc92a45f70cc5a29eeaa76881"
         },
         {
           "file": "agent-spire.lod2.glb",
-          "triangles": 2884,
+          "triangles": 2920,
           "bounds": {
             "min": [
               -11.5,
@@ -642,8 +642,8 @@
             ]
           },
           "level": 2,
-          "bytes": 45252,
-          "sha256": "8eb48f1bef8a84f832be7df8c799ede0c68d664f20f6b80ca1a129f4ed91c430"
+          "bytes": 45636,
+          "sha256": "51d6be2d2be38b19312cd646c7c5394e0ed8995c8c61639ba1ce55a6d7306389"
         }
       ],
       "components": [
@@ -662,7 +662,7 @@
       "lods": [
         {
           "file": "memory-archive.lod0.glb",
-          "triangles": 11192,
+          "triangles": 11228,
           "bounds": {
             "min": [
               -13,
@@ -676,12 +676,12 @@
             ]
           },
           "level": 0,
-          "bytes": 152832,
-          "sha256": "4b7bd29294c052cd5d1bae1e3aa7ce536a2decf205dcc2445db9204b5997290d"
+          "bytes": 153792,
+          "sha256": "6b7e92ee02d9cd08e59973112e24c0c1d36d05a2d8baeccb4fd302b3cf4be78a"
         },
         {
           "file": "memory-archive.lod1.glb",
-          "triangles": 4748,
+          "triangles": 4784,
           "bounds": {
             "min": [
               -13,
@@ -695,12 +695,12 @@
             ]
           },
           "level": 1,
-          "bytes": 82048,
-          "sha256": "edaae5f66b25cf543fb04a7278e97bd4f36386b6866397a957752af27c68fd54"
+          "bytes": 82536,
+          "sha256": "ca29f721c520d0e5ad84729d4922d224b78d4a7b2e36fc1f5f6831ded833312d"
         },
         {
           "file": "memory-archive.lod2.glb",
-          "triangles": 888,
+          "triangles": 924,
           "bounds": {
             "min": [
               -13,
@@ -714,8 +714,8 @@
             ]
           },
           "level": 2,
-          "bytes": 21712,
-          "sha256": "3750fe4f26f2aa738a63a77e9721f2b02b4c92c3bff6b2c7844fbc30256f66ea"
+          "bytes": 22168,
+          "sha256": "aaad89e906501ccf5b2c602c31463a9a4ce283368dfb91222dc1ecb63803b8ae"
         }
       ],
       "components": [
@@ -734,7 +734,7 @@
       "lods": [
         {
           "file": "integration-gate.lod0.glb",
-          "triangles": 9664,
+          "triangles": 9736,
           "bounds": {
             "min": [
               -13,
@@ -748,12 +748,12 @@
             ]
           },
           "level": 0,
-          "bytes": 134132,
-          "sha256": "0590b7729d33ccdb708022df10f0dfc181078fa868369ff225e2492b3e6c771f"
+          "bytes": 135012,
+          "sha256": "5baf5007d2ae6b94329f1bbb564a28975bbf3d2fc39eed6d4216935ba9c6acb4"
         },
         {
           "file": "integration-gate.lod1.glb",
-          "triangles": 4460,
+          "triangles": 4532,
           "bounds": {
             "min": [
               -13,
@@ -767,12 +767,12 @@
             ]
           },
           "level": 1,
-          "bytes": 76576,
-          "sha256": "0dfe114f62b8baba731f8f1aa26e9d45ed0bbaef1b1287680efa89b8812ec56e"
+          "bytes": 77520,
+          "sha256": "5f5f0a3cfe5a2876a6c4ba643e2c34f7a3d43ad2e079a72ed3e37427f4fc5d37"
         },
         {
           "file": "integration-gate.lod2.glb",
-          "triangles": 1104,
+          "triangles": 1176,
           "bounds": {
             "min": [
               -13,
@@ -786,8 +786,8 @@
             ]
           },
           "level": 2,
-          "bytes": 24728,
-          "sha256": "b2cd3dafc2b30c0072f2dc27a2ae8dcce38172d1562a2599f71f2acbea920181"
+          "bytes": 25564,
+          "sha256": "a6eaf0b09672ac3d101e6509a23c118db28c23c6f216ea9beef84a930062b53a"
         }
       ],
       "components": [
@@ -806,7 +806,7 @@
       "lods": [
         {
           "file": "mission-terminal.lod0.glb",
-          "triangles": 7056,
+          "triangles": 7092,
           "bounds": {
             "min": [
               -15,
@@ -820,12 +820,12 @@
             ]
           },
           "level": 0,
-          "bytes": 102148,
-          "sha256": "702ab0bda329967753b5eb29b421855473096581d069f29a4dc9ef5279698d74"
+          "bytes": 102668,
+          "sha256": "655c5bbf04c80c66bd41956ba1274674af0c7370d87ffa48cf30471a31e7c5be"
         },
         {
           "file": "mission-terminal.lod1.glb",
-          "triangles": 3356,
+          "triangles": 3392,
           "bounds": {
             "min": [
               -15,
@@ -839,12 +839,12 @@
             ]
           },
           "level": 1,
-          "bytes": 58684,
-          "sha256": "bbd45226137e5250c16c4024cca8c7d79b29d71280c57dd898d254b9ce645f2a"
+          "bytes": 59248,
+          "sha256": "0ee959643e694ec5355e37052f2ba2b7b25a92823cba62642e03bf62f3d3116e"
         },
         {
           "file": "mission-terminal.lod2.glb",
-          "triangles": 804,
+          "triangles": 840,
           "bounds": {
             "min": [
               -15,
@@ -858,8 +858,8 @@
             ]
           },
           "level": 2,
-          "bytes": 21036,
-          "sha256": "6fdafeafb45ad68fb65d32ec47c94d95294cea9ca2e0a29ca9f11b96f3f9a826"
+          "bytes": 21432,
+          "sha256": "2aebed4b40f24a7ebd39a72c23a5a26f4fbbaa0a8497d1b84d13ae4e309906dd"
         }
       ],
       "components": [
@@ -878,7 +878,7 @@
       "lods": [
         {
           "file": "compute-foundry.lod0.glb",
-          "triangles": 27648,
+          "triangles": 27864,
           "bounds": {
             "min": [
               -12.5,
@@ -892,12 +892,12 @@
             ]
           },
           "level": 0,
-          "bytes": 278724,
-          "sha256": "4203e231692ac8ad82daf773497cadac364081269c9ee00bcbde6b4cb94b227e"
+          "bytes": 280508,
+          "sha256": "7e73e329a97de0ea14d155edcbf56b820577c7b9cf05565c5621ec05723ea9e4"
         },
         {
           "file": "compute-foundry.lod1.glb",
-          "triangles": 11858,
+          "triangles": 12002,
           "bounds": {
             "min": [
               -12.5,
@@ -911,12 +911,12 @@
             ]
           },
           "level": 1,
-          "bytes": 129608,
-          "sha256": "e15580a1c4789fed258f3d9ba2ca4f1a5f1c9cfd79c7c4eafc00633241a4b0e8"
+          "bytes": 131264,
+          "sha256": "39c7f321951841ed6346b350b2b44456f2b8dea875aa9cde56dd6a9bb4f308b6"
         },
         {
           "file": "compute-foundry.lod2.glb",
-          "triangles": 2152,
+          "triangles": 2272,
           "bounds": {
             "min": [
               -12.5,
@@ -930,8 +930,8 @@
             ]
           },
           "level": 2,
-          "bytes": 33352,
-          "sha256": "f878f3b2858903b0d6b664f006ea990aeffe4e1155060fa142e811884f836db6"
+          "bytes": 34936,
+          "sha256": "1d7b93132dd3dbed9f31e3fbe292b3650f2ea6fa0b444a9917baeaa7f8159590"
         }
       ],
       "components": [
@@ -1180,7 +1180,7 @@
           },
           "level": 0,
           "bytes": 17980,
-          "sha256": "d496406dc671229454ea3b4dc93ad99a546065cc6dd8811b5c6e586d8a604c84"
+          "sha256": "2602d386044bf0f515baa60f9c167918315e6cd78204ee736631871ff28ea870"
         },
         {
           "file": "street-lamp.lod1.glb",
@@ -1740,7 +1740,7 @@
           },
           "level": 0,
           "bytes": 7112,
-          "sha256": "d402ed44bf876070203100aff278b77853db20ab9f7d6310ac1fb687812fbf79"
+          "sha256": "89ce2d8208822323c488204c04326622b0f0b0f27c9db3e58fe1c007b449a98c"
         },
         {
           "file": "zebra-sign.lod1.glb",
@@ -1759,7 +1759,7 @@
           },
           "level": 1,
           "bytes": 6464,
-          "sha256": "f407f426b12de6862202ebbea33aea235e74b573c45ddc490c801436fa265e9e"
+          "sha256": "c89666b10f8ba6a38e5d35fad11d4e38f80c83af8764bf890e32ce23d4c28465"
         },
         {
           "file": "zebra-sign.lod2.glb",
@@ -1778,7 +1778,7 @@
           },
           "level": 2,
           "bytes": 4944,
-          "sha256": "4cc54b7dd050501363e6d39dcc750e8396b3708ff0739d339797675b0b5a6369"
+          "sha256": "56c1a9bf01c9949784ae95bd511c1247123a9769a878b4f2436ad43a20ad6a5a"
         }
       ],
       "components": [
@@ -1820,7 +1820,7 @@
           },
           "level": 0,
           "bytes": 23640,
-          "sha256": "512078255140d259da83fffe334b7a727a3688985df6aa0664d6c9927760a19e"
+          "sha256": "08593ce0682bf429ed4b6dcafc6f4df57553b25a6555b816ebb3fdf2550d3270"
         },
         {
           "file": "kiosk.lod1.glb",
@@ -1839,7 +1839,7 @@
           },
           "level": 1,
           "bytes": 14624,
-          "sha256": "c0d8b07561863b9980237a29b57d602370fc7f0b20b0a1afbe68bac5420ef18b"
+          "sha256": "f66aead3067f2b4a038cb8c496993025afbb1b1208e779595e203c7ab6d63297"
         },
         {
           "file": "kiosk.lod2.glb",
@@ -1858,7 +1858,7 @@
           },
           "level": 2,
           "bytes": 7988,
-          "sha256": "c8b155dce430c01f733329aedfa87e61a7f7ef39ed65085d15f7de6202f82bc2"
+          "sha256": "3101df478d0524e502e985af681fc265f8af8d0303707bc95f3913980f5171b0"
         }
       ],
       "components": [
@@ -1900,7 +1900,7 @@
           },
           "level": 0,
           "bytes": 91772,
-          "sha256": "2765a755c62a6ac67b3e669e99dcb837d3c159a8ca4674653a5cc8b11f6972b0"
+          "sha256": "b7b77fca9c4846dad706d86ccf32439fa463213935f56d352a27924474e394d6"
         },
         {
           "file": "lobby-agent.lod1.glb",
@@ -1919,7 +1919,7 @@
           },
           "level": 1,
           "bytes": 62872,
-          "sha256": "db8ee3788a66d62395a6b668c18d75d7e735fbbd731e94bbde9b2a66c007d6f2"
+          "sha256": "c90641b2b7ba5f8c8bcbd0e3eddb7546f551aa7054117cd61f34d32725585f41"
         },
         {
           "file": "lobby-agent.lod2.glb",
@@ -1938,7 +1938,7 @@
           },
           "level": 2,
           "bytes": 26244,
-          "sha256": "12090bd8373e0c98be0ac825b863730f303f1599b469a42364688951898b58e4"
+          "sha256": "41875f477aadc11f96ee4f235b4b51af1c34d8a019ca90ea1dbf100b045f236b"
         }
       ],
       "components": [
@@ -2136,7 +2136,7 @@
           },
           "level": 0,
           "bytes": 138764,
-          "sha256": "738203cd2e7a14ddc6515c9b22e613c275daa6eef91b7873944ec809b3dd7ea6"
+          "sha256": "7c36b4e7c6a90a5aa11d7790923fd6ef8aa8a5c4878377cefce2c5f07f9a456e"
         },
         {
           "file": "lobby-memory.lod1.glb",
@@ -2155,7 +2155,7 @@
           },
           "level": 1,
           "bytes": 62340,
-          "sha256": "41396ccfd8774e5726a322de3471e1b77d15186524a5afebf7f6f106e9db7965"
+          "sha256": "d15d37c718d1f9a1739407cb35714ceb4e605f6bf92f5a43704582ac5bf8730c"
         },
         {
           "file": "lobby-memory.lod2.glb",
@@ -2342,7 +2342,7 @@
           },
           "level": 0,
           "bytes": 66364,
-          "sha256": "8c84ab6ff94a19e5766bec936abd6247e9c802bb05507d495ef9ddbea1b38d1f"
+          "sha256": "aa35b3b65755aa2ad69a4c4668b459d866f33911592911dd5a95ae5e7ca8fdee"
         },
         {
           "file": "lobby-integrations.lod1.glb",
@@ -2361,7 +2361,7 @@
           },
           "level": 1,
           "bytes": 38552,
-          "sha256": "8044968b2a6d527512d099f95af8acdefc080f2b068e24f4acb93f69c9184265"
+          "sha256": "6b76a239db29137c1eaabd52a9f5efea501b4d0862bb8a9b1977db4821b28329"
         },
         {
           "file": "lobby-integrations.lod2.glb",
@@ -2380,7 +2380,7 @@
           },
           "level": 2,
           "bytes": 19040,
-          "sha256": "d2e6567869a7adb92a3a13738f92ed4a4cb26b56d2b75766f40c4f0ff07956e9"
+          "sha256": "3aad627124576894d0e1c1d20117fd3b52898df5cb79bec964c67bd96232a166"
         }
       ],
       "components": [
@@ -2500,7 +2500,7 @@
           },
           "level": 0,
           "bytes": 111524,
-          "sha256": "800aa653350bda73fdbff94ed49e6d527fb65baabd6ffb6e62afeb8f4d6809fc"
+          "sha256": "d718a9054c019a7b28b2b60cf7713e8cbcb89f440d2272dc8ed2a9b75aa8a6a8"
         },
         {
           "file": "lobby-missions.lod1.glb",
@@ -2519,7 +2519,7 @@
           },
           "level": 1,
           "bytes": 67044,
-          "sha256": "30ea7d0853f1d3cb3c51cb0e4eaa4c56f547f5f3319d0e694bececf55c8d3d33"
+          "sha256": "15916dd975b8684e1a04fe147c400fa3894551ea869c94d4b75f78a0de62097d"
         },
         {
           "file": "lobby-missions.lod2.glb",
@@ -2538,7 +2538,7 @@
           },
           "level": 2,
           "bytes": 32508,
-          "sha256": "c3be8199b1c5c7d8b1d1b4037f7c741fd9dee42df3463607783ccee4540124da"
+          "sha256": "28632389376ea9a20c2d2a51084fceb53d275b34499b8aef45f2c3a6e04526d5"
         }
       ],
       "components": [
@@ -2710,7 +2710,7 @@
           },
           "level": 0,
           "bytes": 108412,
-          "sha256": "ba80c9a86aaf95656cf52400fda806d18cbeda64a93feebd8135c52611096640"
+          "sha256": "3e97fff26dd93c9ec7db7b1b9c7750697678b4d2e7379791fb30daacbed9ee3e"
         },
         {
           "file": "lobby-infra.lod1.glb",
@@ -2729,7 +2729,7 @@
           },
           "level": 1,
           "bytes": 53888,
-          "sha256": "5bdfc9d3ca4732675c145b20fb15e5f6d1b38e4f1ef34e336010d204d8daa467"
+          "sha256": "9d3d0fd12e84bcbd47b5a47c6472c546544b6f746fa43e27a67f07d2007dc686"
         },
         {
           "file": "lobby-infra.lod2.glb",
@@ -2748,7 +2748,7 @@
           },
           "level": 2,
           "bytes": 19864,
-          "sha256": "dbaf1cff3365bc4f98f8e1edb43712db54dafb977913d20b3131f5319d849e81"
+          "sha256": "b1b9dda7d7227e9678825c5e52b0e95830445761b6704ca7db96dcd31e9fa5b4"
         }
       ],
       "components": [
@@ -2900,7 +2900,7 @@
           },
           "level": 0,
           "bytes": 87256,
-          "sha256": "1c9c2d915b892d340f8d8422ad3a2f8b236a2189233ac6eff91ecafb884a23db"
+          "sha256": "51365df1fbd7cbef6d02bd3102b223095df4e918b8c9a98f5cf8bf815dae1805"
         },
         {
           "file": "lobby-graph.lod1.glb",
@@ -2919,7 +2919,7 @@
           },
           "level": 1,
           "bytes": 41876,
-          "sha256": "595b69573d4e96e660223881c3dd2f15aebe6fcdb323dc92ef2cac9c04666926"
+          "sha256": "26d4590566470c507d9912ab5d04a70c192b795942da75ce73d7f6a33d390400"
         },
         {
           "file": "lobby-graph.lod2.glb",
@@ -2938,7 +2938,7 @@
           },
           "level": 2,
           "bytes": 22060,
-          "sha256": "83c9171dc757dcc9281433845e058357e653b5da2826e7585107ad175a879d39"
+          "sha256": "85878aa2ab930e5bcea5e2416a690842f53ed2910d3817379eeded0b26935e2b"
         }
       ],
       "components": [
@@ -3109,6 +3109,6 @@
   ],
   "compression": "EXT_meshopt_compression",
   "pack": "gltfpack@1.3.0 -cc -kn -km -ke -kv -vtf",
-  "total_model_bytes": 3789784,
+  "total_model_bytes": 3802248,
   "validator_errors": 0
 }

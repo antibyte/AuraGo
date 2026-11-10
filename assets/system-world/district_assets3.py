@@ -82,7 +82,10 @@ def lobby(g, w, d, z0, z1, doors=(0.0,), door_w=4.0, accent='ivory', row=-1, at=
         x, y = along(p0, u, .55, -.55)
         g.box((x, y, (z0 + z1) / 2), (1.3, 1.3, z1 - z0), pier, .1, 2)
     g.box((at[0], at[1], z1 - .45), (w + .5, d + .5, .9), pier, .06, 1)
-    g.box((at[0], at[1], z1 - .93), (w + .54, d + .54, .07), accent, 0)
+    # Accent line around the top beam: a band on the perimeter only, so the lobby keeps a real ceiling.
+    for side in (-1, 1):
+        g.box((at[0], at[1] + side * (d/2 + .2), z1 - .93), (w + .54, .14, .07), accent, 0)
+        g.box((at[0] + side * (w/2 + .2), at[1], z1 - .93), (.14, d + .26, .07), accent, 0)
     if lod < 2:
         g.box((at[0], at[1], z1 - .3), (w + .56, d + .56, .1), 'bronze', 0)
     for x in doors:
@@ -285,7 +288,8 @@ def cooling_tower(g, x, y):
     for z in ((2, 3.4, 4.8, 6.2, 7.6) if lod < 2 else (3, 7)):
         g.ring((x, y, z), 2.6 - (z - 1) * .083, .08, 'bronze')
     g.pipe((x, y, 2), (x, y - 3.7, 2), .36, 'bronze')
-    g.pipe((x, y - 3.7, 2), (x, y - 3.7, 1), .36, 'bronze')
+    g.pipe((x, y - 3.7, 2), (x, y - 3.7, PODIUM), .36, 'bronze')
+    g.cyl((x, y - 3.7, PODIUM + .04), .5, .08, 'bronze', n=(16, 10, 8)[lod])
     if lod < 2:
         g.lathe((x, y, 0), [(0, 9.15), (1.95, 9.15)], 'iron', n=n, tint=.5, up=True)
         for py in (y - 2.6, y - 3.2):
