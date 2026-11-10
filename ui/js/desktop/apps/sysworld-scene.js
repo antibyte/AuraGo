@@ -25,6 +25,7 @@ import {createTraffic,fixedSteps} from './sysworld-traffic.js';
 import {installCityColliders,kitCatalog} from './sysworld-colliders.js';
 import { createSurfaces } from './sysworld-surfaces.js';
 import { createWindows } from './sysworld-windows.js';
+import { createLobbyRender } from './sysworld-lobby-render.js';
 import { streetModules, plotSlabs, island } from './sysworld-ground.js';
 export { createCityAmbience } from './sysworld-audio.js';
 
@@ -177,6 +178,9 @@ export async function createCity(host, options) {
   composer.addPass(bloom); composer.addPass(new OutputPass());
   const world = new THREE.Group(), staticCity = new THREE.Group(), landmarks = new THREE.Group();
   scene.add(world); world.add(staticCity, landmarks);
+  // Enterable lobbies: interiors load on approach, hide each building's `lobby` stand-in and own the `city.pane` glass.
+  const lobbyRender = createLobbyRender({ group: world, doors: () => experience?.lobbies,
+    load: (id, lod) => { if (!cache.has('v3:' + id + ':' + lod)) expectedBytes += catalog3.get(id)?.lods.find(l => l.level === lod)?.bytes || 0; return model(id, lod, 'v3'); } });
   const contact = createContactShadows(scene);
   function ownMesh(geometry, material) {
     geoSet.add(geometry); matSet.add(material); return new THREE.Mesh(geometry, material);
@@ -254,7 +258,7 @@ export async function createCity(host, options) {
   installCityColliders(traffic,kitCatalog(catalog,catalog3),districts,placements);
   experience=createExperience(scene,{
     shadows:contact,
-    camera,districts,tier,traffic,reduced:()=>reduced,active:()=>visible&&!failed&&mode!=='map'&&!reduced&&!options.replaying?.(),
+    camera,districts,tier,traffic,kit3:catalog3,reduced:()=>reduced,active:()=>visible&&!failed&&mode!=='map'&&!reduced&&!options.replaying?.(),
     assetURL:file=>options.resourceURL('/3d/system-world/v2/'+file),surfaces,
     clear:(from,to)=>traffic.clear(visitor,{...from,heading:0},{...to,heading:0},false),onFlight:state=>options.onFlight?.(state),
     onInteraction:options.onInteraction,onScope:state=>options.onScope?.(state),onDiscover:options.onDiscover,onSound:options.onSound,onGait:options.onGait,onTerminal:options.onTerminal,onSociety:options.onSociety,
@@ -287,10 +291,10 @@ export async function createCity(host, options) {
           // Window panes (city.window) take the shared interior material on every path that loads
           // a model (instanced city, district clones, LOD rebuilds, skyline). It never enters the
           // shared-material map and sysworld-surfaces.js leaves it alone.
-          windows.adopt(n);
+          windows.adopt(n); lobbyRender.adopt(n);
           const source = Array.isArray(n.material) ? n.material : [n.material];
           const shared = source.map(m => {
-            if (windows.owns(m)) return m;
+            if (windows.owns(m) || lobbyRender.owns(m)) return m;
             const name = sharedMaterialKey(m);
             if (materials.has(name)) { const original = m; m = materials.get(name); original.dispose(); }
             else {
@@ -378,7 +382,7 @@ export async function createCity(host, options) {
       sun.shadow.mapSize.set(config.shadow, config.shadow);
       sun.shadow.map?.dispose(); sun.shadow.map = null;
     }
-    renderer.shadowMap.needsUpdate = true; bloom.enabled = config.bloom; surfaces.setTier(tier); windows.setTier(tier); atmosphere.setTier(tier);experience.setTier(tier);weather.setTier(tier);drones.setTier(tier);flow.setTier(tier);
+    renderer.shadowMap.needsUpdate = true; bloom.enabled = config.bloom; surfaces.setTier(tier); windows.setTier(tier); lobbyRender.setTier(tier); atmosphere.setTier(tier);experience.setTier(tier);weather.setTier(tier);drones.setTier(tier);flow.setTier(tier);
     resize(); options.onQuality?.(quality, tier);
   }
   function flyTo(position, target) {
@@ -550,6 +554,7 @@ export async function createCity(host, options) {
       }else controls.update();
     }
     if(!simulate(Math.min(.1,Math.max(0,dt)))){traffic.begin();traffic.propose(visitor,{...camera.position,heading:0},(_,p)=>camera.position.set(p.x,p.y,p.z));traffic.solve(0);}
+    if (lobbyRender.update(camera.position, landmarks)) renderer.shadowMap.needsUpdate = true;
     if(travelling){
       if(camera.position.distanceToSquared(requested)>.000001){travelling.wait=(travelling.wait||0)+dt;travelling.time=flightTime;flight=travelling.wait<6?travelling:null;}
       else travelling.wait=0;
@@ -615,7 +620,7 @@ export async function createCity(host, options) {
     if (disposed) return; disposed = true; generation++; abort.abort(); requests.forEach(c => c.abort());
     keys.clear(); if(document.pointerLockElement === canvas) document.exitPointerLock();
     options.signal?.removeEventListener('abort', dispose); cleanup.forEach(fn => fn()); observer?.disconnect(); controls.dispose();
-    life?.dispose();companion?.dispose();experience?.dispose();weather.dispose(); hologram.dispose(); drones.dispose();contact.dispose();traffic.dispose(); atmosphere.dispose(); surfaces.dispose(); windows.dispose(); flow.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose(); plots.dispose();
+    life?.dispose();companion?.dispose();experience?.dispose();weather.dispose(); hologram.dispose(); drones.dispose();contact.dispose();traffic.dispose(); atmosphere.dispose(); surfaces.dispose(); windows.dispose(); lobbyRender.dispose(); flow.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose(); plots.dispose();
     geoSet.forEach(g => g.dispose()); matSet.forEach(m => m.dispose());
     composer.passes.forEach(p => p.dispose?.()); composer.dispose(); environment.dispose(); sun.shadow.dispose();
     renderer.dispose(); renderer.forceContextLoss(); canvas.remove(); cache.clear(); materials.clear();
@@ -646,6 +651,6 @@ export async function createCity(host, options) {
       camera.position.copy(end).sub(homeTarget).applyAxisAngle(new THREE.Vector3(0, 1, 0), -.55).multiplyScalar(1.22).add(homeTarget); camera.position.y += 34;
       camera.lookAt(homeTarget); settleCamera(); flyTo(end, homeTarget); if (flight) flight.duration = 3.6;
     },
-    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), windows:windows.stats(), drones:drones.stats(), flow:flow.stats(), companion:companion?.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size,kitModels:{v1:[...cache.keys()].filter(k=>k.startsWith('v1:')).length,v3:[...cache.keys()].filter(k=>k.startsWith('v3:')).length}, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
+    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), windows:windows.stats(), lobbies:lobbyRender.stats(), drones:drones.stats(), flow:flow.stats(), companion:companion?.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size,kitModels:{v1:[...cache.keys()].filter(k=>k.startsWith('v1:')).length,v3:[...cache.keys()].filter(k=>k.startsWith('v3:')).length}, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
   };
 }
