@@ -6,14 +6,14 @@ import {createExperience} from '../ui/js/desktop/apps/sysworld-experience.js';
 import {districts} from '../ui/js/desktop/apps/sysworld-scene.js';
 import {streetCurve} from '../ui/js/desktop/apps/sysworld-navigation.js';
 import {interiors,streets,stations,tramWaypoints,surfaces,streetAt,dronePad,skyDeck} from '../ui/js/desktop/apps/sysworld-layout.js';
-import {installCityColliders} from '../ui/js/desktop/apps/sysworld-colliders.js';
+import {installCityColliders,kitCatalog} from '../ui/js/desktop/apps/sysworld-colliders.js';
 import {createTraffic} from '../ui/js/desktop/apps/sysworld-traffic.js';
 import vm from 'node:vm';
 
 // The stepped tower solids leave the lift shaft and the whole crown terrace free, but keep the crown solid.
 {
   const v1=JSON.parse(await fs.readFile('ui/3d/system-world/v1/manifest.json','utf8')),city=createTraffic(),lift=skyDeck.lift;
-  installCityColliders(city,new Map(v1.assets.map(a=>[a.id,a])),districts,[]);
+  installCityColliders(city,kitCatalog(v1,JSON.parse(await fs.readFile('ui/3d/system-world/v3/manifest.json','utf8'))),districts,[]);
   const walker={id:'walker',circles:[{x:0,z:0,r:.24}],minY:-2.3,maxY:.4,reach:.24};
   for(let y=lift.base+lift.cab+2.4;y<skyDeck.floor+lift.cab+2.4;y+=.5)assert.ok(city.clear(walker,{x:lift.x,y,z:lift.z,heading:0},{x:lift.x,y:y+.5,z:lift.z,heading:0}),'Lift shaft blocked at '+y);
   for(let a=0;a<360;a+=10)for(const r of[skyDeck.inner,6,skyDeck.outer]){

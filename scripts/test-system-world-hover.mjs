@@ -7,7 +7,7 @@ import {districts,placements} from '../ui/js/desktop/apps/sysworld-scene.js';
 import {streetCurve} from '../ui/js/desktop/apps/sysworld-navigation.js';
 import {canWalk,groundHeight,roomAt,tramWaypoints,dronePad} from '../ui/js/desktop/apps/sysworld-exploration.js';
 import {streets,streetAt,hoverPads} from '../ui/js/desktop/apps/sysworld-layout.js';
-import {installCityColliders} from '../ui/js/desktop/apps/sysworld-colliders.js';
+import {installCityColliders,kitCatalog} from '../ui/js/desktop/apps/sysworld-colliders.js';
 import {createTraffic} from '../ui/js/desktop/apps/sysworld-traffic.js';
 import {pedestrianGraph} from '../ui/js/desktop/apps/sysworld-ground.js';
 
@@ -146,7 +146,7 @@ const takeoff=(flight,at)=>{flight.start(at);return run(flight,hoverLimits.takeo
 // ---- The five docks in the real city ----
 const original={fetch:globalThis.fetch,localStorage:globalThis.localStorage};
 globalThis.localStorage={getItem:()=>null,setItem:()=>{}};
-const real=JSON.parse(await fs.readFile('ui/3d/system-world/v2/manifest.json','utf8')),v1=JSON.parse(await fs.readFile('ui/3d/system-world/v1/manifest.json','utf8'));
+const real=JSON.parse(await fs.readFile('ui/3d/system-world/v2/manifest.json','utf8')),v1=JSON.parse(await fs.readFile('ui/3d/system-world/v1/manifest.json','utf8')),v3=JSON.parse(await fs.readFile('ui/3d/system-world/v3/manifest.json','utf8'));
 const realAsset=real.assets.find(a=>a.id==='hover-pack');
 // Until the Blender asset is exported the contract is served from a synthetic one: a dock holding a
 // removable 'pack' (fan_l, fan_r), one 'idle' clip, a 1.4 x 2.1 x 1.0 m collider and an interaction spot.
@@ -171,7 +171,7 @@ async function city({withPack,reduced=false}){
     return {ok:true,json:async()=>JSON.parse(bytes),arrayBuffer:async()=>bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength)};
   };
   const traffic=createTraffic(),scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(),errors=[],flights=[],sounds=[],state={reduced,ready:false};
-  installCityColliders(traffic,new Map(v1.assets.map(a=>[a.id,a])),districts,placements);
+  installCityColliders(traffic,kitCatalog(v1,v3),districts,placements);
   const pad=hoverPads[0],stand={x:pad.x+1.2*Math.sin(pad.angle),z:pad.z+1.2*Math.cos(pad.angle)};camera.position.set(stand.x,2.9,stand.z);
   const visitor=traffic.register('visitor',walker,camera.position,100);assert.ok(visitor,'The visitor fits at the first dock');
   const experience=createExperience(scene,{camera,districts,tier:'high',traffic,assetURL:x=>x,reduced:()=>state.reduced,active:()=>true,onError:e=>errors.push(e),onReady:()=>{state.ready=true;},

@@ -22,7 +22,7 @@ import { streets, towers, surfaces as groundLevels } from './sysworld-layout.js'
 import { createCompanion } from './sysworld-companion.js';
 import { createContactShadows } from './sysworld-contact.js';
 import {createTraffic,fixedSteps} from './sysworld-traffic.js';
-import {installCityColliders} from './sysworld-colliders.js';
+import {installCityColliders,kitCatalog} from './sysworld-colliders.js';
 import { createSurfaces } from './sysworld-surfaces.js';
 import { createWindows } from './sysworld-windows.js';
 import { streetModules, plotSlabs, island } from './sysworld-ground.js';
@@ -78,6 +78,11 @@ export function sharedMaterialKey(material) { return material.name + (material.v
 // Kit v3 placements, instanced like `placements` but loaded from ui/3d/system-world/v3/.
 // Kit v3 streets: fixed-length modules, never stretched (layout and order from sysworld-ground.js).
 export const kitPlacements = streetModules().map(m => ({ asset: m.id, x: m.x, z: m.z, y: 0, angle: m.angle, scale: [1, 1, 1] }));
+// Designs kit v3 took over from v1 in phase 2. Wherever both kits ship an id, v3 wins: districts,
+// skyline, towers, lamps and planters load the v3 design (kitFor), colliders read its bounds.
+export const supersededV1 = ['agent-spire', 'memory-archive', 'integration-gate', 'mission-terminal', 'compute-foundry', 'knowledge-atrium',
+  'operations-beacon', 'data-tower-a', 'data-tower-b', 'skybridge', 'street-lamp', 'planter'];
+export function kitFor(id, v3Catalog) { return v3Catalog?.has(id) ? 'v3' : 'v1'; }
 export const placements = [];
 {
   const place = (asset, x, z, y = 0, angle = 0, scale = [1, 1, 1]) => placements.push({ asset, x, z, y, angle, scale });
@@ -246,7 +251,7 @@ export async function createCity(host, options) {
     const kit = response.ok ? await response.json() : null;
     if (kit?.schema_version === 3 && Array.isArray(kit.assets)) for (const a of kit.assets) catalog3.set(a.id, a);
   } catch (error) { if (abort.signal.aborted) { dispose(); throw error; } }
-  installCityColliders(traffic,catalog,districts,placements);
+  installCityColliders(traffic,kitCatalog(catalog,catalog3),districts,placements);
   experience=createExperience(scene,{
     shadows:contact,
     camera,districts,tier,traffic,reduced:()=>reduced,active:()=>visible&&!failed&&mode!=='map'&&!reduced&&!options.replaying?.(),
@@ -307,13 +312,16 @@ export async function createCity(host, options) {
     const token = ++generation, config = tiers[tier], lod = config.lod;
     const ids = [...new Set([...placements.map(p => p.asset), ...districts.map(d => d.asset), 'service-drone'])];
     const kitIds = [...new Set(kitPlacements.map(p => p.asset))];
-    const size = (id, level) => catalog.get(id)?.lods.find(l => l.level === level)?.bytes || 0;
-    expectedBytes = ids.reduce((sum, id) => sum + (cache.has('v1:' + id + ':' + lod) ? 0 : size(id, lod)), loadBytes) + (lod === 2 ? 0 : ['data-tower-a', 'data-tower-b'].reduce((sum, id) => sum + (cache.has('v1:' + id + ':2') ? 0 : size(id, 2)), 0))
-      + kitIds.reduce((sum, id) => sum + (cache.has('v3:' + id + ':' + lod) ? 0 : (catalog3.get(id)?.lods.find(l => l.level === lod)?.bytes || 0)), 0);
+    // A v3 design replaces the v1 design with the same id everywhere it is placed.
+    const kitOf = id => kitFor(id, catalog3);
+    const size = (id, level, kit = kitOf(id)) => (kit === 'v3' ? catalog3 : catalog).get(id)?.lods.find(l => l.level === level)?.bytes || 0;
+    const pending = (id, level, kit = kitOf(id)) => cache.has(kit + ':' + id + ':' + level) ? 0 : size(id, level, kit);
+    expectedBytes = ids.reduce((sum, id) => sum + pending(id, lod), loadBytes) + (lod === 2 ? 0 : ['data-tower-a', 'data-tower-b'].reduce((sum, id) => sum + pending(id, 2), 0))
+      + kitIds.reduce((sum, id) => sum + pending(id, lod, 'v3'), 0);
     try {
-      const loaded = new Map(await Promise.all(ids.map(async id => [id, await model(id, lod)])));
+      const loaded = new Map(await Promise.all(ids.map(async id => [id, await model(id, lod, kitOf(id))])));
       // Skyline deliberately uses low LOD even on Ultra.
-      const distant = new Map(await Promise.all(['data-tower-a','data-tower-b'].map(async id => [id, await model(id, 2)])));
+      const distant = new Map(await Promise.all(['data-tower-a','data-tower-b'].map(async id => [id, await model(id, 2, kitOf(id))])));
       const kit = new Map(await Promise.all(kitIds.map(async id => [id, await model(id, lod, 'v3')])));
       if (disposed || token !== generation) return;
       clearGroup(staticCity); clearGroup(landmarks); objects = [];
@@ -634,6 +642,6 @@ export async function createCity(host, options) {
       camera.position.copy(end).sub(homeTarget).applyAxisAngle(new THREE.Vector3(0, 1, 0), -.55).multiplyScalar(1.22).add(homeTarget); camera.position.y += 34;
       camera.lookAt(homeTarget); settleCamera(); flyTo(end, homeTarget); if (flight) flight.duration = 3.6;
     },
-    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), windows:windows.stats(), drones:drones.stats(), flow:flow.stats(), companion:companion?.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
+    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), windows:windows.stats(), drones:drones.stats(), flow:flow.stats(), companion:companion?.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size,kitModels:{v1:[...cache.keys()].filter(k=>k.startsWith('v1:')).length,v3:[...cache.keys()].filter(k=>k.startsWith('v3:')).length}, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
   };
 }

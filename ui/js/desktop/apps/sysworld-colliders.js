@@ -2,6 +2,13 @@ import {footprints,upperSolids} from './sysworld-exploration.js';
 
 // Ground apertures are authored separately from upper architecture. Using one
 // facade box would close the integration gate and every accessible pavilion.
+// One catalog for colliders and tests: entries of later catalogs (kit v3) replace earlier ones
+// (kit v1) with the same id. Accepts Maps or manifests ({assets: [...]}).
+export function kitCatalog(...catalogs){
+  const merged=new Map();
+  for(const c of catalogs)for(const [id,a] of c instanceof Map?c:(c?.assets||[]).map(a=>[a.id,a]))merged.set(id,a);
+  return merged;
+}
 export function installCityColliders(traffic,catalog,districts,placements) {
   for(const d of districts) {
     const bounds=catalog.get(d.asset).lods[0].bounds;
