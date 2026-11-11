@@ -152,14 +152,19 @@
     box-shadow: none;
     color: var(--vd-muted);
     font-weight: 500;
+    transition: border-color 140ms ease, color 140ms ease, transform 80ms ease;
 }
 
+/* Hover brightens the lacquer: the crisp top-half gloss of the shared band, over a lifted black. */
 .desktop-body[data-theme="black_gloss"] .vd-task-button:hover,
 .desktop-body[data-theme="black_gloss"] .vd-task-button.active:hover {
-    border-color: rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.14);
+    background: var(--vd-bgloss-band) top / 100% 100% no-repeat, rgba(255, 255, 255, 0.07);
+    box-shadow: var(--vd-bgloss-edge);
     color: var(--vd-text);
 }
+
+.desktop-body[data-theme="black_gloss"] .vd-task-button:active { transform: translateY(1px); }
 
 .desktop-body[data-theme="black_gloss"] .vd-task-button.active { color: var(--vd-text); }
 
@@ -176,6 +181,45 @@
     transform: translateX(-50%);
     pointer-events: none;
 }
+
+/* The active task also carries a thin accent light line along its foot; it draws in when the task becomes active. */
+.desktop-body[data-theme="black_gloss"] .vd-task-button.active::before {
+    content: "";
+    position: absolute;
+    left: 16%;
+    right: 16%;
+    bottom: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    background: linear-gradient(90deg, rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0), var(--vd-accent) 30%, var(--vd-accent) 70%, rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0));
+    box-shadow: 0 0 10px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.6);
+    pointer-events: none;
+}
+
+/* Pinned launchers and desktop icons: a faint accent-tinted floor glow fades in under the lifted glyph. */
+.desktop-body[data-theme="black_gloss"] .vd-taskbar-pin { position: relative; }
+.desktop-body[data-theme="black_gloss"] .vd-taskbar-pin > * { transition: transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.desktop-body[data-theme="black_gloss"] .vd-taskbar-pin:hover > * { transform: translateY(-2px); }
+
+.desktop-body[data-theme="black_gloss"] :is(.vd-taskbar-pin, .vd-icon)::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    width: 22px;
+    height: 5px;
+    margin-left: -11px;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at 50% 50%, rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.5), rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0) 72%);
+    opacity: 0;
+    transition: opacity 180ms ease;
+    pointer-events: none;
+}
+
+.desktop-body[data-theme="black_gloss"] .vd-taskbar-pin::after { bottom: 1px; }
+.desktop-body[data-theme="black_gloss"] .vd-icon::after { top: calc(var(--vd-icon-glyph-size) + 4px); width: 40px; margin-left: -20px; }
+.desktop-body[data-theme="black_gloss"] :is(.vd-taskbar-pin, .vd-icon):is(:hover, :focus-visible)::after { opacity: 1; }
+.desktop-body[data-theme="black_gloss"] .vd-icon > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter) { transition: transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.desktop-body[data-theme="black_gloss"] .vd-icon:is(:hover, :focus-visible) > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter) { transform: translateY(-2px); }
 
 /* Tray: flat glyphs that lift to a soft plate on hover. */
 .desktop-body[data-theme="black_gloss"] :is(.vd-fullscreen-button, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-notification-button) {
@@ -233,6 +277,19 @@
     background: var(--vd-bgloss-band) top / 100% var(--vd-bgloss-title-h) no-repeat, #0a0a0b;
     border-bottom-color: rgba(255, 255, 255, 0.06);
     box-shadow: var(--vd-bgloss-edge);
+}
+
+/* Specular sweep: a soft diagonal highlight rests invisible on the title row and glides once when the window turns active.
+ * The band sits in the middle of a full-size pseudo, so its travel never leaves the bar (the titlebar does not clip). */
+.desktop-body[data-theme="black_gloss"] .vd-window-titlebar::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: var(--vd-bgloss-title-h);
+    border-radius: 10px 10px 0 0;
+    background: linear-gradient(105deg, rgba(255, 255, 255, 0) 38%, rgba(255, 255, 255, 0.2) 50%, rgba(255, 255, 255, 0) 62%);
+    opacity: 0;
+    pointer-events: none;
 }
 
 .desktop-body[data-theme="black_gloss"] .vd-window:not(.active) .vd-window-titlebar { background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.03) 49%, rgba(255, 255, 255, 0) 50%); }
@@ -346,7 +403,7 @@
     border-color: var(--vd-border);
     border-radius: 12px;
     background-color: var(--vd-theme-panel-bg);
-    box-shadow: var(--vd-shadow-window);
+    box-shadow: var(--vd-shadow-window), var(--vd-bgloss-edge);
 }
 
 /* desktop-polish.css tints menus with the wallpaper light; on opaque black that reads as a stain. */
@@ -365,15 +422,50 @@
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
+.desktop-body[data-theme="black_gloss"] .vd-start-search input { transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease; }
 .desktop-body[data-theme="black_gloss"] .vd-start-search input:hover { background: rgba(0, 0, 0, 0.5); }
-.desktop-body[data-theme="black_gloss"] .vd-start-search input:focus { border-color: rgba(255, 255, 255, 0.22); background: rgba(0, 0, 0, 0.55); }
+
+/* Focus: an accent ring with a soft outer glow. */
+.desktop-body[data-theme="black_gloss"] .vd-start-search input:focus {
+    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.85);
+    background: rgba(0, 0, 0, 0.55);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.28), 0 0 16px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.3);
+}
+
 .desktop-body[data-theme="black_gloss"] .vd-start-rail { border-right-color: rgba(255, 255, 255, 0.06); background: rgba(0, 0, 0, 0.28); }
 .desktop-body[data-theme="black_gloss"] .vd-start-rail-indicator { border-radius: 8px; background: #1a1a1d; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08); }
 .desktop-body[data-theme="black_gloss"] .vd-start-rail-indicator::before { top: 8px; bottom: 8px; width: 2px; box-shadow: none; }
 .desktop-body[data-theme="black_gloss"] :is(.vd-start-category, .vd-start-item) { border-radius: 8px; }
 
-.desktop-body[data-theme="black_gloss"] .vd-start-category:hover,
-.desktop-body[data-theme="black_gloss"] .vd-start-item:hover { background-color: #1a1a1d; box-shadow: inset 2px 0 0 var(--vd-accent); }
+.desktop-body[data-theme="black_gloss"] .vd-start-category:hover { background-color: #1a1a1d; box-shadow: inset 2px 0 0 var(--vd-accent); }
+
+/* Menu rows: a glass pill with an accent hairline that grows in from the middle of its left edge; the text turns pure white. */
+.desktop-body[data-theme="black_gloss"] :is(.vd-start-item, .vd-context-item, .vd-window-menu-item) { position: relative; transition: background-color 140ms ease, color 140ms ease; }
+
+.desktop-body[data-theme="black_gloss"] :is(.vd-start-item, .vd-context-item, .vd-window-menu-item)::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: 22%;
+    bottom: 22%;
+    width: 2px;
+    border-radius: 2px;
+    background: var(--vd-accent);
+    box-shadow: 0 0 6px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.6);
+    transform: scaleY(0);
+    transition: transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    pointer-events: none;
+}
+
+.desktop-body[data-theme="black_gloss"] .vd-start-item:is(:hover, :focus-visible),
+.desktop-body[data-theme="black_gloss"] :is(.vd-context-item, .vd-window-menu-item):is(:hover, :focus-visible):not(:disabled) {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)), #19191c;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.desktop-body[data-theme="black_gloss"] .vd-start-item:is(:hover, :focus-visible)::before,
+.desktop-body[data-theme="black_gloss"] :is(.vd-context-item, .vd-window-menu-item):is(:hover, :focus-visible):not(:disabled)::before { transform: scaleY(1); }
 
 .desktop-body[data-theme="black_gloss"] .vd-start-category[aria-selected="true"]:hover { background-color: transparent; box-shadow: none; }
 .desktop-body[data-theme="black_gloss"] .vd-start-recent-item { background: rgba(255, 255, 255, 0.03); }
@@ -386,12 +478,28 @@
     box-shadow: var(--vd-theme-shadow-panel);
 }
 
-.desktop-body[data-theme="black_gloss"] .vd-context-item:hover:not(:disabled),
-.desktop-body[data-theme="black_gloss"] .vd-context-item:focus-visible:not(:disabled),
-.desktop-body[data-theme="black_gloss"] .vd-window-menu-item:hover:not(:disabled),
-.desktop-body[data-theme="black_gloss"] .vd-window-menu-item:focus-visible:not(:disabled) { background: #1a1a1d; box-shadow: inset 2px 0 0 var(--vd-accent); }
+/* Modal: a deeper vignette behind it, a gloss edge along its top. */
+.desktop-body[data-theme="black_gloss"] :is(.vd-modal-backdrop, .vd-file-dialog-backdrop, .vd-shortcuts-overlay) { background: radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0.58), rgba(0, 0, 0, 0.84) 100%); }
+.desktop-body[data-theme="black_gloss"] :is(.vd-modal, .vd-file-dialog) { background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0) 64px); }
 
-.desktop-body[data-theme="black_gloss"] :is(.vd-modal-backdrop, .vd-file-dialog-backdrop, .vd-shortcuts-overlay) { background: var(--vd-theme-overlay-bg); }
+/* Toasts: lacquered, with a top-half gloss, a deep soft shadow and one sweep of light as they arrive. The error toast
+ * keeps its red countdown line (desktop-polish.css). */
+.desktop-body[data-theme="black_gloss"] .vd-toast {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: var(--vd-bgloss-band) top / 100% 100% no-repeat, var(--vd-surface-strong);
+    box-shadow: var(--vd-bgloss-edge), 0 14px 34px rgba(0, 0, 0, 0.65);
+}
+
+.desktop-body[data-theme="black_gloss"] .vd-toast::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 45%;
+    background: linear-gradient(105deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.14) 50%, rgba(255, 255, 255, 0));
+    opacity: 0;
+    transform: translateX(-130%);
+    pointer-events: none;
+}
 
 .desktop-body[data-theme="black_gloss"] :is(.vd-file-dialog-header, .vd-notification-header, .vd-clock-popup-head) {
     background: var(--vd-bgloss-band) top / 100% 100% no-repeat, var(--vd-theme-chrome-bg);
@@ -444,6 +552,29 @@
     20%, 80% { opacity: 1; }
     100% { opacity: 0; transform: translateX(240%); }
 }
+
+@keyframes vd-theme-black-gloss-glide {
+    0% { opacity: 0; transform: translateX(-38%); }
+    30%, 65% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(38%); }
+}
+
+@keyframes vd-theme-black-gloss-draw {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+}
+
+@keyframes vd-theme-black-gloss-breathe {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+}
+
+/* One-shot states: the titlebar sweep and the task line trigger when .active is applied; the toast sweep on arrival.
+ * They run on pseudo-elements of their own elements, never on a window state class. */
+.desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) .vd-window.active > .vd-window-titlebar::before { animation: vd-theme-black-gloss-glide 700ms cubic-bezier(0.3, 0.6, 0.2, 1) both; will-change: transform, opacity; }
+.desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) .vd-task-button.active::before { animation: vd-theme-black-gloss-draw 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) .vd-task-button.active::after { animation: vd-theme-black-gloss-breathe 5.2s ease-in-out infinite; }
+.desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) .vd-toast::before { animation: vd-theme-black-gloss-sweep 900ms cubic-bezier(0.3, 0.6, 0.2, 1) 120ms both; }
 
 .desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) :is(.vd-window-opening, .vd-context-menu-opening) { animation: vd-theme-black-gloss-rise 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) .vd-context-menu-opening { animation-duration: 130ms; }

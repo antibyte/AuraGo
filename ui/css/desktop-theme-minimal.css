@@ -268,6 +268,13 @@
 }
 
 .desktop-body[data-theme="minimal"] .vd-icon-label { font-size: 12px; font-weight: 400; letter-spacing: .01em; }
+.desktop-body[data-theme="minimal"] .vd-icon:is(:hover, :focus-visible) .vd-icon-label { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+
+/* Press: a 1px dip (and opacity where no fill-mode animation pins it), no scale. */
+.desktop-body[data-theme="minimal"] :is(.vd-icon, .vd-task-button, .vd-taskbar-pin, .vd-start-item, .vd-button, .vd-tool-button):active { opacity: .6; transform: translateY(1px); transition-duration: 60ms; }
+
+/* Read notifications keep a hollow ring where unread ones carry the filled dot. */
+.desktop-body[data-theme="minimal"] .vd-notification-item:not(.unread)::before { content: ""; position: absolute; left: 12px; top: 18px; width: 5px; height: 5px; box-sizing: border-box; border: 1px solid var(--vd-theme-border-strong); border-radius: 50%; pointer-events: none; }
 .desktop-body[data-theme="minimal"] .vd-desktop-selection-marquee { border-color: var(--vd-theme-accent-border); border-radius: 2px; background: var(--vd-theme-accent-soft); box-shadow: none; }
 .desktop-body[data-theme="minimal"] .vd-snap-overlay { border: 1px dashed var(--vd-theme-border-strong); background: var(--vd-theme-control-bg); box-shadow: none; }
 .desktop-body[data-theme="minimal"] .vd-resize-handle:hover { background: transparent; }
@@ -778,6 +785,11 @@
     to { opacity: 1; }
 }
 
+@keyframes vd-theme-minimal-hairline {
+    from { transform: translateX(-50%) scaleX(0); }
+    to { transform: translateX(-50%) scaleX(1); }
+}
+
 .desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-window-opening { animation: vd-theme-minimal-window-open 200ms cubic-bezier(.22, 1, .36, 1) both; }
 .desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-window-closing { animation: vd-theme-minimal-window-close 140ms ease-in both; }
 .desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-window-minimizing { animation: vd-theme-minimal-window-minimize 180ms ease-in both; }
@@ -799,6 +811,7 @@
 .desktop-body[data-theme="minimal"]:not([data-animations="false"]) :is(.vd-start-pane-head, .vd-start-apps).vd-start-pane-switching :is(.vd-start-pane-title, .vd-start-pane-count, .vd-start-section-label, .vd-start-empty) { animation: none; }
 .desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-notification-button.vd-bell-ring :is(.vd-notification-icon, .vd-notification-badge) { animation: none; }
 .desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-task-button { animation: vd-theme-minimal-fade-in 160ms ease-out both; }
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-task-button.active::after { transform-origin: left center; animation: vd-theme-minimal-hairline 140ms ease-out both; }
 .desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-icon { animation-name: vd-theme-minimal-fade-in; animation-duration: 220ms; animation-timing-function: ease-out; }
 
 /* The compact touch layout opens the start menu as a sheet with its own slide; only the popover fades in. */

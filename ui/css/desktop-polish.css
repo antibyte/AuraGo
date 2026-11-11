@@ -362,3 +362,291 @@
         background-image: none !important;
     }
 }
+
+/* ==========================================================================
+ * Polish round 4: Standard and Fruity (the two base themes without a skin file).
+ * Hover, focus, press and open-state feedback only: nothing here changes a resting
+ * colour, size, shadow or background. Movement is gated by data-animations.
+ * ========================================================================== */
+
+/* ---- Standard: dark and focused, calm accent micro-motion ---- */
+
+/* Desktop icons: the glyph rises 2 px and the label takes a soft accent tint. */
+.desktop-body[data-theme="standard"] .vd-icon-label {
+    transition: background-color 160ms var(--ds-motion-ease-standard, ease), box-shadow 160ms var(--ds-motion-ease-standard, ease);
+}
+
+.desktop-body[data-theme="standard"]:not([data-animations="false"]):where(:not([data-polish="off"])) .vd-icon:hover > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter) {
+    transform: translateY(-2px) scale(1.04);
+}
+
+.desktop-body[data-theme="standard"] .vd-icon:hover .vd-icon-label {
+    background: color-mix(in srgb, var(--vd-accent) 20%, rgba(12, 14, 18, 0.7));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 1px rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.34);
+}
+
+/* Start menu rows: the icon swells, an accent bar grows in at the row edge. */
+.desktop-body[data-theme="standard"] .vd-start-item {
+    position: relative;
+}
+
+.desktop-body[data-theme="standard"] .vd-start-item > :first-child {
+    transition: transform 160ms var(--ds-motion-ease-standard, ease);
+}
+
+.desktop-body[data-theme="standard"] .vd-start-item::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: 9px;
+    bottom: 9px;
+    width: 3px;
+    border-radius: 999px;
+    background: var(--vd-accent);
+    opacity: 0;
+    transform: scaleY(0);
+    transform-origin: 50% 50%;
+    pointer-events: none;
+    transition: transform 180ms cubic-bezier(0.32, 0.72, 0, 1), opacity 140ms ease;
+}
+
+.desktop-body[data-theme="standard"]:not([data-animations="false"]) .vd-start-item:is(:hover, :focus-visible) > :first-child {
+    transform: scale(1.06);
+}
+
+.desktop-body[data-theme="standard"]:not([data-animations="false"]) .vd-start-item:is(:hover, :focus-visible)::before {
+    opacity: 1;
+    transform: scaleY(1);
+}
+
+/* Context menu: the leading icon nudges 2 px toward the label. */
+.desktop-body[data-theme="standard"] .vd-context-icon {
+    transition: transform 100ms var(--ds-motion-ease-standard, ease);
+}
+
+.desktop-body[data-theme="standard"]:not([data-animations="false"]) .vd-context-item:is(:hover, :focus-visible):not(:disabled) .vd-context-icon {
+    transform: translateX(2px);
+}
+
+/* Taskbar: lighter press on the window buttons, pinned launchers lift a pixel. */
+.desktop-body[data-theme="standard"]:not([data-animations="false"]) .vd-task-button:active {
+    transform: scale(0.97);
+}
+
+.desktop-body[data-theme="standard"]:not([data-animations="false"]) .vd-taskbar-pin:hover {
+    transform: translateY(-1px);
+}
+
+.desktop-body[data-theme="standard"]:not([data-animations="false"]) .vd-taskbar-pin:active {
+    transform: scale(0.94);
+}
+
+/* Tray buttons: an accent hairline answers the pointer; the bell tilts. */
+.desktop-body[data-theme="standard"] .vd-space-pager-btn:hover,
+.desktop-body[data-theme="standard"] .vd-show-desktop-btn:hover,
+.desktop-body[data-theme="standard"] .vd-taskbar-widget-btn:hover,
+.desktop-body[data-theme="standard"] .vd-live-speech-button:hover,
+.desktop-body[data-theme="standard"] .vd-fullscreen-button:enabled:hover,
+.desktop-body[data-theme="standard"] .vd-notification-button:hover {
+    border-color: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.38);
+}
+
+.desktop-body[data-theme="standard"] .vd-notification-icon {
+    transition: transform 160ms var(--ds-motion-ease-standard, ease);
+}
+
+.desktop-body[data-theme="standard"]:not([data-animations="false"]) .vd-notification-button:hover .vd-notification-icon {
+    transform: rotate(-9deg);
+}
+
+/* Window buttons: close turns a quarter, minimize sinks, maximize swells. */
+.desktop-body[data-theme="standard"] .vd-window-button .vd-window-control-icon {
+    transition: transform 140ms var(--ds-motion-ease-standard, ease);
+}
+
+.desktop-body[data-theme="standard"]:not([data-animations="false"]) .vd-window-button[data-action="close"]:hover .vd-window-control-icon {
+    transform: rotate(90deg);
+}
+
+.desktop-body[data-theme="standard"]:not([data-animations="false"]) .vd-window-button[data-action="minimize"]:hover .vd-window-control-icon {
+    transform: translateY(2px);
+}
+
+.desktop-body[data-theme="standard"]:not([data-animations="false"]) .vd-window-button[data-action="maximize"]:hover .vd-window-control-icon {
+    transform: scale(1.12);
+}
+
+/* Toasts: the close button comes forward while the toast is held. */
+.desktop-body[data-theme="standard"] .vd-toast-close {
+    transition: background-color 120ms ease, color 120ms ease, transform 140ms var(--ds-motion-ease-standard, ease);
+}
+
+.desktop-body[data-theme="standard"] .vd-toast:hover .vd-toast-close {
+    color: var(--vd-text);
+}
+
+.desktop-body[data-theme="standard"]:not([data-animations="false"]) .vd-toast-close:hover {
+    transform: rotate(90deg);
+}
+
+/* Notification centre: unread lights pulse twice when the panel opens; titles shift a hair. */
+.desktop-body[data-theme="standard"]:not([data-animations="false"]) .vd-notification-center .vd-notification-item.unread::before {
+    animation: vd-unread-pulse-standard 520ms ease-out 140ms 2 both;
+}
+
+@keyframes vd-unread-pulse-standard {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    45% { transform: scale(1.7); opacity: 0.6; }
+}
+
+.desktop-body[data-theme="standard"] .vd-notification-item-title {
+    transition: transform 140ms var(--ds-motion-ease-standard, ease);
+}
+
+.desktop-body[data-theme="standard"]:not([data-animations="false"]) .vd-notification-item:hover .vd-notification-item-title {
+    transform: translateX(2px);
+}
+
+/* Clock popup: the calendar button reveals an arrow that nudges in. */
+.desktop-body[data-theme="standard"] .vd-clock-popup-open {
+    position: relative;
+}
+
+.desktop-body[data-theme="standard"] .vd-clock-popup-open::after {
+    content: "\2192";
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    margin-top: -0.6em;
+    line-height: 1.2;
+    color: var(--vd-accent);
+    opacity: 0;
+    transform: translateX(-6px);
+    pointer-events: none;
+    transition: transform 160ms cubic-bezier(0.32, 0.72, 0, 1), opacity 120ms ease;
+}
+
+.desktop-body[data-theme="standard"] .vd-clock-popup-open:is(:hover, :focus-visible)::after {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Modal buttons: a short press. */
+.desktop-body[data-theme="standard"]:not([data-animations="false"]) .vd-modal .vd-button:active {
+    transform: scale(0.97);
+}
+
+/* ---- Fruity: bright and soft, springy ---- */
+/* The dock already magnifies, labels and pops in (desktop-base.css, desktop-taskbar.css); here it
+ * gets the spring curve and the running dot a small hop. */
+
+.desktop-body[data-theme="fruity"][data-shell="dock"] .vd-dock-button {
+    transition: transform 160ms cubic-bezier(0.3, 1.5, 0.5, 1), filter 150ms var(--ds-motion-ease-standard, ease);
+}
+
+.desktop-body[data-theme="fruity"][data-shell="dock"]:not([data-animations="false"]) .vd-dock-button.running::after,
+.desktop-body[data-theme="fruity"][data-shell="dock"]:not([data-animations="false"]) .vd-dock-button.active::after {
+    animation: vd-dock-dot-fruity 320ms cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+
+@keyframes vd-dock-dot-fruity {
+    from { opacity: 0; transform: translateX(-50%) translateY(-8px) scale(0.4); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+/* Menu bar: items rest in a soft pill that eases in. */
+.desktop-body[data-theme="fruity"] :is(.vd-global-bar .vd-window-menu-button, .vd-global-brand) {
+    transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 120ms cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+.desktop-body[data-theme="fruity"] .vd-global-bar .vd-window-menu-button:is(:hover, :focus-visible),
+.desktop-body[data-theme="fruity"] .vd-global-bar .vd-window-menu.open > .vd-window-menu-button {
+    color: var(--vd-text);
+}
+
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-global-bar :is(.vd-window-menu-button, .vd-global-brand):active {
+    transform: scale(0.96);
+}
+
+/* Launchpad tiles: the icon swells and rises, the label firms up. */
+.desktop-body[data-theme="fruity"] .vd-start-item > :first-child {
+    transition: transform 180ms cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+.desktop-body[data-theme="fruity"] .vd-start-item > span:last-child {
+    transition: color 140ms ease;
+}
+
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-start-item:is(:hover, :focus-visible) > :first-child {
+    transform: translateY(-2px) scale(1.14);
+}
+
+.desktop-body[data-theme="fruity"] .vd-start-item:is(:hover, :focus-visible) > span:last-child {
+    color: var(--vd-text);
+}
+
+/* Context menu: a soft pill; the icon pops. */
+.desktop-body[data-theme="fruity"] .vd-context-item {
+    transition: background-color 120ms ease, color 120ms ease;
+}
+
+.desktop-body[data-theme="fruity"] .vd-context-icon {
+    transition: transform 160ms cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-context-item:is(:hover, :focus-visible):not(:disabled) .vd-context-icon {
+    transform: scale(1.14);
+}
+
+.desktop-body[data-theme="fruity"] .vd-context-item:is(:hover, :focus-visible):not(:disabled) {
+    background-color: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.18);
+}
+
+/* Toasts: the close button springs. */
+.desktop-body[data-theme="fruity"] .vd-toast-close {
+    transition: background-color 120ms ease, color 120ms ease, transform 160ms cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-toast-close:hover {
+    transform: scale(1.12);
+}
+
+.desktop-body[data-theme="fruity"] .vd-toast:hover .vd-toast-close {
+    color: var(--vd-text);
+}
+
+/* Notification centre: unread light pulses twice on open; titles ease aside on hover. */
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-notification-center .vd-notification-item.unread::before {
+    animation: vd-unread-pulse-fruity 560ms cubic-bezier(0.3, 1.5, 0.5, 1) 160ms 2 both;
+}
+
+@keyframes vd-unread-pulse-fruity {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.8); opacity: 0.55; }
+}
+
+.desktop-body[data-theme="fruity"] .vd-notification-item-title {
+    transition: transform 160ms cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-notification-item:hover .vd-notification-item-title {
+    transform: translateX(3px);
+}
+
+/* Modal sheet buttons: lift on hover, squash on press. */
+.desktop-body[data-theme="fruity"] .vd-modal .vd-button {
+    transition: background-color 120ms ease, border-color 120ms ease, transform 140ms cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-modal .vd-button:hover {
+    transform: translateY(-1px);
+}
+
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-modal .vd-button:active {
+    transform: scale(0.96);
+}
+
+/* Traffic lights: a press squash (glyph reveal and inactive dimming already exist). */
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-button:active {
+    transform: scale(0.88);
+}

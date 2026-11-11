@@ -578,9 +578,11 @@
 .desktop-body[data-theme="amiga"] .vd-desktop-selection-marquee { border: 1px dashed #ffffff; border-radius: 0; background: transparent; box-shadow: 0 0 0 1px #000000; animation: none; }
 
 /* ---- Toasts and requesters ---- */
-.desktop-body[data-theme="amiga"] .vd-toast { padding: 8px 10px; border: 1px solid #000000; background: #ffffff; color: #000000; box-shadow: none; animation: none; transition: none; }
+/* Normal toasts read as small requesters: grey, bevelled, hard 2px shadow. */
+.desktop-body[data-theme="amiga"] .vd-toast { padding: 8px 10px; border: 1px solid #000000; background: #aaaaaa; color: #000000; box-shadow: var(--vd-theme-amiga-raised), 2px 2px 0 #000000; animation: none; transition: none; }
 .desktop-body[data-theme="amiga"] .vd-toast::after { display: none; }
-.desktop-body[data-theme="amiga"] .vd-toast-message { color: #333333; }
+.desktop-body[data-theme="amiga"] .vd-toast-message { color: #000000; }
+.desktop-body[data-theme="amiga"] .vd-toast[data-type="error"] { box-shadow: none; }
 
 /* Guru Meditation: black, red text, red 3px border that blinks three times at 1 Hz. */
 .desktop-body[data-theme="amiga"] .vd-toast[data-type="error"] { padding: 11px 14px; border: 0; background: #000000; color: #ff2222; }
@@ -622,6 +624,61 @@
 /* The base pops task buttons in from a selector with :not([data-animations]); match its weight. */
 .desktop-body[data-theme="amiga"]:not([data-animations="false"]) .vd-task-button { animation: none; }
 .desktop-body[data-theme="amiga"] :is(.vd-window.vd-window-bounds-animated, .vd-window-menu-popover, .vd-context-menu, .vd-start-menu, .vd-global-bar) { transition: none; }
+
+/* ---- Polish round 4: Workbench details ---- */
+/* Menus: ghosted disabled items, double-line separators, » as the submenu mark. */
+.desktop-body[data-theme="amiga"] :is(.vd-context-item, .vd-window-menu-item):disabled { color: #767676; opacity: 1; }
+.desktop-body[data-theme="amiga"] :is(.vd-context-separator, .vd-window-menu-separator) { height: 2px; margin: 3px 4px; border-top: 1px solid #000000; border-bottom: 1px solid #000000; }
+.desktop-body[data-theme="amiga"] :is(.vd-context-arrow, .vd-window-menu-arrow) svg { display: none; }
+.desktop-body[data-theme="amiga"] :is(.vd-context-arrow, .vd-window-menu-arrow)::before { content: "\00bb"; font: 16px/1 var(--vd-theme-amiga-vga); }
+
+/* Pressed menu bar entries and tray gadgets go inverse at once. */
+.desktop-body[data-theme="amiga"] :is(.vd-window-menu-button, .vd-taskbar-system :is(.vd-fullscreen-button, .vd-show-desktop-btn, .vd-notification-button, .vd-agent-button, .vd-space-pager-btn)):active { background: #000000; color: #ffffff; }
+
+/* Scrollbars: blue prop knob, flat grey track. */
+.desktop-body[data-theme="amiga"] .vd-window-content ::-webkit-scrollbar-thumb { background: #6688bb; box-shadow: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #000000, inset 0 0 0 2px #6688bb, inset 0 0 0 3px #000000; }
+.desktop-body[data-theme="amiga"] .vd-window-content ::-webkit-scrollbar-thumb:hover { background: #7799cc; }
+
+/* Requester dialogs: blue title strip, Cancel left and OK right. */
+.desktop-body[data-theme="amiga"] .vd-modal { padding: 0 12px 12px; }
+.desktop-body[data-theme="amiga"] .vd-modal-title { display: flex; align-items: center; min-height: var(--vd-theme-amiga-bar); margin: 0 -12px 12px; padding: 0 8px; border-bottom: 1px solid #000000; background: #6688bb; color: #000000; box-shadow: inset 1px 1px 0 #ffffff; }
+.desktop-body[data-theme="amiga"] .vd-modal-actions { justify-content: space-between; }
+
+/* Block caret in text fields where the browser supports it. */
+.desktop-body[data-theme="amiga"] :is(.vd-start-search input, .vd-modal-input, .vd-file-dialog-search, .vd-file-dialog-name input) { caret-color: #000000; caret-shape: block; }
+
+/* Power LED (steady) and floppy-drive LED (irregular flicker in hard steps) at the right end of the window list. */
+@media (min-width: 821px) {
+    .desktop-body[data-theme="amiga"] .vd-taskbar::after,
+    .desktop-body[data-theme="amiga"] .vd-taskbar::before {
+        content: "";
+        display: block;
+        position: absolute;
+        top: 50%;
+        width: 12px;
+        height: 5px;
+        margin-top: -3px;
+        border: 1px solid #000000;
+        pointer-events: none;
+    }
+    .desktop-body[data-theme="amiga"] .vd-taskbar::after { right: 8px; background: #ff2222; }
+    .desktop-body[data-theme="amiga"] .vd-taskbar::before { right: 28px; background: #ff9900; opacity: .5; }
+    .desktop-body[data-theme="amiga"]:not([data-animations="false"]) .vd-taskbar::before { animation: vd-theme-amiga-drive 6s step-end infinite; will-change: opacity; }
+}
+
+@keyframes vd-theme-amiga-drive {
+    0%, 100% { opacity: .5; }
+    8% { opacity: 1; }
+    11% { opacity: .5; }
+    14% { opacity: 1; }
+    16% { opacity: .5; }
+    45% { opacity: 1; }
+    49% { opacity: .5; }
+    52% { opacity: 1; }
+    53% { opacity: .5; }
+    78% { opacity: 1; }
+    80% { opacity: .5; }
+}
 
 /* ---- Compact layout (global bar off): the tray lives in the window list ---- */
 @media (max-width: 820px) {

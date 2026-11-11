@@ -10,16 +10,16 @@ This page covers choosing a theme, accessibility and the developer contract. The
 | --- | --- | --- | --- | --- | --- |
 | Standard | Taskbar | Dark | Papirus | Your accent | Dark and focused, with a clear taskbar and a structured start menu. |
 | Fruity | Dock and top menu bar | Light or dark | WhiteSur | Your accent | Bright and soft, with a floating dock and rounded windows. |
-| Amiga | Taskbar and top menu bar | Light | Papirus | Fixed blue | Workbench 3.1 classic: grey bevels, blue title bars, a VGA pixel type and no motion. |
+| Amiga | Taskbar and top menu bar | Light | Papirus | Fixed blue | Workbench 3.1 classic: grey bevels, blue title bars, a VGA pixel type, requester-style dialogs and no eased motion. |
 | Cyberpunk | Taskbar | Dark | Papirus | Fixed yellow | Neon yellow and cyan on deep night blue, with sharp HUD frames. |
 | Black Gloss | Centred taskbar | Dark | WhiteSur | Your accent | Piano black with glossy highlights. |
 | Crazy | Taskbar | Dark | Papirus | Fixed pink | Rainbow frames, bouncing windows, confetti and sparkles. |
 | Lollipop | Dock and top menu bar | Light | Papirus | Fixed plum pink | Candy pastels, jelly-bean buttons and a sweet dock. |
 | Organic | Taskbar | Dark | Papirus | Fixed brass | Walnut grain, brushed brass hardware and soft rounded shapes. |
 | Electronic Dreams | Taskbar | Dark | Papirus | Fixed amber | Graphite circuit boards, copper traces and quiet signal lights. |
-| Windows XP | Taskbar | Light | Windows XP | Fixed blue | Luna blue gradients, a green Start button, warm controls and a two-column Start menu. |
+| Windows XP | Taskbar | Light | Windows XP | Fixed blue | Luna blue gradients, a green Start button, warm controls, balloon-style notifications, Luna caption bars on dialogs and a two-column Start menu. |
 | Green Slime | Taskbar | Dark | Papirus | Fixed lime | Glossy lime drips, mossy frames and soft, squishy controls. |
-| Voxel World | Taskbar | Light | Papirus | Fixed forest green | A live voxel island behind the shell, with block-framed windows and an inventory-style taskbar. |
+| Voxel World | Taskbar | Light | Papirus | Fixed forest green | A live voxel island behind the shell, with block-framed windows, advancement-banner notifications, menus that move in block steps and an inventory-style taskbar. |
 | Orbit | Taskbar | Dark | Papirus | Fixed ice cyan | A live 3D orbit behind the shell: a ringed gas giant, a space station, a shuttle and asteroids, with smoked-glass windows that fly in and out in 3D. |
 | Minimal | Taskbar | Light or dark | Papirus | Fixed ink | Paper or graphite, hairlines and typography, nothing else. |
 
@@ -44,7 +44,7 @@ Organic's *Forest* wallpaper is a misty conifer forest at dusk, with a low amber
 - **Focus.** Keyboard focus shows a ring in every theme. Amiga draws a dashed black outline and Crazy a cyan ring.
 - **Amiga window gadgets.** The Amiga skin keeps the authentic Workbench gadget layout (close far left, depth and zoom gadgets on the right) purely visually through CSS grid placement, so keyboard Tab order follows the DOM (AI, minimize, maximize, close; AI and maximize are omitted where a window lacks them) rather than the on-screen order, and the dashed black focus ring makes the focused gadget visible.
 - **Windows XP Start menu.** The Luna-style Start menu uses two columns: the app list fills the left pane, with system links and categories stacked on the right. The CSS adapts the column widths on narrow screens while keeping each action reachable.
-- **Theme motion.** Electronic Dreams' signal light and the Green Slime, Voxel World and Orbit effects switch to a still rendering when *Window animations* is off or reduced motion is requested. The Windows XP, Green Slime and Voxel World skins keep their gradients, glossy surfaces and block edges when glass polish is off.
+- **Theme motion.** Electronic Dreams' signal light and the Green Slime, Voxel World and Orbit effects switch to a still rendering when *Window animations* is off or reduced motion is requested. The small ambient animations of the skins stop when *Window animations* is off, like every other theme animation: Amiga's drive LED, Cyberpunk's task cursor, Electronic Dreams' signal packet and start-button ring, Black Gloss' and Orbit's active-task dot, Organic's firefly and Crazy's button shimmer. The Windows XP, Green Slime and Voxel World skins keep their gradients, glossy surfaces and block edges when glass polish is off.
 - Touch: on a coarse pointer the global menu bar grows to 44 px and every tray control fills it; below 1024 px the window menus move to a second 44 px row and the bar is 88 px (`css/desktop-chrome.css`). Amiga sizes its gadgets from the bar height in its skin and keeps a single row.
 
 ## Developer Guide
@@ -316,10 +316,33 @@ Do not add a selector of an app that paints itself to a bridge group: a bridge r
 - Every selector in a skin starts with `.desktop-body[data-theme="<id>"]`. The first rule is that bare root rule.
 - Every `animation` sits behind `:not([data-animations="false"])`. Reduced motion is enforced globally by the override in `desktop-shell-overrides.css`, so skins need no reduced-motion query of their own.
 - Keyframes are named `vd-theme-<id>-*` and animate only `transform`, `opacity`, `offset` and `animation-timing-function`.
+- `animateThen` removes a state class (`vd-window-opening`, `-closing`, `-minimizing`, `-restoring`, `vd-context-menu-opening` and `-closing`, `vd-window-menu-popover-closing`, `vd-start-menu-opening` and `-closing`) on the first `animationend` or `transitionend` whose target is that element. Events of the element's own `::before` and `::after` count as the element. While a state class is active, the element must not run a shorter pseudo-element animation or a transition of its own; animations on child elements are safe. An animation on a state class ends about 20 ms before the theme's `motion` timer, so the event removes the class before the fallback timer does.
+- A skin that replaces the toast entrance animation scopes it to `.vd-toast:not(.vd-toast-closing)`, so the base exit animation still plays.
 - `@font-face` families start with `Desktop Theme `.
-- A skin file has at most 900 lines. Crazy has at most 6 `infinite` animations (it has 5).
+- A skin file has at most 900 lines. Crazy has at most 6 `infinite` animations (it has 6).
 - A thumbnail has at most 8192 bytes and no `<script>`, `<foreignObject>`, `on*=` handler, `javascript:` or `http(s)://` URL, apart from the XML namespace declarations.
 - For `!important`, `clip-path` and `will-change` conventions, see `ui/AGENTS.md`.
+
+### Interaction details
+
+Standard and Fruity add only hover, press and motion states, in the block at the end of `desktop-polish.css`; their resting pixels are unchanged.
+
+- **Standard:** start-menu rows get an accent bar, unread dots pulse twice when the notification centre opens, and window buttons and the tray react on hover.
+- **Fruity:** a spring curve on the dock magnification, the running dot hops in, menu-bar pills, and launchpad tiles lift.
+- **Amiga:** requester dialogs with a blue title strip, grey bevelled toasts, Workbench menu separators and » submenu arrows, a block caret, and power and drive LEDs on the taskbar (the drive LED flickers in `step-end` steps).
+- **Cyberpunk:** HUD corner brackets on panels, a scan line across the titlebar of the window that becomes active, a yellow marker bar on hovered menu rows, a toast status rail with a glitch entrance, a blinking block cursor on the active task button, and bracket corners on hovered desktop icons.
+- **Black Gloss:** one specular sweep across the titlebar of the window that becomes active, an accent line and a slowly breathing dot on the active task button, a glass pill with an accent hairline on hovered menu rows, and a floor glow under hovered icons.
+- **Crazy:** toasts pop in tilted, menu rows pop in staggered with a rainbow marker, buttons squash on press, window buttons spin on hover, and dialogs tilt-bounce in.
+- **Lollipop:** dock icons hop with squash and stretch, jelly buttons squish on press, toasts pop in like bubbles, sprinkles on toasts and the notification header, and candy-stripe rails.
+- **Organic:** a brass sweep on the task button that becomes active, a brass inlay line on hovered menu rows, a brass strip on toasts, and one firefly over the taskbar.
+- **Electronic Dreams:** copper traces and solder pads on panels, a signal packet running along the titlebar trace of the active window, status LEDs on task buttons and toasts, a copper trace growing under hovered menu rows, and icon labels on graphite chips.
+- **Windows XP:** balloon toasts, a Luna caption strip on dialogs, the notification centre and the clock popup, menus that fade in, a Start menu that slides up, and short fades and scales for windows.
+- **Green Slime:** icon labels on gel pills, panels as gel slabs with a glossy top lip and a lime bottom rim, squishy hover and press states, and a jelly settle on menus, the start menu and toasts.
+- **Voxel World:** advancement-banner toasts, menus and popovers that move in `steps()`, an inventory-slot hover on taskbar buttons, and icon labels on pixel plates.
+- **Orbit:** targeting-reticle corners on hovered desktop icons, a marker that slides in on hovered menu rows, a scan line across new toasts, radar rings on unread notifications, and a slow beacon blink on the active task dot.
+- **Minimal:** the hairline under the active task button draws in, press feedback of 1 px, an underline on hovered icon labels, and a hollow ring for read notifications.
+
+Crazy's `menuOpen` timer is 300 ms. Green Slime's `menuOpen` and `startOpen` timers are 240 ms and 280 ms, because their menu animations need that time.
 
 ### Effects API
 

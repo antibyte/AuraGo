@@ -187,6 +187,83 @@
 .desktop-body[data-theme="green_slime"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-thumb { border: 2px solid #17220f; border-radius: 9px; background: linear-gradient(90deg, #718d39, #a5d941, #719137); }
 .desktop-body[data-theme="green_slime"] :is(.vd-taskbar, .vd-start-menu, .vd-window, .vd-modal, .vd-file-dialog, .vd-context-menu, .vd-toast) :is(button, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid #c2ea69; outline-offset: 2px; }
 .desktop-body[data-theme="green_slime"] ::selection { background: #a5d941; color: #17210b; }
+/* ---- Polish round 4: thick gel slabs, squishy controls, jelly arrivals and drips ---- */
+/* Panels: a bright curved lip along the top, a lime rim and a darker belly, so they read as gel slabs. */
+.desktop-body[data-theme="green_slime"] :is(.vd-window-menu-popover, .vd-context-menu, .vd-context-submenu-popover, .vd-start-menu, .vd-notification-center, .vd-clock-popup, .vd-modal, .vd-toast) {
+    background: radial-gradient(ellipse 85% 20px at 50% 0, rgba(238, 255, 176, .3), transparent), linear-gradient(180deg, rgba(228, 255, 150, .16) 0, rgba(228, 255, 150, .05) 16px, transparent 36px), linear-gradient(160deg, #334524, #223017 62%, #19230f);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, .5), inset 0 2px 0 rgba(240, 255, 196, .5), inset 0 0 0 1px rgba(165, 217, 65, .2), inset 0 -3px 0 rgba(160, 214, 70, .4), inset 0 -14px 16px -8px rgba(4, 9, 1, .5);
+}
+/* Desktop icon labels: a small gel pill with a lime rim light, brighter when pointed at or selected. */
+.desktop-body[data-theme="green_slime"] .vd-icon .vd-icon-label {
+    padding: 1px 6px;
+    margin: 0 -6px;
+    max-width: calc(100% + 12px);
+    border-radius: 11px;
+    background: rgba(18, 27, 10, .72);
+    box-shadow: inset 0 1px 0 rgba(205, 242, 120, .5), 0 0 0 1px rgba(165, 217, 65, .3), 0 2px 4px rgba(0, 0, 0, .32);
+    transition: background-color 140ms ease, box-shadow 140ms ease;
+}
+.desktop-body[data-theme="green_slime"] :is(.vd-icon:hover, .vd-icon:focus-visible, .vd-icon.selected) .vd-icon-label {
+    background: rgba(52, 72, 26, .9);
+    box-shadow: inset 0 1px 0 rgba(235, 255, 175, .65), 0 0 0 1px rgba(194, 234, 105, .7), 0 2px 6px rgba(0, 0, 0, .35);
+}
+/* Menu rows: a gel bead with inner gloss on hover, squashed when pressed. */
+.desktop-body[data-theme="green_slime"] :is(.vd-window-menu-item, .vd-context-item, .vd-start-item, .vd-start-category) { transition: transform 130ms ease, background-color 130ms ease, box-shadow 130ms ease; }
+.desktop-body[data-theme="green_slime"] :is(.vd-window-menu-item, .vd-context-item, .vd-start-item, .vd-start-category):is(:hover, :focus-visible):not(:disabled) {
+    background-color: #496331;
+    box-shadow: inset 0 2px 2px rgba(238, 255, 176, .38), inset 0 -3px 4px rgba(6, 12, 2, .28), 0 0 0 1px rgba(165, 217, 65, .3);
+}
+.desktop-body[data-theme="green_slime"] :is(.vd-window-menu-item, .vd-context-item, .vd-start-item, .vd-start-category):active:not(:disabled) { transform: scale(.97, .94); }
+/* Taskbar beads: swell on hover, squash when pressed, the active task glows from inside. */
+.desktop-body[data-theme="green_slime"] :is(.vd-start-button, .vd-task-button, .vd-taskbar-pin, .vd-taskbar-system button):hover { transform: scale(1.04); }
+.desktop-body[data-theme="green_slime"] :is(.vd-start-button, .vd-task-button, .vd-taskbar-pin, .vd-taskbar-system button):active { transform: scale(1.06, .92); }
+.desktop-body[data-theme="green_slime"] .vd-task-button.active { border-color: #c2ea69; box-shadow: inset 0 2px 2px rgba(245, 255, 208, .3), inset 0 0 14px rgba(190, 240, 90, .5), 0 0 8px rgba(165, 217, 65, .25); }
+.desktop-body[data-theme="green_slime"] .vd-start-button { overflow: hidden; }
+.desktop-body[data-theme="green_slime"] .vd-start-button::after {
+    content: "";
+    display: block;
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 34%, rgba(250, 255, 225, .55) 50%, transparent 66%);
+    opacity: 1;
+    transform: translateX(-130%);
+    transition: transform 460ms ease;
+    pointer-events: none;
+}
+.desktop-body[data-theme="green_slime"] .vd-start-button:hover::after { opacity: 1; transform: translateX(130%); }
+/* Titlebar beads squish when pointed at; the close bead turns orange-red. */
+.desktop-body[data-theme="green_slime"] .vd-window-button { transition: transform 150ms ease, background-color 150ms ease; }
+.desktop-body[data-theme="green_slime"] .vd-window-button:hover { transform: scale(1.1, .92); }
+.desktop-body[data-theme="green_slime"] .vd-window-button:active { transform: scale(.92, 1.06); }
+.desktop-body[data-theme="green_slime"] .vd-window-button[data-action="close"]:hover { color: #2c1004; background: radial-gradient(circle at 34% 25%, #ffcfa6, #e5622e 55%, #8f2f12); }
+/* Unread beads in the notification centre: a lime bead that pulses twice when the centre opens. */
+.desktop-body[data-theme="green_slime"] .vd-notification-item.unread::before {
+    top: 15px;
+    left: 10px;
+    width: 8px;
+    height: 8px;
+    background: radial-gradient(circle at 35% 30%, #f3ffc4, #a5d941 55%, #5f8a1f);
+    box-shadow: 0 0 6px rgba(165, 217, 65, .6);
+}
+/* Gel scrollbars in the shell panels. */
+.desktop-body[data-theme="green_slime"] :is(.vd-notification-list, .vd-start-rail)::-webkit-scrollbar { width: 13px; }
+.desktop-body[data-theme="green_slime"] :is(.vd-notification-list, .vd-start-rail)::-webkit-scrollbar-track { border-radius: 8px; background: #17220f; }
+.desktop-body[data-theme="green_slime"] :is(.vd-notification-list, .vd-start-rail)::-webkit-scrollbar-thumb { border: 2px solid #17220f; border-radius: 9px; background: linear-gradient(90deg, #718d39, #a5d941, #719137); }
+/* Jelly arrival: menus, the start menu and toasts settle with a short scale overshoot. */
+@keyframes vd-theme-green-slime-jelly {
+    0% { opacity: 0; transform: scale(.92, .9); }
+    42% { opacity: 1; transform: scale(1.03, .98); }
+    72% { opacity: 1; transform: scale(.99, 1.01); }
+    100% { opacity: 1; transform: scale(1); }
+}
+@keyframes vd-theme-green-slime-bead {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.8); }
+}
+.desktop-body[data-theme="green_slime"]:not([data-animations="false"]) .vd-context-menu-opening { transform-origin: 0 0; animation: vd-theme-green-slime-jelly 220ms ease-out both; }
+.desktop-body[data-theme="green_slime"]:not([data-animations="false"]) .vd-start-menu-opening { transform-origin: 0 100%; animation: vd-theme-green-slime-jelly 260ms ease-out both; }
+.desktop-body[data-theme="green_slime"]:not([data-animations="false"]) .vd-toast:not(.vd-toast-closing) { transform-origin: 100% 0; animation: vd-theme-green-slime-jelly 380ms ease-out both; }
+.desktop-body[data-theme="green_slime"]:not([data-animations="false"]) .vd-notification-item.unread::before { animation: vd-theme-green-slime-bead 460ms ease-in-out 180ms 2 both; }
 @media (pointer: coarse) {
     .desktop-body[data-theme="green_slime"] .vd-window-titlebar { border-radius: 0; }
     .desktop-body[data-theme="green_slime"] .vd-start-button { min-height: 44px; height: 44px; }

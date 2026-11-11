@@ -390,8 +390,38 @@
 .desktop-body[data-theme="crazy"] .vd-start-menu { box-shadow: 0 18px 48px rgba(8, 0, 22, 0.6), 0 0 28px rgba(182, 255, 0, 0.16); }
 
 .desktop-body[data-theme="crazy"] :is(.vd-start-item, .vd-start-category, .vd-context-item, .vd-window-menu-item) {
-    transition: background-color 120ms ease, color 120ms ease, transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: background-color 120ms ease, color 120ms ease, transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1), background-size 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
+/* A rainbow marker slides in at the left edge of a hovered row (the base pointer light also sets background-image,
+   hence the extra [class] for specificity). Unread notifications carry the same rail at rest. */
+.desktop-body[data-theme="crazy"] :is(.vd-start-item, .vd-start-category, .vd-context-item, .vd-window-menu-item):not(:disabled)[class]:is(:hover, :focus-visible) {
+    background-image: linear-gradient(180deg, #FFE600, #B6FF00, #00E5FF, #7A5CFF);
+    background-repeat: no-repeat;
+    background-position: 3px center;
+    background-size: 5px 70%;
+}
+
+.desktop-body[data-theme="crazy"] :is(.vd-start-item, .vd-start-category, .vd-context-item, .vd-window-menu-item):not(:disabled)[class] { background-size: 0 70%; }
+
+.desktop-body[data-theme="crazy"] .vd-notification-item.unread {
+    background-image: linear-gradient(180deg, #FF2BD6, #FFE600, #B6FF00, #00E5FF, #7A5CFF);
+    background-repeat: no-repeat;
+    background-position: left center;
+    background-size: 4px 100%;
+}
+
+/* A sparkle scales in beside a hovered start menu category. */
+.desktop-body[data-theme="crazy"] .vd-start-category-label::after {
+    content: "\2726";
+    display: inline-block;
+    margin-left: 6px;
+    opacity: 0;
+    scale: 0.2;
+    transition: opacity 160ms ease, scale 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.desktop-body[data-theme="crazy"] .vd-start-category:is(:hover, :focus-visible) .vd-start-category-label::after { opacity: 1; scale: 1; }
 
 /* Hovered or focused rows turn pink with black text; a focused row also gets a dark inner ring (cyan on
    pink would be too faint). */
@@ -456,6 +486,19 @@
     background:
         linear-gradient(var(--vd-theme-panel-bg), var(--vd-theme-panel-bg)) padding-box,
         var(--vd-crazy-rainbow) border-box;
+}
+
+/* The primary dialog button carries a light sweep that crosses it every few seconds. */
+.desktop-body[data-theme="crazy"] .vd-modal .vd-button-primary::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 40%;
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55) 50%, transparent);
+    transform: translateX(-140%);
+    pointer-events: none;
 }
 
 /* Forced colours drop gradients; the frames stay visible as plain system-colour borders. */
@@ -530,21 +573,51 @@
     .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-start-menu-closing { transform-origin: 0 100%; animation: vd-theme-crazy-menu-close 200ms ease-in both; }
 }
 
-/* Hover effects that tilt or nudge: only while animations are on and motion is welcome. */
+/* Hover and press effects that tilt, nudge or squash: only while animations are on and motion is welcome. */
 @media (prefers-reduced-motion: no-preference) {
-    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) :is(.vd-start-item, .vd-start-category, .vd-context-item, .vd-window-menu-item):is(:hover, :focus-visible):not(:disabled) { transform: translateX(4px); }
-    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) :is(.vd-start-item, .vd-start-category, .vd-context-item, .vd-window-menu-item):active:not(:disabled) { transform: translateX(4px) scale(0.97); }
-    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-icon:hover > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter) { transform: rotate(-8deg) scale(1.15); }
-    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-window-button:hover { animation: vd-theme-crazy-wobble 300ms ease-in-out; }
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) :is(.vd-start-item, .vd-start-category, .vd-context-item, .vd-window-menu-item):is(:hover, :focus-visible):not(:disabled) { transform: translateX(3px); }
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) :is(.vd-start-item, .vd-start-category, .vd-context-item, .vd-window-menu-item):active:not(:disabled) { transform: translateX(3px) scale(0.97); }
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-icon:hover > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter) { transform: rotate(-8deg) scale(1.15); animation: vd-theme-crazy-icon-hop 420ms ease-out; }
+
+    /* Window buttons spin a half turn (close the other way) and pop when pressed; the chat button keeps the wobble. */
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-window-button[data-action] { transition: transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-window-button[data-action]:hover { transform: rotate(180deg); }
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-window-button[data-action="close"]:hover { transform: rotate(-180deg); }
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-window-button[data-action]:active { transform: rotate(180deg) scale(0.82); }
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-window-button[data-action="close"]:active { transform: rotate(-180deg) scale(0.82); }
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-window-ai-button:hover { animation: vd-theme-crazy-wobble 300ms ease-in-out; }
+
+    /* Jelly: a squashed press that springs back with overshoot. The individual scale property composes with the
+       start button's breathing transform. */
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) :is(.vd-task-button, .vd-start-button, .vd-modal .vd-button, .vd-file-dialog .vd-button) { transition: scale 280ms cubic-bezier(0.34, 1.8, 0.64, 1), translate 240ms cubic-bezier(0.34, 1.56, 0.64, 1), background-color 160ms ease, border-color 160ms ease, box-shadow 200ms ease; }
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) :is(.vd-task-button, .vd-start-button, .vd-modal .vd-button, .vd-file-dialog .vd-button):active { scale: 1.08 0.92; transition-duration: 90ms; }
+
+    /* Toasts pop in with overshoot and a tilt (odd and even lean opposite ways) and wiggle when touched. */
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-toast:not(.vd-toast-closing) { transform-origin: 100% 0; animation: vd-theme-crazy-toast-pop-a 460ms both; }
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-toast:not(.vd-toast-closing):nth-child(even) { animation-name: vd-theme-crazy-toast-pop-b; }
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-toast:not(.vd-toast-closing):hover { animation: vd-theme-crazy-toast-pop-a 460ms both, vd-theme-crazy-toast-wiggle 380ms ease-in-out; }
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-toast:not(.vd-toast-closing):nth-child(even):hover { animation-name: vd-theme-crazy-toast-pop-b, vd-theme-crazy-toast-wiggle; }
+
+    /* A new unread count pops out of the bell. */
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-notification-badge:not([hidden]) { animation: vd-theme-crazy-badge-pop 600ms both; }
+
+    /* Menu entries pop in one after another (first seven); the index variables come from the shell. */
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-context-menu-opening .vd-context-item { animation: vd-theme-crazy-item-pop 150ms backwards; animation-delay: calc(min(var(--context-item-index, 0), 6) * 20ms); }
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-start-menu.vd-start-menu-just-opened :is(.vd-start-item, .vd-start-category) { animation: vd-theme-crazy-item-pop 240ms backwards; animation-delay: calc(min(var(--start-index, 0), 7) * 24ms); }
+
+    /* The modal tilts in with a bounce. */
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-modal-backdrop .vd-modal,
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-file-dialog-backdrop .vd-file-dialog { animation: vd-theme-crazy-modal-in 480ms both; }
 }
 
-/* The five endless loops. */
+/* The six endless loops (the sixth is the small sweep on a dialog's primary button). */
 @media (prefers-reduced-motion: no-preference) {
     .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-taskbar::before { animation: vd-theme-crazy-strip 6s linear infinite; will-change: transform; }
     /* The button rests while its menu is open. */
     .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-start-button:not([data-active="true"]) { animation: vd-theme-crazy-breathe 2.4s ease-in-out infinite; }
     .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-window.active > .vd-window-titlebar > .vd-window-title-group::after { animation: vd-theme-crazy-shimmer 4s linear infinite; }
     .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-clock { animation: vd-theme-crazy-clock 3s ease-in-out infinite; }
+    .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-modal .vd-button-primary::before { animation: vd-theme-crazy-sheen 3.6s ease-in-out 600ms infinite; }
     /* Only the first selected icon in document order wobbles, so a marquee selection stays calm. */
     .desktop-body[data-theme="crazy"]:not([data-animations="false"]) .vd-icon.selected:not(.selected ~ .selected):not(:hover) > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter) { animation: vd-theme-crazy-icon 3s ease-in-out infinite; }
 }
@@ -585,6 +658,59 @@
     25% { transform: rotate(-12deg); }
     50% { transform: rotate(12deg); }
     75% { transform: rotate(-6deg); }
+}
+
+@keyframes vd-theme-crazy-icon-hop {
+    0% { transform: translateY(0) rotate(0deg) scale(1); }
+    40% { transform: translateY(-7px) rotate(-12deg) scale(1.2); }
+    70% { transform: translateY(1px) rotate(-6deg) scale(1.12); }
+    100% { transform: translateY(0) rotate(-8deg) scale(1.15); }
+}
+
+@keyframes vd-theme-crazy-toast-pop-a {
+    0% { opacity: 0; transform: translateX(36px) scale(0.6) rotate(8deg); animation-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1); }
+    55% { opacity: 1; transform: translateX(0) scale(1.07) rotate(-3deg); animation-timing-function: ease-in-out; }
+    80% { opacity: 1; transform: scale(0.98) rotate(1deg); animation-timing-function: ease-out; }
+    100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes vd-theme-crazy-toast-pop-b {
+    0% { opacity: 0; transform: translateX(36px) scale(0.6) rotate(-8deg); animation-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1); }
+    55% { opacity: 1; transform: translateX(0) scale(1.07) rotate(3deg); animation-timing-function: ease-in-out; }
+    80% { opacity: 1; transform: scale(0.98) rotate(-1deg); animation-timing-function: ease-out; }
+    100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes vd-theme-crazy-toast-wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-1.5deg); }
+    50% { transform: rotate(1.5deg); }
+    75% { transform: rotate(-0.8deg); }
+}
+
+@keyframes vd-theme-crazy-badge-pop {
+    0% { opacity: 0; transform: scale(0) rotate(-30deg); }
+    45% { opacity: 1; transform: scale(1.6) rotate(12deg); }
+    70% { transform: scale(0.85) rotate(-6deg); }
+    100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes vd-theme-crazy-item-pop {
+    0% { opacity: 0; transform: translateX(-12px) scale(0.8); animation-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1); }
+    65% { opacity: 1; transform: translateX(2px) scale(1.05); animation-timing-function: ease-out; }
+    100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes vd-theme-crazy-modal-in {
+    0% { opacity: 0; transform: translateY(24px) scale(0.8) rotate(-4deg); animation-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1); }
+    55% { opacity: 1; transform: translateY(-4px) scale(1.04) rotate(1.6deg); animation-timing-function: ease-in-out; }
+    80% { opacity: 1; transform: translateY(0) scale(0.99) rotate(-0.5deg); animation-timing-function: ease-out; }
+    100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+}
+
+@keyframes vd-theme-crazy-sheen {
+    0%, 55% { transform: translateX(-140%); }
+    100% { transform: translateX(380%); }
 }
 
 @keyframes vd-theme-crazy-window-open {

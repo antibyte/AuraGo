@@ -448,6 +448,56 @@
 
 .desktop-body[data-theme="voxel_world"] .vd-window-switcher button.vd-switcher-item:focus-visible { outline: 3px solid #ffffff; outline-offset: 2px; }
 
+/* ---- Polish round 4: advancement toasts, slot hovers, stepped motion (hard edges, no easing) ---- */
+/* Toasts read like a block-game advancement banner: dark panel, light bevel, yellow title, white text. */
+.desktop-body[data-theme="voxel_world"] .vd-toast {
+    border: 2px solid #000000;
+    background: #212121;
+    color: #ffffff;
+    box-shadow: inset 2px 2px 0 #8b8b8b, inset -2px -2px 0 #4a4a4a, 4px 4px 0 rgba(0, 0, 0, .35);
+    --vd-muted: #d8d8d8;
+}
+.desktop-body[data-theme="voxel_world"] .vd-toast-title { color: #ffff55; font-weight: 900; letter-spacing: 0; text-shadow: 2px 2px 0 #3f3f15; }
+.desktop-body[data-theme="voxel_world"] .vd-toast[data-type="error"] .vd-toast-title { color: #ff5555; text-shadow: 2px 2px 0 #3f1515; }
+.desktop-body[data-theme="voxel_world"] .vd-toast .vd-toast-message { color: #ffffff; text-shadow: 1px 1px 0 #3f3f3f; }
+/* Taskbar slots: a white inner frame on hover, the glyph hops 2 px in one hard step, pressed = 2 px down. */
+.desktop-body[data-theme="voxel_world"] .vd-taskbar :is(.vd-task-button, .vd-taskbar-pin):is(:hover, :focus-visible):not(:disabled):not(.active) { background: #b8b8b8; box-shadow: inset 0 0 0 2px #ffffff; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar .vd-taskbar-pin:hover > *,
+.desktop-body[data-theme="voxel_world"] .vd-taskbar .vd-task-button:hover .vd-task-icon { transform: translateY(-2px); }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar :is(.vd-task-button, .vd-taskbar-pin):active:not(:disabled) { transform: translateY(2px); }
+/* Menu rows: a green slot with white text and a hard shadow; start items hop their glyph like the slots. */
+.desktop-body[data-theme="voxel_world"] :is(.vd-window-menu-item, .vd-context-item, .vd-start-item):hover:not(:disabled) { background: #476b3c; color: #ffffff; text-shadow: 1px 1px 0 #1d3a12; box-shadow: inset 0 0 0 2px #ffffff; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-window-menu-item, .vd-context-item):hover:not(:disabled) :is(.vd-context-icon, kbd, .vd-context-shortcut, .vd-window-menu-arrow, .vd-context-arrow) { color: #ffffff; }
+.desktop-body[data-theme="voxel_world"] .vd-start-item:hover > :first-child { transform: translateY(-2px); }
+/* Stone buttons: block-game hover with a white frame and a light-blue tint, pressed one pixel down. */
+.desktop-body[data-theme="voxel_world"] :is(.vd-button, .vd-notification-clear, .vd-clock-popup-open, .vd-shortcuts-close, .vd-file-dialog-close, .vd-toast-close, .vd-spaces-overview-close):hover:not(:disabled):not(.vd-button-primary) { border-color: #ffffff; box-shadow: inset 2px 2px 0 #c9d6f0, inset -2px -2px 0 #6a769a, 0 0 0 2px #1e1e1e; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-button, .vd-notification-clear, .vd-clock-popup-open, .vd-shortcuts-close, .vd-file-dialog-close, .vd-toast-close, .vd-spaces-overview-close):active:not(:disabled) { transform: translateY(1px); }
+.desktop-body[data-theme="voxel_world"] .vd-button-primary:hover:not(:disabled) { border-color: #ffffff; box-shadow: inset 2px 2px 0 #7cbd4a, inset -2px -2px 0 #2f5a1f, 0 0 0 2px #1e1e1e; }
+/* Desktop icons: a square label plate with a hard outline; the glyph hops one block step when pointed at. */
+.desktop-body[data-theme="voxel_world"] .vd-icon .vd-icon-label { padding: 1px 4px; margin: 0 -4px; max-width: calc(100% + 8px); border-radius: 0; background: rgba(18, 18, 18, .72); box-shadow: 0 0 0 1px #000000; }
+.desktop-body[data-theme="voxel_world"] .vd-icon:hover > :not(.vd-icon-label) { transform: translateY(-4px); }
+/* Unread notifications: a green block that blinks twice in hard steps when the centre opens. */
+.desktop-body[data-theme="voxel_world"] .vd-notification-item.unread::before { top: 15px; left: 10px; width: 8px; height: 8px; }
+@keyframes vd-theme-voxel-world-place {
+    from { opacity: 0; transform: translateY(6px) scale(.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes vd-theme-voxel-world-toast-in {
+    from { opacity: 0; transform: translate(32px, -16px); }
+    to { opacity: 1; transform: translate(0, 0); }
+}
+@keyframes vd-theme-voxel-world-blink {
+    0%, 100% { opacity: 1; }
+    20%, 60% { opacity: 0; }
+    40%, 80% { opacity: 1; }
+}
+.desktop-body[data-theme="voxel_world"]:not([data-animations="false"]) .vd-context-menu-opening { transform-origin: 0 0; animation: vd-theme-voxel-world-place 100ms steps(3, end) both; }
+.desktop-body[data-theme="voxel_world"]:not([data-animations="false"]) .vd-start-menu-opening { transform-origin: 0 100%; animation: vd-theme-voxel-world-place 130ms steps(3, end) both; }
+.desktop-body[data-theme="voxel_world"]:not([data-animations="false"]) .vd-toast:not(.vd-toast-closing) { animation: vd-theme-voxel-world-toast-in 240ms steps(4, end) both; }
+.desktop-body[data-theme="voxel_world"]:not([data-animations="false"]) .vd-toast.vd-toast-closing { animation-timing-function: steps(3, end); }
+.desktop-body[data-theme="voxel_world"]:not([data-animations="false"]) :is(.vd-clock-popup, .vd-notification-center, .vd-taskbar-thumbnail) { animation-timing-function: steps(3, end); }
+.desktop-body[data-theme="voxel_world"]:not([data-animations="false"]) .vd-notification-item.unread::before { animation: vd-theme-voxel-world-blink 600ms steps(1, end) 150ms 1 both; }
+
 /* ---- Touch: slots, buttons and the start block keep 44 px targets ---- */
 @media (pointer: coarse) {
     .desktop-body[data-theme="voxel_world"] .vd-start-button { min-width: 44px; min-height: 44px; }

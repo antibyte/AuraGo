@@ -257,6 +257,79 @@
 .desktop-body[data-theme="windows_xp"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-thumb:hover { background: linear-gradient(90deg, #d8e9fa, #78a3d5); }
 .desktop-body[data-theme="windows_xp"] :is(.vd-taskbar, .vd-start-menu, .vd-window, .vd-modal, .vd-file-dialog, .vd-context-menu, .vd-toast) :is(button, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid #174f97; outline-offset: 2px; }
 .desktop-body[data-theme="windows_xp"] ::selection { background: #286dc2; color: #fff; }
+/* ---- Polish round 4: Luna touches (pressed states, balloons, menus, dialogs, panels, motion) ---- */
+.desktop-body[data-theme="windows_xp"] .vd-start-button:hover { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), inset 0 0 9px rgba(190, 255, 160, .5), 1px 0 5px rgba(12, 51, 8, .25); }
+.desktop-body[data-theme="windows_xp"] .vd-start-button:active { background: linear-gradient(180deg, #1c4d19, #2a6322 55%, #327a2a); box-shadow: inset 0 2px 5px rgba(5, 30, 4, .55); }
+.desktop-body[data-theme="windows_xp"] :is(.vd-task-button, .vd-taskbar-pin, .vd-taskbar-system button, .vd-global-brand):hover { background: linear-gradient(180deg, #5b9be6, #2a6cc4); }
+.desktop-body[data-theme="windows_xp"] :is(.vd-task-button, .vd-taskbar-pin, .vd-taskbar-system button):active { background: linear-gradient(180deg, #123f85, #1f58a8); box-shadow: inset 0 2px 5px rgba(5, 29, 74, .5); transform: translateY(1px); }
+.desktop-body[data-theme="windows_xp"] .vd-task-button.active:hover { background: linear-gradient(180deg, #1c58ad, #3977c9); }
+.desktop-body[data-theme="windows_xp"] .vd-window-button:hover { box-shadow: inset 0 1px rgba(255, 255, 255, .85), inset 0 0 6px rgba(255, 255, 255, .45), 0 1px 2px rgba(0, 28, 80, .3); }
+.desktop-body[data-theme="windows_xp"] .vd-window-button:active { background: linear-gradient(180deg, #0b49a8, #1a66cc 52%, #3b86e6); box-shadow: inset 0 1px 3px rgba(0, 20, 70, .6); }
+.desktop-body[data-theme="windows_xp"] .vd-window-button[data-action="close"]:hover { background: linear-gradient(180deg, #f08a6c, #e0482f 52%, #bd2d20); }
+.desktop-body[data-theme="windows_xp"] .vd-window-button[data-action="close"]:active { background: linear-gradient(180deg, #8c1d15, #b02a1f 52%, #c9402f); }
+
+/* Balloon-tip toasts: pale yellow, thin dark border, bold title, small boxed close; errors get a red title and edge. */
+.desktop-body[data-theme="windows_xp"] .vd-toast { padding: 10px 12px 11px; border: 1px solid #2b2b2b; border-radius: 7px; background: #ffffe1; color: #000; box-shadow: 2px 3px 7px rgba(0, 0, 0, .35); }
+.desktop-body[data-theme="windows_xp"] .vd-toast-title { color: #000; font-size: 12px; font-weight: 700; }
+.desktop-body[data-theme="windows_xp"] .vd-toast-message { color: #2b2b2b; font-size: 12px; }
+.desktop-body[data-theme="windows_xp"] .vd-toast-close { width: 20px; height: 20px; border: 1px solid #5a5a48; border-radius: 3px; background: #fffff0; color: #000; font-size: 11px; box-shadow: none; }
+.desktop-body[data-theme="windows_xp"] .vd-toast-close:hover { border-color: #c4501a; background: #ffe9d0; }
+.desktop-body[data-theme="windows_xp"] .vd-toast[data-type="error"] { border-color: #8f1d14; box-shadow: inset 4px 0 0 #cc3322, 2px 3px 7px rgba(0, 0, 0, .35); }
+.desktop-body[data-theme="windows_xp"] .vd-toast[data-type="error"] .vd-toast-title { color: #b3261e; }
+
+/* Menus: white panel, grey border, hard 2px shadow, Luna blue selection. */
+.desktop-body[data-theme="windows_xp"] :is(.vd-window-menu-popover, .vd-context-menu, .vd-context-submenu-popover) { border: 1px solid #aca899; border-radius: 0; background: #fff; box-shadow: 2px 2px 0 rgba(0, 0, 0, .3); }
+.desktop-body[data-theme="windows_xp"] :is(.vd-window-menu-button, .vd-context-item, .vd-window-menu-item):is(:hover, :focus-visible, [aria-selected="true"]):not(:disabled),
+.desktop-body[data-theme="windows_xp"] .vd-window-menu.open > .vd-window-menu-button { border-radius: 0; background: #316ac5; color: #fff; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-context-item, .vd-window-menu-item):is(:hover, :focus-visible):not(:disabled) :is(kbd, .vd-context-shortcut, .vd-context-arrow, .vd-window-menu-arrow) { color: #fff; }
+.desktop-body[data-theme="windows_xp"] .vd-context-item.vd-context-item-danger:is(:hover, :focus-visible):not(:disabled) { color: #fff; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-context-item, .vd-window-menu-item):disabled { color: #787468; opacity: 1; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-context-separator, .vd-window-menu-separator) { height: 1px; margin: 3px 2px; background: #aca899; border: 0; }
+
+/* Start menu: thin orange line under the blue header, blue hover rows. */
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-header { background: linear-gradient(90deg, #e7842a, #f4b45a 50%, #e7842a) bottom / 100% 2px no-repeat, linear-gradient(180deg, #4a8de4, #235eb5); }
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-links { background: linear-gradient(180deg, #e3edfb, #d3e5fa); }
+.desktop-body[data-theme="windows_xp"] .vd-start-item:is(:hover, :focus-visible),
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-link:is(:hover, :focus-visible) { border-color: #2459a8; background: #316ac5; color: #fff; }
+.desktop-body[data-theme="windows_xp"] .vd-start-item:is(:hover, :focus-visible) :is(span, small, div) { color: inherit; }
+
+/* Dialogs: Luna caption strip on the title, XP push buttons. */
+.desktop-body[data-theme="windows_xp"] .vd-modal { padding: 0 16px 16px; border: 3px solid #0a4fd0; border-top: 0; border-radius: 6px 6px 3px 3px; overflow: hidden; }
+.desktop-body[data-theme="windows_xp"] .vd-modal-title { margin: 0 -16px 14px; padding: 0 10px; min-height: 28px; display: flex; align-items: center; background: linear-gradient(180deg, #3b8cff 0 3px, #0054e3 4px 66%, #0644ad 67% 100%); color: #fff; font-weight: 700; text-shadow: 0 1px 2px #17427f; }
+.desktop-body[data-theme="windows_xp"] .vd-modal-copy { color: #1c2d45; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal, .vd-notification-center, .vd-clock-popup) .vd-button { border: 1px solid #003c74; border-radius: 3px; background: linear-gradient(180deg, #fff, #f3f1e6 70%, #d6d0c0); color: #000; box-shadow: none; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal) .vd-button:hover:not(:disabled) { background: linear-gradient(180deg, #fff, #f3f1e6 70%, #d6d0c0); box-shadow: inset 0 0 0 2px #f8b330; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal) .vd-button.vd-button-primary { background: linear-gradient(180deg, #fff, #f3f1e6 70%, #d6d0c0); color: #000; text-shadow: none; box-shadow: inset 0 0 0 2px #98b8ea; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal) .vd-button.vd-button-primary:hover:not(:disabled) { box-shadow: inset 0 0 0 2px #f8b330; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal) .vd-button:active:not(:disabled) { background: linear-gradient(180deg, #d6d0c0, #ece9d8); box-shadow: inset 1px 1px 3px rgba(0, 0, 0, .35); }
+.desktop-body[data-theme="windows_xp"] :is(.vd-modal, .vd-file-dialog) .vd-button:disabled { color: #8a8678; border-color: #aca899; background: #f4f2e8; }
+
+/* Notification centre and clock popup: cream panel under a blue header strip. */
+.desktop-body[data-theme="windows_xp"] :is(.vd-notification-center, .vd-clock-popup) { overflow: hidden; border: 1px solid #0a4fd0; background: #f7f6ef; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-notification-header, .vd-clock-popup-head) { border-bottom: 1px solid #0644ad; background: linear-gradient(180deg, #3b8cff 0 3px, #0054e3 4px 66%, #0644ad 67% 100%); color: #fff; text-shadow: 0 1px 2px #17427f; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-notification-title, .vd-clock-popup-date, .vd-clock-popup-time) { color: #fff; font-weight: 700; }
+.desktop-body[data-theme="windows_xp"] .vd-notification-clear { text-shadow: none; }
+.desktop-body[data-theme="windows_xp"] .vd-icon-label { padding: 1px 3px; }
+
+/* Motion: quick Luna fades. Each animation ends before its runtime timer (open 120, close 100, minimize 180, restore 220, menu 120/100, start 150/120). */
+.desktop-body[data-theme="windows_xp"]:not([data-animations="false"]) .vd-window-opening { animation: vd-theme-windows-xp-win-open 100ms ease-out both; }
+.desktop-body[data-theme="windows_xp"]:not([data-animations="false"]) .vd-window-closing { animation: vd-theme-windows-xp-win-close 80ms ease-in both; }
+.desktop-body[data-theme="windows_xp"]:not([data-animations="false"]) .vd-window-minimizing { animation: vd-window-minimize-standard 160ms ease-in both; }
+.desktop-body[data-theme="windows_xp"]:not([data-animations="false"]) .vd-window-restoring { animation: vd-window-restore-standard 190ms ease-out both; }
+.desktop-body[data-theme="windows_xp"]:not([data-animations="false"]) .vd-context-menu-opening { animation: vd-theme-windows-xp-menu-in 100ms linear both; }
+.desktop-body[data-theme="windows_xp"]:not([data-animations="false"]) :is(.vd-context-menu-closing, .vd-window-menu-popover-closing) { animation: vd-theme-windows-xp-menu-out 80ms linear both; }
+.desktop-body[data-theme="windows_xp"]:not([data-animations="false"]) .vd-toast:not(.vd-toast-closing) { animation: vd-theme-windows-xp-balloon 170ms ease-out both; }
+@media (min-width: 821px) {
+    .desktop-body[data-theme="windows_xp"]:not([data-animations="false"]) .vd-start-menu-opening { animation: vd-theme-windows-xp-start-in 130ms ease-out both; }
+    .desktop-body[data-theme="windows_xp"]:not([data-animations="false"]) .vd-start-menu-closing { animation: vd-theme-windows-xp-start-out 100ms ease-in both; }
+}
+@keyframes vd-theme-windows-xp-win-open { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: scale(1); } }
+@keyframes vd-theme-windows-xp-win-close { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(.97); } }
+@keyframes vd-theme-windows-xp-menu-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes vd-theme-windows-xp-menu-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes vd-theme-windows-xp-start-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes vd-theme-windows-xp-start-out { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(8px); } }
+@keyframes vd-theme-windows-xp-balloon { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 480px) {
     .desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-body { grid-template-columns: minmax(0, 1fr) 44%; }
     .desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-links { gap: 0; padding: 4px; }
