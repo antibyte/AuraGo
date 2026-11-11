@@ -75,6 +75,7 @@ New:
 ```
 - [ ] **Step 3: Test.** Create `internal/storymaker/compose_model_test.go` (it builds its story inline, so batch B does not depend on the fixtures of batch A):
 
+{% raw %}
 ```go
 package storymaker
 
@@ -183,6 +184,7 @@ func TestStyleComposeIsWrittenOnlyWhenSetAndAcceptsOnlyV2(t *testing.T) {
 	}
 }
 ```
+{% endraw %}
 - [ ] **Step 4: Run:** `GOCACHE='D:\dev-cache\go-build' GOTMPDIR='D:\tmp\go-build' go test ./internal/storymaker -run '^(TestBeatScale|TestStyleCompose)' -count=1 -v`. Expected: PASS. Then the shape tests that this change could touch: `GOCACHE='D:\dev-cache\go-build' GOTMPDIR='D:\tmp\go-build' go test ./internal/storymaker -run '(Decode|Validate|Canonical|Style|Defaults)' -count=1`. Expected: PASS.
 - [ ] **Step 5: Commit:** `gofmt -w internal/storymaker/model.go internal/storymaker/validate.go internal/storymaker/compose_model_test.go`; `git add` the three files; message `feat(storymaker): beat scale and style.compose in the model and the validator`.
 

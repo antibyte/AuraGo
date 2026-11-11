@@ -387,6 +387,7 @@ New:
 ```
 - [ ] **Step 3: Test.** Create `internal/storymaker/studio_stills_check_test.go`:
 
+{% raw %}
 ```go
 package storymaker
 
@@ -422,6 +423,7 @@ func TestCheckReportsScenesThatLookAlike(t *testing.T) {
 	}
 }
 ```
+{% endraw %}
 - [ ] **Step 4: Run:** `GOCACHE='D:\dev-cache\go-build' GOTMPDIR='D:\tmp\go-build' go test ./internal/storymaker -run '(TestCheck|TestStudioCheck|TestDecideOutcome|TestLookAlike)' -count=1`. Expected: PASS.
 - [ ] **Step 5: Commit:** `gofmt -w` the touched files; `git add internal/storymaker/studio.go internal/storymaker/studio_check.go internal/storymaker/studio_stills_check_test.go`; message `feat(storymaker): the check reports scenes that look alike`.
 
@@ -587,6 +589,7 @@ func (r *Runner) captureStills(ctx context.Context, page browserPage, summary *s
 ```
 - [ ] **Step 3: Test.** Create `internal/storymaker/render/compilestills_test.go`:
 
+{% raw %}
 ```go
 package render
 
@@ -684,6 +687,7 @@ func TestCompileCheckWithoutStillsTakesNone(t *testing.T) {
 	}
 }
 ```
+{% endraw %}
 In the first test `s3` starts at 5800 ms = frame 174 and ends at 6000 ms = frame 180, the hold is 0.1 s = 3 frames, so the frame is 177 (below its last frame 179). `s2` starts at 1800 ms = frame 54, ends at frame 180, so 99 s of hold clamps to frame 179. The limit of the film is 6000 ms = 180 frames, so frame 179 is inside it.
 - [ ] **Step 4: Run:** `GOCACHE='D:\dev-cache\go-build' GOTMPDIR='D:\tmp\go-build' go test ./internal/storymaker/render -run '(TestStillFrames|TestCompileCheck)' -count=1`. Expected: PASS, including `TestCompileCheckStopsAfterReport`. Then `go vet ./internal/storymaker/...`.
 - [ ] **Step 5: Commit:** `gofmt -w` the touched files; `git add internal/storymaker/render/render.go internal/storymaker/render/compilecheck.go internal/storymaker/render/compilestills.go internal/storymaker/render/compilestills_test.go`; message `feat(storymaker): the compile check takes a still per scene in the same browser run`.
