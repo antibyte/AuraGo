@@ -159,6 +159,27 @@ window.fixtureFlush = () => new Promise(resolve => {
     if (!term) return resolve();
     term.write('', resolve);
 });
+// Capture in xterm's render callback, before a later fit can invalidate the measured frame.
+window.fixtureTerminalPixels = async () => {
+    await fixtureFlush();
+    const term = fixtureTerm();
+    return new Promise((resolve, reject) => {
+        const rendered = term.onRender(() => {
+            rendered.dispose();
+            try {
+                const source = [...term.element.querySelectorAll('.xterm-screen canvas')].find(c => !c.classList.contains('xterm-link-layer'));
+                const copy = document.createElement('canvas');
+                copy.width = source.width; copy.height = source.height;
+                const ctx = copy.getContext('2d');
+                ctx.drawImage(source, 0, 0);
+                const cell = term._core._renderService.dimensions.device.cell;
+                resolve({ width: copy.width, height: copy.height, cell: { width: cell.width, height: cell.height },
+                    data: ctx.getImageData(0, 0, copy.width, copy.height).data });
+            } catch (error) { reject(error); }
+        });
+        term.refresh(0, term.rows - 1);
+    });
+};
 // The visible rows of the active buffer, right-trimmed.
 window.fixtureLines = () => {
     const term = fixtureTerm();

@@ -6444,7 +6444,10 @@ registration lives in `internal/desktop/types.go`.
   without stale rows, a style change, no resize frame and the style font after
   leaving; the C64
   grid also at DPR 1.25 and 1.5, each with a pixel readback of half-block art
-  from xterm's WebGL canvas that fails on seams; all use
+  from xterm's WebGL canvas that fails on seams. VT/C64 pixel probes capture dimensions and
+  pixels together inside the next xterm render event through `fixtureTerminalPixels`;
+  never sample a possibly invalidated frame after an arbitrary delay. The DPR 1.25
+  VT case asserts that readback happens in that render callback. All use
   `ui/desktop_terminal_harness_test.go`, the Retro-Net fixture is
   `ui/testdata/terminal-retronet-fixture.js` plus
   `ui/testdata/terminal-retronet-c64-fixture.js`, which keeps the C64 hint

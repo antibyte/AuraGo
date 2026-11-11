@@ -42,7 +42,19 @@ func TestDesktopTerminalRetroNetBrowser(t *testing.T) {
 		c.wait("the session is live", `()=>fixtureRoot().dataset.terminalMode==='retro'`)
 		c.wait("the tall glass takes the font from its width and spaces the rows at DPR 1.25", `async()=>(await (`+terminalVTFills+`)())&&(`+terminalVTFillsWidth+`)()`)
 		c.run(`()=>fixtureData(` + terminalVTGlyphScreen + `)`)
+		// Readback must share the render event with the pixels it measures, even after an earlier frame settled.
+		c.run(`()=>{const term=fixtureTerm(),read=CanvasRenderingContext2D.prototype.getImageData;
+			let rendering=false;const sub=term.onRender(()=>{rendering=true;queueMicrotask(()=>rendering=false);});
+			window.fixtureReadDuringRender=null;
+			CanvasRenderingContext2D.prototype.getImageData=function(...args){
+				const canvas=term.element.querySelector('.xterm-screen canvas');
+				if(this.canvas.width===canvas.width&&this.canvas.height===canvas.height){
+					fixtureReadDuringRender=rendering;CanvasRenderingContext2D.prototype.getImageData=read;sub.dispose();
+				}
+				return read.apply(this,args);
+			};}`)
 		c.check("block and box glyphs join across spaced rows at DPR 1.25", terminalVTGlyphGaps)
+		c.check("pixel readback uses a freshly rendered terminal frame", `()=>fixtureReadDuringRender===true`)
 		c.run(`()=>{const gl=[...fixtureTerm().element.querySelectorAll('.xterm-screen canvas')].find(c=>!c.classList.contains('xterm-link-layer'));
 			gl.getContext('webgl2').getExtension('WEBGL_lose_context').loseContext();}`)
 		c.wait("a lost WebGL context unspaces the rows (DOM renderer)", `async()=>fixtureRoot().dataset.terminalFallback==='css'&&fixtureTerm().options.lineHeight===1&&
@@ -94,20 +106,15 @@ const terminalVTGlyphScreen = `(()=>{const E='\x1b[',at=(r,c)=>E+r+';'+c+'H';
 // all three rows, the half blocks form one band across the row boundary, the vertical line runs through its three
 // rows and the horizontal line through its twenty cells, without a single unlit pixel. The grid starts at the
 // canvas top, or one row lower when the canvas is a px taller (WebGL anchors at the bottom). Read once the fit
-// has settled (font size, line height and letterbox unchanged for 150 ms).
+// has settled (font size, line height and letterbox unchanged for 150 ms), inside a fresh render event.
 const terminalVTGlyphGaps = `async()=>{
 	for(let i=0,last='';i<20;i++){const t=fixtureTerm(),now=[t.options.fontSize,t.options.lineHeight,t.element.style.padding].join();
 		if(now===last)break;last=now;await new Promise(r=>setTimeout(r,150));}
-	await fixtureFlush();
-	await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(r,150))));
-	const term=fixtureTerm(),dev=term._core._renderService.dimensions.device.cell,w=dev.width,h=dev.height,problems=[];
-	const gl=[...term.element.querySelectorAll('.xterm-screen canvas')].find(c=>!c.classList.contains('xterm-link-layer'));
-	const copy=document.createElement('canvas');copy.width=gl.width;copy.height=gl.height;
-	const ctx=copy.getContext('2d');ctx.drawImage(gl,0,0);
-	const data=ctx.getImageData(0,0,gl.width,gl.height).data,lit=(x,y)=>data[(y*gl.width+x)*4+1]>128;
-	let top=0;while(top<gl.height&&!lit(Math.floor(3.5*w),top))top++;
+	const pixels=await fixtureTerminalPixels(),term=fixtureTerm(),dev=pixels.cell,w=dev.width,h=dev.height,problems=[];
+	const data=pixels.data,lit=(x,y)=>data[(y*pixels.width+x)*4+1]>128;
+	let top=0;while(top<pixels.height&&!lit(Math.floor(3.5*w),top))top++;
 	const y0=top-h,row=r=>y0+r*h,col=c=>c*w,unlit=(x,a,b)=>{const out=[];for(let y=a;y<b;y++)if(!lit(x,y))out.push(y-a);return out;};
-	if(y0!==0&&y0!==gl.height-24*h)problems.push('grid top at '+y0+' of '+gl.height);
+	if(y0!==0&&y0!==pixels.height-24*h)problems.push('grid top at '+y0+' of '+pixels.height);
 	for(const x of [col(1)+1,Math.floor(6.5*w),col(11)-2]){
 		const gaps=unlit(x,row(1),row(4));if(gaps.length)problems.push('full blocks x='+x+' unlit rows '+gaps.slice(0,6));
 		let first=-1,last=-1;for(let y=row(5);y<row(7);y++)if(lit(x,y)){if(first<0)first=y;last=y;}
