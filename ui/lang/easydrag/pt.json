@@ -1499,5 +1499,11 @@
   "easydrag.ui.error_flow_durable_approval_not_found": "Esta solicitação de aprovação não está mais disponível.",
   "easydrag.ui.error_flow_durable_approval_unavailable": "Não foi possível verificar o status da aprovação. Verifique novamente antes de decidir.",
   "easydrag.ui.error_flow_approval_rejected": "A aprovação foi rejeitada e a execução em espera foi interrompida.",
-  "easydrag.ui.error_flow_approval_expired": "A aprovação expirou e a execução em espera foi interrompida."
+  "easydrag.ui.error_flow_approval_expired": "A aprovação expirou e a execução em espera foi interrompida.",
+  "easydrag.ui.issue_param_literal_credential_header": "O cabeçalho {path} contém uma senha ou chave em texto simples. Guarde-a no cofre e use o campo Segredo.",
+  "easydrag.ui.issue_param_literal_credential_url_userinfo": "O endereço contém usuário e senha em texto simples. Guarde-os no cofre e use o campo Segredo.",
+  "easydrag.ui.issue_param_literal_credential_url_query": "O parâmetro de endereço {path} contém uma chave em texto simples. Guarde-a no cofre e use o campo Segredo.",
+  "easydrag.ui.issue_param_literal_credential_body_field": "O campo do corpo {path} contém uma senha ou chave em texto simples. Remova o valor do fluxo.",
+  "easydrag.ui.issue_param_literal_credential_param_field": "O campo {path} contém uma senha ou chave em texto simples. Remova o valor do fluxo.",
+  "easydrag.ui.issue_param_literal_credential_format": "Este valor parece um token de acesso em texto simples. Remova-o do fluxo."
 }

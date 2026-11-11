@@ -395,10 +395,17 @@
         return tr(t, 'easydrag.ui.error_' + code.toLowerCase(), t('easydrag.ui.error_generic'));
     }
 
-    // issueText translates validation issues by code; unknown codes keep the server text.
+    // issueText translates validation issues by code, and by code and location when the issue
+    // has one (easydrag.ui.issue_<code>_<location>, {path} filled); unknown codes keep the server text.
     function issueText(t, issue) {
         if (!issue) return '';
-        return tr(t, 'easydrag.ui.issue_' + String(issue.code || '').toLowerCase(), issue.message || issue.code || '');
+        const base = 'easydrag.ui.issue_' + String(issue.code || '').toLowerCase();
+        if (issue.location) {
+            const key = base + '_' + issue.location;
+            const text = t(key, { path: issue.path || '' });
+            if (text && text !== key) return text;
+        }
+        return tr(t, base, issue.message || issue.code || '');
     }
 
     // stepErrorText describes a failed step: translated code plus the tool's own message. The

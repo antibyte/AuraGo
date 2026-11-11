@@ -1499,5 +1499,11 @@
   "easydrag.ui.error_flow_durable_approval_not_found": "This approval request is no longer available.",
   "easydrag.ui.error_flow_durable_approval_unavailable": "The approval status could not be verified. Check its status again before deciding.",
   "easydrag.ui.error_flow_approval_rejected": "The approval was rejected and the waiting run stopped.",
-  "easydrag.ui.error_flow_approval_expired": "The approval expired and the waiting run stopped."
+  "easydrag.ui.error_flow_approval_expired": "The approval expired and the waiting run stopped.",
+  "easydrag.ui.issue_param_literal_credential_header": "The header {path} holds a password or key typed in clear text. Store it in the vault and use the Secret field.",
+  "easydrag.ui.issue_param_literal_credential_url_userinfo": "The address holds a user name and password in clear text. Store them in the vault and use the Secret field.",
+  "easydrag.ui.issue_param_literal_credential_url_query": "The address parameter {path} holds a key typed in clear text. Store it in the vault and use the Secret field.",
+  "easydrag.ui.issue_param_literal_credential_body_field": "The body field {path} holds a password or key typed in clear text. Remove it from the flow.",
+  "easydrag.ui.issue_param_literal_credential_param_field": "The field {path} holds a password or key typed in clear text. Remove it from the flow.",
+  "easydrag.ui.issue_param_literal_credential_format": "This value looks like an access token typed in clear text. Remove it from the flow."
 }

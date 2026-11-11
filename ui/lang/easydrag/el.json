@@ -1499,5 +1499,11 @@
   "easydrag.ui.error_flow_durable_approval_not_found": "Αυτό το αίτημα έγκρισης δεν είναι πλέον διαθέσιμο.",
   "easydrag.ui.error_flow_durable_approval_unavailable": "Δεν ήταν δυνατή η επαλήθευση της κατάστασης έγκρισης. Ελέγξτε ξανά την κατάσταση πριν αποφασίσετε.",
   "easydrag.ui.error_flow_approval_rejected": "Η έγκριση απορρίφθηκε και η εκτέλεση που περίμενε σταμάτησε.",
-  "easydrag.ui.error_flow_approval_expired": "Η έγκριση έληξε και η εκτέλεση που περίμενε σταμάτησε."
+  "easydrag.ui.error_flow_approval_expired": "Η έγκριση έληξε και η εκτέλεση που περίμενε σταμάτησε.",
+  "easydrag.ui.issue_param_literal_credential_header": "Η κεφαλίδα {path} περιέχει κωδικό ή κλειδί σε απλό κείμενο. Αποθήκευσέ το στο θησαυροφυλάκιο και χρησιμοποίησε το πεδίο Μυστικό.",
+  "easydrag.ui.issue_param_literal_credential_url_userinfo": "Η διεύθυνση περιέχει όνομα χρήστη και κωδικό σε απλό κείμενο. Αποθήκευσέ τα στο θησαυροφυλάκιο και χρησιμοποίησε το πεδίο Μυστικό.",
+  "easydrag.ui.issue_param_literal_credential_url_query": "Η παράμετρος διεύθυνσης {path} περιέχει κλειδί σε απλό κείμενο. Αποθήκευσέ το στο θησαυροφυλάκιο και χρησιμοποίησε το πεδίο Μυστικό.",
+  "easydrag.ui.issue_param_literal_credential_body_field": "Το πεδίο σώματος {path} περιέχει κωδικό ή κλειδί σε απλό κείμενο. Αφαίρεσε την τιμή από τη ροή.",
+  "easydrag.ui.issue_param_literal_credential_param_field": "Το πεδίο {path} περιέχει κωδικό ή κλειδί σε απλό κείμενο. Αφαίρεσε την τιμή από τη ροή.",
+  "easydrag.ui.issue_param_literal_credential_format": "Αυτή η τιμή μοιάζει με διακριτικό πρόσβασης σε απλό κείμενο. Αφαίρεσέ την από τη ροή."
 }

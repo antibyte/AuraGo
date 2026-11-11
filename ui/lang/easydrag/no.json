@@ -1499,5 +1499,11 @@
   "easydrag.ui.error_flow_durable_approval_not_found": "Denne godkjenningsforespørselen er ikke lenger tilgjengelig.",
   "easydrag.ui.error_flow_durable_approval_unavailable": "Godkjenningsstatusen kunne ikke bekreftes. Kontroller statusen på nytt før du avgjør.",
   "easydrag.ui.error_flow_approval_rejected": "Godkjenningen ble avvist, og den ventende kjøringen ble stoppet.",
-  "easydrag.ui.error_flow_approval_expired": "Godkjenningen utløp, og den ventende kjøringen ble stoppet."
+  "easydrag.ui.error_flow_approval_expired": "Godkjenningen utløp, og den ventende kjøringen ble stoppet.",
+  "easydrag.ui.issue_param_literal_credential_header": "Headeren {path} inneholder et passord eller en nøkkel i klartekst. Lagre den i hvelvet og bruk feltet Hemmelighet.",
+  "easydrag.ui.issue_param_literal_credential_url_userinfo": "Adressen inneholder brukernavn og passord i klartekst. Lagre dem i hvelvet og bruk feltet Hemmelighet.",
+  "easydrag.ui.issue_param_literal_credential_url_query": "Adresseparameteren {path} inneholder en nøkkel i klartekst. Lagre den i hvelvet og bruk feltet Hemmelighet.",
+  "easydrag.ui.issue_param_literal_credential_body_field": "Body-feltet {path} inneholder et passord eller en nøkkel i klartekst. Fjern verdien fra flyten.",
+  "easydrag.ui.issue_param_literal_credential_param_field": "Feltet {path} inneholder et passord eller en nøkkel i klartekst. Fjern verdien fra flyten.",
+  "easydrag.ui.issue_param_literal_credential_format": "Denne verdien ser ut som et tilgangstoken i klartekst. Fjern den fra flyten."
 }

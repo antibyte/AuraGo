@@ -1499,5 +1499,11 @@
   "easydrag.ui.error_flow_durable_approval_not_found": "To żądanie zatwierdzenia nie jest już dostępne.",
   "easydrag.ui.error_flow_durable_approval_unavailable": "Nie udało się zweryfikować stanu zatwierdzenia. Sprawdź stan ponownie przed podjęciem decyzji.",
   "easydrag.ui.error_flow_approval_rejected": "Zatwierdzenie odrzucono, a oczekujące uruchomienie zostało zatrzymane.",
-  "easydrag.ui.error_flow_approval_expired": "Zatwierdzenie wygasło, a oczekujące uruchomienie zostało zatrzymane."
+  "easydrag.ui.error_flow_approval_expired": "Zatwierdzenie wygasło, a oczekujące uruchomienie zostało zatrzymane.",
+  "easydrag.ui.issue_param_literal_credential_header": "Nagłówek {path} zawiera hasło lub klucz wpisany jawnym tekstem. Zapisz go w skarbcu i użyj pola Sekret.",
+  "easydrag.ui.issue_param_literal_credential_url_userinfo": "Adres zawiera nazwę użytkownika i hasło jawnym tekstem. Zapisz je w skarbcu i użyj pola Sekret.",
+  "easydrag.ui.issue_param_literal_credential_url_query": "Parametr adresu {path} zawiera klucz wpisany jawnym tekstem. Zapisz go w skarbcu i użyj pola Sekret.",
+  "easydrag.ui.issue_param_literal_credential_body_field": "Pole treści {path} zawiera hasło lub klucz wpisany jawnym tekstem. Usuń wartość z przepływu.",
+  "easydrag.ui.issue_param_literal_credential_param_field": "Pole {path} zawiera hasło lub klucz wpisany jawnym tekstem. Usuń wartość z przepływu.",
+  "easydrag.ui.issue_param_literal_credential_format": "Ta wartość wygląda jak token dostępu wpisany jawnym tekstem. Usuń ją z przepływu."
 }

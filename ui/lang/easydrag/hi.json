@@ -1499,5 +1499,11 @@
   "easydrag.ui.error_flow_durable_approval_not_found": "यह मंज़ूरी अनुरोध अब उपलब्ध नहीं है।",
   "easydrag.ui.error_flow_durable_approval_unavailable": "मंज़ूरी की स्थिति सत्यापित नहीं हो सकी। निर्णय लेने से पहले फिर जाँचें।",
   "easydrag.ui.error_flow_approval_rejected": "मंज़ूरी अस्वीकार हुई और प्रतीक्षा कर रहा रन रुक गया।",
-  "easydrag.ui.error_flow_approval_expired": "मंज़ूरी की समय सीमा समाप्त हुई और प्रतीक्षा कर रहा रन रुक गया।"
+  "easydrag.ui.error_flow_approval_expired": "मंज़ूरी की समय सीमा समाप्त हुई और प्रतीक्षा कर रहा रन रुक गया।",
+  "easydrag.ui.issue_param_literal_credential_header": "हेडर {path} में पासवर्ड या कुंजी सादे पाठ में लिखी है। उसे तिजोरी में रखो और गुप्त फ़ील्ड का उपयोग करो।",
+  "easydrag.ui.issue_param_literal_credential_url_userinfo": "पते में उपयोगकर्ता नाम और पासवर्ड सादे पाठ में हैं। उन्हें तिजोरी में रखो और गुप्त फ़ील्ड का उपयोग करो।",
+  "easydrag.ui.issue_param_literal_credential_url_query": "पते के पैरामीटर {path} में कुंजी सादे पाठ में लिखी है। उसे तिजोरी में रखो और गुप्त फ़ील्ड का उपयोग करो।",
+  "easydrag.ui.issue_param_literal_credential_body_field": "बॉडी फ़ील्ड {path} में पासवर्ड या कुंजी सादे पाठ में लिखी है। इस मान को फ़्लो से हटाओ।",
+  "easydrag.ui.issue_param_literal_credential_param_field": "फ़ील्ड {path} में पासवर्ड या कुंजी सादे पाठ में लिखी है। इस मान को फ़्लो से हटाओ।",
+  "easydrag.ui.issue_param_literal_credential_format": "यह मान सादे पाठ में लिखे एक्सेस टोकन जैसा दिखता है। इसे फ़्लो से हटाओ।"
 }

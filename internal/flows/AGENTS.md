@@ -313,9 +313,13 @@ the contracts below describe the implemented behavior of each delivered slice.
   still calls no hook. Validation is not the only guard: a live revision published under older rules is never
   validated again and test runs validate with draft rules, so the engine enforces the rule itself, in every run
   (see Engine semantics, `secretTargetRefusals`).
-- `PARAM_LITERAL_CREDENTIAL` (`IssueLiteralCredential`) is a warning (never an error) on `http.request` `headers`
-  with a typed-in credential header (`credentialHeaderName`); exports redact such values (`RedactCredentials`,
-  templates kept) and the run view redacts them (`redactCredentialHeaders`). S2 stays a warning: untrusted data in
+- `PARAM_LITERAL_CREDENTIAL` (`IssueLiteralCredential`) is a warning (never an error), one per finding of the credential rule
+  (`FindLiteralCredentials`, `credentials.go`): credential headers of `http.request`, URL user info and credential query
+  values in any web address, credential-named keys in JSON bodies, structured parameters and `tool.*` parameters, and known
+  token formats. The issue carries `location` and `path`; `movable` is true for an `http.request` header, query value or user
+  info whose node has no `auth_secret`. Exports, packs, run views and stored step params replace every finding with
+  `CredentialRedactionMarker` (`redactCredentialParams`, `redactCredentialValue`). The Go and client rules share
+  `testdata/credential_cases.json`. S2 stays a warning: untrusted data in
   command, code, path, delete or device sinks never blocks publishing (decision 2026-10-25); the one exception is
   the scheme or host of a web address (next bullet).
 - Web addresses (`ParamSpec.URLTarget` together with `SensitiveSink`: the `url` of `http.request` and `web.read`,
@@ -425,7 +429,7 @@ the contracts below describe the implemented behavior of each delivered slice.
   The run log keeps at most `MaxStoredRunBytes` (4 MiB) of a run's stored params and outputs, the trigger's
   included; later steps keep `{"_preview":"","_omitted":"run_storage_budget"}` with both truncated flags
   (`chargeStored`, `storedOmittedReason`). Stored params never hold a credential header value
-  (`redactCredentialHeaders`; `Service.Run` also redacts older rows).
+  (`redactCredentialParams`; `Service.Run` also redacts older rows).
 
 ## Runner and event bus
 - Test runs ignore per-flow policies but use the global limit. `queue` keeps at most `MaxQueuedPerFlow`

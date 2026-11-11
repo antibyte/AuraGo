@@ -1499,5 +1499,11 @@
   "easydrag.ui.error_flow_durable_approval_not_found": "Dit goedkeuringsverzoek is niet meer beschikbaar.",
   "easydrag.ui.error_flow_durable_approval_unavailable": "De goedkeuringsstatus kon niet worden geverifieerd. Controleer de status opnieuw voordat je beslist.",
   "easydrag.ui.error_flow_approval_rejected": "De goedkeuring is afgewezen en de wachtende uitvoering is gestopt.",
-  "easydrag.ui.error_flow_approval_expired": "De goedkeuring is verlopen en de wachtende uitvoering is gestopt."
+  "easydrag.ui.error_flow_approval_expired": "De goedkeuring is verlopen en de wachtende uitvoering is gestopt.",
+  "easydrag.ui.issue_param_literal_credential_header": "De header {path} bevat een wachtwoord of sleutel in platte tekst. Bewaar die in de kluis en gebruik het veld Geheim.",
+  "easydrag.ui.issue_param_literal_credential_url_userinfo": "Het adres bevat een gebruikersnaam en wachtwoord in platte tekst. Bewaar ze in de kluis en gebruik het veld Geheim.",
+  "easydrag.ui.issue_param_literal_credential_url_query": "De adresparameter {path} bevat een sleutel in platte tekst. Bewaar die in de kluis en gebruik het veld Geheim.",
+  "easydrag.ui.issue_param_literal_credential_body_field": "Het body-veld {path} bevat een wachtwoord of sleutel in platte tekst. Verwijder de waarde uit de flow.",
+  "easydrag.ui.issue_param_literal_credential_param_field": "Het veld {path} bevat een wachtwoord of sleutel in platte tekst. Verwijder de waarde uit de flow.",
+  "easydrag.ui.issue_param_literal_credential_format": "Deze waarde lijkt op een toegangstoken in platte tekst. Verwijder hem uit de flow."
 }

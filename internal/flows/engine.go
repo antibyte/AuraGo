@@ -310,7 +310,7 @@ func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in Exec
 	}
 	in.Params = params
 	// The run log never keeps a typed-in credential header (S6); the node still gets the value.
-	step.Params, step.ParamsTruncated, d.stored = storedParams(redactCredentialHeaders(params, false))
+	step.Params, step.ParamsTruncated, d.stored = storedParams(redactCredentialParams(n.Type, params, false))
 	attempts := 1 + clampInt(n.Settings.Retry.Count, 0, MaxRetryCount)
 	// Clamp before multiplying: a huge value would overflow the duration.
 	delay := time.Duration(clampInt(n.Settings.Retry.DelaySeconds, 0, MaxRetryDelaySeconds)) * time.Second

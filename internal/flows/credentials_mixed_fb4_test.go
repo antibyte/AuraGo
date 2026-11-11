@@ -10,12 +10,11 @@ func TestFB4MixedCredentialValuesWarnAndAreRedacted(t *testing.T) {
 		"Cookie":        "session=abc123; lang={{trigger.data.lang}}",
 		"Authorization": "Token sk-live-123 {{trigger.data.suffix}}",
 	}
-	node := &Node{ID: testNodeID(1), Params: map[string]any{"url": "https://api.example/x", "headers": mixed}}
-	issues := httpNodeDef(t).Validate(node, ValidateContext{Mode: ModePublish})
-	if len(issues) != 2 {
+	params := map[string]any{"url": "https://api.example/x", "headers": mixed}
+	if issues := credentialIssues(t, params); len(issues) != 2 {
 		t.Fatalf("issues = %+v, want a warning each for Authorization and Cookie", issues)
 	}
-	h := redactCredentialHeaders(node.Params, true)["headers"].(map[string]any)
+	h := redactCredentialHeaders(params, true)["headers"].(map[string]any)
 	if h["Cookie"] != redactedText || h["Authorization"] != redactedText {
 		t.Fatalf("export keeps a mixed credential: %v", h)
 	}
@@ -31,18 +30,18 @@ func TestFB4PureTemplateCredentialValuesStay(t *testing.T) {
 		"Cookie":        "  {{ trigger.data.cookie }}  ",
 		"X-Api-Key":     "basic {{trigger.data.k}}",
 	}
-	node := &Node{ID: testNodeID(1), Params: map[string]any{"url": "https://api.example/x", "headers": pure}}
-	if issues := httpNodeDef(t).Validate(node, ValidateContext{Mode: ModePublish}); len(issues) != 0 {
+	params := map[string]any{"url": "https://api.example/x", "headers": pure}
+	if issues := credentialIssues(t, params); len(issues) != 0 {
 		t.Fatalf("pure templates warned: %+v", issues)
 	}
-	h := redactCredentialHeaders(node.Params, true)["headers"].(map[string]any)
+	h := redactCredentialParams(TypeHTTPRequest, params, true)["headers"].(map[string]any)
 	for k, v := range pure {
 		if h[k] != v {
 			t.Errorf("export changed %s: %v", k, h[k])
 		}
 	}
 	// An escaped brace is typed-in text, not a template.
-	if got := literalCredentialHeaders(map[string]any{"Authorization": `Bearer \{{abc`}); len(got) != 1 {
+	if got := credentialIssues(t, map[string]any{"url": "https://api.example/x", "headers": map[string]any{"Authorization": `Bearer \{{abc`}}); len(got) != 1 {
 		t.Fatalf("escaped braces = %v, want a warning", got)
 	}
 }

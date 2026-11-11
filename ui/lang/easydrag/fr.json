@@ -1499,5 +1499,11 @@
   "easydrag.ui.error_flow_durable_approval_not_found": "Cette demande d’approbation n’est plus disponible.",
   "easydrag.ui.error_flow_durable_approval_unavailable": "Impossible de vérifier le statut de l’approbation. Vérifiez-le à nouveau avant de décider.",
   "easydrag.ui.error_flow_approval_rejected": "L’approbation a été refusée et l’exécution en attente a été arrêtée.",
-  "easydrag.ui.error_flow_approval_expired": "L’approbation a expiré et l’exécution en attente a été arrêtée."
+  "easydrag.ui.error_flow_approval_expired": "L’approbation a expiré et l’exécution en attente a été arrêtée.",
+  "easydrag.ui.issue_param_literal_credential_header": "L’en-tête {path} contient un mot de passe ou une clé en clair. Range-le dans le coffre et utilise le champ Secret.",
+  "easydrag.ui.issue_param_literal_credential_url_userinfo": "L’adresse contient un nom d’utilisateur et un mot de passe en clair. Range-les dans le coffre et utilise le champ Secret.",
+  "easydrag.ui.issue_param_literal_credential_url_query": "Le paramètre d’adresse {path} contient une clé en clair. Range-la dans le coffre et utilise le champ Secret.",
+  "easydrag.ui.issue_param_literal_credential_body_field": "Le champ du corps {path} contient un mot de passe ou une clé en clair. Retire la valeur du flux.",
+  "easydrag.ui.issue_param_literal_credential_param_field": "Le champ {path} contient un mot de passe ou une clé en clair. Retire la valeur du flux.",
+  "easydrag.ui.issue_param_literal_credential_format": "Cette valeur ressemble à un jeton d’accès en clair. Retire-la du flux."
 }

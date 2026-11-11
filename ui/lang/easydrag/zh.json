@@ -1499,5 +1499,11 @@
   "easydrag.ui.error_flow_durable_approval_not_found": "此批准请求已不可用。",
   "easydrag.ui.error_flow_durable_approval_unavailable": "无法验证批准状态。作出决定前请重新检查状态。",
   "easydrag.ui.error_flow_approval_rejected": "批准已被拒绝，等待中的运行已停止。",
-  "easydrag.ui.error_flow_approval_expired": "批准已过期，等待中的运行已停止。"
+  "easydrag.ui.error_flow_approval_expired": "批准已过期，等待中的运行已停止。",
+  "easydrag.ui.issue_param_literal_credential_header": "请求头 {path} 以明文包含密码或密钥。请把它保存到保险库，并使用“密钥”字段。",
+  "easydrag.ui.issue_param_literal_credential_url_userinfo": "地址以明文包含用户名和密码。请把它们保存到保险库，并使用“密钥”字段。",
+  "easydrag.ui.issue_param_literal_credential_url_query": "地址参数 {path} 以明文包含密钥。请把它保存到保险库，并使用“密钥”字段。",
+  "easydrag.ui.issue_param_literal_credential_body_field": "请求体字段 {path} 以明文包含密码或密钥。请从流程中删除该值。",
+  "easydrag.ui.issue_param_literal_credential_param_field": "字段 {path} 以明文包含密码或密钥。请从流程中删除该值。",
+  "easydrag.ui.issue_param_literal_credential_format": "该值看起来像明文访问令牌。请从流程中删除。"
 }

@@ -1499,5 +1499,11 @@
   "easydrag.ui.error_flow_durable_approval_not_found": "Esta solicitud de aprobación ya no está disponible.",
   "easydrag.ui.error_flow_durable_approval_unavailable": "No se pudo verificar el estado de la aprobación. Vuelve a comprobarlo antes de decidir.",
   "easydrag.ui.error_flow_approval_rejected": "La aprobación se rechazó y la ejecución en espera se detuvo.",
-  "easydrag.ui.error_flow_approval_expired": "La aprobación caducó y la ejecución en espera se detuvo."
+  "easydrag.ui.error_flow_approval_expired": "La aprobación caducó y la ejecución en espera se detuvo.",
+  "easydrag.ui.issue_param_literal_credential_header": "El encabezado {path} contiene una contraseña o clave escrita en texto plano. Guárdala en la bóveda y usa el campo Secreto.",
+  "easydrag.ui.issue_param_literal_credential_url_userinfo": "La dirección contiene usuario y contraseña en texto plano. Guárdalos en la bóveda y usa el campo Secreto.",
+  "easydrag.ui.issue_param_literal_credential_url_query": "El parámetro de dirección {path} contiene una clave en texto plano. Guárdala en la bóveda y usa el campo Secreto.",
+  "easydrag.ui.issue_param_literal_credential_body_field": "El campo del cuerpo {path} contiene una contraseña o clave en texto plano. Quita el valor del flujo.",
+  "easydrag.ui.issue_param_literal_credential_param_field": "El campo {path} contiene una contraseña o clave en texto plano. Quita el valor del flujo.",
+  "easydrag.ui.issue_param_literal_credential_format": "Este valor parece un token de acceso en texto plano. Quítalo del flujo."
 }

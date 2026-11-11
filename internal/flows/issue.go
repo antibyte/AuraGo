@@ -17,7 +17,12 @@ type Issue struct {
 	NodeID   string   `json:"node_id,omitempty"`
 	EdgeID   string   `json:"edge_id,omitempty"`
 	Param    string   `json:"param,omitempty"`
-	Message  string   `json:"message"`
+	// Location and Path say where a PARAM_LITERAL_CREDENTIAL sits (CredentialFinding); Movable
+	// tells the editor whether "move to the vault" is offered.
+	Location string `json:"location,omitempty"`
+	Path     string `json:"path,omitempty"`
+	Movable  bool   `json:"movable,omitempty"`
+	Message  string `json:"message"`
 }
 
 // ValidationMode selects draft (save) or publish rules.
@@ -78,8 +83,7 @@ const (
 	// decides where the node connects, so it is a publish error, not a warning. Data in
 	// the path, the query or the fragment keeps the warning.
 	IssueUntrustedURLTarget = "UNTRUSTED_URL_TARGET"
-	// IssueLiteralCredential warns about a credential header (Authorization, X-Api-Key, Cookie, ...)
-	// whose value is typed into the node: it sits in clear text in the draft and its versions.
+	// IssueLiteralCredential warns about a credential typed into a node (header, URL user info or query, a body or parameter field, a token format): it sits in clear text in the draft, its versions and the run log.
 	IssueLiteralCredential = "PARAM_LITERAL_CREDENTIAL"
 )
 

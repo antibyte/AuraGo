@@ -1499,5 +1499,11 @@
   "easydrag.ui.error_flow_durable_approval_not_found": "Den här godkännandebegäran är inte längre tillgänglig.",
   "easydrag.ui.error_flow_durable_approval_unavailable": "Godkännandestatusen kunde inte verifieras. Kontrollera statusen igen innan du fattar ett beslut.",
   "easydrag.ui.error_flow_approval_rejected": "Godkännandet avslogs och den väntande körningen stoppades.",
-  "easydrag.ui.error_flow_approval_expired": "Godkännandet löpte ut och den väntande körningen stoppades."
+  "easydrag.ui.error_flow_approval_expired": "Godkännandet löpte ut och den väntande körningen stoppades.",
+  "easydrag.ui.issue_param_literal_credential_header": "Headern {path} innehåller ett lösenord eller en nyckel i klartext. Spara den i kassaskåpet och använd fältet Hemlighet.",
+  "easydrag.ui.issue_param_literal_credential_url_userinfo": "Adressen innehåller användarnamn och lösenord i klartext. Spara dem i kassaskåpet och använd fältet Hemlighet.",
+  "easydrag.ui.issue_param_literal_credential_url_query": "Adressparametern {path} innehåller en nyckel i klartext. Spara den i kassaskåpet och använd fältet Hemlighet.",
+  "easydrag.ui.issue_param_literal_credential_body_field": "Body-fältet {path} innehåller ett lösenord eller en nyckel i klartext. Ta bort värdet från flödet.",
+  "easydrag.ui.issue_param_literal_credential_param_field": "Fältet {path} innehåller ett lösenord eller en nyckel i klartext. Ta bort värdet från flödet.",
+  "easydrag.ui.issue_param_literal_credential_format": "Värdet ser ut som en åtkomsttoken i klartext. Ta bort det från flödet."
 }

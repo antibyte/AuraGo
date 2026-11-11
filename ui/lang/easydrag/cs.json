@@ -1499,5 +1499,11 @@
   "easydrag.ui.error_flow_durable_approval_not_found": "Tato žádost o schválení už není k dispozici.",
   "easydrag.ui.error_flow_durable_approval_unavailable": "Stav schválení se nepodařilo ověřit. Před rozhodnutím jej znovu zkontrolujte.",
   "easydrag.ui.error_flow_approval_rejected": "Schválení bylo zamítnuto a čekající běh se zastavil.",
-  "easydrag.ui.error_flow_approval_expired": "Schválení vypršelo a čekající běh se zastavil."
+  "easydrag.ui.error_flow_approval_expired": "Schválení vypršelo a čekající běh se zastavil.",
+  "easydrag.ui.issue_param_literal_credential_header": "Hlavička {path} obsahuje heslo nebo klíč zadaný jako čistý text. Ulož ho do trezoru a použij pole Tajemství.",
+  "easydrag.ui.issue_param_literal_credential_url_userinfo": "Adresa obsahuje uživatelské jméno a heslo jako čistý text. Ulož je do trezoru a použij pole Tajemství.",
+  "easydrag.ui.issue_param_literal_credential_url_query": "Parametr adresy {path} obsahuje klíč zadaný jako čistý text. Ulož ho do trezoru a použij pole Tajemství.",
+  "easydrag.ui.issue_param_literal_credential_body_field": "Pole těla {path} obsahuje heslo nebo klíč zadaný jako čistý text. Odstraň hodnotu z flow.",
+  "easydrag.ui.issue_param_literal_credential_param_field": "Pole {path} obsahuje heslo nebo klíč zadaný jako čistý text. Odstraň hodnotu z flow.",
+  "easydrag.ui.issue_param_literal_credential_format": "Tato hodnota vypadá jako přístupový token v čistém textu. Odstraň ji z flow."
 }

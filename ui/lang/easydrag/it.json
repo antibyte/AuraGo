@@ -1499,5 +1499,11 @@
   "easydrag.ui.error_flow_durable_approval_not_found": "Questa richiesta di approvazione non è più disponibile.",
   "easydrag.ui.error_flow_durable_approval_unavailable": "Impossibile verificare lo stato dell'approvazione. Ricontrolla lo stato prima di decidere.",
   "easydrag.ui.error_flow_approval_rejected": "L'approvazione è stata rifiutata e l'esecuzione in attesa si è fermata.",
-  "easydrag.ui.error_flow_approval_expired": "L'approvazione è scaduta e l'esecuzione in attesa si è fermata."
+  "easydrag.ui.error_flow_approval_expired": "L'approvazione è scaduta e l'esecuzione in attesa si è fermata.",
+  "easydrag.ui.issue_param_literal_credential_header": "L’header {path} contiene una password o una chiave in chiaro. Salvala nel caveau e usa il campo Segreto.",
+  "easydrag.ui.issue_param_literal_credential_url_userinfo": "L’indirizzo contiene nome utente e password in chiaro. Salvali nel caveau e usa il campo Segreto.",
+  "easydrag.ui.issue_param_literal_credential_url_query": "Il parametro dell’indirizzo {path} contiene una chiave in chiaro. Salvala nel caveau e usa il campo Segreto.",
+  "easydrag.ui.issue_param_literal_credential_body_field": "Il campo del body {path} contiene una password o una chiave in chiaro. Rimuovi il valore dal flusso.",
+  "easydrag.ui.issue_param_literal_credential_param_field": "Il campo {path} contiene una password o una chiave in chiaro. Rimuovi il valore dal flusso.",
+  "easydrag.ui.issue_param_literal_credential_format": "Questo valore sembra un token di accesso in chiaro. Rimuovilo dal flusso."
 }

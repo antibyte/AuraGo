@@ -169,6 +169,7 @@ func (v *validator) finish() {
 		is.NodeID = truncateRunes(is.NodeID, maxIssueIDRunes)
 		is.EdgeID = truncateRunes(is.EdgeID, maxIssueIDRunes)
 		is.Param = truncateRunes(is.Param, maxIssueParamRunes)
+		is.Path = truncateRunes(is.Path, maxIssueParamRunes)
 		is.Message = truncateRunes(is.Message, maxIssueMessageRunes)
 	}
 	if v.dropped > 0 {
@@ -388,6 +389,7 @@ func (v *validator) publishRules() {
 		// the whole run when the hook panics, so probe them all. The result is
 		// memoized, so a node with edges costs no extra call.
 		v.outputPorts(n, def)
+		v.credentialIssues(n)
 		if n.Settings.Disabled {
 			continue
 		}

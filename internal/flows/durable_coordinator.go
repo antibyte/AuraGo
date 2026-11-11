@@ -79,7 +79,7 @@ func (s *runState) suspendDurableNode(ctx context.Context, id string) (RunResult
 	if !wake.Before(control.deadline) {
 		return RunResult{}, NewNodeError("FLOW_WAIT_TOO_LONG", "the wait exceeds the run deadline")
 	}
-	stored, truncated, size := storedParams(redactCredentialHeaders(params, false))
+	stored, truncated, size := storedParams(redactCredentialParams(n.Type, params, false))
 	step := s.chargeStored(StepRecord{NodeID: id, NodeKey: n.Key, Attempt: 1, Status: StepWaiting,
 		StartedAt: now, Params: stored, ParamsTruncated: truncated}, size)
 	state, err := captureDurableState(s, id, now, wake, control.deadline)

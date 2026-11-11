@@ -8,17 +8,16 @@ import (
 )
 
 func TestFB4LiteralCredentialHeaderIsAPublishWarning(t *testing.T) {
-	node := &Node{ID: testNodeID(1), Params: map[string]any{"url": "https://api.example/x", "headers": map[string]any{
+	issues := credentialIssues(t, map[string]any{"url": "https://api.example/x", "headers": map[string]any{
 		"Authorization": "Bearer abc123", "X-Api-Key": "k-123", "Cookie": "sid=1", "X-Request-Id": "r1",
-		"X-Auth-Token": "{{trigger.data.token}}", "Proxy-Authorization": ""}}}
-	issues := httpNodeDef(t).Validate(node, ValidateContext{Mode: ModePublish})
+		"X-Auth-Token": "{{trigger.data.token}}", "Proxy-Authorization": ""}})
 	if len(issues) != 3 {
 		t.Fatalf("issues = %+v, want one warning each for Authorization, Cookie and X-Api-Key", issues)
 	}
 	for i, want := range []string{"Authorization", "Cookie", "X-Api-Key"} {
 		is := issues[i]
-		if is.Code != IssueLiteralCredential || is.Severity != SeverityWarning || is.Param != "headers" || !strings.Contains(is.Message, want) {
-			t.Errorf("issue %d = %+v, want a warning about %s", i, is, want)
+		if is.Code != IssueLiteralCredential || is.Severity != SeverityWarning || is.Param != "headers" || is.Location != "header" || is.Path != want || !strings.Contains(is.Message, want) {
+			t.Errorf("issue %d = %+v, want a header warning about %s", i, is, want)
 		}
 	}
 }

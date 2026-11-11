@@ -1499,5 +1499,11 @@
   "easydrag.ui.error_flow_durable_approval_not_found": "Diese Freigabeanfrage ist nicht mehr verfügbar.",
   "easydrag.ui.error_flow_durable_approval_unavailable": "Der Freigabestatus konnte nicht bestätigt werden. Prüfe den Status erneut, bevor Du entscheidest.",
   "easydrag.ui.error_flow_approval_rejected": "Die Freigabe wurde abgelehnt und die wartende Ausführung beendet.",
-  "easydrag.ui.error_flow_approval_expired": "Die Freigabe ist abgelaufen und die wartende Ausführung wurde beendet."
+  "easydrag.ui.error_flow_approval_expired": "Die Freigabe ist abgelaufen und die wartende Ausführung wurde beendet.",
+  "easydrag.ui.issue_param_literal_credential_header": "Der Header {path} enthält ein Passwort oder einen Schlüssel im Klartext. Lege ihn im Tresor ab und nutze das Feld „Geheimnis“.",
+  "easydrag.ui.issue_param_literal_credential_url_userinfo": "Die Adresse enthält Benutzername und Passwort im Klartext. Lege sie im Tresor ab und nutze das Feld „Geheimnis“.",
+  "easydrag.ui.issue_param_literal_credential_url_query": "Der Adressparameter {path} enthält einen Schlüssel im Klartext. Lege ihn im Tresor ab und nutze das Feld „Geheimnis“.",
+  "easydrag.ui.issue_param_literal_credential_body_field": "Das Body-Feld {path} enthält ein Passwort oder einen Schlüssel im Klartext. Entferne den Wert aus dem Flow.",
+  "easydrag.ui.issue_param_literal_credential_param_field": "Das Feld {path} enthält ein Passwort oder einen Schlüssel im Klartext. Entferne den Wert aus dem Flow.",
+  "easydrag.ui.issue_param_literal_credential_format": "Dieser Wert sieht aus wie ein Zugriffstoken im Klartext. Entferne ihn aus dem Flow."
 }
