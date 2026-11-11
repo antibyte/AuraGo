@@ -1,4 +1,5 @@
 {
+  "help.embeddings.corpus_max_size_mb": "Domyślnie: 1024 MiB (1 GiB). Obejmuje wszystkie dokumenty i fragmenty plików. Zmiany działają po ponownym uruchomieniu; pliki WAL liczone są osobno.",
   "help.skill_manager.enabled": "Włącza menedżera umiejętności Pythona po ponownym uruchomieniu. Pakiety SKILL.md mają własny cykl życia. Uprawnienie Python w Strefie zagrożenia nadal stanowi bramkę dla wykonywania Pythona.",
   "help.skill_manager.require_sandbox": "Wymaga, aby umiejętności Pythona działały w piaskownicy. Nie powoduje to automatycznego umieszczenia skryptów pakietów SKILL.md w kontenerze.",
   "help.agent.output_compression.reversible.enabled": "Archiwizuje oryginalne dane wyjściowe; niezależnie od głównego przełącznika kompresji. Pobranie wymaga czytnika archiwum w bieżącym zakresie. Domyślnie: włączone.",

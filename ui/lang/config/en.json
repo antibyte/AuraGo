@@ -1,4 +1,5 @@
 {
+  "config.embeddings.corpus_max_size_mb_label": "Corpus limit (MiB)",
   "config.telephone_agent.catalog_unavailable": "Lists are temporarily unavailable. Saved selections are kept.",
   "config.telephone_agent.tool_unavailable": "Tool unavailable",
   "config.telephone_agent.language_auto": "Automatic",

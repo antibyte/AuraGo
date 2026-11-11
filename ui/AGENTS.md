@@ -27,6 +27,12 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 ## Ownership
 
+- Embeddings always shows the corpus limit, including with its provider disabled:
+  1024 MiB default, integer range 1..1048576, restart-only. Dashboard memory shows
+  logical database usage, limit, WAL, free space/reserve and a translated pause
+  remedy, warning at 80 percent. Keep all sixteen Config/help/dashboard locales
+  aligned. Verify `TestCorpusLimitConfigBrowser` and `TestCorpusCapacityDashboardBrowser`.
+
 - The shared llm_route badge shows missing native tool-calling support from
   passive capability metadata, even with routing disabled. Keep the common
   label in all sixteen locales; verify `TestLLMCapabilityNoticeBrowser`.

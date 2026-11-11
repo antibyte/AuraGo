@@ -1260,17 +1260,18 @@ type Config struct {
 		NetworkSharesPath      string `yaml:"network_shares_path"`
 	} `yaml:"sqlite"`
 	Embeddings struct {
-		Provider         string `yaml:"provider"`          // "disabled" or provider entry ID
-		ProviderType     string `yaml:"-"       json:"-"`  // resolved
-		BaseURL          string `yaml:"-"       json:"-"`  // resolved from provider
-		APIKey           string `yaml:"-"       json:"-"`  // resolved from provider
-		Model            string `yaml:"-"       json:"-"`  // resolved from provider
-		InternalModel    string `yaml:"internal_model"`    // legacy/compat: model when using main LLM provider
-		ExternalURL      string `yaml:"external_url"`      // legacy/compat: dedicated endpoint URL
-		ExternalModel    string `yaml:"external_model"`    // legacy/compat: dedicated endpoint model
-		LegacyAPIKey     string `yaml:"api_key"  json:"-"` // legacy/compat: separate API key
-		Multimodal       bool   `yaml:"multimodal"`        // enable multimodal embeddings (images, audio)
-		MultimodalFormat string `yaml:"multimodal_format"` // "auto", "openai", "vertex" — API format for multimodal
+		CorpusMaxSizeMB  int    `yaml:"corpus_max_size_mb"` // MiB, applied at startup
+		Provider         string `yaml:"provider"`           // "disabled" or provider entry ID
+		ProviderType     string `yaml:"-"       json:"-"`   // resolved
+		BaseURL          string `yaml:"-"       json:"-"`   // resolved from provider
+		APIKey           string `yaml:"-"       json:"-"`   // resolved from provider
+		Model            string `yaml:"-"       json:"-"`   // resolved from provider
+		InternalModel    string `yaml:"internal_model"`     // legacy/compat: model when using main LLM provider
+		ExternalURL      string `yaml:"external_url"`       // legacy/compat: dedicated endpoint URL
+		ExternalModel    string `yaml:"external_model"`     // legacy/compat: dedicated endpoint model
+		LegacyAPIKey     string `yaml:"api_key"  json:"-"`  // legacy/compat: separate API key
+		Multimodal       bool   `yaml:"multimodal"`         // enable multimodal embeddings (images, audio)
+		MultimodalFormat string `yaml:"multimodal_format"`  // "auto", "openai", "vertex" — API format for multimodal
 		Local            struct {
 			Backend     string `yaml:"backend" json:"backend"`           // auto, cpu, cuda, coreml, metal, vulkan
 			ContextSize int    `yaml:"context_size" json:"context_size"` // maximum tokens per text (default: 2048)

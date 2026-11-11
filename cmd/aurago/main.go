@@ -592,13 +592,19 @@ func main() {
 	})
 	defer kg.Close()
 
-	if err := memory.PrepareDocumentCorpus(cfg.Directories.VectorDBDir); err != nil {
-		appLog.Error("Failed to prepare durable memory corpus", "error", err)
+	corpusPreparationErr := memory.PrepareDocumentCorpus(cfg.Directories.VectorDBDir, int64(cfg.Embeddings.CorpusMaxSizeMB)<<20)
+	if corpusPreparationErr != nil && !errors.Is(corpusPreparationErr, memory.ErrCorpusCapacity) {
+		appLog.Error("Failed to prepare durable memory corpus", "error", corpusPreparationErr)
 		os.Exit(1)
 	}
-	if _, err := server.ApplyPendingEmbeddingsReset(cfg, shortTermMem, kg, appLog); err != nil {
-		appLog.Error("Failed to apply pending embeddings reset", "error", err)
-		os.Exit(1)
+	if corpusPreparationErr != nil {
+		appLog.Warn("Corpus capacity requires operator attention; embedding reset deferred", "error", corpusPreparationErr)
+	}
+	if corpusPreparationErr == nil {
+		if _, err := server.ApplyPendingEmbeddingsReset(cfg, shortTermMem, kg, appLog); err != nil {
+			appLog.Error("Failed to apply pending embeddings reset", "error", err)
+			os.Exit(1)
+		}
 	}
 
 	// Migrate core_memory.md -> SQLite (no-op if already done); returns true on first start

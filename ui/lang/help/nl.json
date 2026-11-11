@@ -1,4 +1,5 @@
 {
+  "help.embeddings.corpus_max_size_mb": "Standaard: 1024 MiB (1 GiB). Omvat alle documenten en bestandsdelen. Wijzigingen gelden na herstart; WAL-bestanden worden apart geteld.",
   "help.skill_manager.enabled": "Schakelt de Python-skillmanager in na een herstart. SKILL.md-pakketten hebben hun eigen levenscyclus. De Python-machtiging in Danger Zone blijft de poort voor Python-uitvoering.",
   "help.skill_manager.require_sandbox": "Vereist gesandboxte Python-skills. Dit plaatst scripts van SKILL.md-pakketten niet automatisch in een container.",
   "help.agent.output_compression.reversible.enabled": "Archiveert oorspronkelijke uitvoer; onafhankelijk van de hoofdschakelaar voor compressie. Ophalen vereist de archieflezer in de huidige scope. Standaard: aan.",

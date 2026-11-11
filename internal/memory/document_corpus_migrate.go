@@ -153,6 +153,13 @@ func (c *documentCorpus) migrateLegacy(dir string) error {
 		}
 		collections = append(collections, legacyCollection{meta.Name, meta.Metadata, docs})
 	}
+	var required int64
+	for _, col := range collections {
+		required += estimatedCorpusBytes(col.docs, 0)
+	}
+	if err := c.checkCapacity(context.Background(), required); err != nil {
+		return err
+	}
 	// Original files remain in place; the synced copy is retained before migration.
 	if len(legacyFiles) > 0 {
 		backup, err := os.MkdirTemp(filepath.Dir(dir), filepath.Base(dir)+".legacy-backup-")

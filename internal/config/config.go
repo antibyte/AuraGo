@@ -824,6 +824,7 @@ func Load(path string) (*Config, error) {
 	cfg.Embeddings.LocalOllama.ContainerPort = 11435
 	cfg.Embeddings.LocalOllama.GPUBackend = "auto"
 	cfg.Embeddings.MultimodalFormat = "auto"
+	cfg.Embeddings.CorpusMaxSizeMB = DefaultCorpusMaxSizeMB
 	cfg.Embeddings.Local.Backend = "auto"
 	cfg.Embeddings.Local.ContextSize = 2048
 	cfg.Embeddings.Local.BatchSize = 2048
@@ -1054,6 +1055,9 @@ func Load(path string) (*Config, error) {
 	// Danger-zone capabilities default to false (opt-in) for new installations.
 	// Existing configs with explicit true/false values will be read from YAML unchanged.
 	if err := ValidateCloudflareTunnelPortYAML(data); err != nil {
+		return nil, err
+	}
+	if err := ValidateCorpusLimitYAML(data); err != nil {
 		return nil, err
 	}
 	if err := yaml.Unmarshal(data, &cfg); err != nil {

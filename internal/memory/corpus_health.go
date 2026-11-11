@@ -53,6 +53,31 @@ func (cv *ChromemVectorDB) CorpusStatus(ctx context.Context) embeddings.CorpusSt
 		status.Error = "corpus_size_unavailable"
 		return status
 	}
+	status.LimitBytes = cv.corpus.limitBytes
+	status.UsedBytes, err = cv.corpus.usedBytes(ctx)
+	if err != nil {
+		status.Error = "corpus_size_unavailable"
+		return status
+	}
+	status.UtilizationPercent = float64(status.UsedBytes) * 100 / float64(status.LimitBytes)
+	status.CapacityWarning = status.UtilizationPercent >= 80
+	status.DiskReserveBytes = CorpusDiskReserveBytes
+	status.IndexPaused = cv.corpus.indexPaused
+	free, diskErr := cv.corpus.freeDisk(cv.corpus.path)
+	if diskErr == nil {
+		status.DiskFreeBytes = &free
+	}
+	switch {
+	case status.UsedBytes > status.LimitBytes:
+		status.PauseReason = "corpus_limit_exceeded"
+	case status.IndexPaused:
+		status.PauseReason = cv.corpus.pauseReason
+	case diskErr != nil:
+		status.PauseReason = "corpus_disk_status_unavailable"
+	case free < CorpusDiskReserveBytes+65536:
+		status.PauseReason = "corpus_disk_reserve"
+	}
+	status.PublicationPaused = status.PauseReason != ""
 	status.Available = true
 	return status
 }

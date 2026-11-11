@@ -1,4 +1,5 @@
 {
+  "config.embeddings.corpus_max_size_mb_label": "Korpusgrense (MiB)",
   "config.telephone_agent.catalog_unavailable": "Listene er midlertidig utilgjengelige. Lagrede valg beholdes.",
   "config.telephone_agent.tool_unavailable": "Verktøyet er ikke tilgjengelig",
   "config.telephone_agent.language_auto": "Automatisk",

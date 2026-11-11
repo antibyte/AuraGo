@@ -1,4 +1,5 @@
 {
+  "help.embeddings.corpus_max_size_mb": "Predeterminado: 1024 MiB (1 GiB). Abarca todos los documentos y fragmentos de archivos. Los cambios se aplican tras reiniciar; los archivos WAL se cuentan aparte.",
   "help.skill_manager.enabled": "Activa el administrador de habilidades de Python después del reinicio. Los paquetes SKILL.md tienen su propio ciclo de vida. El permiso de Python de Danger Zone sigue regulando la ejecución de Python.",
   "help.skill_manager.require_sandbox": "Requiere habilidades de Python en un sandbox. Esto no coloca automáticamente los scripts de los paquetes SKILL.md en un contenedor.",
   "help.agent.output_compression.reversible.enabled": "Archiva las salidas originales, con independencia del interruptor principal de compresión. La recuperación requiere el lector del archivo en el alcance actual. Predeterminado: activado.",

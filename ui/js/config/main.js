@@ -1977,7 +1977,7 @@ async function renderSection(key) {
         'output_compression'       // → Output Compression section
     ]);
     // Legacy fields superseded by provider management — hide from UI
-    const EMBEDDINGS_SKIP_KEYS = new Set(['api_key', 'external_model', 'external_url', 'internal_model']);
+    const EMBEDDINGS_SKIP_KEYS = new Set(['api_key', 'external_model', 'external_url', 'internal_model', 'corpus_max_size_mb']);
     // Legacy fields superseded by provider management — hide from UI
     const LLM_SKIP_KEYS = new Set(['api_key', 'base_url', 'model', 'use_native_functions', 'structured_outputs', 'multimodal', 'multimodal_provider_types_extra']);
     // Sections whose api_key/base_url/model are managed by provider entries
@@ -2047,6 +2047,7 @@ async function renderSection(key) {
                     ⚠️ ${t('config.embeddings.change_warning_banner')}
                 </div>`;
         html += renderEmbeddingsRuntimeBlock();
+        html += renderField('embeddings.corpus_max_size_mb', 'corpus_max_size_mb', configData.embeddings?.corpus_max_size_mb ?? 1024, 'embeddings', {type:'int'});
     }
 
     // Tools permissions warning
@@ -3169,7 +3170,7 @@ function embeddingsConfigWillLikelyChange(patch) {
         ['local_ollama.gpu_backend', currentLocal.gpu_backend, nextLocal.gpu_backend]
     ];
 
-    return comparePaths.some(([, before, after]) => JSON.stringify(before) !== JSON.stringify(after));
+    return comparePaths.some(([, before, after]) => after !== undefined && JSON.stringify(before) !== JSON.stringify(after));
 }
 
 function showEmbeddingsResetModal(options = {}) {
@@ -3527,6 +3528,10 @@ async function saveConfig() {
             }
 
             if (result.needs_restart) {
+                if (Array.isArray(result.restart_reason) && result.restart_reason.includes('embeddings.corpus_max_size_mb')) {
+                    result.message = t('config.save_bar.restart_needed') + ' ' + result.restart_reason.map(reason =>
+                        reason === 'embeddings.corpus_max_size_mb' ? t('config.embeddings.corpus_max_size_mb_label') : reason).join(', ');
+                }
                 status.className = 'save-status warning';
                 status.textContent = '⚠ ' + (result.message || t('config.save_bar.restart_needed'));
                 rememberConfigRestart(result);

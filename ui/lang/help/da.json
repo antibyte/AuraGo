@@ -1,4 +1,5 @@
 {
+  "help.embeddings.corpus_max_size_mb": "Standard: 1024 MiB (1 GiB). Gælder hele dokumentkorpus inklusive fildele. Ændringer gælder efter genstart; WAL-filer tælles separat.",
   "help.skill_manager.enabled": "Aktiverer Python-færdighedsmanageren efter genstart. SKILL.md-pakker har deres egen livscyklus. Python-tilladelsen i Farezone fungerer stadig som port for udførelse af Python.",
   "help.skill_manager.require_sandbox": "Kræver, at Python-færdigheder kører i sandkasse. Dette placerer ikke automatisk scripts fra SKILL.md-pakker i en container.",
   "help.agent.output_compression.reversible.enabled": "Arkiverer originale output; uafhængigt af komprimeringens hovedafbryder. Hentning kræver arkivlæseren i det aktuelle omfang. Standard: til.",

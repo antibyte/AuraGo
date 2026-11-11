@@ -121,6 +121,7 @@
     }
 
     const validationRules = Object.freeze({
+        'embeddings.corpus_max_size_mb': { type: 'number', min: 1, max: 1048576, integer: true, unit: 'MiB', required: true },
         'kaggle.request_timeout_seconds': { type: 'number', min: 1, max: 300, changedOnly: true },
         'kaggle.remote_timeout_minutes': { type: 'number', min: 1, max: 720, changedOnly: true },
         'kaggle.local.max_sessions': { type: 'number', min: 1, max: 8, changedOnly: true },

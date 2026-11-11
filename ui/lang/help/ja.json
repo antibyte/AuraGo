@@ -1,4 +1,5 @@
 {
+  "help.embeddings.corpus_max_size_mb": "既定値: 1024 MiB（1 GiB）。ファイルの分割部分を含む文書コーパス全体に適用されます。変更は再起動後に有効になり、WAL ファイルは別途計測されます。",
   "help.skill_manager.enabled": "再起動後に Python スキルマネージャーを有効にします。SKILL.md パッケージには独自のライフサイクルがあります。Danger Zone の Python 権限が、引き続き Python 実行をゲートします。",
   "help.skill_manager.require_sandbox": "サンドボックス化された Python スキルを必須にします。これによって SKILL.md パッケージのスクリプトが自動的にコンテナへ配置されることはありません。",
   "help.agent.output_compression.reversible.enabled": "元の出力をアーカイブします。圧縮のマスタースイッチとは独立しています。取得には、現在のスコープ内のアーカイブリーダーが必要です。既定: オン。",

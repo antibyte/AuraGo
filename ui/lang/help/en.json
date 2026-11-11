@@ -1,4 +1,5 @@
 {
+  "help.embeddings.corpus_max_size_mb": "Default: 1024 MiB (1 GiB). Covers the entire document corpus including file chunks. Changes apply after restart; WAL files are counted separately.",
   "help.skill_manager.enabled": "Enables the Python skill manager after restart. SKILL.md packages have their own lifecycle. Danger Zone Python permission still gates Python execution.",
   "help.skill_manager.require_sandbox": "Requires sandboxed Python skills. This does not automatically place SKILL.md package scripts in a container.",
   "help.agent.output_compression.reversible.enabled": "Archives original outputs; independent of the compression master switch. Retrieval requires the archive reader in the current scope. Default: on.",

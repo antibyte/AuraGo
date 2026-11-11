@@ -10,6 +10,19 @@ Memory retrieval, hygiene, indexing, and maintenance.
 
 ## Local Contracts
 
+### Corpus capacity
+
+- `embeddings.corpus_max_size_mb` defaults to 1024 MiB and is startup-only.
+  Apply SQLite max_page_count through the DSN on every pool connection. Do not
+  include WAL in the cap; report logical usage and WAL separately.
+- Before embedding and growing publication, retain 256 MiB free plus transaction
+  headroom. Capacity errors preserve source documents and active file generations.
+  Oversize stores start in a paused state without loading the semantic index;
+  administrative reads/deletion remain available. Never delete/compact implicitly.
+- Config limit changes require restart without scheduling an embedding reset.
+  Verify `TestCorpusLimit*`, `TestCorpusDiskReserve*`, `TestOversizeCorpus*` and
+  existing corpus/file replacement tests with small limits.
+
 ### Directory indexing
 
 - A confirmed missing canonical chunk (`sql.ErrNoRows`) falls back to journaled

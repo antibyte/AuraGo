@@ -1,4 +1,5 @@
 {
+  "config.embeddings.corpus_max_size_mb_label": "コーパス上限 (MiB)",
   "config.telephone_agent.catalog_unavailable": "リストを一時的に読み込めません。保存済みの選択は保持されます。",
   "config.telephone_agent.tool_unavailable": "ツールを利用できません",
   "config.telephone_agent.language_auto": "自動",

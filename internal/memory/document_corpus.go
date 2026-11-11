@@ -11,13 +11,22 @@ import (
 	"path/filepath"
 	"strings"
 
+	"aurago/internal/config"
 	"aurago/internal/dbutil"
+	"aurago/internal/fileutil"
 	"aurago/internal/memory/kgsemantic"
 	chromem "github.com/philippgille/chromem-go"
 )
 
 // documentCorpus is the source of truth. Chromem is a disposable in-memory index.
-type documentCorpus struct{ db *sql.DB }
+type documentCorpus struct {
+	db          *sql.DB
+	path        string
+	limitBytes  int64
+	freeDisk    func(string) (int64, error)
+	indexPaused bool
+	pauseReason string
+}
 
 const corpusSchema = `
  CREATE TABLE IF NOT EXISTS corpus_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL);
@@ -45,12 +54,16 @@ type corpusDocumentSnapshot struct {
 
 // PrepareDocumentCorpus verifies/migrates durable sources before applying a
 // model-change reset. It does not initialize an embedding provider.
-func PrepareDocumentCorpus(dir string) error {
-	c, err := openDocumentCorpus(dir)
+func PrepareDocumentCorpus(dir string, limitBytes ...int64) error {
+	c, err := openDocumentCorpus(dir, limitBytes...)
 	if err != nil {
 		return err
 	}
-	return c.db.Close()
+	defer c.db.Close()
+	if c.indexPaused {
+		return corpusCapacityError(c.pauseReason)
+	}
+	return nil
 }
 
 // BindMemoryMetadata provides current curation and file-generation eligibility.
@@ -83,7 +96,11 @@ func (cv *ChromemVectorDB) memoryRetrievalEligible(ctx context.Context, id strin
 	return states[id].Visible(), nil
 }
 
-func openDocumentCorpus(dir string) (*documentCorpus, error) {
+func openDocumentCorpus(dir string, limits ...int64) (*documentCorpus, error) {
+	limitBytes := int64(config.DefaultCorpusMaxSizeMB) << 20
+	if len(limits) > 0 && limits[0] > 0 {
+		limitBytes = limits[0]
+	}
 	if strings.TrimSpace(dir) == "" {
 		return nil, fmt.Errorf("document corpus directory is required")
 	}
@@ -106,9 +123,24 @@ func openDocumentCorpus(dir string) (*documentCorpus, error) {
 	} else if !errors.Is(err, os.ErrExist) {
 		return nil, fmt.Errorf("create corpus: %w", err)
 	}
-	db, err := dbutil.Open(path, dbutil.WithImmediateTransactions(), dbutil.WithSynchronous("FULL"))
+	// Probe only the page size; configure and integrity-check the limited pool below.
+	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, fmt.Errorf("open corpus: %w", err)
+	}
+	var pageSize int64
+	err = db.QueryRow(`PRAGMA page_size`).Scan(&pageSize)
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := db.Close(); err != nil {
+		return nil, err
+	}
+	// Keep the native cap in the DSN so lazy pool connections cannot bypass it.
+	db, err = dbutil.Open(path+fmt.Sprintf("?_pragma=max_page_count(%d)", max(1, limitBytes/pageSize)), dbutil.WithImmediateTransactions(), dbutil.WithSynchronous("FULL"))
+	if err != nil {
+		return nil, fmt.Errorf("open limited corpus: %w", err)
 	}
 	fail := func(err error) (*documentCorpus, error) { db.Close(); return nil, err }
 	if err := protectMemoryDatabase(db); err != nil {
@@ -117,7 +149,15 @@ func openDocumentCorpus(dir string) (*documentCorpus, error) {
 	if _, err := db.Exec(corpusSchema); err != nil {
 		return fail(fmt.Errorf("initialize corpus: %w", err))
 	}
-	c := &documentCorpus{db: db}
+	c := &documentCorpus{db: db, path: path, limitBytes: limitBytes, freeDisk: fileutil.FreeDiskBytes}
+	used, err := c.usedBytes(context.Background())
+	if err != nil {
+		return fail(err)
+	}
+	c.indexPaused = used > limitBytes
+	if c.indexPaused {
+		c.pauseReason = "corpus_limit_exceeded"
+	}
 	var verified string
 	err = db.QueryRow(`SELECT value FROM corpus_meta WHERE key='verified'`).Scan(&verified)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -125,7 +165,15 @@ func openDocumentCorpus(dir string) (*documentCorpus, error) {
 	}
 	if verified != "1" {
 		if err := c.migrateLegacy(dir); err != nil {
-			return fail(err)
+			var capacity corpusCapacityError
+			if !errors.As(err, &capacity) {
+				return fail(err)
+			}
+			c.indexPaused = true
+			c.pauseReason = string(capacity)
+			if c.pauseReason == "corpus_limit_reached" {
+				c.pauseReason = "corpus_limit_exceeded"
+			}
 		}
 	}
 	return c, nil
@@ -148,7 +196,7 @@ func writeCorpusDocument(ctx context.Context, tx *sql.Tx, collection string, doc
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO documents(collection,id,content,metadata,vector,dimension,fingerprint,pending) VALUES(?,?,?,?,?,?,?,1)
  ON CONFLICT(collection,id) DO UPDATE SET content=excluded.content,metadata=excluded.metadata,vector=excluded.vector,dimension=excluded.dimension,fingerprint=excluded.fingerprint,pending=1,blocked_reason=''`, collection, doc.ID, doc.Content, string(metadata), vector, len(doc.Embedding), doc.Metadata["embedding_fingerprint"])
-	return err
+	return corpusWriteError(err)
 }
 
 func (c *documentCorpus) documentPage(ctx context.Context, collection, afterID string, pendingOnly bool) ([]corpusDocumentSnapshot, error) {
@@ -337,6 +385,9 @@ func (cv *ChromemVectorDB) corpusCollectionNames(ctx context.Context) ([]string,
 // loadCorpusIndex never puts vectors from an unknown or different model into a
 // queryable collection. Content remains readable while pending reindexing.
 func (cv *ChromemVectorDB) loadCorpusIndex(ctx context.Context) error {
+	if cv.corpus != nil && cv.corpus.indexPaused {
+		return fmt.Errorf("%w: corpus_limit_exceeded", ErrCorpusCapacity)
+	}
 	cv.mu.Lock()
 	defer cv.mu.Unlock()
 	names, err := cv.corpusCollectionNames(ctx)
@@ -580,6 +631,11 @@ func (cv *ChromemVectorDB) persistDocumentsLocked(ctx context.Context, col *chro
 
 func (cv *ChromemVectorDB) replaceCorpusDocumentsLocked(ctx context.Context, col *chromem.Collection, docs []chromem.Document, replaceWhere map[string]string) error {
 	if cv.corpus != nil {
+		if len(docs) > 0 {
+			if err := cv.corpus.checkCapacity(ctx, estimatedCorpusBytes(docs, int(cv.embeddingDimension.Load()))); err != nil {
+				return err
+			}
+		}
 		tx, err := cv.corpus.db.BeginTx(ctx, nil)
 		if err != nil {
 			return err
@@ -616,7 +672,7 @@ func (cv *ChromemVectorDB) replaceCorpusDocumentsLocked(ctx context.Context, col
 			}
 		}
 		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("commit source documents: %w", err)
+			return fmt.Errorf("commit source documents: %w", corpusWriteError(err))
 		}
 	}
 	if len(replaceWhere) > 0 {

@@ -131,7 +131,7 @@ func (cv *ChromemVectorDB) replaceIndexedDocuments(ctx context.Context, stm *SQL
 		return nil, err
 	}
 	if err := cv.embedDocumentsOutsideLock(ctx, docs); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("retain unchanged file %q in collection %q: %w", path, collection, err)
 	}
 	ctx, release, err := stm.BeginMemoryPublication(ctx)
 	if err != nil {

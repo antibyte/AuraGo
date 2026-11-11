@@ -76,6 +76,9 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	if err := config.ValidateCloudflareTunnelPortYAML(out); err != nil {
 		return nil, err
 	}
+	if err := config.ValidateCorpusLimitYAML(out); err != nil {
+		return nil, err
+	}
 	if err := yaml.Unmarshal(out, &validateCfg); err != nil {
 		return nil, fmt.Errorf("validate config: %w", err)
 	}

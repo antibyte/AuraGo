@@ -1,4 +1,5 @@
 {
+  "config.embeddings.corpus_max_size_mb_label": "Limit korpusu (MiB)",
   "config.telephone_agent.catalog_unavailable": "Seznamy jsou dočasně nedostupné. Uložené volby zůstávají zachovány.",
   "config.telephone_agent.tool_unavailable": "Nástroj není dostupný",
   "config.telephone_agent.language_auto": "Automaticky",

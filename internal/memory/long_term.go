@@ -456,6 +456,9 @@ func (cv *ChromemVectorDB) requireReadyForStore() error {
 	if !cv.ready.Load() {
 		return ErrVectorDBNotReady
 	}
+	if cv.corpus != nil && cv.corpus.indexPaused {
+		return corpusCapacityError(cv.corpus.pauseReason)
+	}
 	if cv.disabled.Load() {
 		return ErrVectorDBDisabled
 	}
@@ -510,7 +513,11 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 		dataDir = cfg.Directories.VectorDBDir
 	}
 
-	corpus, err := openDocumentCorpus(dataDir)
+	limitBytes := int64(0)
+	if cfg != nil {
+		limitBytes = int64(cfg.Embeddings.CorpusMaxSizeMB) << 20
+	}
+	corpus, err := openDocumentCorpus(dataDir, limitBytes)
 	if err != nil {
 		closeEmbeddingRuntime(runtime, logger)
 		return nil, err
@@ -537,9 +544,12 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 		fileIndexerCollections: make(map[string]struct{}),
 	}
 
-	if runtime.Disabled {
+	if runtime.Disabled || corpus.indexPaused {
 		vdb.disabled.Store(true)
 		vdb.ready.Store(true)
+		if corpus.indexPaused {
+			logger.Warn("Document corpus publication and semantic index loading paused", "reason", corpus.pauseReason, "limit_bytes", corpus.limitBytes)
+		}
 		return vdb, nil
 	}
 	// Phase 29: Startup validation — test the embedding pipeline asynchronously
@@ -1120,6 +1130,11 @@ func (cv *ChromemVectorDB) embedDocumentsOutsideLock(ctx context.Context, docs [
 // calls that starts once the slot is held: time spent waiting behind another caller
 // is not charged to it. limit <= 0 adds no deadline beyond ctx.
 func (cv *ChromemVectorDB) embedDocumentsWithin(ctx context.Context, docs []chromem.Document, limit time.Duration) error {
+	if len(docs) > 0 {
+		if err := cv.corpus.checkCapacity(ctx, estimatedCorpusBytes(docs, int(cv.embeddingDimension.Load()))); err != nil {
+			return err
+		}
+	}
 	first := -1
 	for i, doc := range docs {
 		if len(doc.Embedding) == 0 {

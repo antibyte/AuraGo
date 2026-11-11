@@ -76,6 +76,11 @@ Detection order is manual provider overrides first, then live OpenRouter metadat
 
 ## `embeddings`
 
+`corpus_max_size_mb` defaults to **1024 MiB (1 GiB)** and accepts integers from
+1 to 1048576. It caps the whole document database including file chunks, excludes
+temporary WAL files, and applies after restart. The existing corpus dashboard
+reports capacity and pause reasons; see [memory persistence](memory-persistence.md).
+
 Used for long-term memory (RAG) vector indexing.
 
 | Key | Default | Description |

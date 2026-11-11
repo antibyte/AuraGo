@@ -667,6 +667,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if err := config.ValidateCorpusLimitYAML(out); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		// Reject YAML that cannot load into Config and keep the previous file.
 		// Validation must not share slices or pointers with a published snapshot.
 		validateCfg := *s.ConfigSnapshot().Clone()
@@ -1080,6 +1084,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				embeddingsChanged = true
 				needsRestart = true
 				restartReasons = append(restartReasons, "Embeddings / Langzeitgedächtnis")
+			}
+			if oldCfg.Embeddings.CorpusMaxSizeMB != newCfg.Embeddings.CorpusMaxSizeMB {
+				needsRestart = true
+				restartReasons = append(restartReasons, "embeddings.corpus_max_size_mb")
 			}
 			if !reflect.DeepEqual(oldCfg.Chromecast, newCfg.Chromecast) {
 				needsRestart = true

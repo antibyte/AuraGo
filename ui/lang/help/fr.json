@@ -1,4 +1,5 @@
 {
+  "help.embeddings.corpus_max_size_mb": "Valeur par défaut : 1024 MiB (1 GiB). Couvre tous les documents et fragments de fichiers. Les changements s’appliquent après redémarrage ; les fichiers WAL sont comptés séparément.",
   "help.skill_manager.enabled": "Active le gestionnaire de compétences Python après un redémarrage. Les paquets SKILL.md ont leur propre cycle de vie. L'autorisation Python de la Zone de danger conditionne toujours l'exécution de Python.",
   "help.skill_manager.require_sandbox": "Exige des compétences Python en bac à sable. Cela ne place pas automatiquement les scripts des paquets SKILL.md dans un conteneur.",
   "help.agent.output_compression.reversible.enabled": "Archive les sorties d'origine ; indépendamment de l'interrupteur principal de la compression. La récupération nécessite le lecteur d'archive dans le périmètre actuel. Par défaut : activé.",

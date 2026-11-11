@@ -1,4 +1,5 @@
 {
+  "help.embeddings.corpus_max_size_mb": "默认：1024 MiB（1 GiB）。适用于包括文件分块在内的整个文档语料库。更改在重启后生效；WAL 文件单独统计。",
   "help.skill_manager.enabled": "重启后启用 Python 技能管理器。SKILL.md 包拥有各自的生命周期。Danger Zone 的 Python 权限仍然门控 Python 执行。",
   "help.skill_manager.require_sandbox": "要求 Python 技能在沙箱中运行。这不会自动将 SKILL.md 包脚本放入容器。",
   "help.agent.output_compression.reversible.enabled": "归档原始输出；独立于压缩总开关。检索需要当前作用域中的归档读取器。默认：开启。",

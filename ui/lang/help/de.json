@@ -1,4 +1,5 @@
 {
+  "help.embeddings.corpus_max_size_mb": "Standard: 1024 MiB (1 GiB). Gilt für das gesamte Dokumentkorpus einschließlich Datei-Chunks. Änderungen gelten nach einem Neustart; WAL-Dateien zählen separat.",
   "help.skill_manager.enabled": "Aktiviert den Python-Skillmanager nach Neustart. SKILL.md-Pakete haben einen eigenen Lebenszyklus. Python-Ausführung benötigt weiterhin die Freigabe in der Gefahrzone.",
   "help.skill_manager.require_sandbox": "Verlangt Sandbox-Ausführung für Python-Skills. SKILL.md-Paketskripte werden dadurch nicht automatisch in einen Container verlegt.",
   "help.agent.output_compression.reversible.enabled": "Archiviert Originalausgaben unabhängig vom Kompressionsschalter. Abruf erfordert den Archivleser im aktuellen Berechtigungsumfang. Standard: an.",

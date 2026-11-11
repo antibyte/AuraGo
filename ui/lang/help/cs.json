@@ -1,4 +1,5 @@
 {
+  "help.embeddings.corpus_max_size_mb": "Výchozí: 1024 MiB (1 GiB). Platí pro celý korpus dokumentů včetně částí souborů. Změny platí po restartu; soubory WAL se počítají zvlášť.",
   "help.skill_manager.enabled": "Povoluje správce dovedností Python po restartu. Balíčky SKILL.md mají vlastní životní cyklus. Oprávnění Python v Nebezpečné zóně stále podmiňuje spouštění Pythonu.",
   "help.skill_manager.require_sandbox": "Vyžaduje sandboxované dovednosti Python. Toto automaticky neumísťuje skripty balíčků SKILL.md do kontejneru.",
   "help.agent.output_compression.reversible.enabled": "Archivuje původní výstupy; nezávisle na hlavním přepínači komprese. Načtení vyžaduje čtečku archivu v aktuálním rozsahu. Výchozí: zapnuto.",

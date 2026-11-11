@@ -1,4 +1,5 @@
 {
+  "config.embeddings.corpus_max_size_mb_label": "Límite del corpus (MiB)",
   "config.telephone_agent.catalog_unavailable": "Las listas no están disponibles temporalmente. Se conservan las selecciones guardadas.",
   "config.telephone_agent.tool_unavailable": "Herramienta no disponible",
   "config.telephone_agent.language_auto": "Automático",

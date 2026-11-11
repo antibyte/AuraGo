@@ -1,4 +1,5 @@
 {
+  "help.embeddings.corpus_max_size_mb": "Predefinição: 1024 MiB (1 GiB). Abrange todos os documentos e fragmentos de ficheiros. As alterações aplicam-se após reiniciar; os ficheiros WAL são contados separadamente.",
   "help.skill_manager.enabled": "Ativa o gestor de competências Python após o reinício. Os pacotes SKILL.md têm o seu próprio ciclo de vida. A permissão de Python da Zona de Perigo continua a condicionar a execução de Python.",
   "help.skill_manager.require_sandbox": "Exige competências Python em sandbox. Isto não coloca automaticamente os scripts dos pacotes SKILL.md num contentor.",
   "help.agent.output_compression.reversible.enabled": "Arquiva as saídas originais; independente do interruptor principal da compressão. A recuperação requer o leitor do arquivo no âmbito atual. Predefinição: ligado.",

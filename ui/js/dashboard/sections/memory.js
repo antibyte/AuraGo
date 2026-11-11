@@ -362,9 +362,16 @@
                 items.push(
                     { value: corpusValue(corpus?.documents), label: t('dashboard.memory_corpus_documents') },
                     { value: corpus?.available ? (corpus.dimensions || []).join(', ') || '—' : '—', label: t('dashboard.memory_corpus_dimensions') },
-                    { value: corpusValue((corpus?.database_bytes + corpus?.wal_bytes) / 1048576, ' MiB'), label: t('dashboard.memory_corpus_storage') },
+                    { value: corpusValue(corpus?.used_bytes / 1048576, ' MiB'), label: t('dashboard.memory_corpus_storage') },
+                    { value: corpusValue(corpus?.limit_bytes / 1048576, ' MiB'), label: t('dashboard.memory_corpus_limit') },
+                    { value: corpusValue(corpus?.utilization_percent, ' %'), label: t('dashboard.memory_corpus_utilization') },
+                    { value: corpusValue(corpus?.wal_bytes / 1048576, ' MiB'), label: t('dashboard.memory_corpus_wal') },
+                    { value: corpus?.disk_free_bytes == null ? '—' : corpusValue(corpus.disk_free_bytes / 1048576, ' MiB'), label: t('dashboard.memory_corpus_disk_free') },
+                    { value: corpusValue(corpus?.disk_reserve_bytes / 1048576, ' MiB'), label: t('dashboard.memory_corpus_reserve') },
                     { value: corpusValue(corpus?.vector_payload_bytes / 1048576, ' MiB'), label: t('dashboard.memory_corpus_vector_estimate') },
                 );
+                if (corpus?.capacity_warning) items.push({value:t('dashboard.memory_corpus_warning'),label:t('dashboard.memory_corpus_utilization')});
+                if (corpus?.pause_reason) items.push({value:t('dashboard.' + corpus.pause_reason),label:t('dashboard.memory_corpus_paused')});
                 summaryEl.innerHTML = `
                     <div class="memory-health-strategy">
                         <div class="memory-health-strategy-head">

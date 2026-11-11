@@ -15,6 +15,28 @@ RAM therefore grows with document count and dimensions, plus that overhead.
 Changing the JSON representation or adding ANN indexing requires separate
 measurements and is not part of this repair.
 
+## Corpus capacity
+
+`embeddings.corpus_max_size_mb` limits the entire document database, including
+file chunks. The default is 1024 MiB (1 GiB); valid integers are 1 through
+1048576. Set it in YAML or Config > Embeddings, including when the provider is
+disabled. Changes require a restart and do not reset or re-embed documents.
+
+Every SQLite pool connection receives the native
+[`max_page_count`](https://www.sqlite.org/pragma.html#pragma_max_page_count)
+limit. Growing publications also reserve at least 256 MiB of free disk space,
+with additional transaction/WAL headroom. WAL is measured separately and is
+outside the database cap. The dashboard reports the limit, logical database
+usage, utilization, WAL, free space, reserve and any publication pause. It warns
+at 80 percent. Rejected file replacements retain the previous active generation.
+
+Existing databases above the limit are retained. Publication and full semantic
+index loading pause while the rest of AuraGo starts. Administrative reads,
+deletion and permitted cleanup remain available. Raise the limit or perform
+reviewed cleanup, then restart. No memories are deleted or compacted automatically.
+Capacity preflights run before embedding requests; retries cannot repeatedly
+send blocked documents to the provider.
+
 ## Archives and restoration
 
 Archiving saves a private identity derived from the complete normalized content
