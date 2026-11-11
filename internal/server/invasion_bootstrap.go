@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"aurago/internal/config"
@@ -10,21 +11,31 @@ import (
 )
 
 func (s *Server) eggBootstrap(cfg *config.Config, egg invasion.EggRecord, sharedKey, exportKey string, vaultData []byte) ([]byte, error) {
+	provider, err := invasion.ResolveEggProvider(cfg, egg)
+	if err != nil {
+		return nil, err
+	}
 	secrets := map[string]string{"provider_main_api_key": ""}
 	if sharedKey != "" {
 		secrets["egg_shared_key"] = sharedKey
 	}
-	if egg.InheritLLM {
-		secrets["provider_main_api_key"] = cfg.LLM.APIKey
-	} else if egg.APIKeyRef != "" {
-		if s.Vault == nil {
+	keyRef := egg.APIKeyRef
+	if keyRef == "" && provider.APIKey == "" && provider.ID != "" {
+		keyRef = "provider_" + provider.ID + "_api_key"
+	}
+	if keyRef != "" {
+		if s.Vault == nil && egg.APIKeyRef != "" {
 			return nil, fmt.Errorf("Egg provider Vault unavailable")
 		}
-		key, err := s.Vault.ReadSecret(egg.APIKeyRef)
-		if err != nil {
-			return nil, fmt.Errorf("read Egg provider secret: %w", err)
+		if s.Vault != nil {
+			key, err := s.Vault.ReadSecret(keyRef)
+			if err != nil && !(egg.APIKeyRef == "" && errors.Is(err, security.ErrSecretNotFound)) {
+				return nil, fmt.Errorf("read Egg provider secret: %w", err)
+			}
+			secrets["provider_main_api_key"] = key
 		}
-		secrets["provider_main_api_key"] = key
+	} else {
+		secrets["provider_main_api_key"] = provider.APIKey
 	}
 	for _, value := range secrets {
 		security.RegisterSensitive(value)

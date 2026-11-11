@@ -24,6 +24,38 @@ var allowedToolsWhitelist = map[string]bool{
 	"python_execute":        true,
 }
 
+// ResolveEggProvider preserves saved provider metadata without transferring OAuth sessions.
+func ResolveEggProvider(masterCfg *config.Config, egg EggRecord) (config.ProviderEntry, error) {
+	binding := egg.Provider
+	if egg.InheritLLM {
+		binding = masterCfg.LLM.Provider
+	}
+	if strings.EqualFold(strings.TrimSpace(binding), config.LocalLLMProviderID) {
+		return config.ProviderEntry{}, fmt.Errorf("Egg needs a separately reachable static provider")
+	}
+	provider := config.ProviderEntry{Type: egg.Provider, BaseURL: egg.BaseURL, Model: egg.Model}
+	if saved := masterCfg.FindProvider(binding); saved != nil {
+		provider = *saved
+	}
+	if egg.InheritLLM {
+		provider.Type, provider.BaseURL, provider.Model, provider.APIKey = masterCfg.LLM.ProviderType, masterCfg.LLM.BaseURL, masterCfg.LLM.Model, masterCfg.LLM.APIKey
+	} else {
+		if egg.BaseURL != "" {
+			provider.BaseURL = egg.BaseURL
+		}
+		if egg.Model != "" {
+			provider.Model = egg.Model
+		}
+	}
+	if provider.Type == "" {
+		provider.Type = "openai"
+	}
+	if provider.AuthType == "oauth2" || provider.HasMaskedCredentials() {
+		return config.ProviderEntry{}, fmt.Errorf("Egg needs an unmasked API-key provider; OAuth sessions cannot be bootstrapped")
+	}
+	return provider, nil
+}
+
 // GenerateEggConfig produces a minimal config.yaml for a deployed egg worker.
 // It derives settings from the master config and the egg/nest records.
 func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord, sharedKey, masterURL, eggMasterKey string) ([]byte, error) {
@@ -36,18 +68,20 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 	}
 
 	// ── LLM — either inherit from master or use egg's own ──
-	providerType, baseURL, model, temperature := egg.Provider, egg.BaseURL, egg.Model, 0.7
+	provider, err := ResolveEggProvider(masterCfg, egg)
+	if err != nil {
+		return nil, err
+	}
+	temperature := 0.7
 	if egg.InheritLLM {
-		providerType, baseURL, model, temperature = masterCfg.LLM.ProviderType, masterCfg.LLM.BaseURL, masterCfg.LLM.Model, masterCfg.LLM.Temperature
+		temperature = masterCfg.LLM.Temperature
 	}
-	if providerType == "" {
-		providerType = "openai"
-	}
-	caps := llm.ResolveProviderCapabilities(config.ProviderEntry{Type: providerType, Model: model}, llm.CapabilityFallback{ToolCalling: true})
+	caps := llm.ResolveProviderCapabilities(provider, llm.CapabilityFallback{ToolCalling: true})
 	if egg.InheritLLM {
 		caps = llm.ResolveConfigProviderCapabilities(masterCfg)
 	}
-	cfg["providers"] = []map[string]interface{}{{"id": "main", "name": "Egg LLM", "type": providerType, "base_url": baseURL, "model": model}}
+	provider.ID, provider.Name = "main", "Egg LLM"
+	cfg["providers"] = []config.ProviderEntry{provider}
 	cfg["llm"] = map[string]interface{}{"provider": "main", "temperature": temperature, "use_native_functions": caps.ToolCalling, "structured_outputs": caps.StructuredOutputs, "multimodal": caps.Multimodal}
 
 	// ── Directories (standard paths) ──

@@ -24,6 +24,11 @@ The existing Egg Vault and its actual local master key are retained. Restore a
 missing original key only through the authenticated management path. Never replace
 it with a new key. `include_vault` still exports only the selected Egg/nest entries.
 
+A saved Egg provider ID resolves its type, URL, model, capabilities and matching
+Vault key. Explicit per-Egg key references take precedence. OAuth sessions and
+the master's managed-local provider cannot be copied to another machine; select
+a separately reachable static provider for that Egg.
+
 Back up the installation before the coordinated upgrade. New Invasion database
 columns are migrated only after a consistent private backup succeeds. Binary
 rollback cannot start unmarked legacy backups. Existing remote machines are not

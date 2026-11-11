@@ -8,6 +8,11 @@ the Egg runtime in `cmd/aurago`.
 
 ## Local contracts
 
+- Egg provider selection resolves saved provider IDs, metadata and Vault ownership;
+  explicit Egg key references take precedence. Keep generated YAML secret-free.
+  OAuth sessions and the master's managed-local binding are not portable Egg
+  credentials; require a separately reachable API-key provider instead.
+
 - `enabled` remains operator-owned even when the database is initialized.
   Master HTTP admission and the hub's live `Policy` callback enforce enabled
   and read-only state. Disabling closes connections without stopping remote
