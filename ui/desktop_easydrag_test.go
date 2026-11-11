@@ -297,6 +297,7 @@ func TestEasyDragStylesheetUsesThemeTokens(t *testing.T) {
 			t.Errorf("desktop-app-easydrag.css misses %q", marker)
 		}
 	}
+	checkEasyDragCategoryReads(t, css)
 }
 
 func TestMissionControlShowsFlowMissions(t *testing.T) {
