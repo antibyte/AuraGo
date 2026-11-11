@@ -930,6 +930,8 @@ var pixelAppScriptPaths = []string{
 	"js/desktop/apps/pixel-lib-gen.js",
 	"js/desktop/apps/pixel-lib-cutout.js",
 	"js/desktop/apps/pixel-lib-inpaint.js",
+	"js/desktop/apps/pixel-lib-paint.js",
+	"js/desktop/apps/pixel-lib-wet.js",
 	"js/desktop/apps/pixel-core.js",
 	"js/desktop/apps/pixel-view.js",
 	"js/desktop/apps/pixel-canvas.js",
@@ -942,6 +944,8 @@ var pixelAppScriptPaths = []string{
 	"js/desktop/apps/pixel-selection.js",
 	"js/desktop/apps/pixel-brush.js",
 	"js/desktop/apps/pixel-tools-pro.js",
+	"js/desktop/apps/pixel-paint.js",
+	"js/desktop/apps/pixel-paint-ui.js",
 	"js/desktop/apps/pixel-transform.js",
 	"js/desktop/apps/pixel-generators.js",
 	"js/desktop/apps/pixel-cutout.js",
@@ -962,6 +966,7 @@ var pixelAppStylePaths = []string{
 	"css/pixel-cutout.css",
 	"css/pixel-selection.css",
 	"css/pixel-tools-pro.css",
+	"css/pixel-paint.css",
 	"css/pixel-smart.css",
 }
 

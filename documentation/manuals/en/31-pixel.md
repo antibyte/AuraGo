@@ -164,6 +164,70 @@ Several details help while painting:
 - Strokes respect the selection (with feathering), the alpha lock and mask-edit mode. In mask-edit mode the brush paints
   white, which reveals, and the eraser writes black, which hides.
 
+### Art brush and Atelier
+
+The **Art brush** (paint group, no keyboard shortcut) paints with pigment. Colours mix like paint, not like light: blue and
+yellow make green, red and blue make violet, and red and green make brown. A colour that is not mixed with anything stays
+exactly the colour you picked.
+
+The options bar has these settings:
+
+- **Medium:** the material to paint with (see the table below).
+- **Size:** the brush size.
+- **Paint load:** how much paint the brush carries.
+- **Mixing:** how much the bristles mix with the paint on the canvas. Shown for bristle media only.
+- **Water:** how much water the brush carries. Shown for the wet media only.
+- **Paper grain:** how strongly the paper texture shows in the stroke.
+- **Atelier:** opens the **Atelier** panel in the inspector.
+
+The 12 media are in four groups:
+
+| Group | Media | How it paints |
+|---|---|---|
+| Bristle | Oil, Acrylic, Gouache, Palette knife, Blender | Each bristle has its own paint load, so strokes show streaks. The bristles pick up wet paint on the canvas and take paint back from the brush reservoir. They run dry towards the end of a long stroke. Blender smears whatever is under it. |
+| Dry | Charcoal, Pencil, Pastel, Wax crayon | The paint catches on the peaks of the paper. Pressure and paint load fill the valleys. |
+| Marker | Marker | Transparent ink. One stroke never darkens itself, but a second stroke over it does. |
+| Wet | Watercolor, Ink | The paint flows and bleeds while it is wet, dries after some seconds, and leaves darker edges and granulation in the paper valleys. |
+
+**Do not wash the brush** (bristle media only) keeps the paint the brush carries from one stroke to the next. Without it, each stroke
+starts with the bristles loaded with the primary colour only.
+
+Bristle brushes pick up only paint that is still wet, which is paint from the current session of Art brush strokes. Paint
+from earlier sessions stays where it is. **Dry now** dries all wet paint at once: watercolor stops flowing, and oil no
+longer smears. Dry now is not available while a stroke is in progress. Undo while watercolor is wet freezes the paint at
+the state it had then. Editing the same layer with another function while watercolor is drying (a filter, a paste or a
+clear) freezes the paint at that moment. Escape does not remove a watercolor or ink stroke, because the paint is already
+flowing: the stroke stays and keeps drying. Use Undo to remove it. After watercolor has dried, Pixel adds one history step
+that records the dried result.
+
+**Paper** is chosen in the Atelier panel: Smooth, Cold press, Rough, Canvas, Linen, Laid, Kraft paper or Wood panel.
+**Grain size** scales the texture. The paper relief decides where dry media and a nearly empty brush leave paint, and how
+fast watercolor dries and bleeds (its absorbency). **Add paper layer** adds a visible paper layer with that texture. If the active layer is opaque (for example the white background of a new
+document), the paper goes directly above it, and a new empty layer named **Painting layer** is added on top and becomes
+active. Otherwise the paper goes directly below the active layer, which stays active. It is one undo step. Painting works
+on any layer, and the paper relief acts even without a paper layer. The paper choice is not
+stored in the project file.
+
+The **Atelier** panel holds:
+
+- **Medium:** the 12 media, each with a small preview of its stroke.
+- **Settings:** the same controls as the options bar.
+- **Paper:** the paper, the grain size and **Add paper layer**.
+- **Brush:** the colour the brush carries, **Wash brush** (the brush then carries only the primary colour), and whether the
+  paint is **Wet** or **Dry**, with **Dry now**.
+- **Mixing palette:** paint with the primary colour on the small palette to mix colours. **Pick** (or Alt+click on the
+  palette) takes the mixed colour as the primary colour, and **Clear** empties the palette.
+
+The command palette has **Dry now**, **Wash brush** and **Add paper layer** in the paint group.
+
+With a pen, pressure changes the size by default. Mouse and touch strokes use full pressure.
+
+Limits:
+
+- Watercolor and Ink cannot paint on a layer mask. Pixel shows "Watercolor and ink cannot be painted on a mask." and the stroke does not start.
+- The paper choice is not stored in the project file.
+- Very large brushes are slower.
+
 ### Retouch tools
 
 | Tool | Shortcut | What it does |
@@ -485,6 +549,7 @@ Shortcuts in the table are the ones registered in the editor. Ctrl and Cmd are t
 | `V`, `Shift+V`, `L`, `Shift+K`, `W`, `Shift+W` | Rectangle select, ellipse select, lasso, polygon lasso, magic wand, quick selection |
 | `M` | Move |
 | `B`, `P`, `A`, `E` | Brush, pencil, airbrush, eraser |
+| (none) | Art brush |
 | `S`, `Shift+J`, `J`, `Y`, `N`, `D`, `Shift+B`, `Shift+E` | Clone stamp, healing brush, spot healing, smudge, blur / sharpen brush, dodge and burn, color replace, red eye |
 | `G`, `U`, `I` | Fill, gradient, eyedropper |
 | `R`, `Shift+R`, `O`, `Shift+O`, `Shift+S`, `Shift+L`, `Shift+A` | Rectangle, rounded rectangle, ellipse, polygon, star, line, arrow |

@@ -176,6 +176,72 @@ Einige Details erleichtern das Malen:
 - Striche beachten die Auswahl (mit weicher Kante), die Transparenzsperre und den Maskenmodus. Im Maskenmodus malt der Pinsel
   Weiß, das einblendet, und der Radierer schreibt Schwarz, das ausblendet.
 
+### Kunstpinsel und Atelier
+
+Der **Kunstpinsel** (Gruppe Malen, ohne Tastenkürzel) malt mit Pigmenten. Farben mischen sich wie Farbe, nicht wie Licht:
+Blau und Gelb ergeben Grün, Rot und Blau ergeben Violett, Rot und Grün ergeben Braun. Eine Farbe, die mit nichts gemischt
+wird, bleibt genau die gewählte Farbe.
+
+Die Optionsleiste enthält diese Einstellungen:
+
+- **Medium:** das Material zum Malen (siehe Tabelle unten).
+- **Größe:** die Pinselgröße.
+- **Farbmenge:** wie viel Farbe der Pinsel trägt.
+- **Mischen:** wie stark sich die Borsten mit der Farbe auf der Leinwand mischen. Nur bei Borstenmedien sichtbar.
+- **Wasser:** wie viel Wasser der Pinsel trägt. Nur bei Nassmedien sichtbar.
+- **Papierkorn:** wie stark die Papierstruktur im Strich zu sehen ist.
+- **Atelier:** öffnet das **Atelier-Panel** im Inspektor.
+
+Die 12 Medien gehören zu vier Gruppen:
+
+| Gruppe | Medien | Wirkung |
+|---|---|---|
+| Borsten | Öl, Acryl, Gouache, Palettenmesser, Verwischer | Jede Borste hat ihre eigene Farbmenge, daher zeigt der Strich Schlieren. Die Borsten nehmen nasse Farbe auf der Leinwand auf und holen Farbe aus dem Pinselvorrat zurück. Am Ende eines langen Strichs werden sie trocken. Der Verwischer schmiert alles, was unter ihm liegt. |
+| Trocken | Kohle, Bleistift, Pastell, Wachsmalstift | Die Farbe bleibt auf den Erhebungen des Papiers hängen. Druck und Farbmenge füllen die Vertiefungen. |
+| Marker | Marker | Transparente Tinte. Ein Strich verdunkelt sich nie selbst, ein zweiter Strich darüber schon. |
+| Nass | Aquarell, Tusche | Die Farbe fließt und verläuft, solange sie nass ist, trocknet nach einigen Sekunden und hinterlässt dunklere Ränder und Körnung in den Vertiefungen des Papiers. |
+
+**Pinsel nicht auswaschen** (nur bei Borstenmedien) behält die Farbe, die der Pinsel trägt, von einem Strich zum nächsten.
+Ohne diese Option beginnt jeder Strich mit Borsten, die nur die Vordergrundfarbe tragen.
+
+Borstenpinsel nehmen nur Farbe auf, die noch nass ist, also Farbe aus der laufenden Sitzung der Kunstpinsel-Striche. Farbe
+aus früheren Sitzungen bleibt, wo sie ist. **Jetzt trocknen** trocknet alle nasse Farbe auf einmal: Aquarell hört auf zu
+fließen, und Öl verschmiert nicht mehr. Rückgängig, während Aquarell nass ist, friert die Farbe in dem Zustand ein, den sie
+dann hatte. Jetzt trocknen ist während eines laufenden Strichs nicht verfügbar. Während Aquarell trocknet, friert ein
+Bearbeiten derselben Ebene mit einer anderen Funktion (Filter, Einfügen oder Leeren) die Farbe in diesem Moment ein.
+Escape entfernt keinen Aquarell- oder Tuschestrich, weil die Farbe schon fließt: der Strich bleibt und trocknet weiter.
+Entferne ihn mit Rückgängig. Nachdem Aquarell getrocknet ist, legt Pixel einen zusätzlichen Verlaufsschritt an, der das getrocknete Ergebnis
+festhält.
+
+**Papier** wählst du im Atelier-Panel: Glatt, Kaltgepresst, Rau, Leinwand, Leinen, Ingres-Papier, Packpapier oder
+Holztafel. **Korngröße** skaliert die Struktur. Das Relief des Papiers bestimmt, wo trockene Medien und ein fast leerer
+Pinsel Farbe lassen, und wie schnell Aquarell trocknet und verläuft (seine Saugfähigkeit). **Papierebene hinzufügen** legt
+eine sichtbare Papierebene mit dieser Struktur an. Ist die aktive Ebene deckend (etwa der weiße Hintergrund eines neuen
+Dokuments), liegt das Papier direkt darüber, und eine neue leere Ebene namens **Malebene** wird oben angelegt und wird
+aktiv. Sonst liegt das Papier direkt unter der aktiven Ebene, die aktiv bleibt. Das ist ein Rückgängig-Schritt. Malen
+funktioniert auf jeder Ebene, und das
+Relief wirkt auch ohne Papierebene. Die Papierwahl wird nicht in der Projektdatei gespeichert.
+
+Das **Atelier-Panel** enthält:
+
+- **Medium:** die 12 Medien, jeweils mit einer kleinen Vorschau ihres Strichs.
+- **Einstellungen:** dieselben Regler wie in der Optionsleiste.
+- **Papier:** das Papier, die Korngröße und **Papierebene hinzufügen**.
+- **Pinsel:** die Farbe am Pinsel, **Pinsel auswaschen** (danach trägt der Pinsel nur die Vordergrundfarbe) und ob die Farbe
+  **Nass** oder **Trocken** ist, mit **Jetzt trocknen**.
+- **Mischpalette:** Male mit der Vordergrundfarbe auf der kleinen Palette, um Farben zu mischen. **Aufnehmen** (oder
+  Alt+Klick auf der Palette) übernimmt die gemischte Farbe als Vordergrundfarbe, **Leeren** leert die Palette.
+
+Die Befehlspalette hat **Jetzt trocknen**, **Pinsel auswaschen** und **Papierebene hinzufügen** in der Gruppe Malen.
+
+Mit einem Stift verändert der Druck standardmäßig die Größe. Maus- und Touch-Striche nutzen vollen Druck.
+
+Grenzen:
+
+- Aquarell und Tusche lassen sich nicht auf einer Ebenenmaske malen. Pixel zeigt die Meldung „Aquarell und Tusche lassen sich nicht auf einer Maske malen.“, und der Strich beginnt nicht.
+- Die Papierwahl wird nicht in der Projektdatei gespeichert.
+- Sehr große Pinsel sind langsamer.
+
 ### Retuschewerkzeuge
 
 | Werkzeug | Taste | Funktion |
@@ -512,6 +578,7 @@ Die Tabelle zeigt die im Editor registrierten Tasten. Strg und Cmd sind dieselbe
 | `V`, `Umschalt+V`, `L`, `Umschalt+K`, `W`, `Umschalt+W` | Rechteckauswahl, Ellipsenauswahl, Lasso, Polygon-Lasso, Zauberstab, Schnellauswahl |
 | `M` | Verschieben |
 | `B`, `P`, `A`, `E` | Pinsel, Bleistift, Airbrush, Radierer |
+| (keine) | Kunstpinsel |
 | `S`, `Umschalt+J`, `J`, `Y`, `N`, `D`, `Umschalt+B`, `Umschalt+E` | Kopierstempel, Reparaturpinsel, Bereichsreparatur, Verwischen, Weichzeichner- / Schärfepinsel, Abwedeln und Nachbelichten, Farbe ersetzen, Rote Augen |
 | `G`, `U`, `I` | Füllen, Farbverlauf, Pipette |
 | `R`, `Umschalt+R`, `O`, `Umschalt+O`, `Umschalt+S`, `Umschalt+L`, `Umschalt+A` | Rechteck, Abgerundetes Rechteck, Ellipse, Polygon, Stern, Linie, Pfeil |

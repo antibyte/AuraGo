@@ -123,6 +123,24 @@ func TestPixelToolsCSSIsPrefixedAndSelfContained(t *testing.T) {
 	}
 }
 
+func TestPixelPaintCSSIsPrefixed(t *testing.T) {
+	css := normalizePixelAsset(readDesktopAssetText(t, "css/pixel-paint.css"))
+	selector := regexp.MustCompile(`(?m)^([^{}/@][^{}]*)\{`)
+	class := regexp.MustCompile(`\.([A-Za-z_][\w-]*)`)
+	for _, m := range selector.FindAllStringSubmatch(css, -1) {
+		for _, c := range class.FindAllStringSubmatch(m[1], -1) {
+			if !strings.HasPrefix(c[1], "pixel-") {
+				t.Fatalf("pixel-paint.css class %q is not prefixed pixel- (selector %q)", c[1], strings.TrimSpace(m[1]))
+			}
+		}
+	}
+	for _, want := range []string{".pixel-art-panel", ".pixel-art-medium", ".pixel-art-palette"} {
+		if !strings.Contains(css, want) {
+			t.Fatalf("pixel-paint.css should style %s", want)
+		}
+	}
+}
+
 func TestPixelToolsKeepLegacyCropEntryPoints(t *testing.T) {
 	_, _, transform := pixelToolsSources(t)
 	view := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-view.js"))

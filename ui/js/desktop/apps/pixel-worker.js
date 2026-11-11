@@ -12,7 +12,9 @@
         'pixel-lib-fx.js',
         'pixel-lib-gen.js',
         'pixel-lib-cutout.js',
-        'pixel-lib-inpaint.js'
+        'pixel-lib-inpaint.js',
+        'pixel-lib-paint.js',
+        'pixel-lib-wet.js'
     ].forEach(file => importScripts(file + search));
 
     function reply(res) {
