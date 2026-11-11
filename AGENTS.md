@@ -139,6 +139,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 - Reconcile `../agotrain/training/tool_tiers.json` and `operation_contracts.json` with effective strict schema snapshots; preserve curated entries. Regenerate in `antibyte/agotrain`; run `.github/workflows/training-dataset.yml` against `.github/agotrain-revision`. Follow `documentation/training.md`; sync validator tool count/schema-token limit with exporter. `--check` is read-only for committed packs. Catalog changes retain paired German/English direct coverage for every operation and selector-free tool.
 - Keep curated arguments sparse. Exporter uses the original argument schema to add optional null placeholders on a copy of Strict wire calls, never inventing required values. Catalogs retain both schemas for independent Python validation/semantic evaluation. Required/excluded operation fields apply to semantic arguments, not synthetic placeholders; domain-null remains meaningful. Schema-projection-only changes preserve manifests and explicitly update their schema hash; never bootstrap again.
 - New integration: package/client/service in `internal/your_integration/`, types in `internal/config/config_types.go`, defaults in `internal/config/config.go`, optional `internal/server/` handlers, genuine translations in all 16 `ui/lang/` locales, docs in `documentation/`.
+- Migration backups use `internal/dbutil.BackupSQLite` for private, synced WAL-inclusive copies; required backup failures abort before schema changes. Existing backups survive; conflicting names get a unique suffix before the extension. See `documentation/migration-backups.md`.
 - SQLite migrations run at startup; new DBs initialize to current schema. Schema changes require backward compatibility, existing-data handling, backup before migration and a staging migration test.
 
 ### Skill creation
@@ -190,6 +191,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Feature / area | Required AGENTS.md | Scope |
 | --- | --- | --- |
 | Repository scripts | `scripts/AGENTS.md` | Developer entrypoints, project-root resolution and release helper paths; runtime/update policy remains in root and upkeep guides. |
+| SQLite utilities | `internal/dbutil/AGENTS.md` | Shared database opening, migration primitives and private backup publication; stores retain schema and recovery ownership. |
 | Shared shell policy | `internal/shellpolicy/AGENTS.md` | Literal wrapper normalization and program-controlled execution checks for local, isolated and Remote shells; callers retain execution grants and OS isolation. |
 | Go test utilities | `internal/testutil/AGENTS.md` | Local protocol/TLS fixtures, test-only root trust, synthetic storage and asset helpers. |
 | Auxiliary Docker inputs | `deploy/docker/AGENTS.md` | Sidecar Dockerfiles, main entrypoint and repository-root build contexts; feature-specific children retain their contracts. |

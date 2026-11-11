@@ -6,6 +6,8 @@
 Master/Egg WebSocket protocol. These contracts also apply to server handlers and
 the Egg runtime in `cmd/aurago`.
 
+- Migration backups use `dbutil.BackupSQLite`: owner-only staging and file permissions/Windows ACL, WAL-inclusive copy, sync and atomic publication. Backup failure aborts migration. Keep existing copies; collisions insert a unique suffix before the extension. Restore guidance: `documentation/migration-backups.md`.
+
 ## Local contracts
 
 - The four `prompts/tools_manuals/invasion_*.md` guides share these admission,

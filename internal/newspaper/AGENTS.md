@@ -13,6 +13,8 @@ Own the installation's personal daily publication, durable editions and delivery
 - `pdf_fonts.go` selects a complete regular/bold pair for PDF download and Telegram. Keep local Go fonts for covered editions and the bundled Noto Sans SC fallback for mixed Chinese text, including source metadata. Preserve explicit rejection of unsupported glyphs/shaping and the Telegram text fallback. Font provenance, license, regeneration and visual checks live in `fonts/README.md`.
 - `skills/aurago-newspaper/SKILL.md` is the bundled editorial policy, registered through the Agent Skill Manager.
 
+- Migration backups use `dbutil.BackupSQLite`: owner-only staging and file permissions/Windows ACL, WAL-inclusive copy, sync and atomic publication. Backup failure aborts migration. Keep existing copies; collisions insert a unique suffix before the extension. Restore guidance: `documentation/migration-backups.md`.
+
 ## Local Contracts
 
 - `documentation/newspaper-yield-plan.md` owns the implemented coverage and automatic-budget contract. `ResolveBudget` is shared by scheduling, research and preview. Missing mode remains fixed; explicit auto scales by distinct sections plus individual interests. Live changes may narrow a run, never expand its starting snapshot.

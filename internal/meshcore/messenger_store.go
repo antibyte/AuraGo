@@ -1,16 +1,18 @@
 package meshcore
 
 import (
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	"aurago/internal/dbutil"
 )
 
 type SendPart struct {
@@ -110,11 +112,8 @@ func (s *store) migrateMessenger(dir, version string, existing bool) error {
 	}
 	if version != "3" && existing {
 		backup := filepath.Join(dir, fmt.Sprintf("meshcore-v%s-%d.backup.db", version, time.Now().UnixNano()))
-		if _, err := s.db.Exec("VACUUM INTO ?", backup); err != nil {
+		if _, err := dbutil.BackupSQLite(context.Background(), s.db, backup); err != nil {
 			return fmt.Errorf("back up meshcore database: %w", err)
-		}
-		if err := os.Chmod(backup, 0600); err != nil {
-			return err
 		}
 	}
 	_, err := s.db.Exec(`

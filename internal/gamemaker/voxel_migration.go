@@ -1,10 +1,12 @@
 package gamemaker
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 	"time"
+
+	"aurago/internal/dbutil"
 )
 
 // SQLite creates a consistent backup including committed WAL data before ALTER.
@@ -40,7 +42,7 @@ func migrateVoxelVariant(db *sql.DB) error {
 	}
 	if path != "" {
 		backup := path + ".before-voxel-" + time.Now().UTC().Format("20060102T150405.000000000") + ".bak"
-		if _, err := db.Exec(`VACUUM INTO '` + strings.ReplaceAll(backup, "'", "''") + `'`); err != nil {
+		if _, err := dbutil.BackupSQLite(context.Background(), db, backup); err != nil {
 			return fmt.Errorf("backup before voxel migration: %w", err)
 		}
 	}

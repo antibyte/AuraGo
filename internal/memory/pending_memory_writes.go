@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -77,11 +76,8 @@ func (s *SQLiteMemory) InitPendingMemoryWritesTable() error {
 		}
 		if path != "" {
 			backup := path + ".pending-memory-metadata-v1-" + rand.Text() + ".bak"
-			if _, err := s.db.Exec(`VACUUM main INTO ?`, backup); err != nil {
+			if _, err := dbutil.BackupSQLite(context.Background(), s.db, backup); err != nil {
 				return fmt.Errorf("back up pending memory metadata migration: %w", err)
-			}
-			if err := os.Chmod(backup, 0600); err != nil {
-				return fmt.Errorf("protect pending memory migration backup: %w", err)
 			}
 		}
 	}

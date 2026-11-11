@@ -5,6 +5,8 @@ Own isolated Desktop research cases, durable budgets, evidence, report revisions
 exports and the embedded research skill. Server adapters own provider selection
 and tool dispatch; Desktop adapters own UI state.
 
+- Migration backups use `dbutil.BackupSQLite`: owner-only staging and file permissions/Windows ACL, WAL-inclusive copy, sync and atomic publication. Backup failure aborts migration. Keep existing copies; collisions insert a unique suffix before the extension. Restore guidance: `documentation/migration-backups.md`.
+
 ## Local Contracts
 - A run has one cumulative budget across phases and continuation. Continue keeps
   the recorded profile and active time and ignores a posted effort. Only an

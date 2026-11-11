@@ -9,9 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+	_ "modernc.org/sqlite"
 
 	"aurago/internal/dbutil"
-	_ "modernc.org/sqlite"
 )
 
 const schemaVersion = 8
@@ -53,11 +53,8 @@ func OpenStore(path string) (*Store, error) {
 	}
 	if version > 0 && version < schemaVersion && path != ":memory:" {
 		backup := fmt.Sprintf("%s.pre-v%d-%d.bak", path, schemaVersion, time.Now().UTC().UnixNano())
-		if _, err := db.Exec("VACUUM INTO ?", backup); err != nil {
+		if _, err := dbutil.BackupSQLite(context.Background(), db, backup); err != nil {
 			return closeOnError(fmt.Errorf("back up mailer database before migration: %w", err))
-		}
-		if err := os.Chmod(backup, 0o600); err != nil {
-			return closeOnError(fmt.Errorf("restrict mailer migration backup permissions: %w", err))
 		}
 	}
 	if version < schemaVersion {

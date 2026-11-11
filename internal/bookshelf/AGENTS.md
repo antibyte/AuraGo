@@ -54,3 +54,5 @@ The server owns HTTP authorization and injects authorized source adapters.
 Run `go test ./internal/bookshelf` for package changes. Changes to HTTP routes,
 configuration, Desktop registration, UI, sources or reader assets must also read
 their owning `AGENTS.md` files and preserve this package's contracts.
+
+- Migration backups use `dbutil.BackupSQLite`: owner-only staging and file permissions/Windows ACL, WAL-inclusive copy, sync and atomic publication. Backup failure aborts migration. Keep existing copies; collisions insert a unique suffix before the extension. Restore guidance: `documentation/migration-backups.md`.

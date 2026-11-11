@@ -88,3 +88,5 @@ Run focused `go test ./internal/mailer` tests for store migration, message
 indexing/cursors, draft revision conflicts, rule preview/new-only behavior,
 outbox restart reconciliation and no-replay semantics, revocation, and attachment
 root/size bounds.
+
+- Migration backups use `dbutil.BackupSQLite`: owner-only staging and file permissions/Windows ACL, WAL-inclusive copy, sync and atomic publication. Backup failure aborts migration. Keep existing copies; collisions insert a unique suffix before the extension. Restore guidance: `documentation/migration-backups.md`.

@@ -1064,3 +1064,5 @@ the contracts below describe the implemented behavior of each delivered slice.
   enforces this: `TestCatalogTranslationsAreComplete` (en holds every key; every locale holds exactly en's keys,
   the server's `easydrag.notify.*` and `easydrag.option.*` strings included, with the same placeholders) and
   `TestTemplatesAreValidInEveryLocale` (the starter templates validate in every locale).
+
+- Migration rehearsal snapshots protect the temporary directory and completed database with `fileutil.RestrictToOwner` on Unix and Windows. Preserve integrity checking, file sync and failure cleanup.

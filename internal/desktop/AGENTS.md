@@ -8,6 +8,8 @@ Desktop file operations, rooted mutations and local presentation assets.
 
 The Service owns authorization, read-only state, mutation locks and cache invalidation; HTTP adapters delegate these operations.
 
+- Migration backups use `dbutil.BackupSQLite`: owner-only staging and file permissions/Windows ACL, WAL-inclusive copy, sync and atomic publication. Backup failure aborts migration. Keep existing copies; collisions insert a unique suffix before the extension. Restore guidance: `documentation/migration-backups.md`.
+
 ## Local Contracts
 
 <!-- pinball:start -->
