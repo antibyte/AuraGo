@@ -129,10 +129,19 @@
             // A rerun from the run view (o.data) starts from that run's trigger data instead of the
             // stored sample. It runs as given even unchanged, and is not remembered unless ticked.
             let prefilled = !!(o.data && typeof o.data === 'object' && !Array.isArray(o.data));
+            // seeded: the shown sample is a built-in one localized to the UI language. It runs as
+            // shown (sent as trigger_data), but only a real change is remembered.
+            let seeded = false;
+            const localized = (answer, node) => {
+                const data = (answer && answer.data) || {};
+                const before = JSON.stringify(data);
+                const out = ED.testing && ED.testing.localSample ? ED.testing.localSample(ed, node, answer) : data;
+                return { data: out, seeded: JSON.stringify(out) !== before };
+            };
             let sample = {};
             if (prefilled) sample = o.data;
             else {
-                try { sample = (await ed.api.testData(ed.flow.id, trigger.id)).data || {}; } catch (err) { sample = {}; }
+                try { const got = localized(await ed.api.testData(ed.flow.id, trigger.id), trigger); sample = got.data; seeded = got.seeded; } catch (err) { sample = {}; }
             }
             if (rc.disposed) return undefined;
             // The sample comes scrubbed (secret values read "[redacted]") and must never be saved
@@ -165,7 +174,8 @@
                     if (simulation && !simulation.flush()) return false;
                     if (simulation && simulation.isSelected()) return trackStart(() => simulation.run());
                     const text = d.body.querySelector('[data-ed-test-data]').value;
-                    const edited = text !== shown || prefilled;
+                    const changed = text !== shown || prefilled;
+                    const edited = changed || seeded;
                     let data = null;
                     if (edited) {
                         try { data = JSON.parse(text || '{}'); } catch (e) { err.hidden = false; err.textContent = t('easydrag.ui.json_invalid'); return false; }
@@ -184,7 +194,7 @@
                     core.storage.set('aurago.easydrag.test-trigger.' + ed.flow.id, trigger.id);
                     // Edited data that still holds a placeholder runs, but is not remembered: it
                     // would replace the stored secret values with "[redacted]".
-                    const remember = edited && d.body.querySelector('[data-ed-test-remember]').checked;
+                    const remember = changed && d.body.querySelector('[data-ed-test-remember]').checked;
                     const redacted = remember && text.includes(REDACTED);
                     return run(trigger.id, data, o.onlyNode, remember && !redacted).then(ok => {
                         if (ok && shownEffects.length) confirmEffects(shownEffects, rememberEffects);
@@ -240,11 +250,12 @@
                     const area = dialog.body.querySelector('[data-ed-test-data]');
                     const id = select.value;
                     if (area.value !== shown) return;
-                    let next = {};
-                    try { next = (await ed.api.testData(ed.flow.id, id)).data || {}; } catch (err) { next = {}; }
+                    let next = {}, nextSeeded = false;
+                    try { const got = localized(await ed.api.testData(ed.flow.id, id), ed.model.node(id)); next = got.data; nextSeeded = got.seeded; } catch (err) { next = {}; }
                     if (select.value !== id || area.value !== shown) return;
                     shown = JSON.stringify(next, null, 2);
                     area.value = shown;
+                    seeded = nextSeeded;
                     if (simulation) simulation.refreshData();
                     prefilled = false;
                 });

@@ -81,6 +81,9 @@ type NodeTypeInfo struct {
 	Untrusted      bool           `json:"untrusted,omitempty"`
 	Availability   Availability   `json:"availability"`
 	Sample         map[string]any `json:"sample,omitempty"`
+	// SampleTextKeys: see NodeDef.SampleTextKeys. The editor localizes those fields of a
+	// built-in sample.
+	SampleTextKeys map[string]map[string]string `json:"sample_text_keys,omitempty"`
 }
 
 // ParamInfo is a translated parameter description.
@@ -332,6 +335,7 @@ func describeNodeType(def *NodeDef, tr func(string) string, sample func(*Node) m
 		if describeHook(def, "TriggerSample", func() { data = cloneJSONMap(sample(sampleNode(def))) }) {
 			info.Sample = data
 		}
+		info.SampleTextKeys = cloneSampleTextKeys(def.SampleTextKeys)
 	}
 	return info
 }

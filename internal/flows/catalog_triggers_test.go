@@ -154,7 +154,7 @@ func TestTriggerSampleAndNormalize(t *testing.T) {
 	email := &Node{Type: TypeTriggerEmail}
 	s := TriggerSample(email)
 	s["subject"] = "changed"
-	if TriggerSample(email)["subject"] != "Rechnung Oktober" {
+	if TriggerSample(email)["subject"] != "October invoice" {
 		t.Fatal("TriggerSample must return a copy")
 	}
 	manual := &Node{Type: TypeTriggerManual, Params: map[string]any{"data": map[string]any{"a": 1.0}}}

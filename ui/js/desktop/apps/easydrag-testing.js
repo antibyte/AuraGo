@@ -104,6 +104,33 @@
         return effects(ed, onlyNode, triggerId, real).size > 0 || unknownEffects(ed, onlyNode, triggerId);
     }
 
+    const UNSAFE_PATH = new Set(['__proto__', 'constructor', 'prototype']);
+
+    // localSample shows a built-in trigger sample in the UI language. The catalog names the
+    // text fields of each sample (sample_text_keys: event variant -> dotted path -> key; ""
+    // is the default sample, as in withEventSamples on the server), and those fields take
+    // t(key). A saved sample, or an answer without a source, is left as it is.
+    function localSample(ed, node, answer) {
+        const data = answer && answer.data && typeof answer.data === 'object' && !Array.isArray(answer.data) ? answer.data : {};
+        if (!answer || answer.source !== 'builtin' || !node) return data;
+        const byEvent = (ed.model.info(node.type) || {}).sample_text_keys;
+        if (!byEvent || typeof byEvent !== 'object') return data;
+        const event = String((node.params || {}).event == null ? '' : node.params.event).trim();
+        const keys = event && Object.prototype.hasOwnProperty.call(byEvent, event) ? byEvent[event] : byEvent[''];
+        if (!keys || typeof keys !== 'object') return data;
+        Object.keys(keys).forEach(path => {
+            const parts = path.split('.');
+            if (parts.some(part => UNSAFE_PATH.has(part)) || typeof keys[path] !== 'string') return;
+            let holder = data;
+            for (let i = 0; i < parts.length - 1 && holder; i++) holder = typeof holder === 'object' ? holder[parts[i]] : null;
+            const last = parts[parts.length - 1];
+            if (!holder || typeof holder !== 'object' || typeof holder[last] !== 'string') return;
+            const text = ed.t(keys[path]);
+            if (typeof text === 'string' && text && text !== keys[path]) holder[last] = text;
+        });
+        return data;
+    }
+
 
     function parseSample(text) {
         if (typeof text !== 'string' || text.length > MAX_SAMPLE) throw new Error('sample');
@@ -264,5 +291,5 @@
         bag.add(ed.bus.on('run', render));
         return { dispose() { bag.dispose(); el.remove(); } };
     }
-    ED.testing = { decorate, createResults, parseSample, contentResult, triggers, realEffects, effects, unknownEffects, simulationDefault };
+    ED.testing = { decorate, createResults, parseSample, contentResult, triggers, realEffects, effects, unknownEffects, simulationDefault, localSample };
 })();

@@ -362,6 +362,11 @@ func CatalogI18nKeys(reg *Registry) []string {
 				add(f.DescriptionKey)
 			}
 		}
+		for _, byField := range def.SampleTextKeys {
+			for _, k := range byField {
+				add(k)
+			}
+		}
 	}
 	for _, c := range CategoryOrder {
 		add("easydrag.category." + c)

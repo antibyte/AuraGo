@@ -262,6 +262,9 @@ type NodeDef struct {
 	Tool             string
 	Effects          []Effect
 	EffectsFunc      func(n *Node) []Effect
+	// SampleTextKeys names the translatable text fields of a trigger's built-in sample:
+	// event variant ("" for the default sample) -> dotted field path -> i18n key.
+	SampleTextKeys map[string]map[string]string
 	// ErrorModes optionally restricts how runtime errors are handled for this
 	// node. Empty keeps the historical stop/continue/error-port behavior.
 	ErrorModes []ErrorMode
