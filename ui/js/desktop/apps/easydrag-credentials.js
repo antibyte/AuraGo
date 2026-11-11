@@ -9,7 +9,7 @@
     const MARKER = '[redacted]';
     const EXACT = new Set(['token', 'accesstoken', 'refreshtoken', 'idtoken', 'apikey', 'secret', 'clientsecret', 'password', 'passwd', 'pwd', 'sig', 'signature',
         'auth', 'authorization', 'xapikey', 'privatekey', 'secretkey', 'accesskey', 'sessiontoken', 'secrets', 'tokens', 'apikeys']);
-    const SUFFIXES = ['token', 'secret', 'password', 'apikey', 'tokens', 'secrets', 'passwords', 'apikeys'];
+    const SUFFIXES = ['token', 'secret', 'password', 'apikey', 'secrets', 'passwords', 'apikeys'];
     const TOKEN = /^(?:(?:sk-|sk_live_|rk_live_)[A-Za-z0-9_-]{20,}|(?:ghp_|gho_|ghu_|ghs_|ghr_)[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{16,}|glpat-[A-Za-z0-9_-]{16,}|xox[bpar]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/;
     const WORDS = /[ \t\r\n\f]+|[^ \t\r\n\f]+/g;
     const HEADER_EXACT = new Set(['authorization', 'proxy-authorization', 'cookie', 'x-api-key', 'api-key', 'apikey', 'x-auth-token', 'x-access-token', 'x-auth', 'x-session']);

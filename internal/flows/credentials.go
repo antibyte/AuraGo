@@ -86,7 +86,7 @@ var (
 		"secret": true, "clientsecret": true, "password": true, "passwd": true, "pwd": true, "sig": true, "signature": true,
 		"auth": true, "authorization": true, "xapikey": true, "privatekey": true, "secretkey": true, "accesskey": true, "sessiontoken": true,
 		"secrets": true, "tokens": true, "apikeys": true}
-	credentialSuffixes    = []string{"token", "secret", "password", "apikey", "tokens", "secrets", "passwords", "apikeys"}
+	credentialSuffixes    = []string{"token", "secret", "password", "apikey", "secrets", "passwords", "apikeys"}
 	credentialTokenFormat = regexp.MustCompile(`^(?:(?:sk-|sk_live_|rk_live_)[A-Za-z0-9_-]{20,}|(?:ghp_|gho_|ghu_|ghs_|ghr_)[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{16,}|glpat-[A-Za-z0-9_-]{16,}|xox[bpar]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$`)
 	credentialWords       = regexp.MustCompile(`[ \t\r\n\f]+|[^ \t\r\n\f]+`)
 )
