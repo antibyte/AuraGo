@@ -326,7 +326,7 @@ func TestRunDiscordMessageReleasesSlotAfterTheRun(t *testing.T) {
 	sender := &fakeDiscordSender{}
 	runs := 0
 
-	if !runDiscordMessage(context.Background(), slots, 1, sender, "channel-1", slog.Default(), func() { runs++ }) {
+	if !runDiscordMessage(context.Background(), slots, 1, sender, "channel-1", slog.Default(), false, func() { runs++ }) {
 		t.Fatal("runDiscordMessage rejected a message while the pool was free")
 	}
 	if runs != 1 {
@@ -351,7 +351,7 @@ func TestRunDiscordMessageRejectsWhenPoolExhausted(t *testing.T) {
 
 	sender := &fakeDiscordSender{}
 	runs := 0
-	accepted := runDiscordMessage(context.Background(), slots, 1, sender, "channel-1", slog.Default(), func() { runs++ })
+	accepted := runDiscordMessage(context.Background(), slots, 1, sender, "channel-1", slog.Default(), false, func() { runs++ })
 	if accepted {
 		t.Fatal("runDiscordMessage accepted a message while the pool was exhausted")
 	}
@@ -373,11 +373,27 @@ func TestRunDiscordMessageWithoutLimitRunsUnbounded(t *testing.T) {
 	sender := &fakeDiscordSender{}
 	runs := 0
 
-	if !runDiscordMessage(context.Background(), newDiscordWorkerSlots(0), 0, sender, "channel-1", slog.Default(), func() { runs++ }) {
+	if !runDiscordMessage(context.Background(), newDiscordWorkerSlots(0), 0, sender, "channel-1", slog.Default(), false, func() { runs++ }) {
 		t.Fatal("runDiscordMessage rejected a message without a configured limit")
 	}
 	if runs != 1 {
 		t.Fatalf("runs = %d, want 1", runs)
+	}
+}
+
+func TestRunDiscordStopBypassesSaturatedWorkers(t *testing.T) {
+	slots := newDiscordWorkerSlots(1)
+	slots <- struct{}{}
+	sender := &fakeDiscordSender{}
+	runs := 0
+	if !runDiscordMessage(context.Background(), slots, 1, sender, "channel", slog.Default(), true, func() { runs++ }) ||
+		runs != 1 || len(slots) != 1 || sender.sends != 0 {
+		t.Fatal("authorized stop waited for or changed the occupied worker")
+	}
+	for _, text := range []string{"/stop", " <@bot> /stop ", "<@!bot> /stop"} {
+		if got := discordCommandText(text, "bot", true); got != "/stop" {
+			t.Fatalf("command text = %q", got)
+		}
 	}
 }
 

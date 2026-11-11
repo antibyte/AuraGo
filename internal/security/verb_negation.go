@@ -67,9 +67,25 @@ func MaskNegatedVerbs(text string, isVerb func(string) bool) string {
 				}
 				if isNegative(words[j].text, direction < 0) {
 					if direction > 0 {
+						if strings.HasPrefix(words[j].text, "kein") {
+							// A determiner after an existing object does not negate its disclosure.
+							for k := i + 1; k < j; k++ {
+								switch words[k].text {
+								case "mir", "dir", "uns", "euch", "ihm", "ihr", "ihnen", "bitte", "jetzt", "künftig", "fortan":
+								default:
+									return false
+								}
+							}
+						}
 						for k := j + 1; k < len(words) && !words[k].boundary; k++ {
 							// A destination contrast still permits disclosure elsewhere.
 							if words[k].text == "but" || words[k].text == "aber" || words[k].text == "sondern" {
+								return false
+							}
+							if words[k].text == "and" || words[k].text == "und" || words[k].text == "then" || words[k].text == "dann" {
+								break
+							}
+							if isBarrier(words[k].text) || isVerb(words[k].text) {
 								return false
 							}
 						}

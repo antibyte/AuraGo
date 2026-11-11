@@ -70,9 +70,15 @@ func blockedReasonWithEscape(command string, escape byte) string {
 	if reason := blockedReason(normalized); reason != "" {
 		return reason
 	}
+	if reason := programExecutionReason(normalized, escape); reason != "" {
+		return reason
+	}
 	view, splitString := normalizeCommandHeads(normalized, escape)
 	if splitString {
 		return "interpreter command chain that can bypass shell policy"
+	}
+	if reason := programExecutionReason(view, escape); reason != "" {
+		return reason
 	}
 	return blockedReason(view)
 }
