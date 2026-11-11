@@ -157,8 +157,11 @@ jobs:
           - name: Desktop E-G
             run: '^TestDesktop[E-G]'
             skip: '^$'
-          - name: Desktop H-R
-            run: '^TestDesktop[H-R]'
+          - name: Desktop H-M
+            run: '^TestDesktop[H-M]'
+            skip: '^$'
+          - name: Desktop N-R
+            run: '^TestDesktop[N-R]'
             skip: '^$'
           - name: Desktop S-Z
             run: '^TestDesktop[S-Z]'
