@@ -177,7 +177,7 @@
   "help.github.read_only": "Když je povoleno, agent může jen číst repozitáře, issues a PR, ale nemůže vytvářet, mazat ani měnit soubory.",
   "help.github.token": "Osobní přístupový token (PAT) pro GitHub API. Vytvořte jej na https://github.com/settings/tokens s požadovanými rozsahy (repo, problémy atd.). Uloženo zašifrovaně v trezoru.",
   "help.home_assistant.access_token": "Dlouhodobý přístupový token pro ověření Home Assistant.",
-  "help.home_assistant.allowed_services": "Volitelny seznam sluzeb Home Assistant, ktere muze agent volat, napr. light.turn_on. Ponechte prazdne, chcete-li povolit vsechny sluzby krome tech v seznamu blokovanych.",
+  "help.home_assistant.allowed_services": "Volitelný seznam úplných názvů služeb (domain.service). Prázdný povoluje běžné služby. shell_command, python_script, script a hassio vždy vyžadují výslovný záznam. Blokování a režim jen pro čtení mají přednost.",
   "help.home_assistant.blocked_services": "Sluzby Home Assistant, ktere agent nikdy nesmi volat, napr. lock.unlock. Tento seznam blokovani se kontroluje pred povolenymi sluzbami.",
   "help.home_assistant.enabled": "Povoluje integraci chytré domácnosti Home Assistant.",
   "help.home_assistant.read_only": "Když je povoleno, agent může jen číst stavy zařízení, ale nemůže volat služby (žádné přepínání zařízení).",

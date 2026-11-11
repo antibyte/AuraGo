@@ -331,6 +331,10 @@ func redactProviderError(err error) string {
 	if err == nil {
 		return ""
 	}
+	var rateLimit *RateLimitError
+	if errors.As(err, &rateLimit) {
+		return "provider returned HTTP 429 (rate limited)"
+	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) {
 		message := urlErr.Op + " " + redactProviderURL(urlErr.URL)

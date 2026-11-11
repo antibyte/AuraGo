@@ -486,3 +486,16 @@ func TestTaskRouterFeedbackUsesActualProviderWithoutChangingDecision(t *testing.
 		}
 	}
 }
+
+func TestTaskRouterFeedbackShowsMissingToolCallingWithRouterOff(t *testing.T) {
+	cfg, run, _ := taskRouterFixture()
+	cfg.LLMRouter.Enabled = false
+	manual := false
+	cfg.Providers[0].Capabilities = config.ProviderCapabilities{Auto: &manual, ToolCalling: false}
+	run.DiscoveryRunID = "capability-fixture"
+	broker := &taskRouterTypedTestBroker{}
+	publishTaskRouting(run, broker)
+	if len(broker.decisions) != 1 || !broker.decisions[0].ToolCallingUnavailable || run.TaskRouting != nil {
+		t.Fatalf("missing passive capability notice: %+v", broker.decisions)
+	}
+}

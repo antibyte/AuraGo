@@ -548,7 +548,7 @@ home_assistant:
     access_token: ""
     enabled: false
     url: ""
-    allowed_services: []                                  # optional call_service allowlist; empty allows all services
+    allowed_services: []                                  # full domain.service names; executable domains always need explicit grants
     blocked_services: []                                  # explicit denylist, evaluated before allowed_services
 rules:
     enabled: true                                         # task-specific markdown guardrails under prompts/rules/

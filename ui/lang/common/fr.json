@@ -1,4 +1,5 @@
 {
+  "common.llm_router.tool_calling_unavailable": "Ce modèle ne prend pas en charge les appels natifs aux outils",
   "common.llm_router.decisions_busy": "Decisions est occupé",
   "common.llm_router.helper_cooldown": "Délai du modèle auxiliaire",
   "common.llm_router.decisions_cooldown": "Délai de Decisions",

@@ -38,6 +38,11 @@ Background services and workspace search.
 
 ## Prompt optimizer
 
+- Canonical manuals remain authoritative on dynamic, explicit and paginated
+  reads. Runtime variants appear only as bounded, isolated optional hints, shed
+  before canonical guides. Record the candidate exposure only if its complete
+  hint survives final fitting; otherwise record the canonical baseline.
+
 - Optimizer manual bodies and historical errors remain isolated user-message
   source data beneath a fixed system instruction. Never interpolate them into
   trusted instructions. Bound output and accept only completed responses;

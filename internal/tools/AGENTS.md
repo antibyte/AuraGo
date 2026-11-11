@@ -257,6 +257,10 @@ Agent filesystem, external service and Docker tool safety boundaries.
 - Keep Space Agent auth keys under the persistent `space_agent.data_path` mount through `SPACE_AUTH_DATA_DIR`. Admin password and bridge token remain Vault-only; Space Agent provider credentials remain separate from AuraGo.
 
 ### Mission and Home Assistant Lifetimes
+- `HAServiceRefusal` is shared by tools, agent dispatch and EasyDrag. Script,
+  shell_command, python_script and hassio services require an exact explicit
+  allowed_services entry even when the list is otherwise unrestricted; blocked
+  services and read-only still win.
 - Mission manager StartContext inherits the server lifetime; repeated Start is idempotent. Stop is terminal, refuses further work, and waits for the queue, invocation callbacks, timeout guards and completion work. Invocation callbacks must use the manager Context and must not detach their work.
 - Mission HTTP handlers remain independent of a caller disconnect, but inherit server shutdown. Their registry cancels and drains every generation before database closure, including replaced runs. History completion finishes within the tracked invocation.
 - Home Assistant polling owns one cancellable generation. Publish changed credentials/URL/enablement before draining outside config locks and starting a replacement. Shutdown drains polling before closing mission databases. Entity IDs use the shared path encoder and credentials cannot follow a foreign-origin redirect.

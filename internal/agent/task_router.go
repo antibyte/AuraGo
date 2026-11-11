@@ -16,19 +16,20 @@ import (
 )
 
 type TaskRoutingDecision struct {
-	TurnID            string `json:"turn_id"`
-	Area              string `json:"area"`
-	Source            string `json:"source"`
-	Reason            string `json:"reason"`
-	Provider          string `json:"provider"`
-	Model             string `json:"model"`
-	ActualProvider    string `json:"actual_provider"`
-	ActualModel       string `json:"actual_model"`
-	ElapsedMS         int64  `json:"elapsed_ms"`
-	HelperUseful      bool   `json:"helper_useful"`
-	DecisionsUseful   bool   `json:"decisions_useful"`
-	SessionID         string `json:"session_id,omitempty"`
-	RetryAfterSeconds int    `json:"retry_after_seconds,omitempty"`
+	TurnID                 string `json:"turn_id"`
+	Area                   string `json:"area"`
+	Source                 string `json:"source"`
+	Reason                 string `json:"reason"`
+	Provider               string `json:"provider"`
+	Model                  string `json:"model"`
+	ActualProvider         string `json:"actual_provider"`
+	ActualModel            string `json:"actual_model"`
+	ElapsedMS              int64  `json:"elapsed_ms"`
+	HelperUseful           bool   `json:"helper_useful"`
+	DecisionsUseful        bool   `json:"decisions_useful"`
+	SessionID              string `json:"session_id,omitempty"`
+	RetryAfterSeconds      int    `json:"retry_after_seconds,omitempty"`
+	ToolCallingUnavailable bool   `json:"tool_calling_unavailable,omitempty"`
 }
 
 var taskRoutingSequence atomic.Uint64
@@ -438,16 +439,31 @@ func PrepareTaskRouting(ctx context.Context, req *openai.ChatCompletionRequest, 
 }
 
 func publishTaskRouting(run RunConfig, broker FeedbackBroker) {
-	if run.TaskRouting == nil || broker == nil {
+	if broker == nil || run.Config == nil {
 		return
 	}
-	d := *run.TaskRouting
+	d := TaskRoutingDecision{TurnID: "capabilities:" + run.DiscoveryRunID, SessionID: run.SessionID, Source: "default", Reason: "unassigned", Provider: run.Config.LLM.Provider, Model: run.Config.LLM.Model}
+	if run.TaskRouting != nil {
+		d = *run.TaskRouting
+	}
 	if client, ok := run.LLMClient.(activeTaskRouteProvider); ok {
 		route := client.ActiveRoute()
 		d.ActualProvider, d.ActualModel = route.ProviderID, route.Model
 		if d.ActualProvider != d.Provider || d.ActualModel != d.Model {
 			d.Reason = "provider_failover"
 		}
+	}
+	caps := llm.ResolveConfigProviderCapabilities(run.Config)
+	for _, provider := range run.Config.Providers {
+		if provider.ID == d.ActualProvider {
+			provider.Model = d.ActualModel
+			caps = llm.ResolveProviderCapabilities(provider, llm.CapabilityFallback{})
+			break
+		}
+	}
+	d.ToolCallingUnavailable = !caps.ToolCalling
+	if run.TaskRouting == nil && !d.ToolCallingUnavailable {
+		return
 	}
 	if typed, ok := broker.(TypedFeedbackBroker); ok {
 		typed.SendTyped("llm_route", d)

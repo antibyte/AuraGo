@@ -177,7 +177,7 @@
   "help.github.read_only": "Wanneer ingeschakeld, kan de agent alleen repos, issues en PR's lezen, maar geen bestanden maken, verwijderen of wijzigen.",
   "help.github.token": "Personal Access Token (PAT) voor de GitHub-API. Maak er een aan op https://github.com/settings/tokens met de vereiste scopes (repo, issues, enz.). Versleuteld opgeslagen in de Vault.",
   "help.home_assistant.access_token": "Langlevend toegangstoken voor Home Assistant-authenticatie.",
-  "help.home_assistant.allowed_services": "Optionele lijst met Home Assistant-services die de agent mag aanroepen, zoals light.turn_on. Laat leeg om alle services toe te staan tenzij ze hieronder zijn geblokkeerd.",
+  "help.home_assistant.allowed_services": "Optionele lijst met volledige servicenamen (domain.service). Leeg staat gewone services toe. shell_command, python_script, script en hassio vereisen altijd een expliciete vermelding. Blokkering en alleen-lezen gaan voor.",
   "help.home_assistant.blocked_services": "Home Assistant-services die de agent nooit mag aanroepen, zoals lock.unlock. Deze blokkeerlijst wordt voor toegestane services gecontroleerd.",
   "help.home_assistant.enabled": "Home Assistant.",
   "help.home_assistant.read_only": "Wanneer ingeschakeld, kan de agent alleen apparaatstatussen lezen en geen services aanroepen (geen apparaten schakelen).",

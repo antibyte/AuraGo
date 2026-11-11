@@ -1,4 +1,5 @@
 {
+  "common.llm_router.tool_calling_unavailable": "Este modelo no admite llamadas nativas a herramientas",
   "common.llm_router.decisions_busy": "Decisions está ocupado",
   "common.llm_router.helper_cooldown": "Espera del asistente",
   "common.llm_router.decisions_cooldown": "Espera de Decisions",

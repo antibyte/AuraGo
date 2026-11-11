@@ -1,4 +1,5 @@
 {
+  "common.llm_router.tool_calling_unavailable": "This model does not support native tool calls",
   "common.llm_router.decisions_busy": "Decisions is busy",
   "common.llm_router.helper_cooldown": "Helper cooldown",
   "common.llm_router.decisions_cooldown": "Decisions cooldown",

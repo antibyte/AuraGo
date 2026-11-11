@@ -177,7 +177,7 @@
   "help.github.read_only": "Når dette er aktivert, kan agenten bare lese repoer, issues og PR-er, men kan ikke opprette, slette eller endre filer.",
   "help.github.token": "Personal Access Token (PAT) for GitHub-API-et. Opprett et på https://github.com/settings/tokens med de nødvendige tilgangene (repo, issues osv.). Lagres kryptert i hvelvet.",
   "help.home_assistant.access_token": "Langvarig tilgangstoken for Home Assistant-autentisering.",
-  "help.home_assistant.allowed_services": "Valgfri liste over Home Assistant-tjenester agenten kan kalle, f.eks. light.turn_on. La den stå tom for å tillate alle tjenester med mindre de er blokkert nedenfor.",
+  "help.home_assistant.allowed_services": "Valgfri liste over fullstendige tjenestenavn (domain.service). Tom tillater vanlige tjenester. shell_command, python_script, script og hassio krever alltid en uttrykkelig oppføring. Blokkering og skrivebeskyttelse har forrang.",
   "help.home_assistant.blocked_services": "Home Assistant-tjenester agenten aldri kan kalle, f.eks. lock.unlock. Denne blokkeringslisten sjekkes før tillatte tjenester.",
   "help.home_assistant.enabled": "Home Assistant.",
   "help.home_assistant.read_only": "Når dette er aktivert, kan agenten bare lese enhetstilstander, men kan ikke kalle tjenester (ingen veksling av enheter).",

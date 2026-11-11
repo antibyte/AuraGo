@@ -134,11 +134,6 @@ func flowDispatchConfig(cfg *config.Config) *config.Config {
 	return &flowCfg
 }
 
-// flowHAScriptDomains are Home Assistant service domains that run scripts or change the
-// system. A flow may call their services only when home_assistant.allowed_services lists
-// the service itself.
-var flowHAScriptDomains = map[string]bool{"shell_command": true, "python_script": true, "script": true, "hassio": true}
-
 // flowFirstArg mirrors the agent decoders' firstNonEmptyToolString(typed,
 // toolArgString(params, key)): the typed ToolCall field (which JSON fills from a key of any
 // case, "Domain" included), else the exact key in Params.
@@ -165,17 +160,7 @@ func flowHAServiceRefusal(cfg *config.Config, tc agent.ToolCall) string {
 	if d, s, ok := strings.Cut(service, "."); ok && (domain == "" || domain == d) {
 		domain, service = d, s
 	}
-	if !flowHAScriptDomains[domain] {
-		return ""
-	}
-	full := domain + "." + service
-	for _, allowed := range cfg.HomeAssistant.AllowedServices {
-		if strings.ToLower(strings.TrimSpace(allowed)) == full {
-			return ""
-		}
-	}
-	return "Home Assistant service " + flowBoundRunes(full, flowLogRunes) + " is refused for flows: services of the " +
-		domain + " domain run only when home_assistant.allowed_services lists them"
+	return tools.HAServiceRefusal(domain, service, cfg.HomeAssistant.AllowedServices, cfg.HomeAssistant.BlockedServices)
 }
 
 // flowTextSentRefusals are the tools whose failed answer can say the text already went out

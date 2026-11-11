@@ -1,4 +1,5 @@
 {
+  "common.llm_router.tool_calling_unavailable": "Denne modellen støtter ikke innebygde verktøykall",
   "common.llm_router.decisions_busy": "Decisions er opptatt",
   "common.llm_router.helper_cooldown": "Ventetid for hjelperen",
   "common.llm_router.decisions_cooldown": "Ventetid for Decisions",

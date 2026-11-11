@@ -1,4 +1,5 @@
 {
+  "common.llm_router.tool_calling_unavailable": "Dieses Modell unterstützt keine nativen Werkzeugaufrufe",
   "common.llm_router.decisions_busy": "Entscheidungen sind ausgelastet",
   "common.llm_router.helper_cooldown": "Wartefrist für den Helfer",
   "common.llm_router.decisions_cooldown": "Wartefrist für Entscheidungen",

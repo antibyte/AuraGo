@@ -2556,7 +2556,8 @@ window.AuraLLMRouteLabel = function (route) {
     const provider = route?.actual_provider || route?.provider || '';
     const reasons = ['decisions_unavailable', 'decisions_timeout', 'decisions_uncertain', 'decisions_invalid', 'decisions_changed', 'decisions_limited', 'decisions_busy', 'decisions_cooldown', 'helper_cooldown', 'helper_limited', 'classification_budget'];
     const fallback = !['selected', 'unassigned', 'same_as_default'].includes(route?.reason) ? ' · ' + tr(reasons.includes(route?.reason) ? route.reason : 'fallback') : '';
-    return area + ' · ' + provider + ' / ' + model + ' · ' + source + fallback;
+    const toolStatus = route?.tool_calling_unavailable ? ' · ' + tr('tool_calling_unavailable') : '';
+    return area + ' · ' + provider + ' / ' + model + ' · ' + source + fallback + toolStatus;
 };
 
 window.AuraLLMRouteBadge = function (container, route) {

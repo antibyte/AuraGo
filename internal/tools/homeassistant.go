@@ -244,7 +244,16 @@ func HAServiceAllowed(cfg HAConfig, domain, service string) bool {
 }
 
 func homeAssistantServiceGate(domain, service string, allowedServices, blockedServices []string) string {
-	full := strings.ToLower(strings.TrimSpace(domain) + "." + strings.TrimSpace(service))
+	return HAServiceRefusal(domain, service, allowedServices, blockedServices)
+}
+
+// HAServiceRefusal is the shared agent, tool and flow service policy.
+func HAServiceRefusal(domain, service string, allowedServices, blockedServices []string) string {
+	domain, service = strings.ToLower(strings.TrimSpace(domain)), strings.ToLower(strings.TrimSpace(service))
+	if d, s, ok := strings.Cut(service, "."); ok && (domain == "" || domain == d) {
+		domain, service = d, s
+	}
+	full := domain + "." + service
 	if strings.Trim(full, ".") == "" {
 		return ""
 	}
@@ -254,6 +263,10 @@ func homeAssistantServiceGate(domain, service string, allowedServices, blockedSe
 		}
 	}
 	if len(allowedServices) == 0 {
+		switch domain {
+		case "shell_command", "python_script", "script", "hassio":
+			return "Home Assistant service " + full + " requires an explicit entry in home_assistant.allowed_services"
+		}
 		return ""
 	}
 	for _, allowed := range allowedServices {

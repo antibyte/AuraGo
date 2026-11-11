@@ -70,7 +70,7 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 			"method", method,
 			"url", url,
 			"elapsed_ms", elapsed.Milliseconds(),
-			"error", err,
+			"error", redactProviderError(err),
 		)
 		return nil, err
 	}

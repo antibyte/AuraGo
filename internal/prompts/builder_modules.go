@@ -156,9 +156,6 @@ func addPromptModule(moduleMap map[string]PromptModule, key, filename, content s
 	return true
 }
 
-// GetActivePromptOverrides is a function hook to break import cycles.
-var GetActivePromptOverrides func() map[string]string
-
 func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 	logger = normalizePromptLogger(logger)
 	now := time.Now()
@@ -685,16 +682,6 @@ func parseToolGuideRaw(filename, raw string, logger *slog.Logger) (content strin
 // to the embedded FS baked into the binary. When flags is nil, frontmatter
 // conditions are not enforced (used by explicit discover_tools lookups).
 func readToolGuide(path string, flags *ContextFlags) (string, bool) {
-	if content, ok := activeToolGuideOverride(path); ok && flags == nil {
-		if flags != nil {
-			source, sourceFound := canonicalToolGuide(path)
-			conditions := source.conditions
-			if !sourceFound || !guideConditionsAllow(conditions, flags) {
-				return "", false
-			}
-		}
-		return truncateGuide(content, 2048), true
-	}
 	entry, ok := canonicalToolGuide(path)
 	if !ok || !guideConditionsAllow(entry.conditions, flags) {
 		return "", false
@@ -780,31 +767,6 @@ func loadToolGuideConditions(path string) (conditions []string, found bool) {
 		return append([]string(nil), entry.conditions...), true
 	}
 	return nil, false
-}
-
-func activeToolGuideOverride(path string) (string, bool) {
-	if GetActivePromptOverrides == nil {
-		return "", false
-	}
-
-	toolName := toolGuideNameFromPath(path)
-	if toolName == "" {
-		return "", false
-	}
-
-	overrides := GetActivePromptOverrides()
-	if len(overrides) == 0 {
-		return "", false
-	}
-
-	for name, raw := range overrides {
-		if normalizeToolGuideOverrideName(name) != toolName {
-			continue
-		}
-		return SanitizeToolGuideOverride(raw)
-	}
-
-	return "", false
 }
 
 func toolGuideNameFromPath(path string) string {

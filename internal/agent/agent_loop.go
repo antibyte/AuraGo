@@ -327,10 +327,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	if err := PrepareTaskRouting(ctx, &req, &runCfg); err != nil {
 		return response, err
 	}
-	publishTaskRouting(runCfg, broker)
-	defer func() { finishTaskRouting(runCfg, broker) }()
 	runCfg.DiscoveryRunID = acquireDiscoveryRun()
 	defer releaseDiscoveryRun(runCfg.DiscoveryRunID)
+	publishTaskRouting(runCfg, broker)
+	defer func() { finishTaskRouting(runCfg, broker) }()
 	releaseAgentLoopSlot, err := acquireAgentLoopSlot(ctx)
 	if err != nil {
 		return openai.ChatCompletionResponse{}, err

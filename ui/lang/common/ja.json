@@ -1,4 +1,5 @@
 {
+  "common.llm_router.tool_calling_unavailable": "このモデルはネイティブのツール呼び出しに対応していません",
   "common.llm_router.decisions_busy": "Decisions は処理中です",
   "common.llm_router.helper_cooldown": "補助モデルの待機時間",
   "common.llm_router.decisions_cooldown": "Decisions の待機時間",

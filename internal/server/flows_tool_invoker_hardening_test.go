@@ -471,7 +471,7 @@ func TestC13HomeAssistantScriptDomainsAreDefaultDenied(t *testing.T) {
 		}
 	}
 	cfg := &config.Config{}
-	cfg.HomeAssistant.AllowedServices = []string{"script.turn_on", " Shell_Command.backup "}
+	cfg.HomeAssistant.AllowedServices = []string{"script.turn_on", " Shell_Command.backup ", "light.turn_on"}
 	allowed := []map[string]any{
 		{"operation": "call_service", "domain": "script", "service": "turn_on", "entity_id": "script.backup"},
 		{"operation": "call_service", "domain": "shell_command", "service": "backup", "entity_id": "light.a"},

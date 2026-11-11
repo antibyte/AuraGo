@@ -177,7 +177,7 @@
   "help.github.read_only": "När detta är aktiverat kan agenten bara läsa arkiv, ärenden och pull requests men inte skapa, ta bort eller ändra filer.",
   "help.github.token": "Personal Access Token (PAT) för GitHub-API:t. Skapa en på https://github.com/settings/tokens med de behörigheter som krävs (repo, issues m.m.). Lagras krypterad i valvet.",
   "help.home_assistant.access_token": "Långlivad åtkomsttoken för Home Assistant-autentisering.",
-  "help.home_assistant.allowed_services": "Valfri lista med Home Assistant-tjänster som agenten får anropa, t.ex. light.turn_on. Lämna tomt för att tillåta alla tjänster om de inte blockeras nedan.",
+  "help.home_assistant.allowed_services": "Valfri lista över fullständiga tjänstenamn (domain.service). Tom tillåter vanliga tjänster. shell_command, python_script, script och hassio kräver alltid en uttrycklig post. Blockering och skrivskydd har företräde.",
   "help.home_assistant.blocked_services": "Home Assistant-tjänster som agenten aldrig får anropa, t.ex. lock.unlock. Den här blockeringslistan kontrolleras före tillåtna tjänster.",
   "help.home_assistant.enabled": "Aktiverar Home Assistant-integrationen för smarta hem.",
   "help.home_assistant.read_only": "När detta är aktiverat kan agenten bara läsa enhetstillstånd men inte anropa tjänster (inga växlingar av enheter).",

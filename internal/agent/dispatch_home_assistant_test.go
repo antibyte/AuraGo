@@ -35,6 +35,15 @@ func TestHomeAssistantServiceGateAllowsEmptyAllowedServices(t *testing.T) {
 	}
 }
 
+func TestDispatchHomeAssistantExecutableServiceNeedsExplicitGrant(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.HomeAssistant.Enabled = true
+	out, ok := dispatchServices(context.Background(), ToolCall{Action: "home_assistant", Operation: "call_service", Domain: "shell_command", Service: "run"}, &DispatchContext{Cfg: cfg, Logger: testLogger})
+	if !ok || !strings.Contains(out, "explicit") {
+		t.Fatalf("executable service not refused before network access: %s", out)
+	}
+}
+
 func TestDispatchHomeAssistantBlocksExplicitlyBlockedService(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.HomeAssistant.Enabled = true

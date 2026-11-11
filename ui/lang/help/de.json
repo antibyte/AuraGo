@@ -177,7 +177,7 @@
   "help.github.read_only": "Wenn aktiviert, darf der Agent nur Repos, Issues und PRs lesen, aber keine erstellen, löschen oder Dateien ändern.",
   "help.github.token": "Personal Access Token (PAT) für die GitHub API. Erstelle unter https://github.com/settings/tokens ein Token mit den benötigten Berechtigungen (repo, issues, etc.). Wird verschlüsselt im Vault gespeichert.",
   "help.home_assistant.access_token": "Langlebiges Access Token für Home Assistant Auth.",
-  "help.home_assistant.allowed_services": "Optionale Liste von Home-Assistant-Services, die der Agent aufrufen darf, z.B. light.turn_on. Leer lassen, um alle Services zu erlauben, sofern sie unten nicht blockiert sind.",
+  "help.home_assistant.allowed_services": "Optionale Freigabeliste vollständiger Dienstnamen (domain.service). Leer erlaubt gewöhnliche Dienste. shell_command, python_script, script und hassio brauchen immer einen ausdrücklichen Eintrag. Sperrliste und Nur-Lesen haben Vorrang.",
   "help.home_assistant.blocked_services": "Home-Assistant-Services, die der Agent nie aufrufen darf, z.B. lock.unlock. Diese Blockliste wird vor den erlaubten Services geprüft.",
   "help.home_assistant.enabled": "Aktiviert die Home Assistant Smart-Home-Integration.",
   "help.home_assistant.read_only": "Wenn aktiviert, darf der Agent nur Gerätezustände lesen, aber keine Services aufrufen (kein Schalten von Geräten).",

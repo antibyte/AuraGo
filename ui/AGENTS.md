@@ -27,6 +27,10 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 ## Ownership
 
+- The shared llm_route badge shows missing native tool-calling support from
+  passive capability metadata, even with routing disabled. Keep the common
+  label in all sixteen locales; verify `TestLLMCapabilityNoticeBrowser`.
+
 - Invasion's Egg editor stores explicit file/network/unsandboxed grants. The
   reconfiguration dialog loads the applied permission snapshot and submits false
   and [] revocations. History failures keep editing safe and retryable. Empty

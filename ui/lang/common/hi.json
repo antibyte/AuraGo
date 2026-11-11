@@ -1,4 +1,5 @@
 {
+  "common.llm_router.tool_calling_unavailable": "यह मॉडल मूल उपकरण कॉल का समर्थन नहीं करता",
   "common.llm_router.decisions_busy": "Decisions व्यस्त है",
   "common.llm_router.helper_cooldown": "सहायक का प्रतीक्षा समय",
   "common.llm_router.decisions_cooldown": "Decisions का प्रतीक्षा समय",

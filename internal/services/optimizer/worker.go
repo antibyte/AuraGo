@@ -17,7 +17,6 @@ import (
 )
 
 func init() {
-	prompts.GetActivePromptOverrides = GetActivePromptOverrides
 	prompts.SelectToolGuideVariant = selectToolGuideVariant
 }
 

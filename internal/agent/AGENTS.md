@@ -10,6 +10,11 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ## Local Contracts
 
+- Optimizer variants never replace canonical manuals. Request-local optional
+  notes use external-data isolation and separate fitting/exposure accounting.
+  Missing native tool support is logged and shown through passive llm_route
+  metadata, including when task routing is off; never force unsupported calls.
+
 - `StopSession` is the shared user-stop boundary: interrupt dispatch, cancel the
   pending question and revoke active/queued ingress contexts for that session.
   Ingress recognizes `/stop` before questions and turn gates; later human turns

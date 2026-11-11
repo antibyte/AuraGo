@@ -2,7 +2,7 @@
 
 Control Home Assistant devices and services via the HA REST API.
 
-> **Requires** `home_assistant.enabled: true` and a valid Long-Lived Access Token in `config.yaml`.
+> **Requires** `home_assistant.enabled: true` and a valid Long-Lived Access Token stored in the Vault.
 
 ## Operations
 
@@ -34,7 +34,7 @@ Returns: complete entity object with state, attributes, last_changed, etc.
 ### call_service
 Call a Home Assistant service to control a device.
 
-`home_assistant.allowed_services` is optional. When it is empty, all services are allowed unless blocked by `home_assistant.blocked_services`. When it contains entries, the requested `domain.service` must be listed.
+`home_assistant.allowed_services` lists full `domain.service` names. An empty list permits ordinary services. The executable domains `shell_command`, `python_script`, `script` and `hassio` always require an explicit full service entry. When the list is populated, every requested service must be listed. `blocked_services` and read-only mode always take precedence. Agent, direct tools and EasyDrag use this same policy.
 
 ```json
 {"action": "home_assistant", "operation": "call_service", "domain": "light", "service": "turn_on", "entity_id": "light.living_room"}

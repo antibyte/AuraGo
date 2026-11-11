@@ -19,15 +19,18 @@ func clearGuideCacheForTest() {
 func withActivePromptOverridesForTest(tb testing.TB, overrides map[string]string) {
 	tb.Helper()
 
-	old := GetActivePromptOverrides
-	GetActivePromptOverrides = func() map[string]string {
-		return overrides
+	old := SelectToolGuideVariant
+	SelectToolGuideVariant = func(manual, canonical, runKey string) ToolGuideVariant {
+		if text, ok := overrides[manual]; ok {
+			return ToolGuideVariant{Text: text, Version: "candidate"}
+		}
+		return ToolGuideVariant{Text: canonical, Version: "v1"}
 	}
 	ClearPromptCache()
 	clearGuideCacheForTest()
 
 	tb.Cleanup(func() {
-		GetActivePromptOverrides = old
+		SelectToolGuideVariant = old
 		ClearPromptCache()
 		clearGuideCacheForTest()
 	})
@@ -65,8 +68,8 @@ func TestReadToolGuideOverrideBlockedWithoutSourceWhenFlagsSet(t *testing.T) {
 		t.Fatalf("expected override without source to be blocked for dynamic injection, got: %q", guide)
 	}
 
-	if guide, ok := ReadToolGuide(guidePath); !ok || !strings.Contains(guide, "Override without canonical manual source.") {
-		t.Fatalf("expected explicit ReadToolGuide lookup to keep override available, got ok=%v guide=%q", ok, guide)
+	if guide, ok := ReadToolGuide(guidePath); ok {
+		t.Fatalf("explicit lookup accepted optimizer text without canonical source, got ok=%v guide=%q", ok, guide)
 	}
 }
 
@@ -100,7 +103,7 @@ func TestReadToolGuideOverrideRespectsManualConditionsWhenFlagsSet(t *testing.T)
 	}
 }
 
-func TestReadToolGuideUsesSanitizedActiveOverride(t *testing.T) {
+func TestReadToolGuideIgnoresOptimizerOverride(t *testing.T) {
 	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
 		return charRatioEncoder{}, nil
 	}, time.Second, time.Second)
@@ -113,8 +116,12 @@ func TestReadToolGuideUsesSanitizedActiveOverride(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected filesystem tool guide to be available")
 	}
-	if !strings.Contains(guide, "Use exact operations.") {
-		t.Fatalf("expected sanitized active override to be used, got: %q", guide)
+	if strings.Contains(guide, "Use exact operations.") {
+		t.Fatalf("optimizer replaced canonical guide, got: %q", guide)
+	}
+	full, ok := ReadToolGuideFull(guidePath)
+	if !ok || strings.Contains(full, "Use exact operations.") {
+		t.Fatal("paginated manual used optimizer content")
 	}
 	if strings.Contains(guide, "<think>") || strings.Contains(guide, "hidden optimizer reasoning") {
 		t.Fatalf("expected hidden reasoning to be stripped from optimized guide, got: %q", guide)

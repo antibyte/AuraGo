@@ -975,7 +975,9 @@ the contracts below describe the implemented behavior of each delivered slice.
     search is cleared (a summary is a model call outside the flow budget); the message source denies the
     local-Ollama SSRF exception of `api_request`. It always sets `block_remote_content: true` (a JSON bool) for
     `document_creator`, refuses Home Assistant `script`, `shell_command`, `python_script` and `hassio` services
-    unless `home_assistant.allowed_services` lists them, registers the call's credentials with the output
+    unless `home_assistant.allowed_services` lists their full service names. The shared tools policy also
+    enforces populated allowlists for ordinary services and gives blocklists/read-only precedence.
+    The invoker registers the call's credentials with the output
     scrubber and redacts them from the output, and never logs arguments (`flowLogHandler`).
     Successful native document results retain generated file references without adding them to the agent's
     copied-text index. External reads keep that protection. A real copied-text refusal is `FLOW_TOOL_DENIED`

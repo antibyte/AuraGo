@@ -149,6 +149,9 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	currentRoute := currentToolRoute{}
 
 	toolingPolicy := buildToolingPolicy(cfg, initialUserMsg)
+	if !toolingPolicy.Capabilities.ProviderToolCalling {
+		logger.Warn("[NativeTools] Model does not support native tool calls; using text tool mode", "provider", cfg.LLM.Provider, "model", cfg.LLM.Model)
+	}
 	suppressCoAgentTools := shouldSuppressCoAgentTools(runCfg)
 	if suppressCoAgentTools {
 		toolingPolicy.UseNativeFunctions = false

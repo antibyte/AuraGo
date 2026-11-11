@@ -1,4 +1,5 @@
 {
+  "common.llm_router.tool_calling_unavailable": "Αυτό το μοντέλο δεν υποστηρίζει εγγενείς κλήσεις εργαλείων",
   "common.llm_router.decisions_busy": "Το Decisions είναι απασχολημένο",
   "common.llm_router.helper_cooldown": "Χρόνος αναμονής βοηθού",
   "common.llm_router.decisions_cooldown": "Χρόνος αναμονής Decisions",

@@ -47,6 +47,9 @@ This package owns actual provider target trust and mutable client state.
 
 ## Work Guidance
 
+- Transport diagnostics use `redactProviderError` while returning the original
+  error. Rate-limit diagnostics contain status only, never the provider body.
+
 Use synthetic local HTTP/TLS fixtures for network policy tests.
 
 ## Verification
