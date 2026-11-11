@@ -1,6 +1,6 @@
 # EasyDrag S0: Room, trust and legibility (design spec)
 
-**Status:** design spec for the implementation plan, 2026-11-10. The owner decisions are final. Code facts were checked against `main` at e2cc311a7 on 2026-11-10. Items marked PLAN-CHECK are small facts that the first plan task for that item settles.
+**Status:** design spec, 2026-11-10. Implementation plan: `plans/2026-11-11-easydrag-s0/` (2026-11-11). The owner decisions are final. Code facts were checked against `main` at e2cc311a7 on 2026-11-10. Items marked PLAN-CHECK are small facts that the first plan task for that item settles.
 
 **Source:** `plans/2026-11-09-easydrag-next-roadmap.md` §2 (principles 1, 2, 4 and 8), §4 E1–E3, §7 and §10 (decisions 1 and 3).
 
@@ -565,7 +565,7 @@ Each pair is tile / icon. The values were computed on 2026-11-10 with OKLab and 
   - Minimal `:130-133` and `:216-219`.
 - It picks the band for the context and checks that:
   - every tile with OKLCH chroma of 0.05 or more is at least 30° in hue from every status hue;
-  - every tile and every group token is at least 0.20 in OKLab distance from every status token;
+  - every tile and every coloured group token is at least 0.20 in OKLab distance from every status token. The neutral group renders as `--ed-muted` grey, which cannot reach 0.20 (about 0.14 from info and success in Standard), so it is exempt; the test only checks that it reads no status token (amended while planning, see `plans/2026-11-11-easydrag-s0/README.md`);
   - every icon reaches at least 3:1 on its tile.
 
 **Contact sheet.**
