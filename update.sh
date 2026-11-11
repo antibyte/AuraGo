@@ -17,6 +17,10 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 set -euo pipefail
 
+# These are process-owned verification receipts, never inherited trust.
+RELEASE_CHECKSUMS_FILE=""
+VERIFIED_RELEASE_CHECKSUMS_FILE=""
+
 # ── UI & Typography ──────────────────────────────────────────────────────
 # Text-mode look (logo, cards, steps, spinner). Plain timestamped lines when
 # stdout is not a terminal (the in-app updater appends to log/update.log);
@@ -1476,7 +1480,7 @@ update_exit_cleanup() {
         $SUDO chown -R "${_svc_user}:${_svc_group}" "$UPDATE_STATE" 2>/dev/null || warn "Update state ownership could not be restored."
     fi
     remove_regular_file_if_present "${BASH_SOURCE[0]}" >/dev/null || true
-    [ -z "${RELEASE_CHECKSUMS_FILE:-}" ] || remove_regular_file_if_present "$RELEASE_CHECKSUMS_FILE" >/dev/null || true
+    [ -z "${VERIFIED_RELEASE_CHECKSUMS_FILE:-}" ] || remove_regular_file_if_present "$VERIFIED_RELEASE_CHECKSUMS_FILE" >/dev/null || true
     exit "$rc"
 }
 
@@ -1867,7 +1871,7 @@ verify_release_checksums_signature() (
 
 fetch_release_checksums() {
     [ -n "${RELEASE_BASE:-}" ] || die "RELEASE_BASE is not set."
-    if [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && [ -f "${RELEASE_CHECKSUMS_FILE:-}" ]; then
+    if [ -n "${VERIFIED_RELEASE_CHECKSUMS_FILE:-}" ] && [ "${RELEASE_CHECKSUMS_FILE:-}" = "$VERIFIED_RELEASE_CHECKSUMS_FILE" ] && [ -f "$VERIFIED_RELEASE_CHECKSUMS_FILE" ]; then
         return 0
     fi
     RELEASE_CHECKSUMS_FILE="$(mktemp "/tmp/aurago-sha256.XXXXXX")"
@@ -1876,7 +1880,12 @@ fetch_release_checksums() {
         RELEASE_CHECKSUMS_FILE=""
         return 1
     fi
-    verify_release_checksums_signature
+    if ! verify_release_checksums_signature; then
+        rm -f "$RELEASE_CHECKSUMS_FILE"
+        RELEASE_CHECKSUMS_FILE=""
+        return 1
+    fi
+    VERIFIED_RELEASE_CHECKSUMS_FILE="$RELEASE_CHECKSUMS_FILE"
 }
 
 verify_release_asset() {
@@ -2002,7 +2011,7 @@ DB_SIDECAR_SUFFIXES=("-wal" "-shm")
 backup_data_file_with_sidecars() {
     local src="$1" dst="$2" s
     safe_restore_file "$src" "$dst" || return 1
-    case "$src" in *.db) ;; *) return 0 ;; esac
+    case "$src:$dst" in *.db:*|*.sqlite:*|*:*/sqlite/[0-9]*) ;; *) return 0 ;; esac
     for s in "${DB_SIDECAR_SUFFIXES[@]}"; do
         [ -f "$src$s" ] || continue
         safe_restore_file "$src$s" "$dst$s" || return 1
@@ -2015,7 +2024,7 @@ backup_data_file_with_sidecars() {
 restore_data_file_with_sidecars() {
     local bak="$1" dst="$2" s
     safe_restore_file "$bak" "$dst" || return 1
-    case "$dst" in *.db) ;; *) return 0 ;; esac
+    case "$bak" in *.db|*.sqlite|*/sqlite/[0-9]*) ;; *) return 0 ;; esac
     for s in "${DB_SIDECAR_SUFFIXES[@]}"; do
         if [ -f "$bak$s" ]; then
             safe_restore_file "$bak$s" "$dst$s" || return 1
@@ -2023,6 +2032,34 @@ restore_data_file_with_sidecars() {
             rm -f "$dst$s" 2>/dev/null || $SUDO rm -f "$dst$s" 2>/dev/null || return 1
         fi
     done
+}
+
+backup_configured_databases() {
+    local binary="$1" path index=0 required_kib=0 suffix
+    local list="$BACKUP_DIR/sqlite-paths"
+    mkdir -p "$BACKUP_DIR/sqlite" || return 1
+    # The verified candidate only parses configuration; it never starts/migrates stores.
+    "$binary" --update-maintenance --root "$DIR" --database-paths > "$list" || return 1
+    while IFS= read -r -d '' path; do
+        for suffix in "" "${DB_SIDECAR_SUFFIXES[@]}"; do
+            [ ! -f "$path$suffix" ] || required_kib=$((required_kib + $(du -k "$path$suffix" | awk '{print $1}')))
+        done
+    done < "$list"
+    update_space_check "$required_kib" || return 1
+    while IFS= read -r -d '' path; do
+        index=$((index + 1))
+        [ ! -f "$path" ] || backup_data_file_with_sidecars "$path" "$BACKUP_DIR/sqlite/$index" || return 1
+    done < "$list"
+    touch "$BACKUP_DIR/sqlite-complete"
+}
+
+restore_configured_databases() {
+    local path index=0
+    [ -f "$BACKUP_DIR/sqlite-complete" ] || return 0
+    while IFS= read -r -d '' path; do
+        index=$((index + 1))
+        [ ! -f "$BACKUP_DIR/sqlite/$index" ] || restore_data_file_with_sidecars "$BACKUP_DIR/sqlite/$index" "$path" || return 1
+    done < "$BACKUP_DIR/sqlite-paths"
 }
 
 file_owner_uid() {
@@ -2291,6 +2328,10 @@ DATA_FILES=(
     "data/remote_control.db"
     "data/sql_connections.db"
     "data/short_term.db"
+    "data/planner.db"
+    "data/launchpad.db"
+    "data/optimization.db"
+    "data/virtual_computers.db"
 )
 # Prompt directories: protect all custom *.md files that are NOT tracked by git
 PROMPTS_DIR="$DIR/prompts"
@@ -3036,6 +3077,7 @@ restore_critical_user_data_after_failure() {
             restore_data_file_with_sidecars "$bak" "$DIR/$f" || return 1
         done
     fi
+    restore_configured_databases
 }
 
 restore_user_edits_after_failure() {
@@ -3939,6 +3981,7 @@ UPDATE_NEW_ASSET="$(update_asset_id "$LAUNCH_BIN")" || abort_update "Cannot iden
 UPDATE_NEW_VERSION="$(sha256sum "$LAUNCH_BIN" | awk '{print $1}')"
 update_manifest pending
 "$LAUNCH_BIN" --assets-dir "$DIR/assets/web" --check-assets || abort_update "Installed web resource validation failed."
+backup_configured_databases "$LAUNCH_BIN" || abort_update "Could not back up configured databases; the new build was not started."
 STARTED_AFTER_UPDATE=false
 START_MODE=""
 

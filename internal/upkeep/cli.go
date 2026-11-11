@@ -1,6 +1,7 @@
 package upkeep
 
 import (
+	"aurago/internal/config"
 	"context"
 	"encoding/json"
 	"flag"
@@ -73,6 +74,7 @@ func RunCLI(args []string, out, stderr io.Writer) int {
 	apply := f.Bool("apply", false, "apply the cleanup; default only previews")
 	legacy := f.Bool("adopt-legacy", false, "include provably installation-owned legacy update artifacts")
 	summary := f.Bool("summary", false, "print a compact cleanup summary instead of the JSON inventory")
+	databasePaths := f.Bool("database-paths", false, "print NUL-delimited configured SQLite paths without opening databases")
 	checkPending := f.Bool("check-pending", false, "validate transaction state before an update")
 	resolve := f.String("resolve", "", "resolve this transaction after recovery")
 	outcome := f.String("outcome", "", "confirmed or rolled_back (with --resolve)")
@@ -92,6 +94,28 @@ func RunCLI(args []string, out, stderr io.Writer) int {
 		return 2
 	}
 	*root = filepath.Clean(absolute)
+	if *databasePaths {
+		cfg, err := config.Load(filepath.Join(*root, "config.yaml"))
+		if err != nil {
+			fmt.Fprintln(stderr, "Cannot read database paths:", err)
+			return 1
+		}
+		paths := config.SQLiteDatabasePaths(cfg)
+		for _, path := range paths {
+			info, err := os.Stat(path)
+			if err != nil && !os.IsNotExist(err) || err == nil && !info.Mode().IsRegular() {
+				fmt.Fprintln(stderr, "Cannot safely back up configured database:", path)
+				return 1
+			}
+		}
+		for _, path := range paths {
+			if _, err := io.WriteString(out, path+"\x00"); err != nil {
+				fmt.Fprintln(stderr, err)
+				return 1
+			}
+		}
+		return 0
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 	if *checkPending {

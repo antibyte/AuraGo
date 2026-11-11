@@ -12,6 +12,15 @@ The updater owns transaction manifests; this package verifies them before collec
 
 ## Local Contracts
 
+- Before starting a candidate, `update.sh` invokes its passive
+  `--update-maintenance --root <install> --database-paths` mode. It emits only
+  NUL-delimited `config.SQLiteDatabasePaths` entries, without opening stores.
+  Private indexed copies include WAL/SHM for every configured filename and are
+  restored from the same path manifest after failed startup. A failed copy or
+  space check prevents startup/migrations. Payload directories remain excluded.
+- Checksum manifest reuse requires this process's successful verification receipt;
+  inherited file paths grant no trust and are never removed by update cleanup.
+
 - `internal/updater` passes Bash, script and log paths as literal POSIX shell
   arguments. Preserve detached `nohup`, `--yes`, null stdin, appended stdout/stderr
   logging and the configured working directory. Verify special-character paths

@@ -7,6 +7,10 @@ revision publication and standalone export for Phaser and Three.js games.
 
 ## Ownership
 
+- `storage.go` owns the Game Maker SQLite database. Its configured path is part
+  of `config.SQLiteDatabasePaths` for backups and pre-start update rollback;
+  payload directories retain their existing backup/export rules.
+
 - `guided_design.go`, `skills.go`, `skills/`: compact agent contracts and examples.
 - `templates/`: new-project source bases; preserve authored existing source on edits.
 - `runtime/game-flow.js`: player feedback and result/stage UI, driven by engine clocks.

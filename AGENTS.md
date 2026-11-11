@@ -86,6 +86,10 @@ The six existing API-key environment overrides apply only after a valid static p
 
 ### Install and development reset
 
+Setup publishes `.env` through the shared synced atomic file writer; failed writes
+or replacement preserve the previous master-key file. Verify
+`TestEnsureMasterKeyAtomicFailurePreservesEnv` and `TestVaultAtomicReplaceHandlesWindowsReaders`.
+
 Docker is recommended: `docker-compose up -d`; `docker-compose -f docker-compose.yml up -d` selects the default file explicitly. Linux:
 
 - Verified install: obtain `install.sh` over HTTPS from `https://github.com/antibyte/AuraGo/releases/latest/download/`, then `bash install.sh`; signature and payload verification are automatic, without user key/tool setup.

@@ -14,6 +14,19 @@ transaction ID/time, binary checksums, resource IDs, backup completion and the
 outcome (`pending`, `confirmed`, `rolled_back`, `uncertain`). They contain no
 credentials. The actual backup can contain credentials and remains private.
 
+Before the updated binary starts, its passive maintenance mode enumerates
+`config.SQLiteDatabasePaths` from the installation's configuration. The updater
+backs up these files, including custom paths and WAL/SHM sidecars, into indexed
+private copies and uses the same NUL-delimited path manifest for rollback.
+Planner, Launchpad, Optimization, Virtual Computers and Game Maker participate.
+An unreadable configuration, failed copy or failed space check prevents startup
+and database migrations. Large payload directories are not copied wholesale.
+The existing rebuildable-index and linked-device credential exclusions remain.
+
+Release checksum files supplied through the environment are not verification
+receipts. The updater fetches and verifies its own manifest, reuses only that
+verified file and leaves caller-owned files untouched during cleanup.
+
 The updater holds a kernel lock across backup, installation, readiness and
 collection. Resource installation also shares its existing asset lock with
 collection. A new version becomes confirmed only after asset verification,

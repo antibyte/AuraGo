@@ -3,6 +3,7 @@ package setup
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 
 	"aurago/internal/chunking"
 	"aurago/internal/config"
+	"aurago/internal/fileutil"
 )
 
 // Run performs the full first-time setup:
@@ -710,7 +712,7 @@ func ensureMasterKey(installDir string, logger *slog.Logger) error {
 	if envValid {
 		if fileKey := readEnvKey(envFile, "AURAGO_MASTER_KEY"); fileKey != envKey {
 			content := fmt.Sprintf("AURAGO_MASTER_KEY=%s\n", envKey)
-			if err := os.WriteFile(envFile, []byte(content), 0600); err != nil {
+			if err := fileutil.WriteFileContext(context.Background(), envFile, []byte(content), 0600); err != nil {
 				return fmt.Errorf("failed to persist existing master key to .env: %w", err)
 			}
 			logger.Info("Persisted existing environment master key to .env")
@@ -732,7 +734,7 @@ func ensureMasterKey(installDir string, logger *slog.Logger) error {
 	}
 	hexKey := hex.EncodeToString(key)
 	content := fmt.Sprintf("AURAGO_MASTER_KEY=%s\n", hexKey)
-	if err := os.WriteFile(envFile, []byte(content), 0600); err != nil {
+	if err := fileutil.WriteFileContext(context.Background(), envFile, []byte(content), 0600); err != nil {
 		return fmt.Errorf("failed to write .env file: %w", err)
 	}
 	logger.Info("Generated new master key in .env")
