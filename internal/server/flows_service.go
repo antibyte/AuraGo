@@ -13,6 +13,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/flows"
 	"aurago/internal/memory"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 )
 
@@ -78,6 +79,7 @@ func (s *Server) initFlows() {
 		DurableEnabled:  limits.DurableEnabled,
 		MaxParallelRuns: limits.EffectiveMaxParallelRuns(), MaxParallelNodes: limits.EffectiveMaxParallelNodes(),
 		RunRetentionDays: limits.EffectiveRunRetentionDays(), MaxRunsPerFlow: limits.EffectiveMaxRunsPerFlow(),
+		PurgeKey: security.ProcessMasterKey,
 	}, s.Logger)
 	svc := s.Flows
 	s.MissionManagerV2.SetDurableHistorySource(func(ctx context.Context, runID, missionID string) (bool, error) {

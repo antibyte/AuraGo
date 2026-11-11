@@ -123,6 +123,9 @@ type ServiceConfig struct {
 	// MaxRunsPerFlow.
 	MaxTestRunsPerFlow int
 	RetentionInterval  time.Duration
+	// PurgeKey returns the master key (64 hex characters) the credential purge encrypts its safety
+	// backup with; nil or an empty result makes the purge refuse to start.
+	PurgeKey func() string
 }
 
 // ValidationError carries the issues that block saving or publishing.
@@ -167,6 +170,7 @@ type Service struct {
 	timers     *TimerService
 	locks      flowLocks
 	draftLocks flowLocks
+	lastSweep  time.Time // retentionLoop only
 
 	// startMu serializes Start. It is not taken by Shutdown, which only needs mu.
 	startMu sync.Mutex
@@ -354,6 +358,7 @@ func (s *Service) isClosed() bool {
 
 func (s *Service) retentionLoop() {
 	defer close(s.done)
+	s.sweepPurgeBackups()
 	ticker := time.NewTicker(s.cfg.RetentionInterval)
 	defer ticker.Stop()
 	for {
@@ -364,7 +369,27 @@ func (s *Service) retentionLoop() {
 			if _, err := s.PruneNow(context.Background()); err != nil {
 				s.logger.Warn("flow run retention failed", "error", err)
 			}
+			s.sweepPurgeBackups()
 		}
+	}
+}
+
+// sweepPurgeBackups deletes expired encrypted backups at start and then once a day.
+func (s *Service) sweepPurgeBackups() {
+	if !s.lastSweep.IsZero() && s.now().Sub(s.lastSweep) < 24*time.Hour {
+		return
+	}
+	s.lastSweep = s.now()
+	dir, err := s.store.dir()
+	if err != nil || dir == "" {
+		return
+	}
+	deleted, err := SweepPurgeBackups(dir, s.now())
+	if err != nil {
+		s.logger.Warn("expired flows backups could not be deleted", "error", err)
+	}
+	if len(deleted) > 0 {
+		s.logger.Info("expired encrypted flows backups deleted", "count", len(deleted))
 	}
 }
 

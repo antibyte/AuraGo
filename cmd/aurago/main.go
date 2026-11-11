@@ -204,6 +204,7 @@ func main() {
 	assetsCheck := flag.Bool("check-assets", false, "Verify the matching installed resource set and exit")
 	assetsArchive := flag.String("install-assets", "", "Verify and install an offline resource archive, then exit")
 	assetsImport := flag.String("import-assets-dir", "", "Verify and atomically import an unpacked resource root, then exit")
+	restoreFlowsBackup := flag.String("restore-flows-purge-backup", "", "Restore flows.db from an encrypted purge backup file, then exit (AuraGo must be stopped)")
 	recoveryAddress := flag.String("recovery-address", "127.0.0.1:8088", "Listen address for a fresh binary without config or web resources")
 	flag.Parse()
 	if *maintenance {
@@ -264,6 +265,9 @@ func main() {
 		initialPassword = resolved
 	}
 
+	if *restoreFlowsBackup != "" {
+		os.Exit(runRestoreFlowsPurgeBackup(instanceLockPath(installDir), configFile, *restoreFlowsBackup, os.Stdout, os.Stderr))
+	}
 	if healthcheck || printTsNetStateDirOnly {
 		healthCfg, loadErr := config.Load(configFile)
 		if loadErr != nil {

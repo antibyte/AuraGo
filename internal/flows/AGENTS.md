@@ -1075,3 +1075,7 @@ the contracts below describe the implemented behavior of each delivered slice.
   enforces this: `TestCatalogTranslationsAreComplete` (en holds every key; every locale holds exactly en's keys,
   the server's `easydrag.notify.*` and `easydrag.option.*` strings included, with the same placeholders) and
   `TestTemplatesAreValidInEveryLocale` (the starter templates validate in every locale).
+
+## Credential purge backups
+
+The credential purge (B.9) first writes `.flows-purge-backup-<UTC>.enc` next to flows.db: AES-256-GCM in 64 KiB chunks, key = HKDF-SHA256(master key, file salt, label `aurago/easydrag/purge-backup/v1`). `security.EncryptFileWithMasterKey` and `DecryptFileWithMasterKey` are the only writers and readers. `Service.sweepPurgeBackups` deletes `.flows-purge-backup-*.enc` and `.flows-pre-restore-*.enc` after 7 days (at start, then daily). To restore, stop AuraGo and run `aurago --restore-flows-purge-backup <file>`: it takes the instance lock (`aurago.lock`), keeps the current flows.db as `.flows-pre-restore-<UTC>.enc`, verifies the decrypted backup, removes the stale `-wal` and `-shm`, swaps the file in and exits. There is no UI for it.
