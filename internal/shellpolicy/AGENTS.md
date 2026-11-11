@@ -15,6 +15,9 @@ retain execution grants, platform escape rules and OS isolation.
 - Reject unresolved wrapper syntax, executing xargs, editor command modes and
   executable Git configuration/environment. Help and version queries remain reads.
 - Preserve quotes, escaped separators, comments and benign literal arguments.
+- Reject executable environment writes through POSIX export/declaration builtins,
+  Cmd set (including arithmetic/input) and PowerShell environment assignments or
+  Set-Item/New-Item. Read-only queries and unrelated variables remain allowed.
 - This heuristic supplements isolation; it cannot sandbox arbitrary programs.
 
 ## Work Guidance

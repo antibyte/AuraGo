@@ -1,6 +1,11 @@
 package shellpolicy
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
+
+var arithmeticEnvironmentAssignment = regexp.MustCompile(`(?i)\b([a-z_][a-z0-9_]*)\s*(?:<<|>>|[+\-*/%&^|])?=`)
 
 // Inspect literal arguments only; executable configuration is a separate interpreter.
 func programExecutionReason(command string, escape byte) string {
@@ -8,6 +13,9 @@ func programExecutionReason(command string, escape byte) string {
 	check := func() string {
 		if len(words) == 0 {
 			return ""
+		}
+		if executableEnvironmentMutation(words, escape) {
+			return "executable Git/editor environment"
 		}
 		head := strings.TrimSuffix(strings.ToLower(words[0][strings.LastIndexAny(words[0], "/\\")+1:]), ".exe")
 		args := words[1:]
@@ -137,4 +145,79 @@ func executableEnvironment(word string) bool {
 		return true
 	}
 	return strings.HasPrefix(key, "GIT_CONFIG_")
+}
+
+func executableEnvironmentMutation(words []string, escape byte) bool {
+	head := strings.ToLower(words[0])
+	args := words[1:]
+	switch escape {
+	case '\\':
+		switch head {
+		case "export", "readonly", "declare", "typeset":
+			for _, arg := range args {
+				if commandAssignment.MatchString(arg) && executableEnvironment(arg) {
+					return true
+				}
+			}
+		}
+	case '^':
+		if strings.TrimLeft(head, "@") == "set" {
+			assignment := strings.TrimSpace(strings.Join(args, " "))
+			if len(args) > 0 && strings.EqualFold(args[0], "/a") {
+				for _, match := range arithmeticEnvironmentAssignment.FindAllStringSubmatch(strings.Join(args[1:], " "), -1) {
+					if executableEnvironment(match[1]) {
+						return true
+					}
+				}
+				return false
+			}
+			if len(args) > 0 && strings.EqualFold(args[0], "/p") {
+				assignment = strings.TrimSpace(strings.Join(args[1:], " "))
+			}
+			key, _, found := strings.Cut(assignment, "=")
+			return found && executableEnvironment(strings.TrimSpace(key))
+		}
+	case '`':
+		variable := strings.TrimPrefix(strings.TrimPrefix(head, "${"), "$")
+		if key, ok := strings.CutPrefix(variable, "env:"); ok {
+			end := strings.IndexAny(key, "}=+-*/%?")
+			assigned := false
+			if end >= 0 {
+				assigned, key = strings.Contains(key[end:], "="), key[:end]
+			}
+			if len(args) > 0 {
+				assigned = assigned || strings.HasPrefix(strings.TrimLeft(args[0], "+-*/%?"), "=")
+			}
+			return assigned && executableEnvironment(key)
+		}
+		switch head {
+		case "set-item", "new-item", "si", "ni":
+			pathSeen := false
+			for i := 0; i < len(args); i++ {
+				path := strings.ToLower(args[i])
+				switch path {
+				case "-value", "-filter", "-include", "-exclude", "-credential", "-name", "-itemtype":
+					i++
+					continue
+				case "-path", "-literalpath":
+					i++
+					if i >= len(args) {
+						return false
+					}
+					path = strings.ToLower(args[i])
+				default:
+					if strings.HasPrefix(path, "-path:") || strings.HasPrefix(path, "-literalpath:") {
+						path = strings.TrimPrefix(strings.TrimPrefix(path, "-literalpath:"), "-path:")
+					} else if strings.HasPrefix(path, "-") || pathSeen {
+						continue
+					}
+				}
+				pathSeen = true
+				if key, ok := strings.CutPrefix(path, "env:"); ok && executableEnvironment(strings.TrimLeft(key, "/\\")) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
