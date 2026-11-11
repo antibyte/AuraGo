@@ -30,6 +30,12 @@ const (
 	captureProxyIdleTimeout     = 10 * time.Second
 	captureProxyResponseTimeout = 20 * time.Second
 	captureProxyBufferBytes     = 32 << 10
+
+	// captureProxyLogCap bounds each of the dial and refusal logs.
+	captureProxyLogCap = 256
+	// captureEgressCheckHost never resolves (.invalid). When a nonce is set
+	// with withEgressCheck, the proxy answers it itself and never dials it.
+	captureEgressCheckHost = "egress-check.aurago.invalid"
 )
 
 var (
@@ -96,14 +102,31 @@ type CaptureProxy struct {
 	conns  map[net.Conn]struct{}
 	closed bool
 
+	checkNonce string // non-empty: answer captureEgressCheckHost with this nonce
+
+	done chan struct{} // closed when the listener has stopped serving, for any reason
+
+	logMu      sync.Mutex
+	dialLog    []string // host:port of every destination the proxy really connected to
+	refusalLog []string // host:port of every destination the policy refused
+
 	closeOnce sync.Once
+}
+
+// CaptureProxyOption tunes a capture proxy at start.
+type CaptureProxyOption func(*CaptureProxy)
+
+// withEgressCheck makes the proxy answer http://egress-check.aurago.invalid/...
+// with 204 and X-AuraGo-Egress: nonce, without resolving or dialling the host.
+func withEgressCheck(nonce string) CaptureProxyOption {
+	return func(p *CaptureProxy) { p.checkNonce = nonce }
 }
 
 // StartCaptureProxy listens on 127.0.0.1 and starts serving. allowed, when not
 // nil, is the one origin (typically the owner's loopback preview) the proxy may
 // dial without the SSRF check; nil sends every destination through the check.
-func StartCaptureProxy(allowed *url.URL, limits CaptureProxyLimits) (*CaptureProxy, error) {
-	return startCaptureProxy(allowed, limits, captureProxyIdleTimeout)
+func StartCaptureProxy(allowed *url.URL, limits CaptureProxyLimits, opts ...CaptureProxyOption) (*CaptureProxy, error) {
+	return startCaptureProxy(allowed, limits, captureProxyIdleTimeout, opts...)
 }
 
 // StartStrictCaptureProxy is StartCaptureProxy for a page that must talk to its own
@@ -112,18 +135,18 @@ func StartCaptureProxy(allowed *url.URL, limits CaptureProxyLimits) (*CapturePro
 // loopback ports, other hosts, public addresses, name forms of the same address
 // (localhost) and the AURAGO_SSRF_ALLOW_LOOPBACK escape hatch included. A destination
 // is never resolved, so a refusal costs no DNS lookup. allowed is required.
-func StartStrictCaptureProxy(allowed *url.URL, limits CaptureProxyLimits) (*CaptureProxy, error) {
+func StartStrictCaptureProxy(allowed *url.URL, limits CaptureProxyLimits, opts ...CaptureProxyOption) (*CaptureProxy, error) {
 	if allowed == nil {
 		return nil, fmt.Errorf("strict capture proxy needs an allowed origin")
 	}
-	return startCaptureProxyMode(allowed, limits, captureProxyIdleTimeout, true)
+	return startCaptureProxyMode(allowed, limits, captureProxyIdleTimeout, true, opts...)
 }
 
-func startCaptureProxy(allowed *url.URL, limits CaptureProxyLimits, idle time.Duration) (*CaptureProxy, error) {
-	return startCaptureProxyMode(allowed, limits, idle, false)
+func startCaptureProxy(allowed *url.URL, limits CaptureProxyLimits, idle time.Duration, opts ...CaptureProxyOption) (*CaptureProxy, error) {
+	return startCaptureProxyMode(allowed, limits, idle, false, opts...)
 }
 
-func startCaptureProxyMode(allowed *url.URL, limits CaptureProxyLimits, idle time.Duration, strict bool) (*CaptureProxy, error) {
+func startCaptureProxyMode(allowed *url.URL, limits CaptureProxyLimits, idle time.Duration, strict bool, opts ...CaptureProxyOption) (*CaptureProxy, error) {
 	allowedHostPort := ""
 	if allowed != nil {
 		if (allowed.Scheme != "http" && allowed.Scheme != "https") || allowed.Hostname() == "" {
@@ -160,6 +183,10 @@ func startCaptureProxyMode(allowed *url.URL, limits CaptureProxyLimits, idle tim
 		ctx:      ctx,
 		cancel:   cancel,
 		conns:    make(map[net.Conn]struct{}),
+		done:     make(chan struct{}),
+	}
+	for _, opt := range opts {
+		opt(p)
 	}
 	p.transport = &http.Transport{
 		Proxy:                  nil,
@@ -191,12 +218,40 @@ func startCaptureProxyMode(allowed *url.URL, limits CaptureProxyLimits, idle tim
 			}
 		},
 	}
-	go func() { _ = p.server.Serve(listener) }()
+	go func() {
+		_ = p.server.Serve(listener)
+		close(p.done)
+	}()
 	return p, nil
 }
 
 // Addr returns the proxy's listen address, for example 127.0.0.1:53211.
 func (p *CaptureProxy) Addr() string { return p.listener.Addr().String() }
+
+// Done is closed when the proxy's listener has stopped, whether by Close or
+// because it failed. A browser behind the proxy must not keep running after that.
+func (p *CaptureProxy) Done() <-chan struct{} { return p.done }
+
+// Dialed returns the host:port of every destination the proxy connected to
+// (at most captureProxyLogCap entries). Tests use it to prove traffic took this path.
+func (p *CaptureProxy) Dialed() []string { return p.logCopy(&p.dialLog) }
+
+// Refused returns the host:port of every destination the policy refused.
+func (p *CaptureProxy) Refused() []string { return p.logCopy(&p.refusalLog) }
+
+func (p *CaptureProxy) logCopy(list *[]string) []string {
+	p.logMu.Lock()
+	defer p.logMu.Unlock()
+	return append([]string(nil), *list...)
+}
+
+func (p *CaptureProxy) logAppend(list *[]string, entry string) {
+	p.logMu.Lock()
+	defer p.logMu.Unlock()
+	if len(*list) < captureProxyLogCap {
+		*list = append(*list, entry)
+	}
+}
 
 // Close stops the listener and cuts every live client and upstream connection.
 // It is safe to call more than once.
@@ -215,11 +270,32 @@ func (p *CaptureProxy) Close() error {
 
 // ServeHTTP implements http.Handler for CONNECT and absolute-form requests.
 func (p *CaptureProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if strings.EqualFold(r.URL.Hostname(), captureEgressCheckHost) {
+		p.serveEgressCheck(w, r)
+		return
+	}
 	if r.Method == http.MethodConnect {
 		p.serveConnect(w, r)
 		return
 	}
 	p.servePlain(w, r)
+}
+
+// serveEgressCheck answers the path-check host itself. The CORS headers let the
+// helper read the nonce with fetch() from a blank page: a 204 navigation does not
+// commit, so a navigation could not show the header. CONNECT, or a proxy without a
+// nonce, is refused; either way the host is never resolved or dialled.
+func (p *CaptureProxy) serveEgressCheck(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet || p.checkNonce == "" {
+		http.Error(w, "capture proxy: destination is not allowed", http.StatusForbidden)
+		return
+	}
+	h := w.Header()
+	h.Set("X-AuraGo-Egress", p.checkNonce)
+	h.Set("Access-Control-Allow-Origin", "*")
+	h.Set("Access-Control-Expose-Headers", "X-AuraGo-Egress")
+	h.Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // track registers c for Close; it reports false when the proxy is already closed.
@@ -323,8 +399,12 @@ func (p *CaptureProxy) dialUpstream(ctx context.Context, _, hostPort string) (ne
 	defer cancel()
 	target, err := p.destination(dialCtx, hostPort)
 	if err != nil {
+		if errors.Is(err, errCaptureDestinationBlocked) {
+			p.logAppend(&p.refusalLog, hostPort)
+		}
 		return nil, err
 	}
+	p.logAppend(&p.dialLog, hostPort)
 	raw, err := p.dialer.DialContext(dialCtx, "tcp", target)
 	if err != nil {
 		return nil, err
