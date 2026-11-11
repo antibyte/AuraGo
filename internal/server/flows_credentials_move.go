@@ -1,14 +1,25 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/flows"
+	"aurago/internal/security"
 )
+
+// flowCredentialMoveMu serialises the moves: the existence check, the vault write and the draft
+// save of one move run before those of the next, so two requests for one secret name cannot both
+// pass the check. Moves are rare.
+var flowCredentialMoveMu sync.Mutex
+
+// flowCredentialMoveBeforeSave is a test seam between the vault write and the draft save.
+var flowCredentialMoveBeforeSave = func(flowID string) {}
 
 // flowCredentialMove moves one typed-in credential of a flow's draft into the vault (POST
 // /api/desktop/flows/{id}/credentials/move). The rewrite is flows.MoveCredential; this only
@@ -45,6 +56,8 @@ func (s *Server) flowCredentialMove(w http.ResponseWriter, r *http.Request, id s
 		flowsError(w, http.StatusTooManyRequests, "FLOW_RATE_LIMITED", "too many flow secret changes; try again in a minute")
 		return
 	}
+	flowCredentialMoveMu.Lock()
+	defer flowCredentialMoveMu.Unlock()
 	ctx := r.Context()
 	rec, err := s.Flows.GetFlow(ctx, id)
 	if err != nil {
@@ -83,18 +96,30 @@ func (s *Server) flowCredentialMove(w http.ResponseWriter, r *http.Request, id s
 		s.flowsErrorFrom(w, r, err)
 		return
 	}
-	if slices.Contains(keys, key) && !body.Replace {
+	existed := slices.Contains(keys, key)
+	if existed && !body.Replace {
 		flowsError(w, http.StatusConflict, "FLOW_SECRET_EXISTS", "a secret with this name already exists")
 		return
+	}
+	// The value a replace overwrites is kept in memory until the draft is saved, so a failed save
+	// puts it back and the move never loses a vault secret.
+	previous := ""
+	if existed {
+		if previous, err = s.Vault.ReadSecret(key); err != nil {
+			s.flowsErrorFrom(w, r, err)
+			return
+		}
 	}
 	if err := s.Vault.WriteUserSecretContext(ctx, key, value, true); err != nil {
 		s.flowsErrorFrom(w, r, err)
 		return
 	}
+	flowCredentialMoveBeforeSave(id)
 	// A concurrent save between the read and this CAS leaves the vault entry without a user;
-	// the client reloads (409) and tries again.
+	// the vault is put back and the client reloads (409) and tries again.
 	rev, issues, err := s.Flows.SaveDraft(ctx, id, doc, body.Revision)
 	if err != nil {
+		s.restoreMovedSecret(key, existed, previous)
 		s.flowsErrorFrom(w, r, err)
 		return
 	}
@@ -104,4 +129,21 @@ func (s *Server) flowCredentialMove(w http.ResponseWriter, r *http.Request, id s
 		notMovable = []flows.CredentialFinding{}
 	}
 	flowsJSON(w, http.StatusOK, map[string]any{"draft_revision": rev, "doc": doc, "moved": moved, "not_movable": notMovable, "issues": nonNilIssues(issues)})
+}
+
+// restoreMovedSecret undoes the vault write of a move whose draft save failed: the entry a replace
+// overwrote gets its old value back, an entry the move created is deleted. It runs on its own
+// context (the request may be the reason the save failed) and never logs a value.
+func (s *Server) restoreMovedSecret(key string, existed bool, previous string) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(context.Background()), 10*time.Second)
+	defer cancel()
+	var err error
+	if existed {
+		err = s.Vault.WriteUserSecretContext(ctx, key, previous, true)
+	} else if err = s.Vault.DeleteSecret(key); errors.Is(err, security.ErrSecretNotFound) {
+		err = nil
+	}
+	if err != nil && s.Logger != nil {
+		s.Logger.Error("flow credential move: could not restore the vault entry after a failed save", "secret", key, "error", err)
+	}
 }
