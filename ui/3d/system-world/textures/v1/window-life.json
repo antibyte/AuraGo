@@ -1,0 +1,215 @@
+{
+  "file": "window-life.png",
+  "bytes": 1743582,
+  "sha256": "0e1a3925dd73729d50bbf09a1ed4c8571e77d0e4645fb88cf39c0d015d6931b5",
+  "license": "MIT",
+  "generator": "Blender 5.2.2 LTS / assets/system-world/build_window_life.py",
+  "size": [
+    1728,
+    1728
+  ],
+  "channels": {
+    "r": "sqrt luminance, ceiling lamp",
+    "g": "sqrt luminance, window daylight",
+    "b": "accent mask (0 body, .5 accent, 1 glowing accent)",
+    "a": "coverage, straight"
+  },
+  "cells": {
+    "columns": 6,
+    "rows": 4,
+    "pixels": [
+      288,
+      432
+    ],
+    "metres": [
+      1.6,
+      2.4
+    ],
+    "feet": 0.06,
+    "order": "cell i sits in column i % columns of row floor(i / columns); row 0 is the top row of the image"
+  },
+  "stride": 1.4348,
+  "sets": {
+    "walk": {
+      "first": 0,
+      "count": 8,
+      "kind": "technician"
+    },
+    "carry": {
+      "first": 8,
+      "count": 8,
+      "kind": "courier"
+    },
+    "idleWalk": {
+      "first": 16,
+      "count": 1,
+      "kind": "technician"
+    },
+    "idleCarry": {
+      "first": 17,
+      "count": 1,
+      "kind": "courier"
+    },
+    "idle": {
+      "first": 18,
+      "count": 1,
+      "kind": "archivist"
+    },
+    "greet": {
+      "first": 19,
+      "count": 3,
+      "kind": "archivist"
+    },
+    "work": {
+      "first": 22,
+      "count": 2,
+      "kind": "technician"
+    }
+  },
+  "covered": [
+    [
+      78,
+      46,
+      259,
+      420
+    ],
+    [
+      55,
+      43,
+      252,
+      420
+    ],
+    [
+      78,
+      36,
+      214,
+      420
+    ],
+    [
+      79,
+      39,
+      247,
+      420
+    ],
+    [
+      67,
+      46,
+      271,
+      420
+    ],
+    [
+      41,
+      43,
+      241,
+      420
+    ],
+    [
+      79,
+      36,
+      209,
+      420
+    ],
+    [
+      79,
+      39,
+      234,
+      420
+    ],
+    [
+      76,
+      41,
+      259,
+      420
+    ],
+    [
+      55,
+      38,
+      248,
+      420
+    ],
+    [
+      76,
+      31,
+      247,
+      420
+    ],
+    [
+      77,
+      34,
+      247,
+      420
+    ],
+    [
+      67,
+      41,
+      271,
+      420
+    ],
+    [
+      41,
+      38,
+      247,
+      420
+    ],
+    [
+      77,
+      31,
+      248,
+      420
+    ],
+    [
+      77,
+      34,
+      248,
+      420
+    ],
+    [
+      58,
+      34,
+      240,
+      420
+    ],
+    [
+      55,
+      30,
+      229,
+      420
+    ],
+    [
+      54,
+      4,
+      231,
+      420
+    ],
+    [
+      56,
+      4,
+      237,
+      420
+    ],
+    [
+      56,
+      4,
+      237,
+      420
+    ],
+    [
+      55,
+      4,
+      250,
+      420
+    ],
+    [
+      81,
+      36,
+      247,
+      420
+    ],
+    [
+      81,
+      36,
+      245,
+      420
+    ]
+  ]
+}

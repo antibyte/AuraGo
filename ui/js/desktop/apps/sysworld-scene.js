@@ -24,7 +24,7 @@ import { createContactShadows } from './sysworld-contact.js';
 import {createTraffic,fixedSteps} from './sysworld-traffic.js';
 import {installCityColliders,kitCatalog} from './sysworld-colliders.js';
 import { createSurfaces } from './sysworld-surfaces.js';
-import { createWindows } from './sysworld-windows.js';
+import { createWindows, windowLevel } from './sysworld-windows.js';
 import { createLobbyRender } from './sysworld-lobby-render.js';
 import { streetModules, plotSlabs, island } from './sysworld-ground.js';
 import { furnishing, SIZES as furnitureSizes, NEAR, NEAR_HEIGHT, SURFACES } from './sysworld-furnishing.js';
@@ -170,6 +170,28 @@ export async function createCity(host, options) {
     shelters: interiors.map(r => [r.x - r.width / 2, r.z - r.depth / 2, r.x + r.width / 2, r.z + r.depth / 2]) });
   // Kit v3 window panes share one interior-mapped glass material (sysworld-windows.js).
   const windows = createWindows();
+  // Resident sprites behind the panes (high and ultra only): loaded once, lazily, after first display, outside the byte accounting.
+  let lifeStarted = false, lifeTimer = 0;
+  function loadWindowLife() {
+    if (lifeStarted || disposed || windowLevel(tier) < 2) return;
+    lifeStarted = true;
+    lifeTimer = setTimeout(async () => {
+      lifeTimer = 0;
+      if (disposed || windowLevel(tier) < 2) { lifeStarted = false; return; }
+      try {
+        const reply = await fetch(options.resourceURL('/3d/system-world/textures/v1/window-life.png'), { signal: abort.signal });
+        if (!reply.ok) throw Error('Window life atlas unavailable');
+        const blob = await reply.blob(); if (disposed) return;
+        const bitmap = await createImageBitmap(blob, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
+        if (disposed) { bitmap.close?.(); return; }
+        const map = new THREE.Texture(bitmap);
+        map.colorSpace = THREE.NoColorSpace; map.flipY = false; map.wrapS = map.wrapT = THREE.ClampToEdgeWrapping;
+        map.generateMipmaps = true; map.minFilter = THREE.LinearMipmapLinearFilter; map.magFilter = THREE.LinearFilter;
+        map.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy?.() || 1); map.needsUpdate = true;
+        windows.setLife(map);
+      } catch { if (!disposed) windows.setLife(null); }
+    }, 1500);
+  }
   const pmrem = new THREE.PMREMGenerator(renderer), room = new RoomEnvironment();
   const environment = pmrem.fromScene(room, .05);
   scene.environment = environment.texture; scene.environmentIntensity = .48; windows.setEnvironment(environment.texture);
@@ -435,7 +457,7 @@ export async function createCity(host, options) {
       sun.shadow.mapSize.set(config.shadow, config.shadow);
       sun.shadow.map?.dispose(); sun.shadow.map = null;
     }
-    renderer.shadowMap.needsUpdate = true; bloom.enabled = config.bloom; surfaces.setTier(tier); windows.setTier(tier); lobbyRender.setTier(tier); harbour.setTier(tier); gulls.setTier(tier); particles.setTier(tier); atmosphere.setTier(tier);experience.setTier(tier);weather.setTier(tier);drones.setTier(tier);flow.setTier(tier);
+    renderer.shadowMap.needsUpdate = true; bloom.enabled = config.bloom; surfaces.setTier(tier); windows.setTier(tier); loadWindowLife(); lobbyRender.setTier(tier); harbour.setTier(tier); gulls.setTier(tier); particles.setTier(tier); atmosphere.setTier(tier);experience.setTier(tier);weather.setTier(tier);drones.setTier(tier);flow.setTier(tier);
     resize(); options.onQuality?.(quality, tier);
   }
   function flyTo(position, target) {
@@ -691,7 +713,7 @@ export async function createCity(host, options) {
     }); beacons.instanceColor.needsUpdate = true; tintSelection();
   }
   function dispose() {
-    if (disposed) return; disposed = true; generation++; abort.abort(); requests.forEach(c => c.abort());
+    if (disposed) return; disposed = true; generation++; abort.abort(); clearTimeout(lifeTimer); requests.forEach(c => c.abort());
     keys.clear(); if(document.pointerLockElement === canvas) document.exitPointerLock();
     options.signal?.removeEventListener('abort', dispose); cleanup.forEach(fn => fn()); observer?.disconnect(); controls.dispose();
     life?.dispose();companion?.dispose();experience?.dispose();weather.dispose(); hologram.dispose(); drones.dispose();contact.dispose();traffic.dispose(); atmosphere.dispose(); surfaces.dispose(); windows.dispose(); lobbyRender.dispose(); harbour.dispose(); gulls.dispose(); particles.dispose(); flow.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose(); plots.dispose(); groundCover.forEach(m => m.dispose());

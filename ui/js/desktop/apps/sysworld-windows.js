@@ -43,8 +43,93 @@ const glslFloat = v => (Number.isInteger(v) ? v.toFixed(1) : String(v));
 const TONE_GLSL = 'vec3 winTone(float h){return ' + WINDOW_TONES.slice(0, -1).map(t => 'h<' + glslFloat(t.upTo) + '?vec3(' + t.color.map(glslFloat).join(',') + '):').join('')
   + 'vec3(' + WINDOW_TONES.at(-1).color.map(glslFloat).join(',') + ');}';
 
+// Layout of the resident sprite atlas (ui/3d/system-world/textures/v1/window-life.png), kept in sync with window-life.json by
+// scripts/test-system-world-windows.mjs. Cell i sits in column i % columns of row floor(i / columns), row 0 is the top row of
+// the image; a cell is metres[0] x metres[1] m, the figure's feet centre sits at its horizontal middle, feet m above its lower edge.
+// Channels are data (R sqrt lamp luminance, G sqrt daylight luminance, B accent mask, A coverage); stride is metres per gait cycle.
+export const WINDOW_LIFE_ATLAS = Object.freeze({
+  columns: 6, rows: 4, pixels: Object.freeze([288, 432]), metres: Object.freeze([1.6, 2.4]), feet: .06, stride: 1.4348,
+  sets: Object.freeze({
+    walk: Object.freeze({first: 0, count: 8, kind: 'technician'}),
+    carry: Object.freeze({first: 8, count: 8, kind: 'courier'}),
+    idleWalk: Object.freeze({first: 16, count: 1, kind: 'technician'}),
+    idleCarry: Object.freeze({first: 17, count: 1, kind: 'courier'}),
+    idle: Object.freeze({first: 18, count: 1, kind: 'archivist'}),
+    greet: Object.freeze({first: 19, count: 3, kind: 'archivist'}),
+    work: Object.freeze({first: 22, count: 2, kind: 'technician'}),
+  }),
+});
+// Relighting of the sprites (baked into the shader as constants): lamp and day scale the two light channels, glowDay and glowLit
+// the glowing accent parts (eyes, strips) by day and in lit rooms, shadow the strength of the contact shadow on the floor.
+export const WINDOW_LIFE_LOOK = Object.freeze({ lamp: 1, day: 1.8, glowDay: .35, glowLit: .8, shadow: .5 });
+
+const LF = WINDOW_LIFE_ATLAS, LK = WINDOW_LIFE_LOOK, LFS = LF.sets;
+const LIFE_GLSL = `
+#if WIN_LEVEL>1
+uniform sampler2D winLife;uniform float winLifeOn;
+const float WIN_LK_LAMP=${glslFloat(LK.lamp)};const float WIN_LK_DAY=${glslFloat(LK.day)};const float WIN_LK_GD=${glslFloat(LK.glowDay)};const float WIN_LK_GL=${glslFloat(LK.glowLit)};const float WIN_LK_SH=${glslFloat(LK.shadow)};
+// Atlas layout; reciprocals are baked so the shader never divides.
+const float WIN_LF_COLS=${glslFloat(LF.columns)};const float WIN_LF_ICOLS=${glslFloat(1 / LF.columns)};const float WIN_LF_IROWS=${glslFloat(1 / LF.rows)};
+const float WIN_LF_IW=${glslFloat(1 / LF.metres[0])};const float WIN_LF_IH=${glslFloat(1 / LF.metres[1])};const float WIN_LF_FEET=${glslFloat(LF.feet)};
+const vec2 WIN_LF_HALF=vec2(${glslFloat(.5 / LF.pixels[0])},${glslFloat(.5 / LF.pixels[1])});
+const float WIN_LF_ISTRIDE=${glslFloat(1 / LF.stride)};const float WIN_LF_SPEED=0.55;const float WIN_LF_ISPEED=${glslFloat(1 / .55)};
+const float WIN_LF_WALK=${LFS.walk.first}.0;const float WIN_LF_CARRY=${LFS.carry.first}.0;const float WIN_LF_IDLEW=${LFS.idleWalk.first}.0;const float WIN_LF_IDLEC=${LFS.idleCarry.first}.0;
+const float WIN_LF_IDLE=${LFS.idle.first}.0;const float WIN_LF_GREET=${LFS.greet.first}.0;const float WIN_LF_WORK=${LFS.work.first}.0;
+vec3 winAccent(float h){return h<0.25?vec3(0.2,0.9,1.0):h<0.5?vec3(0.25,0.9,0.5):h<0.75?vec3(1.0,0.62,0.2):vec3(1.0,0.85,0.6);}
+// One atlas cell: r = metres around the feet, g = screen derivatives of r. Zero outside the cell, clamped half a texel inside it;
+// explicit gradients, so cell jumps and mirrored cards cause no mip seams.
+vec4 winSprite(float cell,vec2 r,vec2 gx,vec2 gy){
+  float row=floor((cell+0.5)*WIN_LF_ICOLS);
+  float col=cell-row*WIN_LF_COLS;
+  vec2 q=vec2(r.x*WIN_LF_IW+0.5,(r.y+WIN_LF_FEET)*WIN_LF_IH);
+  float inside=step(0.0,q.x)*step(q.x,1.0)*step(0.0,q.y)*step(q.y,1.0);
+  vec2 qc=clamp(q,WIN_LF_HALF,vec2(1.0)-WIN_LF_HALF);
+  vec2 uv=(vec2(col,row)+vec2(qc.x,1.0-qc.y))*vec2(WIN_LF_ICOLS,WIN_LF_IROWS);
+  vec2 sc=vec2(WIN_LF_IW*WIN_LF_ICOLS,-WIN_LF_IH*WIN_LF_IROWS);
+  vec4 t=textureGrad(winLife,uv,gx*sc,gy*sc);
+  return vec4(t.rgb,t.a*inside);
+}
+// Pose of one resident on its timeline: x metres from the left wall, cell A, cell B, blend of B over A. role 0 stroller, 1 courier,
+// 2 greeter, 3 worker. flip is -1 for a card mirrored (walking towards -x), bobK scales the standing bob. Nothing depends on time
+// advancing: a frozen stroller is caught mid-timeline, a frozen greeter is never in the middle of a wave. A range under 0.3 m means standing still.
+vec4 winPose(float role,float h,float tm,float lo,float hi,float W,float deskX,out float flip,out float bobK){
+  flip=mix(1.0,-1.0,step(0.5,fract(h*17.9)));bobK=1.0;
+  if(role<1.5){
+    float can=step(0.3,hi-lo),hiE=lo+(hi-lo)*can,len=max(hiE-lo,0.3),tw=len*WIN_LF_ISPEED;
+    float ts=3.0+5.0*fract(h*13.7),per=2.0*(ts+tw);
+    // The phase is a uniform draw over the whole cycle, so neighbouring rooms start, turn and arrive at unrelated times.
+    float u=mod(tm+per*fract(h*3.3),per);
+    float leg=step(ts+tw,u)*can;
+    float tseg=u-leg*(ts+tw)-ts;
+    float dist=clamp(tseg,0.0,tw)*WIN_LF_SPEED*can;
+    float walking=can*step(0.0,tseg)*smoothstep(0.0,0.25,tseg)*(1.0-smoothstep(tw-0.25,tw,tseg));
+    float frame=clamp(floor(fract(dist*WIN_LF_ISTRIDE)*8.0),0.0,7.0);
+    flip=mix(1.0,-1.0,leg);bobK=1.0-walking;
+    return vec4(mix(lo+dist,hiE-dist,leg),mix(WIN_LF_IDLEW,WIN_LF_IDLEC,role),mix(WIN_LF_WALK,WIN_LF_CARRY,role)+frame,walking);
+  }
+  if(role<2.5){
+    float per=14.0+16.0*fract(h*3.9);
+    float u=mod(tm+2.6+(per-2.6)*fract(h*5.7),per);
+    float w=smoothstep(0.0,0.2,u)*(1.0-smoothstep(2.2,2.4,u))*step(u,2.4);
+    float idx=mod(floor(u*6.0),4.0);
+    return vec4(lo+(hi-lo)*fract(h*29.0),WIN_LF_IDLE,WIN_LF_GREET+min(idx,4.0-idx),w);
+  }
+  bobK=0.0;
+  return vec4(clamp(deskX,lo,hi),WIN_LF_WORK,WIN_LF_WORK+1.0,0.5+0.5*sin(tm*(8.0+2.4*fract(h*5.1))+h*50.0));
+}
+// A resident relit for this room: rgb = colour, a = coverage.
+vec4 winFigure(vec4 p,float flip,float bob,vec2 pl,vec2 gx,vec2 gy,vec3 accent,vec3 lampL,vec3 fill,float on){
+  vec2 r=vec2((pl.x-p.x)*flip,pl.y-bob),fx=vec2(gx.x*flip,gx.y),fy=vec2(gy.x*flip,gy.y);
+  vec4 t=winSprite(p.y,r,fx,fy);
+  if(p.w>0.001)t=mix(t,winSprite(p.z,r,fx,fy),p.w);
+  float lamp=t.r*t.r,day=t.g*t.g,am=min(2.0*t.b,1.0),gl=max(2.0*t.b-1.0,0.0);
+  vec3 c=mix(vec3(1.0),accent,am)*(lamp*lampL*(1.0-0.3*0.3)*WIN_LK_LAMP+day*fill*(0.12+0.88*0.49)*WIN_LK_DAY)+accent*gl*(WIN_LK_GD+WIN_LK_GL*on);
+  return vec4(c,t.a);
+}
+#endif`;
+
 export const WINDOW_SHADER = {
-  vertexPars: 'varying vec3 vWinPos;varying vec3 vWinNrm;varying vec2 vWinRoom;varying float vWinSeed;',
+  vertexPars: 'attribute vec3 winAxU;attribute vec3 winAxV;varying vec3 vWinPos;varying vec3 vWinNrm;varying vec2 vWinRoom;varying float vWinSeed;varying vec3 vWinAxU;varying vec3 vWinAxV;',
   vertexMain: `
 #ifdef USE_INSTANCING
 mat4 winObject=modelMatrix*instanceMatrix;
@@ -53,6 +138,7 @@ mat4 winObject=modelMatrix;
 #endif
 vWinPos=(winObject*vec4(transformed,1.0)).xyz;
 vWinNrm=mat3(winObject)*objectNormal;
+vWinAxU=mat3(winObject)*winAxU;vWinAxV=mat3(winObject)*winAxV;
 // glTF stores V flipped: rows count upwards from the first upper floor again.
 vWinRoom=vec2(uv.x,1.0-uv.y);
 // One seed per placed building from its world translation, so instanced towers differ.
@@ -60,15 +146,13 @@ vec3 winKey=fract(floor(winObject[3].xyz*4.0)*0.1031);
 winKey+=dot(winKey,winKey.zyx+31.32);
 vWinSeed=fract((winKey.x+winKey.y)*winKey.z);`,
   fragmentPars: `uniform float winTime;uniform vec4 winState;uniform vec3 winSky;
-varying vec3 vWinPos;varying vec3 vWinNrm;varying vec2 vWinRoom;varying float vWinSeed;
+varying vec3 vWinPos;varying vec3 vWinNrm;varying vec2 vWinRoom;varying float vWinSeed;varying vec3 vWinAxU;varying vec3 vWinAxV;
 float winHash(vec2 p){vec3 q=fract(vec3(p.xyx)*0.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
 // Box coverage with a smooth edge about one pixel wide (aa = pixel footprint in the same units).
 float winBox(vec2 p,vec2 lo,vec2 hi,vec2 aa){vec2 s=smoothstep(lo-aa,lo+aa,p)*(1.0-smoothstep(hi-aa,hi+aa,p));return s.x*s.y;}
-// Robot silhouette in metres around its feet: two legs, a torso and a round head.
-float winRobot(vec2 r,vec2 aa){float a=max(aa.x,aa.y);return min(1.0,winBox(vec2(abs(r.x),r.y),vec2(0.05,0.0),vec2(0.13,0.78),aa)+winBox(r,vec2(-0.2,0.78),vec2(0.2,1.36),aa)+(1.0-smoothstep(0.13-a,0.13+a,length(r-vec2(0.0,1.52)))));}
 // Light on a room surface: lamp light falls off a little with depth, daylight a lot (to 12 % at the back).
 vec3 winLightAt(vec3 lamp,vec3 fill,float z){return min(lamp*(1.0-0.3*z)+fill*(0.12+0.88*(1.0-z)*(1.0-z)),vec3(1.2));}
-${TONE_GLSL}`,
+${TONE_GLSL}${LIFE_GLSL}`,
   fragmentMain: `
 // Room cell, per-room hashes and the light state (rooms re-roll their light every 20-60 s).
 vec2 winCell=floor(vWinRoom),winF=vWinRoom-winCell;
@@ -89,7 +173,7 @@ float winH3=winHash(winKey*1.73+5.9);
 vec3 winWall=winTone(winH3);
 vec3 winLamp=mix(vec3(1.0,0.8,0.56),vec3(0.8,0.9,1.0),step(0.72,winH1))*mix(vec3(1.0),vec3(1.0,0.92,0.78),winLobby);
 // Light budget (linear radiance before tone mapping): lit walls stay below about 0.85, only the
-// ceiling panel (1.2) and screens and visors (1.15) pass the bloom threshold. Daylight (read back
+// ceiling panel (1.2), screens (1.15) and the glowing accent parts of the figures pass the bloom threshold. Daylight (read back
 // from the unlit ambient) fills every room, brightest at the glass and a third of it at the back.
 float winDusk=clamp((winState.w-0.6)*1.1111,0.0,1.0);
 float winDay=clamp((winState.y-0.012)*10.0,0.0,1.0);
@@ -99,24 +183,17 @@ float winAlive=max(winOn,winDay*step(fract(winH0*7.7),0.45));
 vec2 winS=vec2(WIN_BAY,WIN_STOREY);
 vec3 winRoomCol;
 #if WIN_LEVEL>0
-// Tangent frame and metres per room from screen-space derivatives; an analytic frame (horizontal
-// tangent, rows upwards, default room) replaces them when they are degenerate or implausible.
-vec3 winDpx=dFdx(vWinPos),winDpy=dFdy(vWinPos);
-vec2 winDux=dFdx(vWinRoom),winDuy=dFdy(vWinRoom);
-float winDet=winDux.x*winDuy.y-winDux.y*winDuy.x;
-float winOk=step(1e-12,abs(winDet));
-float winDiv=mix(1.0,winDet,winOk);
-vec3 winPu=(winDuy.y*winDpx-winDux.y*winDpy)/winDiv,winPv=(winDux.x*winDpy-winDuy.x*winDpx)/winDiv;
+// Tangent frame and metres per room from exact per-pane data: adopt() stores, per vertex, the object-space vector of one room
+// unit along u and along v (from positions and uvs); the vertex shader carries them to world space, so panes of any width and
+// any object scale are right at every distance, with no screen-space derivative. A degenerate vector falls back to the analytic
+// frame (horizontal tangent, rows upwards) and the default room.
+vec3 winPu=vWinAxU,winPv=vWinAxV;
 float winLu=length(winPu),winLv=length(winPv);
-winOk*=step(0.25,winLu)*step(winLu,40.0)*step(0.25,winLv)*step(winLv,40.0);
+float winOk=step(0.25,winLu)*step(winLu,40.0)*step(0.25,winLv)*step(winLv,40.0);
 vec3 winC=cross(vec3(0.0,1.0,0.0),winN);
 vec3 winT=mix(winC/max(length(winC),1e-4),winPu/max(winLu,1e-4),winOk);
 vec3 winB=mix(vec3(0.0,1.0,0.0),winPv/max(winLv,1e-4),winOk);
-// Derived sizes jitter per 2x2 pixel quad (stair-steps, moire); within 15 % of the kit's room size
-// they snap to it, so only genuinely rescaled buildings keep the measured size.
-vec2 winSm=vec2(winLu,winLv);
-winSm=mix(winSm,winS,step(abs(winSm-winS),winS*0.15));
-winS=mix(winS,winSm,winOk);
+winS=mix(winS,vec2(winLu,winLv),winOk);
 // View ray into a box room one cell wide, one storey high and WIN_DEPTH deep.
 vec3 winD=vec3(dot(winV,winT),dot(winV,winB),max(-dot(winV,winN),0.02));
 vec3 winSize=vec3(winS,WIN_DEPTH),winP=vec3(winF*winS,0.0);
@@ -140,21 +217,48 @@ vec2 winAf=min(max(fwidth(winPf),vec2(1e-3)),vec2(0.2))*0.6;
 float winFurn=min(1.0,winBox(winPf,vec2(winX0,0.0),vec2(winX1,0.76),winAf)+step(0.5,fract(winH1*13.0))*winBox(winPf,vec2(winS.x-0.42,0.0),vec2(winS.x-0.1,1.9),winAf))*smoothstep(winTf-winAh,winTf+winAh,winHit);
 winRoomCol=mix(winRoomCol,vec3(0.07,0.065,0.06)*(0.8+0.4*fract(winH1*5.0))*winLightAt(winLampL,winFill,0.55),winFurn);
 #if WIN_LEVEL>1
-// Life at 30 % depth in a share of the lit rooms: a robot walking across or standing and bobbing
-// (two in lobbies), and a flickering screen on the back wall of offices.
+// Life at 30 % depth in a share of the lit rooms: sprites of the resident robots (a stroller, a courier, a greeter or a worker at
+// the desk; two in lobbies), drawn as a flat card from the atlas and relit per room, plus a flickering screen on the back wall of
+// offices. Without the atlas on the GPU (winLifeOn 0) no figure is drawn.
 float winTl=0.3*WIN_DEPTH/winD.z;
 vec2 winPl=(winP+winD*winTl).xy;
-float winWalk=step(0.5,fract(winH2*5.3));
-float winX=mix(0.2+0.6*fract(winH2*29.0),0.5+0.36*sin(winTime*(0.25+0.25*fract(winH2*17.0))+winH2*40.0),winWalk)*winS.x;
-float winBob=0.025*sin(winTime*2.6+winH2*30.0)*(1.0-winWalk);
-vec2 winR1=vec2(winPl.x-winX,winPl.y-winBob),winR2=vec2(winPl.x-winS.x+winX,winPl.y+winBob);
-vec2 winAl=min(max(fwidth(winPl),vec2(1e-3)),vec2(0.2))*0.6;
-float winBots=max(winRobot(winR1,winAl),winRobot(winR2,winAl)*winLobby)*winAlive*step(winH2,mix(0.4,0.85,winLobby))*smoothstep(winTl-winAh,winTl+winAh,winHit);
-float winVisor=max(winBox(winR1,vec2(-0.09,1.49),vec2(0.09,1.55),winAl),winBox(winR2,vec2(-0.09,1.49),vec2(0.09,1.55),winAl)*winLobby)*winBots*winOn;
+// Continuous card coordinate (no fract at the cell edge) for the sprite gradients.
+vec2 winPc=vWinRoom*winS+winD.xy*winTl;
+vec2 winGx=dFdx(winPc),winGy=dFdy(winPc);
+float winPres=winAlive*step(winH2,mix(0.4,0.85,winLobby))*winLifeOn;
 vec2 winSp=vec2((winQ.x-0.5)*winS.x,winQ.y*winS.y);
 float winScreen=winOn*winBack*(1.0-winLobby)*(1.0-winFurn)*step(fract(winH2*3.1),0.35)*winBox(winSp,vec2(-0.5,1.0),vec2(0.5,1.6),min(max(fwidth(winSp),vec2(1e-3)),vec2(0.2))*0.6);
 winRoomCol+=winScreen*vec3(0.3,0.7,1.0)*1.15*(0.8+0.2*sin(winTime*9.0+winH2*50.0)*sin(winTime*2.3+winH2*20.0));
-winRoomCol=mix(winRoomCol,vec3(0.03,0.035,0.045)+0.12*winLightAt(winLampL,winFill,0.3)*vec3(0.6,0.65,0.7),winBots)+winVisor*vec3(0.2,0.9,1.0)*1.15;
+// Figures stand in front of the back-wall screen.
+if(winPres>0.001){
+  // winHash collides for some neighbouring cells in 32-bit floats (seen as two rooms walking in step), so the
+  // cell index is added in golden-ratio steps: neighbours always differ, whatever the hash returns.
+  float winH4=fract(winHash(winKey*1.91+7.7)+0.6180339*winCell.x+0.7548777*winCell.y),winHr=winHash(winKey*2.17+1.3);
+  // Roles follow the cell, so horizontal, vertical and diagonal neighbours never share one (lobbies: three roles, no worker).
+  float winOff=floor(vWinSeed*4.0);
+  float winRole1=mix(mod(winCell.x+2.0*winCell.y+winOff,4.0),mod(winCell.x+winOff,3.0),winLobby),winRole2=mod(winRole1+1.0,3.0);
+  // Lobby pair: needs 1.15 m between the figure centres and 0.45 m to each side wall (2.05 m of true room width, exact pane data, so
+  // it cannot flip while the camera moves); figure 1 keeps to the left half, figure 2 (mirrored) to the right. Narrower lobbies show one.
+  float winTwo=winLobby*step(2.05,winS.x);
+  float winLo=0.45,winHi=mix(winS.x-0.45,max(0.5*winS.x-0.575,winLo),winTwo);
+  float winFl1,winBk1,winFl2,winBk2;
+  vec4 winPo1=winPose(winRole1,winH4,winTime,winLo,winHi,winS.x,0.5*(winX0+winX1),winFl1,winBk1);
+  vec4 winPo2=winPose(winRole2,fract(winH4*3.7+0.41),winTime,winLo,winHi,winS.x,0.5*(winX0+winX1),winFl2,winBk2);
+  winPo2.x=winS.x-winPo2.x;winFl2=-winFl2;
+  float winBob1=0.025*sin(winTime*2.6+winH2*30.0)*winBk1,winBob2=0.025*sin(winTime*2.6+winH2*30.0+2.1)*winBk2;
+  // Contact shadow: a soft ellipse on the floor around each figure's feet.
+  vec2 winFq=vec2(winQ.x*winS.x,winQ.z*WIN_DEPTH);
+  float winFlrK=winFlr*(1.0-winFurn)*WIN_LK_SH*winPres;
+  vec2 winSd1=(winFq-vec2(winPo1.x,0.3*WIN_DEPTH))*vec2(2.381,3.333),winSd2=(winFq-vec2(winPo2.x,0.3*WIN_DEPTH))*vec2(2.381,3.333);
+  winRoomCol*=1.0-winFlrK*max(1.0-smoothstep(0.0,1.0,length(winSd1)),(1.0-smoothstep(0.0,1.0,length(winSd2)))*winTwo);
+  float winCard=smoothstep(winTl-winAh,winTl+winAh,winHit);
+  vec4 winF1=winFigure(winPo1,winFl1,winBob1,winPl,winGx,winGy,winAccent(fract(winH4*5.3+0.1)),winLampL,winFill,winOn);
+  winRoomCol=mix(winRoomCol,winF1.rgb,winF1.a*winPres*winCard);
+  if(winTwo>0.5){
+    vec4 winF2=winFigure(winPo2,winFl2,winBob2,winPl,winGx,winGy,winAccent(fract(winH4*9.1+0.6)),winLampL,winFill,winOn);
+    winRoomCol=mix(winRoomCol,winF2.rgb,winF2.a*winPres*winCard);
+  }
+}
 #endif
 // Blinds in about one room in five, drawn on the glass; slats fade out when they get sub-pixel.
 float winBlindTop=0.7-0.6*fract(winH2*41.0);
@@ -184,12 +288,50 @@ diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.035,0.042,0.05),winFrame);`,
 // reflection no longer outshines the rooms behind it, at night the glass keeps a faint sheen.
 export const WINDOW_ENV = Object.freeze({ day: .12, night: .08 });
 
+// Exact room axes of a pane geometry: for every vertex of a window triangle the object-space vector of one room unit along u
+// (uv.x) and along v (rows upwards, 1 - uv.y), solved from the triangle's positions and uvs and stored as the attributes winAxU
+// and winAxV (the geometry owner disposes them). Done once per geometry; returns whether anything was added.
+export function addPaneAxes(geometry, windowSlot = () => true) {
+  const pos = geometry?.getAttribute?.('position'), uv = geometry?.getAttribute?.('uv');
+  if (!pos || !uv || geometry.getAttribute('winAxU')) return false;
+  const index = geometry.index, n = pos.count, axU = new Float32Array(n * 3), axV = new Float32Array(n * 3);
+  const groups = geometry.groups.length ? geometry.groups : [{ start: 0, count: index ? index.count : n, materialIndex: 0 }];
+  const vertex = i => (index ? index.getX(i) : i);
+  const p = [0, 0, 0].map(() => [0, 0, 0]);
+  for (const g of groups) {
+    if (!windowSlot(g.materialIndex)) continue;
+    for (let i = g.start; i + 2 < g.start + g.count; i += 3) {
+      const j = [vertex(i), vertex(i + 1), vertex(i + 2)];
+      for (let k = 0; k < 3; k++) { p[k][0] = pos.getX(j[k]); p[k][1] = pos.getY(j[k]); p[k][2] = pos.getZ(j[k]); }
+      const du1 = uv.getX(j[1]) - uv.getX(j[0]), dv1 = uv.getY(j[0]) - uv.getY(j[1]);   // v rows count upwards: v = 1 - uv.y
+      const du2 = uv.getX(j[2]) - uv.getX(j[0]), dv2 = uv.getY(j[0]) - uv.getY(j[2]);
+      const det = du1 * dv2 - du2 * dv1;
+      if (!(Math.abs(det) > 1e-12)) continue;
+      for (let c = 0; c < 3; c++) {
+        const e1 = p[1][c] - p[0][c], e2 = p[2][c] - p[0][c];
+        const u = (e1 * dv2 - e2 * dv1) / det, v = (e2 * du1 - e1 * du2) / det;
+        for (const k of j) { axU[k * 3 + c] = u; axV[k * 3 + c] = v; }
+      }
+    }
+  }
+  geometry.setAttribute('winAxU', new THREE.BufferAttribute(axU, 3));
+  geometry.setAttribute('winAxV', new THREE.BufferAttribute(axV, 3));
+  return true;
+}
+
 export function createWindows() {
   const uniforms = {
     winTime: {value: 0},
     winState: {value: new THREE.Vector4(.12, .112, 0, .6)},   // lit share, unlit ambient, lobby, lit glow
     winSky: {value: new THREE.Color(0x08121e)},
+    winLife: {value: null},   // resident sprite atlas; a 1x1 transparent placeholder keeps the program valid until it arrives
+    winLifeOn: {value: 0},    // 0 until the atlas is on the GPU, then eased to 1: no atlas, no figures
   };
+  const placeholder = new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat);
+  placeholder.colorSpace = THREE.NoColorSpace; placeholder.needsUpdate = true;
+  uniforms.winLife.value = placeholder;
+  let life = null, lifeFailures = 0;
+  const releaseLife = () => { if (!life) return; const image = life.image; life.dispose(); image?.close?.(); life = null; };
   let level = 2, tier = 'high', reduced = false, meshes = 0, disposed = false;
   const material = new THREE.MeshStandardMaterial({
     name: WINDOW_MATERIAL, color: new THREE.Color(.018, .032, .045), roughness: .08, metalness: 0, vertexColors: true,
@@ -220,6 +362,7 @@ export function createWindows() {
         hit = true; m.dispose(); return material;
       });
       if (!hit) return false;
+      addPaneAxes(mesh.geometry, i => list[i]?.name === WINDOW_MATERIAL || list[i] === material);
       mesh.material = Array.isArray(mesh.material) ? next : next[0];
       meshes++;
       return true;
@@ -242,16 +385,30 @@ export function createWindows() {
       if (next !== level) { level = next; material.needsUpdate = true; }
     },
     setReducedMotion(value) { reduced = !!value; },
+    // Hands over the loaded sprite atlas (NoColorSpace, flipY false, mipmapped); the windows own it from here on and dispose it.
+    // A falsy texture means the load failed: the figures stay off and the failure is counted.
+    setLife(texture) {
+      if (!texture) { lifeFailures++; return false; }
+      if (disposed) { const image = texture.image; texture.dispose(); image?.close?.(); return false; }
+      if (texture === life) return true;
+      releaseLife(); life = texture; uniforms.winLife.value = texture; uniforms.winLifeOn.value = 0;
+      return true;
+    },
     // Time drives room switching and the life layer; it stands still without motion.
     update(dt, animated) {
+      if (life && uniforms.winLifeOn.value < 1 && !disposed) {
+        // The figures fade in over about a second; with frozen time or reduced motion they appear at once.
+        const step = animated && !reduced && dt > 0 ? Math.min(.1, dt) : 1;
+        uniforms.winLifeOn.value = Math.min(1, uniforms.winLifeOn.value + step);
+      }
       if (!animated || reduced || disposed) return;
       uniforms.winTime.value = (uniforms.winTime.value + Math.min(.1, Math.max(0, dt || 0))) % 7200;
     },
     stats: () => ({
-      level, tier, reduced, meshes,
+      level, tier, reduced, meshes, life: life ? 1 : 0, lifeFailures,
       share: +uniforms.winState.value.x.toFixed(2), lobby: +uniforms.winState.value.z.toFixed(2),
       glow: +uniforms.winState.value.w.toFixed(2), time: +uniforms.winTime.value.toFixed(1),
     }),
-    dispose() { disposed = true; material.dispose(); },
+    dispose() { disposed = true; releaseLife(); uniforms.winLife.value = null; placeholder.dispose(); material.dispose(); },
   };
 }
