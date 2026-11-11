@@ -1,4 +1,5 @@
 {
+  "desktop.chat_question_request_failed": "Anmodningen mislykkedes. Prøv igen, eller annuller.",
   "desktop.pet_action_wave": "Vinke",
   "desktop.pet_action_nod": "Nikke",
   "desktop.pet_action_dance": "Danse",

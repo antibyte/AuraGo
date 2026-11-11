@@ -1,4 +1,9 @@
 {
+  "chat.sse_tool_failed": "Værktøj mislykkedes: ",
+  "chat.sse_tool_blocked": "Værktøj blokeret: ",
+  "chat.sse_tool_cancelled": "Værktøj annulleret: ",
+  "chat.request_failed": "Anmodningen mislykkedes",
+  "chat.question_request_failed": "Anmodningen mislykkedes. Prøv igen, eller annuller.",
   "chat.horizon_optional_title": "Valgfri lokal beskyttelse",
   "chat.horizon_optional_body": "Den valgfrie Horizon Labs-klassifikator giver ekstra kontrol af webindhold og e-mails for prompt-injektion (slået fra som standard; ca. {{model_mb}} MB model + {{runtime_mb}} MB kørselsmiljø, 1–2 GiB RAM). Du bestemmer selv under Indstillinger → PromptSec Guardian, om du vil hente og aktivere den.",
   "chat.horizon_optional_settings": "Åbn indstillinger",

@@ -1,4 +1,9 @@
 {
+  "chat.sse_tool_failed": "Tool failed: ",
+  "chat.sse_tool_blocked": "Tool blocked: ",
+  "chat.sse_tool_cancelled": "Tool cancelled: ",
+  "chat.request_failed": "Request failed",
+  "chat.question_request_failed": "The request failed. Try again or cancel.",
   "chat.horizon_optional_title": "Optional local protection",
   "chat.horizon_optional_body": "The optional Horizon Labs classifier adds extra prompt-injection checks for web and email content (off by default; about {{model_mb}} MB model + {{runtime_mb}} MB runtime, 1–2 GiB RAM). You decide in Config → PromptSec Guardian whether to download and enable it.",
   "chat.horizon_optional_settings": "Open settings",

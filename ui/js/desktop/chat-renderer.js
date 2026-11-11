@@ -491,9 +491,9 @@
                 if (state === 'unknown') return this.translate('chat.sse_tool_unknown', 'Tool outcome unconfirmed: ') + toolName;
                 if (state === 'deferred') return this.translate('chat.sse_tool_deferred', 'Tool queued: ') + toolName;
                 if (state === 'needs_setup') return this.translate('chat.sse_tool_needs_setup', 'Tool requires setup: ') + toolName;
-                if (state === 'failed' || state === 'blocked' || state === 'cancelled') {
-                    return this.translate('chat.sse_error_recovery', 'Script had an error. Fixing code...');
-                }
+                if (state === 'failed') return this.translate('chat.sse_tool_failed', 'Tool failed: ') + toolName;
+                if (state === 'blocked') return this.translate('chat.sse_tool_blocked', 'Tool blocked: ') + toolName;
+                if (state === 'cancelled') return this.translate('chat.sse_tool_cancelled', 'Tool cancelled: ') + toolName;
                 return '';
             }
             if (event === 'tool_start') {

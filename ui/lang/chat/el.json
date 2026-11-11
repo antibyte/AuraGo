@@ -1,4 +1,9 @@
 {
+  "chat.sse_tool_failed": "Αποτυχία εργαλείου: ",
+  "chat.sse_tool_blocked": "Αποκλεισμένο εργαλείο: ",
+  "chat.sse_tool_cancelled": "Ακύρωση εργαλείου: ",
+  "chat.request_failed": "Αποτυχία αιτήματος",
+  "chat.question_request_failed": "Το αίτημα απέτυχε. Δοκίμασε ξανά ή ακύρωσε.",
   "chat.horizon_optional_title": "Προαιρετική τοπική προστασία",
   "chat.horizon_optional_body": "Ο προαιρετικός ταξινομητής Horizon Labs ελέγχει επιπλέον ιστοσελίδες και email για κακόβουλες οδηγίες (απενεργοποιημένος από προεπιλογή· περίπου {{model_mb}} MB μοντέλο + {{runtime_mb}} MB περιβάλλον εκτέλεσης, 1–2 GiB RAM). Εσύ αποφασίζεις στις ρυθμίσεις PromptSec Guardian αν θα τον κατεβάσεις και θα τον ενεργοποιήσεις.",
   "chat.horizon_optional_settings": "Άνοιγμα ρυθμίσεων",

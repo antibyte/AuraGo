@@ -6,6 +6,13 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Ownership
 
+- Desktop `/stop` bypasses the session turn gate. After SSE admission, every terminal
+  preparation/model error ends with `llm_stream_done` (`finish_reason: error`, scrubbed
+  `error`) before `[DONE]`; never replay a historical assistant response on failure.
+  Session cancellation can still report its terminal error while the HTTP client
+  remains connected. Verify `TestDesktopStopBypassesSessionTurnAndQuestion` and
+  `TestDesktopPreparationFailureClosesStreamWithError`.
+
 - FindIt routes under `/api/desktop/findit` share the startup-owned `internal/findit` store with the read-only agent tool. POST query/import-preview are reads; commands/import/images require Desktop write plus FindIt's own write gate. Settings require Desktop admin and global admin, same-origin browser writes and the observed section revision. Recheck current policy before returning read errors or results; bounded JSON overflow returns 413. The shared Desktop publication gate fences database commits and image writes against policy changes. `.ago` backup holds the FindIt runtime lock through image and database capture; restore uses existing staged restore. See `../findit/AGENTS.md`, `../../documentation/findit.md`; verify `TestFindIt*` and SQLite backup coverage.
 
 - `/api/kaggle/` shares the native Kaggle/notebook services with agent dispatch. Authenticate Desktop scopes by operation semantics, including read-only POSTs; credentials require global admin and same-origin browser requests. Saves require revisions; transfers/jobs use the existing Desktop publication/revocation gate. SSE checks credentials again on heartbeats and announces expired replay windows. Close kernels before the platform ledger on shutdown. `internal/kaggle/AGENTS.md`, `internal/notebooks/AGENTS.md` and `documentation/kaggle.md` own the domain contracts. Verify `TestKaggle*` and the opt-in notebook browser smoke.

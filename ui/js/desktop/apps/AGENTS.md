@@ -5730,6 +5730,10 @@ registration lives in `internal/desktop/types.go`.
   `tool_call`; its narration replaces that round's streamed draft instead of
   duplicating it. `final_response` replaces the current final draft. Pending
   scrolls target the newest log item, never an earlier round's bubble.
+  Terminal errors preserve the draft and show the concrete error. Stop and question
+  Cancel/Escape use the existing administrator session stop endpoint; this cleanup
+  is the exception to integration proxy routing. Failed stop/answer/clear requests
+  remain visible and retryable. Verify `TestDesktopChatFailuresAndQuestionCancellationBrowser`.
   Verify with `node scripts/test-ui-regressions.mjs`.
 - `live-speech.js` - Desktop Live Speech. Missing-host throws reuse
   `desktop.load_failed` via `text(key)` with no fallback. Loaded

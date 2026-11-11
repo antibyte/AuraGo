@@ -5461,6 +5461,7 @@ document.getElementById('clear-btn').addEventListener('click', async () => {
     if (ok) {
         try {
             const res = await fetch(buildClearUrl(), { method: 'DELETE' });
+            if (!res.ok) throw new Error((await res.text()) || ('HTTP ' + res.status));
             if (res.ok) {
                 chatContent.innerHTML = '';
                 conversation = [];
@@ -5468,7 +5469,7 @@ document.getElementById('clear-btn').addEventListener('click', async () => {
                 appendMessage('assistant', t('chat.greeting'));
             }
         } catch (err) {
-            console.error("Failed to clear session:", err);
+            await showAlert(t('chat.request_failed'), err.message || String(err));
         }
     }
 });
@@ -5487,6 +5488,7 @@ document.getElementById('stop-btn').addEventListener('click', async () => {
                 method: 'POST',
                 headers: { 'X-Session-ID': sid }
             });
+            if (!res.ok) throw new Error((await res.text()) || ('HTTP ' + res.status));
             if (res.ok) {
                 await showAlert(
                     t('chat.alert_stopped_title'),
@@ -5494,7 +5496,7 @@ document.getElementById('stop-btn').addEventListener('click', async () => {
                 );
             }
         } catch (err) {
-            console.error("Failed to stop agent:", err);
+            await showAlert(t('chat.request_failed'), err.message || String(err));
         }
     }
 });
@@ -8282,21 +8284,8 @@ function docFormatIcon(fmt) {
 
     function closeQuestionModal() {
         if (!activeQuestionModal) return;
-        activeQuestionModal.remove();
+        activeQuestionModal._closeQuestion();
         activeQuestionModal = null;
-    }
-
-    async function submitQuestionResponse(sessionId, selectedValue, freeText) {
-        await fetch('/api/agent/question-response', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                session_id: sessionId || activeSessionId(),
-                selected_value: selectedValue || '',
-                free_text: freeText || '',
-            }),
-        });
-        closeQuestionModal();
     }
 
     function showQuestionModal(payload) {
@@ -8342,7 +8331,7 @@ function docFormatIcon(fmt) {
                 desc.textContent = opt.description;
                 btn.appendChild(desc);
             }
-            btn.addEventListener('click', () => submitQuestionResponse(sessionId, opt.value || opt.label || '', ''));
+            btn.addEventListener('click', () => dialog.submit(opt.value || opt.label || '', ''));
             optionsWrap.appendChild(btn);
         });
 
@@ -8371,19 +8360,28 @@ function docFormatIcon(fmt) {
             freeTextForm.addEventListener('submit', (event) => {
                 event.preventDefault();
                 const value = input.value.trim();
-                if (value) submitQuestionResponse(sessionId, '', value);
+                if (value) dialog.submit('', value);
             });
             panel.appendChild(freeTextForm);
-            setTimeout(() => input.focus(), 50);
         }
 
         panel.append(timerLabel, timer);
+        const error = document.createElement('div');
+        error.setAttribute('data-question-error', '');
+        error.setAttribute('role', 'alert');
+        const cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.setAttribute('data-question-cancel', '');
+        cancel.className = 'question-modal-option';
+        cancel.textContent = tr('common.cancel', 'Cancel');
+        panel.append(error, cancel);
         overlay.appendChild(panel);
         document.body.appendChild(overlay);
         activeQuestionModal = overlay;
+        const dialog = window.bindAgentQuestionDialog(overlay, sessionId, '/api/agent/question-response', tr('chat.question_request_failed', 'The request failed. Try again or cancel.'));
 
         const tick = window.setInterval(() => {
-            if (!activeQuestionModal) {
+            if (!overlay.isConnected) {
                 window.clearInterval(tick);
                 return;
             }
@@ -8393,7 +8391,7 @@ function docFormatIcon(fmt) {
             if (remainingRatio <= 0) {
                 window.clearInterval(tick);
                 status.textContent = tr('chat.question_timeout', 'The question timed out.');
-                setTimeout(closeQuestionModal, 900);
+                setTimeout(dialog.close, 900);
             }
         }, 250);
     }
@@ -9069,7 +9067,7 @@ function connectSSE() {
         } else if (state === 'needs_setup') {
             message = t('chat.sse_tool_needs_setup') + toolName;
         } else if (state === 'failed' || state === 'blocked' || state === 'cancelled') {
-            message = t('chat.sse_error_recovery');
+            message = t('chat.sse_tool_' + state) + toolName;
             setStatusToolIcon(toolName || 'generic_tool');
         }
         if (message) {

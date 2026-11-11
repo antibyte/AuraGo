@@ -1,4 +1,9 @@
 {
+  "chat.sse_tool_failed": "Nástroj selhal: ",
+  "chat.sse_tool_blocked": "Nástroj zablokován: ",
+  "chat.sse_tool_cancelled": "Nástroj zrušen: ",
+  "chat.request_failed": "Požadavek selhal",
+  "chat.question_request_failed": "Požadavek selhal. Zkus to znovu nebo ho zruš.",
   "chat.horizon_optional_title": "Volitelná místní ochrana",
   "chat.horizon_optional_body": "Volitelný klasifikátor Horizon Labs dodatečně kontroluje webový obsah a e-maily na podvržené pokyny (ve výchozím stavu vypnutý; asi {{model_mb}} MB model + {{runtime_mb}} MB běhové prostředí, 1–2 GiB RAM). V Nastavení → PromptSec Guardian se můžeš sám rozhodnout, zda ho stáhneš a zapneš.",
   "chat.horizon_optional_settings": "Otevřít nastavení",

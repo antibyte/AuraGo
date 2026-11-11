@@ -997,7 +997,10 @@ const _modalCtl = (function () {
 
     function setBackgroundInert(modal) {
         const hidden = [];
-        const siblings = document.body ? Array.prototype.slice.call(document.body.children) : [];
+        const siblings = [];
+        for (let branch = modal; branch && branch !== document.body; branch = branch.parentElement) {
+            if (branch.parentElement) siblings.push(...Array.from(branch.parentElement.children).filter(node => node !== branch));
+        }
         siblings.forEach(node => {
             if (node === modal) return;
             // Skip elements that already are modals managed by us further up
@@ -1163,6 +1166,44 @@ const _modalCtl = (function () {
 
 // Shared with js/precision/workspace.js (a classic-script const is not a window property).
 window.AuraModalController = _modalCtl;
+
+// Both chat surfaces keep questions retryable until the server accepts the answer or stop.
+window.bindAgentQuestionDialog = function (overlay, sessionId, endpoint, errorText) {
+    let pending = false;
+    const error = overlay.querySelector('[data-question-error]');
+    const cancel = overlay.querySelector('[data-question-cancel]');
+    const close = () => { _modalCtl.close(overlay); overlay.remove(); };
+    const send = async (stopping, selectedValue, freeText) => {
+        if (pending) return;
+        pending = true;
+        error.textContent = '';
+        overlay.querySelectorAll('button, input').forEach(el => { el.disabled = true; });
+        try {
+            const response = await fetch(stopping ? '/api/admin/stop' : endpoint, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: sessionId, selected_value: selectedValue || '', free_text: freeText || '' })
+            });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(body.error || body.message || ('HTTP ' + response.status));
+            if (body.status !== (stopping ? 'success' : 'ok')) throw new Error(body.message || errorText);
+            close();
+        } catch (err) {
+            error.textContent = errorText + (err.message === errorText ? '' : ': ' + (err.message || String(err)));
+            overlay.querySelectorAll('button, input').forEach(el => { el.disabled = false; });
+            cancel.focus();
+        } finally { pending = false; }
+    };
+    cancel.addEventListener('click', () => send(true));
+    overlay.addEventListener('keydown', event => {
+        if (event.key !== 'Escape') return;
+        event.preventDefault(); event.stopPropagation();
+        send(true);
+    });
+    overlay.classList.add('active');
+    _modalCtl.open(overlay);
+    overlay._closeQuestion = close;
+    return { close, submit: (value, text) => send(false, value, text) };
+};
 
 /**
  * Close an overlay through the single shared path: controller teardown, class

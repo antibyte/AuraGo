@@ -1,4 +1,9 @@
 {
+  "chat.sse_tool_failed": "工具失败：",
+  "chat.sse_tool_blocked": "工具被阻止：",
+  "chat.sse_tool_cancelled": "工具已取消：",
+  "chat.request_failed": "请求失败",
+  "chat.question_request_failed": "请求失败。请重试或取消。",
   "chat.horizon_optional_title": "可选的本地防护",
   "chat.horizon_optional_body": "可选的 Horizon Labs 分类器可额外检查网页和邮件内容中的提示注入（默认关闭；模型约 {{model_mb}} MB + 运行库 {{runtime_mb}} MB，需 1–2 GiB 内存）。是否下载并启用，由你在“设置 → PromptSec Guardian”中自行决定。",
   "chat.horizon_optional_settings": "打开设置",

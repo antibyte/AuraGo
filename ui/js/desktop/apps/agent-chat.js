@@ -744,7 +744,7 @@
         const container = host && host.querySelector('.vd-chat');
         if (!container || !payload || !payload.question) return;
         const existing = container.querySelector('[data-desktop-question-modal]');
-        if (existing) existing.remove();
+        if (existing) existing._closeQuestion();
 
         const timeoutSeconds = Math.max(1, Number(payload.timeout_seconds || 120));
         const startedAt = Date.now();
@@ -753,6 +753,7 @@
         overlay.setAttribute('data-desktop-question-modal', 'true');
         overlay.setAttribute('role', 'dialog');
         overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-label', payload.question);
 
         const options = Array.isArray(payload.options) ? payload.options : [];
         const optionButtons = options.map((opt, index) => {
@@ -773,30 +774,16 @@
             <div class="vd-qc-confirm-msg">${esc(payload.question)}</div>
             ${options.length ? `<div class="vd-chat-question-select">${esc(desktopText('desktop.chat_question_select'))}</div><div class="vd-chat-question-options">${optionButtons}</div>` : ''}
             ${freeText}
+            <div data-question-error role="alert"></div>
+            <button class="vd-qc-btn vd-qc-btn-secondary" type="button" data-question-cancel>${esc(desktopText('desktop.cancel'))}</button>
             <div class="vd-chat-question-timer" aria-hidden="true"><span></span></div>
         </div>`;
         container.appendChild(overlay);
 
-        const close = () => { if (overlay.parentNode) overlay.remove(); };
-        const submit = async (selectedValue, freeTextValue) => {
-            try {
-                await fetch('/api/desktop/integrations/agent/question-response', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        session_id: 'virtual-desktop',
-                        selected_value: selectedValue || '',
-                        free_text: freeTextValue || ''
-                    })
-                });
-            } catch (err) {
-                appendDesktopChatError(host, err);
-            }
-            close();
-        };
+        const dialog = window.bindAgentQuestionDialog(overlay, 'virtual-desktop', '/api/desktop/integrations/agent/question-response', desktopText('desktop.chat_question_request_failed'));
 
         overlay.querySelectorAll('[data-value]').forEach(btn => {
-            btn.addEventListener('click', () => submit(btn.getAttribute('data-value') || '', ''));
+            btn.addEventListener('click', () => dialog.submit(btn.getAttribute('data-value') || '', ''));
         });
         const form = overlay.querySelector('[data-question-free-text]');
         if (form) {
@@ -804,9 +791,8 @@
             form.addEventListener('submit', event => {
                 event.preventDefault();
                 const value = input ? input.value.trim() : '';
-                if (value) submit('', value);
+                if (value) dialog.submit('', value);
             });
-            setTimeout(() => { if (input) input.focus(); }, 50);
         }
         const timerFill = overlay.querySelector('.vd-chat-question-timer span');
         const timer = window.setInterval(() => {
@@ -821,7 +807,7 @@
                 window.clearInterval(timer);
                 const title = overlay.querySelector('.vd-qc-confirm-title');
                 if (title) title.textContent = desktopText('desktop.chat_question_timeout');
-                setTimeout(close, 900);
+                setTimeout(dialog.close, 900);
             }
         }, 250);
     }
@@ -845,7 +831,12 @@
         if (clearBtn) clearBtn.disabled = !!busy;
     }
 
-    function requestDesktopChatAbort(host) { if (host && typeof host._desktopChatAbort === 'function') host._desktopChatAbort(); }
+    async function requestDesktopChatAbort(host) {
+        try {
+            await api('/api/admin/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session_id: 'virtual-desktop' }) });
+            if (host && typeof host._desktopChatAbort === 'function') host._desktopChatAbort();
+        } catch (err) { appendDesktopChatError(host, err); }
+    }
 
     function isDesktopChatAbortError(err) {
         const name = err && err.name ? String(err.name) : '', message = err && err.message ? String(err.message) : '';
@@ -1095,6 +1086,7 @@
         let chatScrollFrame = 0;
         let pendingScrollTarget = null;
         let pendingScrollSmooth = true;
+        let recoveryMessage = '';
 
         return new Promise((resolve, reject) => {
             const ctrl = new AbortController();
@@ -1171,6 +1163,7 @@
 
             function doReject(err) {
                 if (finalized) return;
+                finishStreamingBubble();
                 finalized = true;
                 clearAbortHandle();
                 if (streamTextFrame) {
@@ -1218,6 +1211,11 @@
                 function handleStreamEvent(data) {
                     if (!data || finalized) return;
                     const event = data.event || data.type;
+                    if (event === 'error_recovery') recoveryMessage = data.detail || data.message || '';
+                    if (event === 'error' || event === 'llm_stream_done' && data.finish_reason === 'error') {
+                        doReject(new Error(data.error || data.detail || data.message || recoveryMessage || desktopText('desktop.chat_request_failed')));
+                        return;
+                    }
                     if (event !== 'llm_stream_delta' && event !== 'token_update') forwardAgentStreamEventToPet(data);
                     if (data.event === 'llm_stream_delta' || data.type === 'llm_stream_delta') {
                         const content = data.content || '';

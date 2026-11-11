@@ -1,4 +1,9 @@
 {
+  "chat.sse_tool_failed": "Narzędzie nie powiodło się: ",
+  "chat.sse_tool_blocked": "Narzędzie zablokowane: ",
+  "chat.sse_tool_cancelled": "Narzędzie anulowane: ",
+  "chat.request_failed": "Żądanie nie powiodło się",
+  "chat.question_request_failed": "Żądanie nie powiodło się. Spróbuj ponownie lub anuluj.",
   "chat.horizon_optional_title": "Opcjonalna ochrona lokalna",
   "chat.horizon_optional_body": "Opcjonalny klasyfikator Horizon Labs dodatkowo sprawdza treści internetowe i e-maile pod kątem złośliwych instrukcji (domyślnie wyłączony; ok. {{model_mb}} MB model + {{runtime_mb}} MB środowisko uruchomieniowe, 1–2 GiB RAM). Sam decydujesz w Ustawieniach → PromptSec Guardian, czy go pobrać i włączyć.",
   "chat.horizon_optional_settings": "Otwórz ustawienia",

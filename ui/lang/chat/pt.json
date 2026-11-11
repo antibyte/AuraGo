@@ -1,4 +1,9 @@
 {
+  "chat.sse_tool_failed": "Ferramenta falhou: ",
+  "chat.sse_tool_blocked": "Ferramenta bloqueada: ",
+  "chat.sse_tool_cancelled": "Ferramenta cancelada: ",
+  "chat.request_failed": "Falha no pedido",
+  "chat.question_request_failed": "O pedido falhou. Tenta novamente ou cancela.",
   "chat.horizon_optional_title": "Proteção local opcional",
   "chat.horizon_optional_body": "O classificador opcional da Horizon Labs acrescenta verificações contra instruções maliciosas em conteúdos web e emails (desativado por predefinição; cerca de {{model_mb}} MB de modelo + {{runtime_mb}} MB de ambiente de execução, 1–2 GiB de RAM). Tu decides em Definições → PromptSec Guardian se o transferes e ativas.",
   "chat.horizon_optional_settings": "Abrir definições",

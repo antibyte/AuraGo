@@ -33,7 +33,7 @@ const (
 
 func handleDesktopChat(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+		if !authenticateDesktopPermission(s, w, r, desktopScopeAdmin) {
 			return
 		}
 		if r.Method != http.MethodPost {
@@ -57,16 +57,25 @@ func handleDesktopChat(s *Server) http.HandlerFunc {
 			jsonError(w, "server not configured", http.StatusInternalServerError)
 			return
 		}
-		turnCtx, unlockSession, turnErr := s.lockChatSessionTurn(r.Context(), desktopChatSessionID)
-		if turnErr != nil {
-			if r.Context().Err() == nil {
-				jsonError(w, chatCompletionErrorMessage(desktopUILanguage(s), turnErr), http.StatusConflict)
-			}
+		operation := desktopExecute
+		if commands.IsStop(body.Message) {
+			operation = desktopStop
+		}
+		if !checkDesktopOperation(s, w, r, operation) {
 			return
 		}
-		defer unlockSession()
-		r = r.WithContext(turnCtx)
-		if !checkDesktopOperation(s, w, r, desktopExecute) {
+		if !commands.IsStop(body.Message) {
+			turnCtx, unlockSession, turnErr := s.lockChatSessionTurn(r.Context(), desktopChatSessionID)
+			if turnErr != nil {
+				if r.Context().Err() == nil {
+					jsonError(w, chatCompletionErrorMessage(desktopUILanguage(s), turnErr), http.StatusConflict)
+				}
+				return
+			}
+			defer unlockSession()
+			r = r.WithContext(turnCtx)
+		}
+		if !checkDesktopOperation(s, w, r, operation) {
 			return
 		}
 		if answer, handled, err := handleDesktopSlashCommand(s, body.Message); handled {
@@ -89,7 +98,8 @@ func handleDesktopChat(s *Server) http.HandlerFunc {
 
 func handleDesktopChatStream(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+		requestCtx := r.Context()
+		if !authenticateDesktopPermission(s, w, r, desktopScopeAdmin) {
 			return
 		}
 		if r.Method != http.MethodPost {
@@ -109,6 +119,13 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 			jsonError(w, "Message is required", http.StatusBadRequest)
 			return
 		}
+		operation := desktopExecute
+		if commands.IsStop(body.Message) {
+			operation = desktopStop
+		}
+		if !checkDesktopOperation(s, w, r, operation) {
+			return
+		}
 
 		flusher, canFlush := w.(http.Flusher)
 		if !canFlush {
@@ -121,27 +138,35 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 		w.Header().Set("X-Accel-Buffering", "no")
 
 		if s == nil || s.Cfg == nil {
-			sseWriteData(w, "error", "server not configured")
+			writeDesktopChatFailure(w, "server not configured")
+			flusher.Flush()
 			return
 		}
 
-		turnCtx, unlockSession, turnErr := s.lockChatSessionTurn(r.Context(), desktopChatSessionID)
-		if turnErr != nil {
-			if r.Context().Err() == nil {
-				sseWriteData(w, "error_recovery", chatCompletionErrorMessage(desktopUILanguage(s), turnErr))
-				sseWriteDone(w)
+		if !commands.IsStop(body.Message) {
+			turnCtx, unlockSession, turnErr := s.lockChatSessionTurn(r.Context(), desktopChatSessionID)
+			if turnErr != nil {
+				if r.Context().Err() == nil {
+					writeDesktopChatFailure(w, chatCompletionErrorMessage(desktopUILanguage(s), turnErr))
+					flusher.Flush()
+				}
+				return
+			}
+			defer unlockSession()
+			r = r.WithContext(turnCtx)
+		}
+		if err := r.Context().Err(); err != nil {
+			if requestCtx.Err() == nil {
+				writeDesktopChatFailure(w, chatCompletionErrorMessage(desktopUILanguage(s), err))
 				flusher.Flush()
 			}
 			return
 		}
-		defer unlockSession()
-		r = r.WithContext(turnCtx)
-		if !checkDesktopOperation(s, w, r, desktopExecute) {
-			return
-		}
 		if answer, handled, err := handleDesktopSlashCommand(s, body.Message); handled {
 			if err != nil {
-				sseWriteData(w, "error_recovery", chatCompletionErrorMessage(desktopUILanguage(s), err))
+				writeDesktopChatFailure(w, chatCompletionErrorMessage(desktopUILanguage(s), err))
+				flusher.Flush()
+				return
 			} else {
 				sseWriteData(w, "final_response", answer)
 			}
@@ -154,9 +179,7 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 		}
 		turn, err := prepareDesktopAgentTurn(r.Context(), s, body.Message, body.Context, true)
 		if err != nil {
-			sseWriteData(w, "error_recovery", chatCompletionErrorMessage(desktopUILanguage(s), err))
-			sseWriteData(w, "done", "done")
-			sseWriteDone(w)
+			writeDesktopChatFailure(w, chatCompletionErrorMessage(desktopUILanguage(s), err))
 			if canFlush {
 				flusher.Flush()
 			}
@@ -181,12 +204,19 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 				sessionID:    desktopChatSessionID,
 			}
 			if _, err := agent.ExecuteAgentLoop(llmCtx, turn.req, turn.runCfg, true, combinedBroker); err != nil {
-				if llm.IsContextError(err) && llmCtx.Err() != nil {
+				if requestCtx.Err() != nil {
 					return
 				}
-				combinedBroker.Send("error_recovery", chatCompletionErrorMessage(desktopUILanguage(s), err))
-				combinedBroker.SendLLMStreamDone("error")
-				combinedBroker.Send("done", "done")
+				message := chatCompletionErrorMessage(desktopUILanguage(s), err)
+				sseBroker.Send("error_recovery", message)
+				sseBroker.SendTyped("llm_stream_done", LLMStreamDonePayload{SessionID: desktopChatSessionID, FinishReason: "error", Error: message})
+				broker.mu.Lock()
+				if !broker.closed {
+					writeDesktopChatFailure(broker.w, message)
+					broker.closed = true
+					broker.flusher.Flush()
+				}
+				broker.mu.Unlock()
 			}
 		}()
 		heartbeat := time.NewTicker(desktopChatStreamHeartbeatInterval)
@@ -219,6 +249,13 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 			}
 		}
 	}
+}
+
+func writeDesktopChatFailure(w http.ResponseWriter, message string) {
+	sseWriteData(w, "error_recovery", message)
+	payload, _ := json.Marshal(LLMStreamDonePayload{SessionID: desktopChatSessionID, FinishReason: "error", Error: message})
+	sseWriteJSON(w, "llm_stream_done", payload)
+	sseWriteDone(w)
 }
 
 type desktopStreamBroker struct {

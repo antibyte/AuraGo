@@ -1,4 +1,5 @@
 {
+  "desktop.chat_question_request_failed": "The request failed. Try again or cancel.",
   "desktop.pet_action_wave": "Wave",
   "desktop.pet_action_nod": "Nod",
   "desktop.pet_action_dance": "Dance",

@@ -245,6 +245,7 @@ type LLMStreamDeltaPayload struct {
 type LLMStreamDonePayload struct {
 	SessionID    string `json:"session_id,omitempty"`
 	FinishReason string `json:"finish_reason,omitempty"`
+	Error        string `json:"error,omitempty"`
 }
 
 type AgentErrorPayload struct {

@@ -1,4 +1,9 @@
 {
+  "chat.sse_tool_failed": "Verktyget misslyckades: ",
+  "chat.sse_tool_blocked": "Verktyget blockerades: ",
+  "chat.sse_tool_cancelled": "Verktyget avbröts: ",
+  "chat.request_failed": "Begäran misslyckades",
+  "chat.question_request_failed": "Begäran misslyckades. Försök igen eller avbryt.",
   "chat.horizon_optional_title": "Valfritt lokalt skydd",
   "chat.horizon_optional_body": "Den valfria Horizon Labs-klassificeraren ger extra kontroll av webbinnehåll och e-post för promptinjektion (av som standard; ungefär {{model_mb}} MB modell + {{runtime_mb}} MB körmiljö, 1–2 GiB RAM). Du avgör själv under Inställningar → PromptSec Guardian om du vill ladda ner och aktivera den.",
   "chat.horizon_optional_settings": "Öppna inställningar",

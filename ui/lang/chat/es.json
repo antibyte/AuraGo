@@ -1,4 +1,9 @@
 {
+  "chat.sse_tool_failed": "Herramienta fallida: ",
+  "chat.sse_tool_blocked": "Herramienta bloqueada: ",
+  "chat.sse_tool_cancelled": "Herramienta cancelada: ",
+  "chat.request_failed": "Solicitud fallida",
+  "chat.question_request_failed": "La solicitud ha fallado. Inténtalo de nuevo o cancela.",
   "chat.horizon_optional_title": "Protección local opcional",
   "chat.horizon_optional_body": "El clasificador opcional de Horizon Labs añade comprobaciones extra contra la inyección de instrucciones en contenido web y correos (desactivado por defecto; unos {{model_mb}} MB de modelo + {{runtime_mb}} MB de entorno, 1–2 GiB de RAM). Tú decides en Configuración → PromptSec Guardian si lo descargas y lo activas.",
   "chat.horizon_optional_settings": "Abrir ajustes",

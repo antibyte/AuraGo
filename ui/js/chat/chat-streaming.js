@@ -386,7 +386,7 @@ function connectSSE() {
         } else if (state === 'needs_setup') {
             message = t('chat.sse_tool_needs_setup') + toolName;
         } else if (state === 'failed' || state === 'blocked' || state === 'cancelled') {
-            message = t('chat.sse_error_recovery');
+            message = t('chat.sse_tool_' + state) + toolName;
             setStatusToolIcon(toolName || 'generic_tool');
         }
         if (message) {

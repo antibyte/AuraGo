@@ -1,4 +1,9 @@
 {
+  "chat.sse_tool_failed": "Werkzeug fehlgeschlagen: ",
+  "chat.sse_tool_blocked": "Werkzeug blockiert: ",
+  "chat.sse_tool_cancelled": "Werkzeug abgebrochen: ",
+  "chat.request_failed": "Anfrage fehlgeschlagen",
+  "chat.question_request_failed": "Die Anfrage ist fehlgeschlagen. Versuche es erneut oder brich ab.",
   "chat.horizon_optional_title": "Optionaler lokaler Schutz",
   "chat.horizon_optional_body": "Der optionale Horizon-Labs-Klassifikator prüft Web- und E-Mail-Inhalte zusätzlich auf Prompt Injection (standardmäßig aus; rund {{model_mb}} MB Modell + {{runtime_mb}} MB Laufzeit, 1–2 GiB RAM). Du entscheidest unter Einstellungen → PromptSec Guardian, ob du ihn herunterlädst und aktivierst.",
   "chat.horizon_optional_settings": "Einstellungen öffnen",

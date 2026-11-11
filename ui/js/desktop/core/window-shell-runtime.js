@@ -121,7 +121,12 @@
             try {
                 await sendQuickChatStream(responseEl, message, request.signal);
             } catch (err) {
-                if (!disposed && !request.signal.aborted) responseEl.textContent = t('desktop.quickchat_error');
+                if (!disposed && !request.signal.aborted) {
+                    const error = document.createElement('p');
+                    error.setAttribute('role', 'alert');
+                    error.textContent = err.message || t('desktop.quickchat_error');
+                    responseEl.appendChild(error);
+                }
             } finally {
                 if (state.quickChatOwner === request) { state.chatBusy = false; state.quickChatOwner = null; }
             }
@@ -149,6 +154,7 @@
         let streamingContent = '';
         let petAnnouncementText = '';
         let finalized = false;
+        let recoveryMessage = '';
         return new Promise((resolve, reject) => {
             let reader = null;
             const onAbort = () => {
@@ -168,6 +174,7 @@
                 if (finalized) return;
                 finalized = true;
                 signal.removeEventListener('abort', onAbort);
+                responseEl.textContent = streamingContent;
                 reject(err);
             }
             if (signal.aborted) { onAbort(); return; }
@@ -196,7 +203,12 @@
                                 try {
                                     const parsed = JSON.parse(data);
                                     const event = parsed.event || parsed.type;
-                                    if (event === 'llm_stream_delta') {
+                                    if (event === 'error_recovery') recoveryMessage = parsed.detail || parsed.message || '';
+                                    if (event === 'error' || event === 'llm_stream_done' && parsed.finish_reason === 'error') {
+                                        doReject(new Error(parsed.error || parsed.detail || parsed.message || recoveryMessage || t('desktop.quickchat_error')));
+                                        reader.cancel().catch(() => {});
+                                        return;
+                                    } else if (event === 'llm_stream_delta') {
                                         const content = parsed.content || '';
                                         if (content) {
                                             streamingContent += content;
@@ -208,7 +220,7 @@
                                         if (text.trim()) {
                                             petAnnouncementText = text;
                                         }
-                                        if (!streamingContent.trim() && text.trim()) {
+                                        if (text.trim()) {
                                             streamingContent = text;
                                             responseEl.textContent = text;
                                             responseEl.classList.add('vd-quickchat-active');

@@ -119,6 +119,7 @@ document.getElementById('clear-btn').addEventListener('click', async () => {
     if (ok) {
         try {
             const res = await fetch(buildClearUrl(), { method: 'DELETE' });
+            if (!res.ok) throw new Error((await res.text()) || ('HTTP ' + res.status));
             if (res.ok) {
                 chatContent.innerHTML = '';
                 conversation = [];
@@ -126,7 +127,7 @@ document.getElementById('clear-btn').addEventListener('click', async () => {
                 appendMessage('assistant', t('chat.greeting'));
             }
         } catch (err) {
-            console.error("Failed to clear session:", err);
+            await showAlert(t('chat.request_failed'), err.message || String(err));
         }
     }
 });
@@ -145,6 +146,7 @@ document.getElementById('stop-btn').addEventListener('click', async () => {
                 method: 'POST',
                 headers: { 'X-Session-ID': sid }
             });
+            if (!res.ok) throw new Error((await res.text()) || ('HTTP ' + res.status));
             if (res.ok) {
                 await showAlert(
                     t('chat.alert_stopped_title'),
@@ -152,7 +154,7 @@ document.getElementById('stop-btn').addEventListener('click', async () => {
                 );
             }
         } catch (err) {
-            console.error("Failed to stop agent:", err);
+            await showAlert(t('chat.request_failed'), err.message || String(err));
         }
     }
 });

@@ -1,4 +1,9 @@
 {
+  "chat.sse_tool_failed": "ツール失敗: ",
+  "chat.sse_tool_blocked": "ツールがブロックされました: ",
+  "chat.sse_tool_cancelled": "ツールがキャンセルされました: ",
+  "chat.request_failed": "リクエストに失敗しました",
+  "chat.question_request_failed": "リクエストに失敗しました。再試行するかキャンセルしてください。",
   "chat.horizon_optional_title": "任意のローカル保護",
   "chat.horizon_optional_body": "任意の Horizon Labs 分類器で、ウェブやメールのプロンプトインジェクションを追加で検査できます（初期状態は無効。モデル約 {{model_mb}} MB + 実行環境 {{runtime_mb}} MB、RAM 1～2 GiB）。ダウンロードして有効にするかどうかは「設定 → PromptSec Guardian」でご自身で決められます。",
   "chat.horizon_optional_settings": "設定を開く",

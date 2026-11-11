@@ -1,4 +1,5 @@
 {
+  "desktop.chat_question_request_failed": "O pedido falhou. Tenta novamente ou cancela.",
   "desktop.pet_action_wave": "Acenar",
   "desktop.pet_action_nod": "Acenar com a cabeça",
   "desktop.pet_action_dance": "Dançar",

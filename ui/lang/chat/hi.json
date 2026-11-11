@@ -1,4 +1,9 @@
 {
+  "chat.sse_tool_failed": "उपकरण विफल: ",
+  "chat.sse_tool_blocked": "उपकरण अवरुद्ध: ",
+  "chat.sse_tool_cancelled": "उपकरण रद्द: ",
+  "chat.request_failed": "अनुरोध विफल",
+  "chat.question_request_failed": "अनुरोध विफल हुआ। फिर कोशिश करो या रद्द करो।",
   "chat.horizon_optional_title": "वैकल्पिक स्थानीय सुरक्षा",
   "chat.horizon_optional_body": "वैकल्पिक Horizon Labs वर्गीकारक वेब सामग्री और ईमेल में दुर्भावनापूर्ण निर्देशों की अतिरिक्त जाँच करता है (डिफ़ॉल्ट रूप से बंद; मॉडल लगभग {{model_mb}} MB + रनटाइम {{runtime_mb}} MB, 1–2 GiB RAM)। इसे डाउनलोड करके चालू करना है या नहीं, यह तुम सेटिंग्स → PromptSec Guardian में तय करते हो।",
   "chat.horizon_optional_settings": "सेटिंग्स खोलो",

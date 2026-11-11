@@ -1,4 +1,9 @@
 {
+  "chat.sse_tool_failed": "Hulpmiddel mislukt: ",
+  "chat.sse_tool_blocked": "Hulpmiddel geblokkeerd: ",
+  "chat.sse_tool_cancelled": "Hulpmiddel geannuleerd: ",
+  "chat.request_failed": "Verzoek mislukt",
+  "chat.question_request_failed": "Het verzoek is mislukt. Probeer het opnieuw of annuleer.",
   "chat.horizon_optional_title": "Optionele lokale bescherming",
   "chat.horizon_optional_body": "De optionele Horizon Labs-classificator controleert webinhoud en e-mails extra op promptinjectie (standaard uit; ongeveer {{model_mb}} MB model + {{runtime_mb}} MB runtime, 1–2 GiB RAM). Je beslist zelf onder Instellingen → PromptSec Guardian of je hem downloadt en activeert.",
   "chat.horizon_optional_settings": "Instellingen openen",

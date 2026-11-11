@@ -1,4 +1,9 @@
 {
+  "chat.sse_tool_failed": "Strumento non riuscito: ",
+  "chat.sse_tool_blocked": "Strumento bloccato: ",
+  "chat.sse_tool_cancelled": "Strumento annullato: ",
+  "chat.request_failed": "Richiesta non riuscita",
+  "chat.question_request_failed": "La richiesta non è riuscita. Riprova o annulla.",
   "chat.horizon_optional_title": "Protezione locale facoltativa",
   "chat.horizon_optional_body": "Il classificatore opzionale di Horizon Labs aggiunge controlli contro le istruzioni malevole nei contenuti web e nelle email (disattivato di default; circa {{model_mb}} MB di modello + {{runtime_mb}} MB di runtime, 1–2 GiB di RAM). Decidi tu in Impostazioni → PromptSec Guardian se scaricarlo e attivarlo.",
   "chat.horizon_optional_settings": "Apri impostazioni",

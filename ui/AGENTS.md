@@ -27,6 +27,14 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 ## Ownership
 
+- Chat question dialogs use the shared modal controller and session stop endpoint
+  `/api/admin/stop` for Cancel/Escape. Keep failed answer/stop requests visible and
+  retryable, trap focus in nested Desktop dialogs, and restore focus on completion.
+  Terminal Desktop streams use `llm_stream_done` with `finish_reason: error` and
+  an optional scrubbed error; both chat surfaces retain partial text and show the
+  concrete failure. Recovery notices alone remain transient. Stop/clear success
+  requires a successful HTTP response. Verify `TestDesktopChatFailuresAndQuestionCancellationBrowser`.
+
 - Embeddings always shows the corpus limit, including with its provider disabled:
   1024 MiB default, integer range 1..1048576, restart-only. Dashboard memory shows
   logical database usage, limit, WAL, free space/reserve and a translated pause
