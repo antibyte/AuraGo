@@ -10,7 +10,7 @@ import (
 // easyDragModules is the load order of the EasyDrag scripts (dependencies first).
 var easyDragModules = []string{
 	"easydrag-core.js", "easydrag-durable.js", "easydrag-template.js", "easydrag-model.js", "easydrag-geometry.js", "easydrag-groups.js", "easydrag-saver.js",
-	"easydrag-canvas.js", "easydrag-wires.js", "easydrag-interact.js", "easydrag-palette.js", "easydrag-template-field.js", "easydrag-fields.js",
+	"easydrag-canvas.js", "easydrag-wires.js", "easydrag-interact.js", "easydrag-palette.js", "easydrag-template-field.js", "easydrag-fields-conditions.js", "easydrag-fields.js",
 	"easydrag-forms.js", "easydrag-blocks.js", "easydrag-batches.js", "easydrag-block-fields.js", "easydrag-transform.js", "easydrag-mapping.js", "easydrag-detail.js", "easydrag-scenarios.js", "easydrag-testing.js", "easydrag-child-history.js", "easydrag-compare.js", "easydrag-approvals.js", "easydrag-run-stream.js", "easydrag-run-start.js", "easydrag-run-stop.js", "easydrag-run-drawer.js", "easydrag-runs.js", "easydrag-metadata.js", "easydrag-publish.js",
 	"easydrag-library-pause.js", "easydrag-pack.js", "easydrag-home-grid.js", "easydrag-home.js", "easydrag-dialogs.js", "easydrag-history.js", "easydrag-workspace.js", "easydrag-authoring.js", "easydrag-extraction.js", "easydrag-header.js", "easydrag-editor.js", "easydrag.js",
 }
@@ -119,7 +119,8 @@ var easyDragSplitSeams = []struct {
 	{"easydrag-home-grid.js", []string{"function visibleFlows(", "function cardName(", "function errorCard(", "function emptyCard(", "function speak(", "function render() {", "ED.homeGrid = { create };"}, nil},
 	{"easydrag-home.js", []string{"ED.homeGrid.create({", "function render() { gridView.render(); }", "function createOff(", "async function runNow(", "function focusLeftFlow(", "ED.home = { create, previewSVG, pauseOps };"}, []string{"function visibleFlows(", "function cardName(", "function errorCard(", "function statusBadge(", "let spoken"}},
 	{"easydrag-template-field.js", []string{"function templateField(", "function chipsMarkup(", "function sampleAt(", "function trimTrailingDots(", "function nameAttrs(", "function withChange(", "ED.fieldsShared = { nameAttrs, withChange, composing, nextFieldId };", "ED.fieldsTemplate = { templateField, chipsMarkup, sampleAt };"}, nil},
-	{"easydrag-fields.js", []string{"= ED.fieldsShared;", "= ED.fieldsTemplate;", "ED.fields = { templateField, chipsMarkup, sampleAt, segmented, toggle, selectBox, conditionGroup, cases, fieldList, decisionQuestions, decisionImages, keyValue, jsonEditor, tags, dateTime, fileField, secretRef, OPS, UNARY };"}, []string{"function templateField(", "function nameAttrs(", "function withChange(", "function composing(", "let fieldCount"}},
+	{"easydrag-fields-conditions.js", []string{"function conditionGroup(", "function cases(", "function objects(", "function blankRow(", "const COND_TYPES", "ED.fieldsConditions = { conditionGroup, cases, objects, OPS, UNARY };"}, nil},
+	{"easydrag-fields.js", []string{"= ED.fieldsShared;", "= ED.fieldsTemplate;", "= ED.fieldsConditions;", "ED.fields = { templateField, chipsMarkup, sampleAt, segmented, toggle, selectBox, conditionGroup, cases, fieldList, decisionQuestions, decisionImages, keyValue, jsonEditor, tags, dateTime, fileField, secretRef, OPS, UNARY };"}, []string{"function templateField(", "function nameAttrs(", "function withChange(", "function composing(", "let fieldCount", "function conditionGroup(", "function cases(", "function objects(", "function blankRow(", "const OPS ="}},
 }
 
 func TestEasyDragSplitSeams(t *testing.T) {

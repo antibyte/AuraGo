@@ -294,6 +294,7 @@
                 '/js/desktop/apps/easydrag-interact.js',
                 '/js/desktop/apps/easydrag-palette.js',
                 '/js/desktop/apps/easydrag-template-field.js',
+                '/js/desktop/apps/easydrag-fields-conditions.js',
                 '/js/desktop/apps/easydrag-fields.js',
                 '/js/desktop/apps/easydrag-forms.js',
                 '/js/desktop/apps/easydrag-blocks.js',
