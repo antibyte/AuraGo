@@ -8,6 +8,10 @@ the Egg runtime in `cmd/aurago`.
 
 ## Local contracts
 
+- The four `prompts/tools_manuals/invasion_*.md` guides share these admission,
+  explicit-permission and coordinated-upgrade rules. Manual changes do not add
+  tool arguments or require training catalog regeneration.
+
 - Egg provider selection resolves saved provider IDs, metadata and Vault ownership;
   explicit Egg key references take precedence. Keep generated YAML secret-free.
   OAuth sessions and the master's managed-local binding are not portable Egg

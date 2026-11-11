@@ -4,6 +4,14 @@ Manage deployment nests (target servers/VMs/containers) and eggs (sub-agent conf
 
 Prefer `invasion_nests`, `invasion_tasks`, and `invasion_artifacts` when they are visible. The legacy `invasion_control` action remains accepted for dispatch compatibility with older clients and prompts.
 
+Invasion must be enabled. Read-only blocks deployments, configuration changes,
+new tasks and secret delivery. Master and Eggs require Bridge protocol 3 and
+Egg security policy version 1; report an upgrade refusal to the operator.
+Do not automatically reconfigure remote machines or bypass refused TLS checks.
+Operator-saved file, network and unsandboxed-shell grants default off. An empty
+tool list permits neither shell nor Python. Bootstrap secrets belong in the
+private Vault import, never generated YAML or agent messages.
+
 Use this tool whenever the user asks to talk to, ask, reach, test, or send work to an Egg, a Nest, a remote agent, or a sub-agent.
 
 Egg names are not tool names. If an Egg is named `web scraper`, call `invasion_tasks` with `operation:"send_task"` and `egg_name:"web scraper"`. Do not call the `web_scraper` tool just because the Egg has that name.
@@ -158,7 +166,7 @@ Task results may include `artifact_ids`. These are host-local artifacts created 
 
 ## Protocol compatibility
 
-Master and Eggs require protocol v2. If `invasion_protocol_upgrade_required` is
+Master and Eggs require protocol v3. If `invasion_protocol_upgrade_required` is
 reported, ask the operator to update both binaries and restart/re-hatch the Egg;
 never bypass authentication or weaken TLS settings. Keep system clocks synchronized.
 

@@ -70,6 +70,13 @@ func TestGenerateEggConfig_MinimalConfig(t *testing.T) {
 	}
 }
 
+func TestApplySafeConfigPatchEmptyStillRejectsLegacyPolicy(t *testing.T) {
+	legacy := []byte("egg_mode:\n  enabled: true\n  security_policy_version: 0\n")
+	if _, err := ApplySafeConfigPatch(legacy, SafeConfigPatch{}); err == nil {
+		t.Fatal("empty patch bypassed the required Egg security policy")
+	}
+}
+
 func TestGenerateEggConfig_InheritLLM(t *testing.T) {
 	masterCfg := minimalMasterCfg()
 	masterCfg.LLM.ProviderType = "openrouter"
