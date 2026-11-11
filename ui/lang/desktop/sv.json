@@ -2418,6 +2418,8 @@
   "desktop.network_cameras.snapshot_failed": "Ögonblicksbilden misslyckades",
   "desktop.network_cameras.snapshot_saved": "Ögonblicksbild sparad",
   "desktop.network_cameras.snapshots": "Ögonblicksbilder",
+  "desktop.network_cameras.sound_off": "Stäng av ljud",
+  "desktop.network_cameras.sound_on": "Slå på ljud",
   "desktop.network_cameras.source_required": "Ange en ström-URL.",
   "desktop.network_cameras.step": "Steg {{current}} av {{total}}",
   "desktop.network_cameras.stream_id": "Stabilt ström-ID",

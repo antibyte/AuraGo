@@ -172,6 +172,9 @@
 .nc-modal footer button,
 .nc-onboarding-actions a { background: var(--vd-mat-btn, color-mix(in srgb, var(--nc-panel) 88%, transparent)); }
 .nc-icon-button { padding: 7px; width: 36px; }
+/* The sound switch states its own state: dimmed while the preview stays silent, accented while it plays. */
+.nc-sound-toggle.is-muted { opacity: .55; }
+.nc-sound-toggle.is-on { color: var(--nc-accent); }
 .nc-primary:hover:not(:disabled),
 .nc-modal footer .nc-primary:hover:not(:disabled) { background: var(--vd-mat-primary-hover, var(--vd-mat-primary, var(--nc-accent))); }
 .nc-icon-button:hover:not(:disabled),

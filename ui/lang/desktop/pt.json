@@ -2418,6 +2418,8 @@
   "desktop.network_cameras.snapshot_failed": "Falha na captura",
   "desktop.network_cameras.snapshot_saved": "Captura guardada",
   "desktop.network_cameras.snapshots": "Capturas",
+  "desktop.network_cameras.sound_off": "Desativar som",
+  "desktop.network_cameras.sound_on": "Ativar som",
   "desktop.network_cameras.source_required": "Introduz um URL de transmissão.",
   "desktop.network_cameras.step": "Passo {{current}} de {{total}}",
   "desktop.network_cameras.stream_id": "ID de transmissão estável",

@@ -2418,6 +2418,8 @@
   "desktop.network_cameras.snapshot_failed": "スナップショットに失敗しました",
   "desktop.network_cameras.snapshot_saved": "スナップショットを保存しました",
   "desktop.network_cameras.snapshots": "スナップショット",
+  "desktop.network_cameras.sound_off": "サウンドをオフ",
+  "desktop.network_cameras.sound_on": "サウンドをオン",
   "desktop.network_cameras.source_required": "ストリームURLを入力してください。",
   "desktop.network_cameras.step": "ステップ {{current}} / {{total}}",
   "desktop.network_cameras.stream_id": "固定ストリームID",

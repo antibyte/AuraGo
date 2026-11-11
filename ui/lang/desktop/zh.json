@@ -2418,6 +2418,8 @@
   "desktop.network_cameras.snapshot_failed": "快照失败",
   "desktop.network_cameras.snapshot_saved": "快照已保存",
   "desktop.network_cameras.snapshots": "快照",
+  "desktop.network_cameras.sound_off": "关闭声音",
+  "desktop.network_cameras.sound_on": "开启声音",
   "desktop.network_cameras.source_required": "请输入流 URL。",
   "desktop.network_cameras.step": "第 {{current}} 步，共 {{total}} 步",
   "desktop.network_cameras.stream_id": "固定流 ID",

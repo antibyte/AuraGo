@@ -1,5 +1,5 @@
 // Adapt the pinned upstream player to AuraGo's revision-bound signaling lease.
-export function mountGo2RTCViewer({ stream, role = 'main', mode }) {
+export function mountGo2RTCViewer({ stream, role = 'main', mode, muted = true }) {
     const video = document.createElement('video-stream');
     const splitMedia = mode.includes('webrtc') && ['mse', 'hls', 'mp4', 'mjpeg'].some(value => mode.includes(value));
     let mediaSocket = null;
@@ -85,5 +85,19 @@ export function mountGo2RTCViewer({ stream, role = 'main', mode }) {
     video.src = '/api/go2rtc/proxy/api/ws?src=' + encodeURIComponent(stream) + '&role=' + encodeURIComponent(role);
     video.mode = mode;
     document.body.appendChild(video);
+    // Camera previews start without sound; the Desktop app switches sound on explicitly.
+    const applyMuted = value => {
+        const media = video.video;
+        if (!media) return;
+        media.muted = value !== false;
+        if (!media.muted && media.paused) media.play().catch(() => {});
+    };
+    applyMuted(muted);
+    window.addEventListener('message', event => {
+        if (event.origin !== location.origin) return;
+        const data = event.data;
+        if (!data || data.type !== 'aurago:camera-muted' || typeof data.muted !== 'boolean') return;
+        applyMuted(data.muted);
+    });
     return video;
 }

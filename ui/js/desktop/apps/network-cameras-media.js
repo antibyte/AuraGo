@@ -58,7 +58,17 @@
         return html + '</div></details>';
     }
     function sourceRole(state, stream) { return state.sourceRoles && state.sourceRoles[stream.id] === 'sub' && stream.has_substream ? 'sub' : 'main'; }
-    function viewerURL(state, stream, role) { return stream.media_ready === false ? 'about:blank' : '/api/desktop/integrations/go2rtc/viewer/' + encodeURIComponent(stream.id) + '?role=' + encodeURIComponent(role || sourceRole(state, stream)); }
+    function soundEnabled(state) { return state.sound === true; }
+    function viewerURL(state, stream, role) { return stream.media_ready === false ? 'about:blank' : '/api/desktop/integrations/go2rtc/viewer/' + encodeURIComponent(stream.id) + '?role=' + encodeURIComponent(role || sourceRole(state, stream)) + '&muted=' + (soundEnabled(state) ? '0' : '1'); }
+    // The viewer page keeps the stream itself muted until this message says otherwise.
+    function postSound(frame, muted) {
+        if (!frame || !frame.contentWindow) return;
+        try { frame.contentWindow.postMessage({ type: 'aurago:camera-muted', muted }, window.location.origin); } catch (_) {}
+    }
+    function applySound(state) {
+        const muted = !soundEnabled(state);
+        for (const frame of state.host.querySelectorAll('iframe[data-camera]')) postSound(frame, muted);
+    }
     function toolbar(state, stream) {
         const esc = state.ctx.esc;
         let html = '';
@@ -221,6 +231,14 @@
             button.addEventListener('keyup', event => { if ([' ', 'Enter'].includes(event.key)) { event.preventDefault(); stop(state); } });
         }
         if (!state.mediaBlur) { state.mediaBlur = () => stop(state); window.addEventListener('blur', state.mediaBlur); }
+        // A viewer that finished loading after the last switch still needs the current sound state.
+        if (!state.soundBound) {
+            state.soundBound = true;
+            state.host.addEventListener('load', event => {
+                const frame = event.target;
+                if (frame && frame.tagName === 'IFRAME' && frame.dataset.camera) postSound(frame, !soundEnabled(state));
+            }, true);
+        }
     }
-    window.NetworkCamerasMedia = { choices, defaults, patch, fields, toolbar, sourceRole, viewerURL, bind, stop, update, diagnose };
+    window.NetworkCamerasMedia = { choices, defaults, patch, fields, toolbar, sourceRole, viewerURL, bind, stop, update, diagnose, applySound, soundEnabled };
 })();

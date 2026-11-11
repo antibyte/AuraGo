@@ -22,6 +22,9 @@ func TestDesktopNetworkCamerasInteractionContracts(t *testing.T) {
 		"result.snapshot_available",
 		"modal.password = '';",
 		"text(ctx, 'snapshot_available')",
+		`data-action="sound"`,
+		"state.sound = !state.sound",
+		"sound: value.sound === true",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("network-cameras.js missing interaction contract %q", marker)
@@ -29,6 +32,17 @@ func TestDesktopNetworkCamerasInteractionContracts(t *testing.T) {
 	}
 	if strings.Contains(source, "liveIDs.has(stream.id) && !selected") {
 		t.Fatal("selected camera must remain live when the dedicated live grid is active")
+	}
+
+	media := readDesktopAssetText(t, "js/desktop/apps/network-cameras-media.js")
+	for _, marker := range []string{
+		"'&muted=' + (soundEnabled(state) ? '0' : '1')",
+		"aurago:camera-muted",
+		"function applySound(state)",
+	} {
+		if !strings.Contains(media, marker) {
+			t.Fatalf("network-cameras-media.js missing sound contract %q", marker)
+		}
 	}
 }
 

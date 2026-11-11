@@ -302,10 +302,22 @@ func handleGo2RTCViewer(s *Server) http.HandlerFunc {
 		streamJSON, _ := json.Marshal(streamID)
 		modeJSON, _ := json.Marshal(mode)
 		roleJSON, _ := json.Marshal(purpose)
+		mutedJSON, _ := json.Marshal(go2RTCViewerMuted(r))
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self' 'nonce-"+nonce+"'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: data:; connect-src 'self' ws: wss:; frame-ancestors 'self';")
-		_, _ = fmt.Fprintf(w, `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>%s</title><style>html,body{margin:0;width:100%%;height:100%%;background:#090b0f}video-stream{display:block;width:100%%;height:100%%;object-fit:contain}</style></head><body><script type="module" nonce="%s">import "/api/go2rtc/proxy/video-stream.js";import {mountGo2RTCViewer} from "/js/go2rtc-viewer.js";mountGo2RTCViewer({stream:%s,role:%s,mode:%s});</script></body></html>`, html.EscapeString(streamID), nonce, streamJSON, roleJSON, modeJSON)
+		_, _ = fmt.Fprintf(w, `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>%s</title><style>html,body{margin:0;width:100%%;height:100%%;background:#090b0f}video-stream{display:block;width:100%%;height:100%%;object-fit:contain}</style></head><body><script type="module" nonce="%s">import "/api/go2rtc/proxy/video-stream.js";import {mountGo2RTCViewer} from "/js/go2rtc-viewer.js";mountGo2RTCViewer({stream:%s,role:%s,mode:%s,muted:%s});</script></body></html>`, html.EscapeString(streamID), nonce, streamJSON, roleJSON, modeJSON, mutedJSON)
+	}
+}
+
+// go2RTCViewerMuted keeps camera previews silent unless the caller explicitly
+// asks for sound, so a preview never starts with unexpected noise.
+func go2RTCViewerMuted(r *http.Request) bool {
+	switch strings.ToLower(strings.TrimSpace(r.URL.Query().Get("muted"))) {
+	case "0", "false", "off", "no":
+		return false
+	default:
+		return true
 	}
 }
 

@@ -2418,6 +2418,8 @@
   "desktop.network_cameras.snapshot_failed": "Nie udało się wykonać migawki",
   "desktop.network_cameras.snapshot_saved": "Migawka zapisana",
   "desktop.network_cameras.snapshots": "Migawki",
+  "desktop.network_cameras.sound_off": "Wyłącz dźwięk",
+  "desktop.network_cameras.sound_on": "Włącz dźwięk",
   "desktop.network_cameras.source_required": "Wpisz adres URL strumienia.",
   "desktop.network_cameras.step": "Krok {{current}} z {{total}}",
   "desktop.network_cameras.stream_id": "Stałe ID strumienia",

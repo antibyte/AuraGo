@@ -51,16 +51,18 @@
             return {
                 mode: coerceMode(value.mode),
                 selected: String(value.selected || ''),
-                sourceRoles: value.sourceRoles && typeof value.sourceRoles === 'object' ? value.sourceRoles : {}
+                sourceRoles: value.sourceRoles && typeof value.sourceRoles === 'object' ? value.sourceRoles : {},
+                // Previews start silent; a remembered sound choice is restored.
+                sound: value.sound === true
             };
         } catch (_) {
-            return { mode: 'snapshots', selected: '', sourceRoles: {} };
+            return { mode: 'snapshots', selected: '', sourceRoles: {}, sound: false };
         }
     }
 
     function savePreferences(state) {
         try {
-            localStorage.setItem(preferenceKey, JSON.stringify({ mode: state.mode, selected: state.selected, sourceRoles: state.sourceRoles }));
+            localStorage.setItem(preferenceKey, JSON.stringify({ mode: state.mode, selected: state.selected, sourceRoles: state.sourceRoles, sound: state.sound === true }));
         } catch (_) {}
     }
 
@@ -76,6 +78,7 @@
             filter: '',
             selected: preferences.selected,
             sourceRoles: preferences.sourceRoles,
+            sound: preferences.sound,
             savePreferences: () => savePreferences(instances.get(windowId)),
             mode: launchContext(ctx) ? (launchContext(ctx).event_id ? 'detections' : 'snapshots') : preferences.mode,
             focus: false,
@@ -170,9 +173,21 @@
                     '<button type="button" data-mode="live" aria-pressed="' + (state.mode === 'live') + '" class="' + (state.mode === 'live' ? 'is-active' : '') + '">' + ctx.esc(text(ctx, 'live_grid')) + '</button>' +
                     '<button type="button" data-mode="detections" aria-pressed="' + (state.mode === 'detections') + '" class="' + (state.mode === 'detections' ? 'is-active' : '') + '">' + ctx.esc(text(ctx, 'detection.mode')) + '</button>' +
                 '</div>' +
+                '<button class="nc-icon-button nc-sound-toggle' + (state.sound ? ' is-on' : ' is-muted') + '" type="button" data-action="sound" aria-pressed="' + (state.sound ? 'true' : 'false') + '" title="' + ctx.esc(text(ctx, state.sound ? 'sound_off' : 'sound_on')) + '" aria-label="' + ctx.esc(text(ctx, state.sound ? 'sound_off' : 'sound_on')) + '">' + appIcon(ctx, 'sound-symbolic', 'S', 17) + '</button>' +
                 '<button class="nc-icon-button" type="button" data-action="refresh" title="' + ctx.esc(text(ctx, 'refresh')) + '">' + appIcon(ctx, 'refresh', 'R', 17) + '</button>' +
                 (canManage ? '<button type="button" data-action="tuya">' + ctx.esc(ctx.t('common.go2rtc_tuya.accounts')) + '</button><button class="nc-primary" type="button" data-action="add" aria-label="' + ctx.esc(text(ctx, 'add_camera')) + '">' + appIcon(ctx, 'plus', '+', 16) + '<span>' + ctx.esc(text(ctx, 'add_camera')) + '</span></button>' : '') +
             '</div></header>';
+    }
+
+    function updateSoundButton(state) {
+        const button = state.host.querySelector('[data-action="sound"]');
+        if (!button) return;
+        const label = text(state.ctx, state.sound ? 'sound_off' : 'sound_on');
+        button.classList.toggle('is-on', state.sound);
+        button.classList.toggle('is-muted', !state.sound);
+        button.setAttribute('aria-pressed', state.sound ? 'true' : 'false');
+        button.setAttribute('title', label);
+        button.setAttribute('aria-label', label);
     }
 
     function emptyMarkup(state) {
@@ -215,7 +230,7 @@
         const deleting = state.deletingID === stream.id;
         const codecs = Array.isArray(stream.codecs) && stream.codecs.length ? stream.codecs.join(' · ') : text(ctx, enabled ? 'waiting_codec' : 'disabled');
         const media = live
-            ? '<iframe data-camera="' + ctx.esc(stream.id) + '" data-revision="' + Number(stream.revision || 0) + '" data-source-role="preview" title="' + ctx.esc(stream.name || stream.id) + '" src="' + window.NetworkCamerasMedia.viewerURL(state, stream, 'preview') + '" loading="lazy"></iframe>'
+            ? '<iframe data-camera="' + ctx.esc(stream.id) + '" data-revision="' + Number(stream.revision || 0) + '" data-source-role="preview" title="' + ctx.esc(stream.name || stream.id) + '" src="' + window.NetworkCamerasMedia.viewerURL(state, stream, 'preview') + '" loading="lazy" allow="autoplay"></iframe>'
             : (enabled ? '<img data-thumbnail="' + ctx.esc(stream.id) + '" alt="' + ctx.esc(stream.name || stream.id) + '"><div class="nc-image-placeholder">' + appIcon(ctx, 'camera', 'C', 25) + '</div>' : '<div class="nc-disabled-placeholder">' + appIcon(ctx, 'camera', 'C', 25) + '<span>' + ctx.esc(text(ctx, 'disabled')) + '</span></div>');
         return '<article class="nc-card ' + (selected ? 'is-selected ' : '') + (!enabled ? 'is-disabled' : '') + '" data-stream-card="' + ctx.esc(stream.id) + '">' +
             '<button type="button" class="nc-card-select" data-select="' + ctx.esc(stream.id) + '" ' + (!enabled ? 'disabled' : '') + ' aria-label="' + ctx.esc(stream.name || stream.id) + '"></button>' +
@@ -342,6 +357,13 @@
         }
         if (action === 'reconnect') return reconnectViewer(state);
         if (action === 'snapshot') return takeSnapshot(state);
+        if (action === 'sound') {
+            // Sound stays off until it is switched on, and the choice survives a restart.
+            state.sound = !state.sound;
+            savePreferences(state);
+            updateSoundButton(state);
+            window.NetworkCamerasMedia.applySound(state);
+        }
     }
 
     async function enableIntegration(state) {

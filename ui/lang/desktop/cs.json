@@ -2418,6 +2418,8 @@
   "desktop.network_cameras.snapshot_failed": "Snímek se nezdařil",
   "desktop.network_cameras.snapshot_saved": "Snímek uložen",
   "desktop.network_cameras.snapshots": "Snímky",
+  "desktop.network_cameras.sound_off": "Vypnout zvuk",
+  "desktop.network_cameras.sound_on": "Zapnout zvuk",
   "desktop.network_cameras.source_required": "Zadej URL streamu.",
   "desktop.network_cameras.step": "Krok {{current}} z {{total}}",
   "desktop.network_cameras.stream_id": "Stabilní ID streamu",

@@ -53,7 +53,7 @@ Not offered, on purpose:
 
 ## Proxy and WebRTC
 
-The stable viewer contract is `/api/go2rtc/viewer/{stream_id}`. MSE, HLS, MP4, MJPEG, WebSocket, and optional WHEP traffic pass through `/api/go2rtc/proxy/`.
+The stable viewer contract is `/api/go2rtc/viewer/{stream_id}`. MSE, HLS, MP4, MJPEG, WebSocket, and optional WHEP traffic pass through `/api/go2rtc/proxy/`. The viewer starts without sound; `?muted=0` requests sound.
 
 WebRTC media normally flows directly between browser and go2rtc and cannot be carried completely through an HTTP reverse proxy. Direct LAN WebRTC is therefore disabled by default. Enabling it requires a concrete private LAN bind/candidate IP and publishes port 8555 over both TCP and UDP. RTSP port 8554 is never published on the host.
 
@@ -62,6 +62,8 @@ The built-in Virtual Desktop app **Network Cameras** uses this same-origin viewe
 ## Virtual Desktop app and camera setup
 
 The **Network Cameras** app combines a five-second snapshot grid with one selected live view. Its optional live-grid mode opens at most four viewers at once; hidden, minimized, and closed windows stop polling and tear down their media frames.
+
+Camera previews start without sound. The toolbar's sound switch turns the sound of the running previews on and off without restarting the stream, and AuraGo remembers that choice for the next start of the app.
 
 Administrators can enable the managed sidecar, discover ONVIF cameras, add a known local ONVIF address, or enter a supported stream URL. Other users with `go2rtc.view` see enabled cameras only. Camera management remains administrator-only.
 

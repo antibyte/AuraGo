@@ -2418,6 +2418,8 @@
   "desktop.network_cameras.snapshot_failed": "Échec de la capture",
   "desktop.network_cameras.snapshot_saved": "Capture enregistrée",
   "desktop.network_cameras.snapshots": "Captures",
+  "desktop.network_cameras.sound_off": "Couper le son",
+  "desktop.network_cameras.sound_on": "Activer le son",
   "desktop.network_cameras.source_required": "Saisis une URL de flux.",
   "desktop.network_cameras.step": "Étape {{current}} sur {{total}}",
   "desktop.network_cameras.stream_id": "Identifiant de flux stable",

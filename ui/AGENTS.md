@@ -455,6 +455,14 @@ New app-scoped prefixes must contain no `ad` substring; verify
   the peer. Explicit disconnect clears pending reconnects. Verify
   `TestGo2RTCPlayerProtocolsBrowser` against the pinned fixtures.
 
+- The Network Cameras app starts every camera preview without sound. The toolbar
+  sound switch turns the sound of the running previews on and off without
+  restarting the stream, and the choice is remembered in the app preferences
+  for the next start, so a preview only plays sound when it was left on. The
+  viewer page stays muted until the app sends the same-origin
+  `aurago:camera-muted` message. Verify `TestDesktopNetworkCamerasSoundPreferenceBrowser`
+  and `TestGo2RTCViewerSoundBrowser`.
+
 - Newspaper is a lazy built-in Desktop reader with a separate editorial paper surface and Config/Dashboard entry. Keep all sixteen Desktop, Config and Dashboard locale keys aligned, both icon manifests registered, and the generated main Desktop bundle current. Config exposes the search cap (32 by default, 1–64 including retries); shared capability responses distinguish setup reasons from last-attempt failures. The reader preserves optional research counters and topic gaps, including legacy runs without them. A bounce-suppression message must not imply that the recipient address is invalid without the original SMTP evidence. Verify `TestNewspaperResearchTranslations`, `TestNewspaperConfigResearchBrowser` and `TestDesktopNewspaperBrowser` at wide/narrow sizes in both themes; backend contracts live in `internal/newspaper/AGENTS.md`.
 
 - Tresor is a lazy built-in Desktop app with locally packaged Argon2id JS/WASM, a decorative vault-door SVG, and browser-only AES-GCM keys. Keep both theme icon manifests, `desktop.app_tresor` and `tresor.*` in all sixteen Desktop locales, and the generated main bundle current. Notes autosave with encrypted local drafts; Desktop close awaits saves and shows failures. Explicit, idle and pagehide locks clear decrypted state immediately, independently of network writes. Preserve editor/record association after failed loads and draft titles across dialogs. Verify vendor drift, crypto vectors, `TestTresorTranslations` and `TestDesktopTresorBrowser` (including failure recovery); the storage contract is `internal/tresor/AGENTS.md`.

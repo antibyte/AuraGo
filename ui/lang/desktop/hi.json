@@ -2418,6 +2418,8 @@
   "desktop.network_cameras.snapshot_failed": "स्नैपशॉट विफल",
   "desktop.network_cameras.snapshot_saved": "स्नैपशॉट सहेजा गया",
   "desktop.network_cameras.snapshots": "स्नैपशॉट",
+  "desktop.network_cameras.sound_off": "ध्वनि बंद करें",
+  "desktop.network_cameras.sound_on": "ध्वनि चालू करें",
   "desktop.network_cameras.source_required": "स्ट्रीम URL दर्ज करें।",
   "desktop.network_cameras.step": "चरण {{current}} / {{total}}",
   "desktop.network_cameras.stream_id": "स्थायी स्ट्रीम ID",

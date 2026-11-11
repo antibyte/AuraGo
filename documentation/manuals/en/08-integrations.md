@@ -764,6 +764,8 @@ frigate:
 
 AuraGo can run a pinned, hardened go2rtc Docker sidecar for camera streams. Camera source URLs remain Vault-only. Use **Config → Network & Remote → go2rtc Cameras** to test the saved configuration and manage the container, or open the Virtual Desktop app **Network Cameras** (`/desktop?app=network-cameras`) for camera views, bounded ONVIF discovery, manual setup, and snapshots. The original go2rtc Web UI is optional and read-only.
 
+Camera previews start without sound. The sound switch in the app toolbar turns the sound of the running previews on and off without restarting the stream, and AuraGo remembers that choice for the next start of the app.
+
 Proxy-based MSE/HLS/MP4/MJPEG viewing is the default. Direct LAN WebRTC must be enabled explicitly with a concrete private LAN IP because WebRTC media does not travel completely through an HTTP proxy. Automatic discovery also requires local broadcast capability; Docker bridge deployments use the app's manual local-IP or stream-URL fallback.
 
 AuraGo performs both the security-bounded discovery and the private-host ONVIF setup queries itself. It detects the camera's profiles and snapshot capability and reads codec, resolution, and device metadata when available. Only the selected Vault-backed source is passed to go2rtc during runtime reconciliation. The raw go2rtc ONVIF API stays blocked for browsers, agents, and the optional administrator UI and is not used during setup. See [go2rtc Integration](../../go2rtc.md).

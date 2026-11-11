@@ -2418,6 +2418,8 @@
   "desktop.network_cameras.snapshot_failed": "Snapshot non riuscito",
   "desktop.network_cameras.snapshot_saved": "Snapshot salvato",
   "desktop.network_cameras.snapshots": "Snapshot",
+  "desktop.network_cameras.sound_off": "Disattiva audio",
+  "desktop.network_cameras.sound_on": "Attiva audio",
   "desktop.network_cameras.source_required": "Inserisci un URL di streaming.",
   "desktop.network_cameras.step": "Passaggio {{current}} di {{total}}",
   "desktop.network_cameras.stream_id": "ID streaming stabile",

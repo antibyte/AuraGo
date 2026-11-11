@@ -361,6 +361,15 @@ func TestGo2RTCProxyEnforcesOriginStreamScopeAndUpstreamAuth(t *testing.T) {
 		!strings.Contains(csp, "frame-ancestors 'self'") {
 		t.Fatalf("viewer CSP missing nonce: %q", csp)
 	}
+	if !strings.Contains(viewerRecorder.Body.String(), "muted:true") {
+		t.Fatalf("viewer did not start without sound: %s", viewerRecorder.Body.String())
+	}
+	soundRequest := httptest.NewRequest(http.MethodGet, "http://aurago.local/api/go2rtc/viewer/front-door?muted=0", nil)
+	soundRecorder := httptest.NewRecorder()
+	handleGo2RTCViewer(server).ServeHTTP(soundRecorder, soundRequest)
+	if soundRecorder.Code != http.StatusOK || !strings.Contains(soundRecorder.Body.String(), "muted:false") {
+		t.Fatalf("viewer ignored the requested sound: status=%d body=%s", soundRecorder.Code, soundRecorder.Body.String())
+	}
 
 	blocked := httptest.NewRequest(http.MethodGet, "http://aurago.local/api/go2rtc/proxy/api/frame.jpeg?src=front-door", nil)
 	blocked.Header.Set("Origin", "https://evil.example")

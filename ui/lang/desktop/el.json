@@ -2418,6 +2418,8 @@
   "desktop.network_cameras.snapshot_failed": "Η λήψη απέτυχε",
   "desktop.network_cameras.snapshot_saved": "Η λήψη αποθηκεύτηκε",
   "desktop.network_cameras.snapshots": "Στιγμιότυπα",
+  "desktop.network_cameras.sound_off": "Απενεργοποίηση ήχου",
+  "desktop.network_cameras.sound_on": "Ενεργοποίηση ήχου",
   "desktop.network_cameras.source_required": "Εισαγάγετε URL ροής.",
   "desktop.network_cameras.step": "Βήμα {{current}} από {{total}}",
   "desktop.network_cameras.stream_id": "Σταθερό ID ροής",
