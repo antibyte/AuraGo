@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"math"
+	"net/url"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -30,6 +31,9 @@ const (
 
 // httpMethods are the methods of the method parameter; GET is the default.
 var httpMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE"}
+
+// authInModes are the places auth_in can send the secret to.
+var authInModes = []string{"header", "query"}
 
 // httpHeader is one validated request header.
 type httpHeader struct{ name, value string }
@@ -195,10 +199,48 @@ func authHeaderName(v any) (string, error) {
 	return s, nil
 }
 
+// authQueryName reads auth_query: the name of the address parameter that carries the secret.
+func authQueryName(v any) (string, error) {
+	s, err := scalarTextParam(v, "auth_query")
+	if err != nil {
+		return "", err
+	}
+	s = strings.TrimSpace(s)
+	switch {
+	case s == "":
+		return "", NewNodeError("FLOW_PARAM_INVALID", "auth_query must name the address parameter that carries the secret")
+	case len(s) > 100 || strings.ContainsAny(s, "&=#%+?/ \t\r\n") || !validHeaderValue(s):
+		return "", NewNodeError("FLOW_PARAM_INVALID", "auth_query is not a valid address parameter name")
+	}
+	return s, nil
+}
+
+// withQueryParam sets the address parameter name to value: every existing parameter of that
+// name is dropped, whatever its value, and the new one goes last. Other parameters keep their
+// text, so do the host, the path and the fragment. It runs once, on the first request's
+// address: a redirect follows the server's Location and never gets the parameter again.
+func withQueryParam(target, name, value string) (string, error) {
+	u, ok := splitCredentialURL(target)
+	if !ok {
+		return "", NewNodeError("FLOW_PARAM_INVALID", "the web address must start with http:// or https://")
+	}
+	var keep []string
+	if u.hasQuery {
+		for _, pair := range strings.Split(u.query, "&") {
+			key, _, _ := strings.Cut(pair, "=")
+			if pair != "" && unescapeQuery(key) != name {
+				keep = append(keep, pair)
+			}
+		}
+	}
+	u.query, u.hasQuery = strings.Join(append(keep, url.QueryEscape(name)+"="+url.QueryEscape(value)), "&"), true
+	return u.String(), nil
+}
+
 // authLiteralParams shape the credential header next to auth_secret. While a secret is set they
 // must be written out: data from a template would choose the header name or the text in front
-// of the secret.
-var authLiteralParams = []string{"auth_header", "auth_prefix"}
+// of the secret. auth_in and auth_query decide where the secret goes.
+var authLiteralParams = []string{"auth_header", "auth_prefix", "auth_in", "auth_query"}
 
 func authLiteralMessage(param string) string {
 	return param + " must be written out while auth_secret is set; it cannot be taken from another node"
@@ -216,64 +258,81 @@ func authLiteralIssues(n *Node) []Issue {
 	return issues
 }
 
-// withAuthSecret adds the credential named by auth_secret to the headers and
-// returns a scrubber for its value (one that removes nothing when no secret is
-// used). The vault value is trimmed (a pasted secret often ends in a newline, which
-// a header cannot carry); an empty one fails instead of sending "Bearer ". When the
-// request already has a header of that name, in any spelling, the vault secret wins:
-// it is the deliberate setting, and data from a template must not be able to replace
-// the configured credential. The value never reaches the parameters, an error
-// message or an output; the node's parameters only hold the secret's name.
-func withAuthSecret(in ExecInput, headers []httpHeader) ([]httpHeader, *secretScrubber, error) {
+// withAuthSecret adds the credential named by auth_secret to the request and returns the
+// headers, the address and a scrubber for its value (one that removes nothing when no secret is
+// used). With auth_in=header (the default) the secret is a header; with auth_in=query it is the
+// address parameter auth_query, set on the first request's address only. The vault value is
+// trimmed (a pasted secret often ends in a newline); an empty one fails instead of sending
+// "Bearer ". When the request already has a header of that name, in any spelling, the vault
+// secret wins: it is the deliberate setting, and data from a template must not be able to
+// replace the configured credential. The value never reaches the parameters, an error message
+// or an output; the node's parameters only hold the secret's name.
+func withAuthSecret(in ExecInput, headers []httpHeader, target string) ([]httpHeader, string, *secretScrubber, error) {
 	// The vault entry is the document author's choice, never data that flows through the
 	// run: a template is refused even though the run has resolved it to a valid name (the
 	// raw parameter tells), as haServiceParam does for the Home Assistant service. A caller
 	// without the raw node only has the resolved value to judge.
 	if in.Node != nil && isTemplateText(in.Node.Params["auth_secret"]) {
-		return nil, nil, NewNodeError("FLOW_PARAM_INVALID", "auth_secret must name a vault secret directly; it cannot be taken from another node")
+		return nil, "", nil, NewNodeError("FLOW_PARAM_INVALID", "auth_secret must name a vault secret directly; it cannot be taken from another node")
 	}
 	key, err := scalarTextParam(in.Params["auth_secret"], "auth_secret")
 	if err != nil {
-		return nil, nil, err
+		return nil, "", nil, err
 	}
 	if key = strings.TrimSpace(key); key == "" {
-		return headers, nil, nil
+		return headers, target, nil, nil
 	}
-	// auth_header and auth_prefix shape the credential header; like the vault entry they are the
-	// author's choice, never data that flows through the run (the raw parameter tells).
+	// auth_in, auth_query, auth_header and auth_prefix shape where and how the secret is sent;
+	// like the vault entry they are the author's choice, never data that flows through the run.
 	if in.Node != nil {
 		for _, param := range authLiteralParams {
 			if isTemplateText(in.Node.Params[param]) {
-				return nil, nil, NewNodeError("FLOW_PARAM_INVALID", "%s", authLiteralMessage(param))
+				return nil, "", nil, NewNodeError("FLOW_PARAM_INVALID", "%s", authLiteralMessage(param))
 			}
 		}
 	}
 	if err := checkFileText(key, maxSecretNameBytes, "secret name"); err != nil {
-		return nil, nil, err
+		return nil, "", nil, err
 	}
-	name, err := authHeaderName(in.Params["auth_header"])
-	if err != nil {
-		return nil, nil, err
+	mode, ok := choiceParam(in.Params["auth_in"], "header", authInModes...)
+	if !ok {
+		return nil, "", nil, choiceError("auth_in", authInModes)
 	}
-	prefix, err := authPrefixValue(in.Params["auth_prefix"])
-	if err != nil {
-		return nil, nil, err
+	var name, prefix, queryName string
+	if mode == "query" {
+		if queryName, err = authQueryName(in.Params["auth_query"]); err != nil {
+			return nil, "", nil, err
+		}
+	} else {
+		if name, err = authHeaderName(in.Params["auth_header"]); err != nil {
+			return nil, "", nil, err
+		}
+		if prefix, err = authPrefixValue(in.Params["auth_prefix"]); err != nil {
+			return nil, "", nil, err
+		}
 	}
 	if in.Services == nil || in.Services.Secrets == nil {
-		return nil, nil, NewNodeError("FLOW_SECRET_UNAVAILABLE", "the vault is not available")
+		return nil, "", nil, NewNodeError("FLOW_SECRET_UNAVAILABLE", "the vault is not available")
 	}
 	raw, rerr := in.Services.Secrets.ReadSecret(key)
 	if rerr != nil {
-		return nil, nil, NewNodeError("FLOW_SECRET_UNAVAILABLE", "the secret %s could not be read", quoteForError(key))
+		return nil, "", nil, NewNodeError("FLOW_SECRET_UNAVAILABLE", "the secret %s could not be read", quoteForError(key))
 	}
 	secret := strings.TrimSpace(raw)
 	switch {
 	case secret == "":
-		return nil, nil, NewNodeError("FLOW_SECRET_UNAVAILABLE", "the secret %s is empty", quoteForError(key))
+		return nil, "", nil, NewNodeError("FLOW_SECRET_UNAVAILABLE", "the secret %s is empty", quoteForError(key))
 	case !validHeaderValue(secret):
-		return nil, nil, NewNodeError("FLOW_SECRET_UNAVAILABLE", "the secret %s holds line breaks or other characters that cannot be sent in a header", quoteForError(key))
+		return nil, "", nil, NewNodeError("FLOW_SECRET_UNAVAILABLE", "the secret %s holds line breaks or other characters that cannot be sent", quoteForError(key))
 	}
 	scrub := newSecretScrubber(secret)
+	if mode == "query" {
+		next, err := withQueryParam(target, queryName, secret)
+		if err != nil {
+			return nil, "", nil, err
+		}
+		return headers, next, scrub, nil
+	}
 	merged := make([]httpHeader, 0, len(headers)+1)
 	for _, h := range headers {
 		if !strings.EqualFold(h.name, name) {
@@ -282,9 +341,9 @@ func withAuthSecret(in ExecInput, headers []httpHeader) ([]httpHeader, *secretSc
 	}
 	merged = append(merged, httpHeader{name, prefix + secret})
 	if err := headerTotals(merged); err != nil {
-		return nil, nil, err
+		return nil, "", nil, err
 	}
-	return merged, scrub, nil
+	return merged, target, scrub, nil
 }
 
 // requestBody builds the request body: a text is sent as it is, anything else as
@@ -387,7 +446,8 @@ func httpRequestEffects(n *Node) []Effect {
 // httpRequestDef defines http.request.
 //
 // Secrets: auth_secret names a vault entry whose value goes into the credential
-// header (see withAuthSecret). The value is scrubbed from everything the node
+// header (see withAuthSecret). auth_in=query sends the secret as the address parameter
+// auth_query instead, on the first request only. The value is scrubbed from everything the node
 // returns, errors included, because a server can echo the request headers.
 // api_request follows up to 10 redirects. Once a hop changes the host, the scheme or
 // the effective port (only http:80 to https:443 on the same host keeps them), it drops
@@ -429,6 +489,9 @@ func httpRequestDef(env CatalogEnv) *NodeDef {
 		{Name: "body", Kind: ParamTextarea, LabelKey: "easydrag.param.http_body", Templatable: true, SensitiveSink: true,
 			VisibleIf: &Visibility{Param: "method", Equals: []string{"POST", "PUT", "PATCH", "DELETE"}}},
 		{Name: "auth_secret", Kind: ParamSecretRef, LabelKey: "easydrag.param.auth_secret", HelpKey: "easydrag.help.auth_secret", SensitiveSink: true},
+		{Name: "auth_in", Kind: ParamSelect, LabelKey: "easydrag.param.auth_in", HelpKey: "easydrag.help.auth_in", Default: "header",
+			Options: []Option{{Value: "header", LabelKey: "easydrag.option.auth_in_header"}, {Value: "query", LabelKey: "easydrag.option.auth_in_query"}}},
+		{Name: "auth_query", Kind: ParamText, LabelKey: "easydrag.param.auth_query", VisibleIf: &Visibility{Param: "auth_in", Equals: []string{"query"}}},
 		{Name: "auth_header", Kind: ParamText, LabelKey: "easydrag.param.auth_header", Default: "Authorization"},
 		{Name: "auth_prefix", Kind: ParamText, LabelKey: "easydrag.param.auth_prefix", Default: "Bearer "},
 		{Name: "fail_on_error", Kind: ParamBool, LabelKey: "easydrag.param.fail_on_error", Default: true},
@@ -449,8 +512,13 @@ func httpRequestDef(env CatalogEnv) *NodeDef {
 		// auth_header and auth_prefix only matter, and are only checked by Execute, when a
 		// secret is set; then they must be written out.
 		if !isEmptyValue(n.Params["auth_secret"]) {
-			issues = append(issues, literalIssue(n, "auth_header", authHeaderName)...)
-			issues = append(issues, literalIssue(n, "auth_prefix", authPrefixValue)...)
+			issues = append(issues, choiceIssue(n, "auth_in", "header", authInModes)...)
+			if mode, _ := choiceParam(n.Params["auth_in"], "header", authInModes...); mode == "query" {
+				issues = append(issues, literalIssue(n, "auth_query", authQueryName)...)
+			} else {
+				issues = append(issues, literalIssue(n, "auth_header", authHeaderName)...)
+				issues = append(issues, literalIssue(n, "auth_prefix", authPrefixValue)...)
+			}
 			issues = append(issues, authLiteralIssues(n)...)
 		}
 		// Execute does not reject a fail_on_error it cannot read, it keeps the default
@@ -479,7 +547,7 @@ func httpRequestDef(env CatalogEnv) *NodeDef {
 		if err != nil {
 			return ExecResult{}, err
 		}
-		headers, scrub, err := withAuthSecret(in, headers)
+		headers, target, scrub, err := withAuthSecret(in, headers, target)
 		if err != nil {
 			return ExecResult{}, err
 		}

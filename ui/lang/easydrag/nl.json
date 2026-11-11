@@ -1505,5 +1505,10 @@
   "easydrag.ui.issue_param_literal_credential_url_query": "De adresparameter {path} bevat een sleutel in platte tekst. Bewaar die in de kluis en gebruik het veld Geheim.",
   "easydrag.ui.issue_param_literal_credential_body_field": "Het body-veld {path} bevat een wachtwoord of sleutel in platte tekst. Verwijder de waarde uit de flow.",
   "easydrag.ui.issue_param_literal_credential_param_field": "Het veld {path} bevat een wachtwoord of sleutel in platte tekst. Verwijder de waarde uit de flow.",
-  "easydrag.ui.issue_param_literal_credential_format": "Deze waarde lijkt op een toegangstoken in platte tekst. Verwijder hem uit de flow."
+  "easydrag.ui.issue_param_literal_credential_format": "Deze waarde lijkt op een toegangstoken in platte tekst. Verwijder hem uit de flow.",
+  "easydrag.param.auth_in": "Geheim versturen in",
+  "easydrag.param.auth_query": "Parameternaam",
+  "easydrag.help.auth_in": "Waar het geheim naartoe gaat: in een header of als parameter van het webadres. Het wordt alleen met het eerste verzoek verstuurd, nooit opnieuw na een doorverwijzing.",
+  "easydrag.option.auth_in_header": "Header",
+  "easydrag.option.auth_in_query": "Adresparameter"
 }

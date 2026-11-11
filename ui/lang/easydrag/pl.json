@@ -1505,5 +1505,10 @@
   "easydrag.ui.issue_param_literal_credential_url_query": "Parametr adresu {path} zawiera klucz wpisany jawnym tekstem. Zapisz go w skarbcu i użyj pola Sekret.",
   "easydrag.ui.issue_param_literal_credential_body_field": "Pole treści {path} zawiera hasło lub klucz wpisany jawnym tekstem. Usuń wartość z przepływu.",
   "easydrag.ui.issue_param_literal_credential_param_field": "Pole {path} zawiera hasło lub klucz wpisany jawnym tekstem. Usuń wartość z przepływu.",
-  "easydrag.ui.issue_param_literal_credential_format": "Ta wartość wygląda jak token dostępu wpisany jawnym tekstem. Usuń ją z przepływu."
+  "easydrag.ui.issue_param_literal_credential_format": "Ta wartość wygląda jak token dostępu wpisany jawnym tekstem. Usuń ją z przepływu.",
+  "easydrag.param.auth_in": "Wyślij sekret w",
+  "easydrag.param.auth_query": "Nazwa parametru",
+  "easydrag.help.auth_in": "Gdzie trafia sekret: do nagłówka albo jako parametr adresu WWW. Jest wysyłany tylko z pierwszym żądaniem, nigdy ponownie po przekierowaniu.",
+  "easydrag.option.auth_in_header": "Nagłówek",
+  "easydrag.option.auth_in_query": "Parametr adresu"
 }

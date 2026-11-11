@@ -168,7 +168,7 @@ func TestWebHooksSurviveOddParams(t *testing.T) {
 		clean := func(msg string) bool {
 			return len(msg) <= maxEchoMessageBytes && utf8.ValidString(msg) && !strings.ContainsAny(msg, "\n\r\x00")
 		}
-		if len(issues) > 6 {
+		if len(issues) > 8 {
 			fail("%s: %d issues", label, len(issues))
 		}
 		for _, is := range issues {

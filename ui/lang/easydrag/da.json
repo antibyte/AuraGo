@@ -1505,5 +1505,10 @@
   "easydrag.ui.issue_param_literal_credential_url_query": "Adresseparameteren {path} indeholder en nøgle som almindelig tekst. Gem den i tresoren, og brug feltet Hemmelighed.",
   "easydrag.ui.issue_param_literal_credential_body_field": "Body-feltet {path} indeholder en adgangskode eller nøgle som almindelig tekst. Fjern værdien fra flowet.",
   "easydrag.ui.issue_param_literal_credential_param_field": "Feltet {path} indeholder en adgangskode eller nøgle som almindelig tekst. Fjern værdien fra flowet.",
-  "easydrag.ui.issue_param_literal_credential_format": "Værdien ligner et adgangstoken som almindelig tekst. Fjern den fra flowet."
+  "easydrag.ui.issue_param_literal_credential_format": "Værdien ligner et adgangstoken som almindelig tekst. Fjern den fra flowet.",
+  "easydrag.param.auth_in": "Send hemmelighed i",
+  "easydrag.param.auth_query": "Parameternavn",
+  "easydrag.help.auth_in": "Hvor hemmeligheden sendes: i en header eller som parameter i webadressen. Den sendes kun med den første forespørgsel, aldrig igen efter en omdirigering.",
+  "easydrag.option.auth_in_header": "Header",
+  "easydrag.option.auth_in_query": "Adresseparameter"
 }

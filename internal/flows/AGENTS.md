@@ -725,7 +725,7 @@ the contracts below describe the implemented behavior of each delivered slice.
   flow was published under, the engine refuses the node at run time before it reads the vault (see Engine
   semantics). `auth_header` and `auth_prefix` must be written out while `auth_secret` is set: a template there is a
   publish error (`PARAM_INVALID`) and `withAuthSecret` refuses it at run time (`FLOW_PARAM_INVALID`, on the raw
-  param, before the vault is read). The node reads the value
+  param, before the vault is read). `auth_in` (`header`, the default, or `query`) and `auth_query` (the address parameter name) follow the same rule. With `auth_in=query`, `withAuthSecret` sets the parameter on the first request's address only (`withQueryParam`); a redirect never gets it again. The node reads the value
   through `Services.Secrets`; the vault value wins over a user header of the same name; `secretScrubber`
   redacts the value (and its JSON, HTML and URL escapes) from outputs and errors. A `SecretReader` must register
   the value with the global output scrubber too. A missing or unusable secret is `FLOW_SECRET_UNAVAILABLE`.

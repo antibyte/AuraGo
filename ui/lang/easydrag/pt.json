@@ -1505,5 +1505,10 @@
   "easydrag.ui.issue_param_literal_credential_url_query": "O parâmetro de endereço {path} contém uma chave em texto simples. Guarde-a no cofre e use o campo Segredo.",
   "easydrag.ui.issue_param_literal_credential_body_field": "O campo do corpo {path} contém uma senha ou chave em texto simples. Remova o valor do fluxo.",
   "easydrag.ui.issue_param_literal_credential_param_field": "O campo {path} contém uma senha ou chave em texto simples. Remova o valor do fluxo.",
-  "easydrag.ui.issue_param_literal_credential_format": "Este valor parece um token de acesso em texto simples. Remova-o do fluxo."
+  "easydrag.ui.issue_param_literal_credential_format": "Este valor parece um token de acesso em texto simples. Remova-o do fluxo.",
+  "easydrag.param.auth_in": "Enviar o segredo em",
+  "easydrag.param.auth_query": "Nome do parâmetro",
+  "easydrag.help.auth_in": "Para onde vai o segredo: num cabeçalho ou como parâmetro do endereço web. Só é enviado com a primeira requisição, nunca de novo após um redirecionamento.",
+  "easydrag.option.auth_in_header": "Cabeçalho",
+  "easydrag.option.auth_in_query": "Parâmetro do endereço"
 }

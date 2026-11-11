@@ -1505,5 +1505,10 @@
   "easydrag.ui.issue_param_literal_credential_url_query": "Parametr adresy {path} obsahuje klíč zadaný jako čistý text. Ulož ho do trezoru a použij pole Tajemství.",
   "easydrag.ui.issue_param_literal_credential_body_field": "Pole těla {path} obsahuje heslo nebo klíč zadaný jako čistý text. Odstraň hodnotu z flow.",
   "easydrag.ui.issue_param_literal_credential_param_field": "Pole {path} obsahuje heslo nebo klíč zadaný jako čistý text. Odstraň hodnotu z flow.",
-  "easydrag.ui.issue_param_literal_credential_format": "Tato hodnota vypadá jako přístupový token v čistém textu. Odstraň ji z flow."
+  "easydrag.ui.issue_param_literal_credential_format": "Tato hodnota vypadá jako přístupový token v čistém textu. Odstraň ji z flow.",
+  "easydrag.param.auth_in": "Odeslat tajemství v",
+  "easydrag.param.auth_query": "Název parametru",
+  "easydrag.help.auth_in": "Kam tajemství půjde: do hlavičky, nebo jako parametr webové adresy. Odešle se jen s prvním požadavkem, po přesměrování už nikdy.",
+  "easydrag.option.auth_in_header": "Hlavička",
+  "easydrag.option.auth_in_query": "Parametr adresy"
 }

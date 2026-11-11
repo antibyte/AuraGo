@@ -1505,5 +1505,10 @@
   "easydrag.ui.issue_param_literal_credential_url_query": "पते के पैरामीटर {path} में कुंजी सादे पाठ में लिखी है। उसे तिजोरी में रखो और गुप्त फ़ील्ड का उपयोग करो।",
   "easydrag.ui.issue_param_literal_credential_body_field": "बॉडी फ़ील्ड {path} में पासवर्ड या कुंजी सादे पाठ में लिखी है। इस मान को फ़्लो से हटाओ।",
   "easydrag.ui.issue_param_literal_credential_param_field": "फ़ील्ड {path} में पासवर्ड या कुंजी सादे पाठ में लिखी है। इस मान को फ़्लो से हटाओ।",
-  "easydrag.ui.issue_param_literal_credential_format": "यह मान सादे पाठ में लिखे एक्सेस टोकन जैसा दिखता है। इसे फ़्लो से हटाओ।"
+  "easydrag.ui.issue_param_literal_credential_format": "यह मान सादे पाठ में लिखे एक्सेस टोकन जैसा दिखता है। इसे फ़्लो से हटाओ।",
+  "easydrag.param.auth_in": "गुप्त मान कहाँ भेजें",
+  "easydrag.param.auth_query": "पैरामीटर का नाम",
+  "easydrag.help.auth_in": "गुप्त मान कहाँ जाएगा: हेडर में, या वेब पते के पैरामीटर के रूप में। यह केवल पहले अनुरोध के साथ भेजा जाता है, रीडायरेक्ट के बाद दोबारा कभी नहीं।",
+  "easydrag.option.auth_in_header": "हेडर",
+  "easydrag.option.auth_in_query": "पते का पैरामीटर"
 }

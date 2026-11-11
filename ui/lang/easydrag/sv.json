@@ -1505,5 +1505,10 @@
   "easydrag.ui.issue_param_literal_credential_url_query": "Adressparametern {path} innehåller en nyckel i klartext. Spara den i kassaskåpet och använd fältet Hemlighet.",
   "easydrag.ui.issue_param_literal_credential_body_field": "Body-fältet {path} innehåller ett lösenord eller en nyckel i klartext. Ta bort värdet från flödet.",
   "easydrag.ui.issue_param_literal_credential_param_field": "Fältet {path} innehåller ett lösenord eller en nyckel i klartext. Ta bort värdet från flödet.",
-  "easydrag.ui.issue_param_literal_credential_format": "Värdet ser ut som en åtkomsttoken i klartext. Ta bort det från flödet."
+  "easydrag.ui.issue_param_literal_credential_format": "Värdet ser ut som en åtkomsttoken i klartext. Ta bort det från flödet.",
+  "easydrag.param.auth_in": "Skicka hemligheten i",
+  "easydrag.param.auth_query": "Parameternamn",
+  "easydrag.help.auth_in": "Vart hemligheten går: i en header eller som parameter i webbadressen. Den skickas bara med den första förfrågan, aldrig igen efter en omdirigering.",
+  "easydrag.option.auth_in_header": "Header",
+  "easydrag.option.auth_in_query": "Adressparameter"
 }

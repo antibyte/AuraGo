@@ -1505,5 +1505,10 @@
   "easydrag.ui.issue_param_literal_credential_url_query": "Il parametro dell’indirizzo {path} contiene una chiave in chiaro. Salvala nel caveau e usa il campo Segreto.",
   "easydrag.ui.issue_param_literal_credential_body_field": "Il campo del body {path} contiene una password o una chiave in chiaro. Rimuovi il valore dal flusso.",
   "easydrag.ui.issue_param_literal_credential_param_field": "Il campo {path} contiene una password o una chiave in chiaro. Rimuovi il valore dal flusso.",
-  "easydrag.ui.issue_param_literal_credential_format": "Questo valore sembra un token di accesso in chiaro. Rimuovilo dal flusso."
+  "easydrag.ui.issue_param_literal_credential_format": "Questo valore sembra un token di accesso in chiaro. Rimuovilo dal flusso.",
+  "easydrag.param.auth_in": "Invia il segreto in",
+  "easydrag.param.auth_query": "Nome del parametro",
+  "easydrag.help.auth_in": "Dove va il segreto: in un header o come parametro dell’indirizzo web. Viene inviato solo con la prima richiesta, mai più dopo un reindirizzamento.",
+  "easydrag.option.auth_in_header": "Header",
+  "easydrag.option.auth_in_query": "Parametro dell’indirizzo"
 }

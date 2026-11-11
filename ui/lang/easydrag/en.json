@@ -1505,5 +1505,10 @@
   "easydrag.ui.issue_param_literal_credential_url_query": "The address parameter {path} holds a key typed in clear text. Store it in the vault and use the Secret field.",
   "easydrag.ui.issue_param_literal_credential_body_field": "The body field {path} holds a password or key typed in clear text. Remove it from the flow.",
   "easydrag.ui.issue_param_literal_credential_param_field": "The field {path} holds a password or key typed in clear text. Remove it from the flow.",
-  "easydrag.ui.issue_param_literal_credential_format": "This value looks like an access token typed in clear text. Remove it from the flow."
+  "easydrag.ui.issue_param_literal_credential_format": "This value looks like an access token typed in clear text. Remove it from the flow.",
+  "easydrag.param.auth_in": "Send secret in",
+  "easydrag.param.auth_query": "Parameter name",
+  "easydrag.help.auth_in": "Where the secret goes: in a header, or as a parameter of the web address. It is only sent with the first request, never again after a redirect.",
+  "easydrag.option.auth_in_header": "Header",
+  "easydrag.option.auth_in_query": "Address parameter"
 }

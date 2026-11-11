@@ -1505,5 +1505,10 @@
   "easydrag.ui.issue_param_literal_credential_url_query": "Adresseparameteren {path} inneholder en nøkkel i klartekst. Lagre den i hvelvet og bruk feltet Hemmelighet.",
   "easydrag.ui.issue_param_literal_credential_body_field": "Body-feltet {path} inneholder et passord eller en nøkkel i klartekst. Fjern verdien fra flyten.",
   "easydrag.ui.issue_param_literal_credential_param_field": "Feltet {path} inneholder et passord eller en nøkkel i klartekst. Fjern verdien fra flyten.",
-  "easydrag.ui.issue_param_literal_credential_format": "Denne verdien ser ut som et tilgangstoken i klartekst. Fjern den fra flyten."
+  "easydrag.ui.issue_param_literal_credential_format": "Denne verdien ser ut som et tilgangstoken i klartekst. Fjern den fra flyten.",
+  "easydrag.param.auth_in": "Send hemmeligheten i",
+  "easydrag.param.auth_query": "Parameternavn",
+  "easydrag.help.auth_in": "Hvor hemmeligheten sendes: i en header eller som parameter i nettadressen. Den sendes bare med den første forespørselen, aldri igjen etter en omdirigering.",
+  "easydrag.option.auth_in_header": "Header",
+  "easydrag.option.auth_in_query": "Adresseparameter"
 }

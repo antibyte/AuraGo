@@ -1505,5 +1505,10 @@
   "easydrag.ui.issue_param_literal_credential_url_query": "Η παράμετρος διεύθυνσης {path} περιέχει κλειδί σε απλό κείμενο. Αποθήκευσέ το στο θησαυροφυλάκιο και χρησιμοποίησε το πεδίο Μυστικό.",
   "easydrag.ui.issue_param_literal_credential_body_field": "Το πεδίο σώματος {path} περιέχει κωδικό ή κλειδί σε απλό κείμενο. Αφαίρεσε την τιμή από τη ροή.",
   "easydrag.ui.issue_param_literal_credential_param_field": "Το πεδίο {path} περιέχει κωδικό ή κλειδί σε απλό κείμενο. Αφαίρεσε την τιμή από τη ροή.",
-  "easydrag.ui.issue_param_literal_credential_format": "Αυτή η τιμή μοιάζει με διακριτικό πρόσβασης σε απλό κείμενο. Αφαίρεσέ την από τη ροή."
+  "easydrag.ui.issue_param_literal_credential_format": "Αυτή η τιμή μοιάζει με διακριτικό πρόσβασης σε απλό κείμενο. Αφαίρεσέ την από τη ροή.",
+  "easydrag.param.auth_in": "Αποστολή μυστικού σε",
+  "easydrag.param.auth_query": "Όνομα παραμέτρου",
+  "easydrag.help.auth_in": "Πού πηγαίνει το μυστικό: σε κεφαλίδα ή ως παράμετρος της διεύθυνσης. Στέλνεται μόνο με το πρώτο αίτημα, ποτέ ξανά μετά από ανακατεύθυνση.",
+  "easydrag.option.auth_in_header": "Κεφαλίδα",
+  "easydrag.option.auth_in_query": "Παράμετρος διεύθυνσης"
 }

@@ -1505,5 +1505,10 @@
   "easydrag.ui.issue_param_literal_credential_url_query": "Le paramètre d’adresse {path} contient une clé en clair. Range-la dans le coffre et utilise le champ Secret.",
   "easydrag.ui.issue_param_literal_credential_body_field": "Le champ du corps {path} contient un mot de passe ou une clé en clair. Retire la valeur du flux.",
   "easydrag.ui.issue_param_literal_credential_param_field": "Le champ {path} contient un mot de passe ou une clé en clair. Retire la valeur du flux.",
-  "easydrag.ui.issue_param_literal_credential_format": "Cette valeur ressemble à un jeton d’accès en clair. Retire-la du flux."
+  "easydrag.ui.issue_param_literal_credential_format": "Cette valeur ressemble à un jeton d’accès en clair. Retire-la du flux.",
+  "easydrag.param.auth_in": "Envoyer le secret dans",
+  "easydrag.param.auth_query": "Nom du paramètre",
+  "easydrag.help.auth_in": "Où va le secret : dans un en-tête ou comme paramètre de l’adresse web. Il n’est envoyé qu’avec la première requête, jamais à nouveau après une redirection.",
+  "easydrag.option.auth_in_header": "En-tête",
+  "easydrag.option.auth_in_query": "Paramètre d’adresse"
 }

@@ -1505,5 +1505,10 @@
   "easydrag.ui.issue_param_literal_credential_url_query": "El parámetro de dirección {path} contiene una clave en texto plano. Guárdala en la bóveda y usa el campo Secreto.",
   "easydrag.ui.issue_param_literal_credential_body_field": "El campo del cuerpo {path} contiene una contraseña o clave en texto plano. Quita el valor del flujo.",
   "easydrag.ui.issue_param_literal_credential_param_field": "El campo {path} contiene una contraseña o clave en texto plano. Quita el valor del flujo.",
-  "easydrag.ui.issue_param_literal_credential_format": "Este valor parece un token de acceso en texto plano. Quítalo del flujo."
+  "easydrag.ui.issue_param_literal_credential_format": "Este valor parece un token de acceso en texto plano. Quítalo del flujo.",
+  "easydrag.param.auth_in": "Enviar el secreto en",
+  "easydrag.param.auth_query": "Nombre del parámetro",
+  "easydrag.help.auth_in": "Dónde va el secreto: en un encabezado o como parámetro de la dirección web. Solo se envía con la primera petición, nunca de nuevo tras una redirección.",
+  "easydrag.option.auth_in_header": "Encabezado",
+  "easydrag.option.auth_in_query": "Parámetro de dirección"
 }

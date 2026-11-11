@@ -1505,5 +1505,10 @@
   "easydrag.ui.issue_param_literal_credential_url_query": "Der Adressparameter {path} enthält einen Schlüssel im Klartext. Lege ihn im Tresor ab und nutze das Feld „Geheimnis“.",
   "easydrag.ui.issue_param_literal_credential_body_field": "Das Body-Feld {path} enthält ein Passwort oder einen Schlüssel im Klartext. Entferne den Wert aus dem Flow.",
   "easydrag.ui.issue_param_literal_credential_param_field": "Das Feld {path} enthält ein Passwort oder einen Schlüssel im Klartext. Entferne den Wert aus dem Flow.",
-  "easydrag.ui.issue_param_literal_credential_format": "Dieser Wert sieht aus wie ein Zugriffstoken im Klartext. Entferne ihn aus dem Flow."
+  "easydrag.ui.issue_param_literal_credential_format": "Dieser Wert sieht aus wie ein Zugriffstoken im Klartext. Entferne ihn aus dem Flow.",
+  "easydrag.param.auth_in": "Geheimnis senden in",
+  "easydrag.param.auth_query": "Parametername",
+  "easydrag.help.auth_in": "Wohin das Geheimnis kommt: in einen Header oder als Parameter der Webadresse. Es wird nur mit der ersten Anfrage gesendet, nach einer Weiterleitung nie wieder.",
+  "easydrag.option.auth_in_header": "Header",
+  "easydrag.option.auth_in_query": "Adressparameter"
 }

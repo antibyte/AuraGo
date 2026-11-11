@@ -1505,5 +1505,10 @@
   "easydrag.ui.issue_param_literal_credential_url_query": "地址参数 {path} 以明文包含密钥。请把它保存到保险库，并使用“密钥”字段。",
   "easydrag.ui.issue_param_literal_credential_body_field": "请求体字段 {path} 以明文包含密码或密钥。请从流程中删除该值。",
   "easydrag.ui.issue_param_literal_credential_param_field": "字段 {path} 以明文包含密码或密钥。请从流程中删除该值。",
-  "easydrag.ui.issue_param_literal_credential_format": "该值看起来像明文访问令牌。请从流程中删除。"
+  "easydrag.ui.issue_param_literal_credential_format": "该值看起来像明文访问令牌。请从流程中删除。",
+  "easydrag.param.auth_in": "密钥发送位置",
+  "easydrag.param.auth_query": "参数名",
+  "easydrag.help.auth_in": "密钥放在哪里：请求头，或网址的参数。它只随第一次请求发送，重定向后绝不会再次发送。",
+  "easydrag.option.auth_in_header": "请求头",
+  "easydrag.option.auth_in_query": "地址参数"
 }

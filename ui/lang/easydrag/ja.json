@@ -1505,5 +1505,10 @@
   "easydrag.ui.issue_param_literal_credential_url_query": "アドレスのパラメーター {path} にキーが平文で入力されています。保管庫に保存し、「シークレット」欄を使ってください。",
   "easydrag.ui.issue_param_literal_credential_body_field": "本文のフィールド {path} にパスワードまたはキーが平文で入力されています。値をフローから削除してください。",
   "easydrag.ui.issue_param_literal_credential_param_field": "フィールド {path} にパスワードまたはキーが平文で入力されています。値をフローから削除してください。",
-  "easydrag.ui.issue_param_literal_credential_format": "この値はアクセストークンのように見えます（平文）。フローから削除してください。"
+  "easydrag.ui.issue_param_literal_credential_format": "この値はアクセストークンのように見えます（平文）。フローから削除してください。",
+  "easydrag.param.auth_in": "シークレットの送信先",
+  "easydrag.param.auth_query": "パラメーター名",
+  "easydrag.help.auth_in": "シークレットの送り先：ヘッダー、またはウェブアドレスのパラメーター。最初のリクエストでのみ送信され、リダイレクト後に再送されることはありません。",
+  "easydrag.option.auth_in_header": "ヘッダー",
+  "easydrag.option.auth_in_query": "アドレスのパラメーター"
 }
