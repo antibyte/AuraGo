@@ -1,7 +1,6 @@
 package decisions
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 	"strings"
@@ -43,13 +42,9 @@ func candidatesForOptions(options []Option) ([]runtimeCandidate, error) {
 }
 
 func buildPrompt(state any, question Question, options []Option, imageMarker string, imageCount int) (string, error) {
-	stateText, isText := state.(string)
-	if !isText {
-		stateJSON, err := json.Marshal(state)
-		if err != nil {
-			return "", fmt.Errorf("encode state: %w", err)
-		}
-		stateText = string(stateJSON)
+	stateText, err := EncodeStateText(state)
+	if err != nil {
+		return "", fmt.Errorf("encode state: %w", err)
 	}
 	candidates, err := candidatesForOptions(options)
 	if err != nil {
