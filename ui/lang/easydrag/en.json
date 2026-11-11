@@ -1297,6 +1297,8 @@
   "easydrag.ui.group_view_hint": "Groups organize the canvas. They do not change how the flow runs.",
   "easydrag.ui.groups": "Visual groups",
   "easydrag.ui.issue_group_invalid": "Check the visual group’s title, color, note, limits and step membership.",
+  "easydrag.ui.issue_note_invalid": "Check the sticky notes: at most 100 notes, up to 2,048 characters each, no hidden formatting characters, sizes from 80 to 1,200.",
+  "easydrag.ui.notes_trimmed": "Some sticky notes or group texts were too long or contained hidden formatting characters. EasyDrag shortened or cleaned them and saved the flow.",
   "easydrag.ui.block_dependencies_hint": "Flows and blocks can use this block directly or indirectly, through saved versions and runs.",
   "easydrag.ui.block_nested_hint": "Calls use exact published versions. Cycles are not allowed; the maximum call depth is 8. If validation fails, choose another version or shorten the call chain. Simulation shows this block’s steps without child-run history.",
   "easydrag.ui.block_nested_title": "Nested block calls",

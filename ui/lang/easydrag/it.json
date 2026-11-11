@@ -1297,6 +1297,8 @@
   "easydrag.ui.group_view_hint": "I gruppi organizzano l’area di lavoro. Non cambiano l’esecuzione del flusso.",
   "easydrag.ui.groups": "Gruppi visivi",
   "easydrag.ui.issue_group_invalid": "Controlla titolo, colore, nota, limiti e passaggi del gruppo.",
+  "easydrag.ui.issue_note_invalid": "Controlla le note adesive: al massimo 100 note, fino a 2.048 caratteri ciascuna, nessun carattere di formattazione nascosto, dimensioni da 80 a 1.200.",
+  "easydrag.ui.notes_trimmed": "Alcune note adesive o testi di gruppo erano troppo lunghi o contenevano caratteri di formattazione nascosti. EasyDrag li ha accorciati o ripuliti e ha salvato il flusso.",
   "easydrag.ui.block_dependencies_hint": "Sono considerati i flussi e i blocchi che usano questo blocco direttamente o indirettamente, anche tramite versioni ed esecuzioni salvate.",
   "easydrag.ui.block_nested_hint": "Le chiamate usano versioni pubblicate precise. I cicli non sono consentiti; la profondità massima delle chiamate è 8. Se la convalida non riesce, scegli un’altra versione o accorcia la catena di chiamate. La simulazione mostra i passaggi di questo blocco senza una cronologia delle esecuzioni dei blocchi figli.",
   "easydrag.ui.block_nested_title": "Chiamate a blocchi annidati",

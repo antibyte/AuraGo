@@ -583,6 +583,23 @@
             setMenusSoon();
         }));
 
+        // A stored draft whose sticky notes or group texts normalize() cut or cleaned (UI-11) is
+        // saved right away: the server refuses such a draft, and after this save the notice does
+        // not return. One notice per editor; a reset (restore, conflict reload) that brings such
+        // a document again saves it again.
+        let notesTrimNoted = false;
+        function saveTrimmedNotes() {
+            if (ed.readonly || !draftModel.repairs().notesTrimmed) return;
+            if (!notesTrimNoted) {
+                notesTrimNoted = true;
+                if (typeof ctx.notify === 'function') ctx.notify({ title: 'EasyDrag', message: t('easydrag.ui.notes_trimmed') });
+            }
+            contentDirty = true;
+            ed.saver.schedule();
+        }
+        saveTrimmedNotes();
+        bag.add(draftModel.on(change => { if (change && change.kind === 'reset') saveTrimmedNotes(); }));
+
         function pruneSelection() {
             const before = ed.selection.size;
             ed.selection.forEach(id => { if (!ed.model.node(id)) ed.selection.delete(id); });

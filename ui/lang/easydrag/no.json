@@ -1297,6 +1297,8 @@
   "easydrag.ui.group_view_hint": "Grupper organiserer arbeidsflaten. De endrer ikke hvordan flyten kjøres.",
   "easydrag.ui.groups": "Visuelle grupper",
   "easydrag.ui.issue_group_invalid": "Kontroller gruppens tittel, farge, notat, grenser og trinnmedlemskap.",
+  "easydrag.ui.issue_note_invalid": "Sjekk klistrelappene: maks 100 notater, opptil 2 048 tegn hver, ingen skjulte formateringstegn, størrelser fra 80 til 1 200.",
+  "easydrag.ui.notes_trimmed": "Noen klistrelapper eller gruppetekster var for lange eller inneholdt skjulte formateringstegn. EasyDrag forkortet eller ryddet dem og lagret flyten.",
   "easydrag.ui.block_dependencies_hint": "Flyter og blokker som bruker denne blokken direkte eller indirekte, tas med, også gjennom lagrede versjoner og kjøringer.",
   "easydrag.ui.block_nested_hint": "Kall bruker bestemte publiserte versjoner. Sykluser er ikke tillatt; maksimal kalldybde er 8. Hvis valideringen mislykkes, velg en annen versjon eller forkort kjeden av kall. Simuleringen viser trinnene i denne blokken uten kjøringshistorikk for underblokker.",
   "easydrag.ui.block_nested_title": "Nestede blokkall",

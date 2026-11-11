@@ -30,10 +30,12 @@ type liveCompat struct {
 	issues   []Issue
 }
 
-// liveIssueSkipped are the codes the compatibility check leaves out: they describe the tool
-// configuration at the moment of the check (a tool switched off, a generic tool gone), not a rule
-// the revision breaks, and publishing again would not fix them.
-var liveIssueSkipped = map[string]bool{IssueNodeUnavailable: true, IssueNodeTypeUnknown: true}
+// liveIssueSkipped are the codes the compatibility check leaves out. NODE_UNAVAILABLE and
+// NODE_TYPE_UNKNOWN describe the tool configuration at the moment of the check (a tool switched
+// off, a generic tool gone), not a rule the revision breaks, and publishing again would not fix
+// them. GROUP_INVALID and NOTE_INVALID concern canvas annotations that never change execution:
+// a stored note or a bidi character in a group title must not mark a live flow.
+var liveIssueSkipped = map[string]bool{IssueNodeUnavailable: true, IssueNodeTypeUnknown: true, IssueGroupInvalid: true, IssueNoteInvalid: true}
 
 // CheckLiveRevisions validates every live revision against the publish rules of this build and
 // reports the flows whose live revision has errors now (the server runs it once after Start and

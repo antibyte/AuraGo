@@ -134,7 +134,8 @@ func prepareBlockPlanTx(ctx context.Context, tx *sql.Tx, doc *Flow, services *Se
 			return nil, ErrBlockUnavailable
 		}
 		issues := Validate(child, blockRegistry(), ValidateContext{Mode: ModePublish, Now: services.Now(), Location: services.Loc()})
-		if HasErrors(issues) {
+		// Groups and sticky notes never change execution; they must not break a parent's block step.
+		if HasErrors(withoutAnnotationIssues(issues)) {
 			return nil, ErrBlockUnavailable
 		}
 		return child, nil

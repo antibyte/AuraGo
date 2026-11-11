@@ -107,6 +107,7 @@ func newValidator(f *Flow, reg *Registry, vc ValidateContext) *validator {
 func (v *validator) run() {
 	if v.documentChecks() {
 		v.groupChecks()
+		v.noteChecks()
 		v.structure()
 		v.publishRules()
 	}
