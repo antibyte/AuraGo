@@ -41,6 +41,10 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 		return nil, fmt.Errorf("applyConfigPatch: config path not set")
 	}
 
+	if err := s.validateDeepTutorPatch(patch); err != nil {
+		return nil, err
+	}
+
 	// Apply any setup-profile-specific defaults (no-op for non-profile patches).
 	applySetupProfileConfigPatch(patch, s)
 

@@ -1174,6 +1174,8 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
 - Cost bounds: chat rejects `n` > 1 (`400`, "n must be 1"); embeddings share the chat `IsBlocked` gate (`429 budget_exceeded`, checked before the provider call) and book the provider's `usage` (`prompt_tokens`, else `total_tokens`) under `store_relay`. `max_tokens` is passed through unchanged.
 - Verify `go test ./internal/server -run '(?i)(StoreLLMRelay|StoreRelayProvider|AuthBypass|Rebinding)'`.
 
+- DeepTutor login changes are validated before YAML/Vault writes in general, setup and auth saves (`deeptutor_requires_login`, HTTP 409, all backend locales). Read both current and candidate data directories. Invalid startup fails before listeners; invalid reload keeps the last valid snapshot. Store admission shares `CfgSaveMu` through its pending record. No container is stopped automatically. Verify `TestDeepTutor*` and existing relay/token tests.
+
 ## Desktop invocation ownership
 
 - Desktop Chat and Live Speech share canonical `virtual_desktop_apps` launch

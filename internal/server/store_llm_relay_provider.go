@@ -48,7 +48,7 @@ func (p storeLLMRelayProvider) RelayInfo(_ context.Context, _ string) (desktopst
 	// the Host guard that protects a login-less AuraGo from browsers does not
 	// stop it: without login every route would be open to the container. A
 	// dedicated relay listener would lift this requirement.
-	if !cfg.Auth.Enabled || cfg.Auth.PasswordHash == "" {
+	if err := desktopstore.RequireDeepTutorLogin(cfg.Auth.Enabled, cfg.Auth.PasswordHash); err != nil {
 		return desktopstore.RelayInfo{}, errors.New("DeepTutor needs AuraGo login to be enabled (Config > Auth): the DeepTutor container can reach the AuraGo address, " +
 			"and without login every AuraGo route would be open to it")
 	}

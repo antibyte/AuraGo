@@ -205,7 +205,9 @@ func handleDesktopStoreInstall(s *Server) http.HandlerFunc {
 		}
 		op, err := store.StartInstall(r.Context(), req)
 		if err != nil {
-			writeDesktopStoreStartError(w, err)
+			if !writeDeepTutorPolicyError(s, w, err) {
+				writeDesktopStoreStartError(w, err)
+			}
 			return
 		}
 		s.runDesktopStoreOperation(store, op)
@@ -327,7 +329,9 @@ func handleDesktopStoreAppRoute(s *Server) http.HandlerFunc {
 		}
 		op, err := store.StartAppOperation(r.Context(), appID, opType, desktopstore.OperationRequest{})
 		if err != nil {
-			writeDesktopStoreStartError(w, err)
+			if !writeDeepTutorPolicyError(s, w, err) {
+				writeDesktopStoreStartError(w, err)
+			}
 			return
 		}
 		s.runDesktopStoreOperation(store, op)
@@ -635,7 +639,9 @@ func handleDesktopStoreDelete(s *Server, appID string) http.HandlerFunc {
 		deleteData := strings.EqualFold(r.URL.Query().Get("delete_data"), "true")
 		op, err := store.StartAppOperation(r.Context(), appID, desktopstore.OperationUninstall, desktopstore.OperationRequest{DeleteData: deleteData})
 		if err != nil {
-			writeDesktopStoreStartError(w, err)
+			if !writeDeepTutorPolicyError(s, w, err) {
+				writeDesktopStoreStartError(w, err)
+			}
 			return
 		}
 		s.runDesktopStoreOperation(store, op)

@@ -86,6 +86,8 @@ Store app configuration, runtime, assets, and publication.
 
 ### DeepTutor
 
+- Login remains mandatory while installed, even when stopped or Desktop is disabled. `DeepTutorNeedsLogin` passively reads installed and pending/running metadata; it performs no initialization. `AdmitDeepTutor` serializes operation admission and durable pending records with server config saves. Recheck relay requirements before every non-cleanup operation, including start/restart; stop and uninstall stay available.
+
 - `deeptutor` (category `ai`, icon `book`, `open_maximized`) is pinned to the
   digest of `ghcr.io/hkuds/deeptutor:1.7.2` (amd64+arm64 index
   `sha256:9b8b21ea…6da8`, see `catalog.go`). Port 3782, one named volume
