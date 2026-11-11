@@ -2,8 +2,9 @@ import {surfaceAt} from './sysworld-zones.js';
 
 // Procedural robot foley. Every articulated resident answers what it does with a
 // quiet, positional sound: a servo settle, a footfall, a parcel rustle, a tool
-// tap, a greeting chirp, a steering whine. Nothing is sampled and nothing is
-// fetched; the whole set is synthesized from oscillators and filtered noise.
+// tap, a greeting chirp, a steering whine. The set is synthesized from
+// oscillators and filtered noise; only a footfall on a hard surface also plays one recorded slice (PAIR.sample, the
+// 'steps' recording handed in by the engine). This module itself fetches nothing.
 //
 // The set is bounded on purpose: at most MAX_VOICES sounds are alive, a sound
 // dies beyond MAX_DISTANCE of the acoustic origin, and one resident cannot

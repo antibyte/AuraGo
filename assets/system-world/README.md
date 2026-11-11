@@ -186,6 +186,41 @@ against the manifest, the manifest against `audio-sources.json`, the CC0 licence
 (1,572,864 bytes; the shipped total is 1,537,920). The shipped `.ogg` files travel through
 `assets/web-assets.json`. Adding a recording needs the user's approval; see `assets/system-world/AGENTS.md`.
 
+## Phase 6 finish
+
+Phase 6 is the last pass of the beauty work. At night the scene's environment light is lowered (`NIGHT_ENV`),
+so the bright panels of the environment map no longer glare off the pale ceramic facades; lamp cones fade out
+near the camera, and the aviation lights stand on the roof-top centres. By day the windows read as rooms: each
+room takes one of six wall tones, the glass has its own environment intensity, and lit rooms are capped. Walking
+levels the view, entering a building levels it at once, residents' feet snap to the stair treads (presentation
+only), and a visitor is seated on a free spot after a ride. The heavy furniture designs draw as near and far
+instance sets; the street scene on high draws 627,936 view triangles (882,938 before). Survey scenes can run as
+motion sequences (`seq-door-visitor`, `seq-door-resident`, `seq-swap-45`). The sound finish adds two CC0
+recordings under the synthesis: `tram` (one tram pass) and `steps` (twelve footfalls on a 0.3 s grid).
+
+The frame-time budget (`scripts/system-world-budget.json`) holds the frame time of four scenes (overview, street,
+a facade at night, a park) on low, medium and high, and the triangle limit of the street on high (650,000). The
+number is the uncapped cost of the update and the render submission per frame at the scene's own camera pose. The
+survey runs 100 frames in one synchronous loop outside `requestAnimationFrame` (the first 10 are dropped, 90 remain),
+so it is not a vsync frame time. The survey pins the high-performance GPU and records the adapter; `budget-check`
+refuses reports from another adapter (the reference is an Intel Arc B580), and a scene whose camera moves during the
+loop is an error. The first budget of 2026-11-10 was wrong: it timed the overview for every scene.
+
+```powershell
+node scripts/system-world-survey.mjs --out reports/system-world-survey/phase-6-high --tier high --timing --timeout 2400
+node scripts/system-world-survey.mjs --out reports/system-world-survey/phase-6-medium --tier medium --timing --timeout 2400
+node scripts/system-world-survey.mjs --out reports/system-world-survey/phase-6-low --tier low --timing --timeout 2400
+node scripts/system-world-picture-checks.mjs budget-check --budget scripts/system-world-budget.json --reports reports/system-world-survey/phase-6-high,reports/system-world-survey/phase-6-medium,reports/system-world-survey/phase-6-low
+node scripts/system-world-picture-checks.mjs compare --before <dir> --after <dir> --out <dir>
+node scripts/system-world-picture-checks.mjs lit-compare --a <dir> --b <dir> --scene <name>
+node scripts/system-world-picture-checks.mjs sheet --dir <dir> --name seq-door-visitor
+node scripts/test-system-world-picture-checks.mjs
+```
+
+The survey writes each picture and `report.json` and lists failed scene checks as `CHECK FAILED`; `--strict` makes
+them fail the exit code. `budget-init` writes a new budget file from reports that all come from one renderer, and the
+budget changes only when it is measured again.
+
 ## Surface textures
 
 The kit's GLBs carry no UVs, so surface detail is a separate runtime set:

@@ -60,8 +60,9 @@ Own the original Blender city kit, deterministic generator and source scene.
   `torus` and `face` helpers from `life_assets3.py`.
 - Soft parts: a `kit3.py` factory returns `'soft': ['<part>']` in its info, and those parts export with
   smooth normals at every LOD. Tree canopies (`crown`), the planter and the flower bed (`foliage`) use
-  this; new foliage goes in a soft part. The interior pot plants (`interior_assets3.py` `pot_plant`) do not
-  yet (phase 6 backlog item 23).
+  this; new foliage goes in a soft part. The interior pot plants (`interior_assets3.py` `pot_plant`) and the
+  garden court's bed shrubs (`lobby-graph`) are soft too: their leaves form the `foliage` part, and `frond()`
+  draws each arching leaf, two-sided, its underside a few millimetres below.
 - Street trees (`furniture_assets3.py` `tree`): `tree-round` is 6.4 m tall with a canopy about 4.6 m wide;
   `tree-column` is 7.6 m tall with a 2.4 m canopy. The canopy starts above head height.
 - `life_assets3.py` (phase 4) authors harbour launch, cargo barge, sail skiff, channel buoy, mooring post,
@@ -177,6 +178,9 @@ Own the original Blender city kit, deterministic generator and source scene.
   `--preview` writes a lit contact sheet to `reports/system-world-assets/`.
 - All exported GLBs must pass the Khronos validator and a real browser rendering check.
 - Render previews from the exported GLBs. Repeated generation must preserve GLB hashes.
+- Phase 6: `node scripts/test-system-world-picture-checks.mjs` (the survey picture codec and measurements), and the
+  frame-time gate `node scripts/system-world-picture-checks.mjs budget-check --budget scripts/system-world-budget.json --reports <dir,dir>`.
+  The runtime tests of the phase 6 modules are listed in `ui/js/desktop/apps/AGENTS.md`.
 
 ## Child DOX Index
 None.

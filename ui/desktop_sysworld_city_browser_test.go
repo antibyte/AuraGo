@@ -155,6 +155,7 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(!s.lobbies||s.lobbies.level!==0||s.lobbies.shown.length)throw Error('Lobby interiors must not load at the overview: '+JSON.stringify(s.lobbies));}`)
 	page.Timeout(30 * time.Second).MustWait(`()=>{const s=SysWorldApp.inspect(cityId);return !!s.harbour&&s.harbour.craft===5&&s.gulls.loaded;}`)
 	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(s.furniture<300||s.nearHidden!==true||s.gulls.count!==12||s.harbour.buoys!==6||typeof s.atmosphere.wind!=='number'||s.particles.steam>60||s.particles.fireflies>200)throw Error('City life incomplete: '+JSON.stringify({f:s.furniture,n:s.nearHidden,h:s.harbour,g:s.gulls,p:s.particles,w:s.atmosphere.wind}));}`)
+	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);const f=s.furnitureLod;if(!f||f.designs<5||f.pieces<280||f.near>f.far)throw Error('Furniture near and far sets missing at the overview: '+JSON.stringify(f));}`)
 	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId),dump=JSON.stringify(s);
         if(/Proxmox|alert\(1\)|Gedächtnis/.test(dump))throw Error('Diagnostics leak memory text');
         if(!(cityCalls['/api/desktop/system-world/memory-artifacts']>=1&&cityCalls['/api/desktop/system-world/memory-artifacts']<=2))throw Error('Artifact feed must poll once per interval');
@@ -384,8 +385,8 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.Timeout(10 * time.Second).MustWait(`()=>typeof SysWorldApp.inspect(cityId).sound.soundscape.zones?.harbour==='number'`)
 	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId).sound;if(!s.limiter||s.limiter.trim<.5||typeof s.soundscape.zones?.harbour!=='number'||!s.soundscape.space||!s.soundscape.layers?.movers||!s.graph||s.graph.nodes>400)throw Error('Soundscape incomplete: '+JSON.stringify({limiter:s.limiter,zones:s.soundscape.zones,space:s.soundscape.space,graph:s.graph}));}`)
 	// The CC0 recordings are served by the app itself: every recording of the current tier has to load and decode.
-	page.Timeout(30 * time.Second).MustWait(`()=>{const r=SysWorldApp.inspect(cityId).sound.soundscape.layers.recordings;return !!r&&r.failed===0&&r.loaded.length===(r.tier==='low'?3:6);}`)
-	t.Log(page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId).sound,r=s.soundscape.layers.recordings;return 'recordings: tier='+r.tier+' loaded='+r.loaded.join(',')+' failed='+r.failed+' nodes='+s.graph.nodes;}`).String())
+	page.Timeout(30 * time.Second).MustWait(`()=>{const r=SysWorldApp.inspect(cityId).sound.soundscape.layers.recordings;return !!r&&r.failed===0&&r.loaded.length===(r.tier==='low'?3:6)&&(r.tier==='low'||(r.shots.failed===0&&r.shots.loaded.includes('tram')&&r.shots.loaded.includes('steps')));}`)
+	t.Log(page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId).sound,r=s.soundscape.layers.recordings;return 'recordings: tier='+r.tier+' loaded='+r.loaded.join(',')+' failed='+r.failed+' shots='+r.shots.loaded.join(',')+' shotsFailed='+r.shots.failed+' nodes='+s.graph.nodes;}`).String())
 	page.MustEval(`()=>{document.querySelector('[data-sw-mode="orbit"]').click();}`)
 	page.Timeout(10 * time.Second).MustWait(`()=>!SysWorldApp.inspect(cityId).flying`)
 	// The residents answer for themselves: the foley has to build voices, not only
@@ -476,6 +477,7 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(s.atmosphere.tier!=='low'||s.atmosphere.post!==false)throw Error('Low tier must disable the atmosphere post pass');if(s.surfaces.detail!==0)throw Error('Low tier must disable surface detail');}`)
 	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(s.windows.level!==0)throw Error('Low tier must use flat window cells: '+JSON.stringify(s.windows));}`)
 	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(s.lobbies.level!==null||s.lobbies.shown.length)throw Error('Low tier must keep the lobby stand-ins: '+JSON.stringify(s.lobbies));}`)
+	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(s.furnitureLod!==null)throw Error('Low tier keeps one furniture batch: '+JSON.stringify(s.furnitureLod));}`)
 	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(s.gulls.count!==0||s.particles.steam!==0||s.particles.fireflies!==0||s.atmosphere.wind!==0||s.harbour.lod!==2)throw Error('Low tier must drop gulls, steam, fireflies and wind and park the boats: '+JSON.stringify({g:s.gulls,p:s.particles,w:s.atmosphere.wind,h:s.harbour}));}`)
 	page.MustEval(`()=>{const select=document.querySelector('.sw-quality');select.value='high';select.dispatchEvent(new Event('change'));document.querySelector('[data-sw-mode="orbit"]').click();}`)
 	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).tier==='high'`)

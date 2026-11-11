@@ -52,7 +52,7 @@ These were verified in code on 2026-11-09.
 | 3 Enterable buildings | Six district buildings get a real ground floor to walk into (themed lobby, glass front, door, furniture, working robots visible from outside). The small operations beacon stays exterior-only. Interiors load on approach | `plans/2026-11-10-system-world-beauty-phase-3.md` |
 | 4 City life (implemented) | Trees and beds with wind, bird flocks, pigeons, boats, street furniture, kiosks, neon signs, steam, fireflies at night | `plans/2026-11-10-system-world-beauty-phase-4.md` |
 | 5 Soundscape (implemented) | Master limiter, sound zones (harbour, park, street canyon, each interior), per-space reverb, damping behind glass, continuous traffic and tram bed, footsteps per surface | `plans/2026-11-10-system-world-beauty-phase-5.md` |
-| 6 Finish | Night lighting, per-tier polish, performance, final acceptance | own spec and plan |
+| 6 Finish (implemented) | Night lighting, windows by day, entering buildings, furniture near and far sets with a frame-time budget, motion sequences, sound finish with two CC0 recordings | `plans/2026-11-10-system-world-beauty-phase-6.md` |
 
 Recommendation for phase 5: add real CC0 recordings for birds, water, wind and city hum next to the synthesis. This changes the current rule that nothing is sampled. It needs the user's go-ahead before any download. The list of recordings is decided in phase 5's spec.
 

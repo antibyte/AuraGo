@@ -1,18 +1,21 @@
 package ui
 
 import (
+	"fmt"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/proto"
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
 
 func verifySystemWorldExpansion(t *testing.T, page *rod.Page, dir string) {
 	t.Helper()
+	testStart := time.Now()
 	if err := (proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{{Name: "prefers-reduced-motion", Value: "no-preference"}}}).Call(page); err != nil {
 		t.Fatal(err)
 	}
@@ -35,6 +38,23 @@ func verifySystemWorldExpansion(t *testing.T, page *rod.Page, dir string) {
 			t.Fatal(err)
 		}
 	}
+	// holdFrames presses a key until the app has drawn at least n more frames, so a step does not depend on the frame
+	// rate (a press shorter than one frame moves nothing). A dead page still fails after five seconds.
+	holdFrames := func(key input.Key, n int) {
+		t.Helper()
+		page.MustElement(".sysworld-gl").MustFocus()
+		start := page.MustEval(`()=>SysWorldApp.inspect(cityId).frames`).Num()
+		if err := page.Keyboard.Press(key); err != nil {
+			t.Fatal(err)
+		}
+		deadline := time.Now().Add(5 * time.Second)
+		for page.MustEval(`()=>SysWorldApp.inspect(cityId).frames`).Num() < start+float64(n) && time.Now().Before(deadline) {
+			time.Sleep(10 * time.Millisecond)
+		}
+		if err := page.Keyboard.Release(key); err != nil {
+			t.Fatal(err)
+		}
+	}
 	axis := func(index int, target float64, positive, negative input.Key) {
 		t.Helper()
 		for n := 0; n < 40; n++ {
@@ -46,7 +66,7 @@ func verifySystemWorldExpansion(t *testing.T, page *rod.Page, dir string) {
 			if p > target {
 				key = negative
 			}
-			hold(key, time.Duration(math.Min(65, math.Max(20, math.Abs(p-target)/11*700)))*time.Millisecond)
+			holdFrames(key, int(math.Min(6, 1+math.Abs(p-target)/2)))
 		}
 		page.MustScreenshot(filepath.Join(dir, "world2-navigation-failure.png"))
 		t.Fatalf("cannot reach axis %d %.1f: %s", index, target, page.MustEval(`()=>JSON.stringify(SysWorldApp.inspect(cityId))`).Str())
@@ -152,7 +172,20 @@ func verifySystemWorldExpansion(t *testing.T, page *rod.Page, dir string) {
 	page.MustEval(`()=>{if(SysWorldApp.inspect(cityId).experience.discovered.length!==7)throw Error('Missing discovery');document.querySelector('.sw-world').open=true;document.querySelector('[data-world-station="infra"]').click();}`)
 	page.Timeout(10 * time.Second).MustWait(`()=>document.querySelector('.sw-interaction').dataset.kind==='tram'`)
 	page.MustElement(".sw-interaction").MustClick()
-	page.Timeout(150 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).experience.ride==='tram'`)
+	// The tram wait explains itself: every five seconds the trams' traffic poses (x, z, blocked, obstruction), the visitor
+	// and the experience state are sampled; if the ride has not started after 150 s the samples are the failure message.
+	tramState := `()=>{const s=SysWorldApp.inspect(cityId),e=s.experience;return JSON.stringify({t:+(s.traffic.time||0).toFixed(1),frames:s.frames,visitor:s.position.map(v=>+v.toFixed(1)),ride:e.ride,station:e.station,interaction:e.interactions,trams:s.traffic.poses.filter(p=>/^tram-/.test(p.id)).map(p=>({id:p.id,x:+p.x.toFixed(1),z:+p.z.toFixed(1),blocked:p.blocked,obstruction:p.obstruction})),near:s.traffic.poses.filter(p=>!/^tram-/.test(p.id)&&s.traffic.poses.some(q=>/^tram-/.test(q.id)&&Math.hypot(p.x-q.x,p.z-q.z)<14)).map(p=>({id:p.id,x:+p.x.toFixed(1),z:+p.z.toFixed(1),blocked:p.blocked,obstruction:p.obstruction})),residents:e.society.residents.filter(r=>s.traffic.poses.some(q=>/^tram-/.test(q.id)&&Math.hypot(r.x-q.x,r.z-q.z)<14)).map(r=>({id:r.id,state:r.state,x:+r.x.toFixed(1),z:+r.z.toFixed(1)})),soundTrams:s.sound&&s.sound.soundscape&&s.sound.soundscape.layers&&s.sound.soundscape.layers.movers?s.sound.soundscape.layers.movers.trams:null,trafficStops:s.traffic.stops,trafficSteps:s.traffic.steps});}`
+	tramBegan := time.Now()
+	t.Logf("tram wait starts %.0fs into the test: %s", time.Since(testStart).Seconds(), page.MustEval(tramState).Str())
+	var tramSamples []string
+	for !page.MustEval(`()=>SysWorldApp.inspect(cityId).experience.ride==='tram'`).Bool() {
+		if time.Since(tramBegan) > 150*time.Second {
+			t.Fatalf("tram ride did not start within 150 s (test time %.0fs); samples every 5 s:\n%s\nfinal: %s", time.Since(testStart).Seconds(), strings.Join(tramSamples, "\n"), page.MustEval(tramState).Str())
+		}
+		tramSamples = append(tramSamples, fmt.Sprintf("+%.0fs %s", time.Since(tramBegan).Seconds(), page.MustEval(tramState).Str()))
+		time.Sleep(5 * time.Second)
+	}
+	t.Logf("tram wait took %.1fs", time.Since(tramBegan).Seconds())
 	page.MustScreenshot(filepath.Join(dir, "world2-tram-interior.png"))
 	hold(input.KeyW, 400*time.Millisecond)
 	page.MustEval(`()=>{window.world2Stops=new Set();window.world2RideAt=performance.now();}`)

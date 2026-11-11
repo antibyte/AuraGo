@@ -4958,7 +4958,7 @@ registration lives in `internal/desktop/types.go`.
     add the canyon convolver.
 - `sysworld-foley.js` owns the residents' own sounds: a servo settle, a footfall, a
   parcel rustle, a tool tap, a greeting chirp and a steering whine, all synthesized
-  from oscillators and filtered noise without assets. A changed animation clip is the
+  from oscillators and filtered noise (a footfall on a hard surface also plays one recorded `steps` slice, phase 6). A changed animation clip is the
   only trigger for an action sound; walking stays with the footstep cadence, which
   follows the travelled distance of the reported stride. The pool is bounded at ten
   voices and the nearest residents win a voice, a sound dies beyond 48 m of the
@@ -5143,6 +5143,48 @@ registration lives in `internal/desktop/types.go`.
   is a bottom sheet beside the rail that yields to street, tour, the open
   exploration panel and the drawer. The browser matrix fails when the exploration
   control, rail, inspector or fixed bars overlap at any tested size.
+- Phase 6 (finish). `sysworld-furniture-lod.js` gives each furniture design that saves at least 8,000 triangles
+  city-wide (`worthSets`) a near and a far instanced set. Pieces within 45 m of the camera draw at the tier's
+  level of detail and the rest at LOD 2; a piece leaves the near set beyond 60 m. `sync()` re-sorts at most every
+  0.5 s and only after the camera has moved 4 m, copies precomputed matrices into fixed buffers, and never refreshes
+  the shadow map: a piece keeps its shadow whichever level draws it. Sets exist for six designs on high (both
+  trees, bollards, flower beds, litter bins, zebra signs), five on medium (the same without the zebra signs) and
+  none on low (`setDesigns`). `sysworld-scene.js` builds and syncs them, keeps them in `staticCity`, and hides them with the other
+  near furniture above `NEAR_HEIGHT`.
+- View levelling (`levelView` in `sysworld-scene.js`): while the visitor walks, the pitch eases to level (`easePitch`,
+  1.5 s time constant) unless the user steered within the last 0.8 s. Entering a lobby on foot levels it at once,
+  and reduced motion levels it at once.
+- Night light: `NIGHT_ENV` (.2 at night, .48 by day) sets `scene.environmentIntensity` by the day mood, so the
+  environment map's bright panels no longer glare off the pale ceramic facades. Lamp cones fade out with `coneFade`
+  (`sysworld-atmosphere.js`) between 3 m and 0.5 m from the camera, so a cone never veils the frame. `roofTop()`
+  finds the roof-top centre of each data tower, and `aviationPoints()` puts a light 0.6 m above it on every placed
+  copy that stands in the skyline (z below -100 m) or is scaled tall.
+- Windows (`sysworld-windows.js`): each room takes one of six wall tones (`WINDOW_TONES`), so large facades read as
+  rooms rather than rows of pale boxes. Furniture is darker, and lamp light falls off with depth while daylight falls
+  to 12 % at the back. The glass has its own environment intensity (`WINDOW_ENV`: .12 by day, .08 at night, set in
+  `setLighting`) on the scene's environment texture, which `setEnvironment()` hands over. Lit rooms are capped at
+  `WIN_CAP` 1.1; low keeps the flat lit or unlit cell.
+- Feet on the stairs (`sysworld-footing.js`, `sysworld-lobbies.js`, `sysworld-society.js`): a resident's stance foot
+  whose heel and toe stand at different heights moves along z to the tread centre (`treadCentre()`, at most
+  `SNAP_REACH` .25 m) and is planted on that tread. `FOOT_HALF` (.21 m) keeps a sole behind a flight's top edge.
+  The snap is passed as `STAIRS` to `adaptFeet` and is presentation only: navigation and collisions do not read it.
+  `soleGaps()` measures the gap for the survey.
+- Visitor after rides (`sysworld-experience.js`): `endRide()` seats the visitor body on a free spot (`seat()`, through
+  `traffic.relocate`) after a tram, drone, lift, scope or hover ride, never on a resident. The sky cab exit and
+  `destination(id)` rely on their callers.
+- Patrol label (`sysworld-society.js`): a held or suspended patrol whose `yield` has ended goes back to `patrol`, so
+  a stale label clears.
+- Tram sound (`sysworld-sound-movers.js`, `MOVERS`): the rail hum adds three band-passed rolling-noise bands
+  (`rollBands`) and flange ticks, which come more often at speed and in curves, within 60 m (`reach.clack`). The
+  recorded tram pass is its own voice (`MOVERS.pass`): when a tram comes within 70 m above 4 m/s, the decoded `tram`
+  recording plays once with its own gain (`pass.level` .9, scaled by speed and by the square root of the distance
+  gain) and the same reverb send, and it re-arms beyond 95 m.
+- Footfalls (`sysworld-foley.js`, `PAIR`): a footfall is a heel and a toe. On hard surfaces (road, pavement, kerb,
+  stairs, quay, lobby) the heel carries a narrow body resonance (`body`, 100-400 Hz, 70 ms) that makes the strike
+  read as a step, and one slice of the recorded `steps` file plays under each such step (`PAIR.sample` sets the
+  level; a slice never repeats the one before). Grating and garden stay synthesized.
+- Recordings (`sysworld-sound-recordings.js`): the two CC0 one-shot recordings (`tram`, `steps`) load with the loops,
+  not on low. `buffer(id)` and `slices(id)` hand them to the movers and the foley; this module connects nothing for them.
 - Verify `node scripts/test-system-world.mjs` (includes the navigation
   blockade/sidestep units and a 60-minute five-robot simulation), `node
   scripts/build-system-world.js --check`, `node scripts/build-system-world-spot.mjs --check`,
@@ -5159,6 +5201,10 @@ registration lives in `internal/desktop/types.go`.
   asserts live hologram/atmosphere/drone stats without text leaks, captures
   Three.js console errors, and fails when the canvas renders flat (blank
   post-processing). Screenshot/performance reports stay ignored.
+- Phase 6 checks: `node scripts/test-system-world-{picture-checks,aviation,view,furniture-lod,patrol-label,visitor-placement}.mjs`,
+  and the picture and budget tools `node scripts/system-world-picture-checks.mjs sheet|compare|lit-compare|budget-init|budget-check`
+  (the frame-time gate is `budget-check --budget scripts/system-world-budget.json --reports <dir,dir>` over the reports of
+  `node scripts/system-world-survey.mjs --out <dir> --tier <tier> --timing`; see `assets/system-world/README.md`).
 
 - Terminal uses xterm 6 with the WebGL addon. CRT capture includes every canvas
   below `.xterm-screen`, including the unnamed WebGL text canvas. Preserve the
@@ -5977,6 +6023,10 @@ registration lives in `internal/desktop/types.go`.
   instancing, PBR/PMREM, shadows, `SceneCapturePass` + bloom + output +
   atmosphere post chain, camera modes and disposal. Build to
   `ui/js/vendor/system-world/`; never classic-script load this source.
+- `sysworld-furniture-lod.js` - Furniture near and far instance sets: the thresholds (`FURNITURE_LOD`, `nearFlag`), the designs that get sets (`setDesigns`) and the instanced sets `sysworld-scene.js` syncs.
+- `sysworld-windows.js` - The shared `city.window` material: interior-mapped rooms, wall tones (`WINDOW_TONES`), the glass's own environment intensity (`WINDOW_ENV`) and the lit-room cap.
+- `sysworld-footing.js` - Pure resident footing: the critically damped height spring, the two-bone leg solve, the stance weight and `adaptFeet` with the optional stair `snap`.
+- `sysworld-lobbies.js` - The lobby registry (podiums, stairs, halls, doors, wall and solid boxes) with `treadCentre` and `FOOT_HALF` for the feet on the flights.
 - `sysworld-hud.js` - Theme-native, localized HTML metrics with CPU/RAM sparklines,
   district navigation with state badges, entity search, inspector, SVG plan map, street
   controls and compass, tour lower third, loading progress, photo mode and

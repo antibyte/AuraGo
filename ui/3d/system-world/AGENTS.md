@@ -21,6 +21,18 @@ City life (phase 4) runtime ownership, all in `ui/js/desktop/apps/`:
 | Steam and fireflies | `sysworld-particles.js` |
 | Kit workplaces (charging plaza, harbour cafe) | `sysworld-experience.js` (places), `sysworld-society.js` (no demonstrate prompt) |
 
+Phase 6 runtime ownership, all in `ui/js/desktop/apps/`:
+
+| Concern | Owner |
+| --- | --- |
+| Glass environment map and intensity (`city.window`) | `sysworld-windows.js` (`setEnvironment`, `setLighting`, `WINDOW_ENV`); `sysworld-scene.js` hands over the scene's environment texture |
+| Furniture near and far instance sets | `sysworld-furniture-lod.js` (thresholds, `setDesigns`, the sets); `sysworld-scene.js` builds and syncs them and keeps them in `staticCity` |
+| Night environment intensity (`NIGHT_ENV`) | `sysworld-scene.js` |
+| View pitch while walking and on lobby entry | `sysworld-scene.js` (`levelView`, `easePitch`) |
+| Lamp cone fade; roof-top aviation lights | `sysworld-atmosphere.js` (`coneFade`, `roofTop`, `aviationPoints`); `sysworld-scene.js` passes the data-tower roof points |
+| Feet on stair treads (presentation only) | `sysworld-footing.js` (`adaptFeet` snap), `sysworld-lobbies.js` (`treadCentre`), `sysworld-society.js` (`STAIRS`) |
+| Visitor body after rides | `sysworld-experience.js` (`endRide`, `seat`) |
+
 - Kit placements are solids. `sysworld-scene.js` passes `kitPlacements` to `installCityColliders(…, kit)`,
   which reads each placed design's `navigation.colliders`, turned with the placement.
 - The lawn and paving materials are scene-owned: they live in the scene's `matSet`, never in the shared
@@ -85,7 +97,7 @@ City life (phase 4) runtime ownership, all in `ui/js/desktop/apps/`:
   with door gaps, corner piers, lintels, ceiling slab, atrium lid, foundry towers and pipes, spire struts) and
   each interior's `navigation.colliders` from the catalog (installed with the city, not on load). Door leaves have no colliders; the visitor is
   held at the leaf line by `lobbyPassage` in `canWalk`.
-- Street-lamp light cones are off by day. `lampLevel` in `sysworld-atmosphere.js` fades them in towards dusk.
+- Street-lamp light cones are off by day. `lampLevel` in `sysworld-atmosphere.js` fades them in towards dusk; `coneFade` fades each cone out near the camera (phase 6).
 - Materials with vertex colours are keyed by `sharedMaterialKey` with a `|vertex-colours`
   suffix, so v3 materials are not shared with same-named v1/v2 materials that lack vertex colours.
 - v3 bytes count toward the 40 MiB model directory ceiling, which the v3 build and test enforce.
