@@ -1016,6 +1016,7 @@
   "easydrag.ui.authoring_generate": "Crear una propuesta de borrador",
   "easydrag.ui.authoring_goal": "¿Qué debe hacer el flujo?",
   "easydrag.ui.authoring_invalid": "Escribe una descripción de hasta 4000 caracteres.",
+  "easydrag.ui.goal_counter": "{count} / {max}",
   "easydrag.ui.authoring_notice": "Tu descripción y el catálogo de pasos se envían al proveedor de IA configurado y, si está activada, a la revisión de seguridad. No incluyas secretos. No se envían el contenido del flujo actual ni los datos de ejecución.",
   "easydrag.ui.authoring_review": "Revisa los pasos propuestos y sus posibles efectos. Al aplicar, la propuesta se guarda como borrador. La publicación y la activación son pasos separados.",
   "easydrag.ui.authoring_stale": "El borrador o la descripción cambió mientras se preparaba la propuesta. Crea otra propuesta para conservar tus cambios.",

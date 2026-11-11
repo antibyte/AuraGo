@@ -1016,6 +1016,7 @@
   "easydrag.ui.authoring_generate": "Een conceptvoorstel maken",
   "easydrag.ui.authoring_goal": "Wat moet de flow doen?",
   "easydrag.ui.authoring_invalid": "Voer een beschrijving van maximaal 4.000 tekens in.",
+  "easydrag.ui.goal_counter": "{count} / {max}",
   "easydrag.ui.authoring_notice": "Je beschrijving en de catalogus met stappen worden naar de ingestelde AI-aanbieder gestuurd en, indien ingeschakeld, naar de beveiligingscontrole. Neem geen geheimen op. De inhoud van de huidige flow en uitvoeringsgegevens worden niet verstuurd.",
   "easydrag.ui.authoring_review": "Controleer de voorgestelde stappen en mogelijke gevolgen. Toepassen slaat het voorstel op als concept. Publiceren en activeren blijven aparte stappen.",
   "easydrag.ui.authoring_stale": "Het concept of de beschrijving is gewijzigd terwijl het voorstel werd gemaakt. Maak een nieuw voorstel om je wijzigingen te behouden.",

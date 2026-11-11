@@ -1016,6 +1016,7 @@
   "easydrag.ui.authoring_generate": "Crea una proposta di bozza",
   "easydrag.ui.authoring_goal": "Che cosa deve fare il flusso?",
   "easydrag.ui.authoring_invalid": "Inserisci una descrizione di massimo 4.000 caratteri.",
+  "easydrag.ui.goal_counter": "{count} / {max}",
   "easydrag.ui.authoring_notice": "La tua descrizione e il catalogo dei passaggi vengono inviati al fornitore di IA configurato e, se attivo, al controllo di sicurezza. Non includere segreti. Il contenuto del flusso attuale e i dati delle esecuzioni non vengono inviati.",
   "easydrag.ui.authoring_review": "Controlla i passaggi proposti e i possibili effetti. Applicando, la proposta viene salvata come bozza. Pubblicazione e attivazione restano passaggi separati.",
   "easydrag.ui.authoring_stale": "La bozza o la descrizione è cambiata durante la preparazione della proposta. Crea una nuova proposta per conservare le tue modifiche.",

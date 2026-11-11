@@ -1016,6 +1016,7 @@
   "easydrag.ui.authoring_generate": "Créer une proposition de brouillon",
   "easydrag.ui.authoring_goal": "Que doit faire le flux ?",
   "easydrag.ui.authoring_invalid": "Saisis une description de 4 000 caractères maximum.",
+  "easydrag.ui.goal_counter": "{count} / {max}",
   "easydrag.ui.authoring_notice": "Ta description et le catalogue des étapes sont envoyés au fournisseur d’IA configuré et, s’il est activé, au contrôle de sécurité. N’inclus aucun secret. Le contenu du flux actuel et les données d’exécution ne sont pas envoyés.",
   "easydrag.ui.authoring_review": "Vérifie les étapes proposées et leurs effets possibles. L’application enregistre la proposition comme brouillon. La publication et l’activation restent des étapes distinctes.",
   "easydrag.ui.authoring_stale": "Le brouillon ou la description a changé pendant la préparation de la proposition. Crée une nouvelle proposition pour conserver tes modifications.",

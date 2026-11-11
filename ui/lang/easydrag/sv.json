@@ -1016,6 +1016,7 @@
   "easydrag.ui.authoring_generate": "Skapa ett utkastförslag",
   "easydrag.ui.authoring_goal": "Vad ska flödet göra?",
   "easydrag.ui.authoring_invalid": "Skriv en beskrivning på högst 4 000 tecken.",
+  "easydrag.ui.goal_counter": "{count} / {max}",
   "easydrag.ui.authoring_notice": "Din beskrivning och katalogen med steg skickas till den valda AI-leverantören och till säkerhetsgranskningen om den är aktiverad. Ta inte med hemligheter. Innehållet i det aktuella flödet och körningsdata skickas inte.",
   "easydrag.ui.authoring_review": "Granska de föreslagna stegen och möjliga effekter. Tillämpa sparar förslaget som ett utkast. Publicering och aktivering är separata steg.",
   "easydrag.ui.authoring_stale": "Utkastet eller beskrivningen ändrades medan förslaget togs fram. Skapa ett nytt förslag för att behålla dina ändringar.",

@@ -1016,6 +1016,7 @@
   "easydrag.ui.authoring_generate": "Criar uma proposta de rascunho",
   "easydrag.ui.authoring_goal": "O que deve fazer o fluxo?",
   "easydrag.ui.authoring_invalid": "Escreve uma descrição com até 4000 caracteres.",
+  "easydrag.ui.goal_counter": "{count} / {max}",
   "easydrag.ui.authoring_notice": "A tua descrição e o catálogo de passos são enviados ao fornecedor de IA configurado e, se estiver ativa, à revisão de segurança. Não incluas segredos. O conteúdo do fluxo atual e os dados de execução não são enviados.",
   "easydrag.ui.authoring_review": "Revê os passos propostos e os possíveis efeitos. Ao aplicar, a proposta é guardada como rascunho. A publicação e a ativação continuam a ser passos separados.",
   "easydrag.ui.authoring_stale": "O rascunho ou a descrição mudou durante a preparação da proposta. Cria uma nova proposta para manteres as tuas alterações.",

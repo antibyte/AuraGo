@@ -1016,6 +1016,7 @@
   "easydrag.ui.authoring_generate": "Entwurf vorschlagen lassen",
   "easydrag.ui.authoring_goal": "Was soll der Flow tun?",
   "easydrag.ui.authoring_invalid": "Gib eine Beschreibung mit höchstens 4.000 Zeichen ein.",
+  "easydrag.ui.goal_counter": "{count} / {max}",
   "easydrag.ui.authoring_notice": "Deine Beschreibung und der Schrittkatalog werden an den konfigurierten KI-Anbieter und, falls aktiviert, an die Sicherheitsprüfung gesendet. Gib keine Geheimnisse an. Der aktuelle Flow-Inhalt und Ausführungsdaten werden nicht gesendet.",
   "easydrag.ui.authoring_review": "Prüfe die vorgeschlagenen Schritte und möglichen Auswirkungen. Beim Übernehmen wird der Vorschlag als Entwurf gespeichert. Veröffentlichung und Aktivierung bleiben getrennte Schritte.",
   "easydrag.ui.authoring_stale": "Der Entwurf oder die Beschreibung wurde geändert, während der Vorschlag erstellt wurde. Lass einen neuen Vorschlag erstellen, damit Deine Änderungen erhalten bleiben.",

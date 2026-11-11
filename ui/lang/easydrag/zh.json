@@ -1016,6 +1016,7 @@
   "easydrag.ui.authoring_generate": "生成草稿建议",
   "easydrag.ui.authoring_goal": "你希望流程完成什么？",
   "easydrag.ui.authoring_invalid": "请输入不超过 4,000 个字符的描述。",
+  "easydrag.ui.goal_counter": "{count} / {max}",
   "easydrag.ui.authoring_notice": "你的描述和步骤目录会发送给已配置的 AI 提供商；如果启用了安全审查，也会发送给安全审查服务。请勿包含任何机密信息。不会发送当前流程的内容或运行数据。",
   "easydrag.ui.authoring_review": "检查提议的步骤及其可能产生的影响。应用后，提议会保存为草稿。发布和启用仍需分别操作。",
   "easydrag.ui.authoring_stale": "生成建议期间，草稿或描述发生了变化。请重新生成建议，以保留你的修改。",

@@ -42,4 +42,13 @@ grouped.undo();
 assert.equal(JSON.stringify(grouped.toJSON()), groupedBefore);
 assert.equal(ED.authoring.applyProposal(model, { nodes: [proposal.nodes[0], proposal.nodes[0]], edges: [] }, model.version, 'Apply'), false);
 assert.equal(JSON.stringify(model.toJSON()), newer);
+// The goal counter counts code points of the trimmed goal, as the server does (4,000 runes).
+const counterT = (key, args) => key === 'easydrag.ui.goal_counter' ? args.count + ' / ' + args.max : key;
+const emoji = String.fromCodePoint(0x1F600);
+let goal = ED.authoring.goalCounter(emoji.repeat(4000), counterT, 'de-DE');
+assert.deepEqual([goal.count, goal.over, goal.text], [4000, false, '4.000 / 4.000']);
+goal = ED.authoring.goalCounter(emoji.repeat(4001), counterT, 'de-DE');
+assert.deepEqual([goal.count, goal.over, goal.text], [4001, true, '4.001 / 4.000']);
+goal = ED.authoring.goalCounter('  ab  ', counterT, 'en-US');
+assert.deepEqual([goal.count, goal.over, goal.text], [2, false, '2 / 4,000']);
 console.log('All EasyDrag proposal checks passed.');

@@ -66,3 +66,26 @@ func TestDesktopEasyDragTestModeBrowser(t *testing.T) {
 	s.noRawKeys("test mode")
 	s.failOnPageErrors("test mode")
 }
+
+// TestDesktopEasyDragGoalCounterBrowser: the AI goal has no maxlength, a counter linked by
+// aria-describedby counts code points, and above 4,000 it turns to the warn ink and Generate
+// is disabled.
+func TestDesktopEasyDragGoalCounterBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	s := startEasyDragSmoke(t)
+	p := s.page
+	if err := (proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{{Name: "prefers-reduced-motion", Value: "reduce"}}}).Call(p); err != nil {
+		t.Fatal(err)
+	}
+	s.wait(`()=>!!document.querySelector('.ed-flow-card h3')`)
+	p.MustElement(`.ed-flow-card h3`).MustClick()
+	s.wait(`()=>!!edFixture.editor()`)
+	p.MustEval(`()=>{window.__edAuthoring=EasyDrag.authoring.create(edFixture.editor(),null);window.__edAuthoring.open();}`)
+	s.wait(`()=>!!document.querySelector('[data-ed-authoring-goal]') && !!document.querySelector('[data-ed-goal-counter]')`)
+	p.MustEval(`()=>{const a=document.querySelector('[data-ed-authoring-goal]'),c=document.querySelector('[data-ed-goal-counter]');if(a.hasAttribute('maxlength'))throw Error('maxlength is still set');if(!c.id || a.getAttribute('aria-describedby')!==c.id)throw Error('the counter is not linked');a.value=String.fromCodePoint(0x1F600).repeat(4001);a.dispatchEvent(new Event('input',{bubbles:true}));}`)
+	s.wait(`()=>{const c=document.querySelector('[data-ed-goal-counter]'),g=document.querySelector('.ed-modal [data-ed-action="generate"]'),nf=new Intl.NumberFormat(document.documentElement.lang||undefined);return c.classList.contains('is-over') && g.disabled && c.textContent.includes(nf.format(4001)) && c.textContent.includes(nf.format(4000));}`)
+	p.MustEval(`()=>{const a=document.querySelector('[data-ed-authoring-goal]');a.value=String.fromCodePoint(0x1F600).repeat(4000);a.dispatchEvent(new Event('input',{bubbles:true}));}`)
+	s.wait(`()=>{const c=document.querySelector('[data-ed-goal-counter]'),g=document.querySelector('.ed-modal [data-ed-action="generate"]');return !c.classList.contains('is-over') && !g.disabled;}`)
+	s.noRawKeys("goal counter")
+	s.failOnPageErrors("goal counter")
+}

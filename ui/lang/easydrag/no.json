@@ -1016,6 +1016,7 @@
   "easydrag.ui.authoring_generate": "Lag et utkastforslag",
   "easydrag.ui.authoring_goal": "Hva skal flyten gjøre?",
   "easydrag.ui.authoring_invalid": "Skriv en beskrivelse på opptil 4 000 tegn.",
+  "easydrag.ui.goal_counter": "{count} / {max}",
   "easydrag.ui.authoring_notice": "Beskrivelsen din og katalogen over trinn sendes til den valgte KI-leverandøren og til sikkerhetskontrollen hvis den er aktivert. Ikke ta med hemmeligheter. Innholdet i den nåværende flyten og kjøringsdata sendes ikke.",
   "easydrag.ui.authoring_review": "Se gjennom de foreslåtte trinnene og mulige virkninger. Ved bruk lagres forslaget som et utkast. Publisering og aktivering er separate trinn.",
   "easydrag.ui.authoring_stale": "Utkastet eller beskrivelsen ble endret mens forslaget ble laget. Lag et nytt forslag for å beholde endringene dine.",

@@ -122,6 +122,8 @@
 .ed-sr-only { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .ed-muted { color: var(--ed-muted); }
 .ed-hint { margin: 6px 0 0; color: var(--ed-muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.ed-goal-counter { margin: 4px 0 0; color: var(--ed-muted); font-size: 12px; font-variant-numeric: tabular-nums; text-align: end; }
+.ed-goal-counter.is-over { color: var(--ed-warn-ink); font-weight: 600; }
 .ed-error { margin: 6px 0 0; color: var(--ed-danger-ink); font-size: 12px; overflow-wrap: anywhere; }
 .ed-link { color: var(--ed-accent-ink); text-decoration: none; font-weight: 600; }
 .ed-link:hover { text-decoration: underline; }

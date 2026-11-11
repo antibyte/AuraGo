@@ -1016,6 +1016,7 @@
   "easydrag.ui.authoring_generate": "Utwórz propozycję szkicu",
   "easydrag.ui.authoring_goal": "Co ma robić przepływ?",
   "easydrag.ui.authoring_invalid": "Wpisz opis o długości do 4000 znaków.",
+  "easydrag.ui.goal_counter": "{count} / {max}",
   "easydrag.ui.authoring_notice": "Twój opis i katalog kroków są wysyłane do skonfigurowanego dostawcy AI oraz do kontroli bezpieczeństwa, jeśli jest włączona. Nie podawaj żadnych sekretów. Treść bieżącego przepływu i dane uruchomień nie są wysyłane.",
   "easydrag.ui.authoring_review": "Sprawdź proponowane kroki i możliwe skutki. Zastosowanie zapisuje propozycję jako wersję roboczą. Publikacja i aktywacja pozostają osobnymi krokami.",
   "easydrag.ui.authoring_stale": "Szkic lub opis zmienił się podczas przygotowywania propozycji. Utwórz nową propozycję, aby zachować swoje zmiany.",

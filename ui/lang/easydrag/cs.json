@@ -1016,6 +1016,7 @@
   "easydrag.ui.authoring_generate": "Vytvořit návrh konceptu",
   "easydrag.ui.authoring_goal": "Co má tok dělat?",
   "easydrag.ui.authoring_invalid": "Zadej popis o délce nejvýše 4 000 znaků.",
+  "easydrag.ui.goal_counter": "{count} / {max}",
   "easydrag.ui.authoring_notice": "Tvůj popis a katalog kroků se odešlou nastavenému poskytovateli AI a také bezpečnostní kontrole, pokud je zapnutá. Neuváděj žádná tajemství. Obsah aktuálního toku ani údaje o spuštěních se neodesílají.",
   "easydrag.ui.authoring_review": "Zkontroluj navržené kroky a možné dopady. Použití uloží návrh konceptu. Publikování a aktivace jsou samostatné kroky.",
   "easydrag.ui.authoring_stale": "Během přípravy návrhu se koncept nebo popis změnil. Vytvoř nový návrh, aby se tvé úpravy zachovaly.",

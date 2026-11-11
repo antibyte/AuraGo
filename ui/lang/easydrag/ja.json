@@ -1016,6 +1016,7 @@
   "easydrag.ui.authoring_generate": "下書きの提案を作成",
   "easydrag.ui.authoring_goal": "フローで何をしたいですか？",
   "easydrag.ui.authoring_invalid": "4,000文字以内で内容を入力してください。",
+  "easydrag.ui.goal_counter": "{count} / {max}",
   "easydrag.ui.authoring_notice": "入力した説明とステップのカタログは、設定済みのAIプロバイダーに送信されます。セキュリティ審査が有効な場合は、その審査にも送信されます。秘密情報を含めないでください。現在のフローの内容や実行データは送信されません。",
   "easydrag.ui.authoring_review": "提案されたステップと考えられる影響を確認してください。適用すると提案が下書きとして保存されます。公開と有効化は別の操作です。",
   "easydrag.ui.authoring_stale": "提案の作成中に下書きまたは説明が変更されました。編集内容を保持するには、新しい提案を作成してください。",

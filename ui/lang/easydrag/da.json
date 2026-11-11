@@ -1016,6 +1016,7 @@
   "easydrag.ui.authoring_generate": "Opret et udkastforslag",
   "easydrag.ui.authoring_goal": "Hvad skal flowet gøre?",
   "easydrag.ui.authoring_invalid": "Skriv en beskrivelse på højst 4.000 tegn.",
+  "easydrag.ui.goal_counter": "{count} / {max}",
   "easydrag.ui.authoring_notice": "Din beskrivelse og kataloget over trin sendes til den valgte AI-udbyder og til sikkerhedskontrollen, hvis den er slået til. Medtag ikke hemmeligheder. Det aktuelle flowindhold og kørselsdata sendes ikke.",
   "easydrag.ui.authoring_review": "Gennemgå de foreslåede trin og mulige virkninger. Anvend gemmer forslaget som en kladde. Udgivelse og aktivering er separate trin.",
   "easydrag.ui.authoring_stale": "Udkastet eller beskrivelsen blev ændret, mens forslaget blev lavet. Opret et nyt forslag for at bevare dine ændringer.",
