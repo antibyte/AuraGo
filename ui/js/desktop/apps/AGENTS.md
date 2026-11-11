@@ -78,6 +78,11 @@
 
 ## Storymaker
 
+- The code problem list refreshes on validated player `report` events as well as
+  server `issues`; a later compile can clear or add diagnostics without changing
+  an unsaved draft. Release both subscriptions when the editor is disposed.
+  Verify `TestStorymakerCodeReportRefreshBrowser` and the full app tour.
+
 - Storymaker save acknowledgments mark only the sent snapshot as saved. Keep newer code-tab typing dirty, including edits back to the old base while a save is pending. Do not synchronize `storyChanged` into an editor during its save. Bind story/code saves and issue reloads to project ID and open generation; disposed or switched editors ignore late responses. Browser tests wait for dirty/save-enabled state and confirmed preview seeks; `TestStorymakerAppDelayedSavesBrowser` delays acknowledgments and switches projects.
 
 - Catalog v2 uses fixed illustrated identities, PNG thumbnails and catalog-listed `texture:<path>` dependencies. `storymaker-assets.js` caches original buffers per catalog version; `storymaker-api.js` bounds streaming image reads, and each worker receives its own copy. Artwork ownership: `assets/storymaker/AGENTS.md` and `ASSET-CONTRACT.md`. The story document, library editing, pending/error feedback and Video Studio handoff retain their existing contracts.

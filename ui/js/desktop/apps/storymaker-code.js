@@ -435,6 +435,7 @@
         const off = [
             inst.bus.on('story', () => { if (!disposed) { paintFiles(); if (root.dataset.visible === 'true') paintProblems(); } }),
             inst.bus.on('issues', () => { if (!disposed && root.dataset.visible === 'true') paintProblems(); }),
+            inst.bus.on('report', () => { if (!disposed && root.dataset.visible === 'true') paintProblems(); }),
             inst.bus.on('readonly', () => paintState())
         ];
 

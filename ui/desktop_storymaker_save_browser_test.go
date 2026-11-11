@@ -6,6 +6,42 @@ import (
 	"time"
 )
 
+func TestStorymakerCodeReportRefreshBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	fixture := newStorymakerFixture(t)
+	page := desktopAuditBrowserWithAPI(t, map[string]http.Handler{"/api/desktop/storymaker/": fixture}).CancelTimeout().Timeout(2 * time.Minute)
+	page.MustEval(`async words=>{
+ Object.assign(fixtureWords,words);await AuraDesktopModules.loadAppAssets('storymaker');
+ const render=StorymakerApp.render;StorymakerApp.render=function(...args){window.testStorymaker=render(...args);return testStorymaker;};
+ await auditTest.openApp('storymaker');
+}`, storymakerWords(t, "en"))
+	storymakerWait(t, page, `()=>!!document.querySelector('[data-stm="create-project"]')`)
+	page.MustElement(`[data-stm="new-title"]`).MustInput("Report refresh")
+	storymakerClick(t, page, `[data-stm="create-project"]`)
+	storymakerWait(t, page, `()=>document.querySelector('canvas[data-scene="s1"]')?.dataset.drawn==='true'`)
+	storymakerClick(t, page, `[data-stm="tab"][data-tab="code"]`)
+	storymakerWait(t, page, `()=>!!document.querySelector('[data-stm="code-editor"] .cm-editor')`)
+	state := page.MustEval(`()=>{
+ const inst=testStorymaker, count=()=>document.querySelector('[data-stm="code-problems"]').dataset.count;
+ inst.issues=[];
+ window.testCompileIssue={severity:'warning',code:'first_frame_empty',path:'/scenes/0',scene_id:'s1',message:'late compile finding'};
+ inst.report=Object.assign({},inst.report,{issues:[testCompileIssue]});inst.bus.emit('issues');const before=count();
+ inst.report=Object.assign({},inst.report,{issues:[]});inst.bus.emit('report');return before+':'+count();
+}`).Str()
+	if state != "1:0" {
+		t.Fatalf("new compile report did not clear the previous code diagnostic: %s", state)
+	}
+	if got := page.MustEval(`()=>{testStorymaker.report=Object.assign({},testStorymaker.report,{issues:[testCompileIssue]});testStorymaker.bus.emit('report');return document.querySelector('[data-stm="code-problems"]').dataset.count;}`).Str(); got != "1" {
+		t.Fatal("new compile warning was not shown in the code tab")
+	}
+	storymakerEditorReplace(page, `"variant": "day"`, `"variant": "night"`)
+	storymakerWait(t, page, `()=>document.querySelector('[data-stm="code-state"]').dataset.state==='dirty'`)
+	if !page.MustEval(`()=>{testStorymaker.report=Object.assign({},testStorymaker.report,{issues:[]});testStorymaker.bus.emit('report');return document.querySelector('[data-stm="code-state"]').dataset.state==='dirty'&&document.querySelector('[data-stm="code-editor"] .cm-content').textContent.includes('"variant": "night"');}`).Bool() {
+		t.Fatal("compile report changed the unsaved code draft")
+	}
+	storymakerNoErrors(t, page)
+}
+
 func TestStorymakerAppDelayedSavesBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	fixture := newStorymakerFixture(t)
