@@ -427,24 +427,32 @@ func handleInvasionNestStop(s *Server) http.HandlerFunc {
 		}
 
 		// Try graceful stop via WebSocket first
-		if s.EggHub.IsConnected(id) {
+		if s.EggHub != nil && s.EggHub.IsConnected(id) {
 			if err := s.EggHub.SendStop(id); err != nil {
 				s.Logger.Warn("Failed to send stop via WebSocket", "nest_id", id, "error", err)
 			}
 		}
 
 		// Also stop via connector (process/container level)
-		secretBytes, _ := s.invasionTransportSecret(nest)
+		secretBytes, err := s.invasionTransportSecret(nest)
+		if err != nil {
+			jsonError(w, "Nest transport credentials unavailable", http.StatusBadGateway)
+			return
+		}
 
 		connector := invasion.GetConnector(nest)
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		if err := connector.Stop(ctx, nest, secretBytes); err != nil {
-			s.Logger.Warn("Connector stop failed", "nest_id", id, "error", err)
+		if err := confirmInvasionStop(ctx, connector, nest, secretBytes); err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusBadGateway, "Could not confirm Egg stop", "Connector stop failed", err, "nest_id", id)
+			return
 		}
 
-		_ = invasion.UpdateNestHatchStatus(s.InvasionDB, id, "stopped", "")
+		if err := invasion.UpdateNestHatchStatus(s.InvasionDB, id, "stopped", ""); err != nil {
+			jsonError(w, "Could not save confirmed stop", http.StatusInternalServerError)
+			return
+		}
 
 		writeJSON(w, map[string]interface{}{
 			"status":  "stopped",
@@ -1410,4 +1418,18 @@ func extractNestSubID(urlPath, action string) string {
 		return ""
 	}
 	return rest
+}
+
+func confirmInvasionStop(ctx context.Context, connector invasion.NestConnector, nest invasion.NestRecord, secret []byte) error {
+	if err := connector.Stop(ctx, nest, secret); err != nil {
+		return err
+	}
+	status, err := connector.Status(ctx, nest, secret)
+	if err != nil {
+		return err
+	}
+	if status != "stopped" {
+		return fmt.Errorf("Egg stop is unconfirmed: %s", status)
+	}
+	return nil
 }

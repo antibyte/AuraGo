@@ -1,4 +1,6 @@
 {
+  "invasion.disabled_notice": "Invasion Control è disattivato. Aggiorna insieme Master ed Eggs prima di attivarlo nelle impostazioni.",
+  "invasion.configure": "Apri impostazioni",
   "invasion.allow_unsandboxed": "Consenti shell senza isolamento (richiede anche la selezione di shell)",
   "invasion.access_docker": "Docker API",
   "invasion.access_local": "Locale",

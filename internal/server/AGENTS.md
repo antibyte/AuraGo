@@ -4,6 +4,9 @@
 
 Server-owned HTTP and cross-component integration contracts.
 
+- Read-only blocks operator mutations, including stop; signed worker results and work-bound artifact uploads remain available. Messages are stored with wakeups suppressed. Disabled integration rejects all worker ingress. HTTP and WebSocket results share nest/Egg/work ownership checks; keep existing tokens, size and replay bounds.
+- Socket loss and heartbeat expiry preserve the last deployment state; `ws_connected` owns connectivity. Stop succeeds only after connector confirmation of `stopped`; transport failures and unknown state remain errors. The disabled page links to Config and explains the coordinated Master/Egg upgrade, without enabling settings.
+
 ## Ownership
 
 - Desktop `/stop` bypasses the session turn gate. After SSE admission, every terminal

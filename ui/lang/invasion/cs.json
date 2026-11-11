@@ -1,4 +1,6 @@
 {
+  "invasion.disabled_notice": "Invasion Control je vypnuté. Aktivuj ho v nastavení pouze po společné aktualizaci Masteru a Eggů.",
+  "invasion.configure": "Otevřít nastavení",
   "invasion.allow_unsandboxed": "Povolit shell bez izolace (vyžaduje také výběr shellu)",
   "invasion.access_docker": "Docker API",
   "invasion.access_local": "Lokální",

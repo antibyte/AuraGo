@@ -20,6 +20,11 @@ func TestInvasionHTTPPolicy(t *testing.T) {
 	}{
 		{"disabled read", "GET", "/api/invasion/nests", false, false, 503},
 		{"disabled websocket", "GET", "/api/invasion/ws", false, false, 503},
+		{"readonly artifact offer", "POST", "/api/invasion/artifacts/offer", true, true, 204},
+		{"readonly artifact upload", "POST", "/api/invasion/artifacts/upload/token", true, true, 204},
+		{"readonly worker message", "POST", "/api/invasion/messages", true, true, 204},
+		{"disabled worker message", "POST", "/api/invasion/messages", false, false, 503},
+		{"readonly stop", "POST", "/api/invasion/nests/n/stop", true, true, 403},
 		{"readonly hatch", "POST", "/api/invasion/nests/n/hatch", true, true, 403},
 		{"readonly edit", "PUT", "/api/invasion/eggs/e", true, true, 403},
 		{"readonly status", "GET", "/api/invasion/nests/n/status", true, true, 204},

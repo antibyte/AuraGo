@@ -1,4 +1,6 @@
 {
+  "invasion.disabled_notice": "Invasion Control er deaktivert. Oppdater Master og Eggs sammen før du aktiverer det i innstillingene.",
+  "invasion.configure": "Åpne innstillinger",
   "invasion.allow_unsandboxed": "Tillat shell uten isolasjon (krever også valg av shell)",
   "invasion.access_docker": "Docker API",
   "invasion.access_local": "Lokal",

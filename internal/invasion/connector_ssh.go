@@ -182,7 +182,9 @@ func (c *SSHConnector) Stop(ctx context.Context, nest NestRecord, secret []byte)
 
 	// Also stop a process-mode egg (SIGTERM, then SIGKILL after 10 s)
 	killCmd := sshEggStopRunningScript(baseDir) + "true"
-	_, _ = sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, killCmd)
+	if _, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, killCmd); err != nil {
+		return fmt.Errorf("failed to stop Egg process: %w", err)
+	}
 
 	return nil
 }

@@ -1,4 +1,6 @@
 {
+  "invasion.disabled_notice": "Invasion Control 已禁用。请先同时升级 Master 和 Eggs，再到设置中启用集成。",
+  "invasion.configure": "打开设置",
   "invasion.allow_unsandboxed": "允许不隔离的 shell（还需选择 shell 工具）",
   "invasion.access_docker": "Docker API",
   "invasion.access_local": "本地",

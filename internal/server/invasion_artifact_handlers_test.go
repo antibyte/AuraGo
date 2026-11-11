@@ -45,9 +45,14 @@ func TestHandleInvasionArtifactUploadCompletesLocalArtifact(t *testing.T) {
 		t.Fatalf("WriteSecret: %v", err)
 	}
 
+	taskID, err := invasion.CreateTask(db, nestID, eggID, "fixture work", 60)
+	if err != nil {
+		t.Fatal(err)
+	}
 	sum := sha256.Sum256([]byte("hello"))
 	token, artifact, err := invasion.CreateArtifactUpload(db, invasion.ArtifactUploadRequest{
 		NestID:         nestID,
+		TaskID:         taskID,
 		EggID:          eggID,
 		Filename:       "hello.txt",
 		MIMEType:       "text/plain",
@@ -66,13 +71,15 @@ func TestHandleInvasionArtifactUploadCompletesLocalArtifact(t *testing.T) {
 		Logger:     slog.New(slog.NewTextHandler(bytes.NewBuffer(nil), nil)),
 	}
 	s.Cfg.Directories.DataDir = dataDir
+	s.Cfg.InvasionControl.Enabled = true
+	s.Cfg.InvasionControl.ReadOnly = true
 
 	req := httptest.NewRequest(http.MethodPost, "/api/invasion/artifacts/upload/"+token, strings.NewReader("hello"))
 	signEggRequest(t, req, sharedKey, nil)
 	req.Header.Set("X-AuraGo-Nest-ID", nestID)
 	req.Header.Set("X-AuraGo-Egg-ID", eggID)
 	rec := httptest.NewRecorder()
-	handleInvasionArtifactUpload(s)(rec, req)
+	s.guardInvasion(handleInvasionArtifactUpload(s))(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body=%s", rec.Code, rec.Body.String())
@@ -137,6 +144,8 @@ func TestHandleInvasionArtifactUploadRejectsUnsignedUpload(t *testing.T) {
 		Logger:     slog.New(slog.NewTextHandler(bytes.NewBuffer(nil), nil)),
 	}
 	s.Cfg.Directories.DataDir = dataDir
+	s.Cfg.InvasionControl.Enabled = true
+	s.Cfg.InvasionControl.ReadOnly = true
 
 	req := httptest.NewRequest(http.MethodPost, "/api/invasion/artifacts/upload/"+token, strings.NewReader("hello"))
 	rec := httptest.NewRecorder()
@@ -179,13 +188,19 @@ func TestHandleInvasionArtifactOfferAuthenticatesEggAndReturnsUploadToken(t *tes
 		Logger:     slog.New(slog.NewTextHandler(bytes.NewBuffer(nil), nil)),
 	}
 	s.Cfg.Directories.DataDir = dataDir
+	s.Cfg.InvasionControl.Enabled = true
+	s.Cfg.InvasionControl.ReadOnly = true
 
+	taskID, err := invasion.CreateTask(db, nestID, eggID, "fixture work", 60)
+	if err != nil {
+		t.Fatal(err)
+	}
 	body, _ := json.Marshal(map[string]interface{}{
 		"filename":        "report.txt",
 		"mime_type":       "text/plain",
 		"expected_size":   12,
 		"expected_sha256": strings.Repeat("c", 64),
-		"mission_id":      "mission-1",
+		"task_id":         taskID,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/invasion/artifacts/offer", bytes.NewReader(body))
 	signEggRequest(t, req, sharedKey, body)
@@ -193,7 +208,7 @@ func TestHandleInvasionArtifactOfferAuthenticatesEggAndReturnsUploadToken(t *tes
 	req.Header.Set("X-AuraGo-Egg-ID", eggID)
 
 	rec := httptest.NewRecorder()
-	handleInvasionArtifactOffer(s)(rec, req)
+	s.guardInvasion(handleInvasionArtifactOffer(s))(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body=%s", rec.Code, rec.Body.String())

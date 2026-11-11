@@ -1,4 +1,6 @@
 {
+  "invasion.disabled_notice": "Το Invasion Control είναι απενεργοποιημένο. Ενημέρωσε μαζί το Master και τα Eggs πριν το ενεργοποιήσεις στις ρυθμίσεις.",
+  "invasion.configure": "Άνοιγμα ρυθμίσεων",
   "invasion.allow_unsandboxed": "Να επιτρέπεται shell χωρίς απομόνωση (απαιτεί και επιλογή shell)",
   "invasion.access_docker": "Docker API",
   "invasion.access_local": "Τοπικό",

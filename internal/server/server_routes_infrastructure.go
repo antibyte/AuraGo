@@ -69,19 +69,20 @@ func (s *Server) registerInfrastructureRoutes(mux *http.ServeMux, shutdownCh cha
 		handleInvasion("/api/invasion/messages", handleInvasionEggMessage(s))
 		s.EggHub.OnDisconnect = func(nestID, eggID string) {
 			s.Logger.Info("Egg disconnected", "nest_id", nestID, "egg_id", eggID)
-			_ = invasion.UpdateNestHatchStatus(s.InvasionDB, nestID, "stopped", "connection lost")
 		}
 		s.EggHub.OnResult = func(nestID string, result bridge.ResultPayload) {
 			s.Logger.Info("Task result received", "nest_id", nestID, "task_id", result.TaskID, "status", result.Status)
-			status := "completed"
-			if result.Status == "failure" {
-				status = "failed"
+			if err := s.recordInvasionTaskResult(nestID, result); err != nil {
+				s.Logger.Warn("Rejected Egg task result", "nest_id", nestID, "task_id", result.TaskID, "error", err)
 			}
-			_ = invasion.UpdateTaskResult(s.InvasionDB, result.TaskID, status, result.Output, result.Error, result.ArtifactIDs)
 		}
 		s.EggHub.OnMissionResult = func(nestID string, result bridge.MissionResultPayload) {
 			s.Logger.Info("Remote mission result received", "nest_id", nestID, "mission_id", result.MissionID, "result", result.Result, "artifact_count", len(result.ArtifactIDs))
-			if s.MissionManagerV2 != nil {
+			if s.MissionManagerV2 != nil && s.invasionAllowed(false) {
+				nest, err := invasion.GetNest(s.InvasionDB, nestID)
+				if err != nil || s.validateInvasionWork(nestID, nest.EggID, "", result.MissionID, true) != nil || s.validateInvasionArtifacts(nestID, nest.EggID, "", result.MissionID, result.ArtifactIDs) != nil {
+					return
+				}
 				output := result.Output
 				if output == "" {
 					output = result.Error
@@ -140,8 +141,7 @@ func (s *Server) registerInfrastructureRoutes(mux *http.ServeMux, shutdownCh cha
 			hbCancel()
 		}()
 		s.EggHub.StartHeartbeatMonitor(hbCtx, 30*time.Second, 90*time.Second, func(nestID, eggID string) {
-			s.Logger.Warn("Egg heartbeat stale, marking as failed", "nest_id", nestID, "egg_id", eggID)
-			_ = invasion.UpdateNestHatchStatus(s.InvasionDB, nestID, "failed", "heartbeat timeout")
+			s.Logger.Warn("Egg heartbeat stale", "nest_id", nestID, "egg_id", eggID)
 		})
 		go func() {
 			ticker := time.NewTicker(6 * time.Hour)

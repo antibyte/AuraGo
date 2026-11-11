@@ -692,6 +692,9 @@ func (h *EggHub) HandleMessages(conn *EggConnection) {
 			return
 		}
 
+		if h.Policy != nil && !h.Policy(false) {
+			return
+		}
 		switch msg.Type {
 		case MsgHeartbeat:
 			var hb HeartbeatPayload

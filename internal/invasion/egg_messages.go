@@ -30,8 +30,9 @@ type EggMessageRecord struct {
 }
 
 type EggMessageRatePolicy struct {
-	Burst  int
-	Window time.Duration
+	SuppressWakeup bool
+	Burst          int
+	Window         time.Duration
 }
 
 type EggMessageFilter struct {
@@ -61,6 +62,9 @@ func RecordEggMessage(db *sql.DB, msg EggMessageRecord, policy EggMessageRatePol
 	if msg.DedupKey != "" {
 		existing, err := findEggMessageByDedupKey(db, msg.NestID, msg.EggID, msg.DedupKey)
 		if err == nil {
+			if policy.SuppressWakeup {
+				existing.WakeupAllowed = false
+			}
 			return existing, nil
 		}
 	}
@@ -71,7 +75,7 @@ func RecordEggMessage(db *sql.DB, msg EggMessageRecord, policy EggMessageRatePol
 		policy.Window = time.Minute
 	}
 	msg.WakeupAllowed = false
-	if msg.WakeupRequested {
+	if msg.WakeupRequested && !policy.SuppressWakeup {
 		allowed, err := eggMessageWakeupAllowed(db, msg.NestID, msg.EggID, policy, now)
 		if err != nil {
 			return EggMessageRecord{}, err
