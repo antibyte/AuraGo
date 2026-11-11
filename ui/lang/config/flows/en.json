@@ -1,6 +1,6 @@
 {
   "config.flows.agent_allow_publish": "Agent may publish flows",
-  "config.flows.agent_note": "These options limit what the agent may do with EasyDrag flows. You can always start and publish flows in EasyDrag yourself.",
+  "config.flows.agent_note": "These options limit what Aura may do with EasyDrag flows. You can always start and publish flows in EasyDrag yourself, and flows that your own triggers start keep running.",
   "config.flows.agent_read_only": "Agent may only read flows",
   "config.flows.ai_provider": "AI provider for AI steps",
   "config.flows.ai_provider_help": "AI steps set to “Default model” use this provider.",
@@ -27,6 +27,6 @@
   "config.flows.durable_effective": "Processing enabled",
   "config.flows.durable_available": "Recovery service ready",
   "config.flows.durable_counts": "Waiting runs: {{waiting}} · Active runs: {{running}} · Blocked runs: {{blocked}}",
-  "config.flows.agent_read_only_help": "When on, the agent may list flows and read their history, but not start them.",
+  "config.flows.agent_read_only_help": "When on, Aura can list and read flows but cannot start them. Flows that your own triggers start still run.",
   "config.flows.agent_allow_publish_unavailable": "Not available: the agent cannot publish flows. You can publish only in EasyDrag."
 }

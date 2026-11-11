@@ -84,6 +84,81 @@ func TestAIDecisionTrustedStateSendsTheSameRequest(t *testing.T) {
 	}
 }
 
+// decisionQuestionRun is decisionFenceRun with its own questions and an empty, trusted state.
+func decisionQuestionRun(t *testing.T, triggerType string, questions []any, data map[string]any) (RunResult, *fakeDecisionEvaluator) {
+	t.Helper()
+	service := &fakeDecisionEvaluator{response: choiceResponse("intent", "approve", .9)}
+	eng := newTestEngine(catalogRegistry(t, fullEnv()), &Services{Decisions: service, Location: time.UTC}, 4)
+	b := newFlow("Fenced questions")
+	tr := b.node("start", triggerType, nil)
+	decide := b.node("decide", TypeAIDecision, map[string]any{"mode": "route", "state": map[string]any{}, "questions": questions})
+	b.edge(tr, PortOut, decide)
+	res, _ := runWith(t.Context(), eng, b.build(), RunRequest{TriggerNode: tr, TriggerType: "x", TriggerData: data})
+	return res, service
+}
+
+func decisionTestOptions() []any {
+	return []any{map[string]any{"id": "approve", "label": "Approve"}, map[string]any{"id": "reject", "label": "Reject"}}
+}
+
+// Untrusted text in a question's instructions or an option label is fenced, with an empty trusted
+// state, and the guard is added once.
+func TestAIDecisionQuestionsFenceUntrustedText(t *testing.T) {
+	questions := []any{map[string]any{
+		"id": "intent", "type": "choice", "instructions": "Route this mail: {{trigger.data.subject}}",
+		"options": []any{map[string]any{"id": "approve", "label": "Approve"}, map[string]any{"id": "reject", "label": "{{trigger.data.label}}"}},
+	}}
+	res, service := decisionQuestionRun(t, TypeTriggerWebhook, questions, map[string]any{"subject": decisionOverride, "label": "Reject now"})
+	if res.Status != RunSuccess {
+		t.Fatalf("run = %s %s %s", res.Status, res.ErrorCode, res.ErrorMessage)
+	}
+	if len(service.request.Questions) != 1 {
+		t.Fatalf("questions = %+v", service.request.Questions)
+	}
+	q := service.request.Questions[0]
+	want := decisionStateGuard + " Route this mail: " + security.IsolateExternalData(decisionOverride)
+	if q.Instructions != want || strings.Count(q.Instructions, decisionStateGuard) != 1 {
+		t.Fatalf("instructions = %q, want %q", q.Instructions, want)
+	}
+	if q.Options[1].Label != security.IsolateExternalData("Reject now") || q.Options[0].Label != "Approve" {
+		t.Fatalf("options = %+v", q.Options)
+	}
+}
+
+// An untrusted value used as a question id fails the step: the fenced text is not an identifier,
+// so validateDecisionNode refuses it and the step ends with FLOW_PARAM_INVALID.
+func TestAIDecisionQuestionIDFromUntrustedDataFailsTheStep(t *testing.T) {
+	for _, field := range []string{"id", "type"} {
+		question := map[string]any{"id": "intent", "type": "choice", "instructions": "Choose.", "options": decisionTestOptions()}
+		question[field] = "{{trigger.data.x}}"
+		value := "intent"
+		if field == "type" {
+			value = "choice"
+		}
+		res, service := decisionQuestionRun(t, TypeTriggerWebhook, []any{question}, map[string]any{"x": value})
+		if res.Status != RunError || res.ErrorCode != "FLOW_PARAM_INVALID" || service.request.Questions != nil {
+			t.Fatalf("%s: run = %s %s %s", field, res.Status, res.ErrorCode, res.ErrorMessage)
+		}
+	}
+	options := []any{map[string]any{"id": "{{trigger.data.x}}", "label": "A"}, map[string]any{"id": "reject", "label": "Reject"}}
+	res, service := decisionQuestionRun(t, TypeTriggerWebhook, []any{map[string]any{"id": "intent", "type": "choice", "instructions": "Choose.", "options": options}}, map[string]any{"x": "approve"})
+	if res.Status != RunError || res.ErrorCode != "FLOW_PARAM_INVALID" || service.request.Questions != nil {
+		t.Fatalf("option id: run = %s %s %s", res.Status, res.ErrorCode, res.ErrorMessage)
+	}
+}
+
+// A trusted trigger leaves the questions plain and adds no guard.
+func TestAIDecisionTrustedQuestionsAddNoGuard(t *testing.T) {
+	questions := []any{map[string]any{"id": "intent", "type": "choice", "instructions": "Route: {{trigger.data.subject}}", "options": decisionTestOptions()}}
+	res, service := decisionQuestionRun(t, TypeTriggerManual, questions, map[string]any{"subject": "hello"})
+	if res.Status != RunSuccess {
+		t.Fatalf("run = %s %s %s", res.Status, res.ErrorCode, res.ErrorMessage)
+	}
+	if got := service.request.Questions[0].Instructions; got != "Route: hello" {
+		t.Fatalf("instructions = %q", got)
+	}
+}
+
 // Two untrusted keys that fence to the same text fail the step with FLOW_PARAM_INVALID.
 func TestAIDecisionStateKeyCollisionFailsTheStep(t *testing.T) {
 	twin := map[string]any{"a b": "1", "a b" + string(rune(0x200B)): "2"}

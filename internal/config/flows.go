@@ -25,7 +25,8 @@ type FlowsConfig struct {
 // FlowsAgentConfig limits what the agent may do with EasyDrag flows through manage_missions.
 // ReadOnly: the agent may list flows and read their history, but not start them (run and
 // run_now on a flow mission are refused); dispatch reads it on every call, so it takes effect
-// without a restart. AllowPublish has no effect: the agent cannot publish flows.
+// without a restart. It does not stop flows that the owner's own triggers start, such as a
+// mission_completed trigger. AllowPublish has no effect: the agent cannot publish flows.
 type FlowsAgentConfig struct {
 	ReadOnly     bool `yaml:"read_only" json:"read_only"`
 	AllowPublish bool `yaml:"allow_publish" json:"allow_publish"`

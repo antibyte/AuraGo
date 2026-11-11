@@ -4791,7 +4791,7 @@ function testConfigFlowsSection() {
   assert.equal(readOnly.classList.contains('on'), false, 'read_only switches off');
   assert.equal(readOnlyContext.dirtyMarks, 1, 'read_only marks the draft dirty');
   assert.match(html, /id="flows-agent-publish-reason">Not available: the agent cannot publish flows\. You can publish only in EasyDrag\.</);
-  assert.match(html, /id="flows-agent-note">These options limit what the agent may do with EasyDrag flows\. You can always start and publish flows in EasyDrag yourself\.</);
+  assert.match(html, /id="flows-agent-note">These options limit what Aura may do with EasyDrag flows\. You can always start and publish flows in EasyDrag yourself, and flows that your own triggers start keep running\.</);
   assert.doesNotMatch(toggle('flows.durable_enabled'), /toggle on/, 'missing durable setting stays off');
   const observed = { configured: false, effective: false, recovery_available: false, reason: 'disabled', waiting_count: null, claimed_count: null, blocked_count: null };
   const draftOn = renderConfigFlowsSection({ flows: { ...flows, durable_enabled: true }, durableStatus: observed });

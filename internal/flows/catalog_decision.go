@@ -60,7 +60,7 @@ func aiDecisionDef(availability func() Availability) *NodeDef {
 			{Name: "mode", Kind: ParamSegmented, LabelKey: "easydrag.param.decision_mode", Default: decisionModeRoute,
 				Options: []Option{option(decisionModeRoute, "decision_mode_route"), option(decisionModeEvaluate, "decision_mode_evaluate")}},
 			{Name: "state", Kind: ParamJSON, LabelKey: "easydrag.param.decision_state", Templatable: true, FenceUntrusted: true},
-			{Name: "questions", Kind: ParamDecisionQuestions, LabelKey: "easydrag.param.decision_questions", Required: true, Default: questionsDefault, SensitiveSink: true},
+			{Name: "questions", Kind: ParamDecisionQuestions, LabelKey: "easydrag.param.decision_questions", Required: true, Default: questionsDefault, SensitiveSink: true, FenceUntrusted: true},
 			{Name: "images", Kind: ParamDecisionImages, LabelKey: "easydrag.param.decision_images", Templatable: true, SensitiveSink: true, Default: []any{}},
 			{Name: "confidence_threshold", Kind: ParamNumber, LabelKey: "easydrag.param.decision_threshold", Default: threshold,
 				Min: &min, Max: &max, Step: &step},
@@ -396,8 +396,10 @@ func executeDecisionNode(ctx context.Context, in ExecInput) (ExecResult, error) 
 		return ExecResult{}, NewNodeError("FLOW_PARAM_INVALID", "the decision state is %d KiB after fencing; the limit is %d KiB", (len(stateText)+1023)>>10, decisions.MaxStateBytes>>10)
 	}
 	// Only the flow knows that a fence was applied, so the guard is added here. It tells the
-	// decision model what the markers mean. A state without fenced data sends a byte-identical request.
-	if strings.Contains(stateText, decisionFenceOpener) {
+	// decision model what the markers mean. It is added once, when the state or any question text
+	// carries a fence. A state without fenced data sends the same JSON values as before; only &, <
+	// and > now stay literal in the text instead of being escaped, so the model reads them as written.
+	if strings.Contains(stateText, decisionFenceOpener) || questionsCarryFence(questions) {
 		for index := range questions {
 			questions[index].Instructions = decisionStateGuard + " " + questions[index].Instructions
 		}
@@ -493,6 +495,22 @@ func decodeDecisionQuestions(raw any) ([]decisions.Question, error) {
 		}
 	}
 	return out, nil
+}
+
+// questionsCarryFence reports whether an instruction or an option label holds a fence marker.
+// Ids and types never do: a fenced id or type fails validation before this point.
+func questionsCarryFence(questions []decisions.Question) bool {
+	for _, question := range questions {
+		if strings.Contains(question.Instructions, decisionFenceOpener) {
+			return true
+		}
+		for _, option := range question.Options {
+			if strings.Contains(option.Label, decisionFenceOpener) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func stringifyParam(raw any) string { s, _ := raw.(string); return s }

@@ -44,6 +44,17 @@ func TestEncodeStateTextKeepsFenceMarkersReadable(t *testing.T) {
 	}
 }
 
+// A trusted state keeps &, < and > literal: the same JSON values, written as read.
+func TestEncodeStateTextKeepsHTMLCharactersLiteral(t *testing.T) {
+	got, err := EncodeStateText(map[string]any{"hint": "R&D, a<b>c"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"hint":"R&D, a<b>c"}`; got != want {
+		t.Fatalf("state text = %q, want %q", got, want)
+	}
+}
+
 // ValidateRequest measures the bytes that are sent, not the json.Marshal escapes.
 func TestValidateRequestMeasuresTheEncodedState(t *testing.T) {
 	question := Question{ID: "q", Type: "choice", Instructions: "pick", Options: []Option{{ID: "a", Label: "A"}, {ID: "b", Label: "B"}}}

@@ -1,6 +1,6 @@
 {
   "config.flows.agent_allow_publish": "Agenten får publicera flöden",
-  "config.flows.agent_note": "De här alternativen begränsar vad agenten får göra med EasyDrag-flöden. Du kan alltid starta och publicera flöden själv i EasyDrag.",
+  "config.flows.agent_note": "De här alternativen begränsar vad Aura får göra med EasyDrag-flöden. Du kan alltid starta och publicera flöden själv i EasyDrag, och flöden som dina egna utlösare startar fortsätter att köras.",
   "config.flows.agent_read_only": "Agenten får bara läsa flöden",
   "config.flows.ai_provider": "AI-leverantör för AI-steg",
   "config.flows.ai_provider_help": "AI-steg som är inställda på ”Standardmodell” använder den här leverantören.",
@@ -27,6 +27,6 @@
   "config.flows.durable_effective": "Bearbetning aktiverad",
   "config.flows.durable_available": "Återupptagningstjänsten är redo",
   "config.flows.durable_counts": "Väntande: {{waiting}} · Aktiva: {{running}} · Blockerade: {{blocked}}",
-  "config.flows.agent_read_only_help": "När det är på får agenten lista flöden och läsa deras historik, men inte starta dem.",
+  "config.flows.agent_read_only_help": "När det är på kan Aura lista och läsa flöden, men inte starta dem. Flöden som dina egna utlösare startar körs ändå.",
   "config.flows.agent_allow_publish_unavailable": "Inte tillgängligt: agenten kan inte publicera flöden. Du kan bara publicera i EasyDrag."
 }

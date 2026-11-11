@@ -1,6 +1,6 @@
 {
   "config.flows.agent_allow_publish": "L’agent peut publier des flux",
-  "config.flows.agent_note": "Ces options limitent ce que l’agent peut faire avec les flux EasyDrag. Tu peux toujours démarrer et publier des flux toi-même dans EasyDrag.",
+  "config.flows.agent_note": "Ces options limitent ce qu’Aura peut faire avec les flux EasyDrag. Tu peux toujours démarrer et publier des flux toi-même dans EasyDrag, et les flux que tes propres déclencheurs démarrent continuent de s’exécuter.",
   "config.flows.agent_read_only": "L’agent peut seulement lire les flux",
   "config.flows.ai_provider": "Fournisseur d’IA pour les étapes IA",
   "config.flows.ai_provider_help": "Les étapes IA réglées sur « Modèle par défaut » utilisent ce fournisseur.",
@@ -27,6 +27,6 @@
   "config.flows.durable_effective": "Traitement activé",
   "config.flows.durable_available": "Service de reprise prêt",
   "config.flows.durable_counts": "Exécutions en attente : {{waiting}} · Actives : {{running}} · Bloquées : {{blocked}}",
-  "config.flows.agent_read_only_help": "Si activé, l’agent peut lister les flux et lire leur historique, mais pas les démarrer.",
+  "config.flows.agent_read_only_help": "Si activé, Aura peut lister et lire les flux, mais pas les démarrer. Les flux que tes propres déclencheurs démarrent s’exécutent toujours.",
   "config.flows.agent_allow_publish_unavailable": "Indisponible : l’agent ne peut pas publier de flux. Tu ne peux publier que dans EasyDrag."
 }

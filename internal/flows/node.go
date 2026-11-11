@@ -397,7 +397,8 @@ const (
 	// fenceWhole fences each untrusted value as one text (fenceUntrusted).
 	fenceWhole fenceMode = iota + 1
 	// fenceLeaves keeps the JSON type of a value that a single-expression template reads, and
-	// fences its string leaves and its non-identifier keys (fenceUntrustedLeaves). ParamJSON uses it.
+	// fences its string leaves and its non-identifier keys (fenceUntrustedLeaves). ParamJSON and
+	// ParamDecisionQuestions use it; a fenced question id, option id or type then fails validation.
 	fenceLeaves
 )
 
@@ -411,7 +412,7 @@ func (d *NodeDef) fencedParams() map[string]fenceMode {
 				out = map[string]fenceMode{}
 			}
 			mode := fenceWhole
-			if spec.Kind == ParamJSON {
+			if spec.Kind == ParamJSON || spec.Kind == ParamDecisionQuestions {
 				mode = fenceLeaves
 			}
 			out[spec.Name] = mode
