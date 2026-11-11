@@ -8,11 +8,11 @@
     const ED = window.EasyDrag = window.EasyDrag || {};
     const MARKER = '[redacted]';
     const EXACT = new Set(['token', 'accesstoken', 'refreshtoken', 'idtoken', 'apikey', 'secret', 'clientsecret', 'password', 'passwd', 'pwd', 'sig', 'signature',
-        'auth', 'authorization', 'xapikey', 'privatekey', 'secretkey', 'accesskey', 'sessiontoken']);
-    const SUFFIXES = ['token', 'secret', 'password', 'apikey'];
+        'auth', 'authorization', 'xapikey', 'privatekey', 'secretkey', 'accesskey', 'sessiontoken', 'secrets', 'tokens', 'apikeys']);
+    const SUFFIXES = ['token', 'secret', 'password', 'apikey', 'tokens', 'secrets', 'passwords', 'apikeys'];
     const TOKEN = /^(?:(?:sk-|sk_live_|rk_live_)[A-Za-z0-9_-]{20,}|(?:ghp_|gho_|ghu_|ghs_|ghr_)[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{16,}|glpat-[A-Za-z0-9_-]{16,}|xox[bpar]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/;
     const WORDS = /[ \t\r\n\f]+|[^ \t\r\n\f]+/g;
-    const HEADER_EXACT = new Set(['authorization', 'proxy-authorization', 'cookie', 'x-api-key', 'api-key', 'apikey', 'x-auth-token', 'x-access-token']);
+    const HEADER_EXACT = new Set(['authorization', 'proxy-authorization', 'cookie', 'x-api-key', 'api-key', 'apikey', 'x-auth-token', 'x-access-token', 'x-auth', 'x-session']);
     const HEADER_PARTS = ['api-key', 'api_key', 'apikey', 'token', 'secret', 'password'];
 
     const empty = v => v == null || (typeof v === 'string' && v.trim() === '') || (Array.isArray(v) && !v.length) || (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length);
@@ -30,18 +30,60 @@
     function templateOnly(s) {
         if (!hasTemplate(s) || ED.template.refs(s).some(r => r.error)) return false;
         const rest = ED.template.segments(s).filter(g => g.expr === undefined).map(g => g.literal).join('');
-        return ['', 'bearer', 'basic', 'token'].includes(rest.trim().toLowerCase());
+        return ['', 'bearer', 'basic', 'token'].includes(asciiLower(asciiTrim(rest)));
     }
 
-    function normal(name) { return String(name).trim().toLowerCase().replace(/[-_]/g, ''); }
+    // ASCII-only fold and trim, like asciiLower and asciiTrim in credentials.go: both sides must agree
+    // on every name, so no Unicode case folding (a dotted capital I is no "i") and no Unicode white space.
+    function asciiLower(s) { return String(s).replace(/[A-Z]/g, c => String.fromCharCode(c.charCodeAt(0) + 32)); }
+    function asciiTrim(s) { return String(s).replace(/^[ \t\n\v\f\r]+|[ \t\n\v\f\r]+$/g, ''); }
+
+    function normal(name) { return asciiLower(asciiTrim(name)).replace(/[-_]/g, ''); }
     function fieldName(name) { const n = normal(name); return EXACT.has(n) || SUFFIXES.some(s => n.endsWith(s)); }
     function queryKey(name) { return fieldName(name) || normal(name) === 'key'; }
     function isToken(s) { return s.length >= 16 && !s.includes('{{') && TOKEN.test(s); }
-    function literalText(s) { return s.trim() !== '' && s !== MARKER && !hasTemplate(s); }
-    function headerName(name) { const n = String(name).trim().toLowerCase(); return HEADER_EXACT.has(n) || HEADER_PARTS.some(p => n.includes(p)); }
-    function literalHeader(s) { return s.trim() !== '' && s !== MARKER && !templateOnly(s); }
+    // literalText: not blank, not the marker, and not only a template (a bare scheme around templates
+    // is no typed-in text); text next to a template ("sk-abc{{x}}") is typed in.
+    function literalText(s) { return asciiTrim(s) !== '' && s !== MARKER && !templateOnly(s); }
+    function headerName(name) { const n = asciiLower(asciiTrim(name)); return HEADER_EXACT.has(n) || HEADER_PARTS.some(p => n.includes(p)); }
+    const literalHeader = literalText;
     function pointer(k) { return String(k).replace(/~/g, '~0').replace(/\//g, '~1'); }
-    function unescapeQuery(s) { try { return decodeURIComponent(s.replace(/\+/g, ' ')); } catch (err) { return s; } }
+    // utf8At decodes one valid UTF-8 sequence of bytes at i: [text, length]; null for an invalid byte.
+    function utf8At(b, i) {
+        const c = b[i], cont = (j, lo, hi) => j < b.length && b[j] >= (lo || 0x80) && b[j] <= (hi || 0xBF);
+        if (c < 0x80) return [String.fromCharCode(c), 1];
+        if (c >= 0xC2 && c <= 0xDF && cont(i + 1)) return [String.fromCharCode(((c & 0x1F) << 6) | (b[i + 1] & 0x3F)), 2];
+        if (c >= 0xE0 && c <= 0xEF) {
+            const lo = c === 0xE0 ? 0xA0 : 0x80, hi = c === 0xED ? 0x9F : 0xBF;
+            if (cont(i + 1, lo, hi) && cont(i + 2)) return [String.fromCharCode(((c & 0x0F) << 12) | ((b[i + 1] & 0x3F) << 6) | (b[i + 2] & 0x3F)), 3];
+        }
+        if (c >= 0xF0 && c <= 0xF4) {
+            const lo = c === 0xF0 ? 0x90 : 0x80, hi = c === 0xF4 ? 0x8F : 0xBF;
+            if (cont(i + 1, lo, hi) && cont(i + 2) && cont(i + 3)) return [String.fromCodePoint(((c & 0x07) << 18) | ((b[i + 1] & 0x3F) << 12) | ((b[i + 2] & 0x3F) << 6) | (b[i + 3] & 0x3F)), 4];
+        }
+        return null;
+    }
+    // unescapeQuery decodes "+" and every valid %XX byte by byte (an invalid sequence stays as it is),
+    // like unescapeQuery in credentials.go; a byte that is no valid UTF-8 becomes U+FFFD, one per byte.
+    function unescapeQuery(s) {
+        let out = '', bytes = [];
+        const flush = () => {
+            for (let i = 0; i < bytes.length;) {
+                const r = utf8At(bytes, i);
+                out += r ? r[0] : '\uFFFD';
+                i += r ? r[1] : 1;
+            }
+            bytes = [];
+        };
+        for (let i = 0; i < s.length; i++) {
+            const c = s[i];
+            if (c === '%' && /^[0-9A-Fa-f]{2}$/.test(s.slice(i + 1, i + 3))) { bytes.push(parseInt(s.slice(i + 1, i + 3), 16)); i += 2; continue; }
+            flush();
+            out += c === '+' ? ' ' : c;
+        }
+        flush();
+        return out;
+    }
     function urlPath(ptr, name) { return ptr === '' ? name : ptr + '?' + name; }
 
     // splitURL cuts an http:// or https:// word like splitCredentialURL; null for any other text.
@@ -91,11 +133,33 @@
 
     function entry(w, k, val, ptr) {
         const p = ptr + '/' + pointer(k);
-        if (typeof val === 'string' && fieldName(k) && literalText(val)) return put(w, { location: w.fields, path: p, value: val, top: false }, val);
+        if (fieldName(k)) {
+            if (typeof val === 'string' && literalText(val)) return put(w, { location: w.fields, path: p, value: val, top: false }, val);
+            if (Array.isArray(val)) return secretList(w, val, p);
+        }
         return walk(w, val, p);
     }
 
-    function text(w, s, ptr) { return (s.match(WORDS) || []).map(tok => word(w, tok, ptr)).join(''); }
+    // secretList: the value of a credential-named key that is a list; every text item is a secret.
+    function secretList(w, items, ptr) {
+        return items.map((item, i) => {
+            const p = ptr + '/' + i;
+            if (typeof item === 'string' && literalText(item)) return put(w, { location: w.fields, path: p, value: item, top: false }, item);
+            if (Array.isArray(item)) return secretList(w, item, p);
+            return walk(w, item, p);
+        });
+    }
+
+    // text: a string that holds a JSON object or list is scanned as that value (and written back as
+    // JSON when something was found); any other string is checked word by word.
+    function text(w, s, ptr) {
+        const parsed = decodeContainer(s);
+        if (parsed.ok) {
+            const before = w.hits.length, red = walk(w, parsed.value, ptr);
+            return w.hits.length === before ? s : JSON.stringify(red);
+        }
+        return (s.match(WORDS) || []).map(tok => word(w, tok, ptr)).join('');
+    }
 
     function word(w, tok, ptr) {
         if (/^[ \t\r\n\f]/.test(tok)) return tok;
@@ -110,22 +174,29 @@
             const r = put(w, { location: 'url_userinfo', path: urlPath(ptr, 'userinfo'), value: u.userinfo, top: ptr === '' }, u.userinfo);
             if (r === '') u.hasUser = false; else u.userinfo = r;
         }
-        if (u.hasQuery) {
-            u.query = u.query.split('&').map(pair => {
-                const eq = pair.indexOf('=');
-                if (eq < 0) return pair;
-                const key = pair.slice(0, eq), val = pair.slice(eq + 1);
-                if (!literalText(val)) return pair;
-                const name = unescapeQuery(key), dec = unescapeQuery(val);
-                if (!queryKey(name) && !isToken(dec)) return pair;
-                return key + '=' + put(w, { location: 'url_query', path: urlPath(ptr, name), value: dec, top: ptr === '' }, val);
-            }).join('&');
-        }
+        if (u.hasQuery) u.query = pairs(w, u.query, 'url_query', name => urlPath(ptr, name), ptr === '');
+        // A fragment can carry a token too ("#access_token=..."). It is never sent to the server, so a
+        // hit there is not movable: top stays false.
+        if (u.fragment.length > 1) u.fragment = '#' + pairs(w, u.fragment.slice(1), 'url_query', name => urlPath(ptr, name), false);
         return joinURL(u);
     }
 
+    // pairs applies the query rule to a "k=v&k=v" string (URL query, URL fragment, form body): a pair
+    // whose key names a credential or whose value is a token format, with a typed-in value, is a hit.
+    function pairs(w, s, location, path, top) {
+        return s.split('&').map(pair => {
+            const eq = pair.indexOf('=');
+            if (eq < 0) return pair;
+            const key = pair.slice(0, eq), val = pair.slice(eq + 1);
+            if (!literalText(val)) return pair;
+            const name = unescapeQuery(key), dec = unescapeQuery(val);
+            if (!queryKey(name) && !isToken(dec)) return pair;
+            return key + '=' + put(w, { location, path: path(name), value: dec, top }, val);
+        }).join('&');
+    }
+
     function decodeContainer(s) {
-        const t = s.trim();
+        const t = asciiTrim(s);
         if (!t || (t[0] !== '{' && t[0] !== '[')) return { ok: false };
         try { return { ok: true, value: JSON.parse(t) }; } catch (err) { return { ok: false }; }
     }
@@ -134,7 +205,7 @@
         if (!v || typeof v !== 'object' || Array.isArray(v)) return { hits: [], value: v };
         const w = { fields: 'param_field', hits: [], drop }, out = {};
         Object.keys(v).sort().forEach(k => {
-            const name = k.trim();
+            const name = asciiTrim(k);
             if (typeof v[k] === 'string' && headerName(name)) {
                 out[k] = literalHeader(v[k]) ? put(w, { location: 'header', path: name, value: v[k], top: true }, v[k]) : v[k];
                 return;
@@ -155,6 +226,11 @@
             if (parsed.ok) {
                 const red = walk(w, parsed.value, '');
                 return w.hits.length ? { hits: w.hits, value: JSON.stringify(red) } : { hits: [], value: v };
+            }
+            if (typeof v === 'string') {
+                // No JSON: read it as form data, then check the words of what is left.
+                const red = text(w, pairs(w, v, 'body_field', n => '/' + pointer(n), false), '');
+                return w.hits.length ? { hits: w.hits, value: red } : { hits: [], value: v };
             }
         } else if (String(type).startsWith('tool.')) {
             const red = entry(w, name, v, '');
@@ -197,7 +273,7 @@
     function movable(node, param, hit) {
         if (node.type !== 'http.request' || !empty((node.params || {}).auth_secret)) return false;
         if (hit.location === 'header') return param === 'headers' && !hasTemplate(hit.value);
-        if (hit.location === 'url_query' || hit.location === 'url_userinfo') return param === 'url' && hit.top;
+        if (hit.location === 'url_query' || hit.location === 'url_userinfo') return param === 'url' && hit.top && !hasTemplate(hit.value);
         return false;
     }
 

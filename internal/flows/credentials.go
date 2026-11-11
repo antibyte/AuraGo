@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"maps"
-	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -16,9 +15,9 @@ import (
 // credentialHeaderName reports whether a request header of this name carries a credential: the
 // usual names, and any name with api-key, api_key, apikey, token, secret or password in it.
 func credentialHeaderName(name string) bool {
-	n := strings.ToLower(strings.TrimSpace(name))
+	n := asciiLower(asciiTrim(name))
 	switch n {
-	case "authorization", "proxy-authorization", "cookie", "x-api-key", "api-key", "apikey", "x-auth-token", "x-access-token":
+	case "authorization", "proxy-authorization", "cookie", "x-api-key", "api-key", "apikey", "x-auth-token", "x-access-token", "x-auth", "x-session":
 		return true
 	}
 	for _, part := range []string{"api-key", "api_key", "apikey", "token", "secret", "password"} {
@@ -46,7 +45,7 @@ func templateOnlyCredential(s string) bool {
 			rest.WriteString(p.literal)
 		}
 	}
-	switch strings.ToLower(strings.TrimSpace(rest.String())) {
+	switch asciiLower(asciiTrim(rest.String())) {
 	case "", "bearer", "basic", "token":
 		return true
 	}
@@ -85,15 +84,36 @@ var (
 	// field name: it counts only as a URL query key (credentialQueryKey).
 	credentialExactNames = map[string]bool{"token": true, "accesstoken": true, "refreshtoken": true, "idtoken": true, "apikey": true,
 		"secret": true, "clientsecret": true, "password": true, "passwd": true, "pwd": true, "sig": true, "signature": true,
-		"auth": true, "authorization": true, "xapikey": true, "privatekey": true, "secretkey": true, "accesskey": true, "sessiontoken": true}
-	credentialSuffixes    = []string{"token", "secret", "password", "apikey"}
+		"auth": true, "authorization": true, "xapikey": true, "privatekey": true, "secretkey": true, "accesskey": true, "sessiontoken": true,
+		"secrets": true, "tokens": true, "apikeys": true}
+	credentialSuffixes    = []string{"token", "secret", "password", "apikey", "tokens", "secrets", "passwords", "apikeys"}
 	credentialTokenFormat = regexp.MustCompile(`^(?:(?:sk-|sk_live_|rk_live_)[A-Za-z0-9_-]{20,}|(?:ghp_|gho_|ghu_|ghs_|ghr_)[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{16,}|glpat-[A-Za-z0-9_-]{16,}|xox[bpar]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$`)
 	credentialWords       = regexp.MustCompile(`[ \t\r\n\f]+|[^ \t\r\n\f]+`)
 )
 
-// normalCredentialName ignores case, "-" and "_".
+// asciiLower folds the ASCII letters only. The client rule folds the same way (the two must agree
+// on every name), so no Unicode case folding: a dotted capital I is no "i".
+func asciiLower(s string) string {
+	for i := 0; i < len(s); i++ {
+		if 'A' <= s[i] && s[i] <= 'Z' {
+			b := []byte(s)
+			for j := i; j < len(b); j++ {
+				if 'A' <= b[j] && b[j] <= 'Z' {
+					b[j] += 'a' - 'A'
+				}
+			}
+			return string(b)
+		}
+	}
+	return s
+}
+
+// asciiTrim cuts ASCII white space; the client rule trims the same set.
+func asciiTrim(s string) string { return strings.Trim(s, " \t\n\v\f\r") }
+
+// normalCredentialName ignores ASCII case, "-" and "_".
 func normalCredentialName(name string) string {
-	return strings.NewReplacer("-", "", "_", "").Replace(strings.ToLower(strings.TrimSpace(name)))
+	return strings.NewReplacer("-", "", "_", "").Replace(asciiLower(asciiTrim(name)))
 }
 
 // credentialFieldName reports whether a key of a JSON object names a credential.
@@ -120,24 +140,59 @@ func isCredentialToken(s string) bool {
 	return len(s) >= 16 && !strings.Contains(s, "{{") && credentialTokenFormat.MatchString(s)
 }
 
-// literalCredentialText reports whether s is typed-in text: not blank, not the marker, no template.
+// literalCredentialText reports whether s is typed-in text: not blank, not the marker, and not
+// only a template (a bare auth scheme around templates, "Bearer {{x}}", is still no typed-in
+// text, see templateOnlyCredential). Text next to a template ("sk-abc{{x}}") is typed in.
 func literalCredentialText(s string) bool {
-	return strings.TrimSpace(s) != "" && s != CredentialRedactionMarker && !HasTemplate(s)
+	return asciiTrim(s) != "" && s != CredentialRedactionMarker && !templateOnlyCredential(s)
 }
 
-// literalHeaderValue is literalCredentialText for a credential header, where a bare auth
-// scheme around templates ("Bearer {{x}}") is still no typed-in text (templateOnlyCredential).
-func literalHeaderValue(s string) bool {
-	return strings.TrimSpace(s) != "" && s != CredentialRedactionMarker && !templateOnlyCredential(s)
-}
+// literalHeaderValue is the same test for a credential header.
+func literalHeaderValue(s string) bool { return literalCredentialText(s) }
 
 func pointerEscape(k string) string { return strings.NewReplacer("~", "~0", "/", "~1").Replace(k) }
 
-func unescapeQuery(s string) string {
-	if d, err := url.QueryUnescape(s); err == nil {
-		return d
+func hexDigit(c byte) int {
+	switch {
+	case '0' <= c && c <= '9':
+		return int(c - '0')
+	case 'a' <= c && c <= 'f':
+		return int(c-'a') + 10
+	case 'A' <= c && c <= 'F':
+		return int(c-'A') + 10
 	}
-	return s
+	return -1
+}
+
+// unescapeQuery decodes "+" and every valid %XX byte by byte; an invalid sequence stays as it is.
+// A byte that is no valid UTF-8 becomes U+FFFD, one per byte; the client rule does the same, so
+// both sides agree on every name and every finding.
+func unescapeQuery(s string) string {
+	if !strings.ContainsAny(s, "%+") {
+		return s
+	}
+	b := make([]byte, 0, len(s))
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; {
+		case c == '+':
+			b = append(b, ' ')
+		case c == '%' && i+2 < len(s) && hexDigit(s[i+1]) >= 0 && hexDigit(s[i+2]) >= 0:
+			b = append(b, byte(hexDigit(s[i+1])<<4|hexDigit(s[i+2])))
+			i += 2
+		default:
+			b = append(b, c)
+		}
+	}
+	if utf8.Valid(b) {
+		return string(b)
+	}
+	var out strings.Builder
+	for len(b) > 0 {
+		r, size := utf8.DecodeRune(b)
+		out.WriteRune(r) // an invalid byte (size 1) becomes U+FFFD, one per byte
+		b = b[size:]
+	}
+	return out.String()
 }
 
 // credentialURL is a web address cut at the places the rule cares about; String puts it back
@@ -250,18 +305,60 @@ func (w *credentialWalker) walk(v any, ptr string) any {
 	return v
 }
 
-// entry handles one key of an object: a credential-named key with a typed-in text is a hit.
+// entry handles one key of an object: a credential-named key with a typed-in text, or with a
+// list of which an item is a typed-in text, is a hit.
 func (w *credentialWalker) entry(k string, val any, ptr string) any {
 	p := ptr + "/" + pointerEscape(k)
-	if s, ok := val.(string); ok && credentialFieldName(k) && literalCredentialText(s) {
-		w.hits = append(w.hits, credentialHit{location: w.fields, path: p, value: s})
-		return CredentialRedactionMarker
+	if credentialFieldName(k) {
+		switch x := val.(type) {
+		case string:
+			if literalCredentialText(x) {
+				w.hits = append(w.hits, credentialHit{location: w.fields, path: p, value: x})
+				return CredentialRedactionMarker
+			}
+		case []any:
+			return w.secretList(x, p)
+		}
 	}
 	return w.walk(val, p)
 }
 
-// text checks the whitespace-separated words of a string: web addresses and token formats.
+// secretList is the value of a credential-named key that is a list: every text item is a secret.
+func (w *credentialWalker) secretList(items []any, ptr string) []any {
+	out := make([]any, len(items))
+	for i, item := range items {
+		p := ptr + "/" + strconv.Itoa(i)
+		switch x := item.(type) {
+		case string:
+			if literalCredentialText(x) {
+				w.hits = append(w.hits, credentialHit{location: w.fields, path: p, value: x})
+				out[i] = CredentialRedactionMarker
+				continue
+			}
+		case []any:
+			out[i] = w.secretList(x, p)
+			continue
+		}
+		out[i] = w.walk(item, p)
+	}
+	return out
+}
+
+// text checks a string. A string that holds a JSON object or list is scanned as that value (and
+// written back as compact JSON when something was found); any other string is checked word by
+// word: web addresses and token formats.
 func (w *credentialWalker) text(s, ptr string) string {
+	if parsed, ok := decodeJSONContainer(s); ok {
+		before := len(w.hits)
+		red := w.walk(parsed, ptr)
+		if len(w.hits) == before {
+			return s
+		}
+		if enc, ok := encodeJSONCompact(red); ok {
+			return enc
+		}
+		return CredentialRedactionMarker
+	}
 	var b strings.Builder
 	for _, tok := range credentialWords.FindAllString(s, -1) {
 		b.WriteString(w.word(tok, ptr))
@@ -297,25 +394,42 @@ func (w *credentialWalker) urlText(u credentialURL, ptr string) string {
 		u.userinfo = CredentialRedactionMarker
 	}
 	if u.hasQuery {
-		pairs := strings.Split(u.query, "&")
-		for i, pair := range pairs {
-			key, val, ok := strings.Cut(pair, "=")
-			if !ok || !literalCredentialText(val) {
-				continue
-			}
-			name, dec := unescapeQuery(key), unescapeQuery(val)
-			if credentialQueryKey(name) || isCredentialToken(dec) {
-				w.hits = append(w.hits, credentialHit{location: credQuery, path: credentialPath(ptr, name), value: dec, top: ptr == ""})
-				pairs[i] = key + "=" + CredentialRedactionMarker
-			}
-		}
-		u.query = strings.Join(pairs, "&")
+		u.query = w.pairs(u.query, credQuery, func(name string) string { return credentialPath(ptr, name) }, ptr == "")
+	}
+	if len(u.fragment) > 1 {
+		// A fragment can carry a token too ("#access_token=..."). It is never sent to the server,
+		// so a hit there is not movable: top stays false.
+		u.fragment = "#" + w.pairs(u.fragment[1:], credQuery, func(name string) string { return credentialPath(ptr, name) }, false)
 	}
 	return u.String()
 }
 
+// pairs applies the query rule to a "k=v&k=v" string (a URL query, a URL fragment, a form body):
+// a pair whose key names a credential or whose value is a token format, with a typed-in value,
+// is a hit; only the value is replaced.
+func (w *credentialWalker) pairs(s, location string, path func(name string) string, top bool) string {
+	parts := strings.Split(s, "&")
+	for i, pair := range parts {
+		key, val, ok := strings.Cut(pair, "=")
+		if !ok || !literalCredentialText(val) {
+			continue
+		}
+		name, dec := unescapeQuery(key), unescapeQuery(val)
+		if credentialQueryKey(name) || isCredentialToken(dec) {
+			w.hits = append(w.hits, credentialHit{location: location, path: path(name), value: dec, top: top})
+			parts[i] = key + "=" + CredentialRedactionMarker
+		}
+	}
+	return strings.Join(parts, "&")
+}
+
+// formBody applies the query rule to a body that is no JSON, read as form data.
+func (w *credentialWalker) formBody(s string) string {
+	return w.pairs(s, credBody, func(name string) string { return "/" + pointerEscape(name) }, false)
+}
+
 func decodeJSONContainer(s string) (any, bool) {
-	t := strings.TrimSpace(s)
+	t := asciiTrim(s)
 	if t == "" || (t[0] != '{' && t[0] != '[') {
 		return nil, false
 	}
@@ -348,7 +462,7 @@ func scanCredentialHeaders(v any) ([]credentialHit, any) {
 	w := &credentialWalker{fields: credParam}
 	out := make(map[string]any, len(m))
 	for _, k := range sortedKeys(m) {
-		name := strings.TrimSpace(k)
+		name := asciiTrim(k)
 		if s, isText := m[k].(string); isText && credentialHeaderName(name) {
 			out[k] = s
 			if literalHeaderValue(s) {
@@ -384,6 +498,12 @@ func scanCredentialParam(nodeType, name string, v any) ([]credentialHit, any) {
 				}
 				return w.hits, CredentialRedactionMarker
 			}
+			// No JSON: read it as form data, then check the words of what is left.
+			red := w.text(w.formBody(s), "")
+			if len(w.hits) == 0 {
+				return nil, v
+			}
+			return w.hits, red
 		}
 	case strings.HasPrefix(nodeType, GenericTypePrefix):
 		red := w.entry(name, v, "")
@@ -402,7 +522,7 @@ func credentialMovable(n *Node, param string, h credentialHit) bool {
 	case credHeader:
 		return param == "headers" && !HasTemplate(h.value)
 	case credQuery, credUserinfo:
-		return param == "url" && h.top
+		return param == "url" && h.top && !HasTemplate(h.value)
 	}
 	return false
 }
