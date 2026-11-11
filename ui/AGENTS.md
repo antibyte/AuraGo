@@ -1341,7 +1341,9 @@ New app-scoped prefixes must contain no `ad` substring; verify
   await removal of closing overlays; a saved editor remains in the DOM during
   its 140 ms exit animation and must not become the next click target.
 - Synth Studio library clicks await the sidebar's rendered viewport bounds, not
-  visibility alone during its slide-in transition.
+  visibility alone during its slide-in transition. Master-chain changes keep the
+  `TestDesktopSynthStudioAudioBrowser` offline ceiling and neutral-width transfer
+  measurements green; live playback and WAV export must share one output ceiling.
 - Artifact upload fixtures consume the complete request body even when capture
   is disabled; an early response can abort a large browser upload.
 - Maximized-window resize checks await converged rendered and inline bounds after viewport

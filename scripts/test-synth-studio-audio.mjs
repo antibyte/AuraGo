@@ -127,6 +127,30 @@ for (const type of insertTypes) {
 const stripContext=new RecordingAudioContext();
 const strip=FX.createMaster(stripContext,undefined);
 assert.ok(reachable(strip.input,strip.output),'the master strip routes the mix to its output');
+// The output ceiling is the last stage: stereo width and the momentary Live FX
+// can both amplify the mix, so the limiter has to follow them.
+assert.ok(reachable(strip.perfGate,strip.limiterPre),'the output ceiling follows the Live FX stage');
+assert.ok(reachable(strip.limiterPost,strip.output),'the output ceiling feeds the master output');
+assert.ok(reachable(strip.compressor,strip.widthMatrix.input),'the mid/side width matrix follows the compressor');
+assert.ok(reachable(strip.widthMatrix.output,strip.width),'the width matrix feeds the master stage');
+assert.equal(strip.widthMatrix.sideLeft.gain.value,0.5,'neutral width keeps the left side gain at unity half');
+assert.equal(strip.widthMatrix.sideRight.gain.value,-0.5,'neutral width subtracts the right side');
+assert.equal(strip.limiterPre.gain.value,1/FX.LIMITER_HEADROOM,'the limiter scales its input into the WaveShaper domain');
+assert.equal(strip.limiterPost.gain.value,FX.LIMITER_HEADROOM,'the limiter restores unity after the curve');
+const masterTransfer=value=>{
+  const curve=strip.limiter.curve;
+  const x=Math.max(-1,Math.min(1,value*strip.limiterPre.gain.value));
+  const index=(x+1)/2*(curve.length-1),low=Math.floor(index),fraction=index-low;
+  const shaped=curve[low]+((curve[low+1]??curve[low])-curve[low])*fraction;
+  return shaped*strip.limiterPost.gain.value;
+};
+assert.equal(FX.MASTER_CEILING,0.966,'live playback and WAV export share the -0.3 dBFS ceiling');
+for(const quiet of [0.02,0.1,0.25,0.5,0.7])assert.ok(Math.abs(masterTransfer(quiet)-quiet)<0.002,'clean levels pass the limiter unchanged at '+quiet);
+assert.ok(masterTransfer(1)<1,'a full-scale peak is limited instead of hard-clipped');
+assert.ok(Math.abs(masterTransfer(-1)+masterTransfer(1))<0.002,'the ceiling is symmetric for negative peaks');
+assert.ok(Math.abs(masterTransfer(2)-FX.MASTER_CEILING)<0.001,'twice full scale lands on the shared ceiling');
+assert.ok(Math.abs(masterTransfer(8)-FX.MASTER_CEILING)<0.001,'input beyond the shaper domain still lands on the ceiling');
+for(let value=0;value<=8;value+=0.05)assert.ok(masterTransfer(value)<=value+0.002,'the master limiter never amplifies the mix');
 const sends=FX.createSends(stripContext,undefined,.5);
 assert.ok(reachable(sends.reverbIn,sends.plateGain),'the plate send reaches the master bus');
 assert.ok(reachable(sends.delayIn,sends.echoGain),'the echo send reaches the master bus');

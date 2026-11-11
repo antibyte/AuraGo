@@ -312,9 +312,10 @@ Draft recovery and conditional writes continue to apply.
 
 The export menu offers WAV, MIDI and stems. Stems render one post-fader,
 pre-master WAV per track with notes, then package them as a store-only ZIP with
-UTF-8 names. Tracks without notes are skipped; the master level, EQ, compression,
-limiting and width are neutralized while the project's plate/echo character and
-post-fader sends are preserved, so the stems can be mixed elsewhere.
+UTF-8 names. Tracks without notes are skipped; the master level, EQ, compression
+and width are neutralized while the project's plate/echo character and
+post-fader sends are preserved, so the stems can be mixed elsewhere. The shared
+output ceiling stays active and keeps a hot stem below full scale.
 
 ## Effect chain and master strip
 
@@ -337,7 +338,11 @@ are performance-only, and never enter the project, WAV mixdown or stem export.
 The Master button in the transport opens the master strip: output level, the
 compressor with threshold, ratio, knee, attack and release, a three-band EQ, a
 brick-wall limiter, stereo width and the character of the shared plate and echo
-buses. The echo time follows
+buses. The limiter is a transparent output ceiling at −0.3 dBFS: levels below its
+knee pass unchanged, louder peaks ease onto the ceiling instead of clipping, and
+live playback and WAV export share the same constant. It sits after the stereo
+width matrix and the momentary Live FX, so neither can push the mix past full
+scale. The echo time follows
 the project tempo when a division is selected, so a one-eighth delay stays in
 time when the tempo changes. The analyser in the transport shows the master
 output and is visual feedback only; musical timing does not depend on its
@@ -373,8 +378,9 @@ playing files but disables editing, recording and saving.
 WAV export downloads stereo 44.1 kHz PCM16 using the same renderer as playback,
 including per-track effects. It renders one finite arrangement pass and adds
 an effect tail; the transport loop and metronome are not exported. Dense
-projects can push the master past full scale; the exporter then scales the
-whole mixdown to a −0.3 dB ceiling instead of hard-clipping, and clean mixes
+projects no longer reach the rails: the master ceiling holds the mixdown at
+−0.3 dBFS in playback and rendering. As a final safety net for hosts without the
+effect rack, the exporter still scales a mixdown above that ceiling; clean mixes
 keep their exact samples. To bound
 browser memory and processing, the complete render including the tail is
 limited to five minutes, 12,000 notes and 256 overlapping voices. Shorten or

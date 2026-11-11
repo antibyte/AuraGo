@@ -76,6 +76,42 @@ func TestDesktopSynthStudioAudioBrowser(t *testing.T) {
  check(catalog.drums.length===24&&catalog.get('drum-shaker').drumNote===70&&catalog.get('drum-cowbell').drumNote===56,'twenty-four standard-note kit sounds');
  check(window.SynthStudioGMData.drums.length===47,'GM drum map spans notes 35 through 81');
 
+ const masterSpec={volume:1,low:0,mid:0,high:0,threshold:0,ratio:1,knee:0,attack:0.003,release:0.18,width:1};
+ // Measure the output ceiling through real Web Audio nodes. Feeding the
+ // limiter stage directly isolates it from the compressor's start-up transient.
+ const limiterLevels={};
+ for(const [name,level] of [['quiet',0.25],['knee',0.7],['hot',2]]){
+  const ctx=new OfflineAudioContext(2,2048,44100);
+  const strip=SynthStudioFX.createMaster(ctx,masterSpec);
+  strip.perfGate.disconnect();
+  const tone=ctx.createBuffer(2,2048,44100);
+  for(let channel=0;channel<2;channel++)tone.getChannelData(channel).fill(level);
+  const source=ctx.createBufferSource();source.buffer=tone;source.connect(strip.limiterPre);source.start(0);
+  limiterLevels[name]=(await ctx.startRendering()).getChannelData(0)[1948];
+ }
+ check(Math.abs(limiterLevels.quiet-0.25)<0.001,'the master ceiling leaves clean levels untouched');
+ check(Math.abs(limiterLevels.knee-0.7)<0.001,'the master ceiling stays transparent up to its knee');
+ check(Math.abs(limiterLevels.hot-SynthStudioFX.MASTER_CEILING)<0.001,'a hot peak lands on the shared output ceiling instead of the PCM rails');
+ // The full strip must keep a centred signal centred and at its level, and a
+ // hard-left signal out of the right channel: the mid/side matrix is neutral at
+ // width 1. Render long enough for the compressor detector to settle.
+ const stripLevels=async(width,left,right)=>{
+  const frames=44100;
+  const ctx=new OfflineAudioContext(2,frames,44100);
+  const strip=SynthStudioFX.createMaster(ctx,{...masterSpec,width});
+  const tone=ctx.createBuffer(2,frames,44100);
+  tone.getChannelData(0).fill(left);tone.getChannelData(1).fill(right);
+  const source=ctx.createBufferSource();source.buffer=tone;source.connect(strip.input);source.start(0);
+  const rendered=await ctx.startRendering();
+  return {left:rendered.getChannelData(0)[frames-100],right:rendered.getChannelData(1)[frames-100]};
+ };
+ const centred=await stripLevels(1,0.25,0.25);
+ check(Math.abs(centred.left-0.25)<0.01&&Math.abs(centred.right-0.25)<0.01,'neutral stereo width preserves level and centre '+JSON.stringify(centred));
+ const panned=await stripLevels(1,0.25,0);
+ check(Math.abs(panned.left-0.25)<0.01&&Math.abs(panned.right)<0.01,'neutral stereo width keeps a hard-left signal out of the right channel '+JSON.stringify(panned));
+ const widened=await stripLevels(2,1.5,0);
+ check(Math.abs(widened.left)<=SynthStudioFX.MASTER_CEILING+0.01&&Math.abs(widened.right)<=SynthStudioFX.MASTER_CEILING+0.01,'the ceiling also catches a widened hot peak '+JSON.stringify(widened));
+
  const makeProject=(instrument,notes)=>({version:3,name:'Audio test',tempo:120,ppq:480,beatsPerBar:4,loop:{enabled:false,start:0,end:0},tracks:[{id:'track',name:'Track',instrument,volume:0.8,pan:0,mute:false,solo:false,params:{tone:0.5,resonance:0,drive:0,attack:0.01,release:0.12,reverb:0,delay:0},clips:[{id:'clip',name:'Clip',start:0,length:notes.length?notes.at(-1).start+notes.at(-1).duration:0,notes,controllers:[]}]}]});
  const render=(instrument,notes)=>window.SynthStudioAudio.renderWav(makeProject(instrument,notes));
  const readPCM=async blob=>{

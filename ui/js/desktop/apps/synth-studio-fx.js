@@ -122,6 +122,44 @@
     return processor;
   }
 
+  // Mid/side width matrix: M = (L+R)/2, S = (L-R)/2 * amount, L' = M + S and
+  // R' = M - S. Amount 1 passes stereo unchanged, 0 folds to mono and 2 widens
+  // hard-panned material. Both channels receive the same side signal, so a
+  // centred source never shifts to one side and never gains level.
+  function createWidthMatrix(context) {
+    const splitter = context.createChannelSplitter(2);
+    const merger = context.createChannelMerger(2);
+    const midGain = context.createGain();
+    midGain.gain.value = 0.5;
+    const sideLeft = context.createGain();
+    const sideRight = context.createGain();
+    const sideSum = context.createGain();
+    const sideInvert = context.createGain();
+    sideInvert.gain.value = -1;
+    splitter.connect(midGain, 0);
+    splitter.connect(midGain, 1);
+    splitter.connect(sideLeft, 0);
+    splitter.connect(sideRight, 1);
+    sideLeft.connect(sideSum);
+    sideRight.connect(sideSum);
+    midGain.connect(merger, 0, 0);
+    midGain.connect(merger, 0, 1);
+    sideSum.connect(merger, 0, 0);
+    sideSum.connect(sideInvert);
+    sideInvert.connect(merger, 0, 1);
+    return {
+      input: splitter,
+      output: merger,
+      sideLeft,
+      sideRight,
+      nodes: [splitter, merger, midGain, sideLeft, sideRight, sideSum, sideInvert],
+      update(amount, at, smooth) {
+        set(sideLeft.gain, 0.5 * amount, at, smooth);
+        set(sideRight.gain, -0.5 * amount, at, smooth);
+      }
+    };
+  }
+
   function createChorus(context) {
     const p = makeProcessor(context);
     const delayL = context.createDelay(0.08);
@@ -395,32 +433,15 @@
 
   function createWidth(context) {
     const p = makeProcessor(context);
-    const splitter = context.createChannelSplitter(2);
-    const merger = context.createChannelMerger(2);
-    const midGain = context.createGain();
-    midGain.gain.value = 0.5;
-    const sideGain = context.createGain();
-    sideGain.gain.value = 0.5;
-    const sideNeg = context.createGain();
-    sideNeg.gain.value = -0.5;
-    p.wetIn.connect(splitter);
-    splitter.connect(midGain, 0);
-    splitter.connect(midGain, 1);
-    splitter.connect(sideGain, 0);
-    splitter.connect(sideNeg, 1);
-    midGain.connect(merger, 0, 0);
-    midGain.connect(merger, 0, 1);
-    sideGain.connect(merger, 0, 0);
-    sideNeg.connect(merger, 0, 1);
-    merger.connect(p.wet);
-    p.nodes.push(splitter, merger, midGain, sideGain, sideNeg);
+    const matrix = createWidthMatrix(context);
+    p.wetIn.connect(matrix.input);
+    matrix.output.connect(p.wet);
+    p.nodes.push(...matrix.nodes);
     p.update = (spec, at, smooth) => {
       const mix = clamp(spec.mix, 0, 1, 1);
       set(p.dry.gain, 1 - mix, at, smooth);
       set(p.wet.gain, mix, at, smooth);
-      const width = clamp(spec.amount, 0, 2, 1);
-      set(sideGain.gain, 0.5 * width, at, smooth);
-      set(sideNeg.gain, -0.5 * width, at, smooth);
+      matrix.update(clamp(spec.amount, 0, 2, 1), at, smooth);
     };
     return p;
   }
@@ -687,6 +708,13 @@
     echoSync: "1/8"
   };
 
+  // Live playback and WAV export share the master strip, so both use the same
+  // -0.3 dBFS ceiling. The limiter stays transparent below its knee; only peaks
+  // that would otherwise reach the PCM rails are eased down to the ceiling.
+  const MASTER_CEILING = 0.966;
+  const LIMITER_HEADROOM = 2;
+  const LIMITER_KNEE = 0.7;
+
   const SYNC_DIVISIONS = {
     "1/4": 1,
     "1/8": 0.5,
@@ -699,6 +727,39 @@
     const factor = SYNC_DIVISIONS[division];
     if (!factor || !Number.isFinite(secondsPerBeat) || secondsPerBeat <= 0) return fallback;
     return secondsPerBeat * factor;
+  }
+
+  // A WaveShaper only sees [-1, 1], so the gains around it stretch that domain
+  // to LIMITER_HEADROOM times full scale. Below the knee the curve is exactly
+  // linear; above it a tanh shoulder approaches MASTER_CEILING with a continuous
+  // slope, so the onset of limiting is not a distortion step of its own. Inputs
+  // beyond the domain land on the ceiling instead of hard-clipping at +/-1.
+  function limiterCurve() {
+    const size = 4097;
+    const curve = new Float32Array(size);
+    const knee = LIMITER_KNEE / LIMITER_HEADROOM;
+    const ceiling = MASTER_CEILING / LIMITER_HEADROOM;
+    const span = 1 - knee;
+    // Keep the transfer's unity slope at the knee:
+    // shape / tanh(shape) = span / (ceiling - knee).
+    const target = span / (ceiling - knee);
+    let low = 1e-6, high = 40;
+    for (let iteration = 0; iteration < 60; iteration++) {
+      const middle = (low + high) / 2;
+      if (middle / Math.tanh(middle) < target) low = middle;
+      else high = middle;
+    }
+    const shape = (low + high) / 2;
+    const norm = Math.tanh(shape);
+    for (let i = 0; i < size; i++) {
+      const x = (i / (size - 1)) * 2 - 1;
+      const magnitude = Math.abs(x);
+      const limited = magnitude <= knee
+        ? magnitude
+        : knee + (ceiling - knee) * Math.tanh(((magnitude - knee) / span) * shape) / norm;
+      curve[i] = (x < 0 ? -1 : 1) * limited;
+    }
+    return curve;
   }
 
   function createMaster(context, spec) {
@@ -716,18 +777,15 @@
     high.type = "highshelf";
     high.frequency.value = 5000;
     const compressor = context.createDynamicsCompressor();
+    const limiterPre = context.createGain();
+    limiterPre.gain.value = 1 / LIMITER_HEADROOM;
     const limiter = context.createWaveShaper();
     limiter.oversample = "2x";
-    limiter.curve = softClipCurve(0.12);
+    limiter.curve = limiterCurve();
+    const limiterPost = context.createGain();
+    limiterPost.gain.value = LIMITER_HEADROOM;
     const width = context.createGain();
-    const splitter = context.createChannelSplitter(2);
-    const merger = context.createChannelMerger(2);
-    const midGain = context.createGain();
-    midGain.gain.value = 0.5;
-    const sideGain = context.createGain();
-    sideGain.gain.value = 0.5;
-    const sideNeg = context.createGain();
-    sideNeg.gain.value = -0.5;
+    const widthMatrix = createWidthMatrix(context);
     const perfFilter = context.createBiquadFilter();
     perfFilter.type = "lowpass";
     perfFilter.frequency.value = 20000;
@@ -742,34 +800,31 @@
     low.connect(mid);
     mid.connect(high);
     high.connect(compressor);
-    compressor.connect(limiter);
-    limiter.connect(splitter);
-    splitter.connect(sideGain, 0);
-    splitter.connect(sideNeg, 1);
-    splitter.connect(midGain, 0);
-    splitter.connect(midGain, 1);
-    midGain.connect(merger, 0, 0);
-    midGain.connect(merger, 0, 1);
-    sideGain.connect(merger, 0, 0);
-    sideNeg.connect(merger, 0, 1);
-    merger.connect(width);
+    compressor.connect(widthMatrix.input);
+    widthMatrix.output.connect(width);
     width.connect(perfFilter);
     perfFilter.connect(perfGate);
-    if (analyser) { perfGate.connect(analyser); analyser.connect(context.destination); }
-    else perfGate.connect(context.destination);
+    // The ceiling is the last stage before the output: width and the momentary
+    // Live FX can both amplify the mix, so nothing after them may exceed it.
+    perfGate.connect(limiterPre);
+    limiterPre.connect(limiter);
+    limiter.connect(limiterPost);
+    if (analyser) { limiterPost.connect(analyser); analyser.connect(context.destination); }
+    else limiterPost.connect(context.destination);
 
     const master = {
       input,
-      output: analyser || perfGate,
+      output: analyser || limiterPost,
       gain,
       low,
       mid,
       high,
       compressor,
+      limiterPre,
       limiter,
-      midGain,
-      sideGain,
-      sideNeg,
+      limiterPost,
+      width,
+      widthMatrix,
       perfFilter,
       perfGate,
       analyser,
@@ -822,9 +877,7 @@
         set(compressor.knee, clamp(settings.knee, 0, 40, 8), at, smooth);
         set(compressor.attack, clamp(settings.attack, 0, 1, 0.003), at, smooth);
         set(compressor.release, clamp(settings.release, 0, 1, 0.18), at, smooth);
-        const amount = clamp(settings.width, 0, 2, 1);
-        set(sideGain.gain, 0.5 * amount, at, smooth);
-        set(sideNeg.gain, -0.5 * amount, at, smooth);
+        widthMatrix.update(clamp(settings.width, 0, 2, 1), at, smooth);
       }
     };
     master.update(settings, 0, false);
@@ -886,11 +939,15 @@
 
   root.SynthStudioFX = {
     MASTER_DEFAULTS,
+    MASTER_CEILING,
+    LIMITER_HEADROOM,
+    LIMITER_KNEE,
     SYNC_DIVISIONS,
     types: () => Object.keys(BUILDERS),
     createInsert,
     createMaster,
     createSends,
+    limiterCurve,
     syncSeconds
   };
 })(typeof window !== "undefined" ? window : globalThis);

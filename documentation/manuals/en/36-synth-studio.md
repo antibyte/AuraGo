@@ -89,7 +89,9 @@ keys always play the current draft.
 
 The **Master** button in the transport opens the master strip: output level, the compressor with threshold,
 ratio, knee, attack and release, a three-band EQ, a brick-wall limiter, stereo width and the character of the
-shared plate and echo buses.
+shared plate and echo buses. The limiter is a transparent output ceiling at -0.3 dBFS: levels below its knee
+pass unchanged, louder peaks ease onto the ceiling instead of clipping, and playback and WAV export share the
+same value. It sits after stereo width and Live FX.
 
 The output level is a large hero knob with a decibel read-out (20 × log10 of the gain, `-inf` at zero) and a
 16 segment LED meter beside it (green, amber, red over 48 dB). The meter reads the same analyser peak, runs
@@ -186,12 +188,12 @@ The export menu offers WAV, MIDI and stems.
 
 - **WAV** downloads stereo 44.1 kHz PCM16 using the same renderer as playback, including per-track effects. It
   renders one finite arrangement pass and adds an effect tail; the transport loop and metronome are not
-  exported. The complete render including the tail is limited to five minutes, 12,000 notes and 256
-  overlapping voices.
+  exported. The output ceiling holds dense projects at -0.3 dBFS without hard clipping. The complete
+  render including the tail is limited to five minutes, 12,000 notes and 256 overlapping voices.
 - **Stems** render one post-fader, pre-master WAV per track with notes, then package them as a store-only ZIP
-  with UTF-8 names. Tracks without notes are skipped; the master level, EQ, compression, limiting and width
+  with UTF-8 names. Tracks without notes are skipped; the master level, EQ, compression and width
   are neutralized while the project's plate/echo character and post-fader sends are preserved, so the stems
-  can be mixed elsewhere.
+  can be mixed elsewhere. The shared output ceiling stays active and protects hot stems from clipping.
 - **MIDI** exports the arrangement for other software, with General MIDI approximations for your own synths.
 
 ## When No Sound Comes Out

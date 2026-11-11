@@ -87,7 +87,9 @@ LFO. Jede Änderung meldet sofort ein Vorschaumodul neu an, sodass die Anhörtas
 
 Die Schaltfläche **Master** in der Transportleiste öffnet den Master-Streifen: Ausgangspegel, den Kompressor mit Schwellwert,
 Verhältnis, Knie, Anstieg und Ausklang, eine dreikanalige EQ, einen Brickwall-Limiter, die Stereo-Breite und den Charakter der
-gemeinsamen Plate- und Echo-Busse.
+gemeinsamen Plate- und Echo-Busse. Der Limiter ist eine transparente Ausgangsgrenze bei −0,3 dBFS: Pegel unterhalb des Knies
+bleiben unverändert, lautere Spitzen werden sanft auf die Grenze geführt statt zu clippen. Wiedergabe und WAV-Export teilen
+sich denselben Wert; die Grenze liegt hinter Stereo-Breite und Live FX.
 
 Der Ausgangspegel ist ein großer Hero-Knob mit Dezibel-Anzeige (20 × log10 der Verstärkung, `-inf` bei null) und daneben eine
 16-segmentige LED-Anzeige (grün, gelb, rot über 48 dB). Die Anzeige liest denselben Analyser-Peak, läuft nur, solange der
@@ -185,12 +187,12 @@ Das Export-Menü bietet WAV, MIDI und Spuren.
 
 - **WAV** lädt Stereo-44,1-kHz-PCM16 mit demselben Renderer wie die Wiedergabe herunter, einschließlich der Spureffekte. Es
   rendert einen endlichen Durchgang der Arrangierung und hängt einen Effektausgang an; die Transportschleife und das
-  Metronom werden nicht exportiert. Der gesamte Render einschließlich Ausgang ist auf fünf Minuten, 12.000 Noten und 256
-  überlappende Stimmen begrenzt.
+  Metronom werden nicht exportiert. Die Ausgangsgrenze hält dichte Projekte bei −0,3 dBFS, ohne harte Clips zu erzeugen.
+  Der gesamte Render einschließlich Ausgang ist auf fünf Minuten, 12.000 Noten und 256 überlappende Stimmen begrenzt.
 - **Spuren** rendern je eine WAV pro Spur nach dem Fader und vor dem Master, mit Noten, und packen sie als store-only ZIP mit
-  UTF-8-Namen. Spuren ohne Noten werden übersprungen; Masterpegel, EQ, Kompression, Limiting und Breite werden
+  UTF-8-Namen. Spuren ohne Noten werden übersprungen; Masterpegel, EQ, Kompression und Breite werden
   neutralisiert, während der Plate-/Echo-Charakter und die Sends hinter dem Fader erhalten bleiben, damit die Spuren
-  anderswo gemischt werden können.
+  anderswo gemischt werden können. Die gemeinsame Ausgangsgrenze bleibt aktiv und schützt auch heiße Spuren vor Clipping.
 - **MIDI** exportiert die Arrangierung für andere Programme, mit General-MIDI-Näherungen für deine eigenen Synths.
 
 ## Wenn kein Ton kommt

@@ -672,6 +672,15 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   its wet path and works identically in live playback and offline WAV rendering.
   The master strip also owns the momentary Live FX nodes (filter drop, stutter);
   they are performance-only and must stay out of project data and offline renders.
+- The master strip ends in a transparent brick-wall ceiling. `MASTER_CEILING`
+  (0.966 / -0.3 dBFS) passes everything below `LIMITER_KNEE` (0.7) unchanged,
+  then eases onto the ceiling; pre/post gains give the WaveShaper 2x full-scale
+  headroom. The ceiling follows EQ, compression, the mid/side width matrix and
+  the Live FX, so no downstream gain can reach the PCM rails. `encodeWav` in
+  `synth-studio-audio.js` reuses the same constant as its final mixdown guard.
+- `createWidthMatrix` is shared by the master strip and the width insert: width 1
+  is exactly neutral for centred and hard-panned signals, 0 folds to mono and 2
+  widens them. Never restore a side path that only reaches one output channel.
 - `synth-studio-export.js` owns stem isolation, CRC-32 and the store-only ZIP
   writer. Stems solo one track, mute the rest, neutralize the master strip and
   reuse `SynthStudioAudio.renderWav`; tracks without notes are skipped.
@@ -712,8 +721,11 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   token layer.
 - Verify the model/storage checks, `TestDesktopSynthStudioBrowser`,
   `TestDesktopSynthStudioAudioBrowser` and
-  `TestSynthStudioMIDIPolicyOnlyAllowsDesktop`. Keep all sixteen locales and both
-  Desktop themes usable, including compact library/sound-panel controls.
+  `TestSynthStudioMIDIPolicyOnlyAllowsDesktop`. The audio browser test measures
+  the ceiling and neutral width through a real `OfflineAudioContext`;
+  `scripts/test-synth-studio-audio.mjs` pins the limiter transfer curve and the
+  master graph order. Keep all sixteen locales and both Desktop themes usable,
+  including compact library/sound-panel controls.
 
 ## AuraPinball
 
