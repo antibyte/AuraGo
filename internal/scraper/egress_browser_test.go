@@ -36,3 +36,21 @@ func TestScraperDynamicGoesThroughTheEgressProxy(t *testing.T) {
 		t.Fatalf("the page's own request did not go through the proxy; dialed = %v", dialed)
 	}
 }
+
+// A page that redirects to a private address must make FetchDynamic fail, not
+// return the proxy's refusal text as the page.
+func TestScraperDynamicFailsWhenTheRedirectGoesToAPrivateAddress(t *testing.T) {
+	bin := testutil.RequireBrowserBin(t)
+	defaults.Bin = bin
+	t.Cleanup(func() { defaults.Bin = "" })
+	fx := testutil.NewEgressFixture(t)
+
+	res, err := New(nil).FetchDynamic(fx.RedirectURL(), "")
+	if err == nil {
+		t.Fatalf("FetchDynamic returned no error for a redirect to a private address; result = %+v", res)
+	}
+	if res != nil {
+		t.Fatalf("FetchDynamic returned content %+v together with the error %v", res, err)
+	}
+	t.Logf("FetchDynamic error = %v", err)
+}

@@ -15,7 +15,8 @@ import (
 
 // TestEgressBrowserRefusesTheS8Fixture drives the helper directly. The page
 // tries every route to a private address that a page-level hook cannot see
-// (popup, WebSocket, service worker, prefetch and prerender, WebRTC STUN). The
+// (popup, WebSocket, sendBeacon, download link, service worker, prefetch and
+// prerender, WebRTC STUN and TURN, dns-prefetch). The
 // proxy must refuse each TCP target and never dial it, and no WebRTC candidate
 // pair may form.
 func TestEgressBrowserRefusesTheS8Fixture(t *testing.T) {
@@ -57,10 +58,51 @@ func TestEgressBrowserRefusesTheS8Fixture(t *testing.T) {
 	t.Logf("page report   = %+v", report)
 	t.Logf("worker pings  = %v", fx.WorkerPings())
 
-	// Popup (169.254.169.254) and WebSocket (10.255.255.1) are required.
-	for _, target := range []string{"169.254.169.254:80", "10.255.255.1:80"} {
+	// Every probe must have run, or its refusal proves nothing.
+	for name, ran := range map[string]bool{
+		"popup": report.RanPopup, "websocket": report.RanWebSocket, "beacon": report.RanBeacon,
+		"download": report.RanDownload, "prefetch": report.RanPrefetch, "prerender": report.RanPrerender,
+		"dns-prefetch": report.RanDNSPrefetch, "webrtc stun connection": report.PCCreated,
+		"webrtc turn connection": report.PCTurnCreated,
+	} {
+		if !ran {
+			t.Errorf("the %s probe did not run; report = %+v", name, report)
+		}
+	}
+	// These probes are required: each has its own private target, and the proxy
+	// must have refused it. The TURN target is a different port of the STUN host.
+	for probe, target := range map[string]string{
+		"popup": "172.31.255.1:80", "websocket": "10.255.255.5:80", "beacon": "169.254.169.254:80",
+		"download": "10.255.255.1:80", "webrtc turn over tcp": "10.255.255.1:3478",
+	} {
 		if !slices.Contains(refused, target) {
-			t.Errorf("the proxy never refused %s; refused = %v", target, refused)
+			t.Errorf("the %s probe: the proxy never refused %s; refused = %v", probe, target, refused)
+		}
+	}
+	// Prefetch: Chrome may skip it by heuristics. The page can tell (the link
+	// fires load or error when Chrome issued the request), so a skipped prefetch
+	// is logged as not covered, and an issued one must have been refused.
+	if report.PrefetchEvent != "" {
+		if !slices.Contains(refused, "10.255.255.2:80") {
+			t.Errorf("prefetch: Chrome issued it (link event %q) but the proxy never refused 10.255.255.2:80; refused = %v", report.PrefetchEvent, refused)
+		}
+	} else {
+		t.Logf("prefetch is NOT covered by this run: Chrome fired no load or error event, so it never issued the request")
+	}
+	// Prerender: Chrome gives the page no signal that it acted on speculation
+	// rules, so a missing refusal cannot be told from a skipped prerender. The
+	// claim is dropped: it is logged, and only a dial is a failure (below).
+	if slices.Contains(refused, "10.255.255.3:80") {
+		t.Logf("prerender: Chrome issued it and the proxy refused 10.255.255.3:80")
+	} else {
+		t.Logf("prerender is NOT covered by this run: no request reached the proxy and the page cannot see whether Chrome tried (speculation rules API present: %v)", report.PrerenderAPI)
+	}
+	// dns-prefetch: a DNS-level leak is NOT observable here. Chrome behind a proxy
+	// resolves no names itself and the proxy log only holds TCP destinations. All
+	// this can prove is that no request for the canary host reached the proxy.
+	for _, entry := range slices.Concat(refused, dialed) {
+		if strings.Contains(entry, testutil.EgressDNSCanaryHost) {
+			t.Errorf("a request for the dns-prefetch canary host reached the proxy: %s", entry)
 		}
 	}
 	// The service worker probe must say plainly which of two things is true.
@@ -83,8 +125,10 @@ func TestEgressBrowserRefusesTheS8Fixture(t *testing.T) {
 	if !slices.Contains(dialed, fx.HostPort()) {
 		t.Errorf("the page's own request did not go through the proxy; dialed = %v", dialed)
 	}
-	if report.CandidatePairs != 0 {
-		t.Errorf("the page formed %d WebRTC candidate pairs, want 0 (UDP must not leave the proxy)", report.CandidatePairs)
+	if !report.PCCreated {
+		t.Errorf("RTCPeerConnection could not be created, so the WebRTC probe proves nothing; report = %+v", report)
+	} else if report.CandidatePairs != 0 {
+		t.Errorf("the page formed %d WebRTC candidate pairs, want 0 (UDP must not leave the proxy; -1 means getStats failed)", report.CandidatePairs)
 	}
 }
 
@@ -114,7 +158,14 @@ func assertServiceWorkerOutcome(t *testing.T, fx *testutil.EgressFixture, report
 		}
 		t.Logf("service worker (a): registered, ran, and its fetch to 192.168.255.1 was refused by the proxy")
 	case report.WorkerError != "":
-		// (b): the reason is the register() rejection, not a guess.
+		// (b): only an expected failure text counts: no service worker API at all,
+		// or the "operation is insecure" rejection of an untrusted origin. Any other
+		// register() error is a failure of the probe, not an outcome.
+		if !strings.Contains(report.WorkerError, "navigator.serviceWorker is undefined") &&
+			!strings.Contains(strings.ToLower(report.WorkerError), "operation is insecure") {
+			t.Errorf("service worker (b): register() failed with an unexpected error %q", report.WorkerError)
+			return
+		}
 		t.Logf("service worker (b): cannot register behind the proxy, so it has no egress. secure_context=%v worker_api=%v reason=%q",
 			report.SecureContext, report.WorkerAPI, report.WorkerError)
 		if slices.Contains(pings, "install") {
@@ -138,4 +189,36 @@ func chromeOwnHost(hostPort string) bool {
 		}
 	}
 	return false
+}
+
+// A public plain-HTTP page that redirects to a private address must fail the
+// navigation. The proxy used to answer such a request with a 403 text body,
+// which Chrome renders as a successful page.
+func TestEgressBrowserFailsANavigationRedirectedToAPrivateAddress(t *testing.T) {
+	bin := testutil.RequireBrowserBin(t)
+	fx := testutil.NewEgressFixture(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	eb, err := LaunchEgressBrowser(ctx, EgressBrowserOptions{Bin: bin})
+	if err != nil {
+		t.Fatalf("LaunchEgressBrowser: %v", err)
+	}
+	defer eb.Close()
+
+	page, err := eb.Browser.Page(proto.TargetCreateTarget{})
+	if err != nil {
+		t.Fatalf("page: %v", err)
+	}
+	err = page.Context(ctx).Navigate(fx.RedirectURL())
+	if err == nil {
+		t.Fatalf("navigating to %s succeeded; the redirect to %s must fail", fx.RedirectURL(), testutil.EgressPrivateRedirectTarget)
+	}
+	t.Logf("navigate error = %v", err)
+	if !slices.Contains(eb.ProxyRefused(), "10.255.255.1:80") {
+		t.Errorf("the proxy never refused 10.255.255.1:80; refused = %v", eb.ProxyRefused())
+	}
+	if slices.Contains(eb.ProxyDialed(), "10.255.255.1:80") {
+		t.Errorf("the proxy dialled 10.255.255.1:80")
+	}
 }

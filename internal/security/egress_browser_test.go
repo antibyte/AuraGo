@@ -3,6 +3,7 @@ package security
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path"
 	"slices"
@@ -222,3 +223,56 @@ func TestLaunchEgressBrowserSetsTheProxyFlags(t *testing.T) {
 }
 
 func launcherFlag(name string) flags.Flag { return flags.Flag(name) }
+
+// A limit hit makes the proxy cut connections, but the proxy itself keeps
+// running. The browser must end with ErrEgressLimit, or a caller would take a
+// partial page for a complete one.
+func TestEgressBrowserEndsWithErrEgressLimitWhenTheProxyLimitIsHit(t *testing.T) {
+	cases := map[string]struct {
+		opts  EgressBrowserOptions
+		drive func(t *testing.T, eb *EgressBrowser, allowed *countedServer)
+	}{
+		"byte limit": {
+			opts: EgressBrowserOptions{MaxBytes: 64 << 10},
+			drive: func(t *testing.T, eb *EgressBrowser, allowed *countedServer) {
+				res, err := proxyClient(t, eb.proxy).Get(allowed.URL + "/big")
+				if err != nil {
+					return // cut before the headers
+				}
+				defer res.Body.Close()
+				_, _ = io.Copy(io.Discard, res.Body)
+			},
+		},
+		"connection limit": {
+			opts: EgressBrowserOptions{MaxConnections: 1},
+			drive: func(t *testing.T, eb *EgressBrowser, allowed *countedServer) {
+				client := proxyClient(t, eb.proxy)
+				for i := 0; i < 2; i++ {
+					if res, err := client.Get(allowed.URL + "/close"); err == nil {
+						_ = res.Body.Close()
+					}
+				}
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			stubEgressChrome(t, echoNonce)
+			allowed, _ := captureProxyTestOrigins(t)
+			tc.opts.AllowedOrigin = mustParseURL(t, allowed.URL)
+			eb, err := LaunchEgressBrowser(context.Background(), tc.opts)
+			if err != nil {
+				t.Fatalf("launch: %v", err)
+			}
+			defer eb.Close()
+			tc.drive(t, eb, allowed)
+			waitClosed(t, eb.Done, "Done after the limit")
+			if err := eb.Err(); !errors.Is(err, ErrEgressLimit) {
+				t.Fatalf("Err() = %v, want ErrEgressLimit", err)
+			}
+			if wrapped := eb.Wrap(errors.New("navigate failed")); !errors.Is(wrapped, ErrEgressLimit) {
+				t.Fatalf("Wrap() = %v, want ErrEgressLimit", wrapped)
+			}
+		})
+	}
+}
