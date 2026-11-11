@@ -1173,6 +1173,7 @@
                 }
                 if (statusEl && statusEl.parentNode) statusEl.remove();
                 cancelChatScroll();
+                ctrl.abort();
                 reject(err);
             }
 
@@ -1394,6 +1395,8 @@
         const id = String(windowId || '');
         const host = agentChatContentEl(id);
         if (host) {
+            const question = host.querySelector('[data-desktop-question-modal]');
+            if (question) question._closeQuestion();
             if (host._desktopChatAbort) {
                 try { host._desktopChatAbort(); } catch (_) {}
                 host._desktopChatAbort = null;

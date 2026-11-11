@@ -5734,6 +5734,8 @@ registration lives in `internal/desktop/types.go`.
   Cancel/Escape use the existing administrator session stop endpoint; this cleanup
   is the exception to integration proxy routing. Failed stop/answer/clear requests
   remain visible and retryable. Verify `TestDesktopChatFailuresAndQuestionCancellationBrowser`.
+  Window disposal closes pending question overlays and releases their focus/inert
+  state. Terminal stream failures cancel the reader after retaining the draft.
   Verify with `node scripts/test-ui-regressions.mjs`.
 - `live-speech.js` - Desktop Live Speech. Missing-host throws reuse
   `desktop.load_failed` via `text(key)` with no fallback. Loaded

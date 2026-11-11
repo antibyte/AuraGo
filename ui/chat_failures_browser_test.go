@@ -24,7 +24,7 @@ func TestDesktopChatFailuresAndQuestionCancellationBrowser(t *testing.T) {
 		r.processImages=()=>{};r.enhanceCodeBlocks=()=>{};
 		window.mode='error';window.failRequest=false;window.calls=[];
 		window.fetch=async(url,opts={})=>{
-			if(!url.includes('/chat/stream')) {calls.push({url,body:opts.body});return new Response(JSON.stringify({status:failRequest?'not_found':url.includes('/stop')?'success':'ok',message:failRequest?'fixture refused':''}),{status:failRequest?409:200,headers:{'Content-Type':'application/json'}});}
+			if(!url.includes('/chat/stream')) {calls.push({url,body:opts.body});return new Response(JSON.stringify({status:failRequest?'not_found':url.includes('/stop')?'success':'ok',message:failRequest?'fixture refused':''}),{status:failRequest===true?409:200,headers:{'Content-Type':'application/json'}});}
 			if(mode==='http')return new Response('fixture HTTP failure',{status:503});
 			if(mode==='network')throw new TypeError('fixture disconnected');
 			const events=[{event:'llm_stream_delta',content:'Partial answer'},{event:'error_recovery',detail:'fixture model failed'},mode==='error'?{event:'llm_stream_done',finish_reason:'error',error:'fixture model failed'}:{event:'final_response',detail:'Recovered answer'},{event:'done'}];
@@ -32,7 +32,7 @@ func TestDesktopChatFailuresAndQuestionCancellationBrowser(t *testing.T) {
 		};
 	}`)
 	chat := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/agent-chat.js"))
-	if err := p.AddScriptTag("", "(()=>{"+chat+"\nwindow.chatFixture={submit:submitDesktopChatMessage,question:showDesktopQuestionModal,stop:requestDesktopChatAbort,clear:clearDesktopChatHistory};})();"); err != nil {
+	if err := p.AddScriptTag("", "(()=>{"+chat+"\nwindow.chatFixture={submit:submitDesktopChatMessage,question:showDesktopQuestionModal,stop:requestDesktopChatAbort,clear:clearDesktopChatHistory,runtime:useDesktopChatRuntime};})();"); err != nil {
 		t.Fatal(err)
 	}
 	quick := normalizeAssetText(mustReadUIFile(t, "js/desktop/core/window-shell-runtime.js"))
@@ -70,11 +70,20 @@ func TestDesktopChatFailuresAndQuestionCancellationBrowser(t *testing.T) {
 		if !p.MustEval(`()=>document.querySelector('[data-question-error]').textContent.includes('fixture refused')`).Bool() {
 			t.Fatal("failed stop hid error")
 		}
+		p.MustEval(`selector=>{window.failRequest='notfound';document.querySelector(selector+' button').click();}`, selector)
+		waitForJSBool(t, p, `()=>document.querySelector('[data-question-cancel]')?.disabled===false`)
+		if !p.MustEval(`()=>!!document.querySelector('[data-question-error]')?.textContent`).Bool() {
+			t.Fatal("HTTP 200 not_found closed the question")
+		}
 		p.MustEval(`()=>{window.failRequest=false;document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));}`)
 		waitForJSBool(t, p, `()=>!document.querySelector('[data-question-cancel]')`)
 		if !p.MustEval(`()=>document.activeElement.id==='trigger'&&calls.at(-1).url==='/api/admin/stop'`).Bool() {
 			t.Fatal("Escape did not stop/restore focus")
 		}
+	}
+	p.MustEval(`()=>{chatFixture.runtime({__desktopRuntime:{contentEl:()=>document.getElementById('host')}});chatFixture.question(document.getElementById('host'),{question:'Close window?',options:[]});AgentChatApp.dispose('fixture');}`)
+	if !p.MustEval(`()=>!document.querySelector('[data-desktop-question-modal]')&&!document.getElementById('trigger').inert`).Bool() {
+		t.Fatal("closing chat left a modal or inert background")
 	}
 	p.MustEval(`async()=>{window.failRequest=true;const h=document.getElementById('host');h._desktopChatAbort=()=>{throw new Error('must not abort after failed stop')};await chatFixture.stop(h);await chatFixture.clear(h,true);}`)
 	if !p.MustEval(`()=>document.getElementById('host').textContent.includes('fixture refused')&&!!document.querySelector('.vd-chat-bubble')`).Bool() {
