@@ -100,7 +100,6 @@
             if (dropTarget === e.id) cls.push('is-drop-target');
             if (pathNode && pathSet.has(e.source.node) && pathSet.has(e.target.node)) cls.push('is-path');
             g.setAttribute('class', cls.join(' '));
-            g.dataset.cat = core.catOf(ed.model.info(geo.src.type));
         }
 
         // render redraws every wire and rebuilds the run pills (after a run or a structural change).

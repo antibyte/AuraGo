@@ -41,14 +41,6 @@ var easyDragS0CatIdentity = map[string]bool{
 	".ed-palette-cat-dot": true, ".ed-cat-dot": true, ".ed-flow-preview rect": true, ".ed-minimap-nodes rect": true, ".ed-ref": true,
 }
 
-// easyDragS0CatReadPending are the rules that still use category colour for state or decoration; Task 5.3 converts them
-// and deletes this list.
-var easyDragS0CatReadPending = map[string]bool{
-	".ed-home-hero": true, ".ed-logo": true, ".ed-flow-triggers .ed-icon": true, ".ed-drag-ghost.is-over-canvas": true,
-	".ed-node::before": true, ".ed-edge.is-delivered .ed-wire": true, ".ed-json-bool": true, ".ed-tree-group": true,
-	".ed-type--bool": true, ".ed-type--file": true, `.ed-suggest-kind[data-kind="filter"]`: true, ".ed-case-port": true,
-}
-
 type easyDragS0RuleRef struct{ File, Selector string }
 
 type easyDragS0ThemeContext struct {
@@ -347,7 +339,7 @@ func easyDragS0CatReadAllowed(part string) bool {
 	case easyDragS0CatIdentity[part], easyDragS0RefCat.MatchString(part):
 		return true
 	}
-	return easyDragS0CatReadPending[part]
+	return false
 }
 
 // checkEasyDragCategoryReads fails every declaration that reads --ed-cat, --ed-cat-ink or --ed-cat-<name> outside the
@@ -369,5 +361,35 @@ func checkEasyDragCategoryReads(t *testing.T, css string) {
 				}
 			}
 		}
+	}
+}
+
+// TestEasyDragStateMarksUseAccent pins the interaction and change marks to the accent and keeps category colour off
+// cards and wires: the unpublished chip and the Publish dot are not warnings, the drag ghost is an interaction, cards
+// carry no category stripe and wires no category attribute.
+func TestEasyDragStateMarksUseAccent(t *testing.T) {
+	sheet := parseCSSSheet(strings.ReplaceAll(readDesktopAssetText(t, "css/desktop-app-easydrag.css"), "\r\n", "\n"))
+	want := map[string]map[string]string{
+		".ed-chip--accent":                    {"background": "color-mix(in srgb, var(--ed-accent) 16%, transparent)", "color": "var(--ed-accent-ink)"},
+		".ed-btn--primary.has-changes::after": {"background": "var(--ed-accent)"},
+		".ed-drag-ghost.is-over-canvas":       {"border-color": "var(--ed-accent)"},
+	}
+	for selector, props := range want {
+		decls := easyDragS0RuleDecls(sheet, selector)
+		for prop, value := range props {
+			if got := decls[prop]; got != value {
+				t.Errorf("%s { %s } = %q, want %q", selector, prop, got, value)
+			}
+		}
+	}
+	for _, rule := range sheet.Rules {
+		for _, part := range splitCSSSelectorList(rule.Selector) {
+			if strings.HasPrefix(part, ".ed-node") && strings.HasSuffix(part, "::before") {
+				t.Errorf("line %d: %s draws a card stripe; a card shows its category only on its tile", rule.Line, part)
+			}
+		}
+	}
+	if strings.Contains(readDesktopAssetText(t, "js/desktop/apps/easydrag-wires.js"), "g.dataset.cat") {
+		t.Error("easydrag-wires.js marks wires with a category (g.dataset.cat); wires show state only")
 	}
 }
