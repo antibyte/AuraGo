@@ -115,6 +115,7 @@
 
         // renderFor redraws the wires of moved or edited nodes; their pills only move.
         function renderFor(nodeIds) {
+            if (ed.renderStats) ed.renderStats.wireScans++;
             const set = new Set(nodeIds || []);
             const byId = nodeMap();
             ed.model.doc.edges.forEach(e => { if (set.has(e.source.node) || set.has(e.target.node)) drawEdge(e, byId); });

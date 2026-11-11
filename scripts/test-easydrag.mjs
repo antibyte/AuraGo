@@ -14,6 +14,8 @@
 // The a1025 checks (test-easydrag-live-state.mjs) run the 2026-10-25 audit's editor fixes on the c1d07 sandbox.
 // The b5 checks (test-easydrag-ux-batch5.mjs) run fix batch 5 of 2026-10-25 (editor UX, accessibility,
 // i18n, run-event rendering) on the c1d07 sandbox.
+// The S0.0 render baseline (test-easydrag-render-baseline.mjs) counts the render work of seeded S, M
+// and XL flows on the c1d07 sandbox and compares it with scripts/easydrag-render-baseline.json.
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -1138,6 +1140,8 @@ await (await import('./test-easydrag-kv-editor.mjs')).run({ apps, types, t, mini
 await (await import('./test-easydrag-flagship.mjs')).run({ sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor, eq, guardAsync, settle });
 await (await import('./test-easydrag-pack.mjs')).run({ pack: editorHarness.sandbox().ED.pack, eq });
 await (await import('./test-easydrag-ux-batch5.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor, saverHarness });
+// ── S0.0: render counters on seeded S/M/XL flows (test-easydrag-render-baseline.mjs, on the c1d07 sandbox) ──
+await (await import('./test-easydrag-render-baseline.mjs')).run({ eq, check, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor });
 
 // ── start page preview and shortcut table ──
 const H = ED.home;

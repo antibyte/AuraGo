@@ -61,6 +61,7 @@
         }
         function syncNodes() { ed.model.doc.nodes.forEach(node => { const card = canvas.nodeEl(node.id); if (card) { const hidden = collapsed.has(memberOf.get(node.id)); if (card.hidden !== hidden) card.hidden = hidden; } }); }
         function render() {
+            if (ed.renderStats) ed.renderStats.groups++;
             rebuild(); const present = new Set(groups.map(item => item.id));
             rows.forEach((row, id) => { if (!present.has(id)) { row.frame.remove(); row.head.remove(); rows.delete(id); } });
             groups.forEach(paint); syncNodes();

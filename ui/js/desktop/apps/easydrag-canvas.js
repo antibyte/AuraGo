@@ -52,8 +52,11 @@
         const signatures = new Map();
         const states = new Map();
         // renderStats counts card renders (renderNode), state paints (paintState) and wire draws
-        // (wires.js); the b5 F6 check reads them to guard the cost of run events.
-        if (!ed.renderStats) ed.renderStats = { cards: 0, paints: 0, wires: 0 };
+        // (wires.js); the b5 F6 check reads them to guard the cost of run events. The S0.0 counters
+        // count calls of the other hot paths: wireScans (wires.js renderFor), groups (groups.js
+        // render), allRects, minimap (drawMinimap), edgeNear and align (interact.js alignTo).
+        // scripts/test-easydrag-render-baseline.mjs pins them; each is one ++ and does nothing else.
+        if (!ed.renderStats) ed.renderStats = { cards: 0, paints: 0, wires: 0, wireScans: 0, groups: 0, allRects: 0, minimap: 0, edgeNear: 0, align: 0 };
 
         const el = core.el(
             '<div class="ed-canvas" tabindex="0" role="application" aria-roledescription="' + esc(t('easydrag.ui.canvas_role')) + '" aria-label="' + esc(t('easydrag.ui.canvas_label')) + '">' +
@@ -193,7 +196,7 @@
             ed.bus.emit('view', ed.view);
         }
 
-        function allRects() { return ed.groups ? ed.groups.rects() : ed.model.doc.nodes.map(n => G.nodeRect(n.position, outCount(n))); }
+        function allRects() { ed.renderStats.allRects++; return ed.groups ? ed.groups.rects() : ed.model.doc.nodes.map(n => G.nodeRect(n.position, outCount(n))); }
 
         // visibleArea is the part of the canvas that the run drawer (right) and a palette floating over
         // the canvas (left, narrow windows) leave free; with too little left, the whole canvas. The
@@ -654,6 +657,7 @@
         // drawMinimap draws the node layer in world coordinates and places it with a transform, so a
         // pan or zoom only moves the layer and the view rectangle.
         function drawMinimap() {
+            ed.renderStats.minimap++;
             const rects = allRects();
             const s = size();
             const viewRect = { x: -ed.view.x / ed.view.zoom, y: -ed.view.y / ed.view.zoom, w: s.w / ed.view.zoom, h: s.h / ed.view.zoom };
