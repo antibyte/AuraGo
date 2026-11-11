@@ -1,6 +1,6 @@
 {
   "config.flows.agent_allow_publish": "允许代理发布流程",
-  "config.flows.agent_note": "代理选项将在代理能够处理流程后生效。",
+  "config.flows.agent_note": "这些选项限制 Aura 对 EasyDrag 流程的操作权限。你随时可以在 EasyDrag 中自行启动和发布流程，你自己的触发器启动的流程会照常运行。",
   "config.flows.agent_read_only": "代理只能读取流程",
   "config.flows.ai_provider": "AI 步骤使用的 AI 提供商",
   "config.flows.ai_provider_help": "设为“默认模型”的 AI 步骤会使用此提供商。",
@@ -26,5 +26,7 @@
   "config.flows.durable_configured": "已保存的选项",
   "config.flows.durable_effective": "处理已启用",
   "config.flows.durable_available": "恢复服务已就绪",
-  "config.flows.durable_counts": "等待中：{{waiting}} · 运行中：{{running}} · 已阻止：{{blocked}}"
+  "config.flows.durable_counts": "等待中：{{waiting}} · 运行中：{{running}} · 已阻止：{{blocked}}",
+  "config.flows.agent_read_only_help": "开启后，Aura 可以列出并读取流程，但不能启动流程。你自己的触发器启动的流程仍会运行。",
+  "config.flows.agent_allow_publish_unavailable": "不可用：代理无法发布流程。只能在 EasyDrag 中发布。"
 }

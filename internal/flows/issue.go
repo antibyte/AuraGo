@@ -57,6 +57,7 @@ const (
 	IssueParamInvalid            = "PARAM_INVALID"
 	IssueBatchWorkLimit          = "BATCH_WORK_LIMIT"
 	IssueGroupInvalid            = "GROUP_INVALID"
+	IssueNoteInvalid             = "NOTE_INVALID"
 	IssueEdgeIDDuplicate         = "EDGE_ID_DUPLICATE"
 	IssueEdgeNodeMissing         = "EDGE_NODE_MISSING"
 	IssueEdgePortInvalid         = "EDGE_PORT_INVALID"

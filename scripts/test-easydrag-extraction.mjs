@@ -7,7 +7,7 @@ export async function run({ sandbox, openEditor, eq, guardAsync, settle }) {
     const ids = { block_id: BLOCK, call_id: C, input_id: 'n_dddddddd', output_id: 'n_eeeeeeee', entry_edge_id: 'e_ffffffff', exit_edge_id: 'e_gggggggg' };
     const preview = () => ({ base_revision: 3, ids: copy(ids), digest: 'a'.repeat(64), parent_hash: 'b'.repeat(64), block_hash: 'c'.repeat(64), block_revision: 1, review: { inputs: [], outputs: [{ name: 'greeting', type: 'string', required: true, nullable: false }], groups_moved: 1, groups_shrunk: 0, extra_nodes: 3, extra_edges: 2, budget_note: true } });
     function doc() {
-        return { schema: 1, kind: 'flow', name: 'Parent', description: 'Retain metadata', notes: [{ id: 'note', text: 'Retain note', position: { x: 3, y: 4 } }], settings: {}, nodes: [
+        return { schema: 1, kind: 'flow', name: 'Parent', description: 'Retain metadata', notes: [{ id: 'note', text: 'Retain note', position: { x: 3, y: 4 }, color: '', width: 80, height: 80 }], settings: {}, nodes: [
             { id: T, key: 'start', type: 'trigger.manual', label: 'Start', position: { x: 0, y: 0 }, params: {}, settings: {} },
             { id: A, key: 'greeting', type: 'logic.set', label: '<Chosen & step>', position: { x: 300, y: 0 }, params: { keep_input: false, fields: [{ name: 'greeting', type: 'text', value: 'Hello' }] }, settings: {} },
             { id: B, key: 'next', type: 'logic.set', label: 'Next', position: { x: 600, y: 0 }, params: { keep_input: false, fields: [] }, settings: {} }

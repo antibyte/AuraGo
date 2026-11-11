@@ -302,7 +302,11 @@ func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in Exec
 		params, err = resolveParams(rawParams, in.Env, def.fencedParams())
 	}
 	if err != nil {
-		return fail(&NodeError{Code: "FLOW_TEMPLATE_ERROR", Message: err.Error()})
+		code := "FLOW_TEMPLATE_ERROR"
+		if errors.Is(err, errFencedKeyCollision) {
+			code = "FLOW_PARAM_INVALID" // not retryable; the message names no key
+		}
+		return fail(&NodeError{Code: code, Message: err.Error()})
 	}
 	in.Params = params
 	// The run log never keeps a typed-in credential header (S6); the node still gets the value.

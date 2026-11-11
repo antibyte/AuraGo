@@ -91,6 +91,56 @@
         });
     }
 
+    // Service.Simulate runs on a registry without the generic tool types and refuses a durable
+    // step (internal/flows/simulation.go), and it validates every draft node, disabled and
+    // unreachable ones included. The catalog says per type whether it can simulate it
+    // (simulatable). An older server sends no flag: the durable types and every tool.* type
+    // count as not simulatable, any other type as unknown, which keeps the old behaviour.
+    const DURABLE_TYPES = new Set(['logic.durable_wait', 'logic.durable_approval']);
+    let modeIds = 0;
+
+    function canSimulate(ed, node) {
+        const i = ed.model.info(node.type);
+        if (i && i.simulatable === false) return false;
+        return !(DURABLE_TYPES.has(node.type) || String(node.type).startsWith('tool.'));
+    }
+
+    // simulationDefault: a test whose steps have outward effects, named (catalog or publish
+    // preview, see effects) or unknown (a risky step without named effects), opens in
+    // Simulation. A flow without effects, or with a step the simulator cannot run, opens as a
+    // real test.
+    function simulationDefault(ed, onlyNode, triggerId, real) {
+        if (!ed.model.doc.nodes.every(n => canSimulate(ed, n))) return false;
+        return effects(ed, onlyNode, triggerId, real).size > 0 || unknownEffects(ed, onlyNode, triggerId);
+    }
+
+    const UNSAFE_PATH = new Set(['__proto__', 'constructor', 'prototype']);
+
+    // localSample shows a built-in trigger sample in the UI language. The catalog names the
+    // text fields of each sample (sample_text_keys: event variant -> dotted path -> key; ""
+    // is the default sample, as in withEventSamples on the server), and those fields take
+    // t(key). A saved sample, or an answer without a source, is left as it is.
+    function localSample(ed, node, answer) {
+        const data = answer && answer.data && typeof answer.data === 'object' && !Array.isArray(answer.data) ? answer.data : {};
+        if (!answer || answer.source !== 'builtin' || !node) return data;
+        const byEvent = (ed.model.info(node.type) || {}).sample_text_keys;
+        if (!byEvent || typeof byEvent !== 'object') return data;
+        const event = String((node.params || {}).event == null ? '' : node.params.event).trim();
+        const keys = event && Object.prototype.hasOwnProperty.call(byEvent, event) ? byEvent[event] : byEvent[''];
+        if (!keys || typeof keys !== 'object') return data;
+        Object.keys(keys).forEach(path => {
+            const parts = path.split('.');
+            if (parts.some(part => UNSAFE_PATH.has(part)) || typeof keys[path] !== 'string') return;
+            let holder = data;
+            for (let i = 0; i < parts.length - 1 && holder; i++) holder = typeof holder === 'object' ? holder[parts[i]] : null;
+            const last = parts[parts.length - 1];
+            if (!holder || typeof holder !== 'object' || typeof holder[last] !== 'string') return;
+            const text = ed.t(keys[path]);
+            if (typeof text === 'string' && text && text !== keys[path]) holder[last] = text;
+        });
+        return data;
+    }
+
 
     function parseSample(text) {
         if (typeof text !== 'string' || text.length > MAX_SAMPLE) throw new Error('sample');
@@ -114,7 +164,9 @@
         const core = ED.core, { t, esc } = ed;
         let busy = false, closed = false;
         const controller = new AbortController();
-        const mode = core.el('<label class="ed-label">' + esc(t('easydrag.ui.test_title')) + '<select class="ed-input" data-ed-test-mode><option value="real">' + esc(t('easydrag.ui.real_test')) + '</option><option value="simulation">' + esc(t('easydrag.ui.simulation_title')) + '</option></select></label>');
+        // The select is named by its own label only (an embedded select would add its option text).
+        const modeLabel = 'ed-test-mode-' + (++modeIds);
+        const mode = core.el('<label class="ed-label"><span id="' + modeLabel + '">' + esc(t('easydrag.ui.test_mode')) + '</span><select class="ed-input" data-ed-test-mode aria-labelledby="' + modeLabel + '"><option value="real">' + esc(t('easydrag.ui.real_test')) + '</option><option value="simulation">' + esc(t('easydrag.ui.simulation_title')) + '</option></select></label>');
         const panel = core.el('<section class="ed-simulation-fields" hidden><p class="ed-callout">' + esc(t('easydrag.ui.simulation_hint')) + '</p><details class="ed-details" data-ed-fixtures-advanced><summary>' + esc(t('easydrag.ui.simulation_fixtures')) + '</summary><label class="ed-label">' + esc(t('easydrag.ui.simulation_fixtures')) + '<textarea class="ed-input ed-code" spellcheck="false" rows="7" data-ed-simulation-fixtures>{}</textarea></label><p class="ed-hint">' + esc(t('easydrag.ui.simulation_fixture_hint')) + '</p><ul class="ed-simulation-nodes">' + ed.model.doc.nodes.filter(n => !(ed.model.info(n.type) || {}).trigger).map(n => '<li><strong>' + esc(n.label || n.type) + '</strong> <code>' + esc(n.id) + '</code></li>').join('') + '</ul></details></section>');
         panel.querySelector('textarea').value = '{}';
         dialog.body.insertBefore(mode, dialog.body.firstChild);
@@ -133,11 +185,23 @@
             if (simulated && scenarios) scenarios.activate();
         }
         if (ED.scenarios && ed.api.scenarios) scenarios = ED.scenarios.create(ed, dialog, Object.assign({}, env, { panel, mode: select, fixtures: panel.querySelector('textarea'), syncMode }));
-        select.addEventListener('change', syncMode);
+        // The preselect dispatches no event, so a change is the user's own choice.
+        let modeChosen = false;
+        select.addEventListener('change', () => { modeChosen = true; syncMode(); });
+        // A test of steps with outward effects opens in Simulation (UX-07). The scope is the
+        // one openTest checks: the tested step (env.onlyNode) and the chosen trigger.
+        // preselect applies the default again when the trigger or the checked effects change,
+        // until the user picks a mode; it never moves a chosen or simulated mode back to real.
+        function preselect(triggerId, real) {
+            if (modeChosen || select.disabled || select.value === 'simulation') return;
+            if (simulationDefault(ed, env.onlyNode, triggerId, real)) { select.value = 'simulation'; syncMode(); }
+        }
+        preselect(typeof env.trigger === 'function' ? env.trigger() : undefined, typeof env.real === 'function' ? env.real() : null);
         dialog.done.then(() => { closed = true; controller.abort(); });
         return {
             isSelected: () => select.value === 'simulation',
             syncMode,
+            preselect,
             flush: () => !scenarios || scenarios.flush(),
             refreshData: () => { if (scenarios) scenarios.refreshData(); },
             async run() {
@@ -245,5 +309,5 @@
         bag.add(ed.bus.on('run', render));
         return { dispose() { bag.dispose(); el.remove(); } };
     }
-    ED.testing = { decorate, createResults, parseSample, contentResult, triggers, realEffects, effects, unknownEffects };
+    ED.testing = { decorate, createResults, parseSample, contentResult, triggers, realEffects, effects, unknownEffects, simulationDefault, localSample };
 })();

@@ -139,6 +139,8 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-action="run"]') && document.querySelectorAll('.ed-modal .ed-callout--warn .ed-effects li').length===2`)
 	s.shot("test-dialog")
 	s.noRawKeys("test dialog")
+	// The flow sends a message, so Test opens in Simulation; this journey runs the real test.
+	page.MustEval(`()=>{const s=document.querySelector('.ed-modal [data-ed-test-mode]');s.value='real';s.dispatchEvent(new Event('change',{bubbles:true}));}`)
 	page.MustEval(`()=>{edFixture.state.delay=450;edFixture.state.resyncAfter=3}`)
 	page.MustElement(`.ed-modal [data-ed-action="run"]`).MustClick()
 	s.wait(`()=>{const c=edFixture.editor().effectsConfirmed;return c instanceof Set && c.has('writes_files') && c.has('sends_message')}`)
@@ -663,6 +665,8 @@ func (s *easyDragSmoke) failingRun() {
 	s.fit()
 	page.KeyActions().Press(input.ControlLeft).Type(input.Enter).MustDo()
 	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-action="run"]') && !document.querySelector('.ed-modal .ed-callout--warn')`)
+	// The flow sends a message, so Test opens in Simulation; this journey runs the real test.
+	page.MustEval(`()=>{const s=document.querySelector('.ed-modal [data-ed-test-mode]');s.value='real';s.dispatchEvent(new Event('change',{bubbles:true}));}`)
 	page.MustElement(`.ed-modal [data-ed-action="run"]`).MustClick()
 	s.wait(`()=>{const ed=edFixture.editor();return !!ed.run && ed.run.status==='error' && document.querySelectorAll('.ed-node.status-error').length===1 && document.querySelectorAll('.ed-node.status-success').length===4 && !!document.querySelector('.ed-node-error')}`)
 	page.MustEval(`()=>{edFixture.state.failType='';const ed=edFixture.editor();ed.bus.emit('focus-node',ed.model.doc.nodes.find(n=>n.key==='ki').id);}`)
@@ -741,7 +745,7 @@ func (s *easyDragSmoke) phone() {
 	// flow opens at a readable zoom from its trigger, 48 px from the edge.
 	s.wait(`()=>document.querySelector('.ed-palette').classList.contains('is-collapsed')`)
 	s.wait(`()=>{const win=document.querySelector('.vd-window');return !!win && !win.classList.contains('vd-mobile-wide-window') && !document.querySelector('.ed-detail-portal') && win.getBoundingClientRect().width<=innerWidth+1}`)
-	s.wait(`()=>{const ed=edFixture.editor();const canvas=document.querySelector('.ed-canvas').getBoundingClientRect();const trigger=document.querySelector('.ed-node[data-node-id="n_zeitplan"]').getBoundingClientRect();return Math.abs(ed.view.zoom-0.8)<0.001 && Math.abs(trigger.left-canvas.left-48)<=1 && trigger.top>=canvas.top && trigger.bottom<=canvas.bottom}`)
+	s.wait(`()=>{const ed=edFixture.editor();const canvas=document.querySelector('.ed-canvas').getBoundingClientRect();const trigger=document.querySelector('.ed-node[data-node-id="n_zeitplan"]').getBoundingClientRect();return Math.abs(ed.view.zoom-0.86)<0.001 && Math.abs(trigger.left-canvas.left-48)<=1 && trigger.top>=canvas.top && trigger.bottom<=canvas.bottom}`)
 	// The footer keeps a short run status; the other items show icons, named for screen readers.
 	s.wait(`()=>{const run=document.querySelector('[data-ed-last-run]');const btn=run.parentElement;const texts=[...document.querySelectorAll('.ed-foot .ed-foot-text')];return getComputedStyle(run).display!=='none' && run.getBoundingClientRect().width>40 && btn.getAttribute('aria-label')===run.textContent && texts.length===1 && texts.every(x=>x.getBoundingClientRect().width<=1) && document.querySelector('.ed-head [data-ed-save]').getBoundingClientRect().width>40 && !!document.querySelector('[data-ed-cmd="issues"]').getAttribute('aria-label')}`)
 	s.wait(`()=>{

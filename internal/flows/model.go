@@ -158,7 +158,7 @@ type FlowSettings struct {
 	NotifyOnError string            `json:"notify_on_error,omitempty"`
 }
 
-// StickyNote is a canvas note (editor feature of phase 2, kept in the schema now).
+// StickyNote is a canvas note (canvas feature of Wave 4; bounded in S0).
 type StickyNote struct {
 	ID       string  `json:"id"`
 	Position Point   `json:"position"`
@@ -212,6 +212,7 @@ func ParseFlowImport(data []byte) (*Flow, error) {
 	f.Normalize()
 	v := newValidator(&f, nil, ValidateContext{})
 	v.groupChecks()
+	v.noteChecks()
 	v.finish()
 	if HasErrors(v.issues) {
 		return nil, &ValidationError{Issues: v.issues}

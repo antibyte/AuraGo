@@ -44,7 +44,8 @@ var (
 // env.Roots was built from). Treat it as read-only and clone it before
 // modifying it, append included, which can write into a shared backing array.
 // Text from env values or from evaluation is never evaluated as a template
-// again.
+// again. In a parameter fenced per leaf (ParamJSON with FenceUntrusted), a multi-part
+// template uses the whole-value fence.
 func (t *Template) Evaluate(env *Env) (any, error) {
 	if t == nil {
 		return nil, nil
@@ -52,11 +53,19 @@ func (t *Template) Evaluate(env *Env) (any, error) {
 	if t.IsSingleExpr() {
 		return evalExpr(t.parts[0].expr, env)
 	}
+	// Spliced into text, a value becomes text anyway: it gets the whole-value fence, also in a
+	// parameter that is fenced per leaf.
+	partEnv := env
+	if env != nil && env.fenceLeaves {
+		copied := *env
+		copied.fenceLeaves = false
+		partEnv = &copied
+	}
 	var b strings.Builder
 	for _, part := range t.parts {
 		s := part.literal
 		if part.expr != nil {
-			v, err := evalExpr(part.expr, env)
+			v, err := evalExpr(part.expr, partEnv)
 			if err != nil {
 				return nil, err
 			}
@@ -90,6 +99,13 @@ func evalExpr(e *Expr, env *Env) (any, error) {
 		v = out
 	}
 	if env.fencesRoot(e.Root) {
+		if env.fenceLeaves {
+			fenced, err := fenceUntrustedLeaves(v)
+			if err != nil {
+				return nil, fmt.Errorf("expression %s: %w", quoteForError(e.Source), err)
+			}
+			return fenced, nil
+		}
 		v = fenceUntrusted(v)
 	}
 	return v, nil
@@ -181,22 +197,31 @@ func ResolveParams(params map[string]any, env *Env) (map[string]any, error) {
 }
 
 // resolveParams is ResolveParams for a node whose parameters named in fenced
-// (ParamSpec.FenceUntrusted) get the untrusted values they splice in as fenced text:
-// those parameters resolve against a copy of env with the fence on. Everything else,
-// the order of evaluation and the error a failing key reports included, is as in
-// ResolveParams.
-func resolveParams(params map[string]any, env *Env, fenced map[string]bool) (map[string]any, error) {
-	var fencedEnv *Env
+// (ParamSpec.FenceUntrusted) get the untrusted values they read fenced. Those parameters
+// resolve against a copy of env with the fence on; a fenceLeaves parameter (ParamJSON) gets
+// the per-leaf fence as well. Everything else, the order of evaluation and the error a
+// failing key reports included, is as in ResolveParams.
+func resolveParams(params map[string]any, env *Env, fenced map[string]fenceMode) (map[string]any, error) {
+	var wholeEnv, leafEnv *Env
 	out := make(map[string]any, len(params))
 	for _, k := range sortedKeys(params) {
 		use := env
-		if fenced[k] && env != nil && len(env.Untrusted) > 0 {
-			if fencedEnv == nil {
-				copied := *env
-				copied.fence = true
-				fencedEnv = &copied
+		if mode := fenced[k]; mode != 0 && env != nil && len(env.Untrusted) > 0 {
+			if mode == fenceLeaves {
+				if leafEnv == nil {
+					copied := *env
+					copied.fence, copied.fenceLeaves = true, true
+					leafEnv = &copied
+				}
+				use = leafEnv
+			} else {
+				if wholeEnv == nil {
+					copied := *env
+					copied.fence = true
+					wholeEnv = &copied
+				}
+				use = wholeEnv
 			}
-			use = fencedEnv
 		}
 		resolved, err := resolveValue(params[k], use, 2)
 		if err != nil {

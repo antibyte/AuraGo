@@ -1,15 +1,20 @@
 package decisions
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 	"mime"
 	"strings"
 )
 
+// MaxStateBytes caps the decision state as the model receives it (EncodeStateText).
+const MaxStateBytes = 256 << 10
+
+// MaxInstructionBytes caps the instructions of one question. Flows keep 256 bytes of it
+// free for their state guard (internal/flows catalog_decision.go).
+const MaxInstructionBytes = maxInstructions
+
 const (
-	maxStateBytes      = 256 << 10
 	maxQuestions       = 16
 	maxOptions         = 62
 	maxImages          = 8
@@ -26,12 +31,12 @@ func ValidateRequest(request Request) error {
 	if len(request.Questions) == 0 || len(request.Questions) > maxQuestions {
 		return fmt.Errorf("questions must contain between 1 and %d entries", maxQuestions)
 	}
-	state, err := json.Marshal(request.State)
+	state, err := EncodeStateText(request.State)
 	if err != nil {
 		return fmt.Errorf("encode decision state: %w", err)
 	}
-	if len(state) > maxStateBytes {
-		return fmt.Errorf("decision state exceeds %d bytes", maxStateBytes)
+	if len(state) > MaxStateBytes {
+		return fmt.Errorf("decision state exceeds %d bytes", MaxStateBytes)
 	}
 	questionIDs := make(map[string]struct{}, len(request.Questions))
 	for index, question := range request.Questions {

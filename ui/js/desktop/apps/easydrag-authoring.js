@@ -2,6 +2,17 @@
 (function () {
     'use strict';
     const ED = window.EasyDrag = window.EasyDrag || {};
+    const GOAL_MAX = 4000;
+    let goalCounters = 0;
+
+    // goalCounter counts the goal the way the server does (flows_ai_proposal.go: trimmed, in
+    // code points, at most 4,000) and formats "count / max" in the UI language.
+    function goalCounter(value, t, locale) {
+        const count = Array.from(String(value || '').trim()).length;
+        let nf;
+        try { nf = new Intl.NumberFormat(locale || undefined); } catch (err) { nf = new Intl.NumberFormat(); }
+        return { count, over: count > GOAL_MAX, text: t('easydrag.ui.goal_counter', { count: nf.format(count), max: nf.format(GOAL_MAX) }) };
+    }
 
     function applyProposal(model, doc, expectedVersion, label) {
         if (model.version !== expectedVersion || !doc || !Array.isArray(doc.nodes) || !Array.isArray(doc.edges)) return false;
@@ -35,12 +46,21 @@
             const revision = home ? null : ed.saver ? ed.saver.revision : ed.flow.draft_revision;
             controller = new AbortController();
             const requestController = controller;
+            const counterId = 'ed-goal-counter-' + (++goalCounters);
+            // syncGoal is set once the dialog exists; an action re-applies it, because the
+            // dialog's setBusy(false) enables every action button again.
+            let syncGoal = () => {};
+            // busy: a generate or apply request is running. The modal only disables its action
+            // buttons, and typing in the goal re-applies syncGoal, so Generate must stay off here too.
+            let busy = false;
             const current = () => !disposed && dialog && (home ? home.mayCreate() : !ed.runView && !ed.readonly && ed.model === model && model.version === version && Number(ed.saver ? ed.saver.revision : ed.flow.draft_revision) === Number(revision));
             dialog = core.modal(home ? home.root.closest('.ed-app') || home.root : ed.root, {
                 title: t('easydrag.ui.authoring_title'), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--authoring',
-                body: '<p class="ed-callout">' + esc(t('easydrag.ui.authoring_notice')) + '</p><label class="ed-label">' + esc(t('easydrag.ui.authoring_goal')) + '<textarea class="ed-input" rows="5" maxlength="8000" data-ed-authoring-goal></textarea></label><p class="ed-error" role="alert" hidden></p><section data-ed-authoring-preview hidden></section>',
+                body: '<p class="ed-callout">' + esc(t('easydrag.ui.authoring_notice')) + '</p><label class="ed-label">' + esc(t('easydrag.ui.authoring_goal')) + '<textarea class="ed-input" rows="5" aria-describedby="' + counterId + '" data-ed-authoring-goal></textarea></label><p class="ed-goal-counter" id="' + counterId + '" data-ed-goal-counter></p><p class="ed-error" role="alert" hidden></p><section data-ed-authoring-preview hidden></section>',
                 actions: [{ id: 'cancel', label: t('easydrag.ui.cancel') }, { id: 'generate', label: t('easydrag.ui.authoring_generate'), primary: true, icon: 'sparkles' }, { id: 'apply', label: t('easydrag.ui.authoring_apply'), primary: true }],
-                onAction: async (action, view) => {
+                onAction: (action, view) => {
+                    if (action !== 'cancel') { if (busy) return false; busy = true; }
+                    return (async () => {
                     if (action === 'cancel') return true;
                     const error = view.body.querySelector('.ed-error');
                     error.hidden = true;
@@ -73,15 +93,29 @@
                     ed.bus.emit('proposal-applied');
                     ed.ctx.notify({ title: t('easydrag.ui.authoring_title'), message: t('easydrag.ui.authoring_applied') });
                     return true;
+                    })().finally(() => { if (action !== 'cancel') busy = false; setTimeout(syncGoal, 0); });
                 }
             });
             const owned = dialog;
             owned.el.querySelector('[data-ed-action="apply"]').hidden = true;
-            owned.body.querySelector('[data-ed-authoring-goal]').addEventListener('input', () => {
+            const goalInput = owned.body.querySelector('[data-ed-authoring-goal]');
+            const counter = owned.body.querySelector('[data-ed-goal-counter]');
+            const locale = (typeof document !== 'undefined' && document.documentElement && document.documentElement.lang) || undefined;
+            // Above the limit the counter marks a state (warn ink) and Generate is disabled; the
+            // length check in onAction stays as a backstop.
+            syncGoal = () => {
+                const state = goalCounter(goalInput.value, t, locale);
+                counter.textContent = state.text;
+                if (state.over) counter.classList.add('is-over'); else counter.classList.remove('is-over');
+                owned.el.querySelector('[data-ed-action="generate"]').disabled = state.over || busy;
+            };
+            syncGoal();
+            goalInput.addEventListener('input', () => {
                 proposal = null;
                 owned.el.querySelector('[data-ed-action="apply"]').hidden = true;
                 owned.el.querySelector('[data-ed-action="generate"]').hidden = false;
                 owned.body.querySelector('[data-ed-authoring-preview]').hidden = true;
+                syncGoal();
             });
             owned.done.then(() => { requestController.abort(); if (dialog === owned) dialog = null; if (controller === requestController) controller = null; });
             } finally { opening = false; }
@@ -99,5 +133,5 @@
         }
         return { open, dispose() { disposed = true; if (controller) controller.abort(); if (dialog) dialog.close(); dialog = null; } };
     }
-    ED.authoring = { create, createNew: (app, root, mayCreate) => create(app, { root, mayCreate }), applyProposal };
+    ED.authoring = { create, createNew: (app, root, mayCreate) => create(app, { root, mayCreate }), applyProposal, goalCounter };
 })();

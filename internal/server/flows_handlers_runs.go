@@ -226,12 +226,12 @@ func (s *Server) flowRunAction(w http.ResponseWriter, r *http.Request, id, actio
 		}
 		switch r.Method {
 		case http.MethodGet:
-			data, err := s.Flows.TriggerSampleData(ctx, id, node)
+			data, source, err := s.Flows.TriggerSampleDataSource(ctx, id, node)
 			if err != nil {
 				s.flowsErrorFrom(w, r, err)
 				return true
 			}
-			s.flowsJSONScrubbed(w, http.StatusOK, map[string]any{"data": data})
+			s.flowsJSONScrubbed(w, http.StatusOK, map[string]any{"data": data, "source": source})
 		case http.MethodPut:
 			var body struct {
 				Data map[string]any `json:"data"`

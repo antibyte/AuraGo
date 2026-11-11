@@ -524,18 +524,11 @@ type openRouterImagePart struct {
 	ImageURL openRouterImageURL `json:"image_url"`
 }
 
-// openRouterTextState keeps caller-provided structured state as plain text.
-// Only image parts built from server-authorized bytes may activate multimodal
-// input in OpenRouter's state array.
+// openRouterTextState keeps caller-provided structured state as plain text (EncodeStateText:
+// no HTML escaping, so fence markers stay readable). Only image parts built from
+// server-authorized bytes may activate multimodal input in OpenRouter's state array.
 func openRouterTextState(state any) (string, error) {
-	if text, ok := state.(string); ok {
-		return text, nil
-	}
-	encoded, err := json.Marshal(state)
-	if err != nil {
-		return "", err
-	}
-	return string(encoded), nil
+	return EncodeStateText(state)
 }
 
 type openRouterDecisionResponse struct {

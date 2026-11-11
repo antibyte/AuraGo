@@ -1,7 +1,8 @@
 // cfg/flows.js — EasyDrag flows: run limits, AI provider for AI steps and agent options.
 // The switch and the four limits are read at boot, so the save answer reports a restart ("EasyDrag flows").
-// The limits' ranges are validation rules in js/config/catalog.js. The agent options are saved but not
-// enforced yet (planned for phase 4), so their switches stay locked.
+// The limits' ranges are validation rules in js/config/catalog.js. flows.agent.read_only is enforced by the
+// agent's manage_missions dispatch on every call. allow_publish has no effect (the agent has no publish
+// path), so its switch stays locked and says why.
 function renderFlowsSection(section) {
     const limits = [['max_parallel_runs', 8], ['max_parallel_nodes_per_run', 4], ['run_retention_days', 30], ['max_runs_per_flow', 200]];
     const data = configData.flows || (configData.flows = { enabled: true, ...Object.fromEntries(limits), ai_provider: '', agent: { read_only: false, allow_publish: false } });
@@ -10,9 +11,10 @@ function renderFlowsSection(section) {
     const form = window.AuraConfigForm;
     const text = (key, values) => t('config.flows.' + key, values);
     const label = key => escapeHtml(text(key));
-    // The two agent options are not enforced yet: shown, but locked.
-    const lockedToggle = (key, path, on) => '<div class="field-group"><div class="field-label">' + label(key) + '</div>'
-        + '<div class="toggle' + (on ? ' on' : '') + ' cfg-toggle-disabled" data-path="' + path + '" aria-label="' + label(key) + '" aria-disabled="true" aria-describedby="flows-agent-note"></div></div>';
+    // allow_publish has no effect (the agent cannot publish flows): shown locked, with the reason.
+    const publishLocked = on => '<div class="field-group"><div class="field-label">' + label('agent_allow_publish') + '</div>'
+        + '<div class="field-help" id="flows-agent-publish-reason">' + label('agent_allow_publish_unavailable') + '</div>'
+        + '<div class="toggle' + (on ? ' on' : '') + ' cfg-toggle-disabled" data-path="flows.agent.allow_publish" aria-label="' + label('agent_allow_publish') + '" aria-disabled="true" aria-describedby="flows-agent-publish-reason"></div></div>';
     const missionsOff = !!(configData.tools && configData.tools.missions && configData.tools.missions.enabled === false);
     let before = '<div class="cfg-note-banner cfg-note-banner-info">' + label('intro') + '</div>';
     if (missionsOff) before += '<div class="cfg-note-banner cfg-note-banner-warning">' + label('missions_off') + '</div>';
@@ -40,8 +42,8 @@ function renderFlowsSection(section) {
             form.toggle({ label: text('durable_enabled'), help: text('durable_enabled_help'), path: 'flows.durable_enabled', value: data.durable_enabled === true }), runtime] },
         { titleKey: 'config.refresh.settings', fields: limitFields.concat([provider,
             '<div class="cfg-note-banner cfg-note-banner-info" id="flows-agent-note">' + label('agent_note') + '</div>',
-            lockedToggle('agent_read_only', 'flows.agent.read_only', !!data.agent.read_only),
-            lockedToggle('agent_allow_publish', 'flows.agent.allow_publish', !!data.agent.allow_publish)]) }
+            form.toggle({ label: text('agent_read_only'), help: text('agent_read_only_help'), path: 'flows.agent.read_only', value: data.agent.read_only === true }),
+            publishLocked(!!data.agent.allow_publish)]) }
     ];
     // The desktop opens EasyDrag from ?app=; without flows or missions it would open without the app.
     const open = data.enabled !== false && !missionsOff ? '<div class="field-group"><a class="btn-save dc-test-btn" href="/desktop?app=easydrag">' + label('open') + '</a></div>' : '';

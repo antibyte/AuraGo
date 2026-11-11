@@ -442,9 +442,6 @@ func sanitizeLocalPackFlow(source *Flow, clearSample bool) (*Flow, error) {
 	}
 	redacted.Name = security.ScrubSecrets(redacted.Name)
 	redacted.Description = security.ScrubSecrets(redacted.Description)
-	for i := range redacted.Notes {
-		redacted.Notes[i].Text = security.ScrubSecrets(redacted.Notes[i].Text)
-	}
 	if redacted.Groups != nil {
 		for i := range *redacted.Groups {
 			(*redacted.Groups)[i].Title = security.ScrubSecrets((*redacted.Groups)[i].Title)

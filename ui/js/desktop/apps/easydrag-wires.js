@@ -100,7 +100,6 @@
             if (dropTarget === e.id) cls.push('is-drop-target');
             if (pathNode && pathSet.has(e.source.node) && pathSet.has(e.target.node)) cls.push('is-path');
             g.setAttribute('class', cls.join(' '));
-            g.dataset.cat = core.catOf(ed.model.info(geo.src.type));
         }
 
         // render redraws every wire and rebuilds the run pills (after a run or a structural change).
@@ -115,6 +114,7 @@
 
         // renderFor redraws the wires of moved or edited nodes; their pills only move.
         function renderFor(nodeIds) {
+            if (ed.renderStats) ed.renderStats.wireScans++;
             const set = new Set(nodeIds || []);
             const byId = nodeMap();
             ed.model.doc.edges.forEach(e => { if (set.has(e.source.node) || set.has(e.target.node)) drawEdge(e, byId); });
@@ -130,7 +130,7 @@
             if (old && old.text === text) return;
             if (old) { old.g.remove(); pillEls.delete(e.id); }
             if (!text) return;
-            const w = 14 + text.length * 7;
+            const w = 16 + Math.ceil(text.length * 7.6);
             const g = document.createElementNS(SVG, 'g');
             g.setAttribute('class', 'ed-pill');
             g.innerHTML = '<rect width="' + w + '" height="18" rx="9"></rect><text x="' + (w / 2) + '" y="13" text-anchor="middle">' + esc(text) + '</text>';

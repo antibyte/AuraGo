@@ -58,7 +58,7 @@
     --ed-warn: var(--ds-color-warning-fg);
     --ed-danger: var(--ds-color-danger-fg);
     --ed-info: var(--ds-color-info-fg);
-    /* ink: a hue mixed with the text colour, like --ed-cat-ink. The status tokens are the same in light and dark themes
+    /* ink: a hue mixed with the text colour. The status tokens are the same in light and dark themes
        (desktop-base.css) and the accents and category hues are light, so as a text colour they fall below 4.5:1 on light
        surfaces; ink does not. Text uses ink; backgrounds, borders, dots and rings keep the raw colours. */
     --ed-ok-ink: color-mix(in srgb, var(--ed-ok) 30%, var(--ed-text));
@@ -79,16 +79,49 @@
     --ed-shadow: var(--ds-elevation-2);
     --ed-shadow-lg: var(--ds-elevation-4);
     --ed-glass: color-mix(in srgb, var(--ed-panel-strong) 82%, transparent);
-    --ed-cat-trigger: var(--ds-color-warning-fg);
-    --ed-cat-logic: #9aa7ff;
-    --ed-cat-ai: #c08bff;
-    --ed-cat-web: var(--ds-color-info-fg);
-    --ed-cat-documents: #ff8a65;
-    --ed-cat-notify: var(--ds-color-success-fg);
-    --ed-cat-smart_home: #e6c84f;
-    --ed-cat-planner: #6fd3e8;
-    --ed-cat-tool: #94a3b8;
-    --ed-group-violet: #9c87cb;
+    /* category identity (UI-03): a solid tile and its icon colour per category. Category colour marks identity, never
+       state. This is the dark band (the 11 base themes and Minimal dark); the light and Cyberpunk bands follow the block. */
+    --ed-cat-trigger: #584995;
+    --ed-cat-trigger-ink: #e7e5fe;
+    --ed-cat-ai: #733d89;
+    --ed-cat-ai-ink: #f2e0fb;
+    --ed-cat-notify: #873761;
+    --ed-cat-notify-ink: #fedeec;
+    --ed-cat-web: #016566;
+    --ed-cat-web-ink: #d1efef;
+    --ed-cat-planner: #026376;
+    --ed-cat-planner-ink: #d2eef6;
+    --ed-cat-smart_home: #516003;
+    --ed-cat-smart_home-ink: #e4ecd0;
+    --ed-cat-documents: #655543;
+    --ed-cat-documents-ink: #ede7df;
+    --ed-cat-logic: #4e5969;
+    --ed-cat-logic-ink: #e4e8ef;
+    --ed-cat-tool: #53595f;
+    --ed-cat-tool-ink: #e6e8ea;
+    /* group frames: each stored colour name has its own colour (dark band; the light and Cyberpunk bands follow). A group
+       colour looks like its name, stays 0.20 OKLab from every status colour and 0.10 from the other groups, and reaches 3:1 on
+       the editor canvas (TestEasyDragCategoryColourTokens computes all of it); it is never a tile or the accent. */
+    --ed-group-blue: #0559f3;
+    --ed-group-green: #0a8010;
+    --ed-group-amber: #935a0f;
+    --ed-group-rose: #c81392;
+    --ed-group-violet: #a62bfe;
+    --ed-group-neutral: var(--ed-muted);
+    /* identity marks (dots, minimap and preview rects) are small shapes on the canvas, card and well: they need 3:1 there, a tile
+       does not give it. Dark surfaces: the tile mixed halfway towards its icon colour. */
+    --ed-mark-trigger: color-mix(in srgb, var(--ed-cat-trigger) 50%, var(--ed-cat-trigger-ink));
+    --ed-mark-logic: color-mix(in srgb, var(--ed-cat-logic) 50%, var(--ed-cat-logic-ink));
+    --ed-mark-ai: color-mix(in srgb, var(--ed-cat-ai) 50%, var(--ed-cat-ai-ink));
+    --ed-mark-web: color-mix(in srgb, var(--ed-cat-web) 50%, var(--ed-cat-web-ink));
+    --ed-mark-documents: color-mix(in srgb, var(--ed-cat-documents) 50%, var(--ed-cat-documents-ink));
+    --ed-mark-notify: color-mix(in srgb, var(--ed-cat-notify) 50%, var(--ed-cat-notify-ink));
+    --ed-mark-smart_home: color-mix(in srgb, var(--ed-cat-smart_home) 50%, var(--ed-cat-smart_home-ink));
+    --ed-mark-planner: color-mix(in srgb, var(--ed-cat-planner) 50%, var(--ed-cat-planner-ink));
+    --ed-mark-tool: color-mix(in srgb, var(--ed-cat-tool) 50%, var(--ed-cat-tool-ink));
+    /* the unpublished-changes mark: the accent, except where the accent looks like the success colour (see below) */
+    --ed-change: var(--ed-accent);
+    --ed-change-ink: color-mix(in srgb, var(--ed-change) 30%, var(--ed-text));
     --ed-on-accent: #ffffff;
     position: relative;
     display: flex;
@@ -104,24 +137,130 @@
     container-type: inline-size;
 }
 
-.ed-app [data-cat] { --ed-cat: var(--ed-cat-tool); }
-.ed-app [data-cat="trigger"] { --ed-cat: var(--ed-cat-trigger); }
-.ed-app [data-cat="logic"] { --ed-cat: var(--ed-cat-logic); }
-.ed-app [data-cat="ai"] { --ed-cat: var(--ed-cat-ai); }
-.ed-app [data-cat="web"] { --ed-cat: var(--ed-cat-web); }
-.ed-app [data-cat="documents"] { --ed-cat: var(--ed-cat-documents); }
-.ed-app [data-cat="notify"] { --ed-cat: var(--ed-cat-notify); }
-.ed-app [data-cat="smart_home"] { --ed-cat: var(--ed-cat-smart_home); }
-.ed-app [data-cat="planner"] { --ed-cat: var(--ed-cat-planner); }
-/* ink: the category hue mixed with the text colour, readable on light and dark surfaces */
-.ed-app [data-cat] { --ed-cat-ink: color-mix(in srgb, var(--ed-cat) 70%, var(--ed-text)); }
+/* category tiles, light band (Lollipop, Minimal light): their status colours are dark, so the tiles are light */
+.desktop-body[data-theme="lollipop"] .ed-app,
+.desktop-body[data-theme="minimal"]:not([data-scheme="dark"]) .ed-app {
+    --ed-cat-trigger: #ddd9ff;
+    --ed-cat-trigger-ink: #3e316d;
+    --ed-cat-ai: #f0d1ff;
+    --ed-cat-ai-ink: #502a60;
+    --ed-cat-notify: #fecee4;
+    --ed-cat-notify-ink: #622344;
+    --ed-cat-web: #b5eaea;
+    --ed-cat-web-ink: #034747;
+    --ed-cat-planner: #b7e7f6;
+    --ed-cat-planner-ink: #014553;
+    --ed-cat-smart_home: #d8e5b4;
+    --ed-cat-smart_home-ink: #384302;
+    --ed-cat-documents: #e7dccf;
+    --ed-cat-documents-ink: #493a29;
+    --ed-cat-logic: #d7dfea;
+    --ed-cat-logic-ink: #333e4d;
+    --ed-cat-tool: #dadee3;
+    --ed-cat-tool-ink: #383e43;
+    /* their status colours are dark and fill the mid tones, so the group colours that name them are deep (blue, green, amber) */
+    --ed-group-blue: #09017c;
+    --ed-group-green: #003902;
+    --ed-group-amber: #4f2200;
+    --ed-group-rose: #f611b1;
+    --ed-group-violet: #b41dfc;
+    /* light surfaces: a mid tone between the pale tile and its dark icon colour */
+    --ed-mark-trigger: color-mix(in srgb, var(--ed-cat-trigger) 35%, var(--ed-cat-trigger-ink));
+    --ed-mark-logic: color-mix(in srgb, var(--ed-cat-logic) 35%, var(--ed-cat-logic-ink));
+    --ed-mark-ai: color-mix(in srgb, var(--ed-cat-ai) 35%, var(--ed-cat-ai-ink));
+    --ed-mark-web: color-mix(in srgb, var(--ed-cat-web) 35%, var(--ed-cat-web-ink));
+    --ed-mark-documents: color-mix(in srgb, var(--ed-cat-documents) 35%, var(--ed-cat-documents-ink));
+    --ed-mark-notify: color-mix(in srgb, var(--ed-cat-notify) 35%, var(--ed-cat-notify-ink));
+    --ed-mark-smart_home: color-mix(in srgb, var(--ed-cat-smart_home) 35%, var(--ed-cat-smart_home-ink));
+    --ed-mark-planner: color-mix(in srgb, var(--ed-cat-planner) 35%, var(--ed-cat-planner-ink));
+    --ed-mark-tool: color-mix(in srgb, var(--ed-cat-tool) 35%, var(--ed-cat-tool-ink));
+}
 
+/* category tiles, Cyberpunk band: hues kept away from its neon status colours */
+.desktop-body[data-theme="cyberpunk"] .ed-app {
+    --ed-cat-trigger: #534b97;
+    --ed-cat-trigger-ink: #e5e5fe;
+    --ed-cat-ai: #6e3f8d;
+    --ed-cat-ai-ink: #f0e1fc;
+    --ed-cat-notify: #7c3b77;
+    --ed-cat-notify-ink: #f8dff5;
+    --ed-cat-web: #255c87;
+    --ed-cat-web-ink: #d7ebfc;
+    --ed-cat-planner: #3f568a;
+    --ed-cat-planner-ink: #dee8fe;
+    --ed-cat-smart_home: #575e01;
+    --ed-cat-smart_home-ink: #e7ebcf;
+    --ed-cat-documents: #6c5146;
+    --ed-cat-documents-ink: #f0e5e0;
+    --ed-cat-logic: #505966;
+    --ed-cat-logic-ink: #e4e8ee;
+    --ed-cat-tool: #54595d;
+    --ed-cat-tool-ink: #e6e8ea;
+    --ed-group-blue: #1874ed;
+    --ed-group-green: #089428;
+    --ed-group-amber: #8e5e01;
+    --ed-group-rose: #8b4c66;
+    --ed-group-violet: #8c34e9;
+}
+
+/* light surfaces under the dark-band tiles (Fruity light, Windows XP, Voxel World, Amiga): deeper group colours, and marks that are
+   the tile pulled slightly towards black, since the tile is already dark and its icon colour is light */
+.desktop-body[data-theme="fruity"]:not([data-scheme="dark"]) .ed-app,
+.desktop-body[data-theme="windows_xp"] .ed-app,
+.desktop-body[data-theme="voxel_world"] .ed-app,
+.desktop-body[data-theme="amiga"] .ed-app {
+    --ed-group-blue: #034ec8;
+    --ed-group-green: #02721c;
+    --ed-group-amber: #8a5100;
+    --ed-group-rose: #ad0266;
+    --ed-group-violet: #600da8;
+    --ed-mark-trigger: color-mix(in srgb, var(--ed-cat-trigger) 85%, black);
+    --ed-mark-logic: color-mix(in srgb, var(--ed-cat-logic) 85%, black);
+    --ed-mark-ai: color-mix(in srgb, var(--ed-cat-ai) 85%, black);
+    --ed-mark-web: color-mix(in srgb, var(--ed-cat-web) 85%, black);
+    --ed-mark-documents: color-mix(in srgb, var(--ed-cat-documents) 85%, black);
+    --ed-mark-notify: color-mix(in srgb, var(--ed-cat-notify) 85%, black);
+    --ed-mark-smart_home: color-mix(in srgb, var(--ed-cat-smart_home) 85%, black);
+    --ed-mark-planner: color-mix(in srgb, var(--ed-cat-planner) 85%, black);
+    --ed-mark-tool: color-mix(in srgb, var(--ed-cat-tool) 85%, black);
+}
+
+/* the change mark is the accent, except where the accent (a theme's own, or one the user can pick on Standard and Fruity) comes
+   within 0.20 OKLab of the success colour: there it is the text colour, so "Unpublished changes" never looks like "Published"
+   (TestEasyDragCategoryColourTokens computes this list) */
+.desktop-body[data-theme="cyberpunk"] .ed-app,
+.desktop-body[data-theme="black_gloss"] .ed-app,
+.desktop-body[data-theme="organic"] .ed-app,
+.desktop-body[data-theme="electronic_dreams"] .ed-app,
+.desktop-body[data-theme="green_slime"] .ed-app,
+.desktop-body[data-theme="orbit"] .ed-app,
+.desktop-body[data-theme="standard"][data-accent="blue"] .ed-app,
+.desktop-body[data-theme="standard"][data-accent="green"] .ed-app,
+.desktop-body[data-theme="standard"][data-accent="teal"] .ed-app,
+.desktop-body[data-theme="fruity"][data-accent="blue"] .ed-app,
+.desktop-body[data-theme="fruity"][data-accent="green"] .ed-app,
+.desktop-body[data-theme="fruity"][data-accent="teal"] .ed-app { --ed-change: var(--ed-text); }
+.desktop-body[data-theme="black_gloss"][data-accent="orange"] .ed-app,
+.desktop-body[data-theme="black_gloss"][data-accent="violet"] .ed-app { --ed-change: var(--ed-accent); }
+
+.ed-app [data-cat] { --ed-cat: var(--ed-cat-tool); --ed-cat-ink: var(--ed-cat-tool-ink); --ed-mark: var(--ed-mark-tool); }
+.ed-app [data-cat="tool"] { --ed-cat: var(--ed-cat-tool); --ed-cat-ink: var(--ed-cat-tool-ink); --ed-mark: var(--ed-mark-tool); }
+.ed-app [data-cat="trigger"] { --ed-cat: var(--ed-cat-trigger); --ed-cat-ink: var(--ed-cat-trigger-ink); --ed-mark: var(--ed-mark-trigger); }
+.ed-app [data-cat="logic"] { --ed-cat: var(--ed-cat-logic); --ed-cat-ink: var(--ed-cat-logic-ink); --ed-mark: var(--ed-mark-logic); }
+.ed-app [data-cat="ai"] { --ed-cat: var(--ed-cat-ai); --ed-cat-ink: var(--ed-cat-ai-ink); --ed-mark: var(--ed-mark-ai); }
+.ed-app [data-cat="web"] { --ed-cat: var(--ed-cat-web); --ed-cat-ink: var(--ed-cat-web-ink); --ed-mark: var(--ed-mark-web); }
+.ed-app [data-cat="documents"] { --ed-cat: var(--ed-cat-documents); --ed-cat-ink: var(--ed-cat-documents-ink); --ed-mark: var(--ed-mark-documents); }
+.ed-app [data-cat="notify"] { --ed-cat: var(--ed-cat-notify); --ed-cat-ink: var(--ed-cat-notify-ink); --ed-mark: var(--ed-mark-notify); }
+.ed-app [data-cat="smart_home"] { --ed-cat: var(--ed-cat-smart_home); --ed-cat-ink: var(--ed-cat-smart_home-ink); --ed-mark: var(--ed-mark-smart_home); }
+.ed-app [data-cat="planner"] { --ed-cat: var(--ed-cat-planner); --ed-cat-ink: var(--ed-cat-planner-ink); --ed-mark: var(--ed-mark-planner); }
 .ed-app *, .ed-app *::before, .ed-app *::after { box-sizing: border-box; }
 .ed-app [hidden] { display: none !important; }
 .ed-icon { width: 16px; height: 16px; flex: none; }
 .ed-sr-only { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .ed-muted { color: var(--ed-muted); }
 .ed-hint { margin: 6px 0 0; color: var(--ed-muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.ed-goal-counter { margin: 4px 0 0; color: var(--ed-muted); font-size: 12px; font-variant-numeric: tabular-nums; text-align: end; }
+.ed-goal-counter.is-over { color: var(--ed-warn-ink); font-weight: 600; }
 .ed-error { margin: 6px 0 0; color: var(--ed-danger-ink); font-size: 12px; overflow-wrap: anywhere; }
 .ed-link { color: var(--ed-accent-ink); text-decoration: none; font-weight: 600; }
 .ed-link:hover { text-decoration: underline; }
@@ -156,7 +295,7 @@
 .ed-btn--primary.has-changes { position: relative; }
 .ed-btn--primary.has-changes::after {
     content: ""; position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%;
-    background: var(--ed-warn); box-shadow: 0 0 0 2px var(--ed-chrome);
+    background: var(--ed-change); box-shadow: 0 0 0 2px var(--ed-chrome);
 }
 .ed-btn--danger { color: var(--ed-danger-ink); border-color: color-mix(in srgb, var(--ed-danger) 45%, var(--ed-border)); }
 .ed-btn--danger:hover:not(:disabled) { background: color-mix(in srgb, var(--ed-danger) 14%, var(--ed-control)); }
@@ -250,7 +389,7 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-chip .ed-icon { width: 12px; height: 12px; }
 .ed-chip--muted { background: var(--ed-control); color: var(--ed-muted); }
 .ed-chip--ok { background: color-mix(in srgb, var(--ed-ok) 16%, transparent); color: var(--ed-ok-ink); }
-.ed-chip--accent { background: color-mix(in srgb, var(--ed-warn) 18%, transparent); color: var(--ed-warn-ink); }
+.ed-chip--accent { background: color-mix(in srgb, var(--ed-change) 16%, transparent); color: var(--ed-change-ink); }
 .ed-chip--warn { background: color-mix(in srgb, var(--ed-warn) 18%, transparent); color: var(--ed-warn-ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ed-warn) 45%, transparent); }
 .ed-palette-setup:focus-visible { outline: 2px solid var(--ed-focus); outline-offset: 2px; }
 .ed-chip--risk { background: color-mix(in srgb, var(--ed-danger) 16%, transparent); color: var(--ed-danger-ink); }
@@ -271,7 +410,7 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-section-title { margin: 14px 0 6px; font-family: var(--ed-label-font); font-size: 11px; font-weight: 700; letter-spacing: var(--ed-label-tracking); text-transform: var(--ed-label-transform); color: var(--ed-label-color); }
 .ed-details summary { cursor: pointer; color: var(--ed-muted); font-weight: 600; margin-top: 10px; }
 .ed-spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--ed-border-strong); border-top-color: var(--ed-accent); animation: ed-spin 0.8s linear infinite; }
-.ed-tile { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; flex: none; color: var(--ed-cat-ink); background: color-mix(in srgb, var(--ed-cat) 16%, transparent); }
+.ed-tile { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; flex: none; color: var(--ed-cat-ink); background: var(--ed-cat); }
 
 .ed-app kbd {
     display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px;
@@ -294,7 +433,7 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
     padding: 28px 28px 22px; overflow: hidden;
     background:
         radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--ed-accent) 22%, transparent), transparent 55%),
-        radial-gradient(90% 120% at 100% 0%, color-mix(in srgb, var(--ed-cat-ai) 18%, transparent), transparent 60%),
+        radial-gradient(90% 120% at 100% 0%, color-mix(in srgb, var(--ed-accent) 12%, transparent), transparent 60%),
         var(--ed-bar);
     border-bottom: 1px solid var(--ed-border);
     box-shadow: var(--ed-bar-edge);
@@ -304,7 +443,7 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-home-brand p { margin: 2px 0 0; color: var(--ed-muted); }
 .ed-logo {
     display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; color: var(--vd-mat-primary-text, var(--vd-accent-contrast));
-    background: var(--vd-mat-primary, linear-gradient(135deg, var(--ed-accent), var(--ed-cat-ai)));
+    background: var(--vd-mat-primary, linear-gradient(135deg, var(--ed-accent), var(--ed-accent-deep)));
     box-shadow: var(--vd-mat-primary-shadow, 0 10px 28px color-mix(in srgb, var(--ed-accent) 35%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35));
 }
 .ed-logo .ed-icon { width: 26px; height: 26px; }
@@ -338,14 +477,14 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
     box-shadow: var(--ed-well-shadow);
 }
 .ed-flow-preview svg { width: 100%; height: 110px; }
-.ed-flow-preview rect { fill: color-mix(in srgb, var(--ed-cat) 35%, var(--ed-panel-strong)); stroke: var(--ed-cat); stroke-width: 1; }
+.ed-flow-preview rect { fill: color-mix(in srgb, var(--ed-mark) 35%, var(--ed-panel-strong)); stroke: var(--ed-mark); stroke-width: 1; }
 .ed-flow-preview .ed-mini-wires path { fill: none; stroke: var(--ed-muted); stroke-width: 1.4; opacity: 0.7; }
 .ed-flow-preview .ed-mini-empty { fill: none; stroke: var(--ed-border-strong); stroke-dasharray: 4 3; }
 .ed-flow-info { padding: 12px 14px 14px; display: grid; gap: 6px; }
 .ed-flow-info h3 { margin: 0; font-size: 15px; padding-right: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ed-flow-triggers { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--ed-muted); font-size: 12px; overflow: hidden; }
 .ed-flow-triggers span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ed-flow-triggers .ed-icon { color: var(--ed-cat-trigger); width: 14px; height: 14px; }
+.ed-flow-triggers .ed-icon { color: var(--ed-muted); width: 14px; height: 14px; }
 .ed-flow-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--ed-muted); }
 .ed-flow-run { display: inline-flex; align-items: center; gap: 6px; }
 .ed-flow-card-actions { position: absolute; right: 8px; top: 126px; display: flex; align-items: center; gap: 4px; }
@@ -393,7 +532,7 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-template-card h3 { margin: 0; font-family: var(--vd-mat-heading-font, inherit); font-size: 14px; font-weight: var(--vd-mat-heading-weight, 700); letter-spacing: var(--vd-mat-heading-tracking, normal); text-transform: var(--vd-mat-heading-transform, none); color: var(--vd-mat-heading-color, var(--ed-text)); }
 .ed-template-card p { margin: 0; color: var(--ed-muted); line-height: 1.45; font-size: 12px; }
 .ed-template-cats { display: flex; gap: 4px; }
-.ed-cat-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ed-cat); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ed-cat) 18%, transparent); }
+.ed-cat-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ed-mark); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ed-mark) 18%, transparent); }
 .ed-template-grid.is-disabled .ed-template-card { opacity: 0.5; cursor: not-allowed; }
 .ed-template-grid.is-disabled .ed-template-card:hover { transform: none; box-shadow: var(--vd-mat-card-shadow, none); border-color: var(--ed-card-border); }
 .ed-template-use { display: inline-flex; align-items: center; gap: 2px; margin-top: 4px; color: var(--ed-accent-ink); font-weight: 700; font-size: 12px; }
@@ -483,7 +622,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 }
 .ed-palette-cat-head:hover { background: var(--ed-control-hover); }
 .ed-palette-cat-head > span:nth-child(2) { flex: 1; text-align: left; }
-.ed-palette-cat-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ed-cat); }
+.ed-palette-cat-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ed-mark); }
 .ed-count { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--ed-control); color: var(--ed-muted); font-size: 11px; text-align: center; }
 .ed-chevron { transition: transform var(--ed-fast) var(--ed-ease); color: var(--ed-muted); }
 .ed-palette-cat-head[aria-expanded="false"] .ed-chevron { transform: rotate(-90deg); }
@@ -500,7 +639,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-palette-item.is-unavailable .ed-palette-name { color: var(--ed-muted); }
 .ed-palette-tile {
     display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 9px; color: var(--ed-cat-ink);
-    background: color-mix(in srgb, var(--ed-cat) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ed-cat) 28%, transparent);
+    background: var(--ed-cat);
 }
 .ed-palette-text { flex: 1; min-width: 0; display: grid; }
 .ed-palette-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -511,7 +650,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     border-radius: 12px; background: var(--ed-glass); border: 1px solid var(--ed-border-strong); box-shadow: var(--ed-shadow-lg);
     backdrop-filter: blur(12px); pointer-events: none; font-weight: 600; opacity: 0.85; transform-origin: 0 0;
 }
-.ed-drag-ghost.is-over-canvas { opacity: 1; border-color: var(--ed-cat); }
+.ed-drag-ghost.is-over-canvas { opacity: 1; border-color: var(--ed-accent); }
 
 /* ── canvas ─────────────────────────────────────────────────────────────────── */
 .ed-canvas { position: relative; flex: 1; min-width: 0; overflow: hidden; outline: none; touch-action: none; background: var(--ed-well); box-shadow: var(--ed-well-shadow); cursor: default; user-select: none; }
@@ -545,26 +684,21 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     cursor: pointer;
     transition: box-shadow var(--ed-fast) var(--ed-ease), border-color var(--ed-fast) var(--ed-ease), opacity var(--ed-base) var(--ed-ease);
 }
-.ed-node::before {
-    content: ""; position: absolute; left: -1px; top: 12px; bottom: 12px; width: 3px; border-radius: 0 3px 3px 0; background: var(--ed-cat); opacity: 0.9;
-}
 .ed-node:hover { border-color: var(--ed-border-strong); box-shadow: var(--vd-mat-card-shadow, 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 10px 26px rgba(0, 0, 0, 0.24)); }
 .ed-node.is-trigger { border-radius: 30px 14px 14px 30px; }
-.ed-node.is-trigger::before { display: none; }
 .ed-node.is-disabled { opacity: 0.55; background-image: repeating-linear-gradient(135deg, transparent 0 8px, color-mix(in srgb, var(--ed-text) 6%, transparent) 8px 10px); }
 .ed-node.is-disabled .ed-node-label { text-decoration: line-through; text-decoration-color: var(--ed-muted); }
 .ed-node.is-unavailable .ed-node-tile { filter: grayscale(0.8); }
 .ed-node.is-new { animation: ed-pop 360ms var(--ed-ease-spring) both; }
 .ed-node-tile {
     display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 11px; color: var(--ed-cat-ink);
-    background: linear-gradient(145deg, color-mix(in srgb, var(--ed-cat) 26%, transparent), color-mix(in srgb, var(--ed-cat) 10%, transparent));
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ed-cat) 35%, transparent);
+    background: var(--ed-cat);
 }
 .ed-node.is-trigger .ed-node-tile { border-radius: 50%; }
 .ed-node-tile .ed-icon { width: 21px; height: 21px; }
 .ed-node-body { flex: 1; min-width: 0; display: grid; gap: 2px; }
-.ed-node-label { font-weight: 700; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ed-node-summary { font-size: 11.5px; color: var(--ed-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ed-node-label { font-weight: 700; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ed-node-summary { font-size: 14px; color: var(--ed-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ed-node-summary--muted { font-style: italic; }
 .ed-node-badges { position: absolute; top: -8px; right: 10px; display: flex; gap: 4px; }
 .ed-badge { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: white; box-shadow: 0 0 0 2px var(--ed-panel-strong); }
@@ -595,7 +729,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
    let the top of a third line show */
 .ed-node-error {
     position: absolute; left: 6px; right: 6px; top: calc(100% + 6px); padding: 0 8px; border-block: 5px solid transparent; border-radius: 8px;
-    background: color-mix(in srgb, var(--ed-danger) 16%, var(--ed-panel-strong)); color: var(--ed-danger-ink); font-size: 11px; line-height: 1.35;
+    background: color-mix(in srgb, var(--ed-danger) 16%, var(--ed-panel-strong)); color: var(--ed-danger-ink); font-size: 12px; line-height: 1.35;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; pointer-events: none;
 }
 
@@ -613,7 +747,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-canvas.is-connecting .ed-port--in { border-color: var(--ed-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ed-accent) 18%, transparent); }
 .ed-port-label {
     position: absolute; right: 14px; top: 50%; transform: translateY(-50%); padding: 1px 6px; border-radius: 6px;
-    font-size: 10.5px; font-weight: 700; color: var(--ed-muted); background: var(--ed-panel-strong); white-space: nowrap; pointer-events: none;
+    font-size: 12px; font-weight: 700; color: var(--ed-muted); background: var(--ed-panel-strong); white-space: nowrap; pointer-events: none;
 }
 .ed-port[data-ed-port="error"] .ed-port-label { color: var(--ed-danger-ink); }
 .ed-port-add {
@@ -656,7 +790,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-edge.is-error-port .ed-wire { stroke: color-mix(in srgb, var(--ed-danger) 70%, transparent); stroke-dasharray: 2 5; }
 .ed-edge.is-broken .ed-wire { stroke: color-mix(in srgb, var(--ed-danger) 70%, transparent); stroke-dasharray: 2 5; }
 .ed-edge.is-disabled .ed-wire { opacity: 0.35; }
-.ed-edge.is-delivered .ed-wire { stroke: var(--ed-cat); stroke-width: 2.5; }
+.ed-edge.is-delivered .ed-wire { stroke: color-mix(in srgb, var(--ed-text) 60%, transparent); stroke-width: 2.5; }
 .ed-edge.is-flowing .ed-wire { stroke: var(--ed-info); stroke-width: 2.5; stroke-dasharray: 8 8; animation: ed-dash 0.5s linear infinite; }
 .ed-edge.is-skipped .ed-wire { stroke-dasharray: 3 6; opacity: 0.4; }
 .ed-canvas.has-path .ed-edge:not(.is-path) .ed-wire { opacity: 0.2; }
@@ -665,7 +799,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-wire-preview.is-invalid { stroke: var(--ed-danger); }
 .ed-wire-preview.is-valid { stroke-dasharray: none; }
 .ed-pill rect { fill: var(--ed-panel-strong); stroke: var(--ed-border-strong); }
-.ed-pill text { fill: var(--ed-text); font: 700 11px/1 var(--ds-font-sans, system-ui, sans-serif); }
+.ed-pill text { fill: var(--ed-text); font: 700 12px/1 var(--ds-font-sans, system-ui, sans-serif); }
 .ed-wire-actions { position: absolute; left: 0; top: 0; display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: var(--ed-glass); border: 1px solid var(--ed-border); box-shadow: var(--ed-shadow); backdrop-filter: blur(10px); transform-origin: 0 0; z-index: 2; }
 .ed-wire-btn { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--ed-text); cursor: pointer; }
 .ed-wire-btn:hover { background: var(--ed-accent); color: var(--vd-accent-contrast); }
@@ -688,7 +822,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 }
 .ed-minimap svg { width: 100%; height: 100%; }
 .ed-minimap-wire { stroke: color-mix(in srgb, var(--ed-muted) 55%, transparent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
-.ed-minimap-nodes rect { fill: color-mix(in srgb, var(--ed-cat) 55%, var(--ed-panel-strong)); }
+.ed-minimap-nodes rect { fill: var(--ed-mark); }
 .ed-minimap-nodes rect[data-status="error"] { fill: var(--ed-danger); }
 .ed-minimap-nodes rect[data-status="running"], .ed-minimap-nodes rect[data-status="queued"] { fill: var(--ed-info); }
 .ed-minimap-nodes rect[data-status="success"] { fill: color-mix(in srgb, var(--ed-ok) 75%, var(--ed-panel-strong)); }
@@ -739,7 +873,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-editor.is-inspector .ed-detail-back { display: inline-grid; width: 44px; height: 44px; }
 .ed-detail-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--ed-border); background: var(--ed-bar); box-shadow: var(--ed-bar-edge); }
 .ed-detail-nav { display: flex; gap: 2px; }
-.ed-detail-tile { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; color: var(--ed-cat-ink); background: color-mix(in srgb, var(--ed-cat) 18%, transparent); }
+.ed-detail-tile { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; color: var(--ed-cat-ink); background: var(--ed-cat); }
 .ed-detail-title { flex: 1 1 8rem; min-width: 0; display: grid; }
 .ed-detail-label { width: 100%; max-width: 100%; min-width: 0; border: 1px solid transparent; border-radius: 6px; padding: 2px 6px; margin-left: -6px; background: transparent; color: var(--vd-mat-heading-color, var(--ed-text)); font-family: var(--vd-mat-heading-font, inherit); font-weight: var(--vd-mat-heading-weight, 700); font-size: 16px; line-height: 1.3; }
 .ed-detail-label:hover { border-color: var(--ed-border); }
@@ -830,7 +964,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-json-key { color: var(--ed-text); font-weight: 600; }
 .ed-json-str { color: var(--ed-ok-ink); word-break: break-word; }
 .ed-json-num { color: var(--ed-info-ink); }
-.ed-json-bool { color: color-mix(in srgb, var(--ed-cat-ai) 30%, var(--ed-text)); }
+.ed-json-bool { color: var(--ed-muted); }
 .ed-json-null, .ed-json-more { color: var(--ed-muted); }
 .ed-table-wrap { overflow: auto; max-height: 60vh; border: 1px solid var(--ed-border); border-radius: var(--ed-radius); }
 .ed-table { border-collapse: collapse; width: 100%; font-size: 12px; }
@@ -855,7 +989,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 /* input tree */
 .ed-inputs .ed-col-head select { max-width: 60%; }
 .ed-tree { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
-.ed-tree-group { border-radius: var(--ed-radius); background: color-mix(in srgb, var(--ed-cat) 5%, transparent); border: 1px solid color-mix(in srgb, var(--ed-cat) 18%, var(--ed-border)); padding: 3px; }
+.ed-tree-group { border-radius: var(--ed-radius); background: color-mix(in srgb, var(--ed-text) 4%, transparent); border: 1px solid var(--ed-border); padding: 3px; }
 .ed-tree-row {
     display: flex; align-items: center; gap: 6px; min-height: 28px; padding: 3px 6px 3px calc(6px + var(--depth, 0) * 14px);
     border-radius: 7px; cursor: grab;
@@ -866,7 +1000,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-tree-toggle { display: grid; place-items: center; width: 24px; height: 24px; margin: -3px; padding: 0; border: 0; background: transparent; color: var(--ed-muted); cursor: pointer; }
 .ed-tree-toggle .ed-icon { width: 13px; height: 13px; }
 .ed-tree-spacer { width: 18px; flex: none; }
-.ed-tree-tile { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; color: var(--ed-cat-ink); background: color-mix(in srgb, var(--ed-cat) 16%, transparent); }
+.ed-tree-tile { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; color: var(--ed-cat-ink); background: var(--ed-cat); }
 .ed-tree-tile .ed-icon { width: 13px; height: 13px; }
 .ed-tree-key { font-weight: 600; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ed-tree-value { flex: 1; min-width: 0; color: var(--ed-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
@@ -876,9 +1010,9 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-type { padding: 0 5px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; background: var(--ed-control); color: var(--ed-muted); flex: none; }
 .ed-type--text { color: var(--ed-ok-ink); }
 .ed-type--number { color: var(--ed-info-ink); }
-.ed-type--bool { color: color-mix(in srgb, var(--ed-cat-ai) 30%, var(--ed-text)); }
+.ed-type--bool { color: var(--ed-muted); }
 .ed-type--list, .ed-type--object { color: var(--ed-warn-ink); }
-.ed-type--file { color: color-mix(in srgb, var(--ed-cat-documents) 30%, var(--ed-text)); }
+.ed-type--file { color: var(--ed-muted); }
 
 /* ── forms and fields ───────────────────────────────────────────────────────── */
 .ed-form { display: grid; gap: 14px; }
@@ -943,7 +1077,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-suggest li[aria-selected="true"] { box-shadow: inset 0 0 0 2px var(--ed-focus); }
 .ed-suggest-kind { width: 8px; height: 8px; border-radius: 2px; background: var(--ed-accent); flex: none; }
 .ed-suggest-kind[data-kind="field"] { background: var(--ed-info); }
-.ed-suggest-kind[data-kind="filter"] { background: var(--ed-cat-ai); border-radius: 50%; }
+.ed-suggest-kind[data-kind="filter"] { background: var(--ed-accent); border-radius: 50%; }
 
 /* complex editors */
 .ed-chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -955,7 +1089,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-cond-head { display: flex; }
 .ed-cases-list .ed-case { padding: 10px; border: 1px solid var(--ed-border); border-radius: 12px; background: var(--ed-panel-strong); display: grid; gap: 8px; }
 .ed-case-head { display: flex; align-items: center; gap: 6px; }
-.ed-case-port { flex: none; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--ed-cat-logic) 18%, transparent); color: color-mix(in srgb, var(--ed-cat-logic) 30%, var(--ed-text)); font-size: 11px; font-weight: 700; }
+.ed-case-port { flex: none; padding: 2px 8px; border-radius: 999px; background: var(--ed-control); color: var(--ed-text); box-shadow: inset 0 0 0 1px var(--ed-border); font-size: 11px; font-weight: 700; }
 .ed-case-label { flex: 1; }
 .ed-decision-questions, .ed-decision-images, .ed-decision-questions-list, .ed-decision-images-list { display: grid; gap: 8px; min-width: 0; }
 .ed-decision-card { display: grid; gap: 9px; min-width: 0; padding: 10px; border: 1px solid var(--ed-border); border-radius: 12px; background: var(--ed-panel-strong); }
@@ -1442,13 +1576,13 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-app .ed-group-frames, .ed-app .ed-group-heads { position: absolute; inset: 0; pointer-events: none; }
 .ed-app .ed-group-frames { z-index: 0; }
 .ed-app .ed-group-heads { z-index: 3; }
-.ed-app .ed-group-frame, .ed-app .ed-group-head { position: absolute; left: 0; top: 0; --ed-group-color: var(--ed-muted); }
-.ed-app .ed-group--blue { --ed-group-color: var(--ed-accent); }
-.ed-app .ed-group--green { --ed-group-color: var(--ed-ok); }
-.ed-app .ed-group--amber { --ed-group-color: var(--ed-warn); }
-.ed-app .ed-group--rose { --ed-group-color: var(--ed-danger); }
+.ed-app .ed-group-frame, .ed-app .ed-group-head { position: absolute; left: 0; top: 0; --ed-group-color: var(--ed-group-neutral); }
+.ed-app .ed-group--blue { --ed-group-color: var(--ed-group-blue); }
+.ed-app .ed-group--green { --ed-group-color: var(--ed-group-green); }
+.ed-app .ed-group--amber { --ed-group-color: var(--ed-group-amber); }
+.ed-app .ed-group--rose { --ed-group-color: var(--ed-group-rose); }
 .ed-app .ed-group--violet { --ed-group-color: var(--ed-group-violet); }
-.ed-app .ed-group-frame { border: 1px solid color-mix(in srgb, var(--ed-group-color) 45%, var(--ed-border)); border-left: 3px solid var(--ed-group-color); border-radius: 14px; background: color-mix(in srgb, var(--ed-group-color) 4%, transparent); }
+.ed-app .ed-group-frame { border: 1px solid color-mix(in srgb, var(--ed-group-color) 65%, var(--ed-border)); border-left: 3px solid var(--ed-group-color); border-radius: 14px; background: color-mix(in srgb, var(--ed-group-color) 4%, transparent); }
 .ed-app .ed-group-frame.is-collapsed { border-style: dashed; background: var(--ed-card); box-shadow: var(--ed-shadow); }
 .ed-app .ed-group-head { padding: 8px 12px 0; box-sizing: border-box; }
 .ed-app .ed-group-heading { display: flex; align-items: center; gap: 8px; }

@@ -830,6 +830,7 @@ export async function run(env) {
         eq('b5 F6 no card is re-rendered, one paint per event, at most two wires per event, every finished step\'s wire has its pill',
             [used, s.editor.el.querySelectorAll('.ed-pill').length, s.card(chain.nodes[1].id).className.includes('status-success'), s.card(chain.nodes[299].id).className.includes('status-success'), s.h.logged],
             [[0, 1000, true], 298, true, true, []]);
+        eq('b5 F6 renderStats carries the S0.0 counters', Object.keys(stats).sort(), ['align', 'allRects', 'cards', 'edgeNear', 'groups', 'minimap', 'paints', 'wireScans', 'wires']);
         s.editor.dispose();
     });
 

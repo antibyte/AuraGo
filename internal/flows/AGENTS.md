@@ -368,7 +368,7 @@ the contracts below describe the implemented behavior of each delivered slice.
 - Render-time fence: a prompt that reaches a model must show which part came from outside. `checkFlow` keeps the
   taint the lint found anyway (`lintUntrusted`: the root `trigger` when an enabled trigger has `UntrustedOutput`,
   plus the key of every tainted node) in `runState.untrusted`, and `runState.env` hands it on as `Env.Untrusted`.
-  `executeNode` resolves the params flagged `ParamSpec.FenceUntrusted` (the `ai.step` `prompt` and `instructions`)
+  `executeNode` resolves the params flagged `ParamSpec.FenceUntrusted` (the `ai.step` `prompt` and `instructions`, the `ai.decision` `state`)
   through `resolveParams`: a template expression whose root is untrusted has its value wrapped by `fenceUntrusted` after
   its filters ran. A string goes through `security.IsolateExternalData` (the fence the agent loop puts around tool
   output: format characters stripped, angle-bracket look-alikes folded, HTML-escaped, a wrapper the body cannot
@@ -381,9 +381,16 @@ the contracts below describe the implemented behavior of each delivered slice.
   a fence is what marks lower-threat outside text as data (the guard instruction names `<external_data>`). The
   run log shows the fenced prompt and instructions, which are the text the model gets. Fence and HTML escaping
   can make a value several times longer (`"` becomes `&#34;`), which counts against the 256 KiB prompt cap. A new node that hands a param to a
-  model as material sets `FenceUntrusted`; a param that `Execute` parses or compares must not. `ai.decision`
-  `state` is structured data for the decision service and is not fenced; that is a known gap, not a contract. Verify `TestAIStepPromptFences*`,
-  `TestAIStepInstructions*`, `TestResolveParamsFencesOnlyFlaggedParams` and `TestStarterTemplatesRun`.
+  model as material sets `FenceUntrusted`; a param that `Execute` parses or compares must not. `ai.decision` `state` is a `ParamJSON` and is fenced per leaf (`fenceUntrustedLeaves`): a value a single-expression
+  template reads keeps its JSON type; its string leaves and its keys that do not match `^[A-Za-z0-9_.-]{1,64}$` are
+  fenced; two keys that fence to the same text fail the step with FLOW_PARAM_INVALID; a value spliced into text gets
+  the whole-value fence; the author's literal JSON stays. `executeDecisionNode` encodes the state with
+  `decisions.EncodeStateText` (no HTML escaping, so the markers stay readable) and fails with FLOW_PARAM_INVALID above
+  `decisions.MaxStateBytes` before the service call. When the encoded state holds `<external_data>`, it puts the fixed
+  guard (`decisionStateGuard`) in front of each question's instructions; the flow-side instructions limit
+  (`maxDecisionInstructionBytes`) leaves 256 bytes for it. A state without untrusted data sends a byte-identical
+  request. Verify `TestAIStepPromptFences*`, `TestAIStepInstructions*`, `TestResolveParamsFencesOnlyFlaggedParams`,
+  `TestResolveParamsFencesJSONLeavesAndKeys`, `TestAIDecisionState*` and `TestStarterTemplatesRun`.
 - Scheduling follows topological order. A node runs when all incoming edges are resolved and at least
   one delivered; otherwise it is skipped and its outgoing edges are skipped (this is how If/Switch and
   Merge work). Disabled nodes and nodes without inputs are skipped with a step record; non-fired

@@ -14,6 +14,8 @@
 // The a1025 checks (test-easydrag-live-state.mjs) run the 2026-10-25 audit's editor fixes on the c1d07 sandbox.
 // The b5 checks (test-easydrag-ux-batch5.mjs) run fix batch 5 of 2026-10-25 (editor UX, accessibility,
 // i18n, run-event rendering) on the c1d07 sandbox.
+// The S0.0 render baseline (test-easydrag-render-baseline.mjs) counts the render work of seeded S, M
+// and XL flows on the c1d07 sandbox and compares it with scripts/easydrag-render-baseline.json.
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -25,7 +27,7 @@ const apps = path.join(here, '..', 'ui', 'js', 'desktop', 'apps');
 const sandbox = { window: {}, Intl, Number, String, Array, Object, Math, Set, Map, RegExp, Date, JSON, console, Uint8Array, crypto: webcrypto };
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
-for (const file of ['easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-library-pause.js', 'easydrag-home.js', 'easydrag-dialogs.js']) {
+for (const file of ['easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-library-pause.js', 'easydrag-home-grid.js', 'easydrag-home.js', 'easydrag-dialogs.js']) {
     const full = path.join(apps, file);
     vm.runInContext(fs.readFileSync(full, 'utf8'), sandbox, { filename: full });
 }
@@ -960,6 +962,8 @@ function miniDom() {
         }
         getAttribute(name) { return this.attrs.has(name) ? this.attrs.get(name) : null; }
         setAttribute(name, value) { this.attrs.set(name, String(value)); }
+        // DOM semantics: force true sets "", force false removes, no force toggles; returns presence afterwards.
+        toggleAttribute(name, force) { const on = force === undefined ? !this.attrs.has(name) : !!force; if (on) { if (!this.attrs.has(name)) this.attrs.set(name, ''); } else this.attrs.delete(name); return on; }
         appendChild(child) { child.remove(); child.parentNode = this; this.children.push(child); return child; }
         insertBefore(child, before) { if (!before) return this.appendChild(child); child.remove(); const at = this.children.indexOf(before); if (at < 0) throw new Error('insertBefore target missing'); child.parentNode = this; this.children.splice(at, 0, child); return child; }
         remove() { if (!this.parentNode) return; const list = this.parentNode.children; list.splice(list.indexOf(this), 1); this.parentNode = null; }
@@ -1136,6 +1140,8 @@ await (await import('./test-easydrag-kv-editor.mjs')).run({ apps, types, t, mini
 await (await import('./test-easydrag-flagship.mjs')).run({ sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor, eq, guardAsync, settle });
 await (await import('./test-easydrag-pack.mjs')).run({ pack: editorHarness.sandbox().ED.pack, eq });
 await (await import('./test-easydrag-ux-batch5.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor, saverHarness });
+// ── S0.0: render counters on seeded S/M/XL flows (test-easydrag-render-baseline.mjs, on the c1d07 sandbox) ──
+await (await import('./test-easydrag-render-baseline.mjs')).run({ eq, check, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor });
 
 // ── start page preview and shortcut table ──
 const H = ED.home;

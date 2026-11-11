@@ -42,7 +42,7 @@ func extractionHash(v any) (string, error) {
 
 func validExtractionRequest(req ExtractionRequest) bool {
 	return req.BaseRevision > 0 && len(req.NodeIDs) > 0 && len(req.NodeIDs) <= MaxNodes &&
-		strings.TrimSpace(req.Name) == req.Name && req.Name != "" && validGroupText(req.Name, 80, 320, false)
+		strings.TrimSpace(req.Name) == req.Name && req.Name != "" && validText(req.Name, 80, 320, false)
 }
 
 // rewriteExtractionValue uses the existing parser for validation and replaces

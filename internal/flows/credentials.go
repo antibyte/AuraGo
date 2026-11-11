@@ -101,7 +101,8 @@ func redactCredentialHeaders(params map[string]any, keepTemplates bool) map[stri
 }
 
 // RedactCredentials returns a copy of f for export whose header maps hold redactedText instead of
-// typed-in credentials (S6); f is not changed.
+// typed-in credentials (S6) and whose group texts, sticky notes and step notes have registered
+// secrets scrubbed; f is not changed.
 func RedactCredentials(f *Flow) (*Flow, error) {
 	if f == nil {
 		return nil, nil
@@ -117,7 +118,18 @@ func RedactCredentials(f *Flow) (*Flow, error) {
 			group.Note = security.ScrubSecrets(group.Note)
 		}
 	}
+	// Sticky notes and step notes stay in exports, packs, the run view and child history,
+	// with registered secrets scrubbed. Scrubbing can turn a secret into a longer marker, so a
+	// sticky note is cut back to its import bound and the export of a valid draft stays importable.
+	for i := range c.Notes {
+		text := security.ScrubSecrets(c.Notes[i].Text)
+		if utf8.RuneCountInString(text) > maxNoteRunes {
+			text = truncateRunes(text, maxNoteRunes-1)
+		}
+		c.Notes[i].Text = text
+	}
 	for i := range c.Nodes {
+		c.Nodes[i].Settings.Notes = security.ScrubSecrets(c.Nodes[i].Settings.Notes)
 		c.Nodes[i].Params = redactCredentialHeaders(c.Nodes[i].Params, true)
 	}
 	return c, nil

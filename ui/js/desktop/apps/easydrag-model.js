@@ -29,6 +29,34 @@
     function newEdgeID() { return 'e_' + randomSuffix(8); }
     function newGroupID() { return 'g_' + randomSuffix(8); }
     const GROUP_COLORS = ['neutral', 'blue', 'green', 'amber', 'rose', 'violet'];
+    // Sticky note bounds, as in internal/flows notes.go.
+    const NOTE_LIMITS = { count: 100, runes: 2048, bytes: 8192, idBytes: 64, minSide: 80, maxSide: 1200 };
+    const ZWNJ = String.fromCodePoint(0x200C);
+    const ZWJ = String.fromCodePoint(0x200D);
+    function utf8Size(cp) { return cp < 128 ? 1 : cp < 2048 ? 2 : cp < 65536 ? 3 : 4; }
+    function utf8Length(text) { let size = 0; for (const ch of text) size += utf8Size(ch.codePointAt(0)); return size; }
+    // cleanText drops what internal/flows validText refuses: control characters (tab, line
+    // feed and carriage return stay in multi-line text) and format characters (Cf) other than ZWNJ and ZWJ.
+    function cleanText(text, multiline) {
+        return String(text)
+            .replace(/\p{Cf}/gu, ch => (ch === ZWNJ || ch === ZWJ ? ch : ''))
+            .replace(/\p{Cc}/gu, ch => (multiline && (ch === '\t' || ch === '\n' || ch === '\r') ? ch : ''));
+    }
+    // cutText keeps whole code points within maxRunes and maxBytes.
+    function cutText(text, maxRunes, maxBytes) {
+        let out = '', runes = 0, size = 0;
+        for (const ch of text) {
+            const next = utf8Size(ch.codePointAt(0));
+            if (runes + 1 > maxRunes || size + next > maxBytes) break;
+            out += ch; runes += 1; size += next;
+        }
+        return out;
+    }
+    function clampSide(v) {
+        const n = typeof v === 'number' && isFinite(v) ? v : NOTE_LIMITS.minSide;
+        return Math.min(NOTE_LIMITS.maxSide, Math.max(NOTE_LIMITS.minSide, n));
+    }
+    function newStickyNoteID(taken) { let id; do { id = 's_' + randomSuffix(8); } while (taken.has(id)); return id; }
     function groupText(value, max, bytes, multiline) {
         if (typeof value !== 'string' || value.length > max * 2) return false;
         let length = 0, size = 0;
@@ -95,11 +123,37 @@
         d.kind = d.kind || 'flow';
         d.nodes = Array.isArray(d.nodes) ? d.nodes.filter(isPlainObject) : [];
         d.edges = Array.isArray(d.edges) ? d.edges.filter(e => isPlainObject(e) && isPlainObject(e.source) && isPlainObject(e.target)) : [];
+        // Stored notes and group texts the server would refuse are cut and cleaned here; the
+        // editor then saves once (notes_trimmed). The flag stays off the document.
+        let notesTrimmed = false;
         if (Array.isArray(d.notes)) {
-            d.notes = d.notes.filter(isPlainObject).map(note => {
+            const kept = d.notes.filter(isPlainObject);
+            if (kept.length !== d.notes.length || kept.length > NOTE_LIMITS.count) notesTrimmed = true;
+            const taken = new Set();
+            d.notes = kept.slice(0, NOTE_LIMITS.count).map(note => {
                 const pos = isPlainObject(note.position) ? note.position : {};
-                return Object.assign({}, note, {
-                    position: { x: finite(pos.x), y: finite(pos.y) }
+                const text = cutText(cleanText(typeof note.text === 'string' ? note.text : '', true), NOTE_LIMITS.runes, NOTE_LIMITS.bytes);
+                let id = typeof note.id === 'string' ? cleanText(note.id, false) : '';
+                if (!id || utf8Length(id) > NOTE_LIMITS.idBytes || taken.has(id)) id = newStickyNoteID(taken);
+                taken.add(id);
+                const color = GROUP_COLORS.includes(note.color) ? note.color : '';
+                const out = Object.assign({}, note, {
+                    id, text, color,
+                    position: { x: finite(pos.x), y: finite(pos.y) },
+                    width: clampSide(note.width),
+                    height: clampSide(note.height)
+                });
+                if (out.id !== note.id || out.text !== note.text || out.width !== note.width || out.height !== note.height || (note.color || '') !== color) notesTrimmed = true;
+                return out;
+            });
+        }
+        if (Array.isArray(d.groups)) {
+            d.groups.forEach(group => {
+                if (!isPlainObject(group)) return;
+                ['title', 'note'].forEach(field => {
+                    if (typeof group[field] !== 'string') return;
+                    const cleaned = cleanText(group[field], field === 'note');
+                    if (cleaned !== group[field]) { group[field] = cleaned; notesTrimmed = true; }
                 });
             });
         }
@@ -122,7 +176,7 @@
             const pos = isPlainObject(n.position) ? n.position : {};
             n.position = { x: finite(pos.x), y: finite(pos.y) };
         });
-        return { doc: d, droppedNodes };
+        return { doc: d, droppedNodes, notesTrimmed };
     }
 
     const META_KEYS = ['name', 'description', 'settings'];
@@ -134,6 +188,7 @@
         const opened = normalize(clone(doc));
         const state = { doc: opened.doc, version: 0 };
         let droppedNodes = opened.droppedNodes;
+        let notesTrimmed = opened.notesTrimmed;
         // docGen counts the writes of the node and edge lists (applySet, replaceDoc).
         let docGen = 0;
 
@@ -897,6 +952,7 @@
             const next = normalize(clone(doc));
             state.doc = next.doc;
             droppedNodes = next.droppedNodes;
+            notesTrimmed = next.notesTrimmed;
             undoStack.length = 0;
             redoStack.length = 0;
             emit({ kind: 'reset', nodes: [], edges: [], meta: true, structural: true });
@@ -911,7 +967,7 @@
             canRedo: () => redoStack.length > 0,
             on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
             toJSON: () => clone(state.doc),
-            repairs: () => ({ droppedNodes }),
+            repairs: () => ({ droppedNodes, notesTrimmed }),
             addNode, removeNodes, moveNodes, connect, disconnect, insertOnEdge, setParam, setLabel, setKey, setSettings,
             toggleDisabled, setFlow, fragment, paste, duplicate, replaceDoc, group, createGroup, setGroup, setGroups, ungroup
         };

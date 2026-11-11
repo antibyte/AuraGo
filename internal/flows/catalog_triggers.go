@@ -114,6 +114,7 @@ func newTriggerType(typ, icon string, untrusted bool, params []ParamSpec,
 		LabelKey:       "easydrag.node." + key + ".label",
 		DescriptionKey: "easydrag.node." + key + ".description",
 		SummaryKey:     "easydrag.node." + key + ".summary",
+		SampleTextKeys: cloneSampleTextKeys(sampleTextKeys[typ]),
 		OutputFields: []FieldSpec{
 			{Name: "data", Type: "object", Primary: true}, {Name: "fired_at", Type: "text"},
 			{Name: "type", Type: "text"}, {Name: "node", Type: "text"},
@@ -138,6 +139,38 @@ func newTriggerType(typ, icon string, untrusted bool, params []ParamSpec,
 
 func staticSample(sample map[string]any) func(*Node) map[string]any {
 	return func(*Node) map[string]any { return cloneJSONMap(sample) }
+}
+
+// sampleTextKeys names the translatable text fields of the built-in trigger samples: trigger
+// type -> event variant ("" is the default sample, as in withEventSamples) -> dotted field
+// path ("zones.0" is the first zone) -> i18n key. The server keeps the English defaults; the
+// editor shows these fields in the UI language when it seeds a built-in sample
+// (TriggerSampleDataSource answers SampleSourceBuiltin). A saved sample is never changed.
+var sampleTextKeys = map[string]map[string]map[string]string{
+	TypeTriggerWebhook:        {"": {"payload.text": "easydrag.sample.webhook_text", "raw": "easydrag.sample.webhook_raw"}},
+	TypeTriggerEmail:          {"": {"subject": "easydrag.sample.mail_subject", "body": "easydrag.sample.mail_body"}},
+	TypeTriggerPersonDetected: {"": {"camera_name": "easydrag.sample.person_camera", "zones.0": "easydrag.sample.person_camera"}},
+	TypeTriggerFritzBox:       {"": {"summary": "easydrag.sample.call_summary"}},
+	TypeTriggerPlanner: {
+		"":             {"title": "easydrag.sample.planner_appointment_title"},
+		"todo_overdue": {"title": "easydrag.sample.planner_todo_title"},
+	},
+}
+
+// cloneSampleTextKeys copies a sample-text-key table (nil when empty).
+func cloneSampleTextKeys(in map[string]map[string]string) map[string]map[string]string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]map[string]string, len(in))
+	for event, fields := range in {
+		m := make(map[string]string, len(fields))
+		for path, key := range fields {
+			m[path] = key
+		}
+		out[event] = m
+	}
+	return out
 }
 
 func cloneJSONMap(m map[string]any) map[string]any {
@@ -287,7 +320,7 @@ func buildTriggerTypes() []triggerType {
 				return "", nil, fmt.Errorf("%w: webhook", errParamMissing)
 			}
 			return "webhook", map[string]any{"webhook_id": id}, nil
-		}, map[string]any{"raw": `{"text":"Hallo"}`, "payload": map[string]any{"text": "Hallo"}}),
+		}, map[string]any{"raw": `{"text":"Hello"}`, "payload": map[string]any{"text": "Hello"}}),
 		missionTriggerType(TypeTriggerEmail, "mail", true, []ParamSpec{
 			{Name: "folder", Kind: ParamText, LabelKey: "easydrag.param.email_folder", Default: defaultEmailFolder},
 			{Name: "subject_contains", Kind: ParamText, LabelKey: "easydrag.param.email_subject_contains"},
@@ -303,7 +336,7 @@ func buildTriggerTypes() []triggerType {
 				"email_subject_contains": textParam(p, "subject_contains"),
 				"email_from_contains":    textParam(p, "from_contains"),
 			}, nil
-		}, map[string]any{"subject": "Rechnung Oktober", "from": "shop@example.com", "body": "Hallo, anbei die Rechnung."}),
+		}, map[string]any{"subject": "October invoice", "from": "shop@example.com", "body": "Hello, please find the invoice attached."}),
 		missionTriggerType(TypeTriggerMQTT, "broadcast", true, []ParamSpec{
 			{Name: "topic", Kind: ParamText, LabelKey: "easydrag.param.mqtt_topic", Required: true},
 			{Name: "payload_contains", Kind: ParamText, LabelKey: "easydrag.param.mqtt_payload_contains"},
@@ -355,7 +388,7 @@ func buildTriggerTypes() []triggerType {
 				"person_zone":             textParam(p, "zone"),
 				"person_include_disarmed": truthy(p["include_disarmed"]),
 			}, nil
-		}, map[string]any{"event_id": 42, "camera_id": "driveway", "camera_name": "Einfahrt", "zones": []any{"Einfahrt"},
+		}, map[string]any{"event_id": 42, "camera_id": "driveway", "camera_name": "Driveway", "zones": []any{"Driveway"},
 			"max_score": 0.91, "persons": 1, "armed": true, "started_at": sampleTime,
 			"image_path": "/var/lib/aurago/data/go2rtc/detections/2026/10/03/driveway/42_1.jpg"}),
 		// The call summary carries the caller's number and display name, which the caller
@@ -373,7 +406,7 @@ func buildTriggerTypes() []triggerType {
 				ct = ""
 			}
 			return "fritzbox_call", map[string]any{"call_type": ct}, nil
-		}, map[string]any{"call_type": "call", "summary": "Anruf von 030 1234567", "time": sampleTime}),
+		}, map[string]any{"call_type": "call", "summary": "Call from 030 1234567", "time": sampleTime}),
 		// Titles come from the planner, which calendar sync and agent-written todos also fill,
 		// so the output is untrusted.
 		withEventSamples(missionTriggerType(TypeTriggerPlanner, "calendar-event", true, []ParamSpec{
@@ -387,8 +420,8 @@ func buildTriggerTypes() []triggerType {
 				return "", nil, err
 			}
 			return "planner_" + event, map[string]any{"planner_title_contains": textParam(p, "title_contains")}, nil
-		}, map[string]any{"appointment_id": "apt-1", "title": "Zahnarzt", "date_time": "2026-10-05T09:00:00Z", "time": sampleTime}),
-			map[string]map[string]any{"todo_overdue": {"todo_id": "todo-1", "title": "Rechnung bezahlen", "due_date": "2026-10-02T17:00:00Z", "time": sampleTime}}),
+		}, map[string]any{"appointment_id": "apt-1", "title": "Dentist", "date_time": "2026-10-05T09:00:00Z", "time": sampleTime}),
+			map[string]map[string]any{"todo_overdue": {"todo_id": "todo-1", "title": "Pay the invoice", "due_date": "2026-10-02T17:00:00Z", "time": sampleTime}}),
 		missionTriggerType(TypeTriggerStartup, "power", false, nil,
 			func(map[string]any) (string, map[string]any, error) { return "system_startup", map[string]any{}, nil },
 			map[string]any{"event": "system_startup", "time": sampleTime}),

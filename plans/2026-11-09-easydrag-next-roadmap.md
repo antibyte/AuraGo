@@ -1367,6 +1367,7 @@ The ten waves sum to 22.5 relative units instead of 20.5, for two reasons. The p
 - This section and the Appendix A Wave column are the schedule. All wave references in §3, §4 and §7 to §10 were updated to strategy A on 2026-11-10; if one still disagrees, this section decides.
 
 **Wave 0: Clear the deck** (relative duration 1.5; unchanged from strategy C).
+- *Status 2026-11-11:* S0 landed on main at 79c7c601a (25 commits, 5265dd841 to 79c7c601a, not pushed, not deployed). Spec `plans/2026-11-10-easydrag-s0-spec.md` (§5.1 and §8 amended after review), plan `plans/2026-11-11-easydrag-s0/`. runs.js is 138 lines, editor.js 894, home.js 886 and fields.js 645. Four review batches found 10 Important findings; all are fixed on the branch. S0b is still open.
 - *Includes:* S0 and S0b (§7):
   - S0: the FD-03 counter baseline (step 0); the FD-10 splits of runs.js, editor.js, home.js and fields.js; the FD-17, AI-16 and OP-17 trust sweep; the FD-12 subset; UI-02 and UI-03 from E3 and E2;
   - S0b: FD-13 and FD-18.

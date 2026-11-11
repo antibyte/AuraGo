@@ -6,8 +6,8 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 
-const MODULES = ['easydrag-core.js', 'easydrag-durable.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-canvas.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-blocks.js', 'easydrag-batches.js', 'easydrag-block-fields.js', 'easydrag-transform.js', 'easydrag-mapping.js',
-    'easydrag-detail.js', 'easydrag-scenarios.js', 'easydrag-testing.js', 'easydrag-child-history.js', 'easydrag-compare.js', 'easydrag-runs.js', 'easydrag-metadata.js', 'easydrag-publish.js'];
+const MODULES = ['easydrag-core.js', 'easydrag-durable.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-canvas.js', 'easydrag-template-field.js', 'easydrag-fields-conditions.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-blocks.js', 'easydrag-batches.js', 'easydrag-block-fields.js', 'easydrag-transform.js', 'easydrag-mapping.js',
+    'easydrag-detail.js', 'easydrag-scenarios.js', 'easydrag-testing.js', 'easydrag-child-history.js', 'easydrag-compare.js', 'easydrag-run-stream.js', 'easydrag-run-start.js', 'easydrag-run-stop.js', 'easydrag-run-drawer.js', 'easydrag-runs.js', 'easydrag-metadata.js', 'easydrag-publish.js'];
 const T1 = 'n_tttttttt';
 const T2 = 'n_uuuuuuuu';
 const A = 'n_aaaaaaaa';
@@ -518,6 +518,7 @@ export async function run(env) {
         const one = await runs.startTest({ onlyNode: A });
         const oneHtml = html(one);
         one.body.querySelector('[data-ed-effects-skip]').checked = true;
+        { const m = one.body.querySelector('[data-ed-test-mode]'); if (m) { m.value = 'real'; m.fire('change'); } }
         one.el.querySelector('[data-ed-action="run"]').fire('click');
         await settle();
         runs.clearRun();

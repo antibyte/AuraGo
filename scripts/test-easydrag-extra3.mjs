@@ -7,8 +7,8 @@ import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 
 const MODULES = ['easydrag-core.js', 'easydrag-durable.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-groups.js', 'easydrag-saver.js', 'easydrag-canvas.js',
-    'easydrag-wires.js', 'easydrag-interact.js', 'easydrag-palette.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-blocks.js', 'easydrag-batches.js', 'easydrag-block-fields.js', 'easydrag-transform.js', 'easydrag-mapping.js',
-    'easydrag-detail.js', 'easydrag-scenarios.js', 'easydrag-testing.js', 'easydrag-child-history.js', 'easydrag-compare.js', 'easydrag-approvals.js', 'easydrag-runs.js', 'easydrag-metadata.js', 'easydrag-publish.js', 'easydrag-library-pause.js', 'easydrag-pack.js', 'easydrag-home.js', 'easydrag-dialogs.js', 'easydrag-history.js', 'easydrag-workspace.js', 'easydrag-authoring.js', 'easydrag-extraction.js', 'easydrag-editor.js', 'easydrag.js'];
+    'easydrag-wires.js', 'easydrag-interact.js', 'easydrag-palette.js', 'easydrag-template-field.js', 'easydrag-fields-conditions.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-blocks.js', 'easydrag-batches.js', 'easydrag-block-fields.js', 'easydrag-transform.js', 'easydrag-mapping.js',
+    'easydrag-detail.js', 'easydrag-scenarios.js', 'easydrag-testing.js', 'easydrag-child-history.js', 'easydrag-compare.js', 'easydrag-approvals.js', 'easydrag-run-stream.js', 'easydrag-run-start.js', 'easydrag-run-stop.js', 'easydrag-run-drawer.js', 'easydrag-runs.js', 'easydrag-metadata.js', 'easydrag-publish.js', 'easydrag-library-pause.js', 'easydrag-pack.js', 'easydrag-home-grid.js', 'easydrag-home.js', 'easydrag-dialogs.js', 'easydrag-history.js', 'easydrag-workspace.js', 'easydrag-authoring.js', 'easydrag-extraction.js', 'easydrag-header.js', 'easydrag-editor.js', 'easydrag.js'];
 const T1 = 'n_tttttttt';
 const A = 'n_aaaaaaaa';
 const B = 'n_bbbbbbbb';
@@ -1020,8 +1020,8 @@ export async function run(env) {
         }
         openEditor(h);
         await settle();
-        const cleared = JSON.stringify({ blockId: null, flowId: null, flow_id: null, run_id: null });
-        eq('c1d10 both routes show the start page with a not-found notice; the start page and the editor clear flow_id and run_id',
+        const cleared = JSON.stringify({ blockId: null, flowId: null, flow_id: null, run_id: null, gateId: null, gate_id: null });
+        eq('c1d10 both routes show the start page with a not-found notice; the start page and the editor clear flow_id and run_id (the start page also gate ids)',
             [screens, h.notes.map(n => n.message), patches.slice(0, 2), patches[patches.length - 1], h.logged],
             [[[true, false], [true, false]], ['error_flow_not_found', 'error_flow_not_found'], [cleared, cleared],
                 JSON.stringify({ blockId: null, flowId: 'f1', flow_id: null, run_id: null }), []]);

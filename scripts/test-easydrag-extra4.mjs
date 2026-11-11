@@ -9,7 +9,7 @@ import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 
 const MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-canvas.js'];
-const UI_MODULES = ['easydrag-core.js', 'easydrag-durable.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-testing.js', 'easydrag-child-history.js', 'easydrag-runs.js', 'easydrag-library-pause.js', 'easydrag-home.js'];
+const UI_MODULES = ['easydrag-core.js', 'easydrag-durable.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-template-field.js', 'easydrag-fields-conditions.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-testing.js', 'easydrag-child-history.js', 'easydrag-run-stream.js', 'easydrag-run-start.js', 'easydrag-run-stop.js', 'easydrag-run-drawer.js', 'easydrag-runs.js', 'easydrag-library-pause.js', 'easydrag-home-grid.js', 'easydrag-home.js'];
 const T1 = 'n_tttttttt';
 const T2 = 'n_uuuuuuuu';
 const TG = 'n_telegram';
@@ -161,6 +161,8 @@ export async function run(env) {
         select.fire('change');
         await settle();
         const other = [effectKeys(step), h.ED.runs.effects(h.ed, PDF, T2).get('sends_message'), step.body.querySelector('[data-ed-effects-skip]').checked];
+        const stepMode = step.body.querySelector('[data-ed-test-mode]');
+        if (stepMode) { stepMode.value = 'real'; stepMode.fire('change'); }
         step.el.querySelector('[data-ed-action="run"]').fire('click');
         await settle();
         const posted = h.requests.filter(r => r.url === '/api/desktop/flows/f1/test').map(r => [r.body.trigger_node, r.body.only_node]);
@@ -228,9 +230,11 @@ export async function run(env) {
         const ea = editedHarness();
         const edited = await ea.ED.runs.create(ea.ed, ea.canvas).startTest({ onlyNode: PDF, triggerNode: T1 });
         const beforeRun = effectKeys(edited);
+        { const m = edited.body.querySelector('[data-ed-test-mode]'); if (m) { m.value = 'real'; m.fire('change'); } }
         edited.el.querySelector('[data-ed-action="run"]').fire('click');
         await settle();
         const afterFirst = [effectKeys(edited), ea.tests(), ea.previews(), ea.flushes, !!ea.top()];
+        { const m = edited.body.querySelector('[data-ed-test-mode]'); if (m) { m.value = 'real'; m.fire('change'); } }
         edited.el.querySelector('[data-ed-action="run"]').fire('click');
         await settle();
         const eb = editedHarness();
@@ -667,12 +671,12 @@ export async function run(env) {
         const far = h.canvas.restoreView({ cx: 50000, cy: 50000, zoom: 1 });
         check('c1d14 a stored view that shows no step is refused', far === false && !h.canvas.anyNodeVisible());
         h.canvas.fit({ readable: true });
-        eq('c1d14 the fallback is the readable fit from the trigger', round(h.ed.view), round({ x: 48, y: 350 - 36 * 0.8, zoom: 0.8 }));
+        eq('c1d14 the fallback is the readable fit from the trigger', round(h.ed.view), round({ x: 48, y: 350 - 36 * 0.86, zoom: 0.86 }));
         check('c1d14 the readable fit shows a step', h.canvas.anyNodeVisible());
 
         // An explicit fit shows everything, below the readable zoom when it must.
         h.canvas.fit();
-        check('c1d14 an explicit fit goes below the readable zoom on a narrow canvas', h.ed.view.zoom < 0.8, String(h.ed.view.zoom));
+        check('c1d14 an explicit fit goes below the readable zoom on a narrow canvas', h.ed.view.zoom < 0.86, String(h.ed.view.zoom));
     });
 
     await guardAsync('minimap selection keeps geometry', async () => {

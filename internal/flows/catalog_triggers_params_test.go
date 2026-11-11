@@ -234,7 +234,7 @@ func TestTriggerSamplesFollowTheEvent(t *testing.T) {
 			t.Errorf("planner event %#v: sample fields = %v, want the default %v", event, got, appointment)
 		}
 	}
-	if s := TriggerSample(&Node{Type: TypeTriggerPlanner, Params: map[string]any{"event": "todo_overdue"}}); s["title"] == "Zahnarzt" {
+	if s := TriggerSample(&Node{Type: TypeTriggerPlanner, Params: map[string]any{"event": "todo_overdue"}}); s["title"] == "Dentist" {
 		t.Error("the todo sample must not be the appointment's")
 	}
 }

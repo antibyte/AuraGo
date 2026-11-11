@@ -1,6 +1,6 @@
 {
   "config.flows.agent_allow_publish": "Agent może publikować przepływy",
-  "config.flows.agent_note": "Opcje agenta zaczną działać, gdy agent będzie mógł pracować z przepływami.",
+  "config.flows.agent_note": "Te opcje ograniczają to, co Aura może robić z przepływami EasyDrag. Przepływy zawsze możesz uruchamiać i publikować samodzielnie w EasyDrag, a przepływy uruchamiane przez twoje własne wyzwalacze nadal działają.",
   "config.flows.agent_read_only": "Agent może tylko odczytywać przepływy",
   "config.flows.ai_provider": "Dostawca AI dla kroków AI",
   "config.flows.ai_provider_help": "Kroki AI ustawione na „Model domyślny” korzystają z tego dostawcy.",
@@ -26,5 +26,7 @@
   "config.flows.durable_configured": "Zapisana opcja",
   "config.flows.durable_effective": "Przetwarzanie włączone",
   "config.flows.durable_available": "Usługa wznawiania gotowa",
-  "config.flows.durable_counts": "Oczekujące: {{waiting}} · Aktywne: {{running}} · Zablokowane: {{blocked}}"
+  "config.flows.durable_counts": "Oczekujące: {{waiting}} · Aktywne: {{running}} · Zablokowane: {{blocked}}",
+  "config.flows.agent_read_only_help": "Gdy włączone, Aura może wyświetlać i czytać przepływy, ale nie może ich uruchamiać. Przepływy uruchamiane przez twoje własne wyzwalacze nadal działają.",
+  "config.flows.agent_allow_publish_unavailable": "Niedostępne: agent nie może publikować przepływów. Publikować możesz tylko w EasyDrag."
 }

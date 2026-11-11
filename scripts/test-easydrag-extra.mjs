@@ -7,7 +7,7 @@ import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 
 const MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-canvas.js', 'easydrag-wires.js', 'easydrag-interact.js',
-    'easydrag-palette.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-blocks.js', 'easydrag-block-fields.js', 'easydrag-transform.js', 'easydrag-mapping.js'];
+    'easydrag-palette.js', 'easydrag-template-field.js', 'easydrag-fields-conditions.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-blocks.js', 'easydrag-block-fields.js', 'easydrag-transform.js', 'easydrag-mapping.js'];
 const A = 'n_aaaaaaaa';
 const B = 'n_bbbbbbbb';
 const C = 'n_cccccccc';
@@ -670,6 +670,12 @@ export async function run(env) {
         h.panel.dispose();
         eq('c1d05 dispose ends a palette drag', [before, ghost(), h.ed.dragging, listening(), nodes()], [[true, true], false, false, 0, 4]);
         eq('c1d05 the palette checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('s0 ED.fields merges its parts', async () => {
+        const F = harness().ED.fields;
+        const names = ['templateField', 'chipsMarkup', 'sampleAt', 'segmented', 'toggle', 'selectBox', 'conditionGroup', 'cases', 'fieldList', 'decisionQuestions', 'decisionImages', 'keyValue', 'jsonEditor', 'tags', 'dateTime', 'fileField', 'secretRef', 'OPS', 'UNARY'];
+        eq('s0 ED.fields keeps its 19 exports, none missing', [Object.keys(F).sort(), names.filter(name => F[name] == null)], [names.slice().sort(), []]);
     });
 
     await guardAsync('c1d05 sample lookups', async () => {

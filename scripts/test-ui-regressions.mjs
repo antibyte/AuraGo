@@ -4756,11 +4756,15 @@ function testConfigFlowsSection() {
 
   const toggle = dataPath => (html.match(new RegExp(`<div class="toggle[^"]*" data-path="${dataPath.replace(/\./g, '\\.')}"[^>]*>`)) || [''])[0];
   assert.match(toggle('flows.enabled'), /onclick="toggleBool\(this\)"/);
-  for (const dataPath of ['flows.agent.read_only', 'flows.agent.allow_publish']) {
+  // flows.agent.read_only is enforced by the agent dispatch, so it is a normal switch.
+  assert.match(toggle('flows.agent.read_only'), /onclick="toggleBool\(this\)"/, 'flows.agent.read_only is unlocked');
+  assert.doesNotMatch(toggle('flows.agent.read_only'), /cfg-toggle-disabled|aria-disabled/, 'flows.agent.read_only is not shown as locked');
+  // allow_publish has no effect (the agent cannot publish flows): locked, with its reason.
+  for (const dataPath of ['flows.agent.allow_publish']) {
     const markup = toggle(dataPath);
     assert.match(markup, /cfg-toggle-disabled/, `${dataPath} looks disabled`);
     assert.match(markup, /aria-disabled="true"/, `${dataPath} is announced as disabled`);
-    assert.match(markup, /aria-describedby="flows-agent-note"/);
+    assert.match(markup, /aria-describedby="flows-agent-publish-reason"/, `${dataPath} names its reason`);
     assert.doesNotMatch(markup, /onclick/, `${dataPath} has no click handler`);
     const context = configFlowsContext({ flows, providers });
     const element = fakeConfigToggle(markup);
@@ -4782,8 +4786,14 @@ function testConfigFlowsSection() {
   state.init({ flows });
   state.syncFromDOM({ querySelectorAll: () => [enabled] });
   assert.equal(JSON.stringify(state.dirtyPaths()), JSON.stringify(['flows.enabled']));
-  assert.match(toggle('flows.agent.read_only'), /class="toggle on cfg-toggle-disabled"/, 'the saved value stays visible');
-  assert.match(html, /id="flows-agent-note">The agent options take effect once the agent can work with flows\.</);
+  assert.match(toggle('flows.agent.read_only'), /class="toggle on"/, 'the saved value stays visible');
+  const readOnlyContext = configFlowsContext({ flows, providers });
+  const readOnly = fakeConfigToggle(toggle('flows.agent.read_only'));
+  readOnlyContext.toggleBool(readOnly);
+  assert.equal(readOnly.classList.contains('on'), false, 'read_only switches off');
+  assert.equal(readOnlyContext.dirtyMarks, 1, 'read_only marks the draft dirty');
+  assert.match(html, /id="flows-agent-publish-reason">Not available: the agent cannot publish flows\. You can publish only in EasyDrag\.</);
+  assert.match(html, /id="flows-agent-note">These options limit what Aura may do with EasyDrag flows\. You can always start and publish flows in EasyDrag yourself, and flows that your own triggers start keep running\.</);
   assert.doesNotMatch(toggle('flows.durable_enabled'), /toggle on/, 'missing durable setting stays off');
   const observed = { configured: false, effective: false, recovery_available: false, reason: 'disabled', waiting_count: null, claimed_count: null, blocked_count: null };
   const draftOn = renderConfigFlowsSection({ flows: { ...flows, durable_enabled: true }, durableStatus: observed });

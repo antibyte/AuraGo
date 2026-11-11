@@ -10,9 +10,9 @@ import (
 // easyDragModules is the load order of the EasyDrag scripts (dependencies first).
 var easyDragModules = []string{
 	"easydrag-core.js", "easydrag-durable.js", "easydrag-template.js", "easydrag-model.js", "easydrag-geometry.js", "easydrag-groups.js", "easydrag-saver.js",
-	"easydrag-canvas.js", "easydrag-wires.js", "easydrag-interact.js", "easydrag-palette.js", "easydrag-fields.js",
-	"easydrag-forms.js", "easydrag-blocks.js", "easydrag-batches.js", "easydrag-block-fields.js", "easydrag-transform.js", "easydrag-mapping.js", "easydrag-detail.js", "easydrag-scenarios.js", "easydrag-testing.js", "easydrag-child-history.js", "easydrag-compare.js", "easydrag-approvals.js", "easydrag-runs.js", "easydrag-metadata.js", "easydrag-publish.js",
-	"easydrag-library-pause.js", "easydrag-pack.js", "easydrag-home.js", "easydrag-dialogs.js", "easydrag-history.js", "easydrag-workspace.js", "easydrag-authoring.js", "easydrag-extraction.js", "easydrag-editor.js", "easydrag.js",
+	"easydrag-canvas.js", "easydrag-wires.js", "easydrag-interact.js", "easydrag-palette.js", "easydrag-template-field.js", "easydrag-fields-conditions.js", "easydrag-fields.js",
+	"easydrag-forms.js", "easydrag-blocks.js", "easydrag-batches.js", "easydrag-block-fields.js", "easydrag-transform.js", "easydrag-mapping.js", "easydrag-detail.js", "easydrag-scenarios.js", "easydrag-testing.js", "easydrag-child-history.js", "easydrag-compare.js", "easydrag-approvals.js", "easydrag-run-stream.js", "easydrag-run-start.js", "easydrag-run-stop.js", "easydrag-run-drawer.js", "easydrag-runs.js", "easydrag-metadata.js", "easydrag-publish.js",
+	"easydrag-library-pause.js", "easydrag-pack.js", "easydrag-home-grid.js", "easydrag-home.js", "easydrag-dialogs.js", "easydrag-history.js", "easydrag-workspace.js", "easydrag-authoring.js", "easydrag-extraction.js", "easydrag-header.js", "easydrag-editor.js", "easydrag.js",
 }
 
 func TestEasyDragAssetsLoadInDependencyOrder(t *testing.T) {
@@ -77,6 +77,24 @@ func TestEasyDragShellIntegration(t *testing.T) {
 	}
 }
 
+// The EasyDrag headroom ratchet (S0.1). A module above easyDragHeadroomLines is logged as a
+// warning and must be on easyDragLargeModules; easyDragLineBudget fails every module;
+// easydrag-runs.js, split in S0.1, stays at most easyDragRunsLines.
+const (
+	easyDragHeadroomLines = 900
+	easyDragLineBudget    = 1100
+	easyDragRunsLines     = 400
+)
+
+// easyDragLargeModules are the modules above the headroom line when the ratchet was set (S0,
+// 2026-11). The list only shrinks: no module joins it, and a listed module that falls to the
+// line or below fails the test until it is taken off.
+var easyDragLargeModules = map[string]bool{
+	"easydrag-canvas.js":   true,
+	"easydrag-model.js":    true,
+	"easydrag-template.js": true,
+}
+
 func TestEasyDragAppLifecycle(t *testing.T) {
 	app := readDesktopAssetText(t, "js/desktop/apps/easydrag.js")
 	for _, marker := range []string{
@@ -95,13 +113,64 @@ func TestEasyDragAppLifecycle(t *testing.T) {
 			t.Errorf("easydrag-editor.js misses %q", marker)
 		}
 	}
+	seen := map[string]bool{}
 	for _, name := range easyDragModules {
+		seen[name] = true
 		text := readDesktopAssetText(t, "js/desktop/apps/"+name)
-		if lines := strings.Count(text, "\n"); lines >= 1100 {
-			t.Errorf("%s has %d lines, the desktop budget is 1100", name, lines)
+		lines := strings.Count(text, "\n")
+		switch {
+		case lines >= easyDragLineBudget:
+			t.Errorf("%s has %d lines, the desktop budget is %d", name, lines, easyDragLineBudget)
+		case lines > easyDragHeadroomLines && !easyDragLargeModules[name]:
+			t.Errorf("%s has %d lines, above the %d-line headroom line: split it by responsibility (easyDragLargeModules only shrinks)", name, lines, easyDragHeadroomLines)
+		case lines > easyDragHeadroomLines:
+			t.Logf("warning: %s has %d lines, above the %d-line headroom line (budget %d)", name, lines, easyDragHeadroomLines, easyDragLineBudget)
+		case easyDragLargeModules[name]:
+			t.Errorf("%s has %d lines, at or below the %d-line headroom line: take it off easyDragLargeModules", name, lines, easyDragHeadroomLines)
+		}
+		if name == "easydrag-runs.js" && lines > easyDragRunsLines {
+			t.Errorf("easydrag-runs.js has %d lines, at most %d after the S0.1 split", lines, easyDragRunsLines)
 		}
 		if !strings.HasPrefix(strings.TrimSpace(text), "//") || !strings.Contains(text, "'use strict';") {
 			t.Errorf("%s must start with a purpose comment and use strict mode", name)
+		}
+	}
+	for name := range easyDragLargeModules {
+		if !seen[name] {
+			t.Errorf("easyDragLargeModules lists %s, which is no EasyDrag module", name)
+		}
+	}
+}
+
+// easyDragSplitSeams pins the S0.1 module splits: each moved function lives only in its new
+// module, the module that lost it reaches it through the new module, and the facades other
+// modules call keep their exact export line.
+var easyDragSplitSeams = []struct {
+	file   string
+	has    []string
+	hasNot []string
+}{
+	{"easydrag-header.js", []string{"function renderHeader(", "function renderSaveState(", "function syncSaveChip(", "function renderIssues(", "function renderLastRun(", "function runNowState(", "const SAVE_ICONS", "ED.header = { create };"}, nil},
+	{"easydrag-editor.js", []string{"ED.header.create({", "function renderBanner(", "ED.editor = { create };"}, []string{"function renderHeader(", "function renderSaveState(", "function stateOf(", "function runNowState(", "const SAVE_ICONS"}},
+	{"easydrag-home-grid.js", []string{"function visibleFlows(", "function cardName(", "function errorCard(", "function emptyCard(", "function speak(", "function render() {", "ED.homeGrid = { create };"}, nil},
+	{"easydrag-home.js", []string{"ED.homeGrid.create({", "function render() { gridView.render(); }", "function createOff(", "async function runNow(", "function focusLeftFlow(", "ED.home = { create, previewSVG, pauseOps };"}, []string{"function visibleFlows(", "function cardName(", "function errorCard(", "function statusBadge(", "let spoken"}},
+	{"easydrag-template-field.js", []string{"function templateField(", "function chipsMarkup(", "function sampleAt(", "function trimTrailingDots(", "function nameAttrs(", "function withChange(", "ED.fieldsShared = { nameAttrs, withChange, composing, nextFieldId };", "ED.fieldsTemplate = { templateField, chipsMarkup, sampleAt };"}, nil},
+	{"easydrag-fields-conditions.js", []string{"function conditionGroup(", "function cases(", "function objects(", "function blankRow(", "const COND_TYPES", "ED.fieldsConditions = { conditionGroup, cases, objects, OPS, UNARY };"}, nil},
+	{"easydrag-fields.js", []string{"= ED.fieldsShared;", "= ED.fieldsTemplate;", "= ED.fieldsConditions;", "ED.fields = { templateField, chipsMarkup, sampleAt, segmented, toggle, selectBox, conditionGroup, cases, fieldList, decisionQuestions, decisionImages, keyValue, jsonEditor, tags, dateTime, fileField, secretRef, OPS, UNARY };"}, []string{"function templateField(", "function nameAttrs(", "function withChange(", "function composing(", "let fieldCount", "function conditionGroup(", "function cases(", "function objects(", "function blankRow(", "const OPS ="}},
+}
+
+func TestEasyDragSplitSeams(t *testing.T) {
+	for _, seam := range easyDragSplitSeams {
+		text := readDesktopAssetText(t, "js/desktop/apps/"+seam.file)
+		for _, marker := range seam.has {
+			if !strings.Contains(text, marker) {
+				t.Errorf("%s misses %q", seam.file, marker)
+			}
+		}
+		for _, marker := range seam.hasNot {
+			if strings.Contains(text, marker) {
+				t.Errorf("%s still has %q, which moved out in S0.1", seam.file, marker)
+			}
 		}
 	}
 }
@@ -228,6 +297,7 @@ func TestEasyDragStylesheetUsesThemeTokens(t *testing.T) {
 			t.Errorf("desktop-app-easydrag.css misses %q", marker)
 		}
 	}
+	checkEasyDragCategoryReads(t, css)
 }
 
 func TestMissionControlShowsFlowMissions(t *testing.T) {

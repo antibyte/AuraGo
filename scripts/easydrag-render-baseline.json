@@ -1,0 +1,121 @@
+{
+  "spec": "plans/2026-11-10-easydrag-s0-spec.md section 3",
+  "keys": [
+    "cards",
+    "paints",
+    "wires",
+    "wireScans",
+    "groups",
+    "allRects",
+    "minimap",
+    "edgeNear",
+    "align"
+  ],
+  "counts": {
+    "S": {
+      "drag": {
+        "cards": 21,
+        "paints": 0,
+        "wires": 0,
+        "wireScans": 21,
+        "groups": 21,
+        "allRects": 21,
+        "minimap": 21,
+        "edgeNear": 60,
+        "align": 20
+      },
+      "runEvent": {
+        "cards": 0,
+        "paints": 1,
+        "wires": 2,
+        "wireScans": 0,
+        "groups": 0,
+        "allRects": 1,
+        "minimap": 1,
+        "edgeNear": 0,
+        "align": 0
+      },
+      "rename": {
+        "cards": 8,
+        "paints": 1,
+        "wires": 2,
+        "wireScans": 1,
+        "groups": 1,
+        "allRects": 1,
+        "minimap": 1,
+        "edgeNear": 0,
+        "align": 0
+      }
+    },
+    "M": {
+      "drag": {
+        "cards": 21,
+        "paints": 0,
+        "wires": 0,
+        "wireScans": 21,
+        "groups": 21,
+        "allRects": 21,
+        "minimap": 21,
+        "edgeNear": 60,
+        "align": 20
+      },
+      "runEvent": {
+        "cards": 0,
+        "paints": 1,
+        "wires": 1,
+        "wireScans": 0,
+        "groups": 0,
+        "allRects": 1,
+        "minimap": 1,
+        "edgeNear": 0,
+        "align": 0
+      },
+      "rename": {
+        "cards": 60,
+        "paints": 1,
+        "wires": 1,
+        "wireScans": 1,
+        "groups": 1,
+        "allRects": 1,
+        "minimap": 1,
+        "edgeNear": 0,
+        "align": 0
+      }
+    },
+    "XL": {
+      "drag": {
+        "cards": 21,
+        "paints": 0,
+        "wires": 0,
+        "wireScans": 21,
+        "groups": 21,
+        "allRects": 21,
+        "minimap": 21,
+        "edgeNear": 60,
+        "align": 20
+      },
+      "runEvent": {
+        "cards": 0,
+        "paints": 1,
+        "wires": 2,
+        "wireScans": 0,
+        "groups": 0,
+        "allRects": 1,
+        "minimap": 1,
+        "edgeNear": 0,
+        "align": 0
+      },
+      "rename": {
+        "cards": 300,
+        "paints": 1,
+        "wires": 2,
+        "wireScans": 1,
+        "groups": 1,
+        "allRects": 1,
+        "minimap": 1,
+        "edgeNear": 0,
+        "align": 0
+      }
+    }
+  }
+}

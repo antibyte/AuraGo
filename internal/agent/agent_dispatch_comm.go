@@ -1406,6 +1406,12 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				logger.Info("manage_missions refused to change a flow mission", "op", boundEchoRunes(req.Operation), "id", boundEchoRunes(req.ID))
 				return flowMissionManagedOutput(req.ID)
 			}
+			// flows.agent.read_only: the agent may list flows and read their history, but not start
+			// them. cfg is read on every call, so a saved switch takes effect without a restart.
+			if targetIsFlow && cfg.Flows.Agent.ReadOnly && (req.Operation == "run" || req.Operation == "run_now") {
+				logger.Info("manage_missions refused to run a flow: flows.agent.read_only", "op", boundEchoRunes(req.Operation), "id", boundEchoRunes(req.ID))
+				return `Tool Output: {"status":"error","code":"flow_read_only","message":"EasyDrag flows are read-only for the agent (flows.agent.read_only). The owner can start this flow in EasyDrag."}`
+			}
 
 			switch req.Operation {
 			case "list":

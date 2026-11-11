@@ -117,6 +117,7 @@
         // edgeNear finds the wire closest to worldPoint within reach. It runs on every drag frame, so it
         // looks nodes up in a Map and skips wires whose control-point box is out of reach.
         function edgeNear(worldPoint, exceptNode) {
+            if (ed.renderStats) ed.renderStats.edgeNear++;
             const byId = new Map(ed.model.doc.nodes.map(n => [n.id, n]));
             const reach = 18 / ed.view.zoom;
             let best = null;
@@ -272,6 +273,7 @@
 
         // alignTo snaps the dragged card to the left edge or centre line of other cards and shows guides.
         function alignTo(id, pos, moving) {
+            if (ed.renderStats) ed.renderStats.align++;
             const skip = new Set(moving);
             const h = G.nodeHeight(ed.model.outputs(ed.model.node(id)).length);
             let x = pos.x;

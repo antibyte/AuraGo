@@ -1,307 +1,21 @@
-// EasyDrag parameter editors: the template field (chips, {{ autocomplete, drop target) and
-// the complex editors (conditions, switch cases, field lists, key-value, JSON, tags, file,
-// secrets, date and time). Every editor calls env.change(value) on edits.
+// EasyDrag parameter editors: the simple controls (segmented, switch, select) and the complex
+// editors (field lists, decisions, key-value, JSON, tags, file, secrets, date and time).
+// ED.fields merges them with the template field (easydrag-template-field.js) and the condition
+// group and cases (easydrag-fields-conditions.js), which load first. Every editor calls
+// env.change(value) on edits.
 (function () {
     'use strict';
 
     const ED = window.EasyDrag = window.EasyDrag || {};
 
-    const OPS = ['eq', 'ne', 'contains', 'not_contains', 'starts_with', 'ends_with', 'matches', 'gt', 'gte', 'lt', 'lte', 'before', 'after', 'empty', 'not_empty', 'is_true', 'is_false'];
-    const UNARY = new Set(['empty', 'not_empty', 'is_true', 'is_false']);
-    const COND_TYPES = ['auto', 'text', 'number', 'date', 'bool'];
     // SECRET_MAX_BYTES is the server's limit for a flow secret value (UTF-8 bytes).
     const SECRET_MAX_BYTES = 4096;
-    let fieldCount = 0;
+    // The template field, the shared helpers and the condition editors load first; ED.fields below merges them.
+    const { nameAttrs, withChange, composing, nextFieldId } = ED.fieldsShared;
+    const { templateField, chipsMarkup, sampleAt } = ED.fieldsTemplate;
+    const { conditionGroup, cases, objects, OPS, UNARY } = ED.fieldsConditions;
 
     function core() { return ED.core; }
-
-    // nameAttrs names a control: aria-labelledby (a.labelledBy, an element id) or aria-label
-    // (a.label, a text).
-    function nameAttrs(esc, a) {
-        if (a && a.labelledBy) return ' aria-labelledby="' + esc(a.labelledBy) + '"';
-        if (a && a.label) return ' aria-label="' + esc(a.label) + '"';
-        return '';
-    }
-
-    // withChange returns env with its own change handler. Everything else (roots, upstream)
-    // is still read through env, so a sub-field sees data that arrives later.
-    function withChange(env, change) { return Object.assign(Object.create(env), { change }); }
-
-    // objects keeps the object items of a list; a malformed param becomes an empty list.
-    function objects(list) { return Array.isArray(list) ? list.filter(x => x && typeof x === 'object' && !Array.isArray(x)) : []; }
-
-    function blankRow() { return { left: '', op: 'eq', right: '', type: 'auto' }; }
-
-    // composing reports a key event that belongs to an IME composition (Enter picks a word).
-    function composing(event) { return event.isComposing || event.keyCode === 229; }
-
-    // trimTrailingDots drops a "." left at the end of an expression ("{{alpha.}}" once a step
-    // was picked from the suggestions), so the saved text parses. Only a dot right before the
-    // closing braces and after a name or "]" goes; literal text and quoted strings stay.
-    function trimTrailingDots(text) {
-        let out = text;
-        const exprs = ED.template.segments(text).filter(s => s.expr !== undefined);
-        for (let i = exprs.length - 1; i >= 0; i--) {
-            const s = exprs[i];
-            const fixed = s.expr.replace(/([A-Za-z0-9_\]])\.(\s*)$/, '$1$2');
-            if (fixed !== s.expr) out = out.slice(0, s.start + 2) + fixed + out.slice(s.end - 2);
-        }
-        return out;
-    }
-
-    // ── template field ──────────────────────────────────────────────────────────
-
-    // chipsMarkup renders text with {{…}} expressions as chips labelled with the node label.
-    function chipsMarkup(text, env) {
-        const { esc } = env;
-        return ED.template.segments(text).map(seg => {
-            if (seg.expr === undefined) return esc(seg.literal);
-            let label = seg.expr.trim();
-            let cls = 'ed-ref';
-            try {
-                const p = ED.template.parseExpr(seg.expr);
-                const src = env.upstream.find(u => u.key === p.root);
-                if (src) label = src.label + (p.path.length ? ' › ' + p.path.join(' › ') : '');
-                else if (['trigger', 'run', 'flow'].includes(p.root)) label = core().tr(env.t, 'easydrag.ui.root_' + p.root, p.root) + (p.path.length ? ' › ' + p.path.join(' › ') : '');
-                else cls += ' is-unknown';
-                if (p.filters.length) label += ' | ' + p.filters.map(f => f.name).join(' | ');
-                if (src) cls += ' cat-' + esc(src.cat);
-            } catch (err) { cls += ' is-broken'; }
-            return '<span class="' + cls + '" title="' + esc('{{' + seg.expr + '}}') + '">' + esc(label) + '</span>';
-        }).join('');
-    }
-
-    // templateField returns {el, get, set, insert, focus}. opts: {multiline, placeholder, id,
-    // labelledBy, label}; labelledBy (an element id) or label (a text) names the field.
-    function templateField(env, value, opts) {
-        const c = core();
-        const { t, esc } = env;
-        const o = opts || {};
-        const multiline = !!o.multiline;
-        const listId = 'ed-suggest-' + (++fieldCount);
-        const named = nameAttrs(esc, o);
-        // A single line edits like a combo box; a multi-line field stays a text box that
-        // points at its suggestion list.
-        const el = c.el('<div class="ed-tpl' + (multiline ? ' ed-tpl--multi' : '') + '" data-ed-drop="1">' +
-            '<div class="ed-tpl-view" tabindex="0" role="textbox"' + named + (multiline ? ' aria-multiline="true"' : '') + (env.readonly ? ' aria-readonly="true"' : '') + '></div>' +
-            '<textarea class="ed-tpl-input" rows="' + (multiline ? 4 : 1) + '" spellcheck="' + (multiline ? 'true' : 'false') + '"' +
-            (o.id ? ' id="' + esc(o.id) + '"' : '') + named + (multiline ? '' : ' role="combobox" aria-expanded="false"') +
-            ' aria-autocomplete="list" placeholder="' + esc(o.placeholder || '') + '"></textarea></div>');
-        const view = el.querySelector('.ed-tpl-view');
-        const input = el.querySelector('.ed-tpl-input');
-        const applyChange = env.change;
-        let current = value == null ? '' : String(value);
-        let suggest = null;
-
-        function syncView() {
-            view.innerHTML = current ? chipsMarkup(current, env) : '<span class="ed-tpl-placeholder">' + esc(o.placeholder || '') + '</span>';
-            el.classList.toggle('has-refs', current.indexOf('{{') >= 0);
-        }
-
-        function grow() {
-            input.style.height = 'auto';
-            input.style.height = Math.min(multiline ? 320 : 120, input.scrollHeight + 2) + 'px';
-        }
-
-        function edit() {
-            if (env.readonly) return;
-            el.classList.add('is-editing');
-            input.value = current;
-            grow();
-            input.focus();
-        }
-
-        function commit() {
-            const next = trimTrailingDots(multiline ? input.value : input.value.replace(/\n/g, ' '));
-            if (next !== current) {
-                current = next;
-                applyChange(current);
-            }
-        }
-
-        // flush saves an open edit and leaves the caret, the suggestion list and is-editing
-        // alone. False means an IME composition still owns the text.
-        function flush() {
-            if (!el.classList.contains('is-editing')) return true;
-            if (input.edComposing) return false;
-            commit();
-            return true;
-        }
-
-        // leave ends editing from the keyboard and moves focus to the chips, so it never drops
-        // to the page. save false undoes the edit.
-        function leave(save) {
-            closeSuggest();
-            if (save) commit(); else input.value = current;
-            el.classList.remove('is-editing');
-            syncView();
-            view.focus();
-        }
-
-        function closeSuggest() {
-            if (!suggest) return;
-            suggest.remove();
-            suggest = null;
-            if (!multiline) input.setAttribute('aria-expanded', 'false');
-            input.removeAttribute('aria-controls');
-            input.removeAttribute('aria-activedescendant');
-        }
-
-        function markActive() {
-            suggest.querySelectorAll('li').forEach((li, i) => {
-                li.classList.toggle('is-active', i === suggest.active);
-                li.setAttribute('aria-selected', String(i === suggest.active));
-            });
-            input.setAttribute('aria-activedescendant', listId + '-' + suggest.active);
-        }
-
-        function suggestions(prefix) {
-            const p = prefix.replace(/^\s+/, '');
-            const pipe = p.lastIndexOf('|');
-            if (pipe >= 0) {
-                const q = p.slice(pipe + 1).trim();
-                return ED.template.FILTER_LIST.filter(f => f.name.startsWith(q)).map(f => ({ text: p.slice(0, pipe + 1) + ' ' + f.name + (f.args ? f.hint : ''), label: f.name + f.hint, kind: 'filter' }));
-            }
-            const dot = p.lastIndexOf('.');
-            if (dot < 0) {
-                const roots = env.upstream.map(u => ({ key: u.key, label: u.label, cat: u.cat })).concat(['trigger', 'run', 'flow'].map(k => ({ key: k, label: c.tr(t, 'easydrag.ui.root_' + k, k), cat: 'root' })));
-                return roots.filter(r => r.key.startsWith(p) || r.label.toLowerCase().includes(p.toLowerCase())).map(r => ({ text: r.key, label: r.label + ' · ' + r.key, kind: r.cat }));
-            }
-            const base = p.slice(0, dot);
-            const q = p.slice(dot + 1);
-            const rootKey = base.split(/[.[]/)[0];
-            const src = env.upstream.find(u => u.key === rootKey);
-            let names = [];
-            // Output fields come as names or as {name, type} (the shape the input tree uses).
-            if (src && base === rootKey) names = (src.fields || []).map(f => (f && typeof f === 'object' ? f.name : f)).filter(n => typeof n === 'string');
-            const sample = sampleAt(env, base);
-            if (sample && typeof sample === 'object' && !Array.isArray(sample)) names = Array.from(new Set(names.concat(Object.keys(sample))));
-            if (rootKey === 'trigger' && base === 'trigger') names = ['data', 'fired_at', 'type', 'node'];
-            if (rootKey === 'run' && base === 'run') names = ['id', 'started_at', 'mode', 'revision'];
-            if (rootKey === 'flow' && base === 'flow') names = ['id', 'name'];
-            // Names that are no plain identifiers ("content-type") go in quotes.
-            return names.filter(n => n.startsWith(q)).map(n => ({ text: ED.template.pathJoin(base, n), label: n, kind: 'field' }));
-        }
-
-        function showSuggest() {
-            closeSuggest();
-            const before = input.value.slice(0, input.selectionStart);
-            const m = /\{\{([^{}]*)$/.exec(before);
-            if (!m) return;
-            // Only what differs from the text typed so far is worth offering: a list that
-            // repeats it would take Enter and Tab away from the field.
-            const typed = m[1].replace(/^\s+/, '');
-            const items = suggestions(m[1]).filter(it => it.text !== typed).slice(0, 12);
-            if (!items.length) return;
-            suggest = c.el('<ul class="ed-suggest" role="listbox" id="' + listId + '"></ul>');
-            suggest.innerHTML = items.map((it, i) => '<li role="option" id="' + listId + '-' + i + '" aria-selected="' + (i === 0) + '" data-ed-sug="' + i + '" class="' + (i === 0 ? 'is-active' : '') + '">' +
-                '<span class="ed-suggest-kind" data-kind="' + esc(it.kind) + '"></span>' + esc(it.label) + '</li>').join('');
-            suggest.items = items;
-            suggest.active = 0;
-            el.appendChild(suggest);
-            if (!multiline) input.setAttribute('aria-expanded', 'true');
-            input.setAttribute('aria-controls', listId);
-            input.setAttribute('aria-activedescendant', listId + '-0');
-        }
-
-        // applySuggest puts a suggestion at the caret. A step or an object value goes on to its
-        // fields ("alpha." and the list of them); anything else closes the list.
-        function applySuggest(idx) {
-            const it = suggest && suggest.items[idx];
-            if (!it) return;
-            const pos = input.selectionStart;
-            const before = input.value.slice(0, pos);
-            const after = input.value.slice(pos);
-            const start = before.lastIndexOf('{{') + 2;
-            const closing = after.trimStart().startsWith('}}') ? '' : '}}';
-            const deeper = it.kind === 'filter' ? [] : suggestions(it.text + '.');
-            const text = deeper.length ? it.text + '.' : it.text;
-            input.value = before.slice(0, start) + text + closing + after;
-            const caret = start + text.length;
-            input.setSelectionRange(caret, caret);
-            closeSuggest();
-            grow();
-            if (deeper.length) showSuggest();
-        }
-
-        view.addEventListener('click', edit);
-        view.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === 'F2') { event.preventDefault(); edit(); } });
-        input.addEventListener('input', () => { grow(); showSuggest(); });
-        input.addEventListener('keydown', (event) => {
-            if (composing(event)) return;
-            if (suggest) {
-                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-                    event.preventDefault();
-                    suggest.active = (suggest.active + (event.key === 'ArrowDown' ? 1 : -1) + suggest.items.length) % suggest.items.length;
-                    markActive();
-                    return;
-                }
-                if (event.key === 'Enter' || event.key === 'Tab') { event.preventDefault(); applySuggest(suggest.active); return; }
-                if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeSuggest(); return; }
-            }
-            // Enter saves a single line; Escape saves a multi-line text (like leaving it) and
-            // undoes a single line.
-            if (event.key === 'Enter' && !multiline) { event.preventDefault(); leave(true); }
-            else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); leave(multiline); }
-        });
-        el.addEventListener('pointerdown', (event) => {
-            const li = event.target.closest('[data-ed-sug]');
-            if (li) { event.preventDefault(); applySuggest(Number(li.dataset.edSug)); }
-        });
-        input.addEventListener('compositionstart', () => { input.edComposing = true; });
-        input.addEventListener('compositionend', () => { input.edComposing = false; });
-        input.addEventListener('blur', () => {
-            setTimeout(() => {
-                if (el.contains(document.activeElement)) return;
-                closeSuggest();
-                if (input.edComposing) return;
-                // commit uses the change captured for this field, not a step opened later.
-                commit();
-                el.classList.remove('is-editing');
-                syncView();
-            }, 120);
-        });
-        syncView();
-
-        const api = {
-            el,
-            get: () => current,
-            set(v) { current = v == null ? '' : String(v); if (!el.classList.contains('is-editing')) syncView(); },
-            // insert puts a reference at the caret (or appends it) and saves.
-            insert(ref) {
-                const token = '{{' + ref + '}}';
-                // A tab switch blurs the editor, but its unchanged buffer retains the caret.
-                if (el.classList.contains('is-editing') || input.value === current) {
-                    const pos = input.selectionStart;
-                    input.value = input.value.slice(0, pos) + token + input.value.slice(input.selectionEnd);
-                    input.setSelectionRange(pos + token.length, pos + token.length);
-                    commit();
-                    if (!el.classList.contains('is-editing')) syncView();
-                    return;
-                }
-                current = current ? (multiline ? current + ' ' + token : current + token) : token;
-                applyChange(current);
-                syncView();
-            },
-            focus: edit,
-            refresh: syncView,
-            flush
-        };
-        // forms and drops reach the field through its element (caret-aware insert).
-        el.edTemplate = api;
-        return api;
-    }
-
-    // sampleAt reads the sample data at path ("key.list[-1]") like the engine: through the
-    // shared resolver, so only own fields count, a negative index counts from the end and
-    // anything missing (or a path that does not parse) is null.
-    function sampleAt(env, path) {
-        try {
-            const p = ED.template.parseExpr(path);
-            const roots = env.roots || {};
-            return ED.template.resolvePath(Object.prototype.hasOwnProperty.call(roots, p.root) ? roots[p.root] : undefined, p.path);
-        } catch (err) { return null; }
-    }
 
     // ── simple controls ─────────────────────────────────────────────────────────
 
@@ -335,85 +49,6 @@
         const el = core().el('<select class="ed-input"' + (id ? ' id="' + esc(id) + '"' : '') + nameAttrs(esc, aria) + (env.readonly ? ' disabled' : '') + '>' +
             options.map(o => '<option value="' + esc(o.value) + '"' + (String(o.value) === String(value == null ? '' : value) ? ' selected' : '') + '>' + esc(o.label) + '</option>').join('') + '</select>');
         el.addEventListener('change', () => onChange(el.value));
-        return el;
-    }
-
-    // ── condition group ─────────────────────────────────────────────────────────
-
-    function conditionGroup(env, value, onChange) {
-        const c = core();
-        const { t, esc } = env;
-        const group = Object.assign({ match: 'all' }, value && typeof value === 'object' && !Array.isArray(value) ? JSON.parse(JSON.stringify(value)) : {});
-        group.rows = objects(group.rows);
-        if (!group.rows.length) group.rows.push(blankRow());
-        const el = c.el('<div class="ed-cond"><div class="ed-cond-head"></div><div class="ed-cond-rows"></div>' +
-            (env.readonly ? '' : '<button type="button" class="ed-btn ed-btn--ghost ed-btn--small" data-ed-cond-add>' + c.icon('plus') + '<span>' + esc(t('easydrag.ui.cond_add')) + '</span></button>') + '</div>');
-        const head = el.querySelector('.ed-cond-head');
-        const rows = el.querySelector('.ed-cond-rows');
-        const emit = () => onChange(JSON.parse(JSON.stringify(group)));
-
-        head.appendChild(segmented(env, [{ value: 'all', label: t('easydrag.ui.cond_all') }, { value: 'any', label: t('easydrag.ui.cond_any') }], group.match, v => { group.match = v; emit(); },
-            { label: t('easydrag.ui.cond_match') }));
-
-        function renderRows() {
-            rows.innerHTML = '';
-            group.rows.forEach((row, idx) => {
-                const r = c.el('<div class="ed-cond-row"><div class="ed-cond-left"></div><div class="ed-cond-op"></div><div class="ed-cond-right"></div><div class="ed-cond-type"></div>' +
-                    (env.readonly ? '' : '<button type="button" class="ed-icon-btn" data-ed-cond-remove="' + idx + '" aria-label="' + esc(t('easydrag.ui.remove_row', { n: idx + 1 })) + '">' + c.icon('x') + '</button>') + '</div>');
-                const left = templateField(withChange(env, v => { row.left = v; emit(); }), row.left, { placeholder: t('easydrag.ui.cond_left'), label: t('easydrag.ui.cond_left') });
-                r.querySelector('.ed-cond-left').appendChild(left.el);
-                r.querySelector('.ed-cond-op').appendChild(selectBox(env, OPS.map(op => ({ value: op, label: c.tr(t, 'easydrag.ui.op_' + op, op) })), row.op, v => { row.op = v; emit(); renderRows(); },
-                    null, { label: t('easydrag.ui.cond_op') }));
-                if (!UNARY.has(row.op)) {
-                    const right = templateField(withChange(env, v => { row.right = v; emit(); }), row.right, { placeholder: t('easydrag.ui.cond_right'), label: t('easydrag.ui.cond_right') });
-                    r.querySelector('.ed-cond-right').appendChild(right.el);
-                }
-                r.querySelector('.ed-cond-type').appendChild(selectBox(env, COND_TYPES.map(ty => ({ value: ty, label: c.tr(t, 'easydrag.ui.cond_type_' + ty, ty) })), row.type || 'auto', v => { row.type = v; emit(); },
-                    null, { label: t('easydrag.ui.cond_type') }));
-                rows.appendChild(r);
-            });
-        }
-
-        el.addEventListener('click', (event) => {
-            if (event.target.closest('[data-ed-cond-add]')) { group.rows.push(blankRow()); emit(); renderRows(); return; }
-            const rm = event.target.closest('[data-ed-cond-remove]');
-            if (rm) { group.rows.splice(Number(rm.dataset.edCondRemove), 1); if (!group.rows.length) group.rows.push(blankRow()); emit(); renderRows(); }
-        });
-        renderRows();
-        return el;
-    }
-
-    function cases(env, value, onChange) {
-        const c = core();
-        const { t, esc } = env;
-        const list = objects(Array.isArray(value) ? JSON.parse(JSON.stringify(value)) : []);
-        const el = c.el('<div class="ed-cases"><div class="ed-cases-list"></div>' +
-            (env.readonly ? '' : '<button type="button" class="ed-btn ed-btn--ghost ed-btn--small" data-ed-case-add>' + c.icon('plus') + '<span>' + esc(t('easydrag.ui.case_add')) + '</span></button>') + '</div>');
-        const host = el.querySelector('.ed-cases-list');
-        const emit = () => onChange(JSON.parse(JSON.stringify(list)));
-        function render() {
-            host.innerHTML = '';
-            list.forEach((cs, idx) => {
-                const card = c.el('<div class="ed-case"><div class="ed-case-head"><span class="ed-case-port">' + esc(t('easydrag.ui.port_case', { n: idx + 1 })) + '</span>' +
-                    '<input class="ed-input ed-case-label" placeholder="' + esc(t('easydrag.ui.case_label')) + '" aria-label="' + esc(t('easydrag.ui.case_label')) + '" value="' + esc(cs.label || '') + '"' + (env.readonly ? ' disabled' : '') + '>' +
-                    (env.readonly ? '' : '<button type="button" class="ed-icon-btn" data-ed-case-up="' + idx + '" aria-label="' + esc(t('easydrag.ui.move_up')) + '"' + (idx === 0 ? ' disabled' : '') + '>' + c.icon('chevron-down', 'ed-rot180') + '</button>' +
-                        '<button type="button" class="ed-icon-btn" data-ed-case-down="' + idx + '" aria-label="' + esc(t('easydrag.ui.move_down')) + '"' + (idx === list.length - 1 ? ' disabled' : '') + '>' + c.icon('chevron-down') + '</button>' +
-                        '<button type="button" class="ed-icon-btn" data-ed-case-remove="' + idx + '" aria-label="' + esc(t('easydrag.ui.remove_row', { n: idx + 1 })) + '">' + c.icon('trash') + '</button>') + '</div></div>');
-                card.querySelector('.ed-case-label').addEventListener('change', (event) => { cs.label = event.target.value; emit(); });
-                card.appendChild(conditionGroup(env, cs.condition, v => { cs.condition = v; emit(); }));
-                host.appendChild(card);
-            });
-        }
-        el.addEventListener('click', (event) => {
-            if (event.target.closest('[data-ed-case-add]')) { list.push({ label: '', condition: { match: 'all', rows: [blankRow()] } }); emit(); render(); return; }
-            const up = event.target.closest('[data-ed-case-up]');
-            if (up) { const i = Number(up.dataset.edCaseUp); list.splice(i - 1, 0, list.splice(i, 1)[0]); emit(); render(); return; }
-            const down = event.target.closest('[data-ed-case-down]');
-            if (down) { const i = Number(down.dataset.edCaseDown); list.splice(i + 1, 0, list.splice(i, 1)[0]); emit(); render(); return; }
-            const rm = event.target.closest('[data-ed-case-remove]');
-            if (rm) { list.splice(Number(rm.dataset.edCaseRemove), 1); emit(); render(); }
-        });
-        render();
         return el;
     }
 
@@ -651,7 +286,7 @@
         const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
         const shown = v => v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v);
         const pairs = Object.entries(source).map(([k, v]) => ({ k, v: shown(v), raw: v, edited: false }));
-        const errorId = 'ed-kv-error-' + (++fieldCount);
+        const errorId = 'ed-kv-error-' + nextFieldId();
         const el = c.el('<div class="ed-kv"><div class="ed-kv-rows"></div>' +
             '<p class="ed-json-error" id="' + errorId + '" aria-live="polite" data-ed-kv-error></p>' +
             (env.readonly ? '' : '<button type="button" class="ed-btn ed-btn--ghost ed-btn--small" data-ed-kv-add>' + c.icon('plus') + '<span>' + esc(t('easydrag.ui.kv_add')) + '</span></button>') + '</div>');
@@ -712,7 +347,7 @@
         const c = core();
         const { t, esc } = env;
         const text = value === undefined ? '' : JSON.stringify(value, null, 2);
-        const errorId = (id || 'ed-json-' + (++fieldCount)) + '-error';
+        const errorId = (id || 'ed-json-' + nextFieldId()) + '-error';
         const el = c.el('<div class="ed-json"><textarea class="ed-input ed-code" rows="6" spellcheck="false"' + (id ? ' id="' + esc(id) + '"' : '') + (env.readonly ? ' disabled' : '') + '></textarea>' +
             '<div class="ed-json-error" id="' + esc(errorId) + '" role="alert" hidden></div></div>');
         const area = el.querySelector('textarea');

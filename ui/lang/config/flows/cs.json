@@ -1,6 +1,6 @@
 {
   "config.flows.agent_allow_publish": "Agent smí publikovat toky",
-  "config.flows.agent_note": "Volby pro agenta začnou platit, jakmile agent bude umět s toky pracovat.",
+  "config.flows.agent_note": "Tyto volby omezují, co smí Aura dělat s toky EasyDrag. Toky můžeš vždy sám spouštět a publikovat v EasyDrag a toky, které spouštějí tvé vlastní spouštěče, běží dál.",
   "config.flows.agent_read_only": "Agent smí toky jen číst",
   "config.flows.ai_provider": "Poskytovatel AI pro kroky AI",
   "config.flows.ai_provider_help": "Kroky AI nastavené na „Výchozí model“ používají tohoto poskytovatele.",
@@ -26,5 +26,7 @@
   "config.flows.durable_configured": "Uložená volba",
   "config.flows.durable_effective": "Zpracování zapnuto",
   "config.flows.durable_available": "Služba obnovení připravena",
-  "config.flows.durable_counts": "Čekající běhy: {{waiting}} · Aktivní běhy: {{running}} · Blokované běhy: {{blocked}}"
+  "config.flows.durable_counts": "Čekající běhy: {{waiting}} · Aktivní běhy: {{running}} · Blokované běhy: {{blocked}}",
+  "config.flows.agent_read_only_help": "Když je zapnuto, Aura může toky vypisovat a číst, ale nemůže je spouštět. Toky, které spouštějí tvé vlastní spouštěče, se přesto spustí.",
+  "config.flows.agent_allow_publish_unavailable": "Není k dispozici: agent nemůže toky publikovat. Publikovat můžeš jen v EasyDrag."
 }

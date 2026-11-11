@@ -102,34 +102,61 @@ func (s *Service) StartTestRun(ctx context.Context, id string, req TestRunReques
 		TriggerNode: trigger, TriggerType: "test", TriggerData: data, OnlyNode: req.OnlyNode})
 }
 
+// Sample sources in the test-data answer. A saved sample is user data. The built-in one is
+// the trigger type's English default, which the editor shows in the UI language.
+const (
+	SampleSourceSaved   = "saved"
+	SampleSourceBuiltin = "builtin"
+)
+
 // TriggerSampleData returns the remembered sample data of a trigger node, or its built-in
 // sample. A node that is not an enabled trigger of the draft is ErrNoTrigger (wrapped,
 // bounded id), like in SaveTriggerSample.
 func (s *Service) TriggerSampleData(ctx context.Context, flowID, nodeID string) (map[string]any, error) {
+	data, _, err := s.TriggerSampleDataSource(ctx, flowID, nodeID)
+	return data, err
+}
+
+// TriggerSampleDataSource is TriggerSampleData and also names the sample's source
+// (SampleSourceSaved or SampleSourceBuiltin).
+func (s *Service) TriggerSampleDataSource(ctx context.Context, flowID, nodeID string) (map[string]any, string, error) {
 	rec, err := s.requireFlow(ctx, flowID)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if err := s.requireTrigger(rec, nodeID); err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return s.triggerSample(ctx, rec, nodeID)
+	data, saved, err := s.triggerSampleSource(ctx, rec, nodeID)
+	if err != nil {
+		return nil, "", err
+	}
+	if saved {
+		return data, SampleSourceSaved, nil
+	}
+	return data, SampleSourceBuiltin, nil
 }
 
 // triggerSample is TriggerSampleData for a trigger node of rec's draft.
 func (s *Service) triggerSample(ctx context.Context, rec *FlowRecord, nodeID string) (map[string]any, error) {
+	data, _, err := s.triggerSampleSource(ctx, rec, nodeID)
+	return data, err
+}
+
+// triggerSampleSource is triggerSample; saved is true for a remembered sample.
+func (s *Service) triggerSampleSource(ctx context.Context, rec *FlowRecord, nodeID string) (map[string]any, bool, error) {
 	data, ok, err := s.store.GetTestData(ctx, rec.ID, nodeID, TestDataTriggerSample)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if ok {
-		return data, nil
+		return data, true, nil
 	}
 	n := rec.Draft.NodeByID(nodeID)
 	if n == nil {
-		return map[string]any{}, nil
+		return map[string]any{}, false, nil
 	}
-	return TriggerSample(n), nil
+	return TriggerSample(n), false, nil
 }
 
 // requireTrigger returns nil when nodeID is an enabled trigger of rec's draft, and

@@ -1304,8 +1304,8 @@ flows:
   max_runs_per_flow: 200                                # keep at most this many finished runs per flow, 10-5000
   ai_provider: ""                                       # provider id for AI steps; empty = main model
   agent:
-    read_only: false                                    # reserved; not enforced yet: agent may only read flows
-    allow_publish: false                                # reserved; not enforced yet: agent may publish flows
+    read_only: false                                    # the agent may list and read flows but not start them; flows that your own triggers start still run
+    allow_publish: false                                # has no effect: the agent cannot publish flows
 
 game_maker:
     enabled: false                                         # enable Game Maker Studio APIs and agent tools

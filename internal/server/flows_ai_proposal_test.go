@@ -147,3 +147,34 @@ func TestNewFlowAIProposalRouteRequiresAdmin(t *testing.T) {
 		t.Fatalf("empty goal = %d %s", w.Code, w.Body.String())
 	}
 }
+
+// No AI payload carries note text (owner decision 3). A proposal for a draft whose sticky
+// note and step note hold a marker sends neither.
+func TestFlowAIProposalNeverSendsNoteText(t *testing.T) {
+	s, _ := newFlowsTestServer(t)
+	const marker = "sticky-note-marker-7731"
+	withNotes := strings.Replace(greetFlowJSON, `"edges":`, `"notes":[{"id":"s_marker","position":{"x":0,"y":0},"width":200,"height":120,"text":"`+marker+`"}],"edges":`, 1)
+	withNotes = strings.Replace(withNotes, `"params":{"data":{"name":"Welt"}}`, `"settings":{"notes":"step `+marker+`"},"params":{"data":{"name":"Welt"}}`, 1)
+	rec := createTestFlow(t, s, withNotes)
+	if len(rec.Draft.Notes) != 1 || !strings.Contains(rec.Draft.Nodes[0].Settings.Notes, marker) {
+		t.Fatalf("fixture: the draft must hold both notes: %+v", rec.Draft)
+	}
+	calls := 0
+	stepper := proposalStepper(func(_ context.Context, req flows.LLMRequest) (flows.LLMResponse, error) {
+		calls++
+		payload, err := json.Marshal(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(payload), marker) {
+			t.Fatalf("an AI payload carried note text: %s", payload)
+		}
+		return flows.LLMResponse{Text: greetFlowJSON}, nil
+	})
+	if _, err := s.makeFlowProposal(context.Background(), rec.ID, "say hello", rec.DraftRevision, stepper); err != nil {
+		t.Fatal(err)
+	}
+	if calls == 0 {
+		t.Fatal("the stub saw no AI request")
+	}
+}
