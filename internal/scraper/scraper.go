@@ -17,8 +17,7 @@ import (
 	readability "codeberg.org/readeck/go-readability/v2"
 	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown/v2"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
+	"github.com/go-rod/rod/lib/proto"
 )
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -127,13 +126,6 @@ func (a *AgentScraper) ScrapeHTML(rawURL string, body []byte) (*ScrapeResult, er
 // dynamicScrapeSlot allows one in-process dynamic scrape at a time.
 var dynamicScrapeSlot = make(chan struct{}, 1)
 
-// newScraperLauncher builds the headless Rod launcher without forcing --no-sandbox.
-// Rod's New already sets that flag when running in a container.
-func newScraperLauncher(ctx context.Context) *launcher.Launcher {
-	return launcher.New().Context(ctx).Headless(true).
-		Set("force-webrtc-ip-handling-policy", "disable_non_proxied_udp")
-}
-
 func acquireDynamicScrape(ctx context.Context) error {
 	select {
 	case dynamicScrapeSlot <- struct{}{}:
@@ -170,43 +162,40 @@ func (a *AgentScraper) FetchDynamic(rawURL string, waitForSelector string) (*Scr
 	ctx, cancel := context.WithTimeout(a.ctx, 30*time.Second)
 	defer cancel()
 
-	l := newScraperLauncher(ctx)
-	u, err := l.Launch()
+	// The browser and its proxy are made for this call; every byte Chrome sends,
+	// service workers and prefetch included, goes through the egress proxy.
+	eb, err := security.LaunchEgressBrowser(ctx, security.EgressBrowserOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("rod launcher: %w", err)
 	}
-	defer func() { l.Kill(); l.Cleanup() }()
+	defer func() { _ = eb.Close() }()
 
-	browser := rod.New().Context(ctx).ControlURL(u)
-	if err := browser.Connect(); err != nil {
-		return nil, fmt.Errorf("rod connect: %w", err)
+	page, err := eb.Browser.Page(proto.TargetCreateTarget{})
+	if err == nil {
+		err = page.Navigate(rawURL)
 	}
-	defer func() {
-		closeCtx, closeCancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer closeCancel()
-		_ = browser.Context(closeCtx).Close()
-	}()
-
-	page, err := security.OpenRodPageWithSSRF(browser, rawURL)
 	if err != nil {
-		return nil, fmt.Errorf("rod open page %s: %w", rawURL, err)
+		return nil, fmt.Errorf("rod open page %s: %w", rawURL, eb.Wrap(err))
 	}
 
 	// Wait for the page to reach a network-idle state.
 	if err := page.WaitLoad(); err != nil {
-		return nil, fmt.Errorf("rod wait load: %w", err)
+		return nil, fmt.Errorf("rod wait load: %w", eb.Wrap(err))
 	}
 
 	if waitForSelector != "" {
 		if err := page.WaitElementsMoreThan(waitForSelector, 0); err != nil {
-			return nil, fmt.Errorf("rod wait selector %q: %w", waitForSelector, err)
+			return nil, fmt.Errorf("rod wait selector %q: %w", waitForSelector, eb.Wrap(err))
 		}
 	}
 
 	// Capture the fully-rendered outer HTML.
 	html, err := page.HTML()
 	if err != nil {
-		return nil, fmt.Errorf("rod get HTML: %w", err)
+		return nil, fmt.Errorf("rod get HTML: %w", eb.Wrap(err))
+	}
+	if cause := eb.Err(); cause != nil {
+		return nil, fmt.Errorf("rod fetch %s: %w", rawURL, cause)
 	}
 	return a.ScrapeHTML(rawURL, []byte(html))
 }

@@ -14,7 +14,6 @@ import (
 	"aurago/internal/security"
 
 	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 )
 
@@ -93,41 +92,44 @@ func ExecuteFormAutomationWithWorkspace(ctx context.Context, operation, rawURL, 
 		return formJSON(formResult{Status: "error", Message: "operation must be 'fill_submit', 'click', or 'get_fields'"})
 	}
 
-	// Launch headless browser
-	u, launchErr := launcher.New().
-		Headless(true).
-		NoSandbox(false).
-		Launch()
+	// Launch a headless browser behind its own egress proxy (this site had no
+	// proxy and no WebRTC flags before).
+	eb, launchErr := security.LaunchEgressBrowser(ctx, security.EgressBrowserOptions{Sandbox: true})
 	if launchErr != nil {
 		return formJSON(formResult{Status: "error", Message: fmt.Sprintf("browser launch failed: %v", launchErr)})
 	}
+	defer func() { _ = eb.Close() }()
 
-	browser := rod.New().ControlURL(u)
-	if err := browser.Connect(); err != nil {
-		return formJSON(formResult{Status: "error", Message: fmt.Sprintf("browser connect failed: %v", err)})
+	page, err := eb.Browser.Page(proto.TargetCreateTarget{})
+	if err == nil {
+		page = page.Context(ctx)
+		err = page.Navigate(rawURL)
 	}
-	defer func() {
-		_ = browser.Close()
-	}()
-
-	page, err := security.OpenRodPageWithSSRF(browser, rawURL)
 	if err != nil {
-		return formJSON(formResult{Status: "error", Message: fmt.Sprintf("open page failed: %v", err)})
+		return formJSON(formResult{Status: "error", Message: fmt.Sprintf("open page failed: %v", eb.Wrap(err))})
 	}
-	page = page.Context(ctx)
 	if err := page.WaitLoad(); err != nil {
-		_ = err // non-fatal
+		if cause := eb.Err(); cause != nil {
+			return formJSON(formResult{Status: "error", Message: fmt.Sprintf("page load failed: %v", cause)})
+		}
+		_ = err // non-fatal while the proxy is alive
 	}
 
+	var out string
 	switch operation {
 	case "get_fields":
-		return formGetFields(page, rawURL)
+		out = formGetFields(page, rawURL)
 	case "click":
-		return formClick(page, rawURL, selector, screenshotDir)
+		out = formClick(page, rawURL, selector, screenshotDir)
 	case "fill_submit":
-		return formFillSubmit(page, rawURL, fieldsJSON, selector, screenshotDir)
+		out = formFillSubmit(page, rawURL, fieldsJSON, selector, screenshotDir)
+	default:
+		return formJSON(formResult{Status: "error", Message: "unhandled operation"})
 	}
-	return formJSON(formResult{Status: "error", Message: "unhandled operation"})
+	if cause := eb.Err(); cause != nil {
+		return formJSON(formResult{Status: "error", Message: fmt.Sprintf("form run cut off: %v", cause)})
+	}
+	return out
 }
 
 // formGetFields lists all input/textarea/select elements on the page.

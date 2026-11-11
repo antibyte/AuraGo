@@ -73,33 +73,30 @@ func WebPerformanceAudit(ctx context.Context, rawURL string, viewport string) st
 		return webPerfJSON(webPerfResult{Status: "error", Message: fmt.Sprintf("SSRF validation failed: %v", err)})
 	}
 
-	// Get shared headless browser
-	browser, err := getSharedBrowser()
+	// A headless browser and its egress proxy for this call only.
+	eb, err := security.LaunchEgressBrowser(ctx, security.EgressBrowserOptions{Sandbox: true})
 	if err != nil {
 		return webPerfJSON(webPerfResult{Status: "error", Message: fmt.Sprintf("browser launch failed: %v", err)})
 	}
+	defer func() { _ = eb.Close() }()
 
 	// Set viewport
-	page, err := browser.Page(proto.TargetCreateTarget{URL: "about:blank"})
+	page, err := eb.Browser.Page(proto.TargetCreateTarget{URL: "about:blank"})
 	if err != nil {
-		return webPerfJSON(webPerfResult{Status: "error", Message: fmt.Sprintf("create page failed: %v", err)})
+		return webPerfJSON(webPerfResult{Status: "error", Message: fmt.Sprintf("create page failed: %v", eb.Wrap(err))})
 	}
-	defer page.Close()
 
 	err = page.SetViewport(&proto.EmulationSetDeviceMetricsOverride{
 		Width:  vpWidth,
 		Height: vpHeight,
 	})
 	if err != nil {
-		return webPerfJSON(webPerfResult{Status: "error", Message: fmt.Sprintf("set viewport failed: %v", err)})
-	}
-	if err := security.GuardRodPageSSRF(page); err != nil {
-		return webPerfJSON(webPerfResult{Status: "error", Message: fmt.Sprintf("SSRF guard failed: %v", err)})
+		return webPerfJSON(webPerfResult{Status: "error", Message: fmt.Sprintf("set viewport failed: %v", eb.Wrap(err))})
 	}
 
 	// Navigate and wait
 	if err := page.Navigate(rawURL); err != nil {
-		return webPerfJSON(webPerfResult{Status: "error", Message: fmt.Sprintf("navigation failed: %v", err)})
+		return webPerfJSON(webPerfResult{Status: "error", Message: fmt.Sprintf("navigation failed: %v", eb.Wrap(err))})
 	}
 
 	// Wait for page load with timeout
@@ -169,7 +166,7 @@ func WebPerformanceAudit(ctx context.Context, rawURL string, viewport string) st
 
 	evalResult, err := page.Eval(jsCode)
 	if err != nil {
-		return webPerfJSON(webPerfResult{Status: "error", Message: fmt.Sprintf("failed to collect metrics: %v", err)})
+		return webPerfJSON(webPerfResult{Status: "error", Message: fmt.Sprintf("failed to collect metrics: %v", eb.Wrap(err))})
 	}
 
 	// Parse the result via gson's JSON helper
@@ -240,6 +237,9 @@ func WebPerformanceAudit(ctx context.Context, rawURL string, viewport string) st
 	}
 	summary.WriteString(fmt.Sprintf("Resources=%d DOM=%d", metrics.ResourceCount, metrics.DOMElements))
 
+	if cause := eb.Err(); cause != nil {
+		return webPerfJSON(webPerfResult{Status: "error", Message: fmt.Sprintf("audit cut off: %v", cause)})
+	}
 	return webPerfJSON(webPerfResult{
 		Status:  "success",
 		Message: summary.String(),

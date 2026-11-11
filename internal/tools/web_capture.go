@@ -70,21 +70,28 @@ func WebCaptureWithWorkspace(ctx context.Context, operation, rawURL, selector st
 	}
 	defer root.Close()
 
-	browser, err := getSharedBrowser()
+	// A browser and a proxy per call: no shared browser, no cached launch failure.
+	eb, err := security.LaunchEgressBrowser(ctx, security.EgressBrowserOptions{Sandbox: true})
 	if err != nil {
 		return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("browser launch failed: %v", err)})
 	}
+	defer func() { _ = eb.Close() }()
 
-	page, err := security.OpenRodPageWithSSRF(browser, rawURL)
-	if err != nil {
-		return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("open page failed: %v", err)})
+	page, err := eb.Browser.Page(proto.TargetCreateTarget{})
+	if err == nil {
+		page = page.Context(ctx)
+		err = page.Navigate(rawURL)
 	}
-	page = page.Context(ctx)
-	defer page.Close()
+	if err != nil {
+		return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("open page failed: %v", eb.Wrap(err))})
+	}
 
 	if err := page.WaitLoad(); err != nil {
-		// non-fatal; continue with possibly partial page
-		_ = err
+		// non-fatal while the proxy is alive; with it gone the page is cut off,
+		// and the caller never gets partial content.
+		if cause := eb.Err(); cause != nil {
+			return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("page load failed: %v", cause)})
+		}
 	}
 
 	if selector != "" {
@@ -113,7 +120,10 @@ func WebCaptureWithWorkspace(ctx context.Context, operation, rawURL, selector st
 			})
 		}
 		if err != nil {
-			return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("screenshot failed: %v", err)})
+			return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("screenshot failed: %v", eb.Wrap(err))})
+		}
+		if cause := eb.Err(); cause != nil {
+			return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("capture cut off: %v", cause)})
 		}
 		if err := writeRootFromReaderAtomic(root, filename, strings.NewReader(string(screenshotBytes)), 0o640, false); err != nil {
 			return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("write file failed: %v", err)})
@@ -125,18 +135,24 @@ func WebCaptureWithWorkspace(ctx context.Context, operation, rawURL, selector st
 			PrintBackground: true,
 		})
 		if err != nil {
-			return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("pdf render failed: %v", err)})
+			return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("pdf render failed: %v", eb.Wrap(err))})
 		}
 		pdfBytes, err := io.ReadAll(io.LimitReader(pdfReader, 32*1024*1024+1))
 		if err != nil {
-			return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("read pdf stream failed: %v", err)})
+			return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("read pdf stream failed: %v", eb.Wrap(err))})
 		}
 		if len(pdfBytes) > 32*1024*1024 {
 			return encode(webCaptureResult{Status: "error", Message: "PDF exceeds 32 MiB limit"})
 		}
+		if cause := eb.Err(); cause != nil {
+			return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("capture cut off: %v", cause)})
+		}
 		if err := writeRootFromReaderAtomic(root, filename, strings.NewReader(string(pdfBytes)), 0o640, false); err != nil {
 			return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("write file failed: %v", err)})
 		}
+	}
+	if cause := eb.Err(); cause != nil {
+		return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("capture cut off: %v", cause)})
 	}
 	filename = filepath.Join(root.Name(), filename)
 

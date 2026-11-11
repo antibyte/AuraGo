@@ -5414,7 +5414,7 @@ registration lives in `internal/desktop/types.go`.
   `--proxy-bypass-list=<-loopback>`). The proxy dials only the local preview
   origin `127.0.0.1:<WebServerPort>` directly and checks every other destination
   with the SSRF rules. It caps 16 concurrent connections, 600 connections and
-  64 MiB per capture. `GuardRodPageSSRF` is unchanged. Captures use a
+  64 MiB per capture. The browser and the proxy come from `security.LaunchEgressBrowser`, which adds a path check and fail-closed handling. Captures use a
   desktop-style viewport at every width (`Mobile: false`). Keyboard: Tab and
   Shift+Tab step through `tabOrder`; Tab past the last element goes on to Path,
   Recapture and Done, Shift+Tab before the first element leaves the snapshot,

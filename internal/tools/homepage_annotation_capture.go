@@ -14,7 +14,6 @@ import (
 	"aurago/internal/security"
 
 	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 )
 
@@ -109,47 +108,19 @@ func CaptureHomepageAnnotationSnapshot(ctx context.Context, opts HomepageAnnotat
 	ctx, cancel := context.WithTimeout(ctx, homepageAnnotationTimeout)
 	defer cancel()
 
-	// Every byte the browser sends goes through this proxy, which refuses any
-	// destination but the allowed origin and public addresses. A CDP request
-	// hook sees only the page target; service workers, WebSockets and
-	// prerenders would slip past it.
-	proxy, err := security.StartCaptureProxy(opts.AllowedOrigin, security.CaptureProxyLimits{
-		MaxConcurrent: 16, MaxConnections: 600, MaxBytes: 64 << 20,
+	// Every byte the browser sends goes through the helper's proxy, which refuses
+	// any destination but the allowed origin and public addresses (loopback is
+	// reached through the proxy too). The loopback preview is the allowed origin.
+	eb, err := security.LaunchEgressBrowser(ctx, security.EgressBrowserOptions{
+		AllowedOrigin: opts.AllowedOrigin,
+		Bin:           opts.BrowserBin,
 	})
-	if err != nil {
-		return nil, homepageAnnotationError(ctx, ErrHomepageAnnotationBrowser, err)
-	}
-	defer func() { _ = proxy.Close() }()
-
-	l := launcher.New().Context(ctx).Headless(true).
-		// Chrome 156 ignores the force- spelling for STUN (verified: a page
-		// still sent UDP binding requests to loopback), so set both.
-		Set("force-webrtc-ip-handling-policy", "disable_non_proxied_udp").
-		Set("webrtc-ip-handling-policy", "disable_non_proxied_udp").
-		Proxy(proxy.Addr()).
-		// Chrome bypasses a proxy for loopback unless told otherwise; the
-		// preview itself lives on loopback.
-		Set("proxy-bypass-list", "<-loopback>")
-	if opts.BrowserBin != "" {
-		l = l.Bin(opts.BrowserBin)
-	}
-	controlURL, err := l.Launch()
 	if err != nil {
 		return nil, homepageAnnotationLaunchError(ctx, err)
 	}
-	defer func() { l.Kill(); l.Cleanup() }()
+	defer func() { _ = eb.Close() }()
 
-	browser := rod.New().Context(ctx).ControlURL(controlURL)
-	if err := browser.Connect(); err != nil {
-		return nil, homepageAnnotationError(ctx, ErrHomepageAnnotationBrowser, err)
-	}
-	defer func() {
-		closeCtx, closeCancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer closeCancel()
-		_ = browser.Context(closeCtx).Close()
-	}()
-
-	page, err := browser.Page(proto.TargetCreateTarget{})
+	page, err := eb.Browser.Page(proto.TargetCreateTarget{})
 	if err != nil {
 		return nil, homepageAnnotationError(ctx, ErrHomepageAnnotationBrowser, err)
 	}
@@ -193,6 +164,9 @@ func CaptureHomepageAnnotationSnapshot(ctx context.Context, opts HomepageAnnotat
 	})
 	if err != nil {
 		return nil, homepageAnnotationError(ctx, ErrHomepageAnnotationNavigation, err)
+	}
+	if cause := eb.Err(); cause != nil {
+		return nil, homepageAnnotationError(ctx, ErrHomepageAnnotationBrowser, cause)
 	}
 	return &HomepageAnnotationSnapshot{
 		URL:      opts.URL.String(),
