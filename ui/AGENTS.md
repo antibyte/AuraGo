@@ -30,6 +30,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 ## Ownership
 
+- Galaxy hover checks move the pointer off the button before the baseline and await both actual hover and the style transition. Do not use a fixed hover delay.
+
 - Chat question dialogs use the shared modal controller and session stop endpoint
   `/api/admin/stop` for Cancel/Escape. Keep failed answer/stop requests visible and
   retryable, trap focus in nested Desktop dialogs, and restore focus on completion.

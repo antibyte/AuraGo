@@ -523,28 +523,58 @@ func TestDesktopAuraDriftGTAOShadowReuseBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	page := auraDriftFixture(t)
 	requireWebGL2(t, page)
-	auraDriftReopen(page, map[string]interface{}{"quality": "ultra"}, "")
+	page.MustEval(`()=>localStorage.setItem('aurago.desktop.aura-drift.v1',JSON.stringify({quality:'ultra',volume:0,muted:true,reducedMotion:false,weapons:true,showGhost:false}))`)
+	page.MustReload().MustWaitLoad()
+	page.MustEval(`async()=>{await fixtureReady;await AuraDesktopModules.loadAppAssets('aura-drift');}`)
+	// Instrument before opening: the title screen already builds the composer.
 	page.MustEval(`()=>{
-        window.__gtaoShadowUpdates=[];
-        const p=AuraDriftThree.GTAOPass.prototype, render=p.render;
-        p.render=function(renderer,...args){
+        window.__gtaoShadowUpdates=[];window.__gtaoInitialized=0;window.__gtaoBeauty=0;window.__gtaoDirect=0;
+        const T=AuraDriftThree, Original=T.GTAOPass;
+        const update=Original.prototype.updateGtaoMaterial;
+        Original.prototype.updateGtaoMaterial=function(...args){const result=update.apply(this,args);window.__gtaoInitialized++;return result;};
+        const beauty=T.RenderPass.prototype.render;
+        T.RenderPass.prototype.render=function(...args){window.__gtaoBeauty++;window.__gtaoInBeauty=true;try{return beauty.apply(this,args);}finally{window.__gtaoInBeauty=false;}};
+        const render=Original.prototype.render;
+        Original.prototype.render=function(renderer,...args){
             window.__gtaoShadowMap=renderer.shadowMap;
-            window.__gtaoShadowUpdates.push(renderer.shadowMap.autoUpdate);
+            if(!renderer.__gtaoObserved){const direct=renderer.render;renderer.render=function(...args){if(window.__gtaoFail&&!window.__gtaoInBeauty)window.__gtaoDirect++;return direct.apply(this,args);};renderer.__gtaoObserved=true;}
+            window.__gtaoShadowUpdates.push({auto:renderer.shadowMap.autoUpdate,beauty:window.__gtaoBeauty});
             if(window.__gtaoFail)throw new Error('injected GTAO failure');
             return render.call(this,renderer,...args);
         };
     }`)
+	page.MustEval(`async()=>{await fixtureOpen('aura-drift');}`)
 	page.MustEval(`async()=>{await AuraDriftApp.debug.start({mode:'time_trial',trackId:'alpenpass',laps:1});}`)
+	page.Timeout(20 * time.Second).MustWait(`()=>__gtaoInitialized>0&&AuraDriftApp.stats()[0].post.enabled`)
+	t.Run("initialization", func(t *testing.T) {
+		if !page.MustEval(`()=>__gtaoInitialized>0&&AuraDriftApp.stats()[0].post.enabled`).Bool() {
+			t.Fatal("Ultra did not initialize GTAO")
+		}
+	})
 	auraDriftSkipCountdown(t, page)
 	auraDriftDrive(page, 0.1)
-	if !page.MustEval(`()=>__gtaoShadowUpdates.length>0&&__gtaoShadowUpdates.every(x=>x===false)&&__gtaoShadowMap.autoUpdate===true&&AuraDriftApp.stats()[0].post.enabled`).Bool() {
-		t.Fatal("GTAO must reuse the rendered shadows and restore automatic updates")
-	}
-	page.MustEval(`()=>{window.__gtaoFail=true;}`)
-	auraDriftDrive(page, 0.1)
-	if !page.MustEval(`()=>__gtaoShadowMap.autoUpdate===true&&!AuraDriftApp.stats()[0].post.enabled`).Bool() {
-		t.Fatal("GTAO failure must restore shadow updates before the direct-render fallback")
-	}
+	t.Run("render after beauty and reuse", func(t *testing.T) {
+		if !page.MustEval(`()=>__gtaoShadowUpdates.length>0&&__gtaoShadowUpdates.every((x,i,a)=>x.auto===false&&x.beauty>0&&(i===0||x.beauty>a[i-1].beauty))`).Bool() {
+			t.Fatal("GTAO did not render after beauty with shadow updates suppressed")
+		}
+	})
+	t.Run("restore after success", func(t *testing.T) {
+		if !page.MustEval(`()=>__gtaoShadowMap.autoUpdate===true`).Bool() {
+			t.Fatal("lost enabled shadow updates")
+		}
+		page.MustEval(`()=>{__gtaoShadowMap.autoUpdate=false;}`)
+		auraDriftDrive(page, 0.1)
+		if !page.MustEval(`()=>__gtaoShadowMap.autoUpdate===false&&AuraDriftApp.stats()[0].post.enabled`).Bool() {
+			t.Fatal("lost disabled shadow updates")
+		}
+	})
+	t.Run("restore after failure and direct fallback", func(t *testing.T) {
+		page.MustEval(`()=>{window.__gtaoFail=true;}`)
+		auraDriftDrive(page, 0.1)
+		if !page.MustEval(`()=>__gtaoShadowMap.autoUpdate===false&&!AuraDriftApp.stats()[0].post.enabled&&__gtaoDirect>0`).Bool() {
+			t.Fatal("GTAO failure did not restore the previous state and render directly")
+		}
+	})
 	auraDriftNoErrors(t, page)
 }
 

@@ -214,7 +214,7 @@ func storymakerTour(t *testing.T, fixture storymakerBackend) {
 	storymakerClick(t, page, `[data-stm="tab"][data-tab="code"]`)
 	storymakerWait(t, page, `()=>!!document.querySelector('[data-stm="code-editor"] .cm-editor') && document.querySelector('[data-stm="code-editor"] .cm-content').textContent.includes('storymaker/1')`)
 	storymakerEditorReplace(page, `"variant": "day"`, `"variant": "dusk"`)
-	storymakerWait(t, page, `()=>document.querySelector('[data-stm="code-state"]')?.dataset.state==='dirty'`)
+	storymakerWait(t, page, `()=>document.querySelector('[data-stm="code-state"]')?.dataset.state==='dirty' && !document.querySelector('[data-stm="code-save"]').disabled`)
 	storymakerClick(t, page, `[data-stm="code-save"]`)
 	storymakerWait(t, page, `()=>document.querySelector('[data-stm="code-problems"]')?.dataset.count!=='0' && !!document.querySelector('[data-stm="code-editor"] .cm-lint-marker')`)
 	if !strings.Contains(storymakerText(page, `[data-stm="code-problems"]`), "Invalid value") {
@@ -224,6 +224,7 @@ func storymakerTour(t *testing.T, fixture storymakerBackend) {
 	storymakerNoErrors(t, page)
 	// Put it right again and save: the server's story comes back into the editor and the problem list is empty.
 	storymakerEditorReplace(page, `"variant": "dusk"`, `"variant": "night"`)
+	storymakerWait(t, page, `()=>document.querySelector('[data-stm="code-state"]')?.dataset.state==='dirty' && !document.querySelector('[data-stm="code-save"]').disabled`)
 	storymakerClick(t, page, `[data-stm="code-save"]`)
 	storymakerWait(t, page, `()=>document.querySelector('[data-stm="code-problems"]')?.dataset.count==='0' && document.querySelector('[data-stm="code-state"]')?.dataset.state==='saved'`)
 	story, _ = fixture.storedStory(id)
@@ -312,7 +313,7 @@ func storymakerTour(t *testing.T, fixture storymakerBackend) {
 	page.MustEval(setSelect, `[data-stm="transition"]`, "fade")
 	page.MustEval(`()=>window.stmSeekWhileCompiling`)
 	storymakerWait(t, page, `()=>document.querySelector('[data-stm="stage-note"]').hidden && (()=>{const s=document.querySelector('[data-stm="scrubber"]');return s.getAttribute('aria-valuenow')===s.getAttribute('aria-valuemax')&&s.getAttribute('aria-valuemax')!=='0'})()`)
-	time.Sleep(700 * time.Millisecond) // a late answer of the host must not move the playhead back
+	storymakerWait(t, page, `()=>{const s=document.querySelector('[data-stm="scrubber"]'),f=window.stmHostFrames;return f.length>0&&String(f[f.length-1])===s.getAttribute('aria-valuemax')}`)
 	if !page.MustEval(`()=>{const s=document.querySelector('[data-stm="scrubber"]');return s.getAttribute('aria-valuenow')===s.getAttribute('aria-valuemax')}`).Bool() {
 		t.Fatal("the playhead left the end after the preview reloaded")
 	}

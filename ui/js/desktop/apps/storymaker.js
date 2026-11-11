@@ -801,6 +801,7 @@
 
     async function runSave(inst) {
         if (inst.readonly || inst.conflict) return false;
+        const projectId = inst.projectId, generation = inst.openSeq;
         do {
             inst.saveAgain = false;
             if (!inst.dirty) break;
@@ -809,8 +810,8 @@
             const sent = inst.story;
             const text = JSON.stringify(sent);
             try {
-                const result = await inst.api.saveStory(inst.projectId, text, inst.etag);
-                if (inst.disposed) return false;
+                const result = await inst.api.saveStory(projectId, text, inst.etag);
+                if (inst.disposed || inst.projectId !== projectId || inst.openSeq !== generation) return false;
                 inst.etag = result.etag || inst.etag;
                 inst.issues = Array.isArray(result.issues) ? result.issues : [];
                 inst.draftIssues = [];
@@ -823,7 +824,7 @@
                 inst.saveState = 'saved';
                 afterStorySaved(inst);
             } catch (err) {
-                if (inst.disposed || (err && err.aborted)) return false;
+                if (inst.disposed || inst.projectId !== projectId || inst.openSeq !== generation || (err && err.aborted)) return false;
                 handleSaveError(inst, err);
                 return false;
             }
@@ -863,21 +864,23 @@
     }
 
     async function saveStoryText(inst, text) {
-        await flushEdits(inst);
-        if (inst.conflict) return { ok: false };
+        const projectId = inst.projectId, generation = inst.openSeq;
+        if (!await flushEdits(inst) || inst.disposed || inst.projectId !== projectId || inst.openSeq !== generation) return { ok: false, cancelled: true };
+        const previous = inst.story;
         try {
-            const result = await inst.api.saveStory(inst.projectId, text, inst.etag);
+            const result = await inst.api.saveStory(projectId, text, inst.etag);
+            if (inst.disposed || inst.projectId !== projectId || inst.openSeq !== generation) return { ok: false, cancelled: true };
             inst.etag = result.etag || inst.etag;
-            inst.story = result.story || inst.story;
+            if (inst.story === previous) { inst.story = result.story || inst.story; inst.dirty = false; }
             inst.issues = Array.isArray(result.issues) ? result.issues : [];
             inst.draftIssues = [];
-            inst.dirty = false;
             inst.saveState = 'saved';
             inst.catalogMismatch = false;
             afterStorySaved(inst);
             notify(inst, inst.t('storymaker.code.saved'));
-            return { ok: true };
+            return { ok: true, text: result.story ? S.model.canonicalText(result.story) : text };
         } catch (err) {
+            if (inst.disposed || inst.projectId !== projectId || inst.openSeq !== generation) return { ok: false, cancelled: true };
             const e = S.errors.normalize(err);
             if (e.status === 422) {
                 inst.draftIssues = e.issues;
@@ -891,7 +894,9 @@
     }
 
     async function saveCodeScene(inst, sceneId, text, etag) {
-        const result = await inst.api.putCode(inst.projectId, sceneId, text, etag);
+        const projectId = inst.projectId, generation = inst.openSeq;
+        const result = await inst.api.putCode(projectId, sceneId, text, etag);
+        if (inst.disposed || inst.projectId !== projectId || inst.openSeq !== generation) return { ok: false, cancelled: true };
         const entry = { scene_id: sceneId, ok: !!result.ok, errors: Array.isArray(result.errors) ? result.errors : [] };
         inst.codeStatus = inst.codeStatus.filter(item => item.scene_id !== sceneId).concat([entry]);
         refreshIssues(inst);
@@ -901,9 +906,10 @@
     }
 
     async function refreshIssues(inst) {
+        const projectId = inst.projectId, generation = inst.openSeq;
         try {
-            const data = await inst.api.getProject(inst.projectId);
-            if (inst.disposed || !inst.story) return;
+            const data = await inst.api.getProject(projectId);
+            if (inst.disposed || inst.projectId !== projectId || inst.openSeq !== generation || !inst.story) return;
             inst.issues = Array.isArray(data.issues) ? data.issues : inst.issues;
             inst.codeStatus = Array.isArray(data.code_scenes) ? data.code_scenes : inst.codeStatus;
             inst.bus.emit('issues');
@@ -911,9 +917,10 @@
     }
 
     async function reloadProject(inst) {
+        const projectId = inst.projectId, generation = inst.openSeq;
         try {
-            const data = await inst.api.getProject(inst.projectId);
-            if (inst.disposed) return;
+            const data = await inst.api.getProject(projectId);
+            if (inst.disposed || inst.projectId !== projectId || inst.openSeq !== generation) return;
             inst.story = data.story;
             inst.etag = data.etag || '';
             inst.issues = Array.isArray(data.issues) ? data.issues : [];
@@ -932,22 +939,23 @@
             paintBanners(inst);
             afterStorySaved(inst);
         } catch (err) {
-            if (!inst.disposed && !(err && err.aborted)) notify(inst, S.errors.describe(inst.t, err), 'error');
+            if (!inst.disposed && inst.projectId === projectId && inst.openSeq === generation && !(err && err.aborted)) notify(inst, S.errors.describe(inst.t, err), 'error');
         }
     }
 
     // Keep my version: take the etag of the stored story and save mine over it.
     async function overwrite(inst) {
+        const projectId = inst.projectId, generation = inst.openSeq;
         try {
-            const data = await inst.api.getProject(inst.projectId);
-            if (inst.disposed) return;
+            const data = await inst.api.getProject(projectId);
+            if (inst.disposed || inst.projectId !== projectId || inst.openSeq !== generation) return;
             inst.etag = data.etag || '';
             inst.conflict = false;
             inst.dirty = true;
             paintBanners(inst);
             await saveNow(inst);
         } catch (err) {
-            if (!inst.disposed && !(err && err.aborted)) notify(inst, S.errors.describe(inst.t, err), 'error');
+            if (!inst.disposed && inst.projectId === projectId && inst.openSeq === generation && !(err && err.aborted)) notify(inst, S.errors.describe(inst.t, err), 'error');
         }
     }
 

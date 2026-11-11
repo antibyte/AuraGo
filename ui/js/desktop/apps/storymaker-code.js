@@ -400,31 +400,34 @@
             busy = true;
             paintState();
             const sent = file.text;
+            const projectId = inst.projectId;
             try {
                 if (file.kind === 'story') {
                     const result = await inst.saveStoryText(sent);
+                    if (disposed || inst.projectId !== projectId || result.cancelled) return false;
                     if (result.ok) {
                         staleMarks = false;
-                        file.text = storyText();
-                        file.base = file.text;
+                        file.base = typeof result.text === 'string' ? result.text : sent;
+                        if (file.text === sent) file.text = file.base;
+                        staleMarks = isDirty(file);
                         if (fileFor(current) === file && editor && editor.getText() === sent) editor.setText(file.text);
                     } else {
-                        staleMarks = false;
+                        staleMarks = file.text !== sent;
                     }
                 } else {
                     const result = await inst.saveCodeScene(file.sceneId, sent, file.isNew ? null : file.etag);
+                    if (disposed || inst.projectId !== projectId || result.cancelled) return false;
                     file.etag = result.etag || file.etag;
                     file.base = sent;
                     file.isNew = false;
                     file.errors = result.ok ? [] : (Array.isArray(result.errors) ? result.errors : []);
-                    staleMarks = false;
+                    staleMarks = isDirty(file);
                 }
             } catch (err) {
-                inst.notify(S.errors.describe(t, err), 'error');
+                if (!disposed && inst.projectId === projectId) inst.notify(S.errors.describe(t, err), 'error');
             } finally {
                 busy = false;
-                paintState();
-                paintProblems();
+                if (!disposed && inst.projectId === projectId) { paintState(); paintProblems(); }
             }
             return true;
         }
@@ -444,7 +447,7 @@
             // a save elsewhere changed the story: an untouched story.json follows, a draft stays
             storyChanged() {
                 const file = fileFor('story');
-                if (file.loaded && !isDirty(file)) { file.text = storyText(); file.base = file.text; if (editor && current === 'story' && root.dataset.visible === 'true') editor.setText(file.text); }
+                if (file.loaded && !busy && !isDirty(file)) { file.text = storyText(); file.base = file.text; if (editor && current === 'story' && root.dataset.visible === 'true') editor.setText(file.text); }
                 paintFiles();
             },
             // put the caret on the field an issue names (story.json must be the open file)
