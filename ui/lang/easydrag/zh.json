@@ -905,6 +905,7 @@
   "easydrag.ui.test_remember": "记住这些数据以供之后测试",
   "easydrag.ui.test_run": "运行测试",
   "easydrag.ui.test_title": "测试流程",
+  "easydrag.ui.test_mode": "测试模式",
   "easydrag.ui.test_trigger": "起始触发器",
   "easydrag.ui.test_unsaved": "草稿未能保存，因此暂时无法测试。",
   "easydrag.ui.timers_stopped_text": "AuraGo 无法启动流程存储，并会持续重试。在此之前，“日期和时间”触发器不会触发。详细信息请查看 AuraGo 日志。",

@@ -196,7 +196,7 @@
             dialog.body.querySelector('[data-ed-test-data]').value = shown;
             if (ED.testing && ed.api.simulate) simulation = ED.testing.decorate(ed, dialog, {
                 trigger: () => { const select = dialog.body.querySelector('[data-ed-test-trigger]'); return select ? select.value : trigger.id; },
-                onlyNode: o.onlyNode, revision: baseRevision,
+                onlyNode: o.onlyNode, revision: baseRevision, real: () => real,
                 isCurrent: () => !rc.disposed && !ed.runView && ed.model.version === version,
                 apply: (result, data) => {
                     const record = { id: 'simulation', mode: 'simulation', revision: result.revision, status: result.status, error_code: result.error_code, error_message: result.error_message, assertions: result.assertions, started_at: result.started_at || new Date().toISOString(), trigger_node: dialog.body.querySelector('[data-ed-test-trigger]') ? dialog.body.querySelector('[data-ed-test-trigger]').value : trigger.id, trigger_data: data };
@@ -210,6 +210,16 @@
                     canvas.announce(t('easydrag.ui.simulation_result'));
                 }
             });
+            // Enter never starts a real test. core.modal has no form and only type="button"
+            // buttons, so the one Enter path is a focused button's activation; while the mode is
+            // real, Enter does nothing in this dialog except a new line in the sample text. A run
+            // starts from a click or Space on the run button.
+            dialog.el.addEventListener('keydown', event => {
+                if (event.key !== 'Enter' || (event.target && event.target.tagName === 'TEXTAREA')) return;
+                if (simulation && simulation.isSelected()) return;
+                event.preventDefault();
+                event.stopPropagation();
+            }, true);
             // showChecks shows the hint and the effects for a trigger again (another trigger, a newer
             // check); the "don't ask again" tick stays as it was.
             function showChecks(body, id) {

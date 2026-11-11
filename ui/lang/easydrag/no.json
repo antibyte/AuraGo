@@ -905,6 +905,7 @@
   "easydrag.ui.test_remember": "Husk disse dataene til senere tester",
   "easydrag.ui.test_run": "Kjør test",
   "easydrag.ui.test_title": "Test flyten",
+  "easydrag.ui.test_mode": "Testmodus",
   "easydrag.ui.test_trigger": "Start fra",
   "easydrag.ui.test_unsaved": "Utkastet kunne ikke lagres og kan derfor ikke testes ennå.",
   "easydrag.ui.timers_stopped_text": "AuraGo kunne ikke starte flyt-lageret og prøver fortsatt. Inntil videre utløses ikke utløsere av typen «Dato og klokkeslett». Detaljene står i AuraGo-loggen.",

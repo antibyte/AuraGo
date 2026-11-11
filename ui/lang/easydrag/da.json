@@ -905,6 +905,7 @@
   "easydrag.ui.test_remember": "Husk disse data til senere test",
   "easydrag.ui.test_run": "Kør test",
   "easydrag.ui.test_title": "Test flowet",
+  "easydrag.ui.test_mode": "Testtilstand",
   "easydrag.ui.test_trigger": "Start fra",
   "easydrag.ui.test_unsaved": "Kladden kunne ikke gemmes og kan derfor ikke testes endnu.",
   "easydrag.ui.timers_stopped_text": "AuraGo kunne ikke starte flow-lageret og prøver igen. Indtil da udløses triggere af typen „Dato og tid“ ikke. Detaljerne står i AuraGo-loggen.",

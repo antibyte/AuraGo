@@ -91,6 +91,19 @@
         });
     }
 
+    // Service.Simulate refuses a draft with a durable step (internal/flows/simulation.go,
+    // ErrDurableInvalidGraph), so such a flow keeps the real test and its effect confirmation.
+    const DURABLE_TYPES = new Set(['logic.durable_wait', 'logic.durable_approval']);
+    let modeIds = 0;
+
+    // simulationDefault: a test whose steps have outward effects, named (catalog or publish
+    // preview, see effects) or unknown (a risky step without named effects), opens in
+    // Simulation. A flow without effects, or with a durable step, opens as a real test.
+    function simulationDefault(ed, onlyNode, triggerId, real) {
+        if (ed.model.doc.nodes.some(n => DURABLE_TYPES.has(n.type))) return false;
+        return effects(ed, onlyNode, triggerId, real).size > 0 || unknownEffects(ed, onlyNode, triggerId);
+    }
+
 
     function parseSample(text) {
         if (typeof text !== 'string' || text.length > MAX_SAMPLE) throw new Error('sample');
@@ -114,7 +127,9 @@
         const core = ED.core, { t, esc } = ed;
         let busy = false, closed = false;
         const controller = new AbortController();
-        const mode = core.el('<label class="ed-label">' + esc(t('easydrag.ui.test_title')) + '<select class="ed-input" data-ed-test-mode><option value="real">' + esc(t('easydrag.ui.real_test')) + '</option><option value="simulation">' + esc(t('easydrag.ui.simulation_title')) + '</option></select></label>');
+        // The select is named by its own label only (an embedded select would add its option text).
+        const modeLabel = 'ed-test-mode-' + (++modeIds);
+        const mode = core.el('<label class="ed-label"><span id="' + modeLabel + '">' + esc(t('easydrag.ui.test_mode')) + '</span><select class="ed-input" data-ed-test-mode aria-labelledby="' + modeLabel + '"><option value="real">' + esc(t('easydrag.ui.real_test')) + '</option><option value="simulation">' + esc(t('easydrag.ui.simulation_title')) + '</option></select></label>');
         const panel = core.el('<section class="ed-simulation-fields" hidden><p class="ed-callout">' + esc(t('easydrag.ui.simulation_hint')) + '</p><details class="ed-details" data-ed-fixtures-advanced><summary>' + esc(t('easydrag.ui.simulation_fixtures')) + '</summary><label class="ed-label">' + esc(t('easydrag.ui.simulation_fixtures')) + '<textarea class="ed-input ed-code" spellcheck="false" rows="7" data-ed-simulation-fixtures>{}</textarea></label><p class="ed-hint">' + esc(t('easydrag.ui.simulation_fixture_hint')) + '</p><ul class="ed-simulation-nodes">' + ed.model.doc.nodes.filter(n => !(ed.model.info(n.type) || {}).trigger).map(n => '<li><strong>' + esc(n.label || n.type) + '</strong> <code>' + esc(n.id) + '</code></li>').join('') + '</ul></details></section>');
         panel.querySelector('textarea').value = '{}';
         dialog.body.insertBefore(mode, dialog.body.firstChild);
@@ -134,6 +149,10 @@
         }
         if (ED.scenarios && ed.api.scenarios) scenarios = ED.scenarios.create(ed, dialog, Object.assign({}, env, { panel, mode: select, fixtures: panel.querySelector('textarea'), syncMode }));
         select.addEventListener('change', syncMode);
+        // A test of steps with outward effects opens in Simulation (UX-07). The scope is the
+        // one openTest checks: the tested step (env.onlyNode) and the chosen trigger.
+        const triggerNow = typeof env.trigger === 'function' ? env.trigger() : undefined;
+        if (simulationDefault(ed, env.onlyNode, triggerNow, typeof env.real === 'function' ? env.real() : null)) { select.value = 'simulation'; syncMode(); }
         dialog.done.then(() => { closed = true; controller.abort(); });
         return {
             isSelected: () => select.value === 'simulation',
@@ -245,5 +264,5 @@
         bag.add(ed.bus.on('run', render));
         return { dispose() { bag.dispose(); el.remove(); } };
     }
-    ED.testing = { decorate, createResults, parseSample, contentResult, triggers, realEffects, effects, unknownEffects };
+    ED.testing = { decorate, createResults, parseSample, contentResult, triggers, realEffects, effects, unknownEffects, simulationDefault };
 })();

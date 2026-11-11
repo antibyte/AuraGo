@@ -905,6 +905,7 @@
   "easydrag.ui.test_remember": "Zapamatovat si tato data pro další testy",
   "easydrag.ui.test_run": "Spustit test",
   "easydrag.ui.test_title": "Otestovat tok",
+  "easydrag.ui.test_mode": "Režim testu",
   "easydrag.ui.test_trigger": "Začít spouštěčem",
   "easydrag.ui.test_unsaved": "Koncept se nepodařilo uložit, a proto ho zatím nejde otestovat.",
   "easydrag.ui.timers_stopped_text": "AuraGo nemohlo spustit úložiště flow a zkouší to dál. Do té doby se spouštěče „Datum a čas“ nespouštějí. Podrobnosti jsou v logu AuraGo.",

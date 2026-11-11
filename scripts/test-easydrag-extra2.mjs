@@ -518,6 +518,7 @@ export async function run(env) {
         const one = await runs.startTest({ onlyNode: A });
         const oneHtml = html(one);
         one.body.querySelector('[data-ed-effects-skip]').checked = true;
+        { const m = one.body.querySelector('[data-ed-test-mode]'); if (m) { m.value = 'real'; m.fire('change'); } }
         one.el.querySelector('[data-ed-action="run"]').fire('click');
         await settle();
         runs.clearRun();

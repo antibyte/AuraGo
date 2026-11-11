@@ -905,6 +905,7 @@
   "easydrag.ui.test_remember": "बाद के टेस्ट के लिए यह डेटा याद रखें",
   "easydrag.ui.test_run": "टेस्ट चलाएँ",
   "easydrag.ui.test_title": "फ़्लो टेस्ट करें",
+  "easydrag.ui.test_mode": "परीक्षण मोड",
   "easydrag.ui.test_trigger": "शुरुआती ट्रिगर",
   "easydrag.ui.test_unsaved": "ड्राफ़्ट सहेजा नहीं जा सका, इसलिए अभी टेस्ट नहीं किया जा सकता।",
   "easydrag.ui.timers_stopped_text": "AuraGo फ़्लो स्टोर शुरू नहीं कर सका और कोशिश करता रहता है। तब तक «दिनांक और समय» ट्रिगर नहीं चलते। ब्योरा AuraGo लॉग में है।",

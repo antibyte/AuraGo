@@ -905,6 +905,7 @@
   "easydrag.ui.test_remember": "Remember this data for later tests",
   "easydrag.ui.test_run": "Run test",
   "easydrag.ui.test_title": "Test flow",
+  "easydrag.ui.test_mode": "Test mode",
   "easydrag.ui.test_trigger": "Start from",
   "easydrag.ui.test_unsaved": "The draft could not be saved, so it cannot be tested yet.",
   "easydrag.ui.timers_stopped_text": "AuraGo could not start the flow store and keeps trying. Until then, Date & time triggers do not fire. The AuraGo log has the details.",

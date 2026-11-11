@@ -905,6 +905,7 @@
   "easydrag.ui.test_remember": "Diese Daten für spätere Tests merken",
   "easydrag.ui.test_run": "Test starten",
   "easydrag.ui.test_title": "Flow testen",
+  "easydrag.ui.test_mode": "Testart",
   "easydrag.ui.test_trigger": "Starten mit",
   "easydrag.ui.test_unsaved": "Der Entwurf konnte nicht gespeichert werden und lässt sich deshalb noch nicht testen.",
   "easydrag.ui.timers_stopped_text": "AuraGo konnte den Flow-Speicher nicht starten und versucht es weiter. Bis dahin lösen Auslöser „Datum & Uhrzeit“ nicht aus. Details stehen im AuraGo-Log.",

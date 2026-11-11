@@ -18,6 +18,8 @@ func TestDesktopEasyDragBoundaryRegressionsBrowser(t *testing.T) {
 	p.MustEval(`()=>{edFixture.state.delay=2500;edFixture.state.malformedSnapshotOnce=true;edFixture.state.malformedSSEAfter=1;edFixture.state.malformedSSESent=false}`)
 	p.MustElement(`[data-ed-cmd="test"]`).MustClick()
 	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-action="run"]')`)
+	// The flow has effects, so Test opens in Simulation; this journey runs the real test.
+	p.MustEval(`()=>{const s=document.querySelector('.ed-modal [data-ed-test-mode]');s.value='real';s.dispatchEvent(new Event('change',{bubbles:true}));}`)
 	p.MustElement(`.ed-modal [data-ed-action="run"]`).MustClick()
 	s.wait(`()=>edFixture.editor()?.run?.status==='success'`)
 	s.wait(`()=>edFixture.state.streams.some(stream=>/[?&]after=1(?:&|$)/.test(stream.url))`)

@@ -905,6 +905,7 @@
   "easydrag.ui.test_remember": "Mémoriser ces données pour les prochains tests",
   "easydrag.ui.test_run": "Lancer le test",
   "easydrag.ui.test_title": "Tester le flux",
+  "easydrag.ui.test_mode": "Mode de test",
   "easydrag.ui.test_trigger": "Démarrer depuis",
   "easydrag.ui.test_unsaved": "Le brouillon n’a pas pu être enregistré et ne peut donc pas encore être testé.",
   "easydrag.ui.timers_stopped_text": "AuraGo n’a pas pu démarrer le stockage des flows et continue d’essayer. D’ici là, les déclencheurs « Date et heure » ne se déclenchent pas. Le journal d’AuraGo contient les détails.",

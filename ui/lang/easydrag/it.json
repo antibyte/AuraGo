@@ -905,6 +905,7 @@
   "easydrag.ui.test_remember": "Ricorda questi dati per le prove successive",
   "easydrag.ui.test_run": "Avvia prova",
   "easydrag.ui.test_title": "Prova flusso",
+  "easydrag.ui.test_mode": "Modalità di test",
   "easydrag.ui.test_trigger": "Avvia da",
   "easydrag.ui.test_unsaved": "Non è stato possibile salvare la bozza, quindi non può ancora essere provata.",
   "easydrag.ui.timers_stopped_text": "AuraGo non è riuscito ad avviare l’archivio dei flow e continua a provare. Fino ad allora i trigger «Data e ora» non scattano. I dettagli sono nel log di AuraGo.",

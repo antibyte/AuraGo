@@ -161,6 +161,8 @@ export async function run(env) {
         select.fire('change');
         await settle();
         const other = [effectKeys(step), h.ED.runs.effects(h.ed, PDF, T2).get('sends_message'), step.body.querySelector('[data-ed-effects-skip]').checked];
+        const stepMode = step.body.querySelector('[data-ed-test-mode]');
+        if (stepMode) { stepMode.value = 'real'; stepMode.fire('change'); }
         step.el.querySelector('[data-ed-action="run"]').fire('click');
         await settle();
         const posted = h.requests.filter(r => r.url === '/api/desktop/flows/f1/test').map(r => [r.body.trigger_node, r.body.only_node]);
@@ -228,9 +230,11 @@ export async function run(env) {
         const ea = editedHarness();
         const edited = await ea.ED.runs.create(ea.ed, ea.canvas).startTest({ onlyNode: PDF, triggerNode: T1 });
         const beforeRun = effectKeys(edited);
+        { const m = edited.body.querySelector('[data-ed-test-mode]'); if (m) { m.value = 'real'; m.fire('change'); } }
         edited.el.querySelector('[data-ed-action="run"]').fire('click');
         await settle();
         const afterFirst = [effectKeys(edited), ea.tests(), ea.previews(), ea.flushes, !!ea.top()];
+        { const m = edited.body.querySelector('[data-ed-test-mode]'); if (m) { m.value = 'real'; m.fire('change'); } }
         edited.el.querySelector('[data-ed-action="run"]').fire('click');
         await settle();
         const eb = editedHarness();

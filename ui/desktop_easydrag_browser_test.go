@@ -139,6 +139,8 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-action="run"]') && document.querySelectorAll('.ed-modal .ed-callout--warn .ed-effects li').length===2`)
 	s.shot("test-dialog")
 	s.noRawKeys("test dialog")
+	// The flow sends a message, so Test opens in Simulation; this journey runs the real test.
+	page.MustEval(`()=>{const s=document.querySelector('.ed-modal [data-ed-test-mode]');s.value='real';s.dispatchEvent(new Event('change',{bubbles:true}));}`)
 	page.MustEval(`()=>{edFixture.state.delay=450;edFixture.state.resyncAfter=3}`)
 	page.MustElement(`.ed-modal [data-ed-action="run"]`).MustClick()
 	s.wait(`()=>{const c=edFixture.editor().effectsConfirmed;return c instanceof Set && c.has('writes_files') && c.has('sends_message')}`)
@@ -663,6 +665,8 @@ func (s *easyDragSmoke) failingRun() {
 	s.fit()
 	page.KeyActions().Press(input.ControlLeft).Type(input.Enter).MustDo()
 	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-action="run"]') && !document.querySelector('.ed-modal .ed-callout--warn')`)
+	// The flow sends a message, so Test opens in Simulation; this journey runs the real test.
+	page.MustEval(`()=>{const s=document.querySelector('.ed-modal [data-ed-test-mode]');s.value='real';s.dispatchEvent(new Event('change',{bubbles:true}));}`)
 	page.MustElement(`.ed-modal [data-ed-action="run"]`).MustClick()
 	s.wait(`()=>{const ed=edFixture.editor();return !!ed.run && ed.run.status==='error' && document.querySelectorAll('.ed-node.status-error').length===1 && document.querySelectorAll('.ed-node.status-success').length===4 && !!document.querySelector('.ed-node-error')}`)
 	page.MustEval(`()=>{edFixture.state.failType='';const ed=edFixture.editor();ed.bus.emit('focus-node',ed.model.doc.nodes.find(n=>n.key==='ki').id);}`)

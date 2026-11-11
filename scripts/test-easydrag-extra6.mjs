@@ -91,6 +91,7 @@ export async function run(env) {
         const first = await openTest(h, editor);
         // "Don't ask again" is ticked: a stored confirmation would outlive this window.
         first.dialog.body.querySelector('[data-ed-effects-skip]').checked = true;
+        { const m = first.dialog.body.querySelector('[data-ed-test-mode]'); if (m) { m.value = 'real'; m.fire('change'); } }
         const runBtn = first.dialog.el.querySelector('[data-ed-action="run"]');
         const rows = [];
         for (const name of ['409 FLOW_INVALID', '500']) {
@@ -107,6 +108,7 @@ export async function run(env) {
         fail = false;
         const skip = again.dialog.body.querySelector('[data-ed-effects-skip]');
         if (skip) skip.checked = true;
+        { const m = again.dialog.body.querySelector('[data-ed-test-mode]'); if (m) { m.value = 'real'; m.fire('change'); } }
         again.dialog.el.querySelector('[data-ed-action="run"]').fire('click');
         await settle();
         const tests = h.requests.filter(r => r.method === 'POST' && r.url === '/api/desktop/flows/f1/test').length;
@@ -571,6 +573,7 @@ export async function run(env) {
         editor.el.querySelector('[data-ed-cmd="test"]').fire('click');
         await settle();
         const dialog = h.dialogs[h.dialogs.length - 1];
+        { const m = dialog.body.querySelector('[data-ed-test-mode]'); if (m) { m.value = 'real'; m.fire('change'); } }
         const runBtn = dialog.el.querySelector('[data-ed-action="run"]');
         runBtn.fire('click');
         runBtn.fire('click');

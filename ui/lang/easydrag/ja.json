@@ -905,6 +905,7 @@
   "easydrag.ui.test_remember": "このデータを次回以降のテスト用に保存",
   "easydrag.ui.test_run": "テストを実行",
   "easydrag.ui.test_title": "フローをテスト",
+  "easydrag.ui.test_mode": "テストモード",
   "easydrag.ui.test_trigger": "開始するトリガー",
   "easydrag.ui.test_unsaved": "下書きを保存できなかったため、まだテストできません。",
   "easydrag.ui.timers_stopped_text": "AuraGo はフローストアを起動できず、再試行を続けています。それまでの間、「日付と時刻」トリガーは実行されません。詳細は AuraGo のログにあります。",

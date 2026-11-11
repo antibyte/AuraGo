@@ -905,6 +905,7 @@
   "easydrag.ui.test_remember": "Recordar estos datos para próximas pruebas",
   "easydrag.ui.test_run": "Ejecutar prueba",
   "easydrag.ui.test_title": "Probar flujo",
+  "easydrag.ui.test_mode": "Modo de prueba",
   "easydrag.ui.test_trigger": "Iniciar desde",
   "easydrag.ui.test_unsaved": "No se pudo guardar el borrador, así que todavía no se puede probar.",
   "easydrag.ui.timers_stopped_text": "AuraGo no pudo iniciar el almacén de flows y sigue intentándolo. Hasta entonces, los disparadores de fecha y hora no se activan. El registro de AuraGo contiene los detalles.",

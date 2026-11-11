@@ -905,6 +905,7 @@
   "easydrag.ui.test_remember": "Deze gegevens onthouden voor latere tests",
   "easydrag.ui.test_run": "Test starten",
   "easydrag.ui.test_title": "Flow testen",
+  "easydrag.ui.test_mode": "Testmodus",
   "easydrag.ui.test_trigger": "Starten met",
   "easydrag.ui.test_unsaved": "Het concept kon niet worden opgeslagen en kan daarom nog niet worden getest.",
   "easydrag.ui.timers_stopped_text": "AuraGo kon de flow-opslag niet starten en blijft het proberen. Tot dan worden triggers van het type „Datum en tijd” niet uitgevoerd. De details staan in het AuraGo-logboek.",
