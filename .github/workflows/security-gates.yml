@@ -139,8 +139,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: General
-            run: '.'
+          - name: General A-F
+            run: '^Test[A-F]'
+            skip: '^TestConfigRefresh(Populated|RealSections)Browser$|^TestDesktop'
+          - name: General G-Z
+            run: '^Test[^A-F]'
             skip: '^TestConfigRefresh(Populated|RealSections)Browser$|^TestDesktop'
           - name: Desktop A-D
             run: '^TestDesktop[A-D]'
