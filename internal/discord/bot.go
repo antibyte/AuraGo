@@ -701,21 +701,23 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 
 	inputText = discordCommandText(inputText, botUserID, decision.IsMentioned)
 	commandText := inputText
+	stopCommand := commands.IsStop(commandText)
 
 	// ── Voice & Image Attachments ───────────────────────────────────────
 	// Discord sends voice messages and images as attachments on the message.
-	for _, att := range m.Attachments {
-		if ctx.Err() != nil {
-			return
+	if !stopCommand {
+		for _, att := range m.Attachments {
+			if ctx.Err() != nil {
+				return
+			}
+			inputText = discordAttachmentProcessor(ctx, att, inputText, cfg, logger)
 		}
-		inputText = discordAttachmentProcessor(ctx, att, inputText, cfg, logger)
 	}
 
 	if ctx.Err() != nil || inputText == "" {
 		return
 	}
 
-	stopCommand := commands.IsStop(commandText)
 	if !stopCommand && tools.HasPendingQuestion(sessionID) {
 		if response, ok := tools.ResolveQuestionReply(sessionID, inputText); ok {
 			response.Source = tools.QuestionSourceDiscord
