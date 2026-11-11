@@ -2141,3 +2141,63 @@ was unusable for that reason.
   z 0.95 to 2.4); with its own gain following the square root of the distance law (`pass.level` .9, `tram` .28)
   the pass reads as a rail vehicle: z 3.3, tagger "Train" .50. Strict survey `phase-6-t15f` passes
   (`tram-corner` +2.24 LU against the baseline).
+
+### Task 11 — sequences (2026-11-11)
+Nine sequences plus `seq-patrol-pocket`, each with a contact sheet (`reports/system-world-survey/phase-6-seq`).
+Judged by the coordinator: the walk of 80 m (16 frames, 5 m apart) shows no tree, bollard or bin changing
+shape; the lobby door opens and the view goes level into the hall; the hall appears behind the glass on
+approach; the launch crosses and turns; the banner swings; the tram passes in side view; one gull shows its
+wing beats. `seq-gust` and `seq-door-resident` were judged from the maker's description and pixel
+differences only (leaf sway changes 0.2 to 0.8 % of the tree's pixels per step). A change of level that
+happens between two walk frames would not show.
+
+### Task 16 and the standstill it found (2026-11-11)
+- **Browser tests on a slow GPU.** With Chrome on the integrated GPU the expansion run failed in its own walking
+  helper: a key press of 20 to 65 ms often fell between two frames and moved nothing. The helper now holds a key
+  over whole frames. Backlog 34 (the sound start) did not reproduce.
+- **Trams standing still for good.** The expansion run then failed at its tram wait. Cause: from about 115 s of
+  city time a patrol robot stood in a pocket between the rails and street furniture; the tram's look-ahead
+  waited for the patrol, the patrol could not step aside and its navigator found every lane blocked. Both trams
+  stood until the end of a 260 s run. Deterministic, without a visitor, and the same before phase 6: it exists
+  since the furniture became traffic solids (phase 4). The living test (122 s) ends just before it. Fix: a
+  patrol boxed in for 3 s moves to the nearest free spot outside the rail corridor and its robot glides there
+  (`corridorSpot`, `scripts/test-system-world-tram-pocket.mjs`). In 200 s no tram stands longer than 6 s; the
+  rule fires five times; the living test's result line is unchanged.
+
+### Task 17 — acceptance record (2026-11-11)
+Runs: `reports/system-world-survey/phase-6-final-{high,medium,low}` (88 scenes; the low tier skips the two wind sequences;
+strict on high and low, exit 0, no page error, no failed check), `phase-6-final-timing-*`, `phase-6-compare` (25 pairs against the
+baseline of 2026-11-09), `reports/system-world-sound/phase-6-final`.
+
+| Work package | Result |
+| --- | --- |
+| W1 night glare | Clipped share at night (limit .005), before → after on high: archive front .040 → .001, mission terminal .0245 → .0006, agent tower .0041 → .0001, `life-street-trees-night` 0, `skyline-night` 0 (the low tier's tree scene .0014). Cause: the environment map at day intensity at night; fix `NIGHT_ENV` .2. Aviation lights on roof tops, lamp cones fade near the camera. |
+| W2 windows | Day scenes on high: tones 5 / 5 / 3 / 5, pane over ceramic .95 / .73 / .91 / .57 (limit 1.0; before up to 1.08, the mission terminal had 2 tones). Lit share at night .60 on high against .63 on low. |
+| W3 entering | Feet gaps on the four stair stills [0, 0] on high and medium (limit 2 cm; before up to 14.7 cm; the low tier does not adapt feet). The expansion browser test asserts the horizon in the middle third before the lobby screenshot; `reports/aurora/world2-lobby-agent.png` looks into the hall. |
+| W4 furniture cost | `street-agent` on high 628,072 view triangles and 563 calls (882,938 and 482 before; limit 650,000). Budget (phase 5 app, Arc B580, +10 %) against the final run in ms, low / medium / high: overview 7.3 / 8.6 / 8.7 (limits 8.14 / 9.35 / 10.01), street 4.4 / 5.7 / 5.8 (4.84 / 6.05 / 6.27), agent tower at night 4.5 / 5.7 / 5.9 (5.06 / 6.49 / 6.49), park 2.5 / 2.9 / 3.1 (2.86 / 3.19 / 3.41). One row needed the allowed re-run. |
+| W5 motion | See Task 11 above. |
+| W6 small fixes | Pot plants are broad-leaved plants with a soft `foliage` part; `crossing` and `kerb-close` show no clipped pixel by day (palette unchanged); patrol label and the visitor's seat after rides fixed; the tram standstill found and fixed. |
+| W7 sound | Strict survey `phase-6-final`: true peak −16.4 dBTP (limit −1), day and night .95 LU apart (limit 2), shut lobby 5.91 LU below the street (minimum 3), largest rise over the baseline +2.90 LU (limit 3; `tram-corner` +2.24). Classifier: a tram passing z 3.3 (0.6 before), footsteps z 3.4 (0.6 to 1.8 before), the park as wind in leaves with birds 3.8 and not as rain 0.6. Six loops and two one-shot recordings load in all 15 situations. |
+
+| Budget | Now | Limit |
+| --- | --- | --- |
+| Model directory | 14,405,534 bytes (13.7 MiB) | 40 MiB |
+| First display | 4,910,208 bytes (4.7 MiB); 5,943,664 after a lobby visit | 20 MiB |
+| Whole app (runtime) | 15,763,055 bytes (15.0 MiB) | 80 MiB |
+| Audio | 1,537,920 bytes | 1,572,864 bytes |
+| Renderer bundle | 1,025,598 bytes | – |
+
+- **Tests.** 42 `scripts/test-system-world*.mjs`, `check_assets.py`, `build_audio.py --check`,
+  `build-system-world-v3.mjs --check` (46 designs, 138 files), `build-system-world.js --check`,
+  `go test ./ui -run '^TestDesktopSysWorld'`, the main-path browser run (92 s) and the expansion browser run
+  (242 s; tram wait 10.4 s) pass.
+- **README and manual pictures.** None show the System World; nothing to refresh.
+- **GitNexus** change detection against `main` (index of `main`, partial, risk unknown): the branch's own
+  changes lie in the System World modules, scripts, assets, the two licence files and the desktop `AGENTS.md`;
+  every other difference it lists is one of `main`'s own commits that the branch does not have yet.
+- **Not done or not proven.** Frame times on weak GPUs were not measured (the integrated GPU ran the same app
+  at 20 to 44 ms where the B580 needs 4 to 9 ms; the furniture sets save triangles but no time on the B580). The
+  glare numbers of a full run are on the low side (backlog 35). By day the archive hall's light bars still
+  bloom and its cornice has a sun highlight. The patrol rule fires five times in 200 s; whether that looks
+  restless was not judged in motion. The tram model is the plain v2 one. Open backlog: 12, 13, 20, 25, 30, 32,
+  33, 35 to 39.
