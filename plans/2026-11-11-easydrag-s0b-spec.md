@@ -1,6 +1,6 @@
 # EasyDrag S0b "Egress and credential hygiene": design spec
 
-**Status:** design spec, 2026-11-11. The owner approved both parts in the brainstorming session the same day.
+**Status:** design spec, 2026-11-11. The owner approved both parts in the brainstorming session the same day. Implementation plan: `plans/2026-11-11-easydrag-s0b/` (2026-11-11).
 **Roadmap:** `plans/2026-11-09-easydrag-next-roadmap.md`, E1 items FD-13 and FD-18 (lines 292-293, acceptance 319-320, guardrails 330-340), Wave 0 (§6).
 **Predecessor:** S0 landed on main at 79c7c601a (`plans/2026-11-10-easydrag-s0-spec.md`).
 
@@ -214,7 +214,7 @@ func FindLiteralCredentials(doc *Flow) []CredentialFinding
 - The secret value is registered with the scrubber when it is read (`internal/server/flows_llm.go:565-572`). The URL in the node output and the stored step params therefore shows the marker.
 
 ### 5.2 The move endpoint
-`POST /api/flows/{id}/credentials/move` is in admin scope, uses the same-origin CSRF check (`flowsRequiredScope` at `internal/server/flows_handlers.go:561-573`, `flowsOriginOK` at `:399-407`) and takes the secret-write rate limit (`:59-67`).
+`POST /api/desktop/flows/{id}/credentials/move` is in admin scope, uses the same-origin CSRF check (`flowsRequiredScope` at `internal/server/flows_handlers.go:561-573`, `flowsOriginOK` at `:399-407`) and takes the secret-write rate limit (`:59-67`).
 
 The request body is `{ "revision": n, "node_id": "...", "location": "...", "path": "...", "secret_name": "...", "replace": false }`.
 
@@ -234,7 +234,7 @@ Steps:
 Locations that are not movable answer 422 `FLOW_CREDENTIAL_NOT_MOVABLE`. The literal value never travels back to the browser, and the endpoint never returns it.
 
 ### 5.3 The UI action
-- The warning on the card and in the detail view offers "In den Tresor verschieben" when `Movable` is true. Otherwise it offers "Wert entfernen", which clears the field in the client.
+- The warning in the detail view's issue box offers "In den Tresor verschieben" when `Movable` is true. Every issue click on a card already opens that view (amended while planning). Otherwise it offers "Wert entfernen", which clears the field in the client.
 - A small dialog:
   - asks for the secret name, proposing one from the host and the key (`api_example_com_api_key`, cut to 40 characters);
   - says that the value is stored in the vault and replaced in this flow, in N places.
@@ -249,7 +249,7 @@ Locations that are not movable answer 422 `FLOW_CREDENTIAL_NOT_MOVABLE`. The lit
 New module `ui/js/desktop/apps/easydrag-credentials.js` (`ED.credentials`). It mirrors §4.2 for masking and is tested against the shared vectors. Masking means each finding's value becomes the marker before anything is written:
 - the emergency copy (`easydrag-saver.js:113`, key `aurago.easydrag.draft.<id>`);
 - the clipboard fragment (`easydrag-interact.js:568`, key `aurago.easydrag.clipboard`);
-- the remembered test data (`easydrag-run-start.js:92`, key `aurago.easydrag.test-trigger.<id>`).
+- not needed for the remembered test trigger (`easydrag-run-start.js:92`, key `aurago.easydrag.test-trigger.<id>`). It holds only a trigger node id. Test data lives on the server in `flow_test_data`, which the purge redacts (amended while planning).
 
 Consequence: restoring an emergency copy brings back the marker, not the token. The restore notice says so.
 
@@ -274,7 +274,7 @@ Consequence: restoring an emergency copy brings back the marker, not the token. 
 - The vault's AES-GCM key is private to `Vault` (`internal/security/vault.go:86-127`). The master key comes from `AURAGO_MASTER_KEY` (`internal/config/config.go:1793`).
 
 ### 6.2 The scan
-`Service.CredentialScan(ctx) (CredentialReport, error)`, exposed as admin `GET /api/flows/credentials/scan`, reports:
+`Service.CredentialScan(ctx) (CredentialReport, error)`, exposed as admin `GET /api/desktop/flows/credentials/scan`, reports:
 - the flows whose draft holds findings, which the owner must move or remove;
 - the flows whose live document holds findings, which must be published again after the move;
 - the number of superseded versions with findings, split into purgeable and pinned;
@@ -296,7 +296,7 @@ The dialog is admin only and is reached from the hint card or after a publish (�
 The button is "Jetzt bereinigen". Progress and the result are shown in the dialog.
 
 ### 6.4 The purge
-`POST /api/flows/credentials/purge`, admin and CSRF, with `{ "snapshots": ["<dir name>", ...] }`. It starts a background job, at most one at a time. `GET /api/flows/credentials/purge` returns the job state. The purge refuses to start while a run is `running`, and new runs wait in the queue until it ends. Waiting runs do not block it.
+`POST /api/desktop/flows/credentials/purge`, admin and CSRF, with `{ "snapshots": ["<dir name>", ...] }`. It starts a background job, at most one at a time. `GET /api/desktop/flows/credentials/purge` returns the job state. The purge refuses to start while a run is `running`, and new runs wait in the queue until it ends. Waiting runs do not block it.
 
 1. **Safety backup.**
    - `VACUUM INTO` a temporary file in the data directory.
@@ -349,15 +349,15 @@ Essential tests only (owner's standing preference).
 - The move endpoint for header, query and userinfo, plus 409 on a stale revision, 409 when the secret exists, and 422 for a body field.
 - **The acceptance fixture** (roadmap line 319).
   1. A flow with a token in a header, in a query parameter and in a body field. It is published and run, it has test data and a migration snapshot, and one version is pinned by a waiting run.
-  2. Move, publish again and purge.
-  3. A byte search of flows.db, WAL, SHM and the data directory finds no token, except in the drafts of flows the owner did not move.
+  2. Move the header and the query token. Remove the body token with "Wert entfernen", because it is not movable. Publish again and purge.
+  3. Let the pinned run end, so the prune deletes its marked version. Then a byte search of flows.db, WAL, SHM and the data directory finds none of the three tokens (amended while planning: a pinned version keeps its plaintext until it is deleted).
   4. The pinned version survives until its run ends, and is deleted then.
   5. The encrypted backup holds no plaintext.
   6. `DecryptFileWithMasterKey` restores a database that opens.
 - The sweeper deletes after 7 days.
 
 **Part B, client**
-- Node: masking of the emergency copy, the clipboard and the remembered test data, against the shared vectors; `scrubHistory`.
+- Node: masking of the emergency copy and the clipboard, against the shared vectors; `scrubHistory`.
 - Browser (gated): the guided path: the warning, the move dialog, publish, the purge offer, the purge result in the dialog.
 
 Every browser test sets reduced motion explicitly.
@@ -394,7 +394,7 @@ Parts A and B touch separate files and can run in parallel, in two worktrees. Pa
 - [ ] "In den Tresor verschieben" works for a header, a query parameter and URL user info. The value never travels back to the browser.
 - [ ] After a move, a republish and a purge, no plaintext token is found in the fixture's flows.db, its WAL or any flows backup in the data directory. Versions still pinned by a run survive until they are unpinned (roadmap line 319).
 - [ ] The safety backup is encrypted, can be restored with the flag, and is gone after 7 days.
-- [ ] Emergency copy, clipboard, remembered test data and undo carry no moved token.
+- [ ] Emergency copy, clipboard and undo carry no moved token.
 - [ ] Every new key is in all 16 locales; every new FLOW code has a registry entry; `TestShippedWebAssetsLoadNothingExternal` stays green.
 
 ## 10. Risks
