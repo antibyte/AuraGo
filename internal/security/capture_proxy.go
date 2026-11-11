@@ -106,6 +106,12 @@ type CaptureProxy struct {
 
 	done chan struct{} // closed when the listener has stopped serving, for any reason
 
+	// cut is closed on the first limit hit (bytes or connections); cutErr is the
+	// reason. The proxy keeps running, so a holder of the proxy must watch cut.
+	cut     chan struct{}
+	cutOnce sync.Once
+	cutErr  error
+
 	logMu      sync.Mutex
 	dialLog    []string // host:port of every destination the proxy really connected to
 	refusalLog []string // host:port of every destination the policy refused
@@ -184,6 +190,7 @@ func startCaptureProxyMode(allowed *url.URL, limits CaptureProxyLimits, idle tim
 		cancel:   cancel,
 		conns:    make(map[net.Conn]struct{}),
 		done:     make(chan struct{}),
+		cut:      make(chan struct{}),
 	}
 	for _, opt := range opts {
 		opt(p)
@@ -231,6 +238,28 @@ func (p *CaptureProxy) Addr() string { return p.listener.Addr().String() }
 // Done is closed when the proxy's listener has stopped, whether by Close or
 // because it failed. A browser behind the proxy must not keep running after that.
 func (p *CaptureProxy) Done() <-chan struct{} { return p.done }
+
+// Cut is closed when a limit (relayed bytes or outbound connections) was hit
+// for the first time. From then on pages behind the proxy are incomplete, so the
+// owner must end the browser; CutReason says which limit it was.
+func (p *CaptureProxy) Cut() <-chan struct{} { return p.cut }
+
+// CutReason returns errCaptureByteLimit or errCaptureConnLimit once Cut is closed, else nil.
+func (p *CaptureProxy) CutReason() error {
+	select {
+	case <-p.cut:
+		return p.cutErr
+	default:
+		return nil
+	}
+}
+
+func (p *CaptureProxy) markCut(reason error) {
+	p.cutOnce.Do(func() {
+		p.cutErr = reason
+		close(p.cut)
+	})
+}
 
 // Dialed returns the host:port of every destination the proxy connected to
 // (at most captureProxyLogCap entries). Tests use it to prove traffic took this path.
@@ -332,6 +361,7 @@ func (p *CaptureProxy) closeConns() {
 // reports errCaptureByteLimit.
 func (p *CaptureProxy) relay(n int) error {
 	if p.relayed.Add(int64(n)) > p.limits.MaxBytes {
+		p.markCut(errCaptureByteLimit)
 		p.closeConns()
 		return errCaptureByteLimit
 	}
@@ -390,9 +420,11 @@ func (p *CaptureProxy) dialUpstream(ctx context.Context, _, hostPort string) (ne
 		return nil, errCaptureProxyClosed
 	}
 	if p.relayed.Load() >= p.limits.MaxBytes {
+		p.markCut(errCaptureByteLimit)
 		return nil, errCaptureByteLimit
 	}
 	if p.dialed.Add(1) > int64(p.limits.MaxConnections) {
+		p.markCut(errCaptureConnLimit)
 		return nil, errCaptureConnLimit
 	}
 	dialCtx, cancel := p.requestContext(ctx)
@@ -585,6 +617,12 @@ func (p *CaptureProxy) servePlain(w http.ResponseWriter, r *http.Request) {
 
 	res, err := p.transport.RoundTrip(out)
 	if err != nil {
+		if errors.Is(err, errCaptureDestinationBlocked) {
+			// A 403 page would count as a successful navigation for the browser.
+			// Cutting the response makes Chrome report a network error instead,
+			// so a top-level navigation fails and a subresource just fails.
+			panic(http.ErrAbortHandler)
+		}
 		if ctx.Err() == nil {
 			p.refuse(w, err)
 		}

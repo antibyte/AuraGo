@@ -114,6 +114,9 @@ func CaptureHomepageAnnotationSnapshot(ctx context.Context, opts HomepageAnnotat
 	eb, err := security.LaunchEgressBrowser(ctx, security.EgressBrowserOptions{
 		AllowedOrigin: opts.AllowedOrigin,
 		Bin:           opts.BrowserBin,
+		// The limits this capture always had (before the egress helper).
+		MaxBytes:       64 << 20,
+		MaxConnections: 600,
 	})
 	if err != nil {
 		return nil, homepageAnnotationLaunchError(ctx, err)
@@ -190,14 +193,15 @@ func evaluateHomepageAnnotationMap(page *rod.Page) (homepageAnnotationMap, error
 }
 
 // homepageAnnotationNavigateError maps a failed navigation. The capture proxy
-// answers a refused destination with a failed tunnel (HTTPS) or a 403 page
-// (plain HTTP); a slow or silent server surfaces as a Chrome timeout.
+// answers a refused destination with a failed tunnel (HTTPS) or a cut response
+// (plain HTTP, ERR_EMPTY_RESPONSE); a slow or silent server surfaces as a Chrome timeout.
 func homepageAnnotationNavigateError(ctx context.Context, err error) error {
 	text := err.Error()
 	switch {
 	case strings.Contains(text, "TIMED_OUT"):
 		return fmt.Errorf("%w: %v", ErrHomepageAnnotationTimeout, err)
-	case strings.Contains(text, "BLOCKED_BY_CLIENT"), strings.Contains(text, "TUNNEL_CONNECTION_FAILED"):
+	case strings.Contains(text, "BLOCKED_BY_CLIENT"), strings.Contains(text, "TUNNEL_CONNECTION_FAILED"),
+		strings.Contains(text, "ERR_EMPTY_RESPONSE"):
 		return fmt.Errorf("%w: %v", ErrHomepageAnnotationBlocked, err)
 	}
 	return homepageAnnotationError(ctx, ErrHomepageAnnotationNavigation, err)

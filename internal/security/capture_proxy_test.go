@@ -159,13 +159,11 @@ func TestCaptureProxyPlainHTTPReachesOnlyTheAllowedOrigin(t *testing.T) {
 		t.Fatalf("allowed origin = %d %q", res.StatusCode, body)
 	}
 
-	res, err = client.Get(internal.URL + "/secret")
-	if err != nil {
-		t.Fatalf("internal origin: %v", err)
-	}
-	_ = res.Body.Close()
-	if res.StatusCode != http.StatusForbidden {
-		t.Fatalf("internal origin status = %d, want 403", res.StatusCode)
+	// A refused plain-HTTP destination is a cut connection, not a 403 page that
+	// the browser would show as a successful navigation.
+	if res, err = client.Get(internal.URL + "/secret"); err == nil {
+		_ = res.Body.Close()
+		t.Fatalf("internal origin answered %d, want a cut connection", res.StatusCode)
 	}
 	if got := internal.accepts.Load(); got != 0 {
 		t.Fatalf("the internal server accepted %d connections", got)

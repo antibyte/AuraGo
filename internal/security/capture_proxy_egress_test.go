@@ -100,13 +100,11 @@ func TestCaptureProxyLogsDialedAndRefusedDestinations(t *testing.T) {
 		t.Fatalf("allowed get: %v", err)
 	}
 	res.Body.Close()
-	res, err = client.Get("http://10.255.255.1/")
-	if err != nil {
-		t.Fatalf("private get: %v", err)
-	}
-	res.Body.Close()
-	if res.StatusCode != http.StatusForbidden {
-		t.Fatalf("private destination = %d, want 403", res.StatusCode)
+	// A refused plain-HTTP destination must look like a network error to the
+	// browser: a 403 page would count as a successful navigation.
+	if res, err = client.Get("http://10.255.255.1/"); err == nil {
+		res.Body.Close()
+		t.Fatalf("private destination answered %d, want a cut connection", res.StatusCode)
 	}
 	if d := p.Dialed(); len(d) != 1 || d[0] != allowed.hostPort() {
 		t.Fatalf("Dialed() = %v, want [%s]", d, allowed.hostPort())

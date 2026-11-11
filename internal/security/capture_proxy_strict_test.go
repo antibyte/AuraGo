@@ -51,13 +51,10 @@ func TestStrictCaptureProxyServesTheAllowedOriginOnly(t *testing.T) {
 	}
 
 	// Another loopback port is refused without a single connection.
-	res, err = client.Get(other.URL + "/secret")
-	if err != nil {
-		t.Fatalf("other loopback port: %v", err)
-	}
-	_ = res.Body.Close()
-	if res.StatusCode != http.StatusForbidden {
-		t.Fatalf("other loopback port status = %d, want 403", res.StatusCode)
+	// A refused plain-HTTP destination is a cut connection (see the proxy).
+	if res, err = client.Get(other.URL + "/secret"); err == nil {
+		_ = res.Body.Close()
+		t.Fatalf("other loopback port answered %d, want a cut connection", res.StatusCode)
 	}
 	if got := other.accepts.Load(); got != 0 {
 		t.Fatalf("the other loopback server accepted %d connections", got)
@@ -85,13 +82,9 @@ func TestStrictCaptureProxyRefusesEveryOtherDestinationForm(t *testing.T) {
 	// The same destinations as plain absolute-form requests.
 	client := proxyClient(t, p)
 	for _, target := range []string{"http://" + other.hostPort() + "/", "http://localhost:" + port + "/", "http://example.com/"} {
-		res, err := client.Get(target)
-		if err != nil {
-			t.Fatalf("GET %s: %v", target, err)
-		}
-		_ = res.Body.Close()
-		if res.StatusCode != http.StatusForbidden {
-			t.Errorf("GET %s status = %d, want 403", target, res.StatusCode)
+		if res, err := client.Get(target); err == nil {
+			_ = res.Body.Close()
+			t.Errorf("GET %s answered %d, want a cut connection", target, res.StatusCode)
 		}
 	}
 	if got := other.accepts.Load(); got != 0 {

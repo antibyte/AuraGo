@@ -24,6 +24,11 @@ const (
 	// egressSlotWaitCap bounds the wait for a free slot when the caller's context
 	// has no deadline of its own.
 	egressSlotWaitCap = 2 * time.Minute
+
+	// Defaults per browser life. A heavy page with media and many third-party
+	// hosts stays well inside them; hitting one ends the browser (ErrEgressLimit).
+	egressDefaultMaxBytes       = 256 << 20
+	egressDefaultMaxConnections = 2000
 )
 
 var (
@@ -35,6 +40,9 @@ var (
 	ErrEgressLifetime = errors.New("egress browser lifetime ended")
 	// ErrEgressBusy means no browser slot became free in time.
 	ErrEgressBusy = errors.New("too many egress browsers are running")
+	// ErrEgressLimit is the reason a browser ended when the proxy hit its byte or
+	// connection limit: what the page loaded after that is incomplete.
+	ErrEgressLimit = errors.New("egress proxy limit reached; the page was cut off")
 )
 
 // egressSlots allows at most egressMaxBrowsers egress browsers at once.
@@ -58,6 +66,11 @@ type EgressBrowserOptions struct {
 	Lifetime time.Duration
 	// Bin is the browser binary; empty uses rod's lookup.
 	Bin string
+	// MaxBytes and MaxConnections bound the proxy over the browser's life; zero
+	// selects 256 MiB and 2000 connections. Hitting either ends the browser with
+	// ErrEgressLimit.
+	MaxBytes       int64
+	MaxConnections int
 	// Sandbox true removes --no-sandbox even inside a container.
 	Sandbox bool
 }
@@ -110,8 +123,15 @@ func LaunchEgressBrowser(ctx context.Context, opts EgressBrowserOptions) (*Egres
 	if err != nil {
 		return fail(fmt.Errorf("egress nonce: %w", err))
 	}
+	maxBytes, maxConns := opts.MaxBytes, opts.MaxConnections
+	if maxBytes <= 0 {
+		maxBytes = egressDefaultMaxBytes
+	}
+	if maxConns <= 0 {
+		maxConns = egressDefaultMaxConnections
+	}
 	proxy, err := StartCaptureProxy(opts.AllowedOrigin, CaptureProxyLimits{
-		MaxConcurrent: 16, MaxConnections: 600, MaxBytes: 64 << 20,
+		MaxConcurrent: 16, MaxConnections: maxConns, MaxBytes: maxBytes,
 	}, withEgressCheck(nonce))
 	if err != nil {
 		return fail(fmt.Errorf("egress proxy: %w", err))
@@ -153,8 +173,8 @@ func (b *EgressBrowser) Close() error {
 	return nil
 }
 
-// Err says why the browser ended: nil after a plain Close, ErrEgressProxyDied or
-// ErrEgressLifetime otherwise.
+// Err says why the browser ended: nil after a plain Close, ErrEgressProxyDied,
+// ErrEgressLimit or ErrEgressLifetime otherwise.
 func (b *EgressBrowser) Err() error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -195,6 +215,8 @@ func (b *EgressBrowser) watch(lifetime time.Duration) {
 	select {
 	case <-b.proxy.Done():
 		b.end(ErrEgressProxyDied)
+	case <-b.proxy.Cut():
+		b.end(ErrEgressLimit)
 	case <-timer.C:
 		b.end(ErrEgressLifetime)
 	case <-b.ctx.Done():
