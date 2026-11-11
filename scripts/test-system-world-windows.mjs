@@ -7,7 +7,7 @@ import crypto from 'node:crypto';
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
-import {WINDOW_MATERIAL, WINDOW_SHADER, WINDOW_TONES, WINDOW_ENV, WINDOW_LIFE_ATLAS, WINDOW_LIFE_LOOK, windowLighting, windowLevel, createWindows, addPaneAxes} from '../ui/js/desktop/apps/sysworld-windows.js';
+import {WINDOW_MATERIAL, WINDOW_SHADER, WINDOW_TONES, WINDOW_ENV, WINDOW_LIFE_ATLAS, WINDOW_LIFE_LOOK, WINDOW_LIFE_FROM_ROW, windowLighting, windowLevel, createWindows, addPaneAxes} from '../ui/js/desktop/apps/sysworld-windows.js';
 import {createSurfaces} from '../ui/js/desktop/apps/sysworld-surfaces.js';
 
 const near = (a, b, e = .005) => Math.abs(a - b) <= e;
@@ -101,7 +101,7 @@ for(let i=0;i<WINDOW_TONES.length;i++)for(let j=i+1;j<WINDOW_TONES.length;j++)as
 const lum=c=>.2126*c[0]+.7152*c[1]+.0722*c[2],l=WINDOW_TONES.map(t=>lum(t.color));assert.ok(Math.max(...l)-Math.min(...l)>=.25,'tones spread in brightness');
 assert.equal(WINDOW_SHADER.fragmentPars.split('vec3 winTone(float h)').length,2);assert.equal(WINDOW_SHADER.fragmentMain.split('winTone(winH3)').length,2);
 assert.ok(WINDOW_SHADER.fragmentPars.includes('fill*(0.12+0.88*(1.0-z)*(1.0-z))'),'daylight falls off with depth');
-assert.ok(WINDOW_SHADER.fragmentMain.includes('vec3(0.07,0.065,0.06)'),'darker furniture');
+assert.ok(!WINDOW_SHADER.fragmentMain.includes('winFurn=') && !WINDOW_SHADER.fragmentMain.includes('vec3(0.07,0.065,0.06)') && !/winFurn\b/.test(WINDOW_SHADER.fragmentMain), 'the box furniture is gone (sprites replace it)');
 // Class B: lit rooms are capped before the Fresnel term so they cannot clip on their own.
 assert.ok(compile('high').fragmentShader.includes('#define WIN_CAP')&&WINDOW_SHADER.fragmentMain.includes('min(winRoomCol,vec3(WIN_CAP))'),'room radiance cap');
 
@@ -112,24 +112,43 @@ assert.deepEqual(WINDOW_LIFE_ATLAS.pixels, manifest.cells.pixels); assert.deepEq
 assert.equal(WINDOW_LIFE_ATLAS.feet, manifest.cells.feet); assert.equal(WINDOW_LIFE_ATLAS.stride, manifest.stride);
 assert.deepEqual(JSON.parse(JSON.stringify(WINDOW_LIFE_ATLAS.sets)), manifest.sets, 'atlas sets match the manifest');
 assert.ok(Object.isFrozen(WINDOW_LIFE_ATLAS) && Object.isFrozen(WINDOW_LIFE_ATLAS.sets.walk) && Object.isFrozen(WINDOW_LIFE_LOOK));
-assert.equal(manifest.size[0], manifest.cells.columns * manifest.cells.pixels[0]); assert.equal(manifest.size[1], manifest.cells.rows * manifest.cells.pixels[1]);
+assert.deepEqual(WINDOW_LIFE_ATLAS.size, manifest.size); assert.equal(manifest.size[0], manifest.cells.columns * manifest.cells.pixels[0]);
+const fu = manifest.furniture, FA = WINDOW_LIFE_ATLAS.furniture;
+assert.equal(manifest.size[1], fu.origin[1] + fu.rows * fu.pixels[1]); assert.equal(fu.origin[1], manifest.cells.rows * manifest.cells.pixels[1], 'furniture starts below the residents');
+assert.deepEqual(FA.origin, fu.origin); assert.equal(FA.columns, fu.columns); assert.equal(FA.rows, fu.rows); assert.deepEqual(FA.pixels, fu.pixels);
+assert.deepEqual(FA.metres, fu.metres); assert.equal(FA.floor, fu.floor);
+assert.deepEqual(JSON.parse(JSON.stringify(FA.items)), fu.items, 'furniture items (name, layer, lobby, foliage) match the manifest');
+assert.equal(FA.covered.length, fu.items.length); assert.ok(Object.isFrozen(FA) && Object.isFrozen(FA.items[0]) && FA.covered.every(c => c > .4 && c < 1.3), 'covered half-widths');
+assert.ok(WINDOW_SHADER.fragmentPars.includes('const float winCoverS[12]=float[12](' + FA.covered.map(c => Number.isInteger(c) ? c.toFixed(1) : String(c)).join(',') + ');') && WINDOW_SHADER.fragmentPars.includes('float winCover(float it){'), 'cover table baked from the exported list');
+for (const k of ['furnLamp', 'furnDay', 'furnGlowDay', 'furnGlowLit', 'furnShadow']) assert.ok(WINDOW_LIFE_LOOK[k] > 0, k);
 const png = await fs.readFile('ui/3d/system-world/textures/v1/' + manifest.file);
 assert.equal(png.length, manifest.bytes, 'atlas bytes'); assert.equal(crypto.createHash('sha256').update(png).digest('hex'), manifest.sha256, 'atlas sha256');
 assert.ok(!glsl.includes('winRobot') && !glsl.includes('winVisor') && !glsl.includes('winBots'), 'the flat robot shapes are gone');
 {
   const pars = WINDOW_SHADER.fragmentPars, main = WINDOW_SHADER.fragmentMain;
-  const lifeStart = pars.indexOf('#if WIN_LEVEL>1\nuniform sampler2D winLife;');
-  assert.ok(lifeStart > 0 && pars.indexOf('textureGrad(') > lifeStart, 'life layer in the pars');
-  const lifeEnd = pars.indexOf('\n#endif', lifeStart);
-  assert.ok(lifeEnd > pars.indexOf('winFigure(') && !/winLife|winSprite|winFigure|winPose/.test(pars.slice(0, lifeStart) + pars.slice(lifeEnd)), 'sampler and sprite code only inside WIN_LEVEL>1');
+  // Furniture layer: compiled for WIN_LEVEL>0 (sampler, cell sampling, plan, layers); residents only inside a second #if WIN_LEVEL>1.
+  const furnStart = pars.indexOf('#if WIN_LEVEL>0\nuniform sampler2D winLife;'), resStart = pars.indexOf('#if WIN_LEVEL>1\n', furnStart);
+  assert.ok(furnStart > 0 && resStart > furnStart && pars.indexOf('textureGrad(') > furnStart && pars.indexOf('textureGrad(') < resStart, 'sampler and cell sampling for WIN_LEVEL>0');
+  const furnPart = pars.slice(furnStart, resStart), resPart = pars.slice(resStart);
+  assert.ok(furnPart.includes('winFurnPlan(') && furnPart.includes('winFurnLayer(') && furnPart.includes('winFurnShadow(') && furnPart.trimEnd().endsWith('#endif'), 'furniture code closes before the residents');
+  assert.ok(!/winFigure|winPose|winSprite|winAccent/.test(pars.slice(0, resStart)) && /winFigure|winPose|winSprite/.test(resPart), 'resident code only inside WIN_LEVEL>1');
   const at = main.indexOf('winFigure('), open = main.lastIndexOf('#if WIN_LEVEL>1', at), close = main.indexOf('#endif', at);
   assert.ok(at > 0 && open > 0 && close > at && main.slice(open, at).indexOf('#endif') < 0, 'figures drawn only inside #if WIN_LEVEL>1');
-  assert.ok(main.includes('mod(winCell.x+2.0*winCell.y+winOff,4.0)') && main.includes('mod(winCell.x+winOff,3.0)'), 'roles follow the cell, no worker in lobbies');
+  const fl = main.indexOf('winFurnLayer('), fOpen = main.lastIndexOf('#if WIN_LEVEL>1', fl), fClose = main.lastIndexOf('#endif', fl);
+  assert.ok(fl > 0 && fClose > fOpen, 'furniture layers are drawn outside the WIN_LEVEL>1 blocks (medium too)');
+  assert.ok(main.indexOf('winFurnLayer(') < main.indexOf('winFigure(') && main.indexOf('winScreen') < main.indexOf('winFurnLayer('), 'order: screen, furniture, residents');
+  assert.ok(main.includes('winFurnPlan(winH5,winLobby,winS.x,0.5*(winX0+winX1),') && main.includes('+0.6180339*winCell.x+0.7548777*winCell.y);\nvec3 winFm'), 'furniture plan from a cell-decorrelated hash at the desk centre');
+  assert.ok(main.includes('step(2.5,winRole1)*step(2.5,winFm.x)'), 'worker only at a desk or console');
+  assert.ok(main.includes('winFGlow=WIN_LK_FGL*winOn+WIN_LK_FGD*winDay') && main.includes('WIN_LK_GL*winOn+WIN_LK_GD*winDay'), 'glow strength follows lit and daylit rooms only');
+  assert.ok(!/WIN_LK_FGD\+WIN_LK_FGL|WIN_LK_GD\+WIN_LK_GL/.test(WINDOW_SHADER.fragmentPars), 'no constant glow floor inside the sprite functions');
+  assert.ok(WINDOW_SHADER.fragmentPars.includes('winSprite(mix(p.y,p.z,step(0.5,p.w)),r,fx,fy)') && !/mix\(t,winSprite/.test(WINDOW_SHADER.fragmentPars), 'poses are cut, not cross-faded (no mixed alphas, no ghost)');
+  assert.ok(main.includes('winTb=0.86*WIN_DEPTH/winD.z') && main.includes('winTm=0.55*WIN_DEPTH/winD.z'), 'layers at 86 % and 55 % depth');
+  assert.ok(main.includes('mod(winCell.x+2.0*winCell.y+winOff,4.0)') && !/winTwo|winPo2|winF2|winRole2|winLo\b|winHi\b/.test(main), 'one figure per room, roles follow the cell, no lobby-pair code');
+  assert.ok(main.includes('winPres=winAlive*step(winH2,0.4)*step(WIN_LF_ROW,winCell.y)*winLifeOn'), 'presence: hard row threshold, gated by winLifeOn');
+  assert.ok(WINDOW_SHADER.fragmentPars.includes('const float WIN_LF_ROW=' + WINDOW_LIFE_FROM_ROW + '.0;') && WINDOW_LIFE_FROM_ROW === 1, 'row constant baked into the shader');
+  assert.ok(WINDOW_SHADER.fragmentPars.indexOf('WIN_LF_ROW') > WINDOW_SHADER.fragmentPars.indexOf('#if WIN_LEVEL>1\n'), 'row constant only in the resident part');
   assert.ok(main.includes('+0.6180339*winCell.x+0.7548777*winCell.y)'), 'the timing hash is decorrelated between neighbouring cells (winHash collides in 32-bit floats)');
-  assert.ok(main.includes('winHi=mix(winS.x-0.45,max(0.5*winS.x-0.575,winLo),winTwo)') && main.includes('winPo2.x=winS.x-winPo2.x'), 'lobby pair keeps to its own halves, 1.15 m between centres');
   assert.ok(main.includes('winPu=vWinAxU') && main.includes('winS=mix(winS,vec2(winLu,winLv),winOk)'), 'frame and room size from the exact pane axes');
-  assert.ok(main.includes('winTwo=winLobby*step(2.05,winS.x)') && main.includes('if(winTwo>0.5)'), 'lobbies narrower than 2.05 m show one figure');
-  assert.ok(main.includes('winPres=winAlive*step(winH2,mix(0.4,0.85,winLobby))*winLifeOn'), 'presence rule unchanged, gated by winLifeOn');
 }
 for (const tier of ['low', 'medium', 'high']) { windows.setTier(tier); assert.equal(m.customProgramCacheKey(), 'sw-windows|' + windowLevel(tier), 'cache key stays per level'); }
 windows.setTier('high');

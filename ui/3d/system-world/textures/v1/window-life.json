@@ -1,17 +1,17 @@
 {
   "file": "window-life.png",
-  "bytes": 1743582,
-  "sha256": "0e1a3925dd73729d50bbf09a1ed4c8571e77d0e4645fb88cf39c0d015d6931b5",
+  "bytes": 2125396,
+  "sha256": "a9c3508437fe048ebeda456ae58a623ff716a993f87b7570cb25759afadf0650",
   "license": "MIT",
   "generator": "Blender 5.2.2 LTS / assets/system-world/build_window_life.py",
   "size": [
     1728,
-    1728
+    2304
   ],
   "channels": {
     "r": "sqrt luminance, ceiling lamp",
     "g": "sqrt luminance, window daylight",
-    "b": "accent mask (0 body, .5 accent, 1 glowing accent)",
+    "b": "accent mask (0 body, .5 accent, 1 glowing)",
     "a": "coverage, straight"
   },
   "cells": {
@@ -66,150 +66,97 @@
       "kind": "technician"
     }
   },
-  "covered": [
-    [
-      78,
-      46,
-      259,
-      420
+  "furniture": {
+    "origin": [
+      0,
+      1728
     ],
-    [
-      55,
-      43,
-      252,
-      420
+    "columns": 6,
+    "rows": 2,
+    "pixels": [
+      288,
+      288
     ],
-    [
-      78,
-      36,
-      214,
-      420
+    "metres": [
+      2.25,
+      2.25
     ],
-    [
-      79,
-      39,
-      247,
-      420
-    ],
-    [
-      67,
-      46,
-      271,
-      420
-    ],
-    [
-      41,
-      43,
-      241,
-      420
-    ],
-    [
-      79,
-      36,
-      209,
-      420
-    ],
-    [
-      79,
-      39,
-      234,
-      420
-    ],
-    [
-      76,
-      41,
-      259,
-      420
-    ],
-    [
-      55,
-      38,
-      248,
-      420
-    ],
-    [
-      76,
-      31,
-      247,
-      420
-    ],
-    [
-      77,
-      34,
-      247,
-      420
-    ],
-    [
-      67,
-      41,
-      271,
-      420
-    ],
-    [
-      41,
-      38,
-      247,
-      420
-    ],
-    [
-      77,
-      31,
-      248,
-      420
-    ],
-    [
-      77,
-      34,
-      248,
-      420
-    ],
-    [
-      58,
-      34,
-      240,
-      420
-    ],
-    [
-      55,
-      30,
-      229,
-      420
-    ],
-    [
-      54,
-      4,
-      231,
-      420
-    ],
-    [
-      56,
-      4,
-      237,
-      420
-    ],
-    [
-      56,
-      4,
-      237,
-      420
-    ],
-    [
-      55,
-      4,
-      250,
-      420
-    ],
-    [
-      81,
-      36,
-      247,
-      420
-    ],
-    [
-      81,
-      36,
-      245,
-      420
+    "floor": 0.22,
+    "tilt": 12,
+    "order": "item i sits in column i % columns of row floor(i / columns) below the resident cells",
+    "items": [
+      {
+        "name": "desk-screen",
+        "layer": "mid",
+        "lobby": false,
+        "foliage": false
+      },
+      {
+        "name": "desk-lamp",
+        "layer": "mid",
+        "lobby": false,
+        "foliage": false
+      },
+      {
+        "name": "console",
+        "layer": "mid",
+        "lobby": false,
+        "foliage": false
+      },
+      {
+        "name": "meeting",
+        "layer": "mid",
+        "lobby": false,
+        "foliage": false
+      },
+      {
+        "name": "rack",
+        "layer": "back",
+        "lobby": false,
+        "foliage": false
+      },
+      {
+        "name": "archive",
+        "layer": "back",
+        "lobby": false,
+        "foliage": false
+      },
+      {
+        "name": "plant",
+        "layer": "back",
+        "lobby": false,
+        "foliage": true
+      },
+      {
+        "name": "plant-lamp",
+        "layer": "back",
+        "lobby": false,
+        "foliage": true
+      },
+      {
+        "name": "sofa",
+        "layer": "back",
+        "lobby": false,
+        "foliage": false
+      },
+      {
+        "name": "lounge",
+        "layer": "mid",
+        "lobby": true,
+        "foliage": false
+      },
+      {
+        "name": "totem",
+        "layer": "back",
+        "lobby": true,
+        "foliage": false
+      },
+      {
+        "name": "reception",
+        "layer": "mid",
+        "lobby": true,
+        "foliage": false
+      }
     ]
-  ]
+  }
 }

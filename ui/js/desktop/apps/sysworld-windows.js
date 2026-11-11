@@ -48,7 +48,7 @@ const TONE_GLSL = 'vec3 winTone(float h){return ' + WINDOW_TONES.slice(0, -1).ma
 // the image; a cell is metres[0] x metres[1] m, the figure's feet centre sits at its horizontal middle, feet m above its lower edge.
 // Channels are data (R sqrt lamp luminance, G sqrt daylight luminance, B accent mask, A coverage); stride is metres per gait cycle.
 export const WINDOW_LIFE_ATLAS = Object.freeze({
-  columns: 6, rows: 4, pixels: Object.freeze([288, 432]), metres: Object.freeze([1.6, 2.4]), feet: .06, stride: 1.4348,
+  size: Object.freeze([1728, 2304]), columns: 6, rows: 4, pixels: Object.freeze([288, 432]), metres: Object.freeze([1.6, 2.4]), feet: .06, stride: 1.4348,
   sets: Object.freeze({
     walk: Object.freeze({first: 0, count: 8, kind: 'technician'}),
     carry: Object.freeze({first: 8, count: 8, kind: 'courier'}),
@@ -58,37 +58,118 @@ export const WINDOW_LIFE_ATLAS = Object.freeze({
     greet: Object.freeze({first: 19, count: 3, kind: 'archivist'}),
     work: Object.freeze({first: 22, count: 2, kind: 'technician'}),
   }),
+  // Furniture block below the residents: columns x rows cells of pixels (square), each metres wide and high, the group stands
+  // centred in x with its floor line floor m above the cell's lower edge. covered = half-width of each item in metres (not in the
+  // manifest; used to clamp items inside a room).
+  furniture: Object.freeze({
+    origin: Object.freeze([0, 1728]), columns: 6, rows: 2, pixels: Object.freeze([288, 288]), metres: Object.freeze([2.25, 2.25]), floor: .22,
+    covered: Object.freeze([.8, .72, .9, .95, .8, .97, .55, .75, 1, 1, .6, 1.15]),
+    items: Object.freeze([
+      ['desk-screen', 'mid'], ['desk-lamp', 'mid'], ['console', 'mid'], ['meeting', 'mid'], ['rack', 'back'], ['archive', 'back'],
+      ['plant', 'back', 0, 1], ['plant-lamp', 'back', 0, 1], ['sofa', 'back'], ['lounge', 'mid', 1], ['totem', 'back', 1], ['reception', 'mid', 1],
+    ].map(([name, layer, lobby = 0, foliage = 0]) => Object.freeze({name, layer, lobby: !!lobby, foliage: !!foliage}))),
+  }),
 });
 // Relighting of the sprites (baked into the shader as constants): lamp and day scale the two light channels, glowDay and glowLit
 // the glowing accent parts (eyes, strips) by day and in lit rooms, shadow the strength of the contact shadow on the floor.
-export const WINDOW_LIFE_LOOK = Object.freeze({ lamp: 1, day: 1.8, glowDay: .35, glowLit: .8, shadow: .5 });
+// furn* are the same knobs for the furniture sprites.
+export const WINDOW_LIFE_LOOK = Object.freeze({ lamp: 1, day: 1.8, glowDay: .35, glowLit: .8, shadow: .5, furnLamp: 1, furnDay: 1.4, furnGlowDay: .3, furnGlowLit: .9, furnShadow: .4 });
 
-const LF = WINDOW_LIFE_ATLAS, LK = WINDOW_LIFE_LOOK, LFS = LF.sets;
+// Residents only live from this storey row up (rows count from the first upper floor = 0, the ground-floor lobby is -1, tiers add 20):
+// close to the street the sprites do not hold up, so the two lowest storeys show furniture only. A hard rule, not a fade.
+export const WINDOW_LIFE_FROM_ROW = 1;
+
+const LF = WINDOW_LIFE_ATLAS, LK = WINDOW_LIFE_LOOK, LFS = LF.sets, FU = LF.furniture;
+// Constant array over a list of numbers: name(i) returns list[i] for a float index (clamped), without a ternary chain.
+const arrayGLSL = (name, list) => 'const float ' + name + 'S[' + list.length + ']=float[' + list.length + '](' + list.map(glslFloat).join(',') + ');' + String.fromCharCode(10) + 'float ' + name + '(float it){return ' + name + 'S[int(clamp(it+0.5,0.0,' + (list.length - 1) + '.0))];}';
 const LIFE_GLSL = `
-#if WIN_LEVEL>1
+#if WIN_LEVEL>0
 uniform sampler2D winLife;uniform float winLifeOn;
 const float WIN_LK_LAMP=${glslFloat(LK.lamp)};const float WIN_LK_DAY=${glslFloat(LK.day)};const float WIN_LK_GD=${glslFloat(LK.glowDay)};const float WIN_LK_GL=${glslFloat(LK.glowLit)};const float WIN_LK_SH=${glslFloat(LK.shadow)};
-// Atlas layout; reciprocals are baked so the shader never divides.
-const float WIN_LF_COLS=${glslFloat(LF.columns)};const float WIN_LF_ICOLS=${glslFloat(1 / LF.columns)};const float WIN_LF_IROWS=${glslFloat(1 / LF.rows)};
+const float WIN_LK_FLAMP=${glslFloat(LK.furnLamp)};const float WIN_LK_FDAY=${glslFloat(LK.furnDay)};const float WIN_LK_FGD=${glslFloat(LK.furnGlowDay)};const float WIN_LK_FGL=${glslFloat(LK.furnGlowLit)};const float WIN_LK_FSH=${glslFloat(LK.furnShadow)};
+// Atlas layout; reciprocals are baked so the shader never divides. The resident block is the top of the image (v size per cell row),
+// the furniture block sits below it (origin v and cell size).
+const float WIN_LF_COLS=${glslFloat(LF.columns)};const float WIN_LF_ICOLS=${glslFloat(1 / LF.columns)};const float WIN_LF_RV=${glslFloat(LF.pixels[1] / LF.size[1])};
 const float WIN_LF_IW=${glslFloat(1 / LF.metres[0])};const float WIN_LF_IH=${glslFloat(1 / LF.metres[1])};const float WIN_LF_FEET=${glslFloat(LF.feet)};
 const vec2 WIN_LF_HALF=vec2(${glslFloat(.5 / LF.pixels[0])},${glslFloat(.5 / LF.pixels[1])});
-const float WIN_LF_ISTRIDE=${glslFloat(1 / LF.stride)};const float WIN_LF_SPEED=0.55;const float WIN_LF_ISPEED=${glslFloat(1 / .55)};
-const float WIN_LF_WALK=${LFS.walk.first}.0;const float WIN_LF_CARRY=${LFS.carry.first}.0;const float WIN_LF_IDLEW=${LFS.idleWalk.first}.0;const float WIN_LF_IDLEC=${LFS.idleCarry.first}.0;
-const float WIN_LF_IDLE=${LFS.idle.first}.0;const float WIN_LF_GREET=${LFS.greet.first}.0;const float WIN_LF_WORK=${LFS.work.first}.0;
+const float WIN_FU_V0=${glslFloat(FU.origin[1] / LF.size[1])};const float WIN_FU_VS=${glslFloat(FU.pixels[1] / LF.size[1])};
+const float WIN_FU_IW=${glslFloat(1 / FU.metres[0])};const float WIN_FU_IH=${glslFloat(1 / FU.metres[1])};const float WIN_FU_FLOOR=${glslFloat(FU.floor)};
+const vec2 WIN_FU_HALF=vec2(${glslFloat(.5 / FU.pixels[0])},${glslFloat(.5 / FU.pixels[1])});
+// One cell of the atlas: uv0 = its upper-left corner in uv, uvs = its size in uv, q = position in the cell (0..1, y up),
+// gx and gy = screen derivatives of q. Zero outside the cell, clamped half a texel inside it; explicit gradients, so cell jumps
+// and mirrored cards cause no mip seams.
+vec4 winCellTex(vec2 uv0,vec2 uvs,vec2 q,vec2 hf,vec2 gx,vec2 gy){
+  float inside=step(0.0,q.x)*step(q.x,1.0)*step(0.0,q.y)*step(q.y,1.0);
+  vec2 qc=clamp(q,hf,vec2(1.0)-hf);
+  vec2 uv=uv0+vec2(qc.x,1.0-qc.y)*uvs;
+  vec2 sc=vec2(uvs.x,-uvs.y);
+  vec4 t=textureGrad(winLife,uv,gx*sc,gy*sc);
+  return vec4(t.rgb,t.a*inside);
+}
+// Furniture: covered half-widths of the items (metres), the item names and layers are in WINDOW_LIFE_ATLAS.furniture.
+${arrayGLSL('winCover', FU.covered)}
+vec3 winWood(float h){return h<0.1667?vec3(0.62,0.36,0.20):h<0.3333?vec3(0.36,0.22,0.14):h<0.5?vec3(0.16,0.42,0.45):h<0.6667?vec3(0.60,0.30,0.20):h<0.8333?vec3(0.70,0.60,0.45):vec3(0.30,0.38,0.50);}
+vec3 winGlowC(float h){return h<0.3333?vec3(0.3,0.85,1.0):h<0.6667?vec3(1.0,0.82,0.55):vec3(0.3,0.9,0.55);}
+// Which furniture a room gets: mid layer (55 % depth) item and x, up to two back layer (86 % depth) items and x; item -1 = none.
+// Offices: a desk or console (0-3) at the desk centre, a back item (4-8) in about 70 % of the rooms on the side farther from it.
+// Lobbies: a lounge or reception, a totem and a plant on opposite sides when the room is wide enough.
+void winFurnPlan(float h,float lobby,float W,float deskX,out vec3 mid,out vec3 b1,out vec3 b2){
+  float pick=fract(h*5.37);
+  float it=mix(floor(pick*4.0),mix(9.0,11.0,step(0.5,pick)),lobby);
+  float hw=winCover(it)+0.05;
+  it=mix(it,1.0,(1.0-lobby)*step(W,2.0*hw));
+  hw=winCover(it)+0.05;
+  float lo=hw,hi=max(W-hw,lo);
+  float mx=mix(deskX,0.5*W+(fract(h*9.1)-0.5)*0.3*W,lobby);
+  mx=clamp(mx,lo,hi);
+  mid=vec3(it,mx,hw-0.05);
+  // offices: one back item
+  float bi=4.0+floor(fract(h*3.71)*5.0);
+  bi=mix(bi,6.0,step(W,2.0*(winCover(bi)+0.05)));
+  float bw=winCover(bi)+0.1;
+  float bx=mix(W-bw,bw,step(0.5*W,mx));
+  float has=step(fract(h*7.13),0.7)*step(2.0*bw,W);
+  // lobbies: totem and a plant on opposite sides
+  float side=step(0.5,fract(h*13.3));
+  float tw=winCover(10.0)+0.1,pw=winCover(6.0+floor(fract(h*17.7)*2.0))+0.1;
+  float both=step(2.0*(tw+pw)+0.3,W);
+  b1=mix(vec3(mix(-1.0,bi,has),bx,bw-0.1),vec3(10.0,mix(tw,W-tw,side),tw-0.1),lobby);
+  b2=mix(vec3(-1.0,0.0,0.0),vec3(mix(-1.0,6.0+floor(fract(h*17.7)*2.0),both),mix(W-pw,pw,side),pw-0.1),lobby);
+}
+// One furniture card, relit and composited over col: item in the furniture block, xc = its centre in the room, k = its depth share,
+// pp = card coordinate, gx/gy = derivatives of it. Outside the card (or in front of it) nothing is sampled.
+vec3 winFurnLayer(vec3 col,float item,float xc,float cov,float flip,float k,float t,vec2 pp,float hit,float ah,vec2 gx,vec2 gy,float hh,vec3 lampL,vec3 fill,float glowK,float fade){
+  float hw=cov+0.1;
+  if(item<-0.5||abs(pp.x-xc)>hw||pp.y<-0.3||pp.y>2.3||hit<t-ah)return col;
+  vec2 q=vec2((pp.x-xc)*flip*WIN_FU_IW+0.5,(pp.y+WIN_FU_FLOOR)*WIN_FU_IH);
+  float row=floor((item+0.5)*WIN_LF_ICOLS),cl=item-row*WIN_LF_COLS;
+  vec2 g1=vec2(gx.x*flip*WIN_FU_IW,gx.y*WIN_FU_IH),g2=vec2(gy.x*flip*WIN_FU_IW,gy.y*WIN_FU_IH);
+  vec4 s=winCellTex(vec2(cl*WIN_LF_ICOLS,WIN_FU_V0+row*WIN_FU_VS),vec2(WIN_LF_ICOLS,WIN_FU_VS),q,WIN_FU_HALF,g1,g2);
+  vec3 body=mix(vec3(1.0),vec3(0.36,0.80,0.42),step(5.5,item)*step(item,7.5));
+  vec3 acc=winWood(fract(hh*3.7+0.13)),glw=winGlowC(fract(hh*5.1+0.37));
+  float lamp=s.r*s.r,day=s.g*s.g,am=min(2.0*s.b,1.0),gl=max(2.0*s.b-1.0,0.0);
+  vec3 base=mix(mix(body,acc,am),glw,gl);
+  vec3 c=base*(lamp*lampL*(1.0-0.3*k)*WIN_LK_FLAMP+day*fill*(0.12+0.88*(1.0-k)*(1.0-k))*WIN_LK_FDAY)+glw*gl*glowK;
+  return mix(col,c,s.a*fade*smoothstep(t-ah,t+ah,hit));
+}
+// Soft contact shadow of a furniture item on the floor: ellipse of the item's half-width by 0.35 m of depth around its layer.
+float winFurnShadow(float item,float xc,float hw,float k,vec2 fq){
+  vec2 d=vec2((fq.x-xc)*(1.0/max(hw,0.2)),(fq.y-k*WIN_DEPTH)*2.857);
+  return (1.0-smoothstep(0.0,1.0,length(d)))*step(-0.5,item);
+}
+#endif
+#if WIN_LEVEL>1
 vec3 winAccent(float h){return h<0.25?vec3(0.2,0.9,1.0):h<0.5?vec3(0.25,0.9,0.5):h<0.75?vec3(1.0,0.62,0.2):vec3(1.0,0.85,0.6);}
-// One atlas cell: r = metres around the feet, g = screen derivatives of r. Zero outside the cell, clamped half a texel inside it;
-// explicit gradients, so cell jumps and mirrored cards cause no mip seams.
 vec4 winSprite(float cell,vec2 r,vec2 gx,vec2 gy){
   float row=floor((cell+0.5)*WIN_LF_ICOLS);
   float col=cell-row*WIN_LF_COLS;
   vec2 q=vec2(r.x*WIN_LF_IW+0.5,(r.y+WIN_LF_FEET)*WIN_LF_IH);
-  float inside=step(0.0,q.x)*step(q.x,1.0)*step(0.0,q.y)*step(q.y,1.0);
-  vec2 qc=clamp(q,WIN_LF_HALF,vec2(1.0)-WIN_LF_HALF);
-  vec2 uv=(vec2(col,row)+vec2(qc.x,1.0-qc.y))*vec2(WIN_LF_ICOLS,WIN_LF_IROWS);
-  vec2 sc=vec2(WIN_LF_IW*WIN_LF_ICOLS,-WIN_LF_IH*WIN_LF_IROWS);
-  vec4 t=textureGrad(winLife,uv,gx*sc,gy*sc);
-  return vec4(t.rgb,t.a*inside);
+  return winCellTex(vec2(col*WIN_LF_ICOLS,row*WIN_LF_RV),vec2(WIN_LF_ICOLS,WIN_LF_RV),q,WIN_LF_HALF,gx*vec2(WIN_LF_IW,WIN_LF_IH),gy*vec2(WIN_LF_IW,WIN_LF_IH));
 }
+const float WIN_LF_ROW=${glslFloat(WINDOW_LIFE_FROM_ROW)};
+const float WIN_LF_ISTRIDE=${glslFloat(1 / LF.stride)};const float WIN_LF_SPEED=0.55;const float WIN_LF_ISPEED=${glslFloat(1 / .55)};
+const float WIN_LF_WALK=${LFS.walk.first}.0;const float WIN_LF_CARRY=${LFS.carry.first}.0;const float WIN_LF_IDLEW=${LFS.idleWalk.first}.0;const float WIN_LF_IDLEC=${LFS.idleCarry.first}.0;
+const float WIN_LF_IDLE=${LFS.idle.first}.0;const float WIN_LF_GREET=${LFS.greet.first}.0;const float WIN_LF_WORK=${LFS.work.first}.0;
 // Pose of one resident on its timeline: x metres from the left wall, cell A, cell B, blend of B over A. role 0 stroller, 1 courier,
 // 2 greeter, 3 worker. flip is -1 for a card mirrored (walking towards -x), bobK scales the standing bob. Nothing depends on time
 // advancing: a frozen stroller is caught mid-timeline, a frozen greeter is never in the middle of a wave. A range under 0.3 m means standing still.
@@ -118,12 +199,13 @@ vec4 winPose(float role,float h,float tm,float lo,float hi,float W,float deskX,o
   return vec4(clamp(deskX,lo,hi),WIN_LF_WORK,WIN_LF_WORK+1.0,0.5+0.5*sin(tm*(8.0+2.4*fract(h*5.1))+h*50.0));
 }
 // A resident relit for this room: rgb = colour, a = coverage.
-vec4 winFigure(vec4 p,float flip,float bob,vec2 pl,vec2 gx,vec2 gy,vec3 accent,vec3 lampL,vec3 fill,float on){
+vec4 winFigure(vec4 p,float flip,float bob,vec2 pl,vec2 gx,vec2 gy,vec3 accent,vec3 lampL,vec3 fill,float glowK){
   vec2 r=vec2((pl.x-p.x)*flip,pl.y-bob),fx=vec2(gx.x*flip,gx.y),fy=vec2(gy.x*flip,gy.y);
-  vec4 t=winSprite(p.y,r,fx,fy);
-  if(p.w>0.001)t=mix(t,winSprite(p.z,r,fx,fy),p.w);
+  // Poses are cut, not cross-faded: mixing two cells mixes their alphas, and two poses that only partly overlap showed up as a
+  // half-transparent double exposure (the worker, whose two cells alternate all the time, never was opaque).
+  vec4 t=winSprite(mix(p.y,p.z,step(0.5,p.w)),r,fx,fy);
   float lamp=t.r*t.r,day=t.g*t.g,am=min(2.0*t.b,1.0),gl=max(2.0*t.b-1.0,0.0);
-  vec3 c=mix(vec3(1.0),accent,am)*(lamp*lampL*(1.0-0.3*0.3)*WIN_LK_LAMP+day*fill*(0.12+0.88*0.49)*WIN_LK_DAY)+accent*gl*(WIN_LK_GD+WIN_LK_GL*on);
+  vec3 c=mix(vec3(1.0),accent,am)*(lamp*lampL*(1.0-0.3*0.3)*WIN_LK_LAMP+day*fill*(0.12+0.88*0.49)*WIN_LK_DAY)+accent*gl*glowK;
   return vec4(c,t.a);
 }
 #endif`;
@@ -209,55 +291,65 @@ vec2 winAq=min(max(fwidth(winQ.xz),vec2(1e-3)),vec2(0.2));
 float winPanel=winCeil*winBox(winQ.xz,vec2(0.28,0.3),vec2(0.72,0.62),winAq*0.6);
 winRoomCol=winAlb*winLightAt(winLampL,winFill,winQ.z)+winPanel*winLamp*winOn*mix(0.5,1.2,winDusk);
 float winAh=max(fwidth(winHit),1e-3);
-// Furniture at 55 % depth: a desk or counter, sometimes a tall shelf.
-float winTf=0.55*WIN_DEPTH/winD.z;
-vec2 winPf=(winP+winD*winTf).xy;
+// Desk centre (where the desk used to stand): the mid furniture layer and the worker use it.
 float winX0=(0.12+0.3*winH1)*winS.x,winX1=winX0+(0.3+0.2*fract(winH1*7.0))*winS.x;
-vec2 winAf=min(max(fwidth(winPf),vec2(1e-3)),vec2(0.2))*0.6;
-float winFurn=min(1.0,winBox(winPf,vec2(winX0,0.0),vec2(winX1,0.76),winAf)+step(0.5,fract(winH1*13.0))*winBox(winPf,vec2(winS.x-0.42,0.0),vec2(winS.x-0.1,1.9),winAf))*smoothstep(winTf-winAh,winTf+winAh,winHit);
-winRoomCol=mix(winRoomCol,vec3(0.07,0.065,0.06)*(0.8+0.4*fract(winH1*5.0))*winLightAt(winLampL,winFill,0.55),winFurn);
+// Continuous card coordinate (no fract at the cell edge) for the sprite gradients: card(k) = A + k*WIN_DEPTH*B, so the gradient
+// of any layer is dA + k*WIN_DEPTH*dB.
+vec2 winPcA=vWinRoom*winS,winPcB=winD.xy/winD.z;
+vec2 winGxA=dFdx(winPcA),winGyA=dFdy(winPcA),winGxB=dFdx(winPcB),winGyB=dFdy(winPcB);
 #if WIN_LEVEL>1
 // Life at 30 % depth in a share of the lit rooms: sprites of the resident robots (a stroller, a courier, a greeter or a worker at
 // the desk; two in lobbies), drawn as a flat card from the atlas and relit per room, plus a flickering screen on the back wall of
 // offices. Without the atlas on the GPU (winLifeOn 0) no figure is drawn.
 float winTl=0.3*WIN_DEPTH/winD.z;
 vec2 winPl=(winP+winD*winTl).xy;
-// Continuous card coordinate (no fract at the cell edge) for the sprite gradients.
-vec2 winPc=vWinRoom*winS+winD.xy*winTl;
-vec2 winGx=dFdx(winPc),winGy=dFdy(winPc);
-float winPres=winAlive*step(winH2,mix(0.4,0.85,winLobby))*winLifeOn;
+vec2 winGx=winGxA+0.3*WIN_DEPTH*winGxB,winGy=winGyA+0.3*WIN_DEPTH*winGyB;
+float winPres=winAlive*step(winH2,0.4)*step(WIN_LF_ROW,winCell.y)*winLifeOn;
 vec2 winSp=vec2((winQ.x-0.5)*winS.x,winQ.y*winS.y);
-float winScreen=winOn*winBack*(1.0-winLobby)*(1.0-winFurn)*step(fract(winH2*3.1),0.35)*winBox(winSp,vec2(-0.5,1.0),vec2(0.5,1.6),min(max(fwidth(winSp),vec2(1e-3)),vec2(0.2))*0.6);
+float winScreen=winOn*winBack*(1.0-winLobby)*step(fract(winH2*3.1),0.35)*winBox(winSp,vec2(-0.5,1.0),vec2(0.5,1.6),min(max(fwidth(winSp),vec2(1e-3)),vec2(0.2))*0.6);
 winRoomCol+=winScreen*vec3(0.3,0.7,1.0)*1.15*(0.8+0.2*sin(winTime*9.0+winH2*50.0)*sin(winTime*2.3+winH2*20.0));
-// Figures stand in front of the back-wall screen.
+#endif
+// Furniture cards from the atlas (medium and up): a back layer at 86 % depth, a mid layer at 55 %, painted far to near over the room
+// and the back-wall screen; each is only sampled where the pixel lies on its card. Without the atlas (winLifeOn 0) rooms stay empty.
+float winH5=fract(winHash(winKey*1.37+3.3)+0.6180339*winCell.x+0.7548777*winCell.y);
+vec3 winFm=vec3(-1.0,0.0,0.0),winFb1=vec3(-1.0,0.0,0.0),winFb2=vec3(-1.0,0.0,0.0);
+if(winLifeOn>0.001){
+  winFurnPlan(winH5,winLobby,winS.x,0.5*(winX0+winX1),winFm,winFb1,winFb2);
+  // Glowing parts only show where the room is lit or daylit: an unlit room at night stays dark.
+  float winFGlow=WIN_LK_FGL*winOn+WIN_LK_FGD*winDay;
+  float winTm=0.55*WIN_DEPTH/winD.z,winTb=0.86*WIN_DEPTH/winD.z;
+  vec2 winFq2=vec2(winQ.x*winS.x,winQ.z*WIN_DEPTH);
+  if(winFlr>0.5){
+    float winFs=max(winFurnShadow(winFm.x,winFm.y,winFm.z,0.55,winFq2),max(winFurnShadow(winFb1.x,winFb1.y,winFb1.z,0.86,winFq2),winFurnShadow(winFb2.x,winFb2.y,winFb2.z,0.86,winFq2)));
+    winRoomCol*=1.0-WIN_LK_FSH*winLifeOn*winFs;
+  }
+  vec2 winPm=(winP+winD*winTm).xy,winPb=(winP+winD*winTb).xy;
+  float winFlipM=mix(1.0,-1.0,step(0.5,fract(winH5*23.1))),winFlipB=mix(1.0,-1.0,step(0.5,fract(winH5*31.7)));
+  vec2 winGbx=winGxA+0.86*WIN_DEPTH*winGxB,winGby=winGyA+0.86*WIN_DEPTH*winGyB;
+  winRoomCol=winFurnLayer(winRoomCol,winFb1.x,winFb1.y,winFb1.z,winFlipB,0.86,winTb,winPb,winHit,winAh,winGbx,winGby,fract(winH5*7.7),winLampL,winFill,winFGlow,winLifeOn);
+  winRoomCol=winFurnLayer(winRoomCol,winFb2.x,winFb2.y,winFb2.z,-winFlipB,0.86,winTb,winPb,winHit,winAh,winGbx,winGby,fract(winH5*8.9),winLampL,winFill,winFGlow,winLifeOn);
+  winRoomCol=winFurnLayer(winRoomCol,winFm.x,winFm.y,winFm.z,winFlipM,0.55,winTm,winPm,winHit,winAh,winGxA+0.55*WIN_DEPTH*winGxB,winGyA+0.55*WIN_DEPTH*winGyB,fract(winH5*6.1),winLampL,winFill,winFGlow,winLifeOn);
+}
+#if WIN_LEVEL>1
+// Residents stand in front of the furniture.
 if(winPres>0.001){
   // winHash collides for some neighbouring cells in 32-bit floats (seen as two rooms walking in step), so the
   // cell index is added in golden-ratio steps: neighbours always differ, whatever the hash returns.
-  float winH4=fract(winHash(winKey*1.91+7.7)+0.6180339*winCell.x+0.7548777*winCell.y),winHr=winHash(winKey*2.17+1.3);
-  // Roles follow the cell, so horizontal, vertical and diagonal neighbours never share one (lobbies: three roles, no worker).
+  float winH4=fract(winHash(winKey*1.91+7.7)+0.6180339*winCell.x+0.7548777*winCell.y);
+  // Roles follow the cell, so horizontal, vertical and diagonal neighbours never share one.
   float winOff=floor(vWinSeed*4.0);
-  float winRole1=mix(mod(winCell.x+2.0*winCell.y+winOff,4.0),mod(winCell.x+winOff,3.0),winLobby),winRole2=mod(winRole1+1.0,3.0);
-  // Lobby pair: needs 1.15 m between the figure centres and 0.45 m to each side wall (2.05 m of true room width, exact pane data, so
-  // it cannot flip while the camera moves); figure 1 keeps to the left half, figure 2 (mirrored) to the right. Narrower lobbies show one.
-  float winTwo=winLobby*step(2.05,winS.x);
-  float winLo=0.45,winHi=mix(winS.x-0.45,max(0.5*winS.x-0.575,winLo),winTwo);
-  float winFl1,winBk1,winFl2,winBk2;
-  vec4 winPo1=winPose(winRole1,winH4,winTime,winLo,winHi,winS.x,0.5*(winX0+winX1),winFl1,winBk1);
-  vec4 winPo2=winPose(winRole2,fract(winH4*3.7+0.41),winTime,winLo,winHi,winS.x,0.5*(winX0+winX1),winFl2,winBk2);
-  winPo2.x=winS.x-winPo2.x;winFl2=-winFl2;
-  float winBob1=0.025*sin(winTime*2.6+winH2*30.0)*winBk1,winBob2=0.025*sin(winTime*2.6+winH2*30.0+2.1)*winBk2;
-  // Contact shadow: a soft ellipse on the floor around each figure's feet.
-  vec2 winFq=vec2(winQ.x*winS.x,winQ.z*WIN_DEPTH);
-  float winFlrK=winFlr*(1.0-winFurn)*WIN_LK_SH*winPres;
-  vec2 winSd1=(winFq-vec2(winPo1.x,0.3*WIN_DEPTH))*vec2(2.381,3.333),winSd2=(winFq-vec2(winPo2.x,0.3*WIN_DEPTH))*vec2(2.381,3.333);
-  winRoomCol*=1.0-winFlrK*max(1.0-smoothstep(0.0,1.0,length(winSd1)),(1.0-smoothstep(0.0,1.0,length(winSd2)))*winTwo);
+  float winRole1=mod(winCell.x+2.0*winCell.y+winOff,4.0);
+  // The worker stands at a desk or console (mid items 0-2); with any other mid item the room gets another role.
+  winRole1=mix(winRole1,mod(winCell.x+winCell.y+winOff,3.0),step(2.5,winRole1)*step(2.5,winFm.x));
+  float winFl1,winBk1;
+  vec4 winPo1=winPose(winRole1,winH4,winTime,0.45,winS.x-0.45,winS.x,winFm.y,winFl1,winBk1);
+  float winBob1=0.025*sin(winTime*2.6+winH2*30.0)*winBk1;
+  // Contact shadow: a soft ellipse on the floor around the figure's feet.
+  vec2 winSd1=(vec2(winQ.x*winS.x,winQ.z*WIN_DEPTH)-vec2(winPo1.x,0.3*WIN_DEPTH))*vec2(2.381,3.333);
+  winRoomCol*=1.0-winFlr*WIN_LK_SH*winPres*(1.0-smoothstep(0.0,1.0,length(winSd1)));
   float winCard=smoothstep(winTl-winAh,winTl+winAh,winHit);
-  vec4 winF1=winFigure(winPo1,winFl1,winBob1,winPl,winGx,winGy,winAccent(fract(winH4*5.3+0.1)),winLampL,winFill,winOn);
+  vec4 winF1=winFigure(winPo1,winFl1,winBob1,winPl,winGx,winGy,winAccent(fract(winH4*5.3+0.1)),winLampL,winFill,WIN_LK_GL*winOn+WIN_LK_GD*winDay);
   winRoomCol=mix(winRoomCol,winF1.rgb,winF1.a*winPres*winCard);
-  if(winTwo>0.5){
-    vec4 winF2=winFigure(winPo2,winFl2,winBob2,winPl,winGx,winGy,winAccent(fract(winH4*9.1+0.6)),winLampL,winFill,winOn);
-    winRoomCol=mix(winRoomCol,winF2.rgb,winF2.a*winPres*winCard);
-  }
 }
 #endif
 // Blinds in about one room in five, drawn on the glass; slats fade out when they get sub-pixel.

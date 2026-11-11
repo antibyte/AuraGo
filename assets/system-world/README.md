@@ -286,11 +286,13 @@ The assets are integrated through the isolated city renderer in System World.
   the v3 manifest ships that id, and colliders read `kitCatalog(v1, v3)`.
 - Window panes (`city.window`) are drawn by `ui/js/desktop/apps/sysworld-windows.js` as one shared
   glossy material with interior-mapped rooms. Low tier shows flat lit or unlit cells, medium adds
-  parallax, and high adds the resident sprites and screens. Lit rooms follow the time of day. Surface maps never
+  parallax and furniture sprites, and high adds the resident sprites and screens. Lit rooms follow the time of day. Surface maps never
   touch them.
-- Window figures: `build_window_life.py` renders the resident robots (LOD 0, their rig and clips) into the
-  sprite atlas `ui/3d/system-world/textures/v1/window-life.png` (+ `window-life.json`) that the high-tier
-  window shader relights per room: `blender -b --factory-startup --python assets/system-world/build_window_life.py`,
+- Window figures and furniture: `build_window_life.py` renders the resident robots (LOD 0, their rig and clips) and
+  twelve furniture groups (desks, console, rack, plants, sofa, lobby lounge/totem/reception; a second block below
+  the residents, 2.25 m cells) into the sprite atlas `ui/3d/system-world/textures/v1/window-life.png`
+  (+ `window-life.json`). The window shader relights both per room (furniture from the medium tier, residents on
+  high): `blender -b --factory-startup --python assets/system-world/build_window_life.py`,
   then `python -I assets/system-world/build_window_life.py --check` (bytes and sha256 against the manifest).
 - Keep collision/navigation geometry separate. Use the manifest bounds for
   coarse picking/culling and simplified building obstacles, never detailed facade

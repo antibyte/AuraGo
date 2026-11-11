@@ -170,14 +170,14 @@ export async function createCity(host, options) {
     shelters: interiors.map(r => [r.x - r.width / 2, r.z - r.depth / 2, r.x + r.width / 2, r.z + r.depth / 2]) });
   // Kit v3 window panes share one interior-mapped glass material (sysworld-windows.js).
   const windows = createWindows();
-  // Resident sprites behind the panes (high and ultra only): loaded once, lazily, after first display, outside the byte accounting.
+  // Resident and furniture sprites behind the panes (medium and up): loaded once, lazily, after first display, outside the byte accounting.
   let lifeStarted = false, lifeTimer = 0;
   function loadWindowLife() {
-    if (lifeStarted || disposed || windowLevel(tier) < 2) return;
+    if (lifeStarted || disposed || windowLevel(tier) < 1) return;
     lifeStarted = true;
     lifeTimer = setTimeout(async () => {
       lifeTimer = 0;
-      if (disposed || windowLevel(tier) < 2) { lifeStarted = false; return; }
+      if (disposed || windowLevel(tier) < 1) { lifeStarted = false; return; }
       try {
         const reply = await fetch(options.resourceURL('/3d/system-world/textures/v1/window-life.png'), { signal: abort.signal });
         if (!reply.ok) throw Error('Window life atlas unavailable');
