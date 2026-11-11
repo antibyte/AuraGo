@@ -3167,7 +3167,9 @@ async function testDesktopChatSeparatesStreamedToolRounds() {
         }
       }
     };
-    vm.runInNewContext(source, context);
+    const statusPolicy = sourceBetween(read('ui/js/shared/shared-core.js'),
+      'window.shouldShowAgentToolStatus =', '// Both chat surfaces keep questions');
+    vm.runInNewContext(statusPolicy + source, context);
     await context.sendDesktopChatStream({ querySelector: () => log }, 'Printer progress?', {});
     assert.deepEqual(bubbles.map(bubble => bubble.textContent), [
       'I will inspect the printer status.', 'I will check the active print.', 'The print is 42% complete.'
