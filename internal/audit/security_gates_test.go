@@ -23,7 +23,7 @@ func TestGoSecurityChecksRunIndependently(t *testing.T) {
 	if err := yaml.Unmarshal([]byte(readRepoFile(t, ".github/workflows/security-gates.yml")), &workflow); err != nil {
 		t.Fatal(err)
 	}
-	checks := map[string]string{"tests": "go test ./...", "race": "go test -race ", "vulnerabilities": "govulncheck ./..."}
+	checks := map[string]string{"tests": "go test ./...", "race": "go test -race -json ./internal/llm", "agent race": "go test -race -json ./internal/agent", "vulnerabilities": "govulncheck ./..."}
 	owners := map[string]string{}
 	for id, job := range workflow.Jobs {
 		for _, step := range job.Steps {
@@ -38,11 +38,20 @@ func TestGoSecurityChecksRunIndependently(t *testing.T) {
 				if job.Needs != nil || job.If != "" || job.Continue || step.If != "" || step.Continue {
 					t.Errorf("%s can be skipped or ignored", check)
 				}
-				if (check == "tests" || check == "race") && !strings.Contains(step.Run, "-p 1") {
+				if (check == "tests" || strings.Contains(check, "race")) && !strings.Contains(step.Run, "-p 1") {
 					t.Errorf("%s must serialize packages within runner resources", check)
 				}
+				if strings.Contains(check, "race") {
+					limit := "-timeout=30m"
+					if check == "agent race" {
+						limit = "-timeout=45m"
+					}
+					if !strings.Contains(step.Run, limit) || !strings.Contains(step.Run, "tee ") || !strings.Contains(step.Run, ".json") {
+						t.Errorf("%s needs its package limit and JSON timings", check)
+					}
+				}
 				if check == "race" {
-					for _, pkg := range []string{"llm", "server", "memory", "tools", "telegram", "whatsapp", "agent"} {
+					for _, pkg := range []string{"llm", "server", "memory", "tools", "telegram", "whatsapp"} {
 						if !strings.Contains(step.Run, "./internal/"+pkg) {
 							t.Errorf("race check omits %s", pkg)
 						}

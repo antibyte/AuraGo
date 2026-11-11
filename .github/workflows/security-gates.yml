@@ -143,7 +143,13 @@ jobs:
             skip: '^TestConfigRefresh(Populated|RealSections)Browser$|^TestDesktop'
           - name: Desktop A-D
             run: '^TestDesktop[A-D]'
+            skip: '^TestDesktopAuraDrift'
+          - name: Aura Drift quality and controls
+            run: '^TestDesktopAuraDrift(QualityMatrixBrowser|SteeringBrowser|SteeringFrameBrowser|GTAOShadowReuseBrowser)$'
             skip: '^$'
+          - name: Aura Drift other flows
+            run: '^TestDesktopAuraDrift'
+            skip: '^TestDesktopAuraDrift(QualityMatrixBrowser|SteeringBrowser|SteeringFrameBrowser|GTAOShadowReuseBrowser)$'
           - name: Desktop E-G
             run: '^TestDesktop[E-G]'
             skip: '^$'
@@ -212,7 +218,55 @@ jobs:
           cache: true
 
       - name: Run targeted race tests
-        run: go test -race ./internal/llm ./internal/server ./internal/memory ./internal/tools ./internal/telegram ./internal/whatsapp ./internal/agent -p 1 -timeout=30m
+        shell: bash
+        run: |
+          set -o pipefail
+          go test -race -json ./internal/llm ./internal/server ./internal/memory ./internal/tools ./internal/telegram ./internal/whatsapp -p 1 -timeout=30m | tee "$RUNNER_TEMP/go-race.json"
+      - name: Upload race test timings
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: go-race-timings
+          path: ${{ runner.temp }}/go-race.json
+
+  go-race-agent:
+    name: Go agent race tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Run complete agent race tests
+        shell: bash
+        run: |
+          set -o pipefail
+          go test -race -json ./internal/agent -p 1 -timeout=45m | tee "$RUNNER_TEMP/go-race-agent.json"
+      - name: Upload agent race test timings
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: go-race-agent-timings
+          path: ${{ runner.temp }}/go-race-agent.json
+
+  gog-reproducibility:
+    name: Reproduce gog artifacts (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Rebuild and compare all six compiler-pinned artifacts
+        run: go run ./scripts/build-gog.go
 
   windows-runtime:
     name: Windows focused runtime contracts
@@ -232,7 +286,7 @@ jobs:
       - name: Verify Storymaker vendor bytes on Windows
         run: node scripts/build-storymaker-vendor.mjs --check
       - name: Verify replacement, cancellation and runtime protocol fixtures
-        run: go test ./internal/fileutil ./internal/memory ./internal/agent ./internal/llm ./internal/audit -run 'Windows|SessionStop|SessionTurnLock|NativeBatch|NativeBudget|QueuedToolGuard|NativeFallback|SyncCompletion|RuntimePanic|ExplicitUnknown|FirstToken|ReleaseSignature|ReleaseSigner' -timeout=20m
+        run: go test ./internal/dbutil ./internal/fileutil ./internal/memory ./internal/agent ./internal/llm ./internal/audit -run 'BackupSQLite|Windows|SessionStop|SessionTurnLock|NativeBatch|NativeBudget|QueuedToolGuard|NativeFallback|SyncCompletion|RuntimePanic|ExplicitUnknown|FirstToken|ReleaseSignature|ReleaseSigner' -timeout=20m
 
   release-signing:
     name: Offline Cosign release fixture (${{ matrix.os }})
