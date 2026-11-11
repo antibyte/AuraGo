@@ -54,7 +54,11 @@ and plan; this file only keeps the findings so they are not lost.
     test. The machine hall got no visit in the final 122 s run. Consider seeding or a calmer scheduler.
 13. **Parcel sorter** stands 0.7 m beside the mission stairs (wanted 1.5 m); needs a smaller footprint or
     another spot.
-14. **Patrol robots** yield up to 22 s behind trams in the living test (not asserted).
+14. **Patrol robots** yield up to 22 s behind trams in the living test (not asserted). (phase 6 found the
+    hard case behind it: from about 115 s a patrol boxed in between the rails and street furniture and a tram
+    waited for each other for good, and both trams stood still. A patrol that cannot step aside for 3 s now
+    moves to the nearest free spot outside the rail corridor; `scripts/test-system-world-tram-pocket.mjs`.
+    In 200 s the rule fires five times; watch whether that looks restless.)
 26. **Patrol robots: stale `yield` label.** The `yield` label stays set while a patrol keeps moving (33–59 s
    of label time in the living test, no blockage). `sysworld-society.js` walks a patrol in the `yield`
    state too (the walking branch accepts it). Related to item 14. (done in phase 6: the label clears; in the
@@ -105,6 +109,7 @@ and plan; this file only keeps the findings so they are not lost.
    the sound button) and passed on the same commit (`b28901de0`) in the coordinator's shell (106 s; six
    recordings loaded, foley peak .063). Cause not established: no audio device in that shell, or the wait is
    too short while the larger sound graph is built. Find out which; if it is time, wait longer for the state.
+   (phase 6: not reproduced; the run passed five times in two other shells. The wait is unchanged.)
 
 35. **Night glare steps down within one survey page.** After about the 11th picture in one page the facade
    glare drops by itself (missions .0245 → .0157, memory .0400 → .0337), with lights, emissive values, environment
@@ -112,8 +117,16 @@ and plan; this file only keeps the findings so they are not lost.
    Something time-driven runs on between scenes (`freeze` only holds inside one). Find what; if it is a slow
    easing of the night state, the first minute after a mood change is brighter than the settled picture.
 36. **Survey instruments.** The `window-env-off` toggle did nothing when it was used (the window material had
-   no environment map of its own); since `windows.setEnvironment` it has one, so re-check the toggle. `camera.blocked` reports a moving body near the camera, not a bad camera position
+   no environment map of its own); since `windows.setEnvironment` it has one, so re-check the toggle.
+   `camera.blocked` reports a moving body near the camera, not a bad camera position
    (`life-street-trees-night`, `crossing`): check against solids only, or freeze before the check.
+37. **A visitor standing on the rails stops a tram for good.** The tram's look-ahead waits as long as the
+   visitor's body is in its way (`sysworld-experience.js`); the tram behind queues. Meant as courtesy, but it
+   never gives up: ring the bell and creep, or ask the visitor to step aside.
+38. **Browser tests and a slow GPU.** Chrome may pick the integrated GPU; the System World then runs at a third
+   of the frame rate. The expansion test's walking helper now holds keys over frames, but other fixed-time
+   waits in the desktop browser tests have not been looked at.
+39. **The tram model** is still the plain v2 one and looks out of place beside the v3 kit.
 
 ## Sound
 

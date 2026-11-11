@@ -108,7 +108,7 @@ func TestDesktopSysWorldAppMarkers(t *testing.T) {
 		"js/desktop/apps/sysworld-ground.js":           {"export function streetProfile", "export function streetModules", "export function pedestrianGraph", "export function carriagewayFree", "export const kerb", "export function onCarriageway"},
 		"js/desktop/apps/sysworld-lobbies.js":          {"export const LOBBIES", "export const PODIUMS", "export function lobbyGround", "export function stepFree", "export function lobbySolids", "export function createLobbyDoors", "export function lobbyGraph", "export function treadCentre(", "export const FOOT_HALF"},
 		"js/desktop/apps/sysworld-lobby-render.js":     {"export function createLobbyRender", "export const PANE_MATERIAL", "depthWrite:false", "getObjectByName('lobby')", "door_(\x5cd+)_([lr])", "dispose()", "setLighting("},
-		"js/desktop/apps/sysworld-society.js":          {"export function residentShape", "snap:treadCentre"},
+		"js/desktop/apps/sysworld-society.js":          {"export function residentShape", "snap:treadCentre", "function corridorSpot("},
 		"js/desktop/apps/sysworld-places.js":           {"streetPoints"},
 		"js/desktop/apps/sysworld-footing.js":          {"export function springStep", "export function solveLeg", "export function adaptFeet", "export function findRig", "export function soleGaps(", "snap=null"},
 		"js/desktop/apps/sysworld-contact.js":          {"export function createContactShadows", "dispose()"},

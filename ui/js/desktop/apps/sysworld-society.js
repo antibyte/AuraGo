@@ -117,6 +117,18 @@ export function createSociety(scene,{traffic,camera,floor,catalog,onSelect,onDem
     a.back={x:tx,z:tz,until:clock+1.5+(a.index%5)*.25};a.wait=0;a.state='idle';
     return true;
   }
+  // A patrol boxed in beside a stopped tram (no exit probe is free) moves to the nearest free spot outside the rail corridor.
+  // Rings of growing radius in a fixed set of directions: deterministic and only run once a second while boxed.
+  function corridorSpot(a,tram) {
+    const c=Math.cos(tram.heading),s=Math.sin(tram.heading),need=tram.reach+a.body.reach+1;
+    for(let r=2;r<=12;r++)for(let n=0;n<24;n++) {
+      const x=a.body.x+Math.cos(n*Math.PI/12)*r,z=a.body.z+Math.sin(n*Math.PI/12)*r;
+      if(Math.abs((x-tram.x)*c-(z-tram.z)*s)<need)continue;
+      const p={x,y:a.body.y,z,heading:a.body.heading};
+      if(traffic.clear(a.body,p,p))return p;
+    }
+    return null;
+  }
   function endMeeting(m) {
     for(const a of [m.a,m.b]){release(a);a.meeting=null;a.cooldown=clock+12+(a.index||0);a.pause?.(false);a.state=a.pause?'patrol':'idle';a.until=clock+1;}
   }
@@ -148,7 +160,7 @@ export function createSociety(scene,{traffic,camera,floor,catalog,onSelect,onDem
         // Stay at the crossing until the entire train has passed. Immediately
         // rejoining a patrol would otherwise keep stepping back in front of it.
         if(train?.enabled&&!stalled(train)&&Math.hypot(dx,dz)<26&&dx*Math.sin(train.heading)+dz*Math.cos(train.heading)>-train.reach-a.body.reach-1){a.pause?.(true);a.play?.('idle');continue;}
-        a.yieldTram=null;
+        a.yieldTram=null;a.boxed=0;
       }
       if(tram){
         a.trafficYield=true;a.yieldTram=tram.id;
@@ -177,10 +189,18 @@ export function createSociety(scene,{traffic,camera,floor,catalog,onSelect,onDem
           a.escape={x:dx,z:dz,until:clock+.8};a.state='yield';a.cooldown=clock+5;stepped=true;break;
         }
         // Nowhere free to step onto: stand still instead of marching on the spot.
-        if(!stepped){a.play?.('idle');a.state='yield';}
+        if(!stepped){
+          a.play?.('idle');a.state='yield';
+          // Boxed in for more than 3 s: leave the rail corridor, or the tram waits for the patrol for good.
+          if(a.pause&&(a.boxed=(a.boxed||0)+dt)>3&&clock>=(a.boxedTry||0)) {
+            a.boxedTry=clock+1;
+            const spot=corridorSpot(a,tram);
+            if(spot&&traffic.relocate(a.body,spot)){a.boxed=0;a.pause(true,a.body);}
+          }
+        } else a.boxed=0;
         continue;
       }
-      if(a.trafficYield){a.trafficYield=false;a.pause?.(false,a.body);a.state=a.pause?'patrol':a.path.length?'walk':'idle';}
+      if(a.trafficYield){a.trafficYield=false;a.boxed=0;a.pause?.(false,a.body);a.state=a.pause?'patrol':a.path.length?'walk':'idle';}
       if(a.meeting)continue;
       if(a.pause){if(a.state==='yield'&&!a.trafficYield&&!a.yieldTram)a.state='patrol';if(a.state==='greet'&&clock>a.until){a.pause(false);a.state='patrol';}continue;}
       if(a.guide&&Math.hypot(camera.position.x-a.body.x,camera.position.z-a.body.z)>9){a.play('idle');continue;}

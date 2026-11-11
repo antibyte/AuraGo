@@ -141,7 +141,13 @@ export function createCityLife(scene, districts, options) {
         if(traffic){
           const a=r.agent;let body=null;
           for(let tries=0;tries<600&&!body;tries++){body=traffic.register('patrol-'+i,shape,{x:a.x,y:1.6,z:a.z,heading:a.heading},1);if(!body)navigator.seek(a,a.s+1);}
-          if(body){bodies[i]=body;options.society?.patrol(body.id,body,r.root,(held,position)=>{a.held=held;if(position)navigator.adopt(a,position);});}
+          if(body){bodies[i]=body;options.society?.patrol(body.id,body,r.root,(held,position)=>{
+            a.held=held;
+            // A traffic body that was moved to a free spot (a patrol boxed in beside a tram) must not snap the robot there:
+            // it travels over about a second, rising a little on the way. The shown robot starts from where it was seen.
+            if(position&&r.placed&&Math.hypot(r.root.position.x-position.x,r.root.position.z-position.z)>1.5)r.glide={t:0,x:r.root.position.x,z:r.root.position.z};
+            if(position)navigator.adopt(a,position);
+          });}
           else{r.root.visible=false;r.glow.visible=false;a.held=true;}
         }
       });
@@ -192,13 +198,21 @@ export function createCityLife(scene, districts, options) {
       r.phase+=moved*1.4;
       r.gait=THREE.MathUtils.damp(r.gait,Math.min(1,moved/Math.max(step,1e-4)/1.2),6,step);
       const gait=r.gait,rest=1-gait;
-      r.root.position.set(position.x,1.6+Math.sin(r.phase)*.14*gait+Math.sin(time*.7+i*2.1)*.03*rest,position.z);
+      let shownX=position.x,shownZ=position.z,rise=0;
+      if(r.glide){
+        // Ease the shown robot from its old place to the body (smoothstep), with a short rise in the middle.
+        r.glide.t+=step/1;const k=Math.min(1,r.glide.t),e=k*k*(3-2*k);
+        shownX=r.glide.x+(position.x-r.glide.x)*e;shownZ=r.glide.z+(position.z-r.glide.z)*e;rise=Math.sin(Math.PI*k)*1.2;
+        if(k>=1)r.glide=null;
+      }
+      r.placed=true;
+      r.root.position.set(shownX,1.6+rise+Math.sin(r.phase)*.14*gait+Math.sin(time*.7+i*2.1)*.03*rest,shownZ);
       r.root.rotation.y=position.heading;
       // Lean into lateral moves and turns; a stopped or turning robot stays level.
       const lateral=(a.vx*a.rx+a.vz*a.rz)/Math.max(1,moving);
       r.body.rotation.z=Math.sin(time*.85+i)*.035*gait-lateral*.08;
       r.body.rotation.x=-.035+Math.sin(time*1.1+i)*.018*gait-Math.min(.09,moving*.015);
-      r.glow.position.x=position.x;r.glow.position.z=position.z;
+      r.glow.position.x=shownX;r.glow.position.z=shownZ;
       r.jet.scale.y=1+Math.sin(time*4+i)*.12+moving*.04;
       // Ground light and contact shadow lie on the actual street surface under the robot.
       const floor=groundHeight(r.glow.position.x,r.glow.position.z);r.glow.position.y=floor+.08;
@@ -222,7 +236,7 @@ export function createCityLife(scene, districts, options) {
         if(!accepted){const blocked=(a.trafficWait||0)+step;Object.assign(a,before[i]);a.speed=0;a.vx=a.vz=0;a.trafficWait=blocked;
           if(blocked>2.5){if(a.state!=='turn'){a.dir=-a.dir;a.lane=-a.lane;a.laneTarget=2.2;a.state='turn';a.turns++;}else a.state='cruise';a.trafficWait=0;}}
         else{a.trafficWait=0;a.heading=b.heading;}
-        r.root.position.x=b.x;r.root.position.z=b.z;r.root.rotation.y=b.heading;r.glow.position.x=b.x;r.glow.position.z=b.z;
+        if(!r.glide){r.root.position.x=b.x;r.root.position.z=b.z;r.glow.position.x=b.x;r.glow.position.z=b.z;}r.root.rotation.y=b.heading;
         });
       }
     }
