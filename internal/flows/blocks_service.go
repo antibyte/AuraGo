@@ -112,7 +112,7 @@ func (s *Service) RestoreBlockVersion(ctx context.Context, id string, revision, 
 	if _, err := s.GetBlock(ctx, id); err != nil {
 		return nil, nil, err
 	}
-	doc, err := s.store.GetVersion(ctx, id, revision)
+	doc, err := s.store.GetVersionForCopy(ctx, id, revision)
 	if err != nil {
 		return nil, nil, err
 	}

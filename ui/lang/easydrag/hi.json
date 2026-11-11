@@ -1519,5 +1519,6 @@
   "easydrag.ui.credential_move_text": "मान तिजोरी में रखा जाएगा और इस फ़्लो में बदल दिया जाएगा। प्रभावित स्थान: {count}।",
   "easydrag.ui.credential_move_name": "गुप्त मान का नाम",
   "easydrag.ui.credential_moved": "ले जाया गया। फ़्लो प्रकाशित करो, फिर पुरानी प्रतियाँ साफ़ कर सकते हो।",
-  "easydrag.ui.credential_replace_confirm": "{name} नाम का गुप्त मान पहले से है। उसका मान बदल दें?"
+  "easydrag.ui.credential_replace_confirm": "{name} नाम का गुप्त मान पहले से है। उसका मान बदल दें?",
+  "easydrag.ui.error_flow_version_purged": "यह संस्करण अब उपयोग नहीं किया जा सकता: इसमें टाइप किया गया क्रेडेंशियल था और इसे सफ़ाई के लिए चिह्नित किया गया है।"
 }

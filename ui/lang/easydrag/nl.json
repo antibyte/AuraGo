@@ -1519,5 +1519,6 @@
   "easydrag.ui.credential_move_text": "De waarde gaat naar de kluis en wordt in deze flow vervangen. Betrokken plekken: {count}.",
   "easydrag.ui.credential_move_name": "Naam van het geheim",
   "easydrag.ui.credential_moved": "Verplaatst. Publiceer de flow, dan kun je oude kopieën opruimen.",
-  "easydrag.ui.credential_replace_confirm": "Er bestaat al een geheim met de naam {name}. De waarde vervangen?"
+  "easydrag.ui.credential_replace_confirm": "Er bestaat al een geheim met de naam {name}. De waarde vervangen?",
+  "easydrag.ui.error_flow_version_purged": "Deze versie kan niet meer worden gebruikt: ze bevatte ingetypte inloggegevens en is gemarkeerd voor opruiming."
 }

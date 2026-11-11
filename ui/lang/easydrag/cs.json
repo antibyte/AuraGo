@@ -1519,5 +1519,6 @@
   "easydrag.ui.credential_move_text": "Hodnota se uloží do trezoru a v tomto flow se nahradí. Dotčená místa: {count}.",
   "easydrag.ui.credential_move_name": "Název tajemství",
   "easydrag.ui.credential_moved": "Přesunuto. Publikuj flow, potom můžeš vyčistit staré kopie.",
-  "easydrag.ui.credential_replace_confirm": "Tajemství s názvem {name} už existuje. Nahradit jeho hodnotu?"
+  "easydrag.ui.credential_replace_confirm": "Tajemství s názvem {name} už existuje. Nahradit jeho hodnotu?",
+  "easydrag.ui.error_flow_version_purged": "Tuto verzi už nelze použít: obsahovala ručně zadané přihlašovací údaje a je označena k vyčištění."
 }

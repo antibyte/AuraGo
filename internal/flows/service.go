@@ -371,6 +371,9 @@ func (s *Service) retentionLoop() {
 // PruneNow applies run retention and forgets old event logs.
 func (s *Service) PruneNow(ctx context.Context) (int64, error) {
 	n, err := s.store.PruneRunsByMode(ctx, s.cfg.RunRetentionDays, s.cfg.MaxRunsPerFlow, s.cfg.MaxTestRunsPerFlow, s.now())
+	if _, perr := s.store.PrunePurgedVersions(ctx, ""); perr != nil {
+		s.logger.Warn("marked flow versions could not be deleted", "error", perr)
+	}
 	s.runner.Bus().Sweep()
 	return n, err
 }
@@ -607,7 +610,7 @@ func (s *Service) RestoreVersion(ctx context.Context, id string, revision, baseR
 	if _, err := s.requireFlow(ctx, id); err != nil {
 		return nil, nil, err
 	}
-	doc, err := s.store.GetVersion(ctx, id, revision)
+	doc, err := s.store.GetVersionForCopy(ctx, id, revision)
 	if err != nil {
 		return nil, nil, err
 	}

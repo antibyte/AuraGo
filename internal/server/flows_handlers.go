@@ -248,6 +248,8 @@ func (s *Server) flowsErrorFrom(w http.ResponseWriter, r *http.Request, err erro
 		flowsError(w, http.StatusNotFound, "FLOW_RUN_NOT_FOUND", flowsErrorText(err))
 	case errors.Is(err, flows.ErrRevisionConflict):
 		flowsError(w, http.StatusConflict, "FLOW_REVISION_CONFLICT", flowsErrorText(err))
+	case errors.Is(err, flows.ErrVersionPurged):
+		flowsError(w, http.StatusConflict, "FLOW_VERSION_PURGED", "this version was marked for credential cleanup")
 	case errors.Is(err, flows.ErrBlockUnavailable):
 		flowsError(w, http.StatusConflict, "FLOW_BLOCK_UNAVAILABLE", "the referenced block revision is unavailable")
 	case errors.Is(err, flows.ErrBlockInvalid):

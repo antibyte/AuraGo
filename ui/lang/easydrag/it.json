@@ -1519,5 +1519,6 @@
   "easydrag.ui.credential_move_text": "Il valore va nel caveau e viene sostituito in questo flusso. Punti interessati: {count}.",
   "easydrag.ui.credential_move_name": "Nome del segreto",
   "easydrag.ui.credential_moved": "Spostato. Pubblica il flusso, poi potrai ripulire le vecchie copie.",
-  "easydrag.ui.credential_replace_confirm": "Esiste già un segreto chiamato {name}. Sostituire il suo valore?"
+  "easydrag.ui.credential_replace_confirm": "Esiste già un segreto chiamato {name}. Sostituire il suo valore?",
+  "easydrag.ui.error_flow_version_purged": "Questa versione non può più essere usata: conteneva una credenziale digitata ed è contrassegnata per la pulizia."
 }

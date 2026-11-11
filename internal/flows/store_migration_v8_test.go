@@ -71,7 +71,7 @@ func TestFlowsV8MigrationPreservesStateAndRollback(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				assertData(s.db, "8")
+				assertData(s.db, "9")
 				if err := s.Close(); err != nil {
 					t.Fatal(err)
 				}

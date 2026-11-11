@@ -1519,5 +1519,6 @@
   "easydrag.ui.credential_move_text": "该值会存入保险库，并在此流程中被替换。涉及位置：{count}。",
   "easydrag.ui.credential_move_name": "密钥名称",
   "easydrag.ui.credential_moved": "已移入。发布流程后，你可以清理旧副本。",
-  "easydrag.ui.credential_replace_confirm": "名为 {name} 的密钥已存在。要替换它的值吗？"
+  "easydrag.ui.credential_replace_confirm": "名为 {name} 的密钥已存在。要替换它的值吗？",
+  "easydrag.ui.error_flow_version_purged": "此版本已无法使用：它包含手动输入的凭据，已被标记为待清理。"
 }

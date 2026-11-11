@@ -358,7 +358,11 @@ func (s *Store) FinishRun(ctx context.Context, runID string, res RunResult) erro
 	if err != nil {
 		return err
 	}
-	return requireRow(r, ErrRunNotFound)
+	if err := requireRow(r, ErrRunNotFound); err != nil {
+		return err
+	}
+	s.prunePurgedAfterRun(ctx, runID)
+	return nil
 }
 
 // GetRun returns the run header and its steps in sequence order.

@@ -1519,5 +1519,6 @@
   "easydrag.ui.credential_move_text": "The value goes into the vault and is replaced in this flow. Places affected: {count}.",
   "easydrag.ui.credential_move_name": "Secret name",
   "easydrag.ui.credential_moved": "Moved. Publish the flow, then you can clean up old copies.",
-  "easydrag.ui.credential_replace_confirm": "A secret named {name} already exists. Replace its value?"
+  "easydrag.ui.credential_replace_confirm": "A secret named {name} already exists. Replace its value?",
+  "easydrag.ui.error_flow_version_purged": "This version can no longer be used: it held a typed credential and was marked for cleanup."
 }

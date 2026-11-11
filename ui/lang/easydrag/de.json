@@ -1519,5 +1519,6 @@
   "easydrag.ui.credential_move_text": "Der Wert kommt in den Tresor und wird in diesem Flow ersetzt. Betroffene Stellen: {count}.",
   "easydrag.ui.credential_move_name": "Name des Geheimnisses",
   "easydrag.ui.credential_moved": "Verschoben. Veröffentliche den Flow, dann kannst du alte Kopien bereinigen.",
-  "easydrag.ui.credential_replace_confirm": "Ein Geheimnis namens {name} gibt es schon. Soll sein Wert ersetzt werden?"
+  "easydrag.ui.credential_replace_confirm": "Ein Geheimnis namens {name} gibt es schon. Soll sein Wert ersetzt werden?",
+  "easydrag.ui.error_flow_version_purged": "Diese Version kann nicht mehr verwendet werden: Sie enthielt ein getipptes Zugangsdatum und ist zur Bereinigung markiert."
 }

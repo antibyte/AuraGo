@@ -1519,5 +1519,6 @@
   "easydrag.ui.credential_move_text": "O valor vai para o cofre e é substituído neste fluxo. Locais afetados: {count}.",
   "easydrag.ui.credential_move_name": "Nome do segredo",
   "easydrag.ui.credential_moved": "Movido. Publique o fluxo e depois você poderá limpar as cópias antigas.",
-  "easydrag.ui.credential_replace_confirm": "Já existe um segredo chamado {name}. Substituir o valor dele?"
+  "easydrag.ui.credential_replace_confirm": "Já existe um segredo chamado {name}. Substituir o valor dele?",
+  "easydrag.ui.error_flow_version_purged": "Esta versão não pode mais ser usada: continha uma credencial digitada e está marcada para limpeza."
 }
