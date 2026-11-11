@@ -1519,6 +1519,7 @@
   "easydrag.ui.credential_move_text": "Verdien legges i hvelvet og erstattes i denne flyten. Berørte steder: {count}.",
   "easydrag.ui.credential_move_name": "Navn på hemmeligheten",
   "easydrag.ui.credential_moved": "Flyttet. Publiser flyten, så kan du rydde opp i gamle kopier.",
+  "easydrag.ui.credential_undo_reset": "Angre-historikken er nullstilt.",
   "easydrag.ui.credential_replace_confirm": "Det finnes allerede en hemmelighet som heter {name}. Vil du erstatte verdien?",
   "easydrag.ui.error_flow_version_purged": "Denne versjonen kan ikke lenger brukes: den inneholdt innskrevet legitimasjon og er merket for opprydding."
 }

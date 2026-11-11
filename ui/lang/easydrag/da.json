@@ -1519,6 +1519,7 @@
   "easydrag.ui.credential_move_text": "Værdien lægges i tresoren og erstattes i dette flow. Berørte steder: {count}.",
   "easydrag.ui.credential_move_name": "Navn på hemmeligheden",
   "easydrag.ui.credential_moved": "Flyttet. Udgiv flowet, så kan du rydde op i gamle kopier.",
+  "easydrag.ui.credential_undo_reset": "Fortryd-historikken er nulstillet.",
   "easydrag.ui.credential_replace_confirm": "Der findes allerede en hemmelighed med navnet {name}. Skal værdien erstattes?",
   "easydrag.ui.error_flow_version_purged": "Denne version kan ikke længere bruges: den indeholdt en indtastet adgangskode og er markeret til oprydning."
 }

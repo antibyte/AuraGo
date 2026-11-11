@@ -1519,6 +1519,7 @@
   "easydrag.ui.credential_move_text": "Värdet läggs i kassaskåpet och ersätts i det här flödet. Berörda ställen: {count}.",
   "easydrag.ui.credential_move_name": "Hemlighetens namn",
   "easydrag.ui.credential_moved": "Flyttat. Publicera flödet, sedan kan du rensa gamla kopior.",
+  "easydrag.ui.credential_undo_reset": "Ångra-historiken har återställts.",
   "easydrag.ui.credential_replace_confirm": "Det finns redan en hemlighet som heter {name}. Ersätta dess värde?",
   "easydrag.ui.error_flow_version_purged": "Den här versionen kan inte längre användas: den innehöll en inskriven inloggningsuppgift och är markerad för rensning."
 }

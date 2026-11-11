@@ -1519,6 +1519,7 @@
   "easydrag.ui.credential_move_text": "El valor pasa a la bóveda y se sustituye en este flujo. Lugares afectados: {count}.",
   "easydrag.ui.credential_move_name": "Nombre del secreto",
   "easydrag.ui.credential_moved": "Movido. Publica el flujo y luego podrás limpiar las copias antiguas.",
+  "easydrag.ui.credential_undo_reset": "Se restableció el historial de deshacer.",
   "easydrag.ui.credential_replace_confirm": "Ya existe un secreto llamado {name}. ¿Sustituir su valor?",
   "easydrag.ui.error_flow_version_purged": "Esta versión ya no se puede usar: contenía una credencial escrita a mano y está marcada para su limpieza."
 }

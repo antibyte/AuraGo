@@ -58,5 +58,11 @@ assert.equal(ED.saver.emergencyCopy('f1', 1).masked, true);
 // The clipboard fragment is masked where it is written (the interact module needs a DOM, so the
 // call is pinned in the source).
 const interact = fs.readFileSync(new URL('easydrag-interact.js', apps), 'utf8');
-assert.ok(interact.includes('frag: ED.credentials.mask(frag)'), 'the clipboard fragment is not masked');
+assert.ok(interact.includes('const masked = ED.credentials.mask(frag)'), 'the clipboard fragment is not masked');
+assert.ok(interact.includes('const text = JSON.stringify(masked)') && interact.includes('writeText(text)') && interact.includes('frag: masked'),
+    'the system clipboard text or the storage write does not come from the masked fragment');
+assert.ok(!/JSON\.stringify\(frag\)/.test(interact), 'the raw fragment is serialised');
+// What the masked fragment serialises to holds no literal.
+const maskedFrag = ED.credentials.mask({ easydrag: 1, nodes: [call], edges: [] });
+for (const secret of ['abc123def456', 'pw1234', 'api_key=abc123']) assert.ok(!JSON.stringify(maskedFrag).includes(secret), 'the clipboard text holds ' + secret);
 console.log('PASS credential rule and masking');

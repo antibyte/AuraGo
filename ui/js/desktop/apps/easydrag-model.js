@@ -495,8 +495,8 @@
             ranked.forEach((x, i) => { list[i] = x.item; });
         }
 
-        function emit(change) {
-            state.version += 1;
+        function emit(change, sameVersion) {
+            if (!sameVersion) state.version += 1;
             listeners.forEach(fn => { try { fn(change); } catch (err) { console.error('EasyDrag model listener failed', err); } });
         }
 
@@ -946,30 +946,12 @@
             return paste(frag, { x: min.x + 40, y: min.y + 40 });
         }
 
-        // scrubHistory replaces a moved credential by the redaction marker in every undo and redo
-        // snapshot, so undo cannot bring the typed value back. A value of 6 or more characters is
-        // replaced wherever it occurs inside a text (a query value sits inside an address); a
-        // shorter one only where a whole text equals it, so it cannot damage unrelated text. It
-        // returns how many texts changed.
-        function scrubHistory(value) {
-            const literal = String(value == null ? '' : value);
-            if (!literal) return 0;
-            let hits = 0;
-            const clean = v => {
-                if (typeof v === 'string') {
-                    const next = v === literal ? '[redacted]' : literal.length >= 6 ? v.split(literal).join('[redacted]') : v;
-                    if (next !== v) hits++;
-                    return next;
-                }
-                if (Array.isArray(v)) return v.map(clean);
-                if (v && typeof v === 'object') { const out = {}; Object.keys(v).forEach(k => { out[k] = clean(v[k]); }); return out; }
-                return v;
-            };
-            undoStack.concat(redoStack).forEach(set => {
-                ['nodes', 'edges'].forEach(list => (set[list] || []).forEach(entry => { entry.before = clean(entry.before); entry.after = clean(entry.after); }));
-                if (set.meta) { set.meta.before = clean(set.meta.before); set.meta.after = clean(set.meta.after); }
-            });
-            return hits;
+        // clearHistory forgets every undo and redo step, so undo cannot bring back a typed credential
+        // that was moved or removed. The toolbar reads canUndo on any change; the version stays.
+        function clearHistory() {
+            undoStack.length = 0;
+            redoStack.length = 0;
+            emit({ kind: 'history', nodes: [], edges: [], meta: false }, true); // the document did not change
         }
 
         // replaceDoc swaps in a document from the server (conflict reload) and clears history.
@@ -995,7 +977,7 @@
             toJSON: () => clone(state.doc),
             repairs: () => ({ droppedNodes, notesTrimmed }),
             addNode, removeNodes, moveNodes, connect, disconnect, insertOnEdge, setParam, setLabel, setKey, setSettings,
-            toggleDisabled, setFlow, fragment, paste, duplicate, replaceDoc, scrubHistory, group, createGroup, setGroup, setGroups, ungroup
+            toggleDisabled, setFlow, fragment, paste, duplicate, replaceDoc, clearHistory, group, createGroup, setGroup, setGroups, ungroup
         };
     }
 

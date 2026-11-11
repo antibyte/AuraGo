@@ -1519,6 +1519,7 @@
   "easydrag.ui.credential_move_text": "Wartość trafi do skarbca i zostanie zastąpiona w tym przepływie. Zmienione miejsca: {count}.",
   "easydrag.ui.credential_move_name": "Nazwa sekretu",
   "easydrag.ui.credential_moved": "Przeniesiono. Opublikuj przepływ, a potem możesz wyczyścić stare kopie.",
+  "easydrag.ui.credential_undo_reset": "Historia cofania została wyzerowana.",
   "easydrag.ui.credential_replace_confirm": "Sekret o nazwie {name} już istnieje. Zastąpić jego wartość?",
   "easydrag.ui.error_flow_version_purged": "Tej wersji nie można już używać: zawierała wpisane dane uwierzytelniające i została oznaczona do wyczyszczenia."
 }

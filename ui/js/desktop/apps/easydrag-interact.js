@@ -564,8 +564,9 @@
         function copySelection() {
             if (!ed.selection.size) return false;
             const frag = ed.model.fragment(Array.from(ed.selection));
-            const text = JSON.stringify(frag);
-            core.storage.set(CLIPBOARD_KEY, { at: Date.now(), frag: ED.credentials.mask(frag) });
+            const masked = ED.credentials.mask(frag); // neither the system clipboard nor storage gets a typed credential
+            const text = JSON.stringify(masked);
+            core.storage.set(CLIPBOARD_KEY, { at: Date.now(), frag: masked });
             if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).catch(() => {});
             canvas.announce(t('easydrag.ui.copied', { count: frag.nodes.length }));
             return true;

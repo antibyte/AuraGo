@@ -34,17 +34,20 @@
             return ed.model.doc.nodes.reduce((sum, node) => sum + ED.credentials.findings(node).filter(f => f.movable && f.location === finding.location && f.value === finding.value).length, 0);
         }
 
-        // applyDoc takes the params of the returned document as one change, so one undo step covers it.
+        // applyDoc takes the params of the returned document as one change, then forgets all undo and
+        // redo steps: their snapshots still hold the typed value.
         function applyDoc(served) {
-            return ed.model.change(t('easydrag.ui.credential_move'), rec => {
+            const changed = ed.model.change(t('easydrag.ui.credential_move'), rec => {
                 served.nodes.forEach(n => {
                     const current = ed.model.node(n.id);
                     if (current && JSON.stringify(current.params) !== JSON.stringify(n.params)) rec.node(n.id).params = JSON.parse(JSON.stringify(n.params));
                 });
             });
+            ed.model.clearHistory();
+            return changed;
         }
 
-        function notify(message, type) { ed.ctx.notify({ title: t('easydrag.ui.credential_move'), message, type }); }
+        function notify(message, type, titleKey) { ed.ctx.notify({ title: t(titleKey || 'easydrag.ui.credential_move'), message, type }); }
 
         // move saves, asks the server and applies its answer. It resolves to true when the dialog may close.
         async function move(finding, nodeId, name, replace) {
@@ -74,11 +77,10 @@
                 await ed.saver.recoverExternal(ticket);
                 return true;
             }
-            ed.model.scrubHistory(finding.value);
             ed.issues = res.issues || [];
             ed.bus.emit('issues', ed.issues);
             movedInSession = true;
-            notify(t('easydrag.ui.credential_moved'));
+            notify(t('easydrag.ui.credential_moved') + ' ' + t('easydrag.ui.credential_undo_reset'));
             return true;
         }
 
@@ -112,7 +114,8 @@
             const finding = node && find(nodeId, issue);
             if (!finding) return;
             ed.model.setParam(nodeId, finding.param, ED.credentials.remove(node, finding)[finding.param]);
-            ed.model.scrubHistory(finding.value);
+            ed.model.clearHistory();
+            notify(t('easydrag.ui.credential_undo_reset'), undefined, 'easydrag.ui.credential_remove');
         }
 
         // decorate puts the action on a credential warning (the .ed-field-issue box of the detail form).

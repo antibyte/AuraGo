@@ -1519,6 +1519,7 @@
   "easydrag.ui.credential_move_text": "値は保管庫に保存され、このフローでは置き換えられます。対象箇所：{count}",
   "easydrag.ui.credential_move_name": "シークレット名",
   "easydrag.ui.credential_moved": "移しました。フローを公開すると、古いコピーを整理できます。",
+  "easydrag.ui.credential_undo_reset": "元に戻す履歴をリセットしました。",
   "easydrag.ui.credential_replace_confirm": "{name} というシークレットは既にあります。値を置き換えますか？",
   "easydrag.ui.error_flow_version_purged": "このバージョンは使用できません。入力された認証情報が含まれていたため、クリーンアップ対象になっています。"
 }

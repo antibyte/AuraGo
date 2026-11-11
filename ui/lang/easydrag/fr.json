@@ -1519,6 +1519,7 @@
   "easydrag.ui.credential_move_text": "La valeur va dans le coffre et est remplacée dans ce flux. Endroits concernés : {count}.",
   "easydrag.ui.credential_move_name": "Nom du secret",
   "easydrag.ui.credential_moved": "Déplacé. Publie le flux, puis tu pourras nettoyer les anciennes copies.",
+  "easydrag.ui.credential_undo_reset": "L’historique d’annulation a été réinitialisé.",
   "easydrag.ui.credential_replace_confirm": "Un secret nommé {name} existe déjà. Remplacer sa valeur ?",
   "easydrag.ui.error_flow_version_purged": "Cette version ne peut plus être utilisée : elle contenait un identifiant saisi et est marquée pour nettoyage."
 }
