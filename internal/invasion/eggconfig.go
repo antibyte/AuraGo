@@ -362,6 +362,11 @@ func ApplySafeConfigPatch(originalYAML []byte, patch SafeConfigPatch) ([]byte, e
 	if err := ValidateEggPolicy(&parsed); err != nil {
 		return nil, err
 	}
+	if patch.InheritLLM == nil && patch.Provider == nil && patch.BaseURL == nil && patch.Model == nil &&
+		patch.AllowedTools == nil && patch.AllowFilesystemWrite == nil && patch.AllowNetworkRequests == nil &&
+		patch.AllowUnsandboxedShell == nil && patch.AllowRemoteShell == nil && patch.AllowSelfUpdate == nil {
+		return originalYAML, nil
+	}
 	return data, nil
 }
 

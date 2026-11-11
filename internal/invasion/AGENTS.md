@@ -12,6 +12,7 @@ the Egg runtime in `cmd/aurago`.
   explicit Egg key references take precedence. Keep generated YAML secret-free.
   OAuth sessions and the master's managed-local binding are not portable Egg
   credentials; require a separately reachable API-key provider instead.
+  An empty safe patch preserves the original YAML bytes and configuration identity.
 
 - `enabled` remains operator-owned even when the database is initialized.
   Master HTTP admission and the hub's live `Policy` callback enforce enabled
