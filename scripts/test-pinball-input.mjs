@@ -11,7 +11,7 @@ Object.defineProperty(globalThis, 'performance', { value: { now: () => now }, co
 Object.defineProperty(globalThis, 'navigator', { value: { getGamepads: () => pads }, configurable: true });
 const actions = [], settings = normalizeSettings();
 const input = createInput({}, settings, { active: () => true, playing: () => playing, action: name => actions.push(name), binding: () => bound++ });
-function key(type, code, time) { now = time; const event = new Event(type, { cancelable: true }); Object.assign(event, { code, repeat: false }); doc.dispatchEvent(event); return event; }
+function key(type, code, time, extra = {}) { now = time; const event = new Event(type, { cancelable: true }); Object.assign(event, { code, repeat: false }, extra); doc.dispatchEvent(event); return event; }
 
 key('keydown', 'ShiftLeft', 10); key('keyup', 'ShiftLeft', 12); input.poll();
 assert.equal(input.at(9).left, false); assert.equal(input.at(11).left, true); assert.equal(input.at(13).left, false, 'a tap between render frames keeps both edges');
@@ -43,4 +43,43 @@ input.dispose(); assert.equal(key('keydown', 'KeyA', 50).defaultPrevented, false
     b[8].value = 1; assert.equal(inp.poll().start, true); assert.equal(inp.at(120).start, true, 'pad button 8 maps to start');
     inp.dispose(); pads = [];
 }
-console.log('Pinball input: sub-frame edges, remapping, native menu keys, analogue nudge, controller disconnect and disposal passed');
+// Windows unifies a left/right modifier pair and can drop one keyup when both keys are released
+// together. Without reconciliation one bat stays latched until that key is pressed again.
+{
+    const fresh = () => createInput({}, normalizeSettings(), { active: () => true, playing: () => true, action: () => {}, binding: () => {} });
+    const shiftDown = { getModifierState: name => name === 'Shift' };
+    const shiftUp = { getModifierState: () => false };
+    const inp = fresh();
+    key('keydown', 'ShiftLeft', 200);
+    key('keydown', 'ShiftRight', 201);
+    assert.equal(inp.at(202).left, true, 'left coil follows ShiftLeft');
+    assert.equal(inp.at(202).right, true, 'right coil follows ShiftRight');
+    key('keyup', 'ShiftLeft', 203, shiftUp);   // the sibling keyup never arrives
+    assert.equal(inp.poll().left, false); assert.equal(inp.poll().right, false);
+    assert.equal(inp.at(204).left, false, 'left coil releases');
+    assert.equal(inp.at(204).right, false, 'right coil releases without its own keyup');
+    inp.dispose();
+    const pair = fresh();
+    key('keydown', 'ShiftLeft', 210); key('keydown', 'ShiftRight', 211);
+    key('keyup', 'ShiftLeft', 212, shiftDown);   // ShiftRight is still physically held
+    assert.equal(pair.at(213).left, false, 'released coil drops');
+    assert.equal(pair.at(213).right, true, 'a still-held Shift keeps its bat up');
+    key('keyup', 'ShiftRight', 214, shiftUp);
+    assert.equal(pair.at(215).right, false, 'the last Shift release drops the remaining bat');
+    pair.dispose();
+    const fallback = fresh();
+    key('keydown', 'ShiftLeft', 220); key('keydown', 'ShiftRight', 221);
+    key('keyup', 'ShiftLeft', 222, { shiftKey: false });   // getModifierState unavailable
+    assert.equal(fallback.at(223).right, false, 'the shiftKey flag is a valid fallback signal');
+    fallback.dispose();
+    const repeated = fresh();
+    key('keydown', 'ShiftLeft', 230);
+    key('keydown', 'ShiftRight', 231, { repeat: true });
+    assert.equal(repeated.at(232).right, true, 'a repeat-flagged second Shift is still a distinct press');
+    repeated.dispose();
+    const repeats = fresh();
+    key('keydown', 'ArrowLeft', 240); key('keydown', 'ArrowLeft', 241, { repeat: true });
+    assert.equal(repeats.nudges().length, 1, 'ordinary key auto-repeat stays deduplicated');
+    repeats.dispose();
+}
+console.log('Pinball input: sub-frame edges, paired Shift release, remapping, native menu keys, analogue nudge, controller disconnect and disposal passed');

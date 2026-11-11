@@ -93,7 +93,9 @@ another action, the two actions swap. The Start key falls back to Digit2, KeyS o
 if Digit1 is taken by another action.
 
 In menus, Space and Enter keep their normal behaviour. The game only receives them while
-it is playing.
+it is playing. Both Shift keys can be held and released together: the input layer reconciles
+the paired modifier state, so a flipper cannot stay latched when the browser drops one of the
+two key-up events.
 
 ## Shared rules
 

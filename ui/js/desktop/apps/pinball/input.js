@@ -1,12 +1,38 @@
 import { clamp } from './config.js';
 
 const TRANSITIONS = ['left', 'right', 'plunger', 'start'];
+// Windows keeps one shared state for a left/right modifier pair and may deliver only a single
+// keyup when both keys are released together. The sibling's action would stay latched forever.
+const MODIFIER = Object.freeze({
+    ShiftLeft: 'Shift', ShiftRight: 'Shift',
+    ControlLeft: 'Control', ControlRight: 'Control',
+    AltLeft: 'Alt', AltRight: 'Alt',
+    MetaLeft: 'Meta', MetaRight: 'Meta'
+});
+const MODIFIER_FLAG = Object.freeze({ Shift: 'shiftKey', Control: 'ctrlKey', Alt: 'altKey', Meta: 'metaKey' });
 
 export function createInput(root, settings, { active, playing, action, binding }) {
-    const controller = new AbortController(), held = new Set(), simulated = new Set(), transitions = [], nudges = [];
+    const controller = new AbortController(), held = new Set(), physical = new Set(), simulated = new Set(), transitions = [], nudges = [];
     let config = settings, capture = null, padIndex = null, previous = [], previousAxes = [0, 0], sampledPad = {};
     const listen = (target, name, fn) => target.addEventListener(name, fn, { signal: controller.signal });
-    function clear() { held.clear(); simulated.clear(); transitions.length = 0; nudges.length = 0; previous = []; previousAxes = [0, 0]; sampledPad = {}; }
+    function clear() { held.clear(); physical.clear(); simulated.clear(); transitions.length = 0; nudges.length = 0; previous = []; previousAxes = [0, 0]; sampledPad = {}; }
+    function release(key, time) {
+        if (!key || !held.delete(key)) return;
+        if (TRANSITIONS.includes(key) && (key !== 'start' || playing())) transitions.push({ key, down: false, time });
+    }
+    // A modifier keyup reporting its whole family inactive proves that no key of the pair is
+    // still down, even when the browser swallowed the sibling's keyup.
+    function reconcileModifiers(event, time) {
+        const group = MODIFIER[event.code];
+        if (!group) return;
+        const stillDown = typeof event.getModifierState === 'function' ? event.getModifierState(group) : event[MODIFIER_FLAG[group]] !== false;
+        if (stillDown) return;
+        for (const [name, code] of Object.entries(config.keys)) {
+            if (MODIFIER[code] !== group) continue;
+            physical.delete(code);
+            release(name, time);
+        }
+    }
     function rebind(device, code) {
         const { key } = capture, map = config[device === 'key' ? 'keys' : 'pad'];
         const other = Object.keys(map).find(name => map[name] === code);
@@ -21,7 +47,10 @@ export function createInput(root, settings, { active, playing, action, binding }
         if (!key) return;
         if (!playing() && key !== 'start' && (key !== 'pause' || event.target.closest('button') && ['Space', 'Enter', 'NumpadEnter'].includes(event.code))) return;
         event.preventDefault();
-        if (held.has(key) || event.repeat) return;
+        // Dedupe on the physical code: a second modifier pressed while its sibling is held can
+        // arrive with repeat=true on Windows, but is still a genuine first press of that code.
+        if (physical.has(event.code) || (event.repeat && !MODIFIER[event.code])) return;
+        physical.add(event.code);
         held.add(key);
         if (TRANSITIONS.includes(key) && (key !== 'start' || playing())) transitions.push({ key, down: true, time: performance.now() });
         if (key === 'start' && !playing()) action('start');
@@ -29,8 +58,11 @@ export function createInput(root, settings, { active, playing, action, binding }
         else if (['pause', 'camera', 'reset'].includes(key)) action(key);
     });
     listen(document, 'keyup', event => {
+        const time = performance.now();
+        reconcileModifiers(event, time);
         const key = Object.keys(config.keys).find(name => config.keys[name] === event.code);
-        if (key && held.delete(key) && TRANSITIONS.includes(key) && (key !== 'start' || playing())) transitions.push({ key, down: false, time: performance.now() });
+        physical.delete(event.code);
+        if (key) release(key, time);
     });
     listen(window, 'blur', () => { clear(); action('focusLost'); });
     listen(document, 'visibilitychange', () => { if (document.hidden) { clear(); action('focusLost'); } });
@@ -67,6 +99,11 @@ export function createInput(root, settings, { active, playing, action, binding }
     function at(time) {
         while (transitions.length && transitions[0].time <= time) {
             const edge = transitions.shift(); if (edge.down) simulated.add(edge.key); else simulated.delete(edge.key);
+        }
+        // With the edge queue drained, held is authoritative for the coils: no lost or gated edge
+        // may keep a bat up. Start stays edge-only because its button action is gated by playing().
+        if (!transitions.length) for (const key of ['left', 'right', 'plunger']) {
+            if (held.has(key)) simulated.add(key); else simulated.delete(key);
         }
         return { left: simulated.has('left') || sampledPad.left > .5, right: simulated.has('right') || sampledPad.right > .5, plunger: simulated.has('plunger') ? 1 : clamp(sampledPad.plunger || 0, 0, 1), start: simulated.has('start') || sampledPad.start > .5 };
     }

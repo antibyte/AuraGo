@@ -45,6 +45,11 @@ music, and a per-window Desktop game lifecycle.
   a hidden window, a disconnected controller or a menu.
 - Keyboard and gamepad edges are timestamped and consumed at simulation ticks, so short taps between
   frames are kept. Menu Space/Enter activation stays native.
+- Keyboard presses are deduplicated per physical `event.code`, so a repeat-flagged second modifier
+  still counts as a fresh press. A keyup whose modifier family reports inactive (`getModifierState`,
+  with `shiftKey`/`ctrlKey`/`altKey`/`metaKey` as fallback) releases every action bound to that
+  family: Windows unifies a left/right pair and can drop one keyup when both are released together.
+  Once the edge queue drains, `held` is authoritative for the coils; the Start button stays edge-only.
 - Tilt disables coils, GI, music and bonus. It never disables passive collision.
 - Balls returned to the shooter retry the plunger. Each resting ball is searched independently. A
   bounded search failure replaces the ball without consuming the player's turn.
