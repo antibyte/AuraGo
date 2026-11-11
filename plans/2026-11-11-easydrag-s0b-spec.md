@@ -175,6 +175,14 @@ Unit tests (not gated):
 
 **Live on aurago-test.** Build the gated security test binary for Linux (`go test -c`) and run it there once against its Chrome. The run is read-only: it creates no container, app or data and changes none (standing rule for aurago-test). The result goes into the plan's record.
 
+**A.6 result (aurago-test, 2026-11-12).** PASS (`TestEgressBrowserRefusesTheS8Fixture`, 8.74 s). Chromium 128.0.6568.0 (the rod-downloaded build already in the SSH user's `~/.cache/rod/browser/chromium-1321438/`, found via `AURAGO_TEST_CHROME`; no install), Ubuntu 26.04.1 LTS, kernel 7.0.0-42, x86_64, run as the unprivileged SSH user with the sandbox on. The test sets `AURAGO_SSRF_ALLOW_LOOPBACK` itself.
+- Refused: `172.31.255.1:80, 169.254.169.254:80, 172.31.255.1:80, 10.255.255.5:80, 10.255.255.1:80, 10.255.255.2:80, 192.168.255.1:80, 10.255.255.1:3478`.
+- Dialed: `accounts.google.com:443, 127.0.0.1:40233, www.google.com:443, www.google.com:443` (the fixture page itself plus Chrome's own public traffic; no private target).
+- Page report: every `Ran*` flag true; `CandidatePairs:0`; service worker activated, its fetch to `192.168.255.1` refused by the proxy.
+- Not covered: prerender (no request reached the proxy and the page cannot see whether Chrome tried; the speculation rules API is present). Prefetch was issued (`RanPrefetch`) but the page event was `error`, and no prefetch request reached the proxy either, so it counts as refused-or-not-sent, not as an observed refusal.
+- Difference from the local run: Chrome 128 here against a newer Chrome locally; Chrome's own accounts.google.com and www.google.com connections appear in Dialed on the server. No difference in the outcome.
+- The run created nothing on the server beyond the copied binary and a scratch `/tmp/s0b-run`, both removed afterwards.
+
 ## 4. Part B: one detection rule
 
 ### 4.1 Facts on main
