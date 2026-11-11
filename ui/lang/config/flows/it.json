@@ -1,6 +1,6 @@
 {
   "config.flows.agent_allow_publish": "L’agente può pubblicare flussi",
-  "config.flows.agent_note": "Le opzioni dell’agente avranno effetto quando l’agente potrà lavorare con i flussi.",
+  "config.flows.agent_note": "Queste opzioni limitano ciò che l’agente può fare con i flussi EasyDrag. Puoi sempre avviare e pubblicare i flussi tu stesso in EasyDrag.",
   "config.flows.agent_read_only": "L’agente può solo leggere i flussi",
   "config.flows.ai_provider": "Provider IA per i passi IA",
   "config.flows.ai_provider_help": "I passi IA impostati su «Modello predefinito» usano questo provider.",
@@ -26,5 +26,7 @@
   "config.flows.durable_configured": "Opzione salvata",
   "config.flows.durable_effective": "Elaborazione attivata",
   "config.flows.durable_available": "Servizio di ripresa pronto",
-  "config.flows.durable_counts": "Esecuzioni in attesa: {{waiting}} · Attive: {{running}} · Bloccate: {{blocked}}"
+  "config.flows.durable_counts": "Esecuzioni in attesa: {{waiting}} · Attive: {{running}} · Bloccate: {{blocked}}",
+  "config.flows.agent_read_only_help": "Se attivo, l’agente può elencare i flussi e leggerne la cronologia, ma non avviarli.",
+  "config.flows.agent_allow_publish_unavailable": "Non disponibile: l’agente non può pubblicare i flussi. Puoi pubblicare solo in EasyDrag."
 }

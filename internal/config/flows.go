@@ -22,8 +22,10 @@ type FlowsConfig struct {
 	Agent                  FlowsAgentConfig `yaml:"agent" json:"agent"`
 }
 
-// FlowsAgentConfig is reserved for limiting what the agent may do with flows.
-// The options are accepted and saved but not enforced yet (planned for phase 4).
+// FlowsAgentConfig limits what the agent may do with EasyDrag flows through manage_missions.
+// ReadOnly: the agent may list flows and read their history, but not start them (run and
+// run_now on a flow mission are refused); dispatch reads it on every call, so it takes effect
+// without a restart. AllowPublish has no effect: the agent cannot publish flows.
 type FlowsAgentConfig struct {
 	ReadOnly     bool `yaml:"read_only" json:"read_only"`
 	AllowPublish bool `yaml:"allow_publish" json:"allow_publish"`

@@ -1,6 +1,6 @@
 {
   "config.flows.agent_allow_publish": "Agent darf Flows veröffentlichen",
-  "config.flows.agent_note": "Die Agenten-Optionen greifen, sobald der Agent mit Flows arbeiten kann.",
+  "config.flows.agent_note": "Diese Optionen begrenzen, was der Agent mit EasyDrag-Flows tun darf. Starten und veröffentlichen kannst du Flows jederzeit selbst in EasyDrag.",
   "config.flows.agent_read_only": "Agent darf Flows nur lesen",
   "config.flows.ai_provider": "KI-Anbieter für KI-Schritte",
   "config.flows.ai_provider_help": "KI-Schritte, die auf „Standardmodell“ stehen, nutzen diesen Anbieter.",
@@ -26,5 +26,7 @@
   "config.flows.durable_configured": "Gespeicherte Option",
   "config.flows.durable_effective": "Verarbeitung aktiv",
   "config.flows.durable_available": "Fortsetzung verfügbar",
-  "config.flows.durable_counts": "Wartende Läufe: {{waiting}} · Aktive Läufe: {{running}} · Blockierte Läufe: {{blocked}}"
+  "config.flows.durable_counts": "Wartende Läufe: {{waiting}} · Aktive Läufe: {{running}} · Blockierte Läufe: {{blocked}}",
+  "config.flows.agent_read_only_help": "Wenn eingeschaltet, darf der Agent Flows auflisten und ihren Verlauf lesen, aber nicht starten.",
+  "config.flows.agent_allow_publish_unavailable": "Nicht verfügbar: Der Agent kann Flows nicht veröffentlichen. Veröffentlichen kannst du nur in EasyDrag."
 }
