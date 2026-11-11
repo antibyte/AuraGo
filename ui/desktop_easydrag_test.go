@@ -77,6 +77,24 @@ func TestEasyDragShellIntegration(t *testing.T) {
 	}
 }
 
+// The EasyDrag headroom ratchet (S0.1). A module above easyDragHeadroomLines is logged as a
+// warning and must be on easyDragLargeModules; easyDragLineBudget fails every module;
+// easydrag-runs.js, split in S0.1, stays at most easyDragRunsLines.
+const (
+	easyDragHeadroomLines = 900
+	easyDragLineBudget    = 1100
+	easyDragRunsLines     = 400
+)
+
+// easyDragLargeModules are the modules above the headroom line when the ratchet was set (S0,
+// 2026-11). The list only shrinks: no module joins it, and a listed module that falls to the
+// line or below fails the test until it is taken off.
+var easyDragLargeModules = map[string]bool{
+	"easydrag-canvas.js":   true,
+	"easydrag-model.js":    true,
+	"easydrag-template.js": true,
+}
+
 func TestEasyDragAppLifecycle(t *testing.T) {
 	app := readDesktopAssetText(t, "js/desktop/apps/easydrag.js")
 	for _, marker := range []string{
@@ -95,13 +113,31 @@ func TestEasyDragAppLifecycle(t *testing.T) {
 			t.Errorf("easydrag-editor.js misses %q", marker)
 		}
 	}
+	seen := map[string]bool{}
 	for _, name := range easyDragModules {
+		seen[name] = true
 		text := readDesktopAssetText(t, "js/desktop/apps/"+name)
-		if lines := strings.Count(text, "\n"); lines >= 1100 {
-			t.Errorf("%s has %d lines, the desktop budget is 1100", name, lines)
+		lines := strings.Count(text, "\n")
+		switch {
+		case lines >= easyDragLineBudget:
+			t.Errorf("%s has %d lines, the desktop budget is %d", name, lines, easyDragLineBudget)
+		case lines > easyDragHeadroomLines && !easyDragLargeModules[name]:
+			t.Errorf("%s has %d lines, above the %d-line headroom line: split it by responsibility (easyDragLargeModules only shrinks)", name, lines, easyDragHeadroomLines)
+		case lines > easyDragHeadroomLines:
+			t.Logf("warning: %s has %d lines, above the %d-line headroom line (budget %d)", name, lines, easyDragHeadroomLines, easyDragLineBudget)
+		case easyDragLargeModules[name]:
+			t.Errorf("%s has %d lines, at or below the %d-line headroom line: take it off easyDragLargeModules", name, lines, easyDragHeadroomLines)
+		}
+		if name == "easydrag-runs.js" && lines > easyDragRunsLines {
+			t.Errorf("easydrag-runs.js has %d lines, at most %d after the S0.1 split", lines, easyDragRunsLines)
 		}
 		if !strings.HasPrefix(strings.TrimSpace(text), "//") || !strings.Contains(text, "'use strict';") {
 			t.Errorf("%s must start with a purpose comment and use strict mode", name)
+		}
+	}
+	for name := range easyDragLargeModules {
+		if !seen[name] {
+			t.Errorf("easyDragLargeModules lists %s, which is no EasyDrag module", name)
 		}
 	}
 }
