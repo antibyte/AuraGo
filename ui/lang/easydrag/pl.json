@@ -1510,5 +1510,7 @@
   "easydrag.param.auth_query": "Nazwa parametru",
   "easydrag.help.auth_in": "Gdzie trafia sekret: do nagłówka albo jako parametr adresu WWW. Jest wysyłany tylko z pierwszym żądaniem, nigdy ponownie po przekierowaniu.",
   "easydrag.option.auth_in_header": "Nagłówek",
-  "easydrag.option.auth_in_query": "Parametr adresu"
+  "easydrag.option.auth_in_query": "Parametr adresu",
+  "easydrag.ui.error_flow_credential_not_movable": "Tej wartości nie można przenieść do skarbca. Usuń ją z przepływu.",
+  "easydrag.ui.error_flow_secret_exists": "Sekret o tej nazwie już istnieje."
 }

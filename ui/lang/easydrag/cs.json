@@ -1510,5 +1510,7 @@
   "easydrag.param.auth_query": "Název parametru",
   "easydrag.help.auth_in": "Kam tajemství půjde: do hlavičky, nebo jako parametr webové adresy. Odešle se jen s prvním požadavkem, po přesměrování už nikdy.",
   "easydrag.option.auth_in_header": "Hlavička",
-  "easydrag.option.auth_in_query": "Parametr adresy"
+  "easydrag.option.auth_in_query": "Parametr adresy",
+  "easydrag.ui.error_flow_credential_not_movable": "Tuto hodnotu nelze přesunout do trezoru. Odstraň ji místo toho z flow.",
+  "easydrag.ui.error_flow_secret_exists": "Tajemství s tímto názvem už existuje."
 }

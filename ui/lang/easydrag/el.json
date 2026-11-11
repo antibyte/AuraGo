@@ -1510,5 +1510,7 @@
   "easydrag.param.auth_query": "Όνομα παραμέτρου",
   "easydrag.help.auth_in": "Πού πηγαίνει το μυστικό: σε κεφαλίδα ή ως παράμετρος της διεύθυνσης. Στέλνεται μόνο με το πρώτο αίτημα, ποτέ ξανά μετά από ανακατεύθυνση.",
   "easydrag.option.auth_in_header": "Κεφαλίδα",
-  "easydrag.option.auth_in_query": "Παράμετρος διεύθυνσης"
+  "easydrag.option.auth_in_query": "Παράμετρος διεύθυνσης",
+  "easydrag.ui.error_flow_credential_not_movable": "Αυτή η τιμή δεν μπορεί να μετακινηθεί στο θησαυροφυλάκιο. Αφαίρεσέ την από τη ροή.",
+  "easydrag.ui.error_flow_secret_exists": "Υπάρχει ήδη μυστικό με αυτό το όνομα."
 }

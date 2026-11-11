@@ -256,6 +256,7 @@ func TestEasyDragUIKeysExistInAllLocales(t *testing.T) {
 			"flow_notify_failed", "flow_output_invalid", "flow_output_too_large", "flow_param_invalid", "flow_schema", "flow_shutdown", "flow_stopped",
 			"flow_template_error", "flow_too_many_nodes", "flow_trigger_disabled", "flow_trigger_invalid", "flow_value_type", "flow_wait_too_long",
 			"flow_approval_auth_unavailable", "flow_durable_approval_conflict", "flow_durable_approval_not_found", "flow_durable_approval_unavailable", "flow_approval_rejected", "flow_approval_expired",
+			"flow_credential_not_movable", "flow_secret_exists",
 			// The 503 causes other than flows switched off (FLOWS_DISABLED), audit 2026-10-08 finding 1.2.
 			"flow_mission_control_unavailable", "flow_runner_stopped", "flow_vault_unavailable", "flow_request_cancelled"},
 	}

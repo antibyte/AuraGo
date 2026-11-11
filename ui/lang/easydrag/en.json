@@ -1510,5 +1510,7 @@
   "easydrag.param.auth_query": "Parameter name",
   "easydrag.help.auth_in": "Where the secret goes: in a header, or as a parameter of the web address. It is only sent with the first request, never again after a redirect.",
   "easydrag.option.auth_in_header": "Header",
-  "easydrag.option.auth_in_query": "Address parameter"
+  "easydrag.option.auth_in_query": "Address parameter",
+  "easydrag.ui.error_flow_credential_not_movable": "This value cannot be moved to the vault. Remove it from the flow instead.",
+  "easydrag.ui.error_flow_secret_exists": "A secret with this name already exists."
 }

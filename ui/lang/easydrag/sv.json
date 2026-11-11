@@ -1510,5 +1510,7 @@
   "easydrag.param.auth_query": "Parameternamn",
   "easydrag.help.auth_in": "Vart hemligheten går: i en header eller som parameter i webbadressen. Den skickas bara med den första förfrågan, aldrig igen efter en omdirigering.",
   "easydrag.option.auth_in_header": "Header",
-  "easydrag.option.auth_in_query": "Adressparameter"
+  "easydrag.option.auth_in_query": "Adressparameter",
+  "easydrag.ui.error_flow_credential_not_movable": "Värdet kan inte flyttas till kassaskåpet. Ta bort det från flödet i stället.",
+  "easydrag.ui.error_flow_secret_exists": "Det finns redan en hemlighet med det här namnet."
 }

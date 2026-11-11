@@ -1510,5 +1510,7 @@
   "easydrag.param.auth_query": "パラメーター名",
   "easydrag.help.auth_in": "シークレットの送り先：ヘッダー、またはウェブアドレスのパラメーター。最初のリクエストでのみ送信され、リダイレクト後に再送されることはありません。",
   "easydrag.option.auth_in_header": "ヘッダー",
-  "easydrag.option.auth_in_query": "アドレスのパラメーター"
+  "easydrag.option.auth_in_query": "アドレスのパラメーター",
+  "easydrag.ui.error_flow_credential_not_movable": "この値は保管庫へ移せません。代わりにフローから削除してください。",
+  "easydrag.ui.error_flow_secret_exists": "この名前のシークレットは既にあります。"
 }

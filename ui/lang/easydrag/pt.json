@@ -1510,5 +1510,7 @@
   "easydrag.param.auth_query": "Nome do parâmetro",
   "easydrag.help.auth_in": "Para onde vai o segredo: num cabeçalho ou como parâmetro do endereço web. Só é enviado com a primeira requisição, nunca de novo após um redirecionamento.",
   "easydrag.option.auth_in_header": "Cabeçalho",
-  "easydrag.option.auth_in_query": "Parâmetro do endereço"
+  "easydrag.option.auth_in_query": "Parâmetro do endereço",
+  "easydrag.ui.error_flow_credential_not_movable": "Este valor não pode ser movido para o cofre. Remova-o do fluxo.",
+  "easydrag.ui.error_flow_secret_exists": "Já existe um segredo com este nome."
 }

@@ -1510,5 +1510,7 @@
   "easydrag.param.auth_query": "Parametername",
   "easydrag.help.auth_in": "Wohin das Geheimnis kommt: in einen Header oder als Parameter der Webadresse. Es wird nur mit der ersten Anfrage gesendet, nach einer Weiterleitung nie wieder.",
   "easydrag.option.auth_in_header": "Header",
-  "easydrag.option.auth_in_query": "Adressparameter"
+  "easydrag.option.auth_in_query": "Adressparameter",
+  "easydrag.ui.error_flow_credential_not_movable": "Dieser Wert lässt sich nicht in den Tresor verschieben. Entferne ihn stattdessen aus dem Flow.",
+  "easydrag.ui.error_flow_secret_exists": "Ein Geheimnis mit diesem Namen gibt es schon."
 }

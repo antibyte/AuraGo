@@ -1510,5 +1510,7 @@
   "easydrag.param.auth_query": "Nome del parametro",
   "easydrag.help.auth_in": "Dove va il segreto: in un header o come parametro dell’indirizzo web. Viene inviato solo con la prima richiesta, mai più dopo un reindirizzamento.",
   "easydrag.option.auth_in_header": "Header",
-  "easydrag.option.auth_in_query": "Parametro dell’indirizzo"
+  "easydrag.option.auth_in_query": "Parametro dell’indirizzo",
+  "easydrag.ui.error_flow_credential_not_movable": "Questo valore non può essere spostato nel caveau. Rimuovilo invece dal flusso.",
+  "easydrag.ui.error_flow_secret_exists": "Esiste già un segreto con questo nome."
 }

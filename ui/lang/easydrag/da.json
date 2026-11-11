@@ -1510,5 +1510,7 @@
   "easydrag.param.auth_query": "Parameternavn",
   "easydrag.help.auth_in": "Hvor hemmeligheden sendes: i en header eller som parameter i webadressen. Den sendes kun med den første forespørgsel, aldrig igen efter en omdirigering.",
   "easydrag.option.auth_in_header": "Header",
-  "easydrag.option.auth_in_query": "Adresseparameter"
+  "easydrag.option.auth_in_query": "Adresseparameter",
+  "easydrag.ui.error_flow_credential_not_movable": "Værdien kan ikke flyttes til tresoren. Fjern den i stedet fra flowet.",
+  "easydrag.ui.error_flow_secret_exists": "Der findes allerede en hemmelighed med dette navn."
 }

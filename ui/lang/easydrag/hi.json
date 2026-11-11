@@ -1510,5 +1510,7 @@
   "easydrag.param.auth_query": "पैरामीटर का नाम",
   "easydrag.help.auth_in": "गुप्त मान कहाँ जाएगा: हेडर में, या वेब पते के पैरामीटर के रूप में। यह केवल पहले अनुरोध के साथ भेजा जाता है, रीडायरेक्ट के बाद दोबारा कभी नहीं।",
   "easydrag.option.auth_in_header": "हेडर",
-  "easydrag.option.auth_in_query": "पते का पैरामीटर"
+  "easydrag.option.auth_in_query": "पते का पैरामीटर",
+  "easydrag.ui.error_flow_credential_not_movable": "इस मान को तिजोरी में नहीं ले जाया जा सकता। इसे फ़्लो से हटाओ।",
+  "easydrag.ui.error_flow_secret_exists": "इस नाम का गुप्त मान पहले से मौजूद है।"
 }

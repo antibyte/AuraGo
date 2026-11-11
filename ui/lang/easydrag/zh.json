@@ -1510,5 +1510,7 @@
   "easydrag.param.auth_query": "参数名",
   "easydrag.help.auth_in": "密钥放在哪里：请求头，或网址的参数。它只随第一次请求发送，重定向后绝不会再次发送。",
   "easydrag.option.auth_in_header": "请求头",
-  "easydrag.option.auth_in_query": "地址参数"
+  "easydrag.option.auth_in_query": "地址参数",
+  "easydrag.ui.error_flow_credential_not_movable": "该值无法移入保险库。请改为从流程中删除。",
+  "easydrag.ui.error_flow_secret_exists": "已存在同名密钥。"
 }

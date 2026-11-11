@@ -50,10 +50,10 @@ var flowIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 
 // flowRouteSegments lists the fixed-shape path segment counts after the flow id
 // ("" is the flow itself). flowRoute also accepts scenarios with one or two trailing
-// segments and versions/{revision}/note with three; other paths are FLOW_NOT_FOUND (404).
+// segments and versions/{revision}/note with three; credentials/move is a fixed route of two segments; other paths are FLOW_NOT_FOUND (404).
 // Add fixed-shape routes here and keep the inline exceptions in flowRoute in sync.
 var flowRouteSegments = map[string]int{"": 0, "publish-preview": 1, "publish": 1, "enabled": 1, "export": 1,
-	"pack": 1, "versions": 1, "library": 1, "test": 1, "simulate": 1, "ai-proposal": 1, "repair-mission": 1, "run": 1, "runs": 1, "test-data": 2, "extract": 2}
+	"pack": 1, "versions": 1, "library": 1, "test": 1, "simulate": 1, "ai-proposal": 1, "repair-mission": 1, "run": 1, "runs": 1, "test-data": 2, "extract": 2, "credentials": 2}
 
 const (
 	// flowSecretValueMaxBytes bounds the value of a flow secret. Flow secrets are API
@@ -648,6 +648,12 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 	switch action {
 	case "extract":
 		s.flowExtraction(w, r, id, rest[1])
+	case "credentials":
+		if rest[1] != "move" {
+			flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "unknown flow route")
+			return
+		}
+		s.flowCredentialMove(w, r, id)
 	case "library":
 		s.flowLibrary(w, r, id)
 	case "scenarios":
