@@ -1,41 +1,66 @@
 package ui
 
 import (
+	"fmt"
 	"math"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 )
 
-// S0.5 (UI-03): category colour marks identity, never state. These tests read the tile and icon pairs of the three
-// bands in desktop-app-easydrag.css and the status and accent tokens of every theme context.
+// S0.5 (UI-03): category colour marks identity, never state. These tests read the tile, mark and group tokens of
+// desktop-app-easydrag.css, the status and accent tokens of every theme context and the surfaces of every desktop
+// material (desktop-materials*.css), and check them against each other (spec §8).
 
 var easyDragS0Categories = []string{"trigger", "logic", "ai", "web", "documents", "notify", "smart_home", "planner", "tool"}
 
 var easyDragS0StatusTokens = []string{"--ds-color-success-fg", "--ds-color-warning-fg", "--ds-color-danger-fg", "--ds-color-info-fg"}
 
-// easyDragS0GroupTokens render the stored group colour names (model.js:31, groups.go:42).
-var easyDragS0GroupTokens = map[string]string{
-	"--ed-group-blue": "var(--ed-accent)", "--ed-group-green": "var(--ed-cat-web)", "--ed-group-amber": "var(--ed-cat-smart_home)",
-	"--ed-group-rose": "var(--ed-cat-notify)", "--ed-group-violet": "var(--ed-cat-trigger)", "--ed-group-neutral": "var(--ed-muted)",
+// easyDragS0GroupNames are the stored group colour names (model.js:31, groups.go:42) that render as a colour; "neutral"
+// is --ed-muted.
+var easyDragS0GroupNames = []string{"blue", "green", "amber", "rose", "violet"}
+
+// easyDragS0GroupWindows are the OKLCH hue windows (degrees, lo to hi, wrapping through 0 when lo > hi) in which a group
+// colour still reads as its name.
+var easyDragS0GroupWindows = map[string][2]float64{
+	"blue": {225, 275}, "green": {130, 170}, "amber": {50, 90}, "rose": {345, 25}, "violet": {285, 320},
 }
+
+// easyDragS0GroupWidened widens one window in one context by the smallest step that keeps it clear of the status colours
+// ("<context>/<group>" to the window). Each entry is reported in the commit that adds it.
+var easyDragS0GroupWidened = map[string][2]float64{}
+
+// easyDragS0MarkSoft are the marks that may stay below 3:1 on a surface (but not below 2:1): they are grey on purpose.
+var easyDragS0MarkSoft = map[string]bool{"logic": true, "tool": true}
 
 const (
 	easyDragS0DarkBand      = ".ed-app"
-	easyDragS0LightBand     = `.desktop-body[data-theme="lollipop"] .ed-app`
-	easyDragS0MinimalBand   = `.desktop-body[data-theme="minimal"]:not([data-scheme="dark"]) .ed-app`
-	easyDragS0CyberpunkBand = `.desktop-body[data-theme="cyberpunk"] .ed-app`
-	easyDragS0BlueFallback  = "var(--ed-cat-planner)"
+	easyDragS0GroupMinHue   = 0.08 // OKLCH chroma a group colour needs to read as a colour
+	easyDragS0StatusMin     = 0.20 // OKLab distance of a group colour or the change mark from the status colours
+	easyDragS0GroupPairMin  = 0.10 // OKLab distance between two group colours
+	easyDragS0MarkHueGapMin = 30.0 // hue gap of a mark from every status hue
 )
 
 var (
 	easyDragS0StatusRead   = regexp.MustCompile(`--ed-(ok|warn|danger|info)\b|--ds-color-(success|warning|danger|info)-`)
 	easyDragS0AccentPreset = regexp.MustCompile(`^\.desktop-body\[data-accent="([a-z]+)"\]$`)
-	easyDragS0CatRead      = regexp.MustCompile(`var\(\s*--ed-cat(?:-[a-z_]+)*\s*[,)]`)
-	easyDragS0RefCat       = regexp.MustCompile(`^\.ed-ref\.cat-[a-z_]+$`)
+	easyDragS0MarkMix      = regexp.MustCompile(`^color-mix\(in srgb, var\((--ed-cat-[a-z_]+)\) (\d+)%, (black|var\(--ed-cat-[a-z_]+-ink\))\)$`)
+	easyDragS0VarName      = regexp.MustCompile(`^var\((--[a-z_-]+)\)$`)
 )
 
-// easyDragS0CatIdentity are the identity marks that may carry category colour (spec §8).
+// category token reads: --ed-cat, --ed-cat-ink, --ed-cat-<name>, --ed-mark, --ed-mark-<name>.
+var (
+	easyDragS0CatRead      = regexp.MustCompile(`var\(\s*--ed-(?:cat|mark)(?:-[a-z_]+)*\s*[,)]`)
+	easyDragS0GroupRead    = regexp.MustCompile(`var\(\s*--ed-group-(?:blue|green|amber|rose|violet|neutral)\s*[,)]`)
+	easyDragS0CatProp      = regexp.MustCompile(`^--ed-(?:cat|mark)(?:-[a-z_]+)*$`)
+	easyDragS0CatAliasSel  = regexp.MustCompile(`^\.ed-app \[data-cat(?:="[a-z_]+")?\]$`)
+	easyDragS0BlockSel     = regexp.MustCompile(`^(?:\.ed-app|\.desktop-body\[data-theme="[a-z_]+"\](?::not\(\[data-scheme="dark"\]\)|\[data-scheme="dark"\])? \.ed-app)$`)
+	easyDragS0RefCat       = regexp.MustCompile(`^\.ed-ref\.cat-[a-z_]+$`)
+	easyDragS0GroupReadSel = regexp.MustCompile(`^\.ed-app \.ed-group(?:--(?:blue|green|amber|rose|violet)|-frame|-head)$`)
+)
+
+// easyDragS0CatIdentity are the identity marks that may carry category colour (spec §8): tiles, dots, previews, rects.
 var easyDragS0CatIdentity = map[string]bool{
 	".ed-node-tile": true, ".ed-tile": true, ".ed-palette-tile": true, ".ed-detail-tile": true, ".ed-tree-tile": true,
 	".ed-palette-cat-dot": true, ".ed-cat-dot": true, ".ed-flow-preview rect": true, ".ed-minimap-nodes rect": true, ".ed-ref": true,
@@ -45,13 +70,14 @@ type easyDragS0RuleRef struct{ File, Selector string }
 
 type easyDragS0ThemeContext struct {
 	Name       string
-	Band       string              // selector of the band rule that colours this context
+	Theme      string              // the registry id
+	ThemeScope string              // `.desktop-body[data-theme="<id>"]`
 	Scope      string              // selector a theme-scoped ".ed-app" rule uses for this context
 	Chain      []easyDragS0RuleRef // where its status and accent tokens come from, most specific first
+	Mat        []easyDragS0RuleRef // where its surfaces (--vd-mat-*-color) come from, most specific first
+	Variant    desktopMaterialVariant
 	UserAccent bool
 }
-
-type easyDragS0Band struct{ Tile, Ink map[string][3]float64 }
 
 // easyDragOKLab converts an sRGB colour (channels 0-255) to OKLab (L, a, b).
 func easyDragOKLab(rgb [3]float64) [3]float64 {
@@ -99,6 +125,14 @@ func easyDragHueGap(a, b float64) float64 {
 	return d
 }
 
+// easyDragHueInWindow reports whether hue lies in [lo, hi] (degrees), wrapping through 0 when lo > hi.
+func easyDragHueInWindow(hue float64, window [2]float64) bool {
+	if window[0] <= window[1] {
+		return hue >= window[0] && hue <= window[1]
+	}
+	return hue >= window[0] || hue <= window[1]
+}
+
 func easyDragS0Sheet(t *testing.T, sheets map[string]cssSheet, file string) cssSheet {
 	t.Helper()
 	if sheet, ok := sheets[file]; ok {
@@ -118,13 +152,24 @@ func easyDragS0RuleDecls(sheet cssSheet, selector string) map[string]string {
 			continue
 		}
 		for _, part := range splitCSSSelectorList(rule.Selector) {
-			if canonicalCSSSelector(part) != want {
+			if canonicalCSSSelector(collapseCSSSpace(part)) != want {
 				continue
 			}
 			for _, decl := range rule.Decls {
 				decls[decl.Property] = cssDeclarationValue(decl.Value)
 			}
 			break
+		}
+	}
+	return decls
+}
+
+// easyDragS0EdDecls is what the .ed-app rules say in one context: the root block, then the theme and scheme blocks.
+func easyDragS0EdDecls(ed cssSheet, ctx easyDragS0ThemeContext) map[string]string {
+	decls := map[string]string{}
+	for _, selector := range []string{easyDragS0DarkBand, ctx.ThemeScope + " .ed-app", ctx.Scope + " .ed-app"} {
+		for property, value := range easyDragS0RuleDecls(ed, selector) {
+			decls[property] = value
 		}
 	}
 	return decls
@@ -147,52 +192,105 @@ func easyDragS0HexToken(t *testing.T, sheets map[string]cssSheet, ctx easyDragS0
 	return [3]float64{}
 }
 
-func easyDragS0ReadBand(t *testing.T, sheet cssSheet, selector string) easyDragS0Band {
+// easyDragS0Surfaces reads the three opaque surfaces EasyDrag draws on in one context from the desktop material rules:
+// the canvas (the app background), the card (cards, minimap) and the well (the editor canvas, the flow previews).
+func easyDragS0Surfaces(t *testing.T, sheets map[string]cssSheet, ctx easyDragS0ThemeContext) map[string][3]float64 {
 	t.Helper()
-	decls := easyDragS0RuleDecls(sheet, selector)
-	band := easyDragS0Band{Tile: map[string][3]float64{}, Ink: map[string][3]float64{}}
-	for _, cat := range easyDragS0Categories {
-		for token, into := range map[string]map[string][3]float64{"--ed-cat-" + cat: band.Tile, "--ed-cat-" + cat + "-ink": band.Ink} {
-			rgb, ok := parseCSSHexColor(decls[token])
-			if !ok {
-				t.Errorf("%s: %s must be a six-digit hex colour, got %q", selector, token, decls[token])
-				continue
+	merged := map[string]string{}
+	for _, ref := range ctx.Mat {
+		for property, value := range easyDragS0RuleDecls(easyDragS0Sheet(t, sheets, ref.File), ref.Selector) {
+			if _, ok := merged[property]; !ok {
+				merged[property] = value
 			}
-			into[cat] = rgb
 		}
 	}
-	return band
+	surfaces := map[string][3]float64{}
+	for name, token := range map[string]string{"canvas": "--vd-mat-canvas-color", "card": "--vd-mat-card-color", "well": "--vd-mat-well-color"} {
+		rgb, ok := parseCSSHexColor(merged[token])
+		if !ok {
+			t.Fatalf("%s: %s in %v is %q, not a hex colour", ctx.Name, token, ctx.Mat, merged[token])
+		}
+		surfaces[name] = rgb
+	}
+	return surfaces
+}
+
+func easyDragS0MinContrast(rgb [3]float64, surfaces map[string][3]float64) (float64, string) {
+	worst, name := math.Inf(1), ""
+	for surface, bg := range surfaces {
+		if ratio := cssContrastRatio(rgb, bg); ratio < worst {
+			worst, name = ratio, surface
+		}
+	}
+	return worst, name
+}
+
+// easyDragS0EvalMark computes the colour of a --ed-mark-<cat> value: a hex colour, or an sRGB mix of a tile with its ink
+// or black, as color-mix(in srgb, ...) does it.
+func easyDragS0EvalMark(value string, decls map[string]string) ([3]float64, bool) {
+	value = strings.TrimSpace(value)
+	if rgb, ok := parseCSSHexColor(value); ok {
+		return rgb, true
+	}
+	match := easyDragS0MarkMix.FindStringSubmatch(value)
+	if match == nil {
+		return [3]float64{}, false
+	}
+	percent, _ := strconv.ParseFloat(match[2], 64)
+	first, ok := parseCSSHexColor(decls[match[1]])
+	if !ok {
+		return [3]float64{}, false
+	}
+	second := [3]float64{}
+	if match[3] != "black" {
+		if second, ok = parseCSSHexColor(decls[easyDragS0VarName.FindStringSubmatch(match[3])[1]]); !ok {
+			return [3]float64{}, false
+		}
+	}
+	var mixed [3]float64
+	for i := range mixed {
+		mixed[i] = math.Round(first[i]*percent/100 + second[i]*(100-percent)/100)
+	}
+	return mixed, true
 }
 
 // easyDragS0ThemeContexts lists the 16 contexts: the 14 registry themes, Fruity and Minimal in both schemes.
 func easyDragS0ThemeContexts(t *testing.T) []easyDragS0ThemeContext {
 	t.Helper()
 	root := easyDragS0RuleRef{File: "css/desktop-base.css", Selector: ":root"}
+	themes := parseDesktopThemeRegistry(t)
+	variants := map[string]desktopMaterialVariant{}
+	for _, variant := range desktopMaterialVariants(themes) {
+		variants[variant.Name] = variant
+	}
 	var contexts []easyDragS0ThemeContext
-	for _, theme := range parseDesktopThemeRegistry(t) {
+	for _, theme := range themes {
 		file := "css/desktop-theme-" + strings.ReplaceAll(theme.ID, "_", "-") + ".css"
 		if desktopThemeBuiltInShellThemes[theme.ID] {
 			file = "css/desktop-base.css"
 		}
 		scope := `.desktop-body[data-theme="` + theme.ID + `"]`
 		own := easyDragS0RuleRef{File: file, Selector: scope}
-		ctx := easyDragS0ThemeContext{Name: theme.ID, Band: easyDragS0DarkBand, Scope: scope, Chain: []easyDragS0RuleRef{own, root}, UserAccent: theme.Accent == "user"}
+		matFile := desktopMaterialsPath(theme)
+		ctx := easyDragS0ThemeContext{
+			Name: theme.ID, Theme: theme.ID, ThemeScope: scope, Scope: scope, Chain: []easyDragS0RuleRef{own, root}, UserAccent: theme.Accent == "user",
+			Mat: []easyDragS0RuleRef{{File: matFile, Selector: scope}, {File: desktopMaterialsSharedPath, Selector: ".desktop-body"}}, Variant: variants[theme.ID],
+		}
 		switch theme.ID {
-		case "cyberpunk":
-			ctx.Band = easyDragS0CyberpunkBand
-		case "lollipop":
-			ctx.Band = easyDragS0LightBand
 		case "fruity":
 			light, dark := ctx, ctx
-			light.Name, dark.Name = "fruity-light", "fruity-dark"
+			light.Name, light.Scope = "fruity-light", scope+`:not([data-scheme="dark"])`
+			dark.Name, dark.Scope, dark.Variant = "fruity-dark", scope+`[data-scheme="dark"]`, variants["fruity-dark"]
 			dark.Chain = []easyDragS0RuleRef{{File: file, Selector: scope + `[data-fruity-mode="dark"]`}, own, root}
+			dark.Mat = append([]easyDragS0RuleRef{{File: matFile, Selector: dark.Scope}}, dark.Mat...)
 			contexts = append(contexts, light, dark)
 			continue
 		case "minimal":
 			light, dark := ctx, ctx
-			light.Name, light.Band, light.Scope = "minimal-light", easyDragS0MinimalBand, scope+`:not([data-scheme="dark"])`
-			dark.Name, dark.Scope = "minimal-dark", scope+`[data-scheme="dark"]`
+			light.Name, light.Scope = "minimal-light", scope+`:not([data-scheme="dark"])`
+			dark.Name, dark.Scope, dark.Variant = "minimal-dark", scope+`[data-scheme="dark"]`, variants["minimal-dark"]
 			dark.Chain = []easyDragS0RuleRef{{File: file, Selector: dark.Scope}, own, root}
+			dark.Mat = append([]easyDragS0RuleRef{{File: matFile, Selector: dark.Scope}}, dark.Mat...)
 			contexts = append(contexts, light, dark)
 			continue
 		}
@@ -201,57 +299,96 @@ func easyDragS0ThemeContexts(t *testing.T) []easyDragS0ThemeContext {
 	return contexts
 }
 
-// TestEasyDragCategoryColourTokens checks the category tiles of every band against the status colours of every theme
-// context (16): a coloured tile keeps 30° of hue from each status colour, every tile and group colour keeps 0.20 OKLab
-// distance from each, every icon reaches 3:1 on its tile, and group "blue" is the accent only where the accent keeps
-// that distance as well.
-func TestEasyDragCategoryColourTokens(t *testing.T) {
-	sheets := map[string]cssSheet{}
-	ed := easyDragS0Sheet(t, sheets, "css/desktop-app-easydrag.css")
-	bands := map[string]easyDragS0Band{}
-	for _, selector := range []string{easyDragS0DarkBand, easyDragS0LightBand, easyDragS0MinimalBand, easyDragS0CyberpunkBand} {
-		bands[selector] = easyDragS0ReadBand(t, ed, selector)
+// easyDragS0ChangeValue is --ed-change in one context, following the cascade: the root block, the theme and scheme
+// blocks, then (for the user-accent themes) the accent preset block. preset "" is the theme's own accent.
+func easyDragS0ChangeValue(ed cssSheet, ctx easyDragS0ThemeContext, preset string) string {
+	levels := map[string]int{easyDragS0DarkBand: 0, ctx.ThemeScope + " .ed-app": 1, ctx.Scope + " .ed-app": 2}
+	if preset != "" {
+		levels[ctx.ThemeScope+`[data-accent="`+preset+`"] .ed-app`] = 3
 	}
-	if t.Failed() {
-		t.FailNow()
-	}
-
-	root := easyDragS0RuleDecls(ed, easyDragS0DarkBand)
-	for token, want := range easyDragS0GroupTokens {
-		if got := root[token]; got != want {
-			t.Errorf(".ed-app %s = %q, want %q", token, got, want)
+	value, best := "", -1
+	for _, rule := range ed.Rules {
+		if len(rule.Context) > 0 {
+			continue
+		}
+		for _, part := range splitCSSSelectorList(rule.Selector) {
+			level, ok := levels[canonicalCSSSelector(collapseCSSSpace(part))]
+			if !ok || level < best {
+				continue
+			}
+			for _, decl := range rule.Decls {
+				if decl.Property == "--ed-change" {
+					value, best = cssDeclarationValue(decl.Value), level
+				}
+			}
 		}
 	}
-	fallback := map[string]bool{}
+	return value
+}
+
+// easyDragS0ScopedSelectors fails every rule that sets a property matching prop under a selector that is neither the
+// root block nor a "<theme or scheme scope> .ed-app" block of a real context (or an accent preset block of one).
+func easyDragS0ScopedSelectors(t *testing.T, ed cssSheet, contexts []easyDragS0ThemeContext, presets map[string][3]float64, prop *regexp.Regexp) {
+	t.Helper()
+	valid := map[string]bool{easyDragS0DarkBand: true}
+	for _, ctx := range contexts {
+		valid[ctx.ThemeScope+" .ed-app"], valid[ctx.Scope+" .ed-app"] = true, true
+		if ctx.UserAccent {
+			for preset := range presets {
+				valid[ctx.ThemeScope+`[data-accent="`+preset+`"] .ed-app`] = true
+			}
+		}
+	}
 	for _, rule := range ed.Rules {
 		for _, decl := range rule.Decls {
-			if !strings.HasPrefix(decl.Property, "--ed-group") {
-				continue
-			}
-			if easyDragS0StatusRead.MatchString(decl.Value) {
-				t.Errorf("line %d: %s %s reads a status colour (%s); groups use identity colours", rule.Line, rule.Selector, decl.Property, decl.Value)
-			}
-			if decl.Property != "--ed-group-blue" || (rule.Selector == easyDragS0DarkBand && len(rule.Context) == 0) {
-				continue
-			}
-			if cssDeclarationValue(decl.Value) != easyDragS0BlueFallback || len(rule.Context) > 0 {
-				t.Errorf("line %d: %s may only set --ed-group-blue to %s", rule.Line, rule.Selector, easyDragS0BlueFallback)
+			if !prop.MatchString(decl.Property) {
 				continue
 			}
 			for _, part := range splitCSSSelectorList(rule.Selector) {
-				fallback[strings.TrimSuffix(canonicalCSSSelector(part), " .ed-app")] = true
+				if !valid[canonicalCSSSelector(collapseCSSSpace(part))] {
+					t.Errorf("line %d: %s sets %s but names no theme context (or the root block)", rule.Line, part, decl.Property)
+				}
+			}
+		}
+	}
+}
+
+// TestEasyDragCategoryColourTokens checks, in each of the 16 theme contexts:
+//   - tiles: a coloured tile keeps 30 degrees of hue and 0.20 OKLab from each status colour, its icon reaches 3:1 on it;
+//   - groups: each coloured group token is a dedicated hex, keeps 0.20 OKLab from every status colour and 0.10 from the
+//     other group colours, sits in its name's hue window with chroma 0.08 and reaches 3:1 on the editor canvas (the well);
+//   - marks: each --ed-mark-<cat> reaches 3:1 on the canvas, card and well (2:1 for the grey ones) and keeps 30 degrees
+//     of hue from every status colour;
+//   - change: --ed-change keeps 0.20 OKLab from success in every context and on every accent preset of Standard and
+//     Fruity, and is the accent wherever the accent keeps that distance.
+func TestEasyDragCategoryColourTokens(t *testing.T) {
+	sheets := map[string]cssSheet{}
+	ed := easyDragS0Sheet(t, sheets, "css/desktop-app-easydrag.css")
+
+	root := easyDragS0RuleDecls(ed, easyDragS0DarkBand)
+	if got := root["--ed-group-neutral"]; got != "var(--ed-muted)" {
+		t.Errorf(".ed-app --ed-group-neutral = %q, want var(--ed-muted)", got)
+	}
+	for _, rule := range ed.Rules {
+		for _, decl := range rule.Decls {
+			if strings.HasPrefix(decl.Property, "--ed-group") && easyDragS0StatusRead.MatchString(decl.Value) {
+				t.Errorf("line %d: %s %s reads a status colour (%s); groups use their own colours", rule.Line, rule.Selector, decl.Property, decl.Value)
 			}
 		}
 	}
 
-	var presets [][3]float64
+	presets := map[string][3]float64{}
 	for _, rule := range easyDragS0Sheet(t, sheets, "css/desktop-base.css").Rules {
-		if len(rule.Context) > 0 || !easyDragS0AccentPreset.MatchString(canonicalCSSSelector(rule.Selector)) {
+		if len(rule.Context) > 0 {
+			continue
+		}
+		match := easyDragS0AccentPreset.FindStringSubmatch(canonicalCSSSelector(rule.Selector))
+		if match == nil {
 			continue
 		}
 		for _, decl := range rule.Decls {
 			if rgb, ok := parseCSSHexColor(cssDeclarationValue(decl.Value)); ok && decl.Property == "--vd-accent" {
-				presets = append(presets, rgb)
+				presets[match[1]] = rgb
 			}
 		}
 	}
@@ -263,10 +400,18 @@ func TestEasyDragCategoryColourTokens(t *testing.T) {
 	if len(contexts) != 16 {
 		t.Fatalf("got %d theme contexts, want 16 (14 themes, Fruity and Minimal in both schemes)", len(contexts))
 	}
-	scopes := map[string]bool{}
+	easyDragS0ScopedSelectors(t, ed, contexts, presets, regexp.MustCompile(`^--ed-(?:group-(?:blue|green|amber|rose|violet)|mark-[a-z_]+|change)$`))
+
+	seen := map[string]bool{}
+	once := func(key, format string, args ...interface{}) {
+		if !seen[key] {
+			seen[key] = true
+			t.Errorf(format, args...)
+		}
+	}
 	for _, ctx := range contexts {
-		scopes[ctx.Scope] = true
-		band := bands[ctx.Band]
+		decls := easyDragS0EdDecls(ed, ctx)
+		surfaces := easyDragS0Surfaces(t, sheets, ctx)
 		status := map[string][3]float64{}
 		for _, token := range easyDragS0StatusTokens {
 			status[token] = easyDragS0HexToken(t, sheets, ctx, token)
@@ -280,8 +425,15 @@ func TestEasyDragCategoryColourTokens(t *testing.T) {
 			}
 			return best, near
 		}
+
+		// tiles and icons
 		for _, cat := range easyDragS0Categories {
-			tile, ink := band.Tile[cat], band.Ink[cat]
+			tile, ok1 := parseCSSHexColor(decls["--ed-cat-"+cat])
+			ink, ok2 := parseCSSHexColor(decls["--ed-cat-"+cat+"-ink"])
+			if !ok1 || !ok2 {
+				t.Errorf("%s: --ed-cat-%s and its -ink must be six-digit hex colours, got %q and %q", ctx.Name, cat, decls["--ed-cat-"+cat], decls["--ed-cat-"+cat+"-ink"])
+				continue
+			}
 			if _, chroma, hue := easyDragOKLCH(tile); chroma >= 0.05 {
 				for token, s := range status {
 					if _, _, statusHue := easyDragOKLCH(s); easyDragHueGap(hue, statusHue) < 30 {
@@ -289,89 +441,204 @@ func TestEasyDragCategoryColourTokens(t *testing.T) {
 					}
 				}
 			}
-			if d, near := nearest(tile); d < 0.20 {
+			if d, near := nearest(tile); d < easyDragS0StatusMin {
 				t.Errorf("%s: the %s tile is %.3f from %s in OKLab, want at least 0.20", ctx.Name, cat, d, near)
 			}
 			if ratio := cssContrastRatio(ink, tile); ratio < 3 {
 				t.Errorf("%s: the %s icon on its tile is %.2f:1, want at least 3:1", ctx.Name, cat, ratio)
 			}
 		}
-		accents := [][3]float64{easyDragS0HexToken(t, sheets, ctx, "--vd-accent")}
-		if ctx.UserAccent {
-			accents = append(accents, presets...)
-		}
-		worst, worstNear := math.Inf(1), ""
-		for _, accent := range accents {
-			if d, near := nearest(accent); d < worst {
-				worst, worstNear = d, near
-			}
-		}
-		switch need := worst < 0.20; {
-		case need && !fallback[ctx.Scope]:
-			t.Errorf("%s: an accent comes within %.3f of %s; list %q in the --ed-group-blue fallback rule", ctx.Name, worst, worstNear, ctx.Scope+" .ed-app")
-		case !need && fallback[ctx.Scope]:
-			t.Errorf("%s: every accent keeps %.3f from the status colours; remove %q from the --ed-group-blue fallback rule", ctx.Name, worst, ctx.Scope+" .ed-app")
-		}
-		groups := map[string][3]float64{"green": band.Tile["web"], "amber": band.Tile["smart_home"], "rose": band.Tile["notify"], "violet": band.Tile["trigger"], "blue": accents[0]}
-		if fallback[ctx.Scope] {
-			groups["blue"] = band.Tile["planner"]
-		}
-		for name, rgb := range groups {
-			if d, near := nearest(rgb); d < 0.20 {
-				t.Errorf("%s: group %s is %.3f from %s in OKLab, want at least 0.20", ctx.Name, name, d, near)
-			}
-		}
-	}
-	for scope := range fallback {
-		if !scopes[scope] {
-			t.Errorf("the --ed-group-blue fallback names %q, which is no theme context", scope)
-		}
-	}
-}
 
-func easyDragS0CatReadAllowed(part string) bool {
-	part = canonicalCSSSelector(collapseCSSSpace(part))
-	switch {
-	case part == ".ed-app", strings.HasPrefix(part, ".ed-app [data-cat"):
-		return true
-	case strings.HasPrefix(part, `.desktop-body[data-theme="`) && strings.HasSuffix(part, " .ed-app"):
-		return true
-	case easyDragS0CatIdentity[part], easyDragS0RefCat.MatchString(part):
-		return true
-	}
-	return false
-}
-
-// checkEasyDragCategoryReads fails every declaration that reads --ed-cat, --ed-cat-ink or --ed-cat-<name> outside the
-// token and band blocks, the [data-cat] aliases and the identity marks.
-func checkEasyDragCategoryReads(t *testing.T, css string) {
-	t.Helper()
-	sheet := parseCSSSheet(strings.ReplaceAll(css, "\r\n", "\n"))
-	if len(sheet.Problems) > 0 {
-		t.Fatalf("desktop-app-easydrag.css does not parse: %v", sheet.Problems)
-	}
-	for _, rule := range sheet.Rules {
-		for _, decl := range rule.Decls {
-			if !easyDragS0CatRead.MatchString(decl.Value) {
+		// groups
+		groups := map[string][3]float64{}
+		for _, name := range easyDragS0GroupNames {
+			token := "--ed-group-" + name
+			rgb, ok := parseCSSHexColor(decls[token])
+			if !ok {
+				once(ctx.Name+token, "%s: %s is %q; a coloured group token is a dedicated hex colour (no alias of a tile or the accent)", ctx.Name, token, decls[token])
 				continue
 			}
-			for _, part := range splitCSSSelectorList(rule.Selector) {
-				if !easyDragS0CatReadAllowed(part) {
-					t.Errorf("line %d: %s reads a category colour in %s: %s; category colour marks identity only (tiles, dots, previews, reference chips)", rule.Line, part, decl.Property, decl.Value)
+			groups[name] = rgb
+			if d, near := nearest(rgb); d < easyDragS0StatusMin {
+				t.Errorf("%s: group %s %s is %.3f from %s in OKLab, want at least 0.20", ctx.Name, name, decls[token], d, near)
+			}
+			window := easyDragS0GroupWindows[name]
+			if widened, ok := easyDragS0GroupWidened[ctx.Name+"/"+name]; ok {
+				window = widened
+			}
+			if _, chroma, hue := easyDragOKLCH(rgb); !easyDragHueInWindow(hue, window) || chroma < easyDragS0GroupMinHue {
+				t.Errorf("%s: group %s %s has hue %.0f and chroma %.3f, want hue %.0f-%.0f and chroma at least %.2f", ctx.Name, name, decls[token], hue, chroma, window[0], window[1], easyDragS0GroupMinHue)
+			}
+			// a group frame is drawn on the editor canvas (.ed-canvas), which is the well surface
+			if ratio := cssContrastRatio(rgb, surfaces["well"]); ratio < 3 {
+				t.Errorf("%s: group %s %s is %.2f:1 on the editor canvas (the well), want at least 3:1", ctx.Name, name, decls[token], ratio)
+			}
+		}
+		for i, a := range easyDragS0GroupNames {
+			for _, b := range easyDragS0GroupNames[i+1:] {
+				ga, okA := groups[a]
+				gb, okB := groups[b]
+				if okA && okB {
+					if d := easyDragOKLabDistance(ga, gb); d < easyDragS0GroupPairMin {
+						t.Errorf("%s: groups %s and %s are %.3f apart in OKLab, want at least %.2f", ctx.Name, a, b, d, easyDragS0GroupPairMin)
+					}
+				}
+			}
+		}
+
+		// identity marks
+		for _, cat := range easyDragS0Categories {
+			token := "--ed-mark-" + cat
+			value, present := decls[token]
+			if !present {
+				once(token, "%s is not declared in .ed-app; identity marks read a mark token (spec §8)", token)
+				continue
+			}
+			mark, ok := easyDragS0EvalMark(value, decls)
+			if !ok {
+				t.Errorf("%s: %s = %q is neither a hex colour nor a color-mix of the tile with its ink or black", ctx.Name, token, value)
+				continue
+			}
+			need := 3.0
+			if easyDragS0MarkSoft[cat] {
+				need = 2.0
+			}
+			if ratio, surface := easyDragS0MinContrast(mark, surfaces); ratio < need {
+				t.Errorf("%s: %s %s is %.2f:1 on the %s, want at least %.0f:1", ctx.Name, token, value, ratio, surface, need)
+			}
+			if _, chroma, hue := easyDragOKLCH(mark); chroma >= 0.05 {
+				for token2, s := range status {
+					if _, _, statusHue := easyDragOKLCH(s); easyDragHueGap(hue, statusHue) < easyDragS0MarkHueGapMin {
+						t.Errorf("%s: %s (hue %.0f) is %.0f° from %s (hue %.0f), want at least %.0f°", ctx.Name, token, hue, easyDragHueGap(hue, statusHue), token2, statusHue, easyDragS0MarkHueGapMin)
+					}
+				}
+			}
+		}
+
+		// the change mark
+		success := status["--ds-color-success-fg"]
+		ink := desktopMaterialInk(t, ctx.Variant)
+		accent := easyDragS0HexToken(t, sheets, ctx, "--vd-accent")
+		neutral := map[string]string{"var(--ed-text)": "--vd-text", "var(--ed-muted)": "--vd-theme-muted"}
+		contenders := map[string][3]float64{"": accent}
+		if ctx.UserAccent {
+			for name, rgb := range presets {
+				contenders[name] = rgb
+			}
+		}
+		for preset, accentRGB := range contenders {
+			label := ctx.Name
+			if preset != "" {
+				label += " with the " + preset + " accent"
+			}
+			value := easyDragS0ChangeValue(ed, ctx, preset)
+			colour := accentRGB
+			switch token, isNeutral := neutral[value]; {
+			case value == "var(--ed-accent)":
+			case isNeutral:
+				rgb, ok := desktopMaterialColour("var("+token+")", ink)
+				if !ok {
+					t.Fatalf("%s: cannot resolve %s for the neutral change mark", label, token)
+				}
+				colour = rgb
+			default:
+				once(label+value, "%s: --ed-change is %q, want var(--ed-accent), var(--ed-text) or var(--ed-muted)", label, value)
+				continue
+			}
+			if d := easyDragOKLabDistance(colour, success); d < easyDragS0StatusMin {
+				t.Errorf("%s: the change mark (%s) is %.3f from success in OKLab, want at least 0.20", label, value, d)
+			}
+			accentClose := easyDragOKLabDistance(accentRGB, success) < easyDragS0StatusMin
+			if _, isNeutral := neutral[value]; !accentClose && isNeutral {
+				t.Errorf("%s: the accent keeps %.3f from success, so --ed-change must stay var(--ed-accent), not %s", label, easyDragOKLabDistance(accentRGB, success), value)
+			}
+		}
+	}
+}
+
+func easyDragS0RulePart(part string) string { return canonicalCSSSelector(collapseCSSSpace(part)) }
+
+// easyDragCategoryReadProblems lists every declaration that reads a category token (--ed-cat*, --ed-mark*) or a group
+// token (--ed-group-<name>) outside the places the spec allows:
+//   - category tokens: the alias rules `.ed-app [data-cat]` and `.ed-app [data-cat="<name>"]` and the `.ed-app` token and
+//     band blocks, both only into --ed-cat* and --ed-mark* custom properties, and the named identity-mark rules;
+//   - group tokens: the `.ed-app .ed-group-*` rules, only into --ed-group-color.
+func easyDragCategoryReadProblems(css string) []string {
+	sheet := parseCSSSheet(strings.ReplaceAll(css, "\r\n", "\n"))
+	if len(sheet.Problems) > 0 {
+		return []string{fmt.Sprintf("desktop-app-easydrag.css does not parse: %v", sheet.Problems)}
+	}
+	var problems []string
+	for _, rule := range sheet.Rules {
+		for _, decl := range rule.Decls {
+			catRead, groupRead := easyDragS0CatRead.MatchString(decl.Value), easyDragS0GroupRead.MatchString(decl.Value)
+			for _, raw := range splitCSSSelectorList(rule.Selector) {
+				part := easyDragS0RulePart(raw)
+				if catRead {
+					switch {
+					case easyDragS0CatAliasSel.MatchString(part), easyDragS0BlockSel.MatchString(part):
+						if !easyDragS0CatProp.MatchString(decl.Property) {
+							problems = append(problems, fmt.Sprintf("line %d: %s aliases a category colour into %s: %s; token and alias rules may only set --ed-cat* and --ed-mark* properties", rule.Line, part, decl.Property, decl.Value))
+						}
+					case easyDragS0CatIdentity[part]:
+						if strings.HasPrefix(decl.Property, "--") && !easyDragS0CatProp.MatchString(decl.Property) {
+							problems = append(problems, fmt.Sprintf("line %d: %s copies a category colour into %s: %s", rule.Line, part, decl.Property, decl.Value))
+						}
+					case easyDragS0RefCat.MatchString(part):
+						if decl.Property != "--ed-cat" {
+							problems = append(problems, fmt.Sprintf("line %d: %s reads a category colour in %s: %s; a reference chip sets only --ed-cat", rule.Line, part, decl.Property, decl.Value))
+						}
+					default:
+						problems = append(problems, fmt.Sprintf("line %d: %s reads a category colour in %s: %s; category colour marks identity only (tiles, dots, previews, reference chips)", rule.Line, part, decl.Property, decl.Value))
+					}
+				}
+				if groupRead && (!easyDragS0GroupReadSel.MatchString(part) || decl.Property != "--ed-group-color") {
+					problems = append(problems, fmt.Sprintf("line %d: %s reads a group colour in %s: %s; only the .ed-app .ed-group-* rules read it, into --ed-group-color", rule.Line, part, decl.Property, decl.Value))
 				}
 			}
 		}
 	}
+	return problems
 }
 
-// TestEasyDragStateMarksUseAccent pins the interaction and change marks to the accent and keeps category colour off
-// cards and wires: the unpublished chip and the Publish dot are not warnings, the drag ghost is an interaction, cards
-// carry no category stripe and wires no category attribute.
-func TestEasyDragStateMarksUseAccent(t *testing.T) {
+// checkEasyDragCategoryReads fails every category or group colour read outside its allowed places.
+func checkEasyDragCategoryReads(t *testing.T, css string) {
+	t.Helper()
+	for _, problem := range easyDragCategoryReadProblems(css) {
+		t.Error(problem)
+	}
+}
+
+// TestEasyDragCategoryLintRejectsBypasses feeds the lint the rules that used to slip through, and checks that the real
+// stylesheet stays clean.
+func TestEasyDragCategoryLintRejectsBypasses(t *testing.T) {
+	css := readDesktopAssetText(t, "css/desktop-app-easydrag.css")
+	if problems := easyDragCategoryReadProblems(css); len(problems) > 0 {
+		t.Fatalf("the stylesheet itself breaks the lint: %v", problems)
+	}
+	for name, extra := range map[string]string{
+		"a state class on a data-cat selector": ".ed-app [data-cat].status-success { border-color: var(--ed-cat); }",
+		"a custom property alias in .ed-app":   ".ed-app { --ed-leak: var(--ed-cat-web); }",
+		"an alias in a band block":             `.desktop-body[data-theme="lollipop"] .ed-app { --x: var(--ed-mark-web); }`,
+		"an alias in a data-cat rule":          `.ed-app [data-cat="web"] { --leak: var(--ed-cat-web); }`,
+		"a mark read on a state chip":          ".ed-chip--ok { background: var(--ed-mark-web); }",
+		"a group colour read anywhere":         ".ed-btn { color: var(--ed-group-blue); }",
+	} {
+		problems := easyDragCategoryReadProblems(css + "\n" + extra + "\n")
+		if len(problems) != 1 {
+			t.Errorf("%s: %q gave %d problems %v, want exactly 1", name, extra, len(problems), problems)
+		}
+	}
+}
+
+// TestEasyDragStateMarksUseChange pins the interaction and change marks: the unpublished chip and the Publish dot read
+// --ed-change (the accent, or a neutral colour where the accent looks like success), the drag ghost is an interaction,
+// cards carry no category stripe and wires no category attribute.
+func TestEasyDragStateMarksUseChange(t *testing.T) {
 	sheet := parseCSSSheet(strings.ReplaceAll(readDesktopAssetText(t, "css/desktop-app-easydrag.css"), "\r\n", "\n"))
 	want := map[string]map[string]string{
-		".ed-chip--accent":                    {"background": "color-mix(in srgb, var(--ed-accent) 16%, transparent)", "color": "var(--ed-accent-ink)"},
-		".ed-btn--primary.has-changes::after": {"background": "var(--ed-accent)"},
+		".ed-chip--accent":                    {"background": "color-mix(in srgb, var(--ed-change) 16%, transparent)", "color": "var(--ed-change-ink)"},
+		".ed-btn--primary.has-changes::after": {"background": "var(--ed-change)"},
 		".ed-drag-ghost.is-over-canvas":       {"border-color": "var(--ed-accent)"},
 	}
 	for selector, props := range want {
@@ -381,6 +648,22 @@ func TestEasyDragStateMarksUseAccent(t *testing.T) {
 				t.Errorf("%s { %s } = %q, want %q", selector, prop, got, value)
 			}
 		}
+	}
+	for selector, props := range map[string]map[string]string{
+		".ed-minimap-nodes rect": {"fill": "var(--ed-mark)"},
+		".ed-flow-preview rect":  {"stroke": "var(--ed-mark)"},
+		".ed-cat-dot":            {"background": "var(--ed-mark)"},
+		".ed-palette-cat-dot":    {"background": "var(--ed-mark)"},
+	} {
+		decls := easyDragS0RuleDecls(sheet, selector)
+		for prop, value := range props {
+			if got := decls[prop]; got != value {
+				t.Errorf("%s { %s } = %q, want %q (identity marks read the mark token, not the tile)", selector, prop, got, value)
+			}
+		}
+	}
+	if got := easyDragS0RuleDecls(sheet, easyDragS0DarkBand)["--ed-change-ink"]; got != "color-mix(in srgb, var(--ed-change) 30%, var(--ed-text))" {
+		t.Errorf(".ed-app --ed-change-ink = %q, want a mix of --ed-change with the text colour", got)
 	}
 	for _, rule := range sheet.Rules {
 		for _, part := range splitCSSSelectorList(rule.Selector) {

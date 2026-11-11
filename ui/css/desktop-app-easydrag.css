@@ -99,13 +99,29 @@
     --ed-cat-logic-ink: #e4e8ef;
     --ed-cat-tool: #53595f;
     --ed-cat-tool-ink: #e6e8ea;
-    /* group frames: the stored colour names render as identity colours, never as status colours */
-    --ed-group-blue: var(--ed-accent);
-    --ed-group-green: var(--ed-cat-web);
-    --ed-group-amber: var(--ed-cat-smart_home);
-    --ed-group-rose: var(--ed-cat-notify);
-    --ed-group-violet: var(--ed-cat-trigger);
+    /* group frames: each stored colour name has its own colour (dark band; the light and Cyberpunk bands follow). A group
+       colour looks like its name, stays 0.20 OKLab from every status colour and 0.10 from the other groups, and reaches 3:1 on
+       the editor canvas (TestEasyDragCategoryColourTokens computes all of it); it is never a tile or the accent. */
+    --ed-group-blue: #0559f3;
+    --ed-group-green: #0a8010;
+    --ed-group-amber: #935a0f;
+    --ed-group-rose: #c81392;
+    --ed-group-violet: #a62bfe;
     --ed-group-neutral: var(--ed-muted);
+    /* identity marks (dots, minimap and preview rects) are small shapes on the canvas, card and well: they need 3:1 there, a tile
+       does not give it. Dark surfaces: the tile mixed halfway towards its icon colour. */
+    --ed-mark-trigger: color-mix(in srgb, var(--ed-cat-trigger) 50%, var(--ed-cat-trigger-ink));
+    --ed-mark-logic: color-mix(in srgb, var(--ed-cat-logic) 50%, var(--ed-cat-logic-ink));
+    --ed-mark-ai: color-mix(in srgb, var(--ed-cat-ai) 50%, var(--ed-cat-ai-ink));
+    --ed-mark-web: color-mix(in srgb, var(--ed-cat-web) 50%, var(--ed-cat-web-ink));
+    --ed-mark-documents: color-mix(in srgb, var(--ed-cat-documents) 50%, var(--ed-cat-documents-ink));
+    --ed-mark-notify: color-mix(in srgb, var(--ed-cat-notify) 50%, var(--ed-cat-notify-ink));
+    --ed-mark-smart_home: color-mix(in srgb, var(--ed-cat-smart_home) 50%, var(--ed-cat-smart_home-ink));
+    --ed-mark-planner: color-mix(in srgb, var(--ed-cat-planner) 50%, var(--ed-cat-planner-ink));
+    --ed-mark-tool: color-mix(in srgb, var(--ed-cat-tool) 50%, var(--ed-cat-tool-ink));
+    /* the unpublished-changes mark: the accent, except where the accent looks like the success colour (see below) */
+    --ed-change: var(--ed-accent);
+    --ed-change-ink: color-mix(in srgb, var(--ed-change) 30%, var(--ed-text));
     --ed-on-accent: #ffffff;
     position: relative;
     display: flex;
@@ -142,6 +158,22 @@
     --ed-cat-logic-ink: #333e4d;
     --ed-cat-tool: #dadee3;
     --ed-cat-tool-ink: #383e43;
+    /* their status colours are dark and fill the mid tones, so the group colours that name them are deep (blue, green, amber) */
+    --ed-group-blue: #09017c;
+    --ed-group-green: #003902;
+    --ed-group-amber: #4f2200;
+    --ed-group-rose: #f611b1;
+    --ed-group-violet: #b41dfc;
+    /* light surfaces: a mid tone between the pale tile and its dark icon colour */
+    --ed-mark-trigger: color-mix(in srgb, var(--ed-cat-trigger) 35%, var(--ed-cat-trigger-ink));
+    --ed-mark-logic: color-mix(in srgb, var(--ed-cat-logic) 35%, var(--ed-cat-logic-ink));
+    --ed-mark-ai: color-mix(in srgb, var(--ed-cat-ai) 35%, var(--ed-cat-ai-ink));
+    --ed-mark-web: color-mix(in srgb, var(--ed-cat-web) 35%, var(--ed-cat-web-ink));
+    --ed-mark-documents: color-mix(in srgb, var(--ed-cat-documents) 35%, var(--ed-cat-documents-ink));
+    --ed-mark-notify: color-mix(in srgb, var(--ed-cat-notify) 35%, var(--ed-cat-notify-ink));
+    --ed-mark-smart_home: color-mix(in srgb, var(--ed-cat-smart_home) 35%, var(--ed-cat-smart_home-ink));
+    --ed-mark-planner: color-mix(in srgb, var(--ed-cat-planner) 35%, var(--ed-cat-planner-ink));
+    --ed-mark-tool: color-mix(in srgb, var(--ed-cat-tool) 35%, var(--ed-cat-tool-ink));
 }
 
 /* category tiles, Cyberpunk band: hues kept away from its neon status colours */
@@ -164,31 +196,63 @@
     --ed-cat-logic-ink: #e4e8ee;
     --ed-cat-tool: #54595d;
     --ed-cat-tool-ink: #e6e8ea;
+    --ed-group-blue: #1874ed;
+    --ed-group-green: #089428;
+    --ed-group-amber: #8e5e01;
+    --ed-group-rose: #8b4c66;
+    --ed-group-violet: #8c34e9;
 }
 
-/* group "blue" is the accent, except where a theme's accent (or an accent the user can pick) comes within 0.20 OKLab of a
-   status colour: there it is the band's planner tile (TestEasyDragCategoryColourTokens computes this list) */
-.desktop-body[data-theme="standard"] .ed-app,
-.desktop-body[data-theme="fruity"] .ed-app,
-.desktop-body[data-theme="amiga"] .ed-app,
+/* light surfaces under the dark-band tiles (Fruity light, Windows XP, Voxel World, Amiga): deeper group colours, and marks that are
+   the tile pulled slightly towards black, since the tile is already dark and its icon colour is light */
+.desktop-body[data-theme="fruity"]:not([data-scheme="dark"]) .ed-app,
+.desktop-body[data-theme="windows_xp"] .ed-app,
+.desktop-body[data-theme="voxel_world"] .ed-app,
+.desktop-body[data-theme="amiga"] .ed-app {
+    --ed-group-blue: #034ec8;
+    --ed-group-green: #02721c;
+    --ed-group-amber: #8a5100;
+    --ed-group-rose: #ad0266;
+    --ed-group-violet: #600da8;
+    --ed-mark-trigger: color-mix(in srgb, var(--ed-cat-trigger) 85%, black);
+    --ed-mark-logic: color-mix(in srgb, var(--ed-cat-logic) 85%, black);
+    --ed-mark-ai: color-mix(in srgb, var(--ed-cat-ai) 85%, black);
+    --ed-mark-web: color-mix(in srgb, var(--ed-cat-web) 85%, black);
+    --ed-mark-documents: color-mix(in srgb, var(--ed-cat-documents) 85%, black);
+    --ed-mark-notify: color-mix(in srgb, var(--ed-cat-notify) 85%, black);
+    --ed-mark-smart_home: color-mix(in srgb, var(--ed-cat-smart_home) 85%, black);
+    --ed-mark-planner: color-mix(in srgb, var(--ed-cat-planner) 85%, black);
+    --ed-mark-tool: color-mix(in srgb, var(--ed-cat-tool) 85%, black);
+}
+
+/* the change mark is the accent, except where the accent (a theme's own, or one the user can pick on Standard and Fruity) comes
+   within 0.20 OKLab of the success colour: there it is the text colour, so "Unpublished changes" never looks like "Published"
+   (TestEasyDragCategoryColourTokens computes this list) */
 .desktop-body[data-theme="cyberpunk"] .ed-app,
 .desktop-body[data-theme="black_gloss"] .ed-app,
-.desktop-body[data-theme="lollipop"] .ed-app,
 .desktop-body[data-theme="organic"] .ed-app,
 .desktop-body[data-theme="electronic_dreams"] .ed-app,
 .desktop-body[data-theme="green_slime"] .ed-app,
-.desktop-body[data-theme="orbit"] .ed-app { --ed-group-blue: var(--ed-cat-planner); }
+.desktop-body[data-theme="orbit"] .ed-app,
+.desktop-body[data-theme="standard"][data-accent="blue"] .ed-app,
+.desktop-body[data-theme="standard"][data-accent="green"] .ed-app,
+.desktop-body[data-theme="standard"][data-accent="teal"] .ed-app,
+.desktop-body[data-theme="fruity"][data-accent="blue"] .ed-app,
+.desktop-body[data-theme="fruity"][data-accent="green"] .ed-app,
+.desktop-body[data-theme="fruity"][data-accent="teal"] .ed-app { --ed-change: var(--ed-text); }
+.desktop-body[data-theme="black_gloss"][data-accent="orange"] .ed-app,
+.desktop-body[data-theme="black_gloss"][data-accent="violet"] .ed-app { --ed-change: var(--ed-accent); }
 
-.ed-app [data-cat] { --ed-cat: var(--ed-cat-tool); --ed-cat-ink: var(--ed-cat-tool-ink); }
-.ed-app [data-cat="tool"] { --ed-cat: var(--ed-cat-tool); --ed-cat-ink: var(--ed-cat-tool-ink); }
-.ed-app [data-cat="trigger"] { --ed-cat: var(--ed-cat-trigger); --ed-cat-ink: var(--ed-cat-trigger-ink); }
-.ed-app [data-cat="logic"] { --ed-cat: var(--ed-cat-logic); --ed-cat-ink: var(--ed-cat-logic-ink); }
-.ed-app [data-cat="ai"] { --ed-cat: var(--ed-cat-ai); --ed-cat-ink: var(--ed-cat-ai-ink); }
-.ed-app [data-cat="web"] { --ed-cat: var(--ed-cat-web); --ed-cat-ink: var(--ed-cat-web-ink); }
-.ed-app [data-cat="documents"] { --ed-cat: var(--ed-cat-documents); --ed-cat-ink: var(--ed-cat-documents-ink); }
-.ed-app [data-cat="notify"] { --ed-cat: var(--ed-cat-notify); --ed-cat-ink: var(--ed-cat-notify-ink); }
-.ed-app [data-cat="smart_home"] { --ed-cat: var(--ed-cat-smart_home); --ed-cat-ink: var(--ed-cat-smart_home-ink); }
-.ed-app [data-cat="planner"] { --ed-cat: var(--ed-cat-planner); --ed-cat-ink: var(--ed-cat-planner-ink); }
+.ed-app [data-cat] { --ed-cat: var(--ed-cat-tool); --ed-cat-ink: var(--ed-cat-tool-ink); --ed-mark: var(--ed-mark-tool); }
+.ed-app [data-cat="tool"] { --ed-cat: var(--ed-cat-tool); --ed-cat-ink: var(--ed-cat-tool-ink); --ed-mark: var(--ed-mark-tool); }
+.ed-app [data-cat="trigger"] { --ed-cat: var(--ed-cat-trigger); --ed-cat-ink: var(--ed-cat-trigger-ink); --ed-mark: var(--ed-mark-trigger); }
+.ed-app [data-cat="logic"] { --ed-cat: var(--ed-cat-logic); --ed-cat-ink: var(--ed-cat-logic-ink); --ed-mark: var(--ed-mark-logic); }
+.ed-app [data-cat="ai"] { --ed-cat: var(--ed-cat-ai); --ed-cat-ink: var(--ed-cat-ai-ink); --ed-mark: var(--ed-mark-ai); }
+.ed-app [data-cat="web"] { --ed-cat: var(--ed-cat-web); --ed-cat-ink: var(--ed-cat-web-ink); --ed-mark: var(--ed-mark-web); }
+.ed-app [data-cat="documents"] { --ed-cat: var(--ed-cat-documents); --ed-cat-ink: var(--ed-cat-documents-ink); --ed-mark: var(--ed-mark-documents); }
+.ed-app [data-cat="notify"] { --ed-cat: var(--ed-cat-notify); --ed-cat-ink: var(--ed-cat-notify-ink); --ed-mark: var(--ed-mark-notify); }
+.ed-app [data-cat="smart_home"] { --ed-cat: var(--ed-cat-smart_home); --ed-cat-ink: var(--ed-cat-smart_home-ink); --ed-mark: var(--ed-mark-smart_home); }
+.ed-app [data-cat="planner"] { --ed-cat: var(--ed-cat-planner); --ed-cat-ink: var(--ed-cat-planner-ink); --ed-mark: var(--ed-mark-planner); }
 .ed-app *, .ed-app *::before, .ed-app *::after { box-sizing: border-box; }
 .ed-app [hidden] { display: none !important; }
 .ed-icon { width: 16px; height: 16px; flex: none; }
@@ -231,7 +295,7 @@
 .ed-btn--primary.has-changes { position: relative; }
 .ed-btn--primary.has-changes::after {
     content: ""; position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%;
-    background: var(--ed-accent); box-shadow: 0 0 0 2px var(--ed-chrome);
+    background: var(--ed-change); box-shadow: 0 0 0 2px var(--ed-chrome);
 }
 .ed-btn--danger { color: var(--ed-danger-ink); border-color: color-mix(in srgb, var(--ed-danger) 45%, var(--ed-border)); }
 .ed-btn--danger:hover:not(:disabled) { background: color-mix(in srgb, var(--ed-danger) 14%, var(--ed-control)); }
@@ -325,7 +389,7 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-chip .ed-icon { width: 12px; height: 12px; }
 .ed-chip--muted { background: var(--ed-control); color: var(--ed-muted); }
 .ed-chip--ok { background: color-mix(in srgb, var(--ed-ok) 16%, transparent); color: var(--ed-ok-ink); }
-.ed-chip--accent { background: color-mix(in srgb, var(--ed-accent) 16%, transparent); color: var(--ed-accent-ink); }
+.ed-chip--accent { background: color-mix(in srgb, var(--ed-change) 16%, transparent); color: var(--ed-change-ink); }
 .ed-chip--warn { background: color-mix(in srgb, var(--ed-warn) 18%, transparent); color: var(--ed-warn-ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ed-warn) 45%, transparent); }
 .ed-palette-setup:focus-visible { outline: 2px solid var(--ed-focus); outline-offset: 2px; }
 .ed-chip--risk { background: color-mix(in srgb, var(--ed-danger) 16%, transparent); color: var(--ed-danger-ink); }
@@ -413,7 +477,7 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
     box-shadow: var(--ed-well-shadow);
 }
 .ed-flow-preview svg { width: 100%; height: 110px; }
-.ed-flow-preview rect { fill: color-mix(in srgb, var(--ed-cat) 35%, var(--ed-panel-strong)); stroke: var(--ed-cat); stroke-width: 1; }
+.ed-flow-preview rect { fill: color-mix(in srgb, var(--ed-mark) 35%, var(--ed-panel-strong)); stroke: var(--ed-mark); stroke-width: 1; }
 .ed-flow-preview .ed-mini-wires path { fill: none; stroke: var(--ed-muted); stroke-width: 1.4; opacity: 0.7; }
 .ed-flow-preview .ed-mini-empty { fill: none; stroke: var(--ed-border-strong); stroke-dasharray: 4 3; }
 .ed-flow-info { padding: 12px 14px 14px; display: grid; gap: 6px; }
@@ -468,7 +532,7 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-template-card h3 { margin: 0; font-family: var(--vd-mat-heading-font, inherit); font-size: 14px; font-weight: var(--vd-mat-heading-weight, 700); letter-spacing: var(--vd-mat-heading-tracking, normal); text-transform: var(--vd-mat-heading-transform, none); color: var(--vd-mat-heading-color, var(--ed-text)); }
 .ed-template-card p { margin: 0; color: var(--ed-muted); line-height: 1.45; font-size: 12px; }
 .ed-template-cats { display: flex; gap: 4px; }
-.ed-cat-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ed-cat); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ed-cat) 18%, transparent); }
+.ed-cat-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ed-mark); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ed-mark) 18%, transparent); }
 .ed-template-grid.is-disabled .ed-template-card { opacity: 0.5; cursor: not-allowed; }
 .ed-template-grid.is-disabled .ed-template-card:hover { transform: none; box-shadow: var(--vd-mat-card-shadow, none); border-color: var(--ed-card-border); }
 .ed-template-use { display: inline-flex; align-items: center; gap: 2px; margin-top: 4px; color: var(--ed-accent-ink); font-weight: 700; font-size: 12px; }
@@ -558,7 +622,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 }
 .ed-palette-cat-head:hover { background: var(--ed-control-hover); }
 .ed-palette-cat-head > span:nth-child(2) { flex: 1; text-align: left; }
-.ed-palette-cat-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ed-cat); }
+.ed-palette-cat-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ed-mark); }
 .ed-count { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--ed-control); color: var(--ed-muted); font-size: 11px; text-align: center; }
 .ed-chevron { transition: transform var(--ed-fast) var(--ed-ease); color: var(--ed-muted); }
 .ed-palette-cat-head[aria-expanded="false"] .ed-chevron { transform: rotate(-90deg); }
@@ -758,7 +822,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 }
 .ed-minimap svg { width: 100%; height: 100%; }
 .ed-minimap-wire { stroke: color-mix(in srgb, var(--ed-muted) 55%, transparent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
-.ed-minimap-nodes rect { fill: color-mix(in srgb, var(--ed-cat) 55%, var(--ed-panel-strong)); }
+.ed-minimap-nodes rect { fill: var(--ed-mark); }
 .ed-minimap-nodes rect[data-status="error"] { fill: var(--ed-danger); }
 .ed-minimap-nodes rect[data-status="running"], .ed-minimap-nodes rect[data-status="queued"] { fill: var(--ed-info); }
 .ed-minimap-nodes rect[data-status="success"] { fill: color-mix(in srgb, var(--ed-ok) 75%, var(--ed-panel-strong)); }
@@ -1518,7 +1582,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-app .ed-group--amber { --ed-group-color: var(--ed-group-amber); }
 .ed-app .ed-group--rose { --ed-group-color: var(--ed-group-rose); }
 .ed-app .ed-group--violet { --ed-group-color: var(--ed-group-violet); }
-.ed-app .ed-group-frame { border: 1px solid color-mix(in srgb, var(--ed-group-color) 45%, var(--ed-border)); border-left: 3px solid var(--ed-group-color); border-radius: 14px; background: color-mix(in srgb, var(--ed-group-color) 4%, transparent); }
+.ed-app .ed-group-frame { border: 1px solid color-mix(in srgb, var(--ed-group-color) 65%, var(--ed-border)); border-left: 3px solid var(--ed-group-color); border-radius: 14px; background: color-mix(in srgb, var(--ed-group-color) 4%, transparent); }
 .ed-app .ed-group-frame.is-collapsed { border-style: dashed; background: var(--ed-card); box-shadow: var(--ed-shadow); }
 .ed-app .ed-group-head { padding: 8px 12px 0; box-sizing: border-box; }
 .ed-app .ed-group-heading { display: flex; align-items: center; gap: 8px; }
