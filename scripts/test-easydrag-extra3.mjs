@@ -1020,8 +1020,8 @@ export async function run(env) {
         }
         openEditor(h);
         await settle();
-        const cleared = JSON.stringify({ blockId: null, flowId: null, flow_id: null, run_id: null });
-        eq('c1d10 both routes show the start page with a not-found notice; the start page and the editor clear flow_id and run_id',
+        const cleared = JSON.stringify({ blockId: null, flowId: null, flow_id: null, run_id: null, gateId: null, gate_id: null });
+        eq('c1d10 both routes show the start page with a not-found notice; the start page and the editor clear flow_id and run_id (the start page also gate ids)',
             [screens, h.notes.map(n => n.message), patches.slice(0, 2), patches[patches.length - 1], h.logged],
             [[[true, false], [true, false]], ['error_flow_not_found', 'error_flow_not_found'], [cleared, cleared],
                 JSON.stringify({ blockId: null, flowId: 'f1', flow_id: null, run_id: null }), []]);

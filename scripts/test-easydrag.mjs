@@ -960,6 +960,8 @@ function miniDom() {
         }
         getAttribute(name) { return this.attrs.has(name) ? this.attrs.get(name) : null; }
         setAttribute(name, value) { this.attrs.set(name, String(value)); }
+        // DOM semantics: force true sets "", force false removes, no force toggles; returns presence afterwards.
+        toggleAttribute(name, force) { const on = force === undefined ? !this.attrs.has(name) : !!force; if (on) { if (!this.attrs.has(name)) this.attrs.set(name, ''); } else this.attrs.delete(name); return on; }
         appendChild(child) { child.remove(); child.parentNode = this; this.children.push(child); return child; }
         insertBefore(child, before) { if (!before) return this.appendChild(child); child.remove(); const at = this.children.indexOf(before); if (at < 0) throw new Error('insertBefore target missing'); child.parentNode = this; this.children.splice(at, 0, child); return child; }
         remove() { if (!this.parentNode) return; const list = this.parentNode.children; list.splice(list.indexOf(this), 1); this.parentNode = null; }
