@@ -1984,7 +1984,9 @@ function testNetworkCamerasDesktopContracts() {
   vm.createContext(preferenceContext);
   vm.runInContext(`${preferenceSource}; globalThis.save = savePreferences;`, preferenceContext);
   preferenceContext.save({ mode: 'snapshots', selected: 'one', sourceRoles: { one: 'sub' }, source: 'rtsp://private/', username: 'secret', password: 'secret', token: 'secret' });
-  assert.deepEqual(cameraPreferences, { mode: 'snapshots', selected: 'one', sourceRoles: { one: 'sub' } }, 'only non-secret viewing preferences are stored');
+  const { sound = false, ...viewingPreferences } = cameraPreferences;
+  assert.equal(sound, false, 'omitted sound preferences remain silent');
+  assert.deepEqual(viewingPreferences, { mode: 'snapshots', selected: 'one', sourceRoles: { one: 'sub' } }, 'only non-secret viewing preferences are stored');
 
   const gridSource = sourceBetween(app, 'function liveGridIDs(state, streams)', 'function cardMarkup');
   const gridContext = { Set };
