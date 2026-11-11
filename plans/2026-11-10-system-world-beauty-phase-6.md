@@ -63,7 +63,7 @@
 
 ## What I verified, and what I could not
 
-**Verified by reading** (worktree at `92cfaf1f1`)
+**Verified by reading** (worktree at `9f83be4f8`)
 - **Design and backlog:** `plans/2026-11-10-system-world-beauty-phase-6-design.md` W1–W8; `plans/2026-11-10-system-world-beauty-phase-6-backlog.md` items 1–33.
 - **Survey harness `scripts/system-world-survey.mjs`.**
   - Flags: `--out --scenes --only --tier --width --height --timeout --keep-open --timing --without-furniture`.
@@ -2201,3 +2201,9 @@ baseline of 2026-11-09), `reports/system-world-sound/phase-6-final`.
   bloom and its cornice has a sun highlight. The patrol rule fires five times in 200 s; whether that looks
   restless was not judged in motion. The tram model is the plain v2 one. Open backlog: 12, 13, 20, 25, 30, 32,
   33, 35 to 39.
+- **After the rebase** onto `main` (`3da58db83`, 125 commits, no conflict; the commit ids cited in the phase
+  plans were mapped to the rebased ones): the test list above was repeated and passes (main-path browser run
+  95 s, expansion browser run 302 s with a tram wait of 15.6 s, 4,910,208 bytes at first display), together
+  with `go build ./...` and `go vet ./ui`. The whole `go test ./ui` has one failure,
+  `TestDesktopCodeStudioRunUsesTerminalSession`: it is `main`'s own (the test still expects the run line
+  without `cjs` that `72d9152a4` changed; the branch touches no Code Studio file) and was left alone.

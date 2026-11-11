@@ -47,7 +47,7 @@
 
 ## What I verified, and what I could not
 
-**Verified by reading** (worktree at `fe6410de5`)
+**Verified by reading** (worktree at `471d6e30d`)
 - **Grid.**
   - `streets`, `plotSlabs()` (25 plots + quay; bands as in the design), `zebras()` (64), `pedestrianGraph()` (192 nodes; links join every node pair under 48 m that stays off carriageways, so diagonal links cross plot interiors).
   - `streetProfile` gives `kind:'pavement'` for `d ≥ run`; `run` = 0.14 beyond 2.0 m from a zebra centre.
@@ -1524,5 +1524,5 @@ Recorded after the implementation. The code is the truth; the body above is unch
 - **Task 5.** Leaf sway grows with the height above 2 m, and `sway` is `.045` (`KINDS['city.leaf']` in `sysworld-surfaces.js`).
 - **Harbour test.** Tolerances are at float32 precision (1e-3) for instance matrices (`scripts/test-system-world-harbour.mjs`).
 - **Survey harness.** It applies the near-gate from its own camera (`syncNear` in `scripts/system-world-survey.mjs`). The thirteen life scenes were added before Task 11 (`scripts/system-world-survey.scenes.json`).
-- **Commits.** Tasks 6, 7 and 9 landed in one commit (e5d1a5168).
+- **Commits.** Tasks 6, 7 and 9 landed in one commit (dbd17f87d).
 - **Registration.** `life_assets3.py` is in `build_world3.py` `FAMILIES`; kit version 3.3.0; the manifest holds 46 designs and 138 GLBs. The AGENTS and README notes that said it was not registered are corrected.

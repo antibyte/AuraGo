@@ -47,7 +47,7 @@
 
 ## What I verified, and what I could not
 
-**Verified by reading** (worktree at `966c9a359`, plus the coordinator's dry-run facts of 2026-11-10)
+**Verified by reading** (worktree at `1e8cd14ff`, plus the coordinator's dry-run facts of 2026-11-10)
 
 - **Exterior authoring.**
   - `facade_assets3.stairs` puts `count` treads of `TREAD` with tops `PODIUM - rise*(i+1)` on the `-Y` edge, from the podium edge outwards (glTF +Z).

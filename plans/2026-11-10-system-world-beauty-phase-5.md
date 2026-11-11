@@ -91,7 +91,7 @@
 
 ## What I verified, and what I could not
 
-**Verified by reading** (worktree at `4a9cd8670`)
+**Verified by reading** (worktree at `7328b9891`)
 - **`sysworld-audio.js` `createCityAmbience(onState)`.**
   - It takes a single parameter, and `ensure()` creates `new (window.AudioContext||window.webkitAudioContext)()`.
   - Graph: `master` → `analyser` → destination; buses `ambientBus`, `effectsBus`, `voiceBus`; `verb` (`impulse(context,3.4,2.6)`) → `verbReturn` .55 → `ambientBus`; pad send → `verb`.

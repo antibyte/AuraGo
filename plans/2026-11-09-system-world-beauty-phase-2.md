@@ -34,7 +34,7 @@
 
 ## What I verified, and what I could not
 
-**Verified by reading (worktree at `cc27b886f` plus uncommitted phase 1 work)**
+**Verified by reading (worktree at `d5184a6e1` plus uncommitted phase 1 work)**
 - **`city.window` today.** It is in neither `KINDS` nor `WINDOWS`, so `surfaces.apply` already skips it. But `test-system-world-surfaces.mjs` asserts every kit material is mapped (`KINDS | WINDOWS | untextured`), so registering the payload turns it red.
 - **Glass assertion.** The surfaces test asserts `city.glass` stays untouched ("Glass must stay untouched"). Decision 4 needs that assertion changed.
 - **`windowSeeds` on v3 geometry.** It gives a random seed to every connected component of up to 6 vertices. Exported v3 boxes split per face at sharp edges, so v3 light strips would switch per face. Task 1 fixes this.
