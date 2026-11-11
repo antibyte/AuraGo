@@ -66,15 +66,34 @@ func MaskNegatedVerbs(text string, isVerb func(string) bool) string {
 					break
 				}
 				if isNegative(words[j].text, direction < 0) {
+					if j+1 < len(words) && !words[j+1].boundary && words[j].text == "kein" && words[j+1].text == "witz" {
+						return false
+					}
 					if direction > 0 {
 						if strings.HasPrefix(words[j].text, "kein") {
 							// A determiner after an existing object does not negate its disclosure.
 							for k := i + 1; k < j; k++ {
 								switch words[k].text {
 								case "mir", "dir", "uns", "euch", "ihm", "ihr", "ihnen", "bitte", "jetzt", "künftig", "fortan":
-								default:
-									return false
+									continue
+								case "im", "in":
+									next := k + 1
+									if words[k].text == "in" && next < j {
+										switch words[next].text {
+										case "dem", "der", "diesem", "dieser":
+											next++
+										}
+									}
+									if next < j && negationLocation(words[next].text) {
+										k = next
+										continue
+									}
+								case "auf":
+									if k == j-1 && words[j].text == "keinen" && j+1 < len(words) && !words[j+1].boundary && words[j+1].text == "fall" {
+										continue
+									}
 								}
+								return false
 							}
 						}
 						for k := j + 1; k < len(words) && !words[k].boundary; k++ {
@@ -124,4 +143,12 @@ func absNegationDistance(n int) int {
 		return -n
 	}
 	return n
+}
+
+func negationLocation(word string) bool {
+	switch word {
+	case "chat", "antwort", "antworten", "protokoll", "log", "logs", "ausgabe", "bildschirm", "konsole":
+		return true
+	}
+	return false
 }
