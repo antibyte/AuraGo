@@ -117,11 +117,15 @@ type ParamSpec struct {
 	// of the editor's API.
 	URLTarget bool `json:"-"`
 	// FenceUntrusted: untrusted values (Env.Untrusted) that a template splices into the
-	// param reach Execute inside the external-data fence (fenceUntrusted), so a model that
-	// reads the param can tell the author's text from outside data. Set it on a param that
-	// goes to a model as material (the prompt and the instructions of ai.step), never on
-	// one that Execute parses or compares. The resolved param, and so the run log, shows
-	// the fenced text. It is not part of the editor's API.
+	// param reach Execute inside the external-data fence, so a model that reads the param
+	// can tell the author's text from outside data. A text param gets the whole-value fence
+	// (fenceUntrusted). A ParamJSON param is fenced per leaf (fenceUntrustedLeaves): a value
+	// that a single-expression template reads keeps its JSON type, and its string leaves and
+	// its keys that do not look like identifiers are fenced; a value spliced into text gets the
+	// whole-value fence; the author's literal JSON stays as written. Set it on a param that
+	// goes to a model as material (the ai.step prompt and instructions, the ai.decision
+	// state), never on one that Execute parses or compares. The resolved param, and so the
+	// run log, shows the fenced value. It is not part of the editor's API.
 	FenceUntrusted bool        `json:"-"`
 	Fields         []ParamSpec `json:"fields,omitempty"`
 }
@@ -386,16 +390,31 @@ func (d *NodeDef) Timeout(n *Node) time.Duration {
 	return DefaultNodeTimeout
 }
 
+// fenceMode says how a FenceUntrusted param fences the untrusted values it reads.
+type fenceMode uint8
+
+const (
+	// fenceWhole fences each untrusted value as one text (fenceUntrusted).
+	fenceWhole fenceMode = iota + 1
+	// fenceLeaves keeps the JSON type of a value that a single-expression template reads, and
+	// fences its string leaves and its non-identifier keys (fenceUntrustedLeaves). ParamJSON uses it.
+	fenceLeaves
+)
+
 // fencedParams names the params that resolve with untrusted values fenced
-// (ParamSpec.FenceUntrusted), nil when there are none.
-func (d *NodeDef) fencedParams() map[string]bool {
-	var out map[string]bool
+// (ParamSpec.FenceUntrusted) and how; nil when there are none.
+func (d *NodeDef) fencedParams() map[string]fenceMode {
+	var out map[string]fenceMode
 	for _, spec := range d.Params {
 		if spec.FenceUntrusted {
 			if out == nil {
-				out = map[string]bool{}
+				out = map[string]fenceMode{}
 			}
-			out[spec.Name] = true
+			mode := fenceWhole
+			if spec.Kind == ParamJSON {
+				mode = fenceLeaves
+			}
+			out[spec.Name] = mode
 		}
 	}
 	return out

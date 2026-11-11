@@ -120,7 +120,7 @@ func TestResolveParamsFencesOnlyFlaggedParams(t *testing.T) {
 	env := &Env{Roots: map[string]any{"web": map[string]any{"text": "a < b"}}, Untrusted: map[string]bool{"web": true}}
 	params := map[string]any{"prompt": "{{web.text}}", "other": "{{web.text}}"}
 
-	got, err := resolveParams(params, env, map[string]bool{"prompt": true})
+	got, err := resolveParams(params, env, map[string]fenceMode{"prompt": fenceWhole})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -26,6 +26,10 @@ type Env struct {
 	Untrusted map[string]bool
 	// fence is set on the copy of the Env that resolves a FenceUntrusted parameter.
 	fence bool
+	// fenceLeaves is set together with fence for a FenceUntrusted ParamJSON parameter. A value
+	// that a single-expression template reads keeps its JSON type and is fenced per string
+	// leaf (fenceUntrustedLeaves); a value spliced into text gets the whole-value fence.
+	fenceLeaves bool
 }
 
 // loc returns the location used for zone-less dates: the Env's own location, or
