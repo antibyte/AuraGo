@@ -66,11 +66,16 @@
  *   inventory      true: shot.inventory lists lights and emissive materials near the centre (bloom threshold, environment intensity).
  *   checks         {glareMax, paneOverCeramicMax, tonesMin, feetMax}: measured after the run; failures are printed as CHECK FAILED and
  *                  fail the exit code only with --strict.
- *   allowInside    true: the camera-inside / camera-blocked check is not reported for this scene.
+ *   allowInside    true: the camera-inside check is not reported for this scene.
+ *   tiers          optional array of tier names ("low", "medium", "high", "ultra"; default all): the scene is skipped on other tiers and listed
+ *                  in report.json skipped.scenes (not an error).
+ *   checkTiers     optional array of tier names for `checks`: on other tiers the scene is captured and measured, but its checks do not count
+ *                  (shot.checksSkippedOnTier names the tier).
  * --strict: the exit code is 1 when any check failed (default: failures are only listed).
  * viewTriangles (stats): triangles of the captured frame alone; a pending shadow pass is rendered first (stats.shadowFlushed).
- * Camera checks (shot.camera): inside = instanced pieces (canopies, kiosks) the camera lies in; blocked = the visitor body at the camera
- *   overlaps a traffic solid. Either one is a failed check "camera" unless allowInside is set.
+ * Camera checks (shot.camera): inside = instanced pieces (canopies, kiosks) the camera lies in (insideAt: mesh, instance position, box, camera in
+ *   piece space); a failed check "camera" unless allowInside is set. blocked = the visitor body at the camera overlaps a traffic solid; it is
+ *   information only (a moving traffic body near the camera, not a bad camera position) and never a failed check.
  * The visitor body (traffic body "visitor") follows the survey camera, so the camera is judged like a walking visitor.
  */
 import { build } from 'esbuild';
@@ -268,18 +273,18 @@ async function main() {
   // The camera inside an instanced piece (upper 70 % of its box, horizontally 15 % inset: canopies and kiosks, not the
   // space under a tree) or overlapping a traffic solid at eye height.
   function cameraCheck() {
-    const p = sw.camera.position, m = new T.Matrix4(), local = new T.Vector3(), inside = [];
+    const p = sw.camera.position, m = new T.Matrix4(), local = new T.Vector3(), inside = [], insideAt = [];
     sw.staticCity.traverse(n => {
       if (!n.isInstancedMesh || !n.visible || !n.count) return;
       const g = n.geometry; if (!g.boundingBox) g.computeBoundingBox();
       const b = g.boundingBox, sx = (b.max.x - b.min.x) * .15, sz = (b.max.z - b.min.z) * .15, y0 = b.min.y + .3 * (b.max.y - b.min.y);
       for (let i = 0; i < n.count; i++) {
         n.getMatrixAt(i, m); local.copy(p).applyMatrix4(m.invert());
-        if (local.x > b.min.x + sx && local.x < b.max.x - sx && local.y > y0 && local.y < b.max.y && local.z > b.min.z + sz && local.z < b.max.z - sz) { inside.push((n.material && n.material.name || 'mesh') + '#' + i); break; }
+        if (local.x > b.min.x + sx && local.x < b.max.x - sx && local.y > y0 && local.y < b.max.y && local.z > b.min.z + sz && local.z < b.max.z - sz) { inside.push((n.material && n.material.name || 'mesh') + '#' + i); m.invert(); insideAt.push({ mesh: n.name || '', data: JSON.stringify(n.userData || {}).slice(0, 120), centre: new T.Vector3((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, (b.min.z + b.max.z) / 2).applyMatrix4(m).toArray().map(v => round(v, 2)), at: [m.elements[12], m.elements[13], m.elements[14]].map(v => round(v, 2)), box: [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z].map(v => round(v, 2)), local: local.toArray().map(v => round(v, 2)) }); break; }
       }
     });
     const body = sw.traffic.body('visitor'), pose = { x: p.x, y: p.y, z: p.z, heading: 0 };
-    return { inside, blocked: !!body && !sw.traffic.clear(body, pose, pose) };
+    return { inside, insideAt, blocked: !!body && !sw.traffic.clear(body, pose, pose) };
   }
   const lights = () => { const out = []; sw.scene.traverse(n => { if (n.isLight) out.push(n); }); return out; };
   const materialsOf = () => { const set = new Set(); sw.scene.traverse(n => { if (n.isMesh) for (const m of Array.isArray(n.material) ? n.material : [n.material]) if (m) set.add(m); }); return [...set]; };
@@ -523,7 +528,7 @@ async function measure(report, outDir) {
     if (want.paneOverCeramicMax !== undefined && metrics.paneOverCeramic !== null && metrics.paneOverCeramic !== undefined) check('paneOverCeramic', metrics.paneOverCeramic, want.paneOverCeramicMax, metrics.paneOverCeramic <= want.paneOverCeramicMax);
     if (want.tonesMin !== undefined && metrics.panes) check('tones', metrics.panes.tones, want.tonesMin, metrics.panes.tones >= want.tonesMin);
     if (want.feetMax !== undefined) { const worst = shot.feet ? Math.max(...shot.feet.map(Math.abs)) : Infinity; check('feet', shot.feet, want.feetMax, worst <= want.feetMax); }
-    if (!shot.allowInside && shot.camera && (shot.camera.blocked || shot.camera.inside.length)) check('camera', shot.camera, 'outside geometry', false);
+    if (!shot.allowInside && shot.camera && shot.camera.inside.length) check('camera', shot.camera, 'outside geometry', false);
     shot.metrics = metrics; shot.result = result;
   }
   return failures;
@@ -539,6 +544,11 @@ async function main() {
     if (missing.length) throw Error('Unknown scene(s) in --only: ' + missing.join(', '));
     scenes = scenes.filter(s => opts.only.includes(s.name));
   }
+  // Tier-aware scenes: tiers = run only there; checkTiers = checks count only there (the scene is still captured and measured).
+  const skipped = scenes.filter(s => Array.isArray(s.tiers) && !s.tiers.includes(opts.tier)).map(s => s.name);
+  scenes = scenes.filter(s => !skipped.includes(s.name)).map(s => Array.isArray(s.checkTiers) && !s.checkTiers.includes(opts.tier) && s.checks
+    ? Object.assign({}, s, { checks: null, checksSkippedOnTier: opts.tier }) : s);
+  if (skipped.length) console.log('skipped on tier ' + opts.tier + ': ' + skipped.join(', '));
   if (!scenes.length) throw Error('No scenes to run');
   await fs.mkdir(outDir, { recursive: true });
 
@@ -628,6 +638,7 @@ async function main() {
   let failures = [];
   if (report && report.shots && report.shots.length) {
     failures = await measure(report, outDir);
+    report.skipped = { tier: opts.tier, scenes: skipped };
     await fs.writeFile(path.join(outDir, 'report.json'), JSON.stringify(report, null, 2));
     for (const name of new Set(report.shots.filter(s => s.sequence).map(s => s.sequence))) console.log('sheet ' + writeSheet(outDir, name));
   }
