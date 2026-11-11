@@ -6,6 +6,7 @@ import (
 )
 
 var commandAssignment = regexp.MustCompile("^[A-Za-z_][A-Za-z0-9_]*=")
+var timeoutDuration = regexp.MustCompile(`^[0-9]+(?:\.[0-9]+)?[smhd]?$`)
 
 // shortcut: normalize literal command heads only; expansions and arbitrary shell
 // programs still need the existing OS isolation and trusted host-execution grants.
@@ -16,6 +17,8 @@ func normalizeCommandHeads(command string, escape byte) (string, bool) {
 		breaks += "\r"
 	}
 	atHead, envOptions, envValue, commandOptions := true, false, false, false
+	wrapper := ""
+	wrapped := false
 	for i := 0; i < len(command); {
 		c := command[i]
 		if strings.IndexByte(breaks, c) >= 0 {
@@ -23,6 +26,8 @@ func normalizeCommandHeads(command string, escape byte) (string, bool) {
 			i++
 			if c != ' ' && c != '\t' {
 				atHead, envOptions, envValue, commandOptions = true, false, false, false
+				wrapper = ""
+				wrapped = false
 			}
 			continue
 		}
@@ -46,6 +51,43 @@ func normalizeCommandHeads(command string, escape byte) (string, bool) {
 		if envValue {
 			envValue = false
 			continue
+		}
+		if wrapper != "" {
+			if word == "--help" || word == "--version" {
+				out.WriteString(wrapper + " " + word)
+				wrapper, atHead = "", false
+				continue
+			}
+			if word == "--" && wrapper != "duration" {
+				if wrapper == "timeout" {
+					wrapper = "duration"
+				} else {
+					wrapper = ""
+				}
+				continue
+			}
+			if wrapper == "timeout" && strings.HasPrefix(word, "-") {
+				switch {
+				case word == "-s" || word == "--signal" || word == "-k" || word == "--kill-after":
+					envValue = true
+				case word == "--foreground" || word == "--preserve-status" || word == "-v" || word == "--verbose":
+				case strings.HasPrefix(word, "--signal=") || strings.HasPrefix(word, "--kill-after=") || strings.HasPrefix(word, "-s") && len(word) > 2 || strings.HasPrefix(word, "-k") && len(word) > 2:
+				default:
+					return out.String(), true
+				}
+				continue
+			}
+			if wrapper == "timeout" || wrapper == "duration" {
+				if !timeoutDuration.MatchString(word) {
+					return out.String(), true
+				}
+				wrapper = ""
+				continue
+			}
+			if strings.HasPrefix(word, "-") {
+				return out.String(), true
+			}
+			wrapper = ""
 		}
 		if envOptions && strings.HasPrefix(word, "-") {
 			switch {
@@ -73,13 +115,24 @@ func normalizeCommandHeads(command string, escape byte) (string, bool) {
 			continue
 		}
 		if commandAssignment.MatchString(word) {
+			if executableEnvironment(word) {
+				return out.String(), true
+			}
 			continue
+		}
+		if wrapped && strings.ContainsAny(word, "$%!*?[](){}") {
+			return out.String(), true
 		}
 		name := word[strings.LastIndexAny(word, "/\\")+1:]
 		name = strings.TrimSuffix(strings.ToLower(name), ".exe")
 		if name == "env" {
 			envOptions = true
 			commandOptions = false
+			continue
+		}
+		if name == "nohup" || name == "timeout" {
+			wrapper = name
+			wrapped = true
 			continue
 		}
 		if name == "command" || name == "busybox" {
@@ -90,7 +143,7 @@ func normalizeCommandHeads(command string, escape byte) (string, bool) {
 		out.WriteString(name)
 		atHead = false
 	}
-	return out.String(), false
+	return out.String(), wrapper != "" || envValue
 }
 
 // literalCommandWord removes literal quotes without evaluating shell expressions.

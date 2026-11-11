@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"aurago/internal/fileutil"
 )
 
 const flowScenarioSchema = `CREATE TABLE flow_test_scenarios (
@@ -97,11 +99,14 @@ func backupFlowsSnapshot(db *sql.DB, logger *slog.Logger, prefix string) error {
 			_ = os.RemoveAll(dir)
 		}
 	}()
+	if err := fileutil.RestrictToOwner(dir); err != nil {
+		return err
+	}
 	backup := filepath.Join(dir, "flows.db")
 	if _, err := db.Exec(`VACUUM INTO ?`, backup); err != nil {
 		return fmt.Errorf("back up flows database: %w", err)
 	}
-	if err := os.Chmod(backup, 0o600); err != nil {
+	if err := fileutil.RestrictToOwner(backup); err != nil {
 		return fmt.Errorf("protect flows backup: %w", err)
 	}
 	copyDB, err := sql.Open("sqlite", backup)

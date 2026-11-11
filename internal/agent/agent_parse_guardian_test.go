@@ -129,21 +129,11 @@ func TestToolCallParamsSummarizesBatchItems(t *testing.T) {
 	}
 }
 
-func TestToolCallParamsKeepsLongCodeTail(t *testing.T) {
-	params := toolCallParams(ToolCall{
-		Action: "execute_python",
-		Code:   strings.Repeat("print('safe')\n", 80) + "open('/etc/shadow').read()",
-	})
-
-	code := params["code"]
-	if !strings.Contains(code, "print('safe')") {
-		t.Fatalf("code summary should keep the head: %q", code)
-	}
-	if !strings.Contains(code, "/etc/shadow") {
-		t.Fatalf("code summary should keep the tail: %q", code)
-	}
-	if !strings.Contains(code, "[...") {
-		t.Fatalf("code summary should mark omitted middle content: %q", code)
+func TestToolCallParamsKeepsCompleteCode(t *testing.T) {
+	input := strings.Repeat("print('safe')\n", 80) + "# 中間\nopen('/etc/shadow').read()"
+	params := toolCallParams(ToolCall{Action: "execute_python", Code: input})
+	if params["code"] != input {
+		t.Fatal("Guardian must receive the complete code, including middle and tail")
 	}
 }
 

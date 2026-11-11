@@ -24,6 +24,10 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
 
 ## Verification
 
+- Network Cameras preference regression admits only viewing mode, selection,
+  source roles and an optional sound flag defaulting to false; sources and
+  credentials must never persist in browser preferences.
+
 <!-- pinball:start -->
 - Pinball: `npm run build:pinball` (`build-pinball-assets.mjs` then `build-pinball.mjs`),
   `npm run test:pinball` (`test-pinball.mjs` runs the `test-pinball-*.mjs` suites and the

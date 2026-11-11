@@ -1,12 +1,13 @@
 package planner
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"fmt"
 	"time"
 
-	"aurago/internal/fileutil"
+	"aurago/internal/dbutil"
 )
 
 func normalizeAppointmentInstant(value string) (string, error) {
@@ -64,11 +65,8 @@ func backupPlannerBeforeV11(db *sql.DB) error {
 		return nil
 	}
 	backup := path + ".pre-v11-" + rand.Text() + ".bak"
-	if _, err = db.Exec(`VACUUM main INTO ?`, backup); err != nil {
+	if _, err = dbutil.BackupSQLite(context.Background(), db, backup); err != nil {
 		return fmt.Errorf("back up planner before v11 migration: %w", err)
-	}
-	if err = fileutil.RestrictToOwner(backup); err != nil {
-		return fmt.Errorf("protect planner backup: %w", err)
 	}
 	return nil
 }

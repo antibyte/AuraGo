@@ -58,7 +58,7 @@ func TestDesktopTerminalRetroNetC64Browser(t *testing.T) {
 const terminalC64SeamScreen = `(()=>{const E='\x1b[',band=(row,glyph)=>E+row+';1H'+E+'38;2;255;255;255m'+E+'48;2;136;0;0m'+String.fromCharCode(glyph).repeat(40);
 	return band(1,0xee62)+band(2,0xee62)+band(3,0xee62)+band(4,0xee61)+band(5,0xee61)+band(6,0xee61)+E+'0m'+E+'25;1H';})()`
 
-// Reads terminalC64SeamScreen back from xterm's WebGL canvas (preserveDrawingBuffer; test-only access to the device
+// Reads terminalC64SeamScreen inside xterm's render event (test-only access to the device
 // cell) in device px. The grid starts at the canvas top, or one row lower when the canvas is a px taller (WebGL
 // anchors at the bottom); found from the red top half of the first cell, which a moved glyph cannot change.
 // G is 255 on white and 0 on red; R below 120 is neither (a dark or colour-fringed pixel). Lower half band: each pixel
@@ -68,15 +68,10 @@ const terminalC64SeamScreen = `(()=>{const E='\x1b[',band=(row,glyph)=>E+row+';1
 // least 75 %, unlit side at most 60 %: the browser's greyscale antialiasing softens vertical glyph edges). Problems
 // are added to fixtureErrors so a failure prints them.
 const terminalC64Seams = `async()=>{
-	await fixtureFlush();
-	await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(r,100))));
-	const term=fixtureTerm(),dev=term._core._renderService.dimensions.device.cell,w=dev.width,h=dev.height,W=40*w,problems=[];
-	const gl=[...term.element.querySelectorAll('.xterm-screen canvas')].find(c=>!c.classList.contains('xterm-link-layer'));
-	const copy=document.createElement('canvas');copy.width=gl.width;copy.height=gl.height;
-	const ctx=copy.getContext('2d');ctx.drawImage(gl,0,0);
-	const data=ctx.getImageData(0,0,gl.width,gl.height).data,at=(x,y)=>(y*gl.width+x)*4;
-	let y0=0;while(y0<gl.height&&!(data[at(2,y0)]>120&&data[at(2,y0)+1]<20))y0++;
-	if(y0!==0&&y0!==gl.height-25*h)problems.push('grid top at '+y0+' of '+gl.height);
+	const pixels=await fixtureTerminalPixels(),dev=pixels.cell,w=dev.width,h=dev.height,W=40*w,problems=[];
+	const data=pixels.data,at=(x,y)=>(y*pixels.width+x)*4;
+	let y0=0;while(y0<pixels.height&&!(data[at(2,y0)]>120&&data[at(2,y0)+1]<20))y0++;
+	if(y0!==0&&y0!==pixels.height-25*h)problems.push('grid top at '+y0+' of '+pixels.height);
 	const G=(x,y)=>data[at(x,y0+y)+1],range=(a,b)=>Array.from({length:b-a},(_,i)=>a+i),cols=range(0,W);
 	const mean=(xs,ys)=>{let s=0;for(const y of ys)for(const x of xs)s+=G(x,y);return s/(xs.length*ys.length);};
 	let dark=0;for(let y=0;y<6*h;y++)for(let x=0;x<W;x++)if(data[at(x,y0+y)]<120)dark++;

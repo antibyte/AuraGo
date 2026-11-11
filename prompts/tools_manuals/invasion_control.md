@@ -181,3 +181,5 @@ never bypass authentication or weaken TLS settings. Keep system clocks synchroni
 - If an Egg says it created output but the chat does not show the data, inspect `artifact_ids`, then call `get_artifact` or `list_artifacts`.
 - `upload_artifact` and `send_host_message` are for code running inside an Egg. On the host, use the list/get/read/message operations instead.
 - `upload_artifact` only reads files inside the Egg workspace, then stores them on the host under the host data directory.
+
+Read-only blocks new work and all operator mutations, including stop. Authenticated results and artifacts of admitted work can still be saved; Egg messages cannot wake the agent. Disabled Invasion Control blocks every worker endpoint. A disconnected socket does not prove the Egg stopped: stop requires process/container confirmation. Upgrade Master and Eggs together before enabling the integration.

@@ -57,6 +57,8 @@ func TestStartWithdrawsTheRetroGamesToolWhenSIPFailsProcess(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := &config.Config{}
+	// Reach the SIP failure after satisfying the login prerequisite.
+	cfg.Auth.Enabled, cfg.Auth.PasswordHash = true, "fixture-hash"
 	cfg.Server.Host = "127.0.0.1" // loopback only: no remote-exposure refusal before initSIP
 	cfg.Directories.DataDir = dataFile
 	cfg.RetroGames.Enabled = true

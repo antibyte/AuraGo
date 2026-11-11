@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"aurago/internal/dbutil"
@@ -45,7 +46,7 @@ func createLegacyNestsDB(t *testing.T, path string, withDockerTLS, withRow bool)
 
 func backups(t *testing.T, path string) []string {
 	t.Helper()
-	matches, err := filepath.Glob(path + exportNestSecretBackupSuffix + "*")
+	matches, err := filepath.Glob(path + strings.TrimSuffix(exportNestSecretBackupSuffix, ".bak") + "*.bak")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +164,7 @@ func TestInitDBBackupNeverOverwritesAnEarlierCopy(t *testing.T) {
 		t.Fatal("InitDB overwrote an earlier backup")
 	}
 	if n := len(backups(t, path)); n != 2 {
-		t.Fatalf("backups = %d, want the earlier copy plus a timestamped one", n)
+		t.Fatalf("backups = %d, want the earlier copy plus a uniquely named one", n)
 	}
 }
 

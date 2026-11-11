@@ -20,6 +20,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
+          cache: npm
+      - run: npm ci
       - run: node scripts/build-ui-bundles.js --check
       - run: go test ./internal/webassets ./cmd/assetpack
       - run: go run ./cmd/assetpack -out deploy -stage assets/web

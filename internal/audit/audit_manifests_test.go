@@ -1065,7 +1065,7 @@ func TestCIGatesRunGoTestsAndGovulncheck(t *testing.T) {
 	for _, needle := range []string{
 		"actions/setup-go",
 		"go test ./...",
-		"go test -race ./internal/llm ./internal/server ./internal/memory",
+		"go test -race -json ./internal/llm ./internal/server ./internal/memory",
 		"go install golang.org/x/vuln/cmd/govulncheck@v",
 		"run: govulncheck ./...",
 	} {

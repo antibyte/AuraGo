@@ -4,6 +4,9 @@
 
 Server-owned HTTP and cross-component integration contracts.
 
+- Read-only blocks operator mutations, including stop; signed worker results and work-bound artifact uploads remain available. Messages are stored with wakeups suppressed. Disabled integration rejects all worker ingress. HTTP and WebSocket results share nest/Egg/work ownership checks; keep existing tokens, size and replay bounds.
+- Socket loss and heartbeat expiry preserve the last deployment state; `ws_connected` owns connectivity. Stop succeeds only after connector confirmation of `stopped`; transport failures and unknown state remain errors. The disabled page links to Config and explains the coordinated Master/Egg upgrade, without enabling settings.
+
 ## Ownership
 
 - Desktop `/stop` bypasses the session turn gate. After SSE admission, every terminal
@@ -1174,6 +1177,8 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
 - Login is a precondition: with login disabled, the Host guard only stops browsers. A container on the same network can send any Host (`127.0.0.1`, `localhost`) and reach every AuraGo route, so `storeLLMRelayProvider.RelayInfo` refuses to install DeepTutor unless `auth.enabled` is true and a password hash exists. The `host.docker.internal` allowance in `authMiddleware` therefore only matters for the login-off case that the provider already blocks; it is not a security boundary. With login on, the Store token opens the relay prefix only (`TestAuthBypassStoreLLMRelayLeavesEveryOtherRouteClosedForContainerHosts`). A dedicated relay listener that serves only the relay prefix is the long-term fix that would lift the login requirement.
 - Cost bounds: chat rejects `n` > 1 (`400`, "n must be 1"); embeddings share the chat `IsBlocked` gate (`429 budget_exceeded`, checked before the provider call) and book the provider's `usage` (`prompt_tokens`, else `total_tokens`) under `store_relay`. `max_tokens` is passed through unchanged.
 - Verify `go test ./internal/server -run '(?i)(StoreLLMRelay|StoreRelayProvider|AuthBypass|Rebinding)'`.
+
+- DeepTutor login changes are validated before YAML/Vault writes in general, setup and auth saves (`deeptutor_requires_login`, HTTP 409, all backend locales). Read both current and candidate data directories. Invalid startup fails before listeners; invalid reload keeps the last valid snapshot. Store admission shares `CfgSaveMu` through its pending record. No container is stopped automatically. Verify `TestDeepTutor*` and existing relay/token tests.
 
 ## Desktop invocation ownership
 

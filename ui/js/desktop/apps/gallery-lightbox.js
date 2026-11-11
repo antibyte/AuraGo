@@ -296,8 +296,7 @@
         function fittedSize() {
             const node = media();
             if (!node || !(node instanceof HTMLImageElement)) return null;
-            const rect = node.getBoundingClientRect();
-            return { width: rect.width / lb.zoom.scale, height: rect.height / lb.zoom.scale };
+            return { width: node.clientWidth, height: node.clientHeight };
         }
 
         function rotationDegrees() {

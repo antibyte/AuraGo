@@ -50,6 +50,10 @@ func handleInvasionArtifactOffer(s *Server) http.HandlerFunc {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
+		if err := s.validateInvasionWork(nestID, eggID, req.TaskID, req.MissionID, true); err != nil {
+			jsonError(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		metadataJSON := ""
 		if req.Metadata != nil {
 			if b, err := json.Marshal(req.Metadata); err == nil {
@@ -111,6 +115,10 @@ func handleInvasionArtifactUpload(s *Server) http.HandlerFunc {
 		}
 		if slot.Artifact.NestID != nestID || slot.Artifact.EggID != eggID {
 			jsonError(w, "upload token does not belong to authenticated egg", http.StatusUnauthorized)
+			return
+		}
+		if err := s.validateInvasionWork(nestID, eggID, slot.Artifact.TaskID, slot.Artifact.MissionID, true); err != nil {
+			jsonError(w, err.Error(), http.StatusForbidden)
 			return
 		}
 		slot, err = invasion.ClaimArtifactUploadByToken(s.InvasionDB, token, time.Now())
@@ -208,6 +216,20 @@ func handleInvasionEggMessage(s *Server) http.HandlerFunc {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
+		if err := s.validateInvasionWork(nestID, eggID, req.TaskID, req.MissionID, false); err != nil {
+			jsonError(w, err.Error(), http.StatusForbidden)
+			return
+		}
+		if err := s.validateInvasionArtifacts(nestID, eggID, req.TaskID, req.MissionID, req.ArtifactIDs); err != nil {
+			jsonError(w, err.Error(), http.StatusForbidden)
+			return
+		}
+		s.CfgMu.RLock()
+		defer s.CfgMu.RUnlock()
+		if !s.Cfg.InvasionControl.Enabled {
+			jsonError(w, "Invasion Control is disabled", http.StatusServiceUnavailable)
+			return
+		}
 		msg, err := invasion.RecordEggMessage(s.InvasionDB, invasion.EggMessageRecord{
 			NestID:          nestID,
 			EggID:           eggID,
@@ -219,7 +241,7 @@ func handleInvasionEggMessage(s *Server) http.HandlerFunc {
 			ArtifactIDs:     req.ArtifactIDs,
 			DedupKey:        req.DedupKey,
 			WakeupRequested: req.WakeupRequested,
-		}, invasion.EggMessageRatePolicy{Burst: 3, Window: time.Minute}, time.Now())
+		}, invasion.EggMessageRatePolicy{Burst: 3, Window: time.Minute, SuppressWakeup: s.Cfg.InvasionControl.ReadOnly}, time.Now())
 		if err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to record egg message", "Egg message rejected", err, "nest_id", nestID, "egg_id", eggID)
 			return
@@ -236,7 +258,7 @@ func handleInvasionEggMessage(s *Server) http.HandlerFunc {
 }
 
 func (s *Server) scheduleEggMessageWakeup(msg invasion.EggMessageRecord) {
-	if s.BackgroundTasks == nil {
+	if s.BackgroundTasks == nil || !s.invasionAllowed(true) {
 		return
 	}
 	prompt := eggMessageWakeupPrompt(msg)
@@ -291,8 +313,12 @@ func verifyEggSignedRequest(s *Server, r *http.Request, body []byte) (string, st
 	if err != nil {
 		return "", "", err
 	}
-	if nest.EggID != "" && nest.EggID != eggID {
+	if !nest.Active || nest.EggID != eggID {
 		return "", "", fmt.Errorf("egg is not assigned to nest")
+	}
+	egg, err := invasion.GetEgg(s.InvasionDB, eggID)
+	if err != nil || !egg.Active {
+		return "", "", fmt.Errorf("egg is inactive")
 	}
 	when, err := time.Parse(time.RFC3339, ts)
 	if err != nil {

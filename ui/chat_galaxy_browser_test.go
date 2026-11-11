@@ -225,9 +225,12 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 	p.MustReload().MustWaitLoad()
 	ready()
 	check(`() => document.documentElement.dataset.theme==='galaxy' && __pending.size===1`, "reload failed or duplicated scheduler")
+	p.MustElement("#chat-box").MustHover()
+	p.MustWait(`()=>!document.querySelector('#chat-theme-btn').matches(':hover') && document.querySelector('#chat-theme-btn').getAnimations().every(a=>a.playState!=='running')`)
 	color := p.MustEval(`() => getComputedStyle(document.getElementById('chat-theme-btn')).backgroundColor`).Str()
 	p.MustElement("#chat-theme-btn").MustHover()
-	p.MustEval(`() => new Promise(resolve=>setTimeout(resolve,200))`)
+	p.MustWait(`()=>document.querySelector('#chat-theme-btn').matches(':hover')`)
+	p.MustWait(`color=>getComputedStyle(document.querySelector('#chat-theme-btn')).backgroundColor!==color`, color)
 	if p.MustEval(`() => getComputedStyle(document.getElementById('chat-theme-btn')).backgroundColor`).Str() == color {
 		t.Fatal("Galaxy button hover state is overridden")
 	}

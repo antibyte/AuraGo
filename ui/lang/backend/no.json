@@ -1,4 +1,5 @@
 {
+  "backend.deeptutor_requires_login": "DeepTutor krever innlogging i AuraGo. Avinstaller DeepTutor før du slår av innlogging.",
   "backend.speech_lab_llm_unavailable": "Den valgte Speech Lab-LLM-leverandøren er ikke tilgjengelig. Ingen reserveleverandør ble brukt.",
   "backend.operational_issue_notice_title": "Driftsproblemer",
   "backend.operational_issue_notice_summary": "AuraGo oppdaget {0} problem(er) under bakgrunnsarbeid.",

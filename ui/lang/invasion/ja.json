@@ -1,4 +1,6 @@
 {
+  "invasion.disabled_notice": "Invasion Control は無効です。設定で有効にする前に、Master と Eggs を一緒に更新してください。",
+  "invasion.configure": "設定を開く",
   "invasion.allow_unsandboxed": "隔離なしの shell を許可（shell の選択も必要）",
   "invasion.access_docker": "Docker API",
   "invasion.access_local": "ローカル",

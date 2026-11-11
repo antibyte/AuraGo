@@ -44,3 +44,22 @@ func TestInvasionPermissionRevocationBrowser(t *testing.T) {
 		t.Fatal("another Egg's grants were copied into the review")
 	}
 }
+
+func TestInvasionDisabledExplainsCoordinatedUpgradeBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	page := newSmokeBrowser(t).MustPage(newPrecisionSmokeOrigin(t))
+	defer page.MustClose()
+	html := regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(normalizeAssetText(mustReadUIFile(t, "invasion_control.html")), "")
+	page.MustSetDocumentContent(html)
+	page.MustEval(`() => {
+  window.t=key=>key;window.showToast=()=>{throw Error('disabled state must explain inline')};
+  window.fetch=async(url,opts={})=>{if(opts.method)throw Error('unexpected mutation');return {ok:false,status:503,json:async()=>({error:'disabled',code:'invasion_disabled'})}};
+ }`)
+	if err := page.AddScriptTag("", normalizeAssetText(mustReadUIFile(t, "js/invasion/main.js"))); err != nil {
+		t.Fatal(err)
+	}
+	page.MustEval(`async()=>{await loadNests();await loadEggs();}`)
+	if !page.MustEval(`()=>!document.querySelector('#invasion-disabled').classList.contains('is-hidden') && document.querySelector('#btn-create').disabled && document.querySelector('#invasion-disabled a').getAttribute('href')==='/config#invasion_control'`).Bool() {
+		t.Fatal("missing disabled explanation or config link")
+	}
+}

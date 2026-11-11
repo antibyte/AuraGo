@@ -1,4 +1,6 @@
 {
+  "invasion.disabled_notice": "Invasion Control बंद है। सेटिंग में इसे चालू करने से पहले Master और Eggs को एक साथ अपडेट करो।",
+  "invasion.configure": "सेटिंग खोलो",
   "invasion.allow_unsandboxed": "बिना अलगाव के shell की अनुमति दें (shell चयन भी आवश्यक)",
   "invasion.access_docker": "Docker API",
   "invasion.access_local": "स्थानीय",

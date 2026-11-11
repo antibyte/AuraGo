@@ -25,7 +25,12 @@ and was invisible until every class moved to `agdrift-` (no `ad` substring at al
 New app-scoped prefixes must contain no `ad` substring; verify
 `TestAuraDriftAvoidsAdBlockerClassPrefix` and `TestDesktopAuraDriftAdBlockerBrowser`.
 
+- Read-only blocks operator mutations, including stop; signed worker results and work-bound artifact uploads remain available. Messages are stored with wakeups suppressed. Disabled integration rejects all worker ingress. HTTP and WebSocket results share nest/Egg/work ownership checks; keep existing tokens, size and replay bounds.
+- Socket loss and heartbeat expiry preserve the last deployment state; `ws_connected` owns connectivity. Stop succeeds only after connector confirmation of `stopped`; transport failures and unknown state remain errors. The disabled page links to Config and explains the coordinated Master/Egg upgrade, without enabling settings.
+
 ## Ownership
+
+- Galaxy hover checks move the pointer off the button before the baseline and await both actual hover and the style transition. Do not use a fixed hover delay.
 
 - Chat question dialogs use the shared modal controller and session stop endpoint
   `/api/admin/stop` for Cancel/Escape. Keep failed answer/stop requests visible and
@@ -1361,11 +1366,13 @@ New app-scoped prefixes must contain no `ad` substring; verify
   after a streamed wake; the status wait must exceed that polling cadence.
 - The full Docker Manager browser journey owns a three-minute page context;
   the shared 30-second startup context is too short for its combined lifecycle checks.
+  It also closes and reopens the same native dialog in one event turn: the old
+  close must preserve the new view, confirmation result and focus.
 - Orbit's native drag/tilt probe uses static-scene quality 3 so software GL does
   not stale its velocity samples. Scene, coverage and quality assertions retain quality 1.
 - Browser contracts (Chrome or Edge):
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; $env:AURAGO_BROWSER_ARTIFACT_DIR='../disposable/browser-artifacts'; go test -count=1 ./ui/... -run 'Precision.*Browser|Config.*Browser'`.
-- Browser discovery honors `CHROME_BIN`, then PATH and standard Windows/macOS locations. An explicit override must be executable; it never silently falls back. With `AURAGO_RUN_BROWSER_SMOKE=1`, missing browsers and launch failures fail the test. Security Gates partitions the full UI package into populated-config, config-layout, General and four Desktop name ranges (`A-D`, `E-G`, `H-R`, `S-Z`) with independent timeouts and fail-fast disabled; the audit package checks that each test belongs to exactly one job.
+- Browser discovery honors `CHROME_BIN`, then PATH and standard Windows/macOS locations. An explicit override must be executable; it never silently falls back. With `AURAGO_RUN_BROWSER_SMOKE=1`, missing browsers and launch failures fail the test. Security Gates partitions the full UI package into populated-config, config-layout, General name ranges (`A-F`, `G-Z`), five Desktop name ranges (`A-D`, `E-G`, `H-M`, `N-R`, `S-Z`) excluding Aura Drift from `A-D`, and two Aura Drift shards (quality/controls and other flows), with independent timeouts and fail-fast disabled; the audit package checks that each test belongs to exactly one job.
 - The shared Rod browser helper disables its leakless wrapper on Windows because the wrapper can hang before publishing the child PID; it registers `launcher.Kill` for explicit process cleanup. Linux retains Rod's default leakless behavior.
 - Config refresh browser coverage uses the real lazy renderers with local API
   fixtures, every section at five widths in both themes/densities, plus draft,

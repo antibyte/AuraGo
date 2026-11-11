@@ -1,11 +1,13 @@
 package detective
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"os"
 	"time"
+
+	"aurago/internal/dbutil"
 )
 
 // backupBeforeMigration copies the database with VACUUM INTO before a schema step and
@@ -22,22 +24,8 @@ func backupBeforeMigration(db *sql.DB, path string, version, target int) error {
 		return nil
 	}
 	backup := fmt.Sprintf("%s.pre-v%d-%s.bak", path, target, time.Now().UTC().Format("20060102T150405.000000000Z"))
-	if _, err := db.Exec("VACUUM INTO ?", backup); err != nil {
-		return fmt.Errorf("back up Detective before migration: %w", err)
-	}
-	if err := os.Chmod(backup, 0600); err != nil {
-		return fmt.Errorf("protect Detective backup: %w", err)
-	}
-	f, err := os.OpenFile(backup, os.O_RDWR, 0)
-	if err != nil {
-		return err
-	}
-	err = f.Sync()
-	closeErr := f.Close()
-	if err != nil {
-		return err
-	}
-	return closeErr
+	_, err := dbutil.BackupSQLite(context.Background(), db, backup)
+	return err
 }
 
 func migrateArchive(tx *sql.Tx, version int) error {

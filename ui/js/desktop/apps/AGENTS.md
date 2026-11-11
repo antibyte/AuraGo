@@ -78,6 +78,13 @@
 
 ## Storymaker
 
+- The code problem list refreshes on validated player `report` events as well as
+  server `issues`; a later compile can clear or add diagnostics without changing
+  an unsaved draft. Release both subscriptions when the editor is disposed.
+  Verify `TestStorymakerCodeReportRefreshBrowser` and the full app tour.
+
+- Storymaker save acknowledgments mark only the sent snapshot as saved. Keep newer code-tab typing dirty, including edits back to the old base while a save is pending. Do not synchronize `storyChanged` into an editor during its save. Bind story/code saves and issue reloads to project ID and open generation; disposed or switched editors ignore late responses. Browser tests wait for dirty/save-enabled state and confirmed preview seeks; `TestStorymakerAppDelayedSavesBrowser` delays acknowledgments and switches projects.
+
 - Catalog v2 uses fixed illustrated identities, PNG thumbnails and catalog-listed `texture:<path>` dependencies. `storymaker-assets.js` caches original buffers per catalog version; `storymaker-api.js` bounds streaming image reads, and each worker receives its own copy. Artwork ownership: `assets/storymaker/AGENTS.md` and `ASSET-CONTRACT.md`. The story document, library editing, pending/error feedback and Video Studio handoff retain their existing contracts.
 
 - `storymaker*.js` are seventeen classic scripts in this load order (module-loader entry `storymaker`, pinned by `TestDesktopStorymakerRegistration` and `TestStorymakerLoaderListsEveryScript`): `storymaker-core.js` (the namespace `window.StorymakerParts`, the DOM builder `S.el` that has no html option, icons, the bus, error texts), `-model.js` (pure: JSON Pointer to text position, issue lists, the catalog index, the story edits), `-api.js`, `-assets.js` (catalog, fonts and code bundles for the player), `-player.js` (the iframe bridge), `-projects.js`, `-strip.js` (scene strip and transport), `-inspector.js` (inspector and library), `-code.js` (CodeMirror), `-export.js` (export panel and finished-job actions), `-audio.js` (preview audio, waveform model), `-voice.js` (voice panel, narration status, captions toggle), `-music.js` (music panel), `-agent.js` (agent panel and project-list start form), `-dialog.js` (export dialog), `-handoff.js` (tracks and handoff), then the composition root `storymaker.js` (`window.StorymakerApp`). Style `css/desktop-app-storymaker.css`: `stm-` prefix, tokens only, container queries on the window, motion gated. The backend contract is `internal/storymaker/AGENTS.md`, the player `ui/js/storymaker/AGENTS.md`.
@@ -500,7 +507,8 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   endpoint it was saved for: when the address (trimmed, case-insensitive, no IPv6 brackets), the effective port (empty = 22) or the
   SSH user changes, or the kind becomes SSH, the server refuses to reuse it (`invalid_host`, field `ssh_secret`) and the form
   (`storedSecretUsable`) asks for it again up front and says why; TLS material is kept. The dialog content is emptied whenever the
-  view stack is empty, so a typed password or PEM key never stays in the closed `<dialog>`; `docker-manager.ui.v1` holds prefs only.
+  view stack is empty, so a typed password or PEM key never stays in the closed `<dialog>`. A queued native close from its
+  previous use must preserve a reopened dialog's views, pending result and focus. `docker-manager.ui.v1` holds prefs only.
   Plain TCP carries a visible warning. Names are unique ignoring case and "Local" is reserved (checked in the form, enforced by the server).
 - Protected containers (lock icon) ask before stop, restart, pause, kill and remove. The server never confirms the first four;
   a protected remove answers 409 `container_protected_confirmation_required` with `owner` and `message` (the shared text of
@@ -2753,6 +2761,8 @@ buttons and menu popovers remain excluded from those gestures.
 
 ### Gallery contract
 
+- Gallery lightbox pan limits use untransformed layout dimensions (`clientWidth`/`clientHeight`), apply the 90/270-degree swap once and keep drag deltas in screen axes. Verify `TestDesktopGalleryPanUsesLayoutSizeBrowser` with zoom and mirroring.
+
 - The Gallery is a lazy app. `module-loader.js` `DESKTOP_APP_ASSETS.gallery`
   loads `/css/desktop-app-gallery.css` and, in this order,
   `gallery-library.js` (`window.GalleryLibrary`: item model, prefs
@@ -3730,6 +3740,7 @@ buttons and menu popovers remain excluded from those gestures.
   full disposal of listeners, RAF, AudioContext, WebGL resources, caches and observers. Visible
   strings use `aura_drift.*` plus `desktop.app_aura_drift` in all sixteen `ui/lang/desktop/*.json`
   files; English is the reference, and every value needs a non-empty translation with no U+FFFD.
+- `TestDesktopAuraDriftGTAOShadowReuseBrowser` loads modules and instruments GTAO before opening the app (the title screen builds the pipeline). Separately require material initialization, actual rendering after beauty without shadow updates, success/failure restoration of the prior state and direct-render fallback. Do not patch an already bound render method.
 - The GTAO normals pass reuses the beauty pass's shadow maps; suppress shadow-map
   auto-update only during GTAO and restore it in `finally`, including render failures.
   Debug fast-forward advances the camera and result-delay clock on every simulation
@@ -4022,6 +4033,8 @@ buttons and menu popovers remain excluded from those gestures.
   `## Pixel` at the top of this file. The sticker contracts below still apply to Pixel sticker layers.
 
 ## Ownership
+
+
 
 Owned by this subtree. Backend integration lives in `internal/server/` and app
 registration lives in `internal/desktop/types.go`.
@@ -6448,7 +6461,10 @@ registration lives in `internal/desktop/types.go`.
   without stale rows, a style change, no resize frame and the style font after
   leaving; the C64
   grid also at DPR 1.25 and 1.5, each with a pixel readback of half-block art
-  from xterm's WebGL canvas that fails on seams; all use
+  from xterm's WebGL canvas that fails on seams. VT/C64 pixel probes capture dimensions and
+  pixels together inside the next xterm render event through `fixtureTerminalPixels`;
+  never sample a possibly invalidated frame after an arbitrary delay. The DPR 1.25
+  VT case asserts that readback happens in that render callback. All use
   `ui/desktop_terminal_harness_test.go`, the Retro-Net fixture is
   `ui/testdata/terminal-retronet-fixture.js` plus
   `ui/testdata/terminal-retronet-c64-fixture.js`, which keeps the C64 hint

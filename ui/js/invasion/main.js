@@ -147,7 +147,14 @@ async function api(path, options = {}) {
     });
     if (!resp.ok) {
         const err = await resp.json().catch(() => ({ error: resp.statusText }));
-        throw new Error(err.error || resp.statusText);
+        const failure = new Error(err.error || resp.statusText);
+        failure.code = err.code;
+        if (failure.code === 'invasion_disabled') {
+            document.getElementById('invasion-disabled')?.classList.remove('is-hidden');
+            const create = document.getElementById('btn-create');
+            if (create) create.disabled = true;
+        }
+        throw failure;
     }
     return resp.json();
 }
@@ -163,7 +170,7 @@ async function loadNests() {
         nestsData = (await api('nests')) || [];
         setInvasionLoading('nests', false);
         renderNests();
-    } catch (e) { setInvasionLoading('nests', false); showToast(t('invasion.error') + ': ' + e.message, 'error'); }
+    } catch (e) { setInvasionLoading('nests', false); if (e.code !== 'invasion_disabled') showToast(t('invasion.error') + ': ' + e.message, 'error'); }
 }
 
 async function loadEggs() {
@@ -172,7 +179,7 @@ async function loadEggs() {
         setInvasionLoading('eggs', false);
         renderEggs();
         renderNests();
-    } catch (e) { setInvasionLoading('eggs', false); showToast(t('invasion.error') + ': ' + e.message, 'error'); }
+    } catch (e) { setInvasionLoading('eggs', false); if (e.code !== 'invasion_disabled') showToast(t('invasion.error') + ': ' + e.message, 'error'); }
 }
 
 // ── Render ───────────────────────────────────────────────
@@ -536,7 +543,7 @@ async function saveNest() {
         closeModal('nest-modal');
         showToast(t('invasion.saved'), 'success');
         await loadNests();
-    } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
+    } catch (e) { if (e.code !== 'invasion_disabled') showToast(t('invasion.error') + ': ' + e.message, 'error'); }
 }
 
 async function saveEgg() {
@@ -570,7 +577,7 @@ async function saveEgg() {
         showToast(t('invasion.saved'), 'success');
         await loadEggs();
         renderNests(); // re-render in case egg names changed
-    } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
+    } catch (e) { if (e.code !== 'invasion_disabled') showToast(t('invasion.error') + ': ' + e.message, 'error'); }
 }
 
 // ── Toggle ───────────────────────────────────────────────
@@ -578,14 +585,14 @@ async function toggleNest(id, active) {
     try {
         await api('nests/' + id + '/toggle', { method: 'POST', body: JSON.stringify({ active }) });
         await loadNests();
-    } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
+    } catch (e) { if (e.code !== 'invasion_disabled') showToast(t('invasion.error') + ': ' + e.message, 'error'); }
 }
 
 async function toggleEgg(id, active) {
     try {
         await api('eggs/' + id + '/toggle', { method: 'POST', body: JSON.stringify({ active }) });
         await loadEggs();
-    } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
+    } catch (e) { if (e.code !== 'invasion_disabled') showToast(t('invasion.error') + ': ' + e.message, 'error'); }
 }
 
 // ── Hatch / Stop ─────────────────────────────────────────
@@ -595,7 +602,7 @@ async function hatchNest(id) {
         showToast(t('invasion.hatching_started'), 'success');
         // Start polling for status
         pollHatchStatus(id);
-    } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
+    } catch (e) { if (e.code !== 'invasion_disabled') showToast(t('invasion.error') + ': ' + e.message, 'error'); }
 }
 
 async function stopNest(id) {
@@ -603,7 +610,7 @@ async function stopNest(id) {
         await api('nests/' + id + '/stop', { method: 'POST' });
         showToast(t('invasion.stop_signal_sent'), 'success');
         await loadNests();
-    } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
+    } catch (e) { if (e.code !== 'invasion_disabled') showToast(t('invasion.error') + ': ' + e.message, 'error'); }
 }
 
 function pollHatchStatus(id) {

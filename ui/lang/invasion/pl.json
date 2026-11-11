@@ -1,4 +1,6 @@
 {
+  "invasion.disabled_notice": "Invasion Control jest wyłączone. Zaktualizuj Master i Eggs razem, zanim włączysz integrację w ustawieniach.",
+  "invasion.configure": "Otwórz ustawienia",
   "invasion.allow_unsandboxed": "Zezwól na shell bez izolacji (wymaga także wyboru shell)",
   "invasion.access_docker": "Docker API",
   "invasion.access_local": "Lokalny",

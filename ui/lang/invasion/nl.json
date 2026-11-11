@@ -1,4 +1,6 @@
 {
+  "invasion.disabled_notice": "Invasion Control is uitgeschakeld. Werk Master en Eggs samen bij voordat je de integratie in de instellingen inschakelt.",
+  "invasion.configure": "Instellingen openen",
   "invasion.allow_unsandboxed": "Shell zonder isolatie toestaan (vereist ook selectie van shell)",
   "invasion.access_docker": "Docker API",
   "invasion.access_local": "Lokaal",

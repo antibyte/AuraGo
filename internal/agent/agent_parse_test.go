@@ -74,19 +74,11 @@ func containsRunes(value, want string) bool {
 	return false
 }
 
-func TestToolCallParamsTruncatesCodeOnUTF8Boundary(t *testing.T) {
-	tc := ToolCall{Code: strings.Repeat("界", 200)}
-	params := toolCallParams(tc)
-	code := params["code"]
-
-	if code == "" {
-		t.Fatal("expected code preview to be present")
-	}
-	if len(code) > 300 {
-		t.Fatalf("code preview length = %d, want <= 300", len(code))
-	}
-	if !utf8.ValidString(code) {
-		t.Fatalf("expected valid UTF-8 preview, got %q", code)
+func TestToolCallParamsPreservesCompleteUTF8Code(t *testing.T) {
+	input := "print('" + strings.Repeat("界", 200) + "')\n"
+	code := toolCallParams(ToolCall{Code: input})["code"]
+	if code != input || !utf8.ValidString(code) {
+		t.Fatal("Guardian code must be complete valid UTF-8")
 	}
 }
 

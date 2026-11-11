@@ -10,6 +10,8 @@ FindIt stores physical homelab inventory, nested locations, stock, and project B
 - HTTP routes, agent tool registration, desktop UI, image storage, and backup orchestration belong to their owning packages.
 - Store only opaque `image_id` and `icon_id` references. FindIt does not own image bytes or fetch datasheets.
 
+- Migration backups use `dbutil.BackupSQLite`: owner-only staging and file permissions/Windows ACL, WAL-inclusive copy, sync and atomic publication. Backup failure aborts migration. Keep existing copies; collisions insert a unique suffix before the extension. Restore guidance: `documentation/migration-backups.md`.
+
 ## Local Contracts
 
 - Public entry points are `Open(dbPath)`, `Close`, `Query(ctx, QueryRequest)`, `Execute(ctx, CommandRequest)`, static `Catalog()` metadata, database-backed `(*Store).Catalog(ctx)`, and the CSV preview/import/export methods. `ErrorCode` exposes stable error classes.

@@ -1,4 +1,6 @@
 {
+  "invasion.disabled_notice": "Invasion Control is disabled. Upgrade Master and Eggs together before enabling it in settings.",
+  "invasion.configure": "Open settings",
   "invasion.allow_unsandboxed": "Allow shell without isolation (also requires a shell tool)",
   "invasion.access_docker": "Docker API",
   "invasion.access_local": "Local",

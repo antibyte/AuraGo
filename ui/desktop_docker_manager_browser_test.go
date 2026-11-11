@@ -450,6 +450,34 @@ func TestDesktopDockerManagerBrowser(t *testing.T) {
 	// Stacks section (the default): own stacks by name, the external project and the single containers, each group with its
 	// rows. A host that must be prepared explains itself in a card, one that cannot be reached in the banner above the list.
 	page.MustWait(`()=>document.querySelectorAll('.dm-srow-main[data-stack-key]').length===2`)
+
+	t.Run("reopened-dialog-survives-previous-native-close", func(t *testing.T) {
+		result := page.MustEval(`async()=>{
+            const root=document.createElement('div');
+            root.innerHTML='<dialog data-dialog><div data-dialog-content></div></dialog>';
+            document.body.append(root);
+            let restored=0;
+            const dialogs=window.DockerManagerDialogs.create({root,uid:'close-turn',esc:String,t:k=>k,dt:k=>k,
+                restoreFocus:()=>restored++});
+            const dialog=root.querySelector('dialog');
+            try {
+                const first=dialogs.confirm({title:'first',message:'first',confirmLabel:'yes'});
+                const oldClose=new Promise(resolve=>dialog.addEventListener('close',resolve,{once:true}));
+                dialog.querySelector('[data-dact="no"]').click();
+                const second=dialogs.confirm({title:'second',message:'second',confirmLabel:'yes'});
+                await oldClose;
+                const preserved=dialog.open && root.querySelector('h2')?.textContent==='second' && restored===0;
+                if(!preserved)return {preserved};
+                const finalClose=new Promise(resolve=>dialog.addEventListener('close',resolve,{once:true}));
+                dialog.querySelector('[data-dact="yes"]').click();
+                await finalClose;
+                return {preserved,first:await first,second:await second,restored};
+            } finally {dialogs.dispose();root.remove();}
+        }`)
+		if !result.Get("preserved").Bool() || result.Get("first").Bool() || !result.Get("second").Bool() || result.Get("restored").Int() != 1 {
+			t.Fatalf("a previous dialog's native close must preserve its replacement and its focus: %v", result)
+		}
+	})
 	const groups = `()=>[...document.querySelectorAll('.dm-sgroup')].map(g=>g.dataset.sgroup+':'+[...g.querySelectorAll('.dm-name')].map(n=>n.textContent).join(',')).join('|')`
 	if got := page.MustEval(groups).String(); got != "stacks:blog,shop|external:legacy|singles:aurago-dm-op-1,tools" {
 		t.Fatalf("stack groups = %q, want own stacks, the external project and the single containers (helper container included)", got)

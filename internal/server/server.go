@@ -575,6 +575,12 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s == nil || cfg == nil {
 		return
 	}
+	if err := validateDeepTutorLogin(context.Background(), cfg, s.Cfg); err != nil {
+		if s.Logger != nil {
+			s.Logger.Error("Rejected invalid DeepTutor login configuration", "error", err)
+		}
+		return
+	}
 	s.initConfigSnapshot()
 	if s.InjectionGuard != nil {
 		s.InjectionGuard.Configure(cfg.Guardian.InjectionGuard.Enabled, cfg.Guardian.InjectionGuard.Action)
@@ -892,6 +898,9 @@ func firewallGuardNeedsSudoPassword(cfg *config.Config) bool {
 
 func Start(opts StartOptions) error {
 	cfg := opts.Cfg
+	if err := validateDeepTutorLogin(context.Background(), cfg, nil); err != nil {
+		return err
+	}
 	// cmd/aurago already registered the LLM keys for log scrubbing before it
 	// built the LLM client; repeat it here for embedders that call Start
 	// directly. replaceConfigSnapshot repeats it for every reloaded config.
