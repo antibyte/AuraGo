@@ -96,3 +96,24 @@ func TestDescribeNodeTypes(t *testing.T) {
 		t.Fatalf("untranslated labels fall back to the key, got %q", byType[TypeIf].Label)
 	}
 }
+
+// The catalog tells the editor which types Service.Simulate accepts: built-in types yes,
+// generic tool types (live registry only) and durable steps no.
+func TestDescribeNodeTypesSimulatable(t *testing.T) {
+	reg := catalogRegistry(t, fullEnv())
+	RefreshGenericTools(reg, []GenericTool{{Name: "docker", Category: "infrastructure", Schema: sampleToolSchema()}}, StaticEnv{})
+	byType := map[string]NodeTypeInfo{}
+	for _, info := range DescribeNodeTypes(reg, nil) {
+		byType[info.Type] = info
+	}
+	for typ, want := range map[string]bool{TypeSet: true, TypeTelegram: true, TypeTriggerManual: true,
+		GenericTypePrefix + "docker": false, durableWaitType: false, durableApprovalType: false} {
+		info, ok := byType[typ]
+		if !ok {
+			t.Fatalf("%s is not described", typ)
+		}
+		if info.Simulatable != want {
+			t.Errorf("%s: simulatable = %v, want %v", typ, info.Simulatable, want)
+		}
+	}
+}

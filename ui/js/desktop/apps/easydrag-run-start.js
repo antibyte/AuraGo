@@ -239,7 +239,7 @@
                 fx = pending(id);
                 if (unchecked(id)) body.appendChild(core.el(uncheckedMarkup()));
                 if (fx.size) body.appendChild(core.el(effectsMarkup(fx))).querySelector('[data-ed-effects-skip]').checked = remember;
-                if (simulation) simulation.syncMode();
+                if (simulation) { simulation.preselect(id, real); simulation.syncMode(); }
             }
             // Another trigger shows its own sample, unless the text was edited. For a step test it
             // also shows the effects of what that trigger reaches.
@@ -247,6 +247,7 @@
             if (select) {
                 select.addEventListener('change', async () => {
                     if (o.onlyNode) showChecks(dialog.body, select.value);
+                    else if (simulation) simulation.preselect(select.value, real);
                     const area = dialog.body.querySelector('[data-ed-test-data]');
                     const id = select.value;
                     if (area.value !== shown) return;

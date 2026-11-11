@@ -50,12 +50,17 @@
             // syncGoal is set once the dialog exists; an action re-applies it, because the
             // dialog's setBusy(false) enables every action button again.
             let syncGoal = () => {};
+            // busy: a generate or apply request is running. The modal only disables its action
+            // buttons, and typing in the goal re-applies syncGoal, so Generate must stay off here too.
+            let busy = false;
             const current = () => !disposed && dialog && (home ? home.mayCreate() : !ed.runView && !ed.readonly && ed.model === model && model.version === version && Number(ed.saver ? ed.saver.revision : ed.flow.draft_revision) === Number(revision));
             dialog = core.modal(home ? home.root.closest('.ed-app') || home.root : ed.root, {
                 title: t('easydrag.ui.authoring_title'), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--authoring',
                 body: '<p class="ed-callout">' + esc(t('easydrag.ui.authoring_notice')) + '</p><label class="ed-label">' + esc(t('easydrag.ui.authoring_goal')) + '<textarea class="ed-input" rows="5" aria-describedby="' + counterId + '" data-ed-authoring-goal></textarea></label><p class="ed-goal-counter" id="' + counterId + '" data-ed-goal-counter></p><p class="ed-error" role="alert" hidden></p><section data-ed-authoring-preview hidden></section>',
                 actions: [{ id: 'cancel', label: t('easydrag.ui.cancel') }, { id: 'generate', label: t('easydrag.ui.authoring_generate'), primary: true, icon: 'sparkles' }, { id: 'apply', label: t('easydrag.ui.authoring_apply'), primary: true }],
-                onAction: (action, view) => (async () => {
+                onAction: (action, view) => {
+                    if (action !== 'cancel') { if (busy) return false; busy = true; }
+                    return (async () => {
                     if (action === 'cancel') return true;
                     const error = view.body.querySelector('.ed-error');
                     error.hidden = true;
@@ -88,7 +93,8 @@
                     ed.bus.emit('proposal-applied');
                     ed.ctx.notify({ title: t('easydrag.ui.authoring_title'), message: t('easydrag.ui.authoring_applied') });
                     return true;
-                })().finally(() => setTimeout(syncGoal, 0))
+                    })().finally(() => { if (action !== 'cancel') busy = false; setTimeout(syncGoal, 0); });
+                }
             });
             const owned = dialog;
             owned.el.querySelector('[data-ed-action="apply"]').hidden = true;
@@ -101,7 +107,7 @@
                 const state = goalCounter(goalInput.value, t, locale);
                 counter.textContent = state.text;
                 if (state.over) counter.classList.add('is-over'); else counter.classList.remove('is-over');
-                owned.el.querySelector('[data-ed-action="generate"]').disabled = state.over;
+                owned.el.querySelector('[data-ed-action="generate"]').disabled = state.over || busy;
             };
             syncGoal();
             goalInput.addEventListener('input', () => {

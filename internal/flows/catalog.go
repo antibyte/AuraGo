@@ -58,29 +58,32 @@ func RegisterCatalog(reg *Registry, env CatalogEnv) error {
 // node is the exception and shows the worst case over its operations. What a flow does
 // is decided at publish time, from the real parameters of each node (CollectEffects).
 type NodeTypeInfo struct {
-	Type           string         `json:"type"`
-	Version        int            `json:"version"`
-	Category       string         `json:"category"`
-	Icon           string         `json:"icon,omitempty"`
-	Color          string         `json:"color,omitempty"`
-	Label          string         `json:"label"`
-	Description    string         `json:"description,omitempty"`
-	Summary        string         `json:"summary,omitempty"`
-	Trigger        bool           `json:"trigger,omitempty"`
-	Inputs         []string       `json:"inputs"`
-	Outputs        []string       `json:"outputs"`
-	DynamicOutputs string         `json:"dynamic_outputs,omitempty"`
-	DynamicFields  string         `json:"dynamic_fields,omitempty"`
-	ErrorModes     []ErrorMode    `json:"error_modes,omitempty"`
-	Params         []ParamInfo    `json:"params"`
-	OutputFields   []FieldInfo    `json:"output_fields,omitempty"`
-	PrimaryInput   string         `json:"primary_input,omitempty"`
-	Tool           string         `json:"tool,omitempty"`
-	Effects        []Effect       `json:"effects,omitempty"`
-	Risky          bool           `json:"risky,omitempty"`
-	Untrusted      bool           `json:"untrusted,omitempty"`
-	Availability   Availability   `json:"availability"`
-	Sample         map[string]any `json:"sample,omitempty"`
+	Type           string      `json:"type"`
+	Version        int         `json:"version"`
+	Category       string      `json:"category"`
+	Icon           string      `json:"icon,omitempty"`
+	Color          string      `json:"color,omitempty"`
+	Label          string      `json:"label"`
+	Description    string      `json:"description,omitempty"`
+	Summary        string      `json:"summary,omitempty"`
+	Trigger        bool        `json:"trigger,omitempty"`
+	Inputs         []string    `json:"inputs"`
+	Outputs        []string    `json:"outputs"`
+	DynamicOutputs string      `json:"dynamic_outputs,omitempty"`
+	DynamicFields  string      `json:"dynamic_fields,omitempty"`
+	ErrorModes     []ErrorMode `json:"error_modes,omitempty"`
+	Params         []ParamInfo `json:"params"`
+	OutputFields   []FieldInfo `json:"output_fields,omitempty"`
+	PrimaryInput   string      `json:"primary_input,omitempty"`
+	Tool           string      `json:"tool,omitempty"`
+	Effects        []Effect    `json:"effects,omitempty"`
+	Risky          bool        `json:"risky,omitempty"`
+	Untrusted      bool        `json:"untrusted,omitempty"`
+	// Simulatable: Service.Simulate accepts a draft step of this type (see simulatableType).
+	// It is false for generic tool types and durable steps, and always present.
+	Simulatable  bool           `json:"simulatable"`
+	Availability Availability   `json:"availability"`
+	Sample       map[string]any `json:"sample,omitempty"`
 	// SampleTextKeys: see NodeDef.SampleTextKeys. The editor localizes those fields of a
 	// built-in sample.
 	SampleTextKeys map[string]map[string]string `json:"sample_text_keys,omitempty"`
@@ -295,6 +298,7 @@ func describeNodeType(def *NodeDef, tr func(string) string, sample func(*Node) m
 		PrimaryInput:   def.PrimaryInput,
 		Tool:           def.Tool,
 		Untrusted:      def.UntrustedOutput,
+		Simulatable:    simulatableType(def.Type),
 		Availability:   hookFailedAvailability,
 	}
 

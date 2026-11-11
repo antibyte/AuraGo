@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -129,8 +130,8 @@ func (s *Service) Simulate(ctx context.Context, id string, req SimulationRequest
 		return nil, ErrInvalidSimulationFixture
 	}
 	req.TriggerData, req.Fixtures = snapshot.Data, snapshot.Fixtures
-	reg := NewRegistry()
-	if err := RegisterCatalog(reg, nil); err != nil {
+	reg, err := newSimulationRegistry()
+	if err != nil {
 		return nil, err
 	}
 	if plan != nil {
@@ -230,6 +231,37 @@ func (s *Service) Simulate(ctx context.Context, id string, req SimulationRequest
 	return &SimulationResult{Mode: ModeSimulation, Revision: rec.DraftRevision, StartedAt: result.StartedAt, Status: result.Status,
 		ErrorCode: result.ErrorCode, ErrorMessage: result.ErrorMessage, ErrorNodeID: result.ErrorNodeID, Steps: result.Steps,
 		ChildTraces: result.childTraces, ChildDocuments: childSimulationDocuments(result.childTraces, plan)}, nil
+}
+
+// newSimulationRegistry is the registry Simulate runs on: the built-in catalog without a
+// live environment. Generic tool types exist only in the live registry.
+func newSimulationRegistry() (*Registry, error) {
+	reg := NewRegistry()
+	if err := RegisterCatalog(reg, nil); err != nil {
+		return nil, err
+	}
+	return reg, nil
+}
+
+var (
+	simulatableOnce  sync.Once
+	simulatableTypes map[string]bool
+)
+
+// simulatableType reports whether Simulate accepts a draft step of this type: the type is
+// in the simulation registry and is not durable (Simulate refuses durable steps).
+func simulatableType(typ string) bool {
+	simulatableOnce.Do(func() {
+		simulatableTypes = map[string]bool{}
+		reg, err := newSimulationRegistry()
+		if err != nil {
+			return
+		}
+		for _, def := range reg.All() {
+			simulatableTypes[def.Type] = def.Type != durableWaitType && def.Type != durableApprovalType
+		}
+	})
+	return simulatableTypes[typ]
 }
 
 func validateSimulationFixtures(doc *Flow, reg *Registry, fixtures map[string]SimulationFixture) error {

@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 
-const box = vm.createContext({ window: {}, crypto: webcrypto, console, Intl, Date, Map, Set, JSON });
+const box = vm.createContext({ window: {}, crypto: webcrypto, AbortController, setTimeout, console, Intl, Date, Map, Set, JSON });
 for (const name of ['easydrag-template.js', 'easydrag-model.js', 'easydrag-authoring.js']) {
     const file = new URL('../ui/js/desktop/apps/' + name, import.meta.url);
     vm.runInContext(fs.readFileSync(file, 'utf8'), box, { filename: file.pathname });
@@ -51,4 +51,44 @@ goal = ED.authoring.goalCounter(emoji.repeat(4001), counterT, 'de-DE');
 assert.deepEqual([goal.count, goal.over, goal.text], [4001, true, '4.001 / 4.000']);
 goal = ED.authoring.goalCounter('  ab  ', counterT, 'en-US');
 assert.deepEqual([goal.count, goal.over, goal.text], [2, false, '2 / 4,000']);
+// Generate stays disabled while its request is pending, even when the goal is typed in, and a
+// second click sends no second request (a fake DOM drives the dialog).
+{
+    const fakeEl = () => {
+        const listeners = {};
+        return { value: '', hidden: false, disabled: false, textContent: '', classList: { add() {}, remove() {} },
+            addEventListener(type, fn) { listeners[type] = fn; }, fire(type) { if (listeners[type]) listeners[type](); } };
+    };
+    const goalEl = fakeEl(), counterEl = fakeEl(), errorEl = fakeEl(), previewEl = fakeEl();
+    const buttons = { cancel: fakeEl(), generate: fakeEl(), apply: fakeEl() };
+    let view = null, opts = null;
+    ED.core = {
+        modal(root, o) {
+            opts = o;
+            const pick = { '[data-ed-authoring-goal]': goalEl, '[data-ed-goal-counter]': counterEl, '.ed-error': errorEl, '[data-ed-authoring-preview]': previewEl };
+            view = { done: new Promise(() => {}), close() {},
+                body: { querySelector: sel => pick[sel] },
+                el: { querySelector: sel => buttons[/data-ed-action="(\w+)"/.exec(sel)[1]] } };
+            return view;
+        },
+        errorText: () => 'error'
+    };
+    let calls = 0, release = null;
+    const ed = { t: key => key, esc: x => x, readonly: false, runView: false, api: { proposeNew: () => { calls++; return new Promise(resolve => { release = resolve; }); } } };
+    const authoring = ED.authoring.create(ed, { mayCreate: () => true, root: { closest: () => null } });
+    await authoring.open();
+    goalEl.value = 'Send me a greeting';
+    goalEl.fire('input');
+    assert.equal(buttons.generate.disabled, false, 'an empty-of-errors goal enables Generate');
+    const first = opts.onAction('generate', view);
+    goalEl.value = 'Send me a greeting.';
+    goalEl.fire('input');
+    assert.equal(buttons.generate.disabled, true, 'typing during the request keeps Generate disabled');
+    assert.equal(await opts.onAction('generate', view), false, 'a second click is refused');
+    assert.equal(calls, 1, 'no second proposal request');
+    release({ doc: { nodes: [] } });
+    await first;
+    await new Promise(resolve => setTimeout(resolve, 5));
+    assert.equal(buttons.generate.disabled, false, 'Generate is enabled again once the request ended');
+}
 console.log('All EasyDrag proposal checks passed.');

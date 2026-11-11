@@ -91,16 +91,26 @@
         });
     }
 
-    // Service.Simulate refuses a draft with a durable step (internal/flows/simulation.go,
-    // ErrDurableInvalidGraph), so such a flow keeps the real test and its effect confirmation.
+    // Service.Simulate runs on a registry without the generic tool types and refuses a durable
+    // step (internal/flows/simulation.go), and it validates every draft node, disabled and
+    // unreachable ones included. The catalog says per type whether it can simulate it
+    // (simulatable). An older server sends no flag: the durable types and every tool.* type
+    // count as not simulatable, any other type as unknown, which keeps the old behaviour.
     const DURABLE_TYPES = new Set(['logic.durable_wait', 'logic.durable_approval']);
     let modeIds = 0;
 
+    function canSimulate(ed, node) {
+        const i = ed.model.info(node.type);
+        if (i && i.simulatable === false) return false;
+        return !(DURABLE_TYPES.has(node.type) || String(node.type).startsWith('tool.'));
+    }
+
     // simulationDefault: a test whose steps have outward effects, named (catalog or publish
     // preview, see effects) or unknown (a risky step without named effects), opens in
-    // Simulation. A flow without effects, or with a durable step, opens as a real test.
+    // Simulation. A flow without effects, or with a step the simulator cannot run, opens as a
+    // real test.
     function simulationDefault(ed, onlyNode, triggerId, real) {
-        if (ed.model.doc.nodes.some(n => DURABLE_TYPES.has(n.type))) return false;
+        if (!ed.model.doc.nodes.every(n => canSimulate(ed, n))) return false;
         return effects(ed, onlyNode, triggerId, real).size > 0 || unknownEffects(ed, onlyNode, triggerId);
     }
 
@@ -175,15 +185,23 @@
             if (simulated && scenarios) scenarios.activate();
         }
         if (ED.scenarios && ed.api.scenarios) scenarios = ED.scenarios.create(ed, dialog, Object.assign({}, env, { panel, mode: select, fixtures: panel.querySelector('textarea'), syncMode }));
-        select.addEventListener('change', syncMode);
+        // The preselect dispatches no event, so a change is the user's own choice.
+        let modeChosen = false;
+        select.addEventListener('change', () => { modeChosen = true; syncMode(); });
         // A test of steps with outward effects opens in Simulation (UX-07). The scope is the
         // one openTest checks: the tested step (env.onlyNode) and the chosen trigger.
-        const triggerNow = typeof env.trigger === 'function' ? env.trigger() : undefined;
-        if (simulationDefault(ed, env.onlyNode, triggerNow, typeof env.real === 'function' ? env.real() : null)) { select.value = 'simulation'; syncMode(); }
+        // preselect applies the default again when the trigger or the checked effects change,
+        // until the user picks a mode; it never moves a chosen or simulated mode back to real.
+        function preselect(triggerId, real) {
+            if (modeChosen || select.disabled || select.value === 'simulation') return;
+            if (simulationDefault(ed, env.onlyNode, triggerId, real)) { select.value = 'simulation'; syncMode(); }
+        }
+        preselect(typeof env.trigger === 'function' ? env.trigger() : undefined, typeof env.real === 'function' ? env.real() : null);
         dialog.done.then(() => { closed = true; controller.abort(); });
         return {
             isSelected: () => select.value === 'simulation',
             syncMode,
+            preselect,
             flush: () => !scenarios || scenarios.flush(),
             refreshData: () => { if (scenarios) scenarios.refreshData(); },
             async run() {
