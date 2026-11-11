@@ -315,6 +315,7 @@
                 '/js/desktop/apps/easydrag-publish.js',
                 '/js/desktop/apps/easydrag-library-pause.js',
                 '/js/desktop/apps/easydrag-pack.js',
+                '/js/desktop/apps/easydrag-home-grid.js',
                 '/js/desktop/apps/easydrag-home.js',
                 '/js/desktop/apps/easydrag-dialogs.js',
                 '/js/desktop/apps/easydrag-history.js',
