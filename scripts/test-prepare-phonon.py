@@ -21,6 +21,22 @@ spec.loader.exec_module(prepare)
 
 
 class PhononPreparationTests(unittest.TestCase):
+    def test_success_output_supports_unicode_and_legacy_encodings(self):
+        for encoding, marker in (("utf-8", "\u2713"), ("cp1252", "[OK]")):
+            with self.subTest(encoding=encoding), tempfile.TemporaryDirectory() as directory:
+                stage = Path(directory)
+                (stage / "voices.jsonl").write_bytes(b"")
+                with (
+                    io.TextIOWrapper(io.BytesIO(), encoding=encoding, newline="\n") as output,
+                    patch.dict(prepare.MANIFEST, {"runtimes": [], "voices": [], "model_files": []}),
+                    patch.object(prepare, "STAGE", stage),
+                    patch.object(sys, "argv", ["prepare-phonon.py", "--check"]),
+                    patch.object(sys, "stdout", output),
+                ):
+                    prepare.main()
+                    output.seek(0)
+                    self.assertEqual(output.read(), f"  {marker} Phonon resources verified\n")
+
     @unittest.skipUnless(shutil.which("powershell"), "Windows Python discovery requires PowerShell")
     def test_windows_release_python_discovery(self):
         powershell = shutil.which("powershell")

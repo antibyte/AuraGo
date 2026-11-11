@@ -271,7 +271,10 @@ def main():
                 name = "ptts.exe" if runtime["target"].startswith("windows_") else "ptts"
                 files = [STAGE / "runtime" / runtime["target"] / name] + [STAGE / "licences" / file.name for file in license_files]
                 pack(REPO / f"deploy/phonon-runtime_{runtime['target']}.dat", files)
-    print("Phonon resources verified")
+    try:
+        print("  \u2713 Phonon resources verified")
+    except UnicodeEncodeError:
+        print("  [OK] Phonon resources verified")
 
 
 if __name__ == "__main__":
