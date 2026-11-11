@@ -172,6 +172,7 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 		logger.Error("Resolve WhatsApp conversation", "error", maskedError(err))
 		return
 	}
+	ingressCtx := ctx
 	ctx, releaseSession, err := stm.RegisterSessionRun(ctx, sessionID)
 	if err != nil {
 		return
@@ -225,7 +226,8 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 
 	// 8. A pending question belongs to the running turn that already owns the turn gate:
 	// route its reply before serializing a new turn.
-	if tools.HasPendingQuestion(sessionID) {
+	stopCommand := !c.ThirdParty && commands.IsStop(c.CommandText)
+	if !stopCommand && tools.HasPendingQuestion(sessionID) {
 		if !c.ThirdParty {
 			// The owner's own words answer, without the "[Reply to: ...]" prefix a swipe-reply
 			// to the question adds to the model's input.
@@ -240,11 +242,13 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 	}
 
 	// 9.
-	releaseTurn, err := stm.LockSessionTurn(ctx, sessionID)
-	if err != nil {
-		return
+	if !stopCommand {
+		releaseTurn, err := stm.LockSessionTurn(ctx, sessionID)
+		if err != nil {
+			return
+		}
+		defer releaseTurn()
 	}
-	defer releaseTurn()
 
 	// 10. Slash commands. handle verified the owner recipient above, so operator commands
 	// are allowed.
@@ -265,7 +269,11 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 			return
 		}
 		if isCmd {
-			p.deliver(ctx, owner, cmdResult, "command result")
+			replyCtx := ctx
+			if stopCommand {
+				replyCtx = ingressCtx
+			}
+			p.deliver(replyCtx, owner, cmdResult, "command result")
 			return
 		}
 	}

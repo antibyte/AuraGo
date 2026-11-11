@@ -518,7 +518,8 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 		humanInput = nil
 	}
 
-	if tools.HasPendingQuestion(sessionID) {
+	stopCommand := forwardMarker == "" && commands.IsStop(msg.Text)
+	if !stopCommand && tools.HasPendingQuestion(sessionID) {
 		if forwardMarker == "" {
 			if response, ok := tools.ResolveQuestionReply(sessionID, inputText); ok {
 				response.Source = tools.QuestionSourceTelegram
@@ -532,11 +533,13 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 
 	// A pending question belongs to the running turn that already owns this
 	// gate. Deliver its reply above before serializing a new history turn.
-	releaseTurn, err := shortTermMem.LockSessionTurn(ctx, sessionID)
-	if err != nil {
-		return
+	if !stopCommand {
+		releaseTurn, err := shortTermMem.LockSessionTurn(ctx, sessionID)
+		if err != nil {
+			return
+		}
+		defer releaseTurn()
 	}
-	defer releaseTurn()
 
 	// Phase: Command Interception
 	// Check for slash commands

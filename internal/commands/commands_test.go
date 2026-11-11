@@ -1,11 +1,13 @@
 package commands
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/i18n"
@@ -76,20 +78,66 @@ func TestResetCommandUsesRequestedSession(t *testing.T) {
 }
 
 func TestStopCommandInterruptsRequestedSession(t *testing.T) {
-	t.Parallel()
-
-	sourceBytes, err := os.ReadFile("commands.go")
+	stm := newCommandTestMemory(t)
+	active, releaseActive, err := stm.BeginSessionTurn(context.Background(), "stop-test")
 	if err != nil {
-		t.Fatalf("read commands source: %v", err)
+		t.Fatal(err)
 	}
-	source := string(sourceBytes)
-	for _, marker := range []string{
-		"SessionID        string",
-		"commandSessionID(ctx)",
-		"agent.InterruptSession(commandSessionID(ctx))",
-	} {
-		if !strings.Contains(source, marker) {
-			t.Fatalf("commands source missing marker %q", marker)
+	defer releaseActive()
+	queued, releaseQueued, err := stm.RegisterSessionRun(context.Background(), "stop-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer releaseQueued()
+	other, releaseOther, err := stm.RegisterSessionRun(context.Background(), "other")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer releaseOther()
+	waited := make(chan error, 1)
+	go func() {
+		release, err := stm.LockSessionTurn(queued, "stop-test")
+		if release != nil {
+			release()
+		}
+		waited <- err
+	}()
+	if _, err := (&StopCommand{}).Execute(nil, Context{STM: stm, SessionID: "stop-test", Lang: "en"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, run := range []context.Context{active, queued} {
+		select {
+		case <-run.Done():
+		case <-time.After(time.Second):
+			t.Fatal("stop did not cancel the session run")
+		}
+	}
+	select {
+	case err := <-waited:
+		if err != context.Canceled {
+			t.Fatalf("queued turn error = %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("queued turn did not leave its gate")
+	}
+	if other.Err() != nil {
+		t.Fatal("stop cancelled a different session")
+	}
+	releaseActive()
+	fresh, releaseFresh, err := stm.BeginSessionTurn(context.Background(), "stop-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer releaseFresh()
+	if fresh.Err() != nil {
+		t.Fatal("stop fenced a later human turn")
+	}
+}
+
+func TestIsStopMatchesCommandParsing(t *testing.T) {
+	for input, want := range map[string]bool{"/stop": true, "/stop now": true, "/stop\nnow": true, " /stop": false, "/stopping": false, "quoted /stop": false, "": false} {
+		if got := IsStop(input); got != want {
+			t.Errorf("IsStop(%q) = %v, want %v", input, got, want)
 		}
 	}
 }

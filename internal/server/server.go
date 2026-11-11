@@ -702,6 +702,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	RegisterLLMSecrets(cfg, s.Vault)
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
+	if s.EggHub != nil && !cfg.InvasionControl.Enabled {
+		s.EggHub.DisconnectAll()
+	}
 	if s.Flows != nil && previous != nil && previous.Flows.DurableEnabled && durableAllowedConfig(previous) &&
 		(!cfg.Flows.DurableEnabled || !durableAllowedConfig(cfg)) {
 		s.Flows.InvalidateDurableProcessing()
@@ -1996,6 +1999,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 	s.SpeechLabDeployer = deployer.NewManager(speechCfg, cfg.Runtime.IsDocker, cfg.Docker.Enabled, cfg.Docker.ReadOnly, cfg.Directories.DataDir, logger, deployer.WithDockerClient(dockerutil.NewClient(cfg.Docker.Host, 30*time.Second)))
 	s.initConfigSnapshot()
 	s.initDecisions(opts.InstallDir)
+	s.EggHub.Policy = s.invasionAllowed
 	if opts.Vault != nil {
 		s.VaultSecretPrompter = vaultprompt.NewManager(opts.Vault, 5*time.Minute)
 	}

@@ -716,7 +716,8 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 		return
 	}
 
-	if tools.HasPendingQuestion(sessionID) {
+	stopCommand := commands.IsStop(commandText)
+	if !stopCommand && tools.HasPendingQuestion(sessionID) {
 		if response, ok := tools.ResolveQuestionReply(sessionID, inputText); ok {
 			response.Source = tools.QuestionSourceDiscord
 			tools.CompleteQuestion(sessionID, response)
@@ -740,7 +741,7 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 			AllowOperator: decision.IsDM,
 		}
 		cmdResult, isCmd, err := commands.Handle(commandText, cmdCtx)
-		if ctx.Err() != nil {
+		if ctx.Err() != nil && !stopCommand {
 			return
 		}
 		if err != nil {

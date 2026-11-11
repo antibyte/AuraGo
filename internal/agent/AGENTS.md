@@ -10,6 +10,11 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ## Local Contracts
 
+- `StopSession` is the shared user-stop boundary: interrupt dispatch, cancel the
+  pending question and revoke active/queued ingress contexts for that session.
+  Ingress recognizes `/stop` before questions and turn gates; later human turns
+  remain writable. Do not claim that cancellation undoes completed tool effects.
+
 - Storymaker job schemas (`native_tools_storymaker.go`) follow `../storymaker/AGENTS.md`, stay outside the ordinary catalog/strict projection and bind no model-selected project. Compact schemas retain animation timing, easing, SFX, rhythm and revision-bound code access; avoid duplicate enums to meet the existing 900-token bound. The ordinary chat facade still delegates authoring to the isolated job.
 
 - `manage_missions` history uses `MissionManagerV2.QueryMissionHistory`: nonterminal durable entries with an unavailable authoritative source report `unknown` and retain `last_known_status` only as an earlier observation. The bounded source check runs outside manager/history locks; terminal and ordinary history keep their existing semantics. Verify `TestManageMissionsDurableHistoryUnavailableSourceIsUnknown`; see `../tools/AGENTS.md`.

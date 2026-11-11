@@ -32,6 +32,7 @@ type EggConnection struct {
 	mu            sync.Mutex
 	Session       *Session
 	closed        atomic.Bool
+	authorize     func(mutating bool) bool
 
 	// rekeyInFlight is set while SendRekey awaits the egg's answer.
 	// rekeyOutstanding holds the ID of a sent rekey whose outcome the hub has
@@ -76,6 +77,10 @@ func (ec *EggConnection) Send(msg *Message) error {
 }
 
 func (ec *EggConnection) sendLocked(msg *Message) error {
+	mutating := msg.Type != MsgAck && msg.Type != MsgError && msg.Type != MsgStatus
+	if ec.authorize != nil && !ec.authorize(mutating) {
+		return fmt.Errorf("invasion action is disabled or read-only")
+	}
 	if ec.Conn == nil || ec.closed.Load() {
 		return fmt.Errorf("egg connection is closed")
 	}
@@ -115,7 +120,8 @@ type EggHub struct {
 	lifecycleMu    sync.Mutex
 	connections    map[string]*EggConnection // keyed by nest_id
 	logger         *slog.Logger
-	MaxConnections int // 0 = unlimited
+	MaxConnections int                      // 0 = unlimited
+	Policy         func(mutating bool) bool // installed before accepting connections
 	pendingAcks    map[string]pendingAck
 	ackTimeout     time.Duration
 	rotatingNests  map[string]struct{}
@@ -152,12 +158,17 @@ func (h *EggHub) Register(nestID string, conn *EggConnection) error {
 	h.lifecycleMu.Lock()
 	defer h.lifecycleMu.Unlock()
 	h.mu.Lock()
+	if h.Policy != nil && !h.Policy(false) {
+		h.mu.Unlock()
+		return fmt.Errorf("invasion connections are disabled")
+	}
 	old := h.connections[nestID]
 	if old == nil && h.MaxConnections > 0 && len(h.connections) >= h.MaxConnections {
 		h.mu.Unlock()
 		return fmt.Errorf("max connections reached (%d)", h.MaxConnections)
 	}
 	conn.mu.Lock()
+	conn.authorize = h.Policy
 	if conn.LastHeartbeat.IsZero() {
 		conn.LastHeartbeat = time.Now()
 	}
@@ -177,6 +188,13 @@ func (h *EggHub) Register(nestID string, conn *EggConnection) error {
 // Unregister explicitly revokes the current connection for an administrative action.
 func (h *EggHub) Unregister(nestID string) {
 	h.unregister(nestID, nil, true, 0, nil)
+}
+
+// DisconnectAll revokes sockets without sending remote process commands.
+func (h *EggHub) DisconnectAll() {
+	for _, nestID := range h.ConnectedNests() {
+		h.Unregister(nestID)
+	}
 }
 
 // Connection-owned cleanup can remove only that exact generation.

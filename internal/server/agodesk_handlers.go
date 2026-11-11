@@ -561,7 +561,7 @@ func handleAgodeskChatCancel(s *Server, conn *websocket.Conn, state *agodeskConn
 		}
 	}
 	if found && conversationID != "" {
-		agent.InterruptSession(conversationID)
+		agent.StopSession(s.ShortTermMem, conversationID)
 	}
 	status := "not_active"
 	if found {

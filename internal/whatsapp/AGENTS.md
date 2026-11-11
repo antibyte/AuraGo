@@ -74,7 +74,7 @@ Owner-only WhatsApp channel over `go.mau.fi/whatsmeow` (WhatsApp Web multi-devic
   5. Content: `readContent` reads the top level only (see Content order below). A failed voice message sends its notice and stops. A message with no input (a contact card without a vCard, for example) starts no turn and logs its kind (`image`, `audio`, `video`, `document`, `sticker`, `location`, `contact` or `other`) at INFO.
   6. Third-party content (forwarded, or a contact card): the marker `telegram.ForwardedContentMarker` goes into the isolated block, with no HumanInput, no slash command and no pending-question answer. HumanInput is also nil for a message without the owner's own words.
   7. A pending `question_user` takes the reply first, with `Source = tools.QuestionSourceWhatsApp`. Otherwise, or when the message is third-party, the owner gets "Please reply with one of the listed numbers."
-  8. The session turn lock, then slash commands with `AllowOperator: true` (only from a message that is not third-party and carries one content type), then the Guardian (ThreatHigh blocks), then `security.IsolateExternalData`.
+  8. Owner `/stop` bypasses questions and the turn lock; its acknowledgement uses the ingress context because stopping cancels the registered run. Other slash commands follow the session turn lock with `AllowOperator: true` (only from a message that is not third-party and carries one content type), then the Guardian (ThreatHigh blocks), then `security.IsolateExternalData`.
   9. History and the agent loop with `MessageSource: "whatsapp"` and `VoiceOutputActive: agent.GetVoiceMode()`.
   10. Captured TTS audio first, then the answer: `StripThinkingTags`, the Markdown images (see Answer media), `AppendMissingYouTubeLinks`, then the sender.
 

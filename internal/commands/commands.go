@@ -65,6 +65,12 @@ type Command interface {
 
 var registry = make(map[string]Command)
 
+// IsStop identifies the command that must bypass questions and the session gate.
+func IsStop(input string) bool {
+	parts := strings.Fields(input)
+	return strings.HasPrefix(input, "/") && len(parts) > 0 && parts[0] == "/stop"
+}
+
 // Register adds a command to the registry.
 func Register(name string, cmd Command) {
 	registry[name] = cmd
@@ -162,7 +168,7 @@ func (c *HelpCommand) Help(lang string) string {
 type StopCommand struct{}
 
 func (c *StopCommand) Execute(args []string, ctx Context) (string, error) {
-	agent.InterruptSession(commandSessionID(ctx))
+	agent.StopSession(ctx.STM, commandSessionID(ctx))
 	return i18n.T(ctx.Lang, "backend.cmd_stop_success"), nil
 }
 

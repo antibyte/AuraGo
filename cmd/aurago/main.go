@@ -607,7 +607,6 @@ func main() {
 	} else {
 		defer invasionDB.Close()
 		appLog.Info("Invasion Control DB initialized", "path", cfg.SQLite.InvasionPath)
-		cfg.InvasionControl.Enabled = true
 	}
 
 	// Cheat Sheets DB

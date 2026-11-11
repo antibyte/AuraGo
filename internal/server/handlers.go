@@ -377,19 +377,22 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				return
 			}
 		}
-		if lastUserMsg.Role == openai.ChatMessageRoleUser &&
+		stopCommand := lastUserMsg.Role == openai.ChatMessageRoleUser && commands.IsStop(lastUserMsg.Content)
+		if !stopCommand && lastUserMsg.Role == openai.ChatMessageRoleUser &&
 			handlePendingQuestionChatMessage(w, req, sessionID, lastUserMsg.Content, chatCompletionQuestionAnswerSource(isFollowUp, missionID), s.Logger) {
 			return
 		}
-		turnCtx, unlockSession, turnErr := s.beginChatSessionTurn(r.Context(), sessionID, req.Stream, missionID)
-		if turnErr != nil {
-			if r.Context().Err() == nil {
-				jsonError(w, "Unable to open conversation", http.StatusConflict)
+		if !stopCommand {
+			turnCtx, unlockSession, turnErr := s.beginChatSessionTurn(r.Context(), sessionID, req.Stream, missionID)
+			if turnErr != nil {
+				if r.Context().Err() == nil {
+					jsonError(w, "Unable to open conversation", http.StatusConflict)
+				}
+				return
 			}
-			return
+			defer unlockSession()
+			r = r.WithContext(turnCtx)
 		}
-		defer unlockSession()
-		r = r.WithContext(turnCtx)
 		if isFollowUp && trustedMailIngress(r, s) {
 			agent.RecordExternalIngress(sessionID, security.ExternalEmail, lastUserMsg.Content)
 		}
@@ -857,10 +860,7 @@ func handleInterrupt(s *Server) http.HandlerFunc {
 
 		s.Logger.Warn("Stop requested via Web UI", "session_id", sessionID)
 
-		if s.ShortTermMem != nil {
-			s.ShortTermMem.CancelSessionRuns(sessionID)
-		}
-		agent.InterruptSession(sessionID)
+		agent.StopSession(s.ShortTermMem, sessionID)
 		if manager := currentVaultSecretPrompter(s); manager != nil {
 			manager.CancelConversation(sessionID)
 		}

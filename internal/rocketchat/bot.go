@@ -186,11 +186,14 @@ func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger
 	if msg.Timestamp.Date > 0 {
 		humanInput.OccurredAt = time.UnixMilli(msg.Timestamp.Date).UTC()
 	}
-	ctx, releaseSession, err := shortTermMem.BeginSessionTurn(ctx, sessionID)
-	if err != nil {
-		return
+	if !commands.IsStop(inputText) {
+		turnCtx, releaseSession, err := shortTermMem.BeginSessionTurn(ctx, sessionID)
+		if err != nil {
+			return
+		}
+		defer releaseSession()
+		ctx = turnCtx
 	}
-	defer releaseSession()
 
 	// Command interception
 	if strings.HasPrefix(inputText, "/") {

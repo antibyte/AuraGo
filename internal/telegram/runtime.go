@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/commands"
 	"aurago/internal/config"
 	"aurago/internal/integrationstatus"
 	"aurago/internal/security"
@@ -177,6 +178,10 @@ func startLongPolling(parent context.Context, cfg *config.Config, logger *slog.L
 			}
 			if senderID != cfg.Telegram.UserID {
 				logger.Warn("Blocked unauthorized Telegram message", "id", senderID)
+				return true
+			}
+			if commands.IsStop(update.Message.Text) && telegramForwardMarker(update.Message) == "" {
+				handle(ctx, bot, update)
 				return true
 			}
 			if !acquireTelegramWorker(ctx, workerSem) {

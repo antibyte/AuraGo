@@ -346,6 +346,10 @@ Server-owned HTTP and cross-component integration contracts.
 
 ### HTTP trust and shutdown boundaries
 
+- Chat `/stop` bypasses pending questions and session-turn acquisition. Web,
+  Desktop and AgoDesk cancellation use `agent.StopSession`; keep cancellation
+  session-scoped and never report rollback of completed tool side effects.
+
 - Minimal-loop assistants return `budget_blocked` (429) or `budget_unavailable`
   (503) for admission failures. Looper, Game Maker and Radio must not retry a
   budget refusal; MeshCore scan refusals remain quarantined budget outcomes.

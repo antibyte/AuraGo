@@ -8,6 +8,11 @@ the Egg runtime in `cmd/aurago`.
 
 ## Local contracts
 
+- `enabled` remains operator-owned even when the database is initialized.
+  Master HTTP admission and the hub's live `Policy` callback enforce enabled
+  and read-only state. Disabling closes connections without stopping remote
+  processes; registering and sending recheck policy at their shared boundary.
+
 - Protocol v2 signs the structured envelope, including ID, identities, version,
   direction, server challenge, sequence and payload. Every socket gets a random
   256-bit challenge. Accept only increasing sequences in that session, timestamps

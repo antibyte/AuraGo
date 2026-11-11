@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"aurago/internal/agent"
+	"aurago/internal/commands"
 	"aurago/internal/config"
 	"aurago/internal/integrationstatus"
 	"aurago/internal/security"
@@ -524,12 +525,20 @@ func (b *Bot) handleMessage(client waClient, evt *events.Message) {
 					"sender", maskJID(in.Sender), "panic_type", fmt.Sprintf("%T", r))
 			}
 		}()
-		select {
-		case b.slots <- struct{}{}:
-		case <-b.ctx.Done():
-			return
+		stopCommand := contentTypes(in.Message) <= 1 && commands.IsStop(messageText(in.Message))
+		for _, info := range contextInfosOf(in.Message) {
+			if info.GetIsForwarded() || info.GetForwardingScore() > 0 || info.GetForwardedNewsletterMessageInfo() != nil {
+				stopCommand = false
+			}
 		}
-		defer func() { <-b.slots }()
+		if !stopCommand {
+			select {
+			case b.slots <- struct{}{}:
+			case <-b.ctx.Done():
+				return
+			}
+			defer func() { <-b.slots }()
+		}
 		b.pipeline.handle(b.ctx, in)
 	}()
 }

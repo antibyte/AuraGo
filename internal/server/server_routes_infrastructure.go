@@ -14,9 +14,12 @@ import (
 func (s *Server) registerInfrastructureRoutes(mux *http.ServeMux, shutdownCh chan struct{}) {
 	registerSpeechLabRoutes(mux, s)
 	if s.Cfg.WebConfig.Enabled {
-		mux.HandleFunc("/api/invasion/nests", handleInvasionNests(s))
-		mux.HandleFunc("/api/invasion/eggs", handleInvasionEggs(s))
-		mux.HandleFunc("/api/invasion/eggs/", func(w http.ResponseWriter, r *http.Request) {
+		handleInvasion := func(pattern string, handler http.HandlerFunc) {
+			mux.HandleFunc(pattern, s.guardInvasion(handler))
+		}
+		handleInvasion("/api/invasion/nests", handleInvasionNests(s))
+		handleInvasion("/api/invasion/eggs", handleInvasionEggs(s))
+		handleInvasion("/api/invasion/eggs/", func(w http.ResponseWriter, r *http.Request) {
 			path := strings.TrimPrefix(r.URL.Path, "/api/invasion/eggs/")
 			if strings.HasSuffix(path, "/toggle") {
 				handleInvasionEggToggle(s)(w, r)
@@ -24,7 +27,7 @@ func (s *Server) registerInfrastructureRoutes(mux *http.ServeMux, shutdownCh cha
 				handleInvasionEgg(s)(w, r)
 			}
 		})
-		mux.HandleFunc("/api/invasion/nests/", func(w http.ResponseWriter, r *http.Request) {
+		handleInvasion("/api/invasion/nests/", func(w http.ResponseWriter, r *http.Request) {
 			path := strings.TrimPrefix(r.URL.Path, "/api/invasion/nests/")
 			if strings.HasSuffix(path, "/toggle") {
 				handleInvasionNestToggle(s)(w, r)
@@ -58,12 +61,12 @@ func (s *Server) registerInfrastructureRoutes(mux *http.ServeMux, shutdownCh cha
 				handleInvasionNest(s)(w, r)
 			}
 		})
-		mux.HandleFunc("/api/invasion/ws", handleInvasionWebSocket(s))
-		mux.HandleFunc("/api/invasion/tasks/", handleInvasionTask(s))
-		mux.HandleFunc("/api/invasion/artifacts/offer", handleInvasionArtifactOffer(s))
-		mux.HandleFunc("/api/invasion/artifacts/upload/", handleInvasionArtifactUpload(s))
-		mux.HandleFunc("/api/invasion/artifacts/", handleInvasionArtifactDownload(s))
-		mux.HandleFunc("/api/invasion/messages", handleInvasionEggMessage(s))
+		handleInvasion("/api/invasion/ws", handleInvasionWebSocket(s))
+		handleInvasion("/api/invasion/tasks/", handleInvasionTask(s))
+		handleInvasion("/api/invasion/artifacts/offer", handleInvasionArtifactOffer(s))
+		handleInvasion("/api/invasion/artifacts/upload/", handleInvasionArtifactUpload(s))
+		handleInvasion("/api/invasion/artifacts/", handleInvasionArtifactDownload(s))
+		handleInvasion("/api/invasion/messages", handleInvasionEggMessage(s))
 		s.EggHub.OnDisconnect = func(nestID, eggID string) {
 			s.Logger.Info("Egg disconnected", "nest_id", nestID, "egg_id", eggID)
 			_ = invasion.UpdateNestHatchStatus(s.InvasionDB, nestID, "stopped", "connection lost")

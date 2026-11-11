@@ -72,6 +72,10 @@ Memory retrieval, hygiene, indexing, and maintenance.
 
 ### Session ingress turns
 
+- User `/stop` bypasses the turn gate and question routing. Agent `StopSession`
+  cancels active and queued runs without a deletion fence; the stop response uses
+  the ingress lifetime rather than the cancelled run context.
+
 - `BeginSessionTurn` registers an ingress run before waiting on the store/session
   gate. Hold that shared gate from history construction through durable
   publication and delivery across Web, Desktop, AgoDesk, realtime speech,
