@@ -309,6 +309,7 @@
                 '/js/desktop/apps/easydrag-run-stream.js',
                 '/js/desktop/apps/easydrag-run-start.js',
                 '/js/desktop/apps/easydrag-run-stop.js',
+                '/js/desktop/apps/easydrag-run-drawer.js',
                 '/js/desktop/apps/easydrag-runs.js',
                 '/js/desktop/apps/easydrag-metadata.js',
                 '/js/desktop/apps/easydrag-publish.js',
