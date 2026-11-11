@@ -14,8 +14,8 @@ Workbook and document preservation, editing, and assist.
 
 ### Desktop Workbook Contract
 - Tabellen uses exactly Univer OSS 1.0.4, Chart.js 4.5.1 and Excelize
-  2.11.1-0.20261003002531-6258dcebc4e2. The Excelize security exception to stable
-  releases is documented in `documentation/dependencies.md`.
+  2.11.1. Dependency bounds are documented in
+  `documentation/dependencies.md`.
   Vendor assets/fonts stay local and permissive; never add Pro components.
 - `/api/desktop/office/workbook?representation=editor-v2` exposes typed native
   snapshots. PATCH requires ETag or create-only preconditions, applies the
