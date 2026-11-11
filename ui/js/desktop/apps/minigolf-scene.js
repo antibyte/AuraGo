@@ -71,6 +71,7 @@ function nameTag(text) {
     texture.colorSpace = THREE.SRGBColorSpace;
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }));
     sprite.scale.set((surface.width / surface.height) * .34, .34, 1);
+    sprite.userData.aspect = surface.width / surface.height;
     return sprite;
 }
 
@@ -201,6 +202,9 @@ export function createScene(host, options) {
     let quality = options.quality || 'auto', reduced = !!options.reducedMotion, cameraMode = false, canAim = false;
     let followEnabled = true, aimCamEnabled = false, camTween = null, userOrbiting = false;
     let aimDirection = [0, -1], aimPower = .35, pointerId = null, dragged = false, dragStart = null;
+    // Opponent name tags: { sprite, x, y, z } of the ghost each tag floats over; resized every frame (tagFit).
+    let tags = [], cursor = '';
+    function setCursor(value) { if (value !== cursor) { cursor = value; canvas.style.cursor = value; } }
     let obstacleNodes = new Map(), flagNodes = [], spinNodes = [], putter = null, swing = 0, elapsed = 0;
     // Framing of the loaded island (overviewFor): overview pose, shadow camera size and open water radius.
     let overview = null;
@@ -315,6 +319,7 @@ export function createScene(host, options) {
     }
     function setAim(direction, power, enabled = true) {
         aimDirection = direction; aimPower = power; canAim = enabled;
+        if (!enabled) setCursor('');
         updateAim();
     }
     function focusBall(overviewPlan = false) {
@@ -384,7 +389,7 @@ export function createScene(host, options) {
         updateAim();
     }
     function setGhosts(players, active) {
-        disposeTree(ghosts); ghosts.clear();
+        disposeTree(ghosts); ghosts.clear(); tags = [];
         players.forEach((player, index) => {
             if (index === active || player.done || !player.position) return;
             const mark = new THREE.Mesh(new THREE.SphereGeometry(.16, 12, 8), new THREE.MeshBasicMaterial({ color: colorValue(player.color), transparent: true, opacity: .33, depthWrite: false }));
@@ -392,7 +397,22 @@ export function createScene(host, options) {
             const tag = nameTag(player.name);
             tag.position.set(player.position[0], player.position[1] + .46, player.position[2]);
             ghosts.add(tag);
+            tags.push({ sprite: tag, x: player.position[0], y: player.position[1], z: player.position[2] });
         });
+    }
+    // Keeps every tag 20 to 30 px tall on screen (0.34 m when that already fits) and hides it while its ghost sits under the active ball.
+    function fitTags() {
+        if (!tags.length) return;
+        const span = 2 * Math.tan(camera.fov * Math.PI / 360), height = host.clientHeight;
+        for (const tag of tags) {
+            const sprite = tag.sprite, near = Math.hypot(tag.x - ball.position.x, tag.z - ball.position.z) < .55;
+            sprite.visible = !near;
+            if (near) continue;
+            const perMeter = height / (span * Math.max(.1, sprite.position.distanceTo(camera.position)));
+            const size = perMeter > 0 ? THREE.MathUtils.clamp(.34, 20 / perMeter, 30 / perMeter) : .34;
+            sprite.scale.set(sprite.userData.aspect * size, size, 1);
+            sprite.position.y = tag.y + .3 + size / 2;
+        }
     }
     // Sun and shadow camera cover the loaded island: ±9 m around its centre for the small P2 islands, wider for large ones.
     function frameLight() {
@@ -534,7 +554,7 @@ export function createScene(host, options) {
     function endDrag() {
         if (pointerId === null) return false;
         if (canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId);
-        pointerId = null; dragged = false; dragStart = null;
+        pointerId = null; dragged = false; dragStart = null; setCursor('');
         return true;
     }
     // Releases the pointer and restores the aim from before the press; a press that never changed the aim reports nothing.
@@ -557,9 +577,17 @@ export function createScene(host, options) {
         }
         pointerId = event.pointerId; dragged = false; dragStart = { direction: aimDirection.slice(), power: aimPower };
         canvas.setPointerCapture(pointerId); event.preventDefault(); canvas.focus();
+        if (event.pointerType !== 'touch') setCursor('grabbing');
         // This listener runs first (capture), so a mouse or pen press on the ball never reaches OrbitControls and cannot pan.
         // A touch still does: its first finger must stay known to OrbitControls so a second finger can zoom and pan.
         if (event.pointerType !== 'touch') event.stopImmediatePropagation();
+    }
+    // Hover feedback for mouse and pen: grab over the ball, grabbing while dragging.
+    function hover(event) {
+        if (pointerId !== null) { setCursor('grabbing'); return; }
+        if (!canAim || cameraMode || event.pointerType === 'touch') { setCursor(''); return; }
+        const screen = ballScreen();
+        setCursor(Math.hypot(event.clientX - screen.x, event.clientY - screen.y) <= 46 ? 'grab' : '');
     }
     function move(event) {
         if (pointerId !== event.pointerId) return;
@@ -586,7 +614,7 @@ export function createScene(host, options) {
     const lost = event => { event.preventDefault(); options.onError?.('webgl_error'); };
     const wheel = () => { skipIntro(); };
     canvas.addEventListener('wheel', wheel, { passive: true });
-    canvas.addEventListener('pointerdown', down, { capture: true }); canvas.addEventListener('pointermove', move);
+    canvas.addEventListener('pointerdown', down, { capture: true }); canvas.addEventListener('pointermove', move); canvas.addEventListener('pointermove', hover);
     canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
     canvas.addEventListener('webglcontextlost', lost);
     const observer = new ResizeObserver(resize); observer.observe(host);
@@ -635,7 +663,7 @@ export function createScene(host, options) {
         if (followEnabled && snapshot?.moving && !userOrbiting && !camTween) {
             controls.target.lerp(ball.position, reduced ? 1 : Math.min(1, dt * 2.5));
         }
-        controls.enableDamping = !reduced; controls.update(); updateAim();
+        controls.enableDamping = !reduced; controls.update(); updateAim(); fitTags();
         renderer.info.reset();
         if (tier() === 'low') renderer.render(scene, camera); else composer.render();
         const change = governor.frame(dt, elapsed);
@@ -651,13 +679,13 @@ export function createScene(host, options) {
             shaderState.golfMotion.value = cfg().motion && !reduced ? 1 : 0;
             if (reduced) skipIntro();
         },
-        setCameraMode(value) { cameraMode = !!value; controls.touches.ONE = value ? THREE.TOUCH.ROTATE : null; controls.mouseButtons.LEFT = value ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN; updateAim(); },
+        setCameraMode(value) { cameraMode = !!value; controls.touches.ONE = value ? THREE.TOUCH.ROTATE : null; controls.mouseButtons.LEFT = value ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN; setCursor(''); updateAim(); },
         stats() { const effects = fx.stats(); return { fps: governor.fps, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, particles: effects.particles, quality, tier: tier(), geometries: renderer.info.memory.geometries, preview: preview?.points?.length || 0,
             look: lookId, props: props?.instances || 0, env: !!scene.environment, intro: !!intro, trail: effects.trail,
             camera: { position: camera.position.toArray(), target: controls.target.toArray(), ball: ball.position.toArray(), projectedBall: ball.position.clone().project(camera).toArray(), distance: camera.position.distanceTo(controls.target) } }; },
         dispose() {
             if (disposed) return; disposed = true; generation++; request?.abort(); observer.disconnect(); controls.dispose();
-            canvas.removeEventListener('pointerdown', down, { capture: true }); canvas.removeEventListener('pointermove', move); canvas.removeEventListener('pointerup', up); canvas.removeEventListener('pointercancel', up); canvas.removeEventListener('webglcontextlost', lost);
+            canvas.removeEventListener('pointerdown', down, { capture: true }); canvas.removeEventListener('pointermove', move); canvas.removeEventListener('pointermove', hover); canvas.removeEventListener('pointerup', up); canvas.removeEventListener('pointercancel', up); canvas.removeEventListener('webglcontextlost', lost);
             // Props, sky, water and effects leave the scene first so shared kit geometry is freed exactly once below.
             props?.dispose(); sky?.dispose(); water?.dispose(); fx.dispose();
             for (const target of environments.values()) target.dispose();

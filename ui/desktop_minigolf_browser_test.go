@@ -157,6 +157,9 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	if page.MustEval(`()=>document.querySelector('.mg-controls').getClientRects().length`).Int() == 0 {
 		t.Fatal("the putting controls are not rendered while playing")
 	}
+	if !page.MustEval(`()=>{const v=Number(document.querySelector('[data-power]').style.getPropertyValue('--mg-value'));return v>=0&&v<=1&&document.querySelector('[data-power]').style.getPropertyValue('--mg-value')!==''}`).Bool() {
+		t.Fatal("the power slider carries no --mg-value between 0 and 1 while playing")
+	}
 	if !page.MustEval(`()=>golfFixture.inspect().round.players[0].name==='Player 1 Has A Very Long'&&golfFixture.inspect().round.players[1].name==='Player 2 Has A Very Long'`).Bool() {
 		t.Fatalf("long player names did not survive menu validation: %s", page.MustEval(`()=>JSON.stringify(golfFixture.inspect().round.players.map(p=>p.name))`).Str())
 	}
@@ -663,6 +666,9 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 
 		page.MustElement(`.mg-topbar [data-action="scorecard"]`).MustClick()
 		page.MustWait(`()=>golfFixture.inspect().panel==='scorecard'`)
+		if !page.MustEval(`()=>{const par=document.querySelector('.mg-score-table thead tr.mg-par-row'),head=document.querySelector('.mg-score-table thead tr');return !!par&&par.children.length===head.children.length}`).Bool() {
+			t.Fatalf("the scorecard has no par row in its table head, or its cell count differs from the head row at %dpx", width)
+		}
 		layoutOK("scorecard " + label)
 		shot("scorecard-" + label)
 		page.MustElement(`.mg-panel [data-action="close"]`).MustClick()
@@ -782,6 +788,9 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	if !page.MustEval(`()=>document.querySelector('.mg-winner').textContent.includes('Ada')`).Bool() {
 		t.Fatalf("the podium names the wrong winner: %s", page.MustEval(`()=>document.querySelector('.mg-winner').textContent`).Str())
 	}
+	if !page.MustEval(`()=>document.querySelector('.mg-controls').getClientRects().length===0&&document.querySelector('.mg-app').dataset.ended==='true'`).Bool() {
+		t.Fatal("the putting controls are still rendered on the podium, or data-ended is not true")
+	}
 	for _, width := range []int{1280, 420} {
 		page.MustSetViewport(width, 760, renderScale, width < 600)
 		settle()
@@ -796,6 +805,9 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	settle()
 	page.MustElement(`[data-action="again"]`).MustClick()
 	page.Timeout(30 * time.Second).MustWait(`()=>{const s=golfFixture.inspect();return !s.loading&&s.panel===''&&s.course==='temple-07'&&s.round.holeIndex===0}`)
+	if !page.MustEval(`()=>document.querySelector('.mg-app').dataset.ended==='false'&&document.querySelector('.mg-controls').getClientRects().length>0`).Bool() {
+		t.Fatal("Play again did not bring back the putting controls or reset data-ended")
+	}
 	if got := page.MustEval(`()=>golfFixture.inspect().round.players.map(p=>p.name+':'+p.color).join(',')`).Str(); got != "Ada:teal,Lin:gold" {
 		t.Fatalf("Play again changed the players: %s", got)
 	}
@@ -830,6 +842,9 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	page.MustEval(`()=>{const e=document.querySelector('[data-music]');e.focus();e.value='0';e.dispatchEvent(new Event('input',{bubbles:true}));}`)
 	if !page.MustEval(`()=>golfFixture.inspect().audio.musicVolume===0`).Bool() {
 		t.Fatal("music settings did not persist the zero volume")
+	}
+	if !page.MustEval(`()=>{const e=document.querySelector('[data-music]');return e.style.getPropertyValue('--mg-value').trim()==='0'||getComputedStyle(e).getPropertyValue('--mg-value').trim()==='0'}`).Bool() {
+		t.Fatalf("the music slider does not carry --mg-value 0 after the input event: %s", page.MustEval(`()=>document.querySelector('[data-music]').getAttribute('style')`).Str())
 	}
 	if !page.MustEval(`()=>document.querySelector('[data-action="mute"]').textContent===I18N['minigolf.unmute']&&document.activeElement===document.querySelector('[data-music]')`).Bool() {
 		t.Fatal("the Mute button did not follow the music slider to zero, or the slider lost its focus")

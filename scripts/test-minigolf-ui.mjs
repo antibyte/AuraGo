@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { MAX_NAME_LENGTH, PALETTE, DEFAULT_COLORS, FLOOR_SURFACES, colorValue, assignColors, cleanName, uniqueNames, worldIds, formatToPar, fillText, powerHex, createQualityGovernor, flagPolePivot, clothPinFactors, edgeSamples } from '../ui/js/desktop/apps/minigolf-shared.js';
 import { formatPower, placeMeter } from '../ui/js/desktop/apps/minigolf-hud.js';
 import { laneGeometry, obstacleOutlines } from '../ui/js/desktop/apps/minigolf-minimap.js';
-import { rankPlayers, relativeToPar } from '../ui/js/desktop/apps/minigolf-scorecard.js';
+import { rankPlayers, relativeToPar, holeGrade, finishedHoles, gradeTitle } from '../ui/js/desktop/apps/minigolf-scorecard.js';
 import { tutorialStart, tutorialNext, tutorialView } from '../ui/js/desktop/apps/minigolf-tutorial.js';
 
 const close = (actual, expected, tolerance, message) => assert.ok(Math.abs(actual - expected) <= tolerance, `${message}: ${actual} vs ${expected}`);
@@ -155,6 +155,18 @@ assert.equal(relativeToPar({ scores: [3], strokes: 2, done: true }, parRound, pa
 assert.equal(relativeToPar({ scores: [3], strokes: 2, done: false }, parRound, parCourses), 1, 'an open hole does not count');
 assert.equal(relativeToPar({ scores: [3, 2], strokes: 0, done: true }, { courseIds: ['a', 'b'], holeIndex: 2, completed: true }, parCourses), 0, 'a completed round counts every hole once');
 
+// Hole grades, the finished-hole count behind the "±Par" dash, and the banner titles.
+assert.deepEqual([[1, 4], [2, 4], [3, 4], [4, 4], [5, 4], [8, 4], [1, 1], [1, 2], [2, 5]].map(([strokes, par]) => holeGrade(strokes, par)), ['ace', 'eagle', 'birdie', 'par', 'bogey', 'over', 'ace', 'ace', 'eagle']);
+assert.equal(holeGrade(1, 4), 'ace', 'one stroke on a par 4 is an ace, not an eagle');
+assert.equal(holeGrade(2, 4), 'eagle');
+assert.equal(finishedHoles({ scores: [], strokes: 2, done: false }, parRound), 0, 'a fresh player mid-hole has no finished hole');
+assert.equal(finishedHoles({ scores: [], strokes: 2, done: true }, parRound), 1, 'done on the current hole counts');
+assert.equal(finishedHoles({ scores: [3, 2], strokes: 0, done: true }, { courseIds: ['a', 'b'], holeIndex: 2, completed: true }), 2, 'a completed round counts every hole once');
+const echo = key => key;
+assert.equal(gradeTitle('ace', echo), 'hole_in_one');
+assert.equal(gradeTitle('over', echo), 'sunk');
+assert.deepEqual(['eagle', 'birdie', 'par', 'bogey'].map(name => gradeTitle(name, echo)), ['eagle', 'birdie', 'par', 'bogey']);
+
 // --- Tutorial state machine (Task 9) ----------------------------------------
 let step = tutorialStart();
 assert.equal(step.step, 'aim');
@@ -185,5 +197,6 @@ for (const name of ['aim', 'power', 'release', 'watch', 'done']) {
     for (const key of [view.text, view.keys].filter(Boolean)) assert.ok(english['minigolf.' + key], 'missing en string minigolf.' + key);
 }
 assert.ok(english['minigolf.' + tutorialView(powerStep, { canAim: true, camera: true }).text], 'missing en string for the camera hint');
+assert.ok(english['minigolf.hole_in_one'], 'missing en string minigolf.hole_in_one');
 
 console.log('minigolf ui: all checks passed');

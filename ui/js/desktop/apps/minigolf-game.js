@@ -4,7 +4,11 @@ import { createRound, beginShot, resolveShot, advanceHole, validateSave, cloneSa
 import { AUDIO_CREDITS, createAudio } from './minigolf-audio.js';
 import { createView } from './minigolf-views.js';
 import { tutorialStart, tutorialNext, tutorialView } from './minigolf-tutorial.js';
-import { DEFAULT_COLORS, colorValue, assignColors, cleanName, uniqueNames, worldIds, fillText } from './minigolf-shared.js';
+import { DEFAULT_COLORS, colorValue, assignColors, cleanName, uniqueNames, worldIds, fillText, formatToPar } from './minigolf-shared.js';
+import { holeGrade, gradeTitle } from './minigolf-scorecard.js';
+
+// Time between the last putt of a hole and the scorecard, so ball, confetti and banner stay visible.
+const SCORE_DELAY_MS = 900;
 
 const SAVE_KEY = 'aurago.desktop.minigolf.round.v2';
 const SETTINGS_KEY = 'aurago.desktop.minigolf.settings.v1';
@@ -54,6 +58,8 @@ export function mountGame(host, context = {}) {
     let dragActive = false, meterLeft = 0, sessionShots = 0, hintShown = false;
     let disposed = false, busy = false, loading = true, visible = true, inView = true, cameraMode = false;
     let panelKind = 'loading', track = null, tracks = [];
+    // { left, run }: the scorecard (or the next practice hole) that opens once left ms of frame time have passed with no panel open.
+    let pendingNext = null;
     // The start flow lives here: setup survives step changes and trips to help, settings and credits.
     // returnStack holds where those panels go back to (newest last, at most three), each entry with the opener to focus.
     const setup = { mode: 'full', holeId: null, players: [] };
@@ -174,8 +180,9 @@ export function mountGame(host, context = {}) {
     function setPanel(kind) {
         clearHeld();
         panelKind = kind; updateAim(); syncAudio();
-        if (kind) tutorialEvent({ type: 'panel' });
+        if (kind) { tutorialEvent({ type: 'panel' }); pendingNext = null; }
         root.dataset.panel = kind;
+        root.dataset.ended = String(!!round && round.completed);
         view.topbar(kind, !!round && !round.completed);
         syncAmbient();
     }
@@ -197,8 +204,18 @@ export function mountGame(host, context = {}) {
             [tr('course_' + course.number), round.players.length > 1 ? fillText(tr('turn_of'), { name: player.name }) : ''], colorValue(player.color), 2.2);
     }
     function turnBanner() { const player = round.players[round.turnIndex]; view.hud.banner(fillText(tr('turn_of'), { name: player.name }), [], colorValue(player.color), 1.6); }
+    // Grade of the hole just sunk; when the turn passes on in a multi-player hole the banner also names the next player.
+    function gradeBanner(player, before) {
+        const name = holeGrade(player.strokes, course.par), diff = player.strokes - course.par, next = round.players[round.turnIndex];
+        const passes = round.players.length > 1 && round.turnIndex !== before && !round.players.every(p => p.done);
+        view.hud.banner(gradeTitle(name, tr),
+            [round.players.length > 1 ? player.name : '', tr('strokes') + ': ' + player.strokes + (diff ? ' · ' + formatToPar(diff, tr('par')) : ''), passes ? fillText(tr('turn_of'), { name: next.name }) : ''],
+            colorValue(player.color), 2.6, name);
+        return passes;
+    }
+    const pauseInfo = () => course ? { world: tr(course.world), worldId: course.world, hole: fillText(tr('hole_par'), { hole: course.number, par: course.par }), name: tr('course_' + course.number) } : undefined;
     async function loadCourse(next, preview = false) {
-        const version = ++generation; loading = true; busy = false; events.length = 0;
+        const version = ++generation; loading = true; busy = false; events.length = 0; pendingNext = null;
         physics?.dispose(); physics = null; course = next; previewKey = '';
         updateAim(); view.loading(true);
         try {
@@ -213,6 +230,7 @@ export function mountGame(host, context = {}) {
             const nextPhysics = await createPhysics(playable, { onEvent: event => events.push(event) });
             if (disposed || version !== generation) { nextPhysics.dispose(); return; }
             physics = nextPhysics; loading = false;
+            if (!preview) root.dataset.world = next.world || 'neutral';
             view.hud.map.setCourse(playable);
             scene.setFollow?.(settings.follow); scene.setAimCamera?.(settings.aimCamera);
             syncAmbient();
@@ -296,17 +314,18 @@ export function mountGame(host, context = {}) {
                 scene?.setRestMark?.(round.players[round.turnIndex].position);
             } else if (event.type === 'cup') {
                 audio.effect('cup', { speed: 1, pan: scene?.panAt?.(event.position) ?? 0 });
-                scene.burst('cup', course.cup); message('sunk');
+                scene.burst('cup', course.cup); gradeBanner(finishingPlayer, before);
             }
             if (event.type !== 'cup' && finishingPlayer.shots >= 12) message('limit');
             persist();
             if (round.players.every(p => p.done)) {
-                if (recordHole(best, round)) { write(BEST_KEY, best); if (round.mode === 'practice') { newBest = true; message('new_best'); } }
+                if (recordHole(best, round)) { write(BEST_KEY, best); if (round.mode === 'practice') { newBest = true; view.hud.announce(tr('new_best')); } }
                 view.update(round, course, false);
-                if (round.mode === 'practice') nextHole().catch(fail); else showScore(true);
+                const finish = () => { if (round.mode === 'practice') nextHole().catch(fail); else showScore(true); };
+                if (reduced) finish(); else pendingNext = { left: SCORE_DELAY_MS, run: finish };
             }
             else {
-                setTurn(); if (round.players.length > 1 && round.turnIndex !== before) turnBanner();
+                setTurn(); if (event.type !== 'cup' && round.players.length > 1 && round.turnIndex !== before) turnBanner();
                 // focusBall cancels the turn tween setTurn just started; re-issue it (a no-op while the aim camera is off).
                 if (!reduced) { scene.focusBall(); scene.frameTurn?.(angle, round.players[round.turnIndex].position); }
             }
@@ -321,7 +340,7 @@ export function mountGame(host, context = {}) {
         if (!advanceHole(round, manifest.courses)) return;
         persist();
         if (round.completed) {
-            if (recordRound(best, round)) { write(BEST_KEY, best); newBest = true; message('new_best'); }
+            if (recordRound(best, round)) { write(BEST_KEY, best); newBest = true; view.hud.announce(tr('new_best')); }
             audio.effect('win', { speed: 1 }); scene.burst('win', course.cup); showScore(true);
         } else { view.close(); setPanel(''); await loadCourse(manifest.courses.find(c => c.id === round.courseIds[round.holeIndex])); focusStage(); }
     }
@@ -336,7 +355,7 @@ export function mountGame(host, context = {}) {
     function reopen(target) {
         const focus = target.focus;
         if (target.panel === 'menu') { menuStep = target.menuStep; setPanel('menu'); renderMenu(focus); }
-        else if (target.panel === 'pause') { setPanel('pause'); view.pause(focus); }
+        else if (target.panel === 'pause') { setPanel('pause'); view.pause(focus, pauseInfo()); }
         else if (target.panel === 'settings') { setPanel('settings'); view.settings(settings, track, focus); }
         else if (target.panel === 'credits') { setPanel('credits'); view.credits(tracks, focus); }
         else if (target.panel === 'help') { setPanel('help'); view.help({ inRound: inRoundPanels() }, focus); }
@@ -355,7 +374,7 @@ export function mountGame(host, context = {}) {
     const actions = {
         start, resume, shoot: () => shoot(), 'next-hole': nextHole,
         menu: showMenu, scorecard: () => showScore(), focus: () => scene?.focusBall(),
-        pause() { if (panelKind === 'pause') closePanel(); else { setPanel('pause'); view.pause(); } },
+        pause() { if (panelKind === 'pause') closePanel(); else { setPanel('pause'); view.pause(undefined, pauseInfo()); } },
         async again() {
             if (!round) return;
             await startRound({ mode: round.mode, holeId: round.mode === 'practice' ? round.courseIds[0] : undefined, players: round.players.map(p => ({ name: p.name, color: p.color })) });
@@ -412,6 +431,9 @@ export function mountGame(host, context = {}) {
     function key(event) {
         if (context.isActive?.() === false || event.ctrlKey || event.metaKey || event.altKey) return;
         if (event.type === 'keydown') scene?.skipIntro?.();
+        if (event.key === 'Enter' && event.type === 'keydown' && event.target.matches('[data-player-name]') && panelKind === 'menu' && menuStep === 'players') {
+            event.preventDefault(); if (!event.repeat) Promise.resolve(actions.start()).catch(fail); return;
+        }
         const name = heldMap[event.key];
         if (event.key === 'Shift') { held.fine = event.type === 'keydown'; return; }
         if (name && event.type === 'keyup') { held[name] = false; return; }
@@ -465,6 +487,7 @@ export function mountGame(host, context = {}) {
         const dt = last ? Math.min(.12, (time - last) / 1000) : 0; last = time;
         let snapshot = physics?.getSnapshot();
         if (physics && !loading && panelKind === '' && !round?.completed) { snapshot = physics.step(dt); handleEvents(); }
+        if (pendingNext && panelKind === '' && (pendingNext.left -= dt * 1000) <= 0) { const { run } = pendingNext; pendingNext = null; run(); }
         if (scene) {
             snapshot = { ...(physics?.getSnapshot() || snapshot), obstacles: physics?.getObstacles() || [], color: round?.players[round.turnIndex]?.color || DEFAULT_COLORS[0], surface: lastSurface };
             scene.update(panelKind === 'pause' ? 0 : dt, snapshot);
@@ -501,7 +524,7 @@ export function mountGame(host, context = {}) {
             if (disposed) return;
             // Manifest version 2: the collision meshes come from the GLB (the asset test checks the digest in the manifest).
             if (data.version !== 2 || !Array.isArray(data.courses) || data.courses.length !== 18 || data.courses.some(c => !/^course-\d{2}\.glb$/.test(c.model) || typeof c.collision?.digest !== 'string')) throw Error('manifest');
-            manifest = data;
+            manifest = data; view.setCourses(manifest.courses);
             const legacyReset = migrateLegacy();
             worlds = worldIds(manifest.courses);
             best = normalizeBest(read(BEST_KEY), manifest.courses);

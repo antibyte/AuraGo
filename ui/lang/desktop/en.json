@@ -9991,6 +9991,7 @@
   "minigolf.water": "One penalty stroke. Back to your previous position.",
   "minigolf.out": "Out of bounds. One penalty stroke.",
   "minigolf.sunk": "In the cup!",
+  "minigolf.hole_in_one": "Hole-in-one!",
   "minigolf.limit": "Stroke limit reached: 13.",
   "minigolf.saved": "Progress is saved on this browser.",
   "minigolf.storage_error": "Progress cannot be saved in this browser. You can keep playing.",

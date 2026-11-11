@@ -8721,6 +8721,7 @@
   "minigolf.water": "Eén strafslag. Terug naar je vorige positie.",
   "minigolf.out": "Buiten de baan. Eén strafslag.",
   "minigolf.sunk": "In de hole!",
+  "minigolf.hole_in_one": "Hole-in-one!",
   "minigolf.limit": "Slaglimiet bereikt: 13.",
   "minigolf.saved": "Je voortgang wordt in deze browser opgeslagen.",
   "minigolf.storage_error": "Je voortgang kan niet in deze browser worden opgeslagen. Je kunt blijven spelen.",

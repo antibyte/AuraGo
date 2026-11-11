@@ -8721,6 +8721,7 @@
   "minigolf.water": "Trestný úder. Vrať se na předchozí pozici.",
   "minigolf.out": "Mimo hřiště. Jeden trestný úder.",
   "minigolf.sunk": "V jamce!",
+  "minigolf.hole_in_one": "Hole-in-one!",
   "minigolf.limit": "Dosažen limit úderů: 13.",
   "minigolf.saved": "Postup se ukládá v tomto prohlížeči.",
   "minigolf.storage_error": "V tomto prohlížeči nelze ukládat postup. Můžeš pokračovat ve hře.",

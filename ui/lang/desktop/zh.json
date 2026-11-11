@@ -8721,6 +8721,7 @@
   "minigolf.water": "罚一杆。返回之前的位置。",
   "minigolf.out": "出界。罚一杆。",
   "minigolf.sunk": "进洞了！",
+  "minigolf.hole_in_one": "一杆进洞！",
   "minigolf.limit": "已达到击球上限：13 杆。",
   "minigolf.saved": "进度会保存在此浏览器中。",
   "minigolf.storage_error": "无法在此浏览器中保存进度。你仍可继续游戏。",

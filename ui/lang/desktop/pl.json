@@ -8721,6 +8721,7 @@
   "minigolf.water": "Jeden punkt karny. Wróć na poprzednią pozycję.",
   "minigolf.out": "Poza polem. Jeden punkt karny.",
   "minigolf.sunk": "W dołku!",
+  "minigolf.hole_in_one": "Hole-in-one!",
   "minigolf.limit": "Osiągnięto limit uderzeń: 13.",
   "minigolf.saved": "Postęp jest zapisywany w tej przeglądarce.",
   "minigolf.storage_error": "Nie można zapisać postępu w tej przeglądarce. Możesz grać dalej.",

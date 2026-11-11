@@ -91,7 +91,7 @@ export function buildProps(kit, look, placements, { scatter = true, state }) {
         node.traverse(mesh => { if (mesh.isMesh) meshes.push(mesh); });
         const hasCloth = meshes.some(mesh => mesh.material?.userData?.aurago_kind === 'cloth' && (Number(mesh.material?.userData?.aurago_sway) || 0) > 0);
         const anchors = [];
-        if (hasCloth) for (const mesh of meshes) if (mesh.material?.userData?.aurago_kind !== 'cloth') anchors.push(...anchorSamples(mesh));
+        if (hasCloth) for (const mesh of meshes) if (mesh.material?.userData?.aurago_kind !== 'cloth') for (const sample of anchorSamples(mesh)) anchors.push(sample);
         for (const mesh of meshes) {
             const data = mesh.material?.userData || {};
             const pinCloth = data.aurago_kind === 'cloth' && (Number(data.aurago_sway) || 0) > 0 && anchors.length > 0;

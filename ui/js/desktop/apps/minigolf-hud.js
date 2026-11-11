@@ -65,10 +65,12 @@ export function createHud(elements, { tr, esc, icon }) {
     function onToastClick(event) { const entry = live.find(item => item.el === event.target.closest('.mg-toast')); if (entry) dismiss(entry); }
     toasts.addEventListener('click', onToastClick);
 
-    function chip(round, course, player, index) {
+    // Stroke counts seen at the last update() of this course; a changed count bumps the chip score once.
+    let strokeCourse = null, strokeMemory = [];
+    function chip(round, course, player, index, bump) {
         const single = round.players.length === 1, active = index === round.turnIndex && !player.done;
         const score = player.done ? icon('check') + esc(formatToPar(player.strokes - course.par, tr('par'))) : String(player.strokes);
-        return `<li class="mg-chip" data-player="${index}"${active ? ' data-active' : ''}${player.done ? ` data-done title="${esc(tr('chip_done'))}"` : ''} style="--mg-player:${colorValue(player.color)}"><i class="mg-dot"></i><span class="mg-chip-name">${esc(single ? tr('strokes') : player.name)}</span><b class="mg-chip-score">${score}</b>${active && !single ? `<span class="mg-chip-turn">${esc(tr('chip_active'))}</span>` : ''}</li>`;
+        return `<li class="mg-chip" data-player="${index}"${active ? ' data-active' : ''}${player.done ? ` data-done title="${esc(tr('chip_done'))}"` : ''} style="--mg-player:${colorValue(player.color)}"><i class="mg-dot"></i><span class="mg-chip-name">${esc(single ? tr('strokes') : player.name)}</span><b class="mg-chip-score${bump ? ' mg-bump' : ''}">${score}</b>${active && !single ? `<span class="mg-chip-turn">${esc(tr('chip_active'))}</span>` : ''}</li>`;
     }
 
     return {
@@ -77,7 +79,9 @@ export function createHud(elements, { tr, esc, icon }) {
             plaque.world.textContent = tr(course.world);
             plaque.hole.textContent = tr('hole_par').replace('{hole}', course.number).replace('{par}', course.par);
             plaque.name.textContent = tr('course_' + course.number);
-            chips.innerHTML = round.players.map((player, index) => chip(round, course, player, index)).join('');
+            const sameCourse = strokeCourse === course.id;
+            chips.innerHTML = round.players.map((player, index) => chip(round, course, player, index, sameCourse && index in strokeMemory && strokeMemory[index] !== player.strokes)).join('');
+            strokeCourse = course.id; strokeMemory = round.players.map(player => player.strokes);
         },
         // formatted: result of formatPower(); the arc follows the 3D ring colours.
         power(strength, formatted) {
@@ -95,10 +99,11 @@ export function createHud(elements, { tr, esc, icon }) {
             const next = `translate(${at.x}px, ${at.y}px)`;
             if (next !== meterAt) { meterAt = next; meter.style.transform = next; }
         },
-        banner(title, lines, color, seconds) {
+        banner(title, lines, color, seconds, grade = '') {
             const extra = (lines || []).filter(Boolean);
             banner.style.setProperty('--mg-player', color);
-            bannerTitle.textContent = title;
+            if (grade) banner.dataset.grade = grade; else delete banner.dataset.grade;
+            bannerTitle.innerHTML = (grade === 'ace' ? `<span class="mg-banner-icon">${icon('star')}</span>` : '') + `<span>${esc(title)}</span>`;
             bannerLines.innerHTML = extra.map(text => `<span>${esc(text)}</span>`).join('');
             banner.hidden = false;
             banner.classList.remove('mg-banner-in');
@@ -112,7 +117,8 @@ export function createHud(elements, { tr, esc, icon }) {
             const known = live.find(item => item.key === key);
             if (known) dismiss(known);
             const el = document.createElement('div');
-            el.className = 'mg-toast'; el.dataset.toast = key; el.dataset.kind = kind; el.textContent = text;
+            el.className = 'mg-toast'; el.dataset.toast = key; el.dataset.kind = kind;
+            el.innerHTML = icon(kind === 'success' ? 'check' : kind === 'warning' ? 'alert' : 'info') + `<span>${esc(text)}</span>`;
             toasts.append(el);
             live.push({ key, el, left: seconds * 1000 });
             while (live.length > MAX_TOASTS) dismiss(live[0]);

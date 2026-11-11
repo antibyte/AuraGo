@@ -8721,6 +8721,7 @@
   "minigolf.water": "Ett straffeslag. Tilbake til forrige posisjon.",
   "minigolf.out": "Utenfor banen. Ett straffeslag.",
   "minigolf.sunk": "I koppen!",
+  "minigolf.hole_in_one": "Hole-in-one!",
   "minigolf.limit": "Slaggrensen er nådd: 13.",
   "minigolf.saved": "Fremdriften lagres i denne nettleseren.",
   "minigolf.storage_error": "Fremdriften kan ikke lagres i denne nettleseren. Du kan fortsette å spille.",

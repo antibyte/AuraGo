@@ -8721,6 +8721,7 @@
   "minigolf.water": "Ét strafslag. Tilbage til din forrige position.",
   "minigolf.out": "Uden for banen. Ét strafslag.",
   "minigolf.sunk": "I hul!",
+  "minigolf.hole_in_one": "Hole-in-one!",
   "minigolf.limit": "Slaggrænse nået: 13.",
   "minigolf.saved": "Dit spil gemmes i denne browser.",
   "minigolf.storage_error": "Spillet kan ikke gemmes i denne browser. Du kan fortsætte med at spille.",

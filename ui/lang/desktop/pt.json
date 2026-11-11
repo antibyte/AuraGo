@@ -8721,6 +8721,7 @@
   "minigolf.water": "Uma tacada de penalização. Volta à posição anterior.",
   "minigolf.out": "Fora dos limites. Uma tacada de penalização.",
   "minigolf.sunk": "No buraco!",
+  "minigolf.hole_in_one": "Hole-in-one!",
   "minigolf.limit": "Limite de tacadas atingido: 13.",
   "minigolf.saved": "O progresso fica guardado neste navegador.",
   "minigolf.storage_error": "Não é possível guardar o progresso neste navegador. Podes continuar a jogar.",

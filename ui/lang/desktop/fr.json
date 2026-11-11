@@ -8721,6 +8721,7 @@
   "minigolf.water": "Un coup de pénalité. Retourne à ta position précédente.",
   "minigolf.out": "Hors limites. Un coup de pénalité.",
   "minigolf.sunk": "Dans le trou !",
+  "minigolf.hole_in_one": "Trou en un !",
   "minigolf.limit": "Limite de coups atteinte : 13.",
   "minigolf.saved": "Ta progression est enregistrée dans ce navigateur.",
   "minigolf.storage_error": "Impossible d’enregistrer ta progression dans ce navigateur. Tu peux continuer à jouer.",

@@ -8721,6 +8721,7 @@
   "minigolf.water": "Un colpo di penalità. Torna alla posizione precedente.",
   "minigolf.out": "Fuori limite. Un colpo di penalità.",
   "minigolf.sunk": "In buca!",
+  "minigolf.hole_in_one": "Buca in uno!",
   "minigolf.limit": "Limite di colpi raggiunto: 13.",
   "minigolf.saved": "I progressi vengono salvati in questo browser.",
   "minigolf.storage_error": "Impossibile salvare i progressi in questo browser. Puoi continuare a giocare.",

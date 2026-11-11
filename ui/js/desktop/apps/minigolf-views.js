@@ -1,5 +1,5 @@
 import { createHud, formatPower } from './minigolf-hud.js';
-import { createMenus } from './minigolf-menus.js';
+import { createMenus, percentText } from './minigolf-menus.js';
 import { createScorecard } from './minigolf-scorecard.js';
 import { createCoach } from './minigolf-tutorial.js';
 
@@ -24,7 +24,11 @@ const ICONS = {
     trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8"/>',
     sound: '<path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/>',
     display: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/>',
-    home: '<path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/>'
+    home: '<path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/>',
+    flag: '<path d="M6 21V4M6 4h11l-2 4 2 4H6"/>', chevron: '<path d="M9 5l7 7-7 7"/>',
+    alert: '<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17v.1"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.1"/>',
+    replay: '<path d="M4 12a8 8 0 1 0 2.6-5.9M4 4v5h5"/>'
 };
 export const icon = name => `<svg class="mg-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICONS[name] || ICONS.star}</svg>`;
 
@@ -56,22 +60,39 @@ export function createView(host, tr, { assetURL = path => path, onFocusLost } = 
     const progressLabel = $('[data-progress-label]'), progressTrack = $('[data-progress-track]'), cameraButton = $('[data-action="camera"]');
     const hud = createHud({ hud: $('[data-hud]'), toasts: $('[data-toasts]'), announcer: $('[data-announcer]') }, { tr, esc, icon });
     const coach = createCoach($('[data-coach]'), { tr, esc, onFocusLost: () => onFocusLost?.() });
-    const menus = createMenus({ showPanel, panel, tr, esc, icon, assetURL });
-    let restoreFocus = null;
+    const menus = createMenus({ showPanel, panel, tr, esc, icon, assetURL, logo: host.dataset.golfIcon });
+    let restoreFocus = null, lastLabel = null, courseList = [];
+
+    // Fill level of a custom range slider as 0..1 for the track gradient.
+    const rangeValue = input => { const min = Number(input.min || 0), max = Number(input.max || 100); return max > min ? Math.min(1, Math.max(0, (Number(input.value) - min) / (max - min))) : 0; };
+    const syncRange = input => input.style.setProperty('--mg-value', String(rangeValue(input)));
+    const onRangeInput = event => {
+        const input = event.target;
+        if (!(input instanceof HTMLInputElement) || input.type !== 'range') return;
+        syncRange(input);
+        const out = input.closest('.mg-field')?.querySelector('output');
+        if (out && !input.matches('[data-power]')) out.textContent = percentText(Number(input.value) / 100);
+    };
+    root.addEventListener('input', onRangeInput);
 
     function showPanel(html, label, focus) {
-        if (panel.hidden) restoreFocus = document.activeElement;
-        panel.innerHTML = `<section class="mg-panel" role="dialog" aria-label="${esc(tr(label))}">${html}</section>`;
+        const wasHidden = panel.hidden, fresh = wasHidden || label !== lastLabel;
+        if (wasHidden) restoreFocus = document.activeElement;
+        lastLabel = label;
+        panel.innerHTML = `<section class="mg-panel${fresh ? ' mg-panel-in' : ''}" role="dialog" aria-label="${esc(tr(label))}">${html}</section>`;
+        panel.classList.toggle('mg-overlay-in', wasHidden);
         panel.hidden = false;
+        panel.querySelectorAll('input[type="range"]').forEach(syncRange);
         // A focus selector may name a panel control or a top bar button.
         const target = focus && (panel.querySelector(focus) || root.querySelector(focus));
         (target && !target.disabled ? target : panel.querySelector('button:not(:disabled),input:not(:disabled),select:not(:disabled)'))?.focus({ preventScroll: true });
     }
+    const worldOf = id => courseList.find(course => course.id === id)?.world || '';
     function progress(round) {
         if (!round) { progressLabel.textContent = tr('subtitle'); progressTrack.replaceChildren(); return; }
         const total = round.courseIds.length;
         progressLabel.textContent = tr('hole_progress').replace('{hole}', Math.min(round.holeIndex + 1, total)).replace('{total}', total);
-        progressTrack.innerHTML = round.courseIds.map((_, index) => `<li data-state="${index < round.holeIndex ? 'done' : index === round.holeIndex ? 'current' : 'open'}"></li>`).join('');
+        progressTrack.innerHTML = round.courseIds.map((_, index) => `<li data-state="${index < round.holeIndex ? 'done' : index === round.holeIndex ? 'current' : 'open'}"${worldOf(round.courseIds[index]) ? ` data-world="${esc(worldOf(round.courseIds[index]))}"` : ''}></li>`).join('');
     }
     function topbar(kind, hasRound) {
         const locked = kind === 'loading' || kind === 'error', idle = locked || kind === 'menu' || !hasRound;
@@ -91,6 +112,7 @@ export function createView(host, tr, { assetURL = path => path, onFocusLost } = 
 
     return Object.assign({
         root, canvasHost: $('.mg-canvas'), panel, hud, coach, showPanel, progress, topbar,
+        setCourses(courses) { courseList = Array.isArray(courses) ? courses : []; },
         close() { panel.hidden = true; panel.replaceChildren(); if (restoreFocus?.isConnected && !restoreFocus.disabled) restoreFocus.focus({ preventScroll: true }); restoreFocus = null; },
         update(round, course, busy) {
             if (!round || !course) return;
@@ -106,11 +128,11 @@ export function createView(host, tr, { assetURL = path => path, onFocusLost } = 
         loading(on) { loadingEl.hidden = !on; },
         power(strength, meters, lang) {
             const formatted = formatPower(strength, meters, lang);
-            slider.value = Math.round(strength * 100); slider.setAttribute('aria-valuetext', formatted.text);
+            slider.value = Math.round(strength * 100); syncRange(slider); slider.setAttribute('aria-valuetext', formatted.text);
             powerOut.textContent = formatted.text;
             hud.power(strength, formatted);
         },
         track(value) { const el = $('[data-track]'); if (el) el.textContent = value?.title || '♪'; },
-        dispose() { root.removeEventListener('keydown', trap); menus.disposeMenus(); hud.dispose(); coach.dispose(); root.remove(); }
-    }, menus, createScorecard({ showPanel, tr, esc }));
+        dispose() { root.removeEventListener('keydown', trap); root.removeEventListener('input', onRangeInput); menus.disposeMenus(); hud.dispose(); coach.dispose(); root.remove(); }
+    }, menus, createScorecard({ showPanel, tr, esc, icon }));
 }

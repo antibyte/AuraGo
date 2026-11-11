@@ -8721,6 +8721,7 @@
   "minigolf.water": "Ett pliktslag. Tillbaka till din förra position.",
   "minigolf.out": "Utanför banan. Ett pliktslag.",
   "minigolf.sunk": "I hål!",
+  "minigolf.hole_in_one": "Hole-in-one!",
   "minigolf.limit": "Slaggränsen är nådd: 13.",
   "minigolf.saved": "Dina framsteg sparas i den här webbläsaren.",
   "minigolf.storage_error": "Det går inte att spara framstegen i den här webbläsaren. Du kan fortsätta spela.",

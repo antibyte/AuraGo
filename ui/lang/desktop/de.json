@@ -8721,6 +8721,7 @@
   "minigolf.water": "Ein Strafschlag. Zurück zur vorherigen Position.",
   "minigolf.out": "Aus dem Spielfeld. Ein Strafschlag.",
   "minigolf.sunk": "Eingelocht!",
+  "minigolf.hole_in_one": "Hole-in-one!",
   "minigolf.limit": "Schlaglimit erreicht: 13.",
   "minigolf.saved": "Dein Fortschritt wird in diesem Browser gespeichert.",
   "minigolf.storage_error": "Der Spielstand kann in diesem Browser nicht gespeichert werden. Du kannst weiterspielen.",

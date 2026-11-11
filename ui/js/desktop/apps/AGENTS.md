@@ -730,7 +730,7 @@ Retained ImageGen artwork belongs to `assets/pinball/`.
 
 - `minigolf` is a native Games app. `minigolf.js` owns window instances and lazy
   imports the isolated bundle from `js/vendor/minigolf/`. Build it with
-  `node scripts/build-minigolf.mjs`; never reuse another app's renderer.
+  `node scripts/build-minigolf.mjs`; never reuse another app's renderer. The bundle is committed and the desktop and the browser test load it, not the sources, so every change to `minigolf-*.js` must rebuild it with `npm run build:minigolf` in the same commit; `npm run test:minigolf` fails on a stale bundle.
 - Scene, fixed-step Rapier physics, round model, views and audio have separate
   modules. Visible obstacles use physics poses. Keep one active ball, transparent
   non-colliding opponents, true cup openings and collision geometry from the

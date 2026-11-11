@@ -8721,6 +8721,7 @@
   "minigolf.water": "ペナルティ1打。前の位置に戻ります。",
   "minigolf.out": "アウトオブバウンズ。ペナルティ1打。",
   "minigolf.sunk": "カップイン！",
+  "minigolf.hole_in_one": "ホールインワン！",
   "minigolf.limit": "打数上限に達しました：13。",
   "minigolf.saved": "進行状況はこのブラウザーに保存されます。",
   "minigolf.storage_error": "このブラウザーには進行状況を保存できません。プレイは続けられます。",

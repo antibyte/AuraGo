@@ -8721,6 +8721,7 @@
   "minigolf.water": "Un golpe de penalización. Vuelve a tu posición anterior.",
   "minigolf.out": "Fuera de límites. Un golpe de penalización.",
   "minigolf.sunk": "¡Al hoyo!",
+  "minigolf.hole_in_one": "¡Hoyo en uno!",
   "minigolf.limit": "Límite de golpes alcanzado: 13.",
   "minigolf.saved": "El progreso se guarda en este navegador.",
   "minigolf.storage_error": "No se puede guardar el progreso en este navegador. Puedes seguir jugando.",
