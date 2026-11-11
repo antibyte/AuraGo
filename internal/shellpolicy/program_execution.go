@@ -26,9 +26,47 @@ func programExecutionReason(command string, escape byte) string {
 				}
 			}
 		case "git":
-			for _, arg := range args {
-				if executableGitSetting(strings.ToLower(strings.SplitN(arg, "=", 2)[0])) {
-					return "executable Git configuration"
+			var configArgs []string
+			for i := 0; i < len(args); i++ {
+				arg := args[i]
+				if arg == "-c" || arg == "-C" || arg == "--git-dir" || arg == "--work-tree" || arg == "--namespace" {
+					i++
+					continue
+				}
+				if strings.HasPrefix(arg, "-") {
+					continue
+				}
+				if arg == "config" {
+					configArgs = args[i+1:]
+				}
+				break
+			}
+			readConfig := false
+			for i := 0; i < len(configArgs); i++ {
+				arg := configArgs[i]
+				if arg == "--" {
+					break
+				}
+				if arg == "--edit" || arg == "-e" {
+					return "Git editor execution"
+				}
+				if arg == "--file" || arg == "-f" || arg == "--blob" || arg == "--type" || arg == "--default" {
+					i++
+					continue
+				}
+				if arg == "--get" || arg == "--get-all" || arg == "--get-regexp" || arg == "--get-urlmatch" || arg == "--list" || arg == "-l" {
+					readConfig = true
+				}
+				if !strings.HasPrefix(arg, "-") {
+					readConfig = readConfig || arg == "get" || arg == "list"
+					break
+				}
+			}
+			if !readConfig {
+				for i, arg := range configArgs {
+					if executableGitSetting(strings.ToLower(strings.SplitN(arg, "=", 2)[0])) && (i+1 < len(configArgs) || strings.Contains(arg, "=")) {
+						return "executable Git configuration"
+					}
 				}
 			}
 			for i, arg := range args {
