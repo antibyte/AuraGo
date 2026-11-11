@@ -486,7 +486,7 @@ function saverHarness(responses, opts = {}) {
         setTimeout: (fn, ms) => { const id = nextTimer++; timers.set(id, { fn, ms }); return id; },
         clearTimeout: id => { timers.delete(id); }
     });
-    for (const file of ['easydrag-core.js', 'easydrag-saver.js']) {
+    for (const file of ['easydrag-core.js', 'easydrag-template.js', 'easydrag-credentials.js', 'easydrag-saver.js']) {
         const full = path.join(apps, file);
         vm.runInContext(fs.readFileSync(full, 'utf8'), box, { filename: full });
     }
@@ -1162,5 +1162,6 @@ await import('./test-easydrag-authoring.mjs');
 await import('./test-easydrag-compare.mjs');
 // C15: durable approval DTO bounds and review wire safety.
 await import('./test-easydrag-approvals.mjs');
+await import('./test-easydrag-credentials.mjs');
 await import('../internal/flows/testdata/collection_filters_test.cjs');
 console.log('all EasyDrag checks passed');

@@ -1512,5 +1512,6 @@
   "easydrag.option.auth_in_header": "Header",
   "easydrag.option.auth_in_query": "Adresparameter",
   "easydrag.ui.error_flow_credential_not_movable": "Deze waarde kan niet naar de kluis worden verplaatst. Verwijder hem in plaats daarvan uit de flow.",
-  "easydrag.ui.error_flow_secret_exists": "Er bestaat al een geheim met deze naam."
+  "easydrag.ui.error_flow_secret_exists": "Er bestaat al een geheim met deze naam.",
+  "easydrag.ui.restore_masked": "Wachtwoorden en toegangstokens in deze kopie zijn gemaskeerd en verschijnen als [redacted]. Voer ze na het herstellen opnieuw in."
 }

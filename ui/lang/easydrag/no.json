@@ -1512,5 +1512,6 @@
   "easydrag.option.auth_in_header": "Header",
   "easydrag.option.auth_in_query": "Adresseparameter",
   "easydrag.ui.error_flow_credential_not_movable": "Denne verdien kan ikke flyttes til hvelvet. Fjern den fra flyten i stedet.",
-  "easydrag.ui.error_flow_secret_exists": "Det finnes allerede en hemmelighet med dette navnet."
+  "easydrag.ui.error_flow_secret_exists": "Det finnes allerede en hemmelighet med dette navnet.",
+  "easydrag.ui.restore_masked": "Passord og tilgangstokens i denne kopien er maskert og vises som [redacted]. Skriv dem inn på nytt etter gjenopprettingen."
 }

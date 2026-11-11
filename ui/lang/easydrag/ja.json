@@ -1512,5 +1512,6 @@
   "easydrag.option.auth_in_header": "ヘッダー",
   "easydrag.option.auth_in_query": "アドレスのパラメーター",
   "easydrag.ui.error_flow_credential_not_movable": "この値は保管庫へ移せません。代わりにフローから削除してください。",
-  "easydrag.ui.error_flow_secret_exists": "この名前のシークレットは既にあります。"
+  "easydrag.ui.error_flow_secret_exists": "この名前のシークレットは既にあります。",
+  "easydrag.ui.restore_masked": "このコピー内のパスワードとアクセストークンはマスクされ、[redacted] と表示されます。復元後に入力し直してください。"
 }

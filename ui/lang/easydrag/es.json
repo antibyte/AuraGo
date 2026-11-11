@@ -1512,5 +1512,6 @@
   "easydrag.option.auth_in_header": "Encabezado",
   "easydrag.option.auth_in_query": "Parámetro de dirección",
   "easydrag.ui.error_flow_credential_not_movable": "Este valor no se puede mover a la bóveda. Quítalo del flujo.",
-  "easydrag.ui.error_flow_secret_exists": "Ya existe un secreto con este nombre."
+  "easydrag.ui.error_flow_secret_exists": "Ya existe un secreto con este nombre.",
+  "easydrag.ui.restore_masked": "Las contraseñas y los tokens de acceso de esta copia se ocultaron y aparecen como [redacted]. Vuelve a escribirlos tras restaurar."
 }

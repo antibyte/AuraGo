@@ -1512,5 +1512,6 @@
   "easydrag.option.auth_in_header": "请求头",
   "easydrag.option.auth_in_query": "地址参数",
   "easydrag.ui.error_flow_credential_not_movable": "该值无法移入保险库。请改为从流程中删除。",
-  "easydrag.ui.error_flow_secret_exists": "已存在同名密钥。"
+  "easydrag.ui.error_flow_secret_exists": "已存在同名密钥。",
+  "easydrag.ui.restore_masked": "此副本中的密码和访问令牌已被遮蔽，显示为 [redacted]。恢复后请重新输入。"
 }

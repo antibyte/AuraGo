@@ -1512,5 +1512,6 @@
   "easydrag.option.auth_in_header": "Hlavička",
   "easydrag.option.auth_in_query": "Parametr adresy",
   "easydrag.ui.error_flow_credential_not_movable": "Tuto hodnotu nelze přesunout do trezoru. Odstraň ji místo toho z flow.",
-  "easydrag.ui.error_flow_secret_exists": "Tajemství s tímto názvem už existuje."
+  "easydrag.ui.error_flow_secret_exists": "Tajemství s tímto názvem už existuje.",
+  "easydrag.ui.restore_masked": "Hesla a přístupové tokeny v této kopii byly zamaskovány a zobrazují se jako [redacted]. Po obnovení je zadej znovu."
 }

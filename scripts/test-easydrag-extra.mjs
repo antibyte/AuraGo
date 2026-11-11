@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 
-const MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-canvas.js', 'easydrag-wires.js', 'easydrag-interact.js',
+const MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-credentials.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-canvas.js', 'easydrag-wires.js', 'easydrag-interact.js',
     'easydrag-palette.js', 'easydrag-template-field.js', 'easydrag-fields-conditions.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-blocks.js', 'easydrag-block-fields.js', 'easydrag-transform.js', 'easydrag-mapping.js'];
 const A = 'n_aaaaaaaa';
 const B = 'n_bbbbbbbb';

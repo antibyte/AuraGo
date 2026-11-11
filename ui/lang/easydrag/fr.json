@@ -1512,5 +1512,6 @@
   "easydrag.option.auth_in_header": "En-tête",
   "easydrag.option.auth_in_query": "Paramètre d’adresse",
   "easydrag.ui.error_flow_credential_not_movable": "Cette valeur ne peut pas être déplacée dans le coffre. Retire-la plutôt du flux.",
-  "easydrag.ui.error_flow_secret_exists": "Un secret portant ce nom existe déjà."
+  "easydrag.ui.error_flow_secret_exists": "Un secret portant ce nom existe déjà.",
+  "easydrag.ui.restore_masked": "Les mots de passe et jetons d’accès de cette copie ont été masqués et apparaissent comme [redacted]. Saisis-les de nouveau après la restauration."
 }

@@ -1512,5 +1512,6 @@
   "easydrag.option.auth_in_header": "Cabeçalho",
   "easydrag.option.auth_in_query": "Parâmetro do endereço",
   "easydrag.ui.error_flow_credential_not_movable": "Este valor não pode ser movido para o cofre. Remova-o do fluxo.",
-  "easydrag.ui.error_flow_secret_exists": "Já existe um segredo com este nome."
+  "easydrag.ui.error_flow_secret_exists": "Já existe um segredo com este nome.",
+  "easydrag.ui.restore_masked": "As senhas e os tokens de acesso desta cópia foram ocultados e aparecem como [redacted]. Digite-os de novo após restaurar."
 }

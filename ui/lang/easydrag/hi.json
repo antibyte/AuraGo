@@ -1512,5 +1512,6 @@
   "easydrag.option.auth_in_header": "हेडर",
   "easydrag.option.auth_in_query": "पते का पैरामीटर",
   "easydrag.ui.error_flow_credential_not_movable": "इस मान को तिजोरी में नहीं ले जाया जा सकता। इसे फ़्लो से हटाओ।",
-  "easydrag.ui.error_flow_secret_exists": "इस नाम का गुप्त मान पहले से मौजूद है।"
+  "easydrag.ui.error_flow_secret_exists": "इस नाम का गुप्त मान पहले से मौजूद है।",
+  "easydrag.ui.restore_masked": "इस प्रति में पासवर्ड और एक्सेस टोकन छिपा दिए गए हैं और [redacted] के रूप में दिखते हैं। पुनर्स्थापित करने के बाद उन्हें फिर से दर्ज करो।"
 }

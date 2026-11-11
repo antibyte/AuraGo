@@ -298,7 +298,8 @@
         const dialog = ED.core.modal(ed.root, {
             title: t('easydrag.ui.restore_title'), closeLabel: t('easydrag.ui.close'), dismissible: false,
             body: '<p>' + esc(t('easydrag.ui.restore_text', { time: ED.core.fmt.dateTime(copy.at) })) + '</p>' +
-                (copy.stale ? '<p class="ed-callout ed-callout--warn" data-ed-restore-stale>' + ED.core.icon('alert') + '<span>' + esc(t('easydrag.ui.restore_stale')) + '</span></p>' : ''),
+                (copy.stale ? '<p class="ed-callout ed-callout--warn" data-ed-restore-stale>' + ED.core.icon('alert') + '<span>' + esc(t('easydrag.ui.restore_stale')) + '</span></p>' : '') +
+                (copy.masked ? '<p class="ed-callout ed-callout--warn" data-ed-restore-masked>' + ED.core.icon('alert') + '<span>' + esc(t('easydrag.ui.restore_masked')) + '</span></p>' : ''),
             actions: [{ id: 'discard', label: t('easydrag.ui.restore_discard'), danger: true }, { id: 'restore', label: t('easydrag.ui.restore_apply'), primary: true, icon: 'history' }]
         });
         return dialog.done.then(result => (result === 'restore' || result === 'discard' ? result : null));

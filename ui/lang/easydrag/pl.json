@@ -1512,5 +1512,6 @@
   "easydrag.option.auth_in_header": "Nagłówek",
   "easydrag.option.auth_in_query": "Parametr adresu",
   "easydrag.ui.error_flow_credential_not_movable": "Tej wartości nie można przenieść do skarbca. Usuń ją z przepływu.",
-  "easydrag.ui.error_flow_secret_exists": "Sekret o tej nazwie już istnieje."
+  "easydrag.ui.error_flow_secret_exists": "Sekret o tej nazwie już istnieje.",
+  "easydrag.ui.restore_masked": "Hasła i tokeny dostępu w tej kopii zostały zamaskowane i widnieją jako [redacted]. Po przywróceniu wpisz je ponownie."
 }

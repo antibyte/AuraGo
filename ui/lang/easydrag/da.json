@@ -1512,5 +1512,6 @@
   "easydrag.option.auth_in_header": "Header",
   "easydrag.option.auth_in_query": "Adresseparameter",
   "easydrag.ui.error_flow_credential_not_movable": "Værdien kan ikke flyttes til tresoren. Fjern den i stedet fra flowet.",
-  "easydrag.ui.error_flow_secret_exists": "Der findes allerede en hemmelighed med dette navn."
+  "easydrag.ui.error_flow_secret_exists": "Der findes allerede en hemmelighed med dette navn.",
+  "easydrag.ui.restore_masked": "Adgangskoder og adgangstokens i denne kopi er maskeret og vises som [redacted]. Indtast dem igen efter gendannelsen."
 }

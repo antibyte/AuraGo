@@ -1512,5 +1512,6 @@
   "easydrag.option.auth_in_header": "Header",
   "easydrag.option.auth_in_query": "Adressparameter",
   "easydrag.ui.error_flow_credential_not_movable": "Värdet kan inte flyttas till kassaskåpet. Ta bort det från flödet i stället.",
-  "easydrag.ui.error_flow_secret_exists": "Det finns redan en hemlighet med det här namnet."
+  "easydrag.ui.error_flow_secret_exists": "Det finns redan en hemlighet med det här namnet.",
+  "easydrag.ui.restore_masked": "Lösenord och åtkomsttokens i den här kopian har maskerats och visas som [redacted]. Skriv in dem igen efter återställningen."
 }

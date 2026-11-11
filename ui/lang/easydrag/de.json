@@ -1512,5 +1512,6 @@
   "easydrag.option.auth_in_header": "Header",
   "easydrag.option.auth_in_query": "Adressparameter",
   "easydrag.ui.error_flow_credential_not_movable": "Dieser Wert lässt sich nicht in den Tresor verschieben. Entferne ihn stattdessen aus dem Flow.",
-  "easydrag.ui.error_flow_secret_exists": "Ein Geheimnis mit diesem Namen gibt es schon."
+  "easydrag.ui.error_flow_secret_exists": "Ein Geheimnis mit diesem Namen gibt es schon.",
+  "easydrag.ui.restore_masked": "Passwörter und Zugriffstoken in dieser Kopie wurden maskiert und erscheinen als [redacted]. Gib sie nach dem Wiederherstellen neu ein."
 }

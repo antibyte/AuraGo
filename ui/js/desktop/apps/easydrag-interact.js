@@ -565,7 +565,7 @@
             if (!ed.selection.size) return false;
             const frag = ed.model.fragment(Array.from(ed.selection));
             const text = JSON.stringify(frag);
-            core.storage.set(CLIPBOARD_KEY, { at: Date.now(), frag });
+            core.storage.set(CLIPBOARD_KEY, { at: Date.now(), frag: ED.credentials.mask(frag) });
             if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).catch(() => {});
             canvas.announce(t('easydrag.ui.copied', { count: frag.nodes.length }));
             return true;

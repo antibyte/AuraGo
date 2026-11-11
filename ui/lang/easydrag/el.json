@@ -1512,5 +1512,6 @@
   "easydrag.option.auth_in_header": "Κεφαλίδα",
   "easydrag.option.auth_in_query": "Παράμετρος διεύθυνσης",
   "easydrag.ui.error_flow_credential_not_movable": "Αυτή η τιμή δεν μπορεί να μετακινηθεί στο θησαυροφυλάκιο. Αφαίρεσέ την από τη ροή.",
-  "easydrag.ui.error_flow_secret_exists": "Υπάρχει ήδη μυστικό με αυτό το όνομα."
+  "easydrag.ui.error_flow_secret_exists": "Υπάρχει ήδη μυστικό με αυτό το όνομα.",
+  "easydrag.ui.restore_masked": "Οι κωδικοί και τα διακριτικά πρόσβασης σε αυτό το αντίγραφο αποκρύφθηκαν και εμφανίζονται ως [redacted]. Πληκτρολόγησέ τα ξανά μετά την επαναφορά."
 }

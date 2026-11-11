@@ -110,7 +110,8 @@
         // write that landed, or the next change would look already copied.
         function writeEmergency(opts) {
             const at = Date.now();
-            const ok = core.storage.set(emergencyKey(o.flowId), { revision, at, doc: o.model.toJSON() });
+            const doc = o.model.toJSON();
+            const ok = core.storage.set(emergencyKey(o.flowId), { revision, at, doc: ED.credentials.mask(doc), masked: ED.credentials.hasFindings(doc) });
             if (!ok) {
                 copyPending = true;
                 copyFailures++;

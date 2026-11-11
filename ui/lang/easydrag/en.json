@@ -1512,5 +1512,6 @@
   "easydrag.option.auth_in_header": "Header",
   "easydrag.option.auth_in_query": "Address parameter",
   "easydrag.ui.error_flow_credential_not_movable": "This value cannot be moved to the vault. Remove it from the flow instead.",
-  "easydrag.ui.error_flow_secret_exists": "A secret with this name already exists."
+  "easydrag.ui.error_flow_secret_exists": "A secret with this name already exists.",
+  "easydrag.ui.restore_masked": "Passwords and access tokens in this copy were masked and show as [redacted]. Enter them again after restoring."
 }
