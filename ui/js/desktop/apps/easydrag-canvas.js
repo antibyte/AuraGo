@@ -4,9 +4,10 @@
     'use strict';
 
     const ED = window.EasyDrag = window.EasyDrag || {};
-    // READABLE_ZOOM is the smallest zoom of an automatic fit; READABLE_PAD the room it leaves at the
+    // READABLE_ZOOM is the smallest zoom of an automatic fit (at 0.86 a 16 px name renders at 13.76 px, a 14 px
+    // summary at 12.04 px and 12 px pills and port labels at 10.32 px); READABLE_PAD the room it leaves at the
     // trigger end. Below ZOOMED_OUT the cards show their labels only, in a larger size.
-    const READABLE_ZOOM = 0.8;
+    const READABLE_ZOOM = 0.86;
     const READABLE_PAD = 48;
     const ZOOMED_OUT = 0.7;
     const PORT_TIP_KEY = 'aurago.easydrag.hint.ports';

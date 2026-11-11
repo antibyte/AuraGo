@@ -131,7 +131,7 @@
             if (old && old.text === text) return;
             if (old) { old.g.remove(); pillEls.delete(e.id); }
             if (!text) return;
-            const w = 14 + text.length * 7;
+            const w = 16 + Math.ceil(text.length * 7.6);
             const g = document.createElementNS(SVG, 'g');
             g.setAttribute('class', 'ed-pill');
             g.innerHTML = '<rect width="' + w + '" height="18" rx="9"></rect><text x="' + (w / 2) + '" y="13" text-anchor="middle">' + esc(text) + '</text>';

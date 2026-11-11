@@ -671,12 +671,12 @@ export async function run(env) {
         const far = h.canvas.restoreView({ cx: 50000, cy: 50000, zoom: 1 });
         check('c1d14 a stored view that shows no step is refused', far === false && !h.canvas.anyNodeVisible());
         h.canvas.fit({ readable: true });
-        eq('c1d14 the fallback is the readable fit from the trigger', round(h.ed.view), round({ x: 48, y: 350 - 36 * 0.8, zoom: 0.8 }));
+        eq('c1d14 the fallback is the readable fit from the trigger', round(h.ed.view), round({ x: 48, y: 350 - 36 * 0.86, zoom: 0.86 }));
         check('c1d14 the readable fit shows a step', h.canvas.anyNodeVisible());
 
         // An explicit fit shows everything, below the readable zoom when it must.
         h.canvas.fit();
-        check('c1d14 an explicit fit goes below the readable zoom on a narrow canvas', h.ed.view.zoom < 0.8, String(h.ed.view.zoom));
+        check('c1d14 an explicit fit goes below the readable zoom on a narrow canvas', h.ed.view.zoom < 0.86, String(h.ed.view.zoom));
     });
 
     await guardAsync('minimap selection keeps geometry', async () => {
