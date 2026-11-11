@@ -252,7 +252,13 @@ func newEgressLauncher(ctx context.Context, proxyAddr, profile string, opts Egre
 		Set("webrtc-ip-handling-policy", "disable_non_proxied_udp").
 		Proxy("http://"+proxyAddr).
 		// Chrome bypasses a proxy for loopback unless told otherwise.
-		Set("proxy-bypass-list", "<-loopback>")
+		Set("proxy-bypass-list", "<-loopback>").
+		// rod already sets disable-background-networking and disable-sync; these
+		// stop Chrome's own update and default-browser traffic, and the features
+		// list keeps rod's own two entries.
+		Set("disable-component-update").
+		Set("no-default-browser-check").
+		Set("disable-features", "site-per-process", "TranslateUI", "OptimizationHints", "MediaRouter")
 	if opts.Bin != "" {
 		l = l.Bin(opts.Bin)
 	}

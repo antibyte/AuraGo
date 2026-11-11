@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path"
+	"slices"
 	"testing"
 	"time"
 
@@ -204,6 +205,19 @@ func TestLaunchEgressBrowserSetsTheProxyFlags(t *testing.T) {
 	}
 	if l.Has("no-sandbox") {
 		t.Fatal("Sandbox: true must remove --no-sandbox")
+	}
+	// Chrome's own background traffic (updates, sign-in, optimization hints)
+	// must not reach the proxy.
+	for _, flag := range []string{"disable-background-networking", "disable-sync", "disable-component-update", "no-default-browser-check"} {
+		if !l.Has(launcherFlag(flag)) {
+			t.Fatalf("--%s is not set", flag)
+		}
+	}
+	features, _ := l.GetFlags(launcherFlag("disable-features"))
+	for _, want := range []string{"site-per-process", "TranslateUI", "OptimizationHints", "MediaRouter"} {
+		if !slices.Contains(features, want) {
+			t.Fatalf("disable-features = %v, missing %s", features, want)
+		}
 	}
 }
 

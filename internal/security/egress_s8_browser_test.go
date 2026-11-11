@@ -2,7 +2,9 @@ package security
 
 import (
 	"context"
+	"net"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -69,6 +71,15 @@ func TestEgressBrowserRefusesTheS8Fixture(t *testing.T) {
 			t.Errorf("the proxy dialled %s", target)
 		}
 	}
+	// Chrome keeps a few startup requests of its own (connectivity check,
+	// sign-in and static hosts) even with background networking, sync and
+	// component updates off. They are public Google hosts, so the proxy may dial
+	// them; anything else besides the fixture's own host is a finding.
+	for _, d := range dialed {
+		if d != fx.HostPort() && !chromeOwnHost(d) {
+			t.Errorf("the proxy dialled %s, which is neither the fixture's own host %s nor a Chrome-internal Google host; dialed = %v", d, fx.HostPort(), dialed)
+		}
+	}
 	if !slices.Contains(dialed, fx.HostPort()) {
 		t.Errorf("the page's own request did not go through the proxy; dialed = %v", dialed)
 	}
@@ -112,4 +123,19 @@ func assertServiceWorkerOutcome(t *testing.T, fx *testutil.EgressFixture, report
 	default:
 		t.Errorf("service worker: neither registered nor refused with an error; report = %+v, pings = %v", report, pings)
 	}
+}
+
+// chromeOwnHost reports whether a dialled host:port is one of Chrome's own
+// public Google endpoints.
+func chromeOwnHost(hostPort string) bool {
+	host, _, err := net.SplitHostPort(hostPort)
+	if err != nil {
+		return false
+	}
+	for _, suffix := range []string{"google.com", "gstatic.com", "googleapis.com", "gvt1.com", "gvt2.com"} {
+		if host == suffix || strings.HasSuffix(host, "."+suffix) {
+			return true
+		}
+	}
+	return false
 }
