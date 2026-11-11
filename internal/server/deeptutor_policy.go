@@ -40,13 +40,13 @@ func validateDeepTutorLogin(ctx context.Context, candidate, current *config.Conf
 // Call under CfgSaveMu, before any YAML or Vault mutation.
 func (s *Server) validateDeepTutorPatch(patch map[string]interface{}) error {
 	current := s.ConfigSnapshot()
-	candidate := current.Clone()
+	raw := map[string]interface{}{}
 	if current.ConfigPath != "" {
 		data, err := os.ReadFile(current.ConfigPath)
 		if err != nil {
 			return err
 		}
-		if err := yaml.Unmarshal(data, candidate); err != nil {
+		if err := yaml.Unmarshal(data, &raw); err != nil {
 			return err
 		}
 	}
@@ -54,10 +54,26 @@ func (s *Server) validateDeepTutorPatch(patch map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
+	var patchCopy map[string]interface{}
+	if err := yaml.Unmarshal(data, &patchCopy); err != nil {
+		return err
+	}
+	raw = normalizeConfigYAMLMap(raw)
+	if raw == nil {
+		raw = map[string]interface{}{}
+	}
+	deepMerge(raw, patchCopy, "")
+	data, err = yaml.Marshal(raw)
+	if err != nil {
+		return err
+	}
+	// Null must clear login, rather than leaving a cloned true bool unchanged.
+	candidate := &config.Config{}
+	candidate.Auth.PasswordHash = current.Auth.PasswordHash
 	if err := yaml.Unmarshal(data, candidate); err != nil {
 		return err
 	}
-	if auth, ok := patch["auth"].(map[string]interface{}); ok {
+	if auth, ok := raw["auth"].(map[string]interface{}); ok {
 		if hash, ok := auth["password_hash"].(string); ok {
 			candidate.Auth.PasswordHash = hash
 		}

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -15,6 +16,34 @@ import (
 	"aurago/internal/dbutil"
 	"aurago/internal/desktopstore"
 )
+
+func TestDeepTutorNullPatchCannotClearLogin(t *testing.T) {
+	for _, body := range []string{`{"auth":null}`, `{"auth":{"enabled":null}}`} {
+		t.Run(body, func(t *testing.T) {
+			s := deepTutorPolicyServer(t, false)
+			before, _ := os.ReadFile(s.Cfg.ConfigPath)
+			if err := patchAuthConfig(s, map[string]interface{}{"enabled": nil}); !errors.Is(err, desktopstore.ErrDeepTutorRequiresLogin) {
+				t.Fatalf("auth null patch: %v", err)
+			}
+			var patch map[string]interface{}
+			if err := json.Unmarshal([]byte(body), &patch); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := applyConfigPatch(s, patch); !errors.Is(err, desktopstore.ErrDeepTutorRequiresLogin) {
+				t.Fatalf("internal null patch: %v", err)
+			}
+			w := httptest.NewRecorder()
+			handleUpdateConfig(s)(w, httptest.NewRequest(http.MethodPut, "/api/config", strings.NewReader(body)))
+			if w.Code != http.StatusConflict {
+				t.Fatalf("HTTP null patch: %d %s", w.Code, w.Body)
+			}
+			after, _ := os.ReadFile(s.Cfg.ConfigPath)
+			if string(before) != string(after) || !s.ConfigSnapshot().Auth.Enabled {
+				t.Fatal("null patch changed saved or live login")
+			}
+		})
+	}
+}
 
 func deepTutorPolicyServer(t *testing.T, pending bool) *Server {
 	t.Helper()
