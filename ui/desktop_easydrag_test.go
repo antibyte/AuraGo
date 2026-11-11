@@ -12,7 +12,7 @@ var easyDragModules = []string{
 	"easydrag-core.js", "easydrag-durable.js", "easydrag-template.js", "easydrag-model.js", "easydrag-geometry.js", "easydrag-groups.js", "easydrag-saver.js",
 	"easydrag-canvas.js", "easydrag-wires.js", "easydrag-interact.js", "easydrag-palette.js", "easydrag-fields.js",
 	"easydrag-forms.js", "easydrag-blocks.js", "easydrag-batches.js", "easydrag-block-fields.js", "easydrag-transform.js", "easydrag-mapping.js", "easydrag-detail.js", "easydrag-scenarios.js", "easydrag-testing.js", "easydrag-child-history.js", "easydrag-compare.js", "easydrag-approvals.js", "easydrag-run-stream.js", "easydrag-run-start.js", "easydrag-run-stop.js", "easydrag-run-drawer.js", "easydrag-runs.js", "easydrag-metadata.js", "easydrag-publish.js",
-	"easydrag-library-pause.js", "easydrag-pack.js", "easydrag-home.js", "easydrag-dialogs.js", "easydrag-history.js", "easydrag-workspace.js", "easydrag-authoring.js", "easydrag-extraction.js", "easydrag-editor.js", "easydrag.js",
+	"easydrag-library-pause.js", "easydrag-pack.js", "easydrag-home.js", "easydrag-dialogs.js", "easydrag-history.js", "easydrag-workspace.js", "easydrag-authoring.js", "easydrag-extraction.js", "easydrag-header.js", "easydrag-editor.js", "easydrag.js",
 }
 
 func TestEasyDragAssetsLoadInDependencyOrder(t *testing.T) {
@@ -102,6 +102,34 @@ func TestEasyDragAppLifecycle(t *testing.T) {
 		}
 		if !strings.HasPrefix(strings.TrimSpace(text), "//") || !strings.Contains(text, "'use strict';") {
 			t.Errorf("%s must start with a purpose comment and use strict mode", name)
+		}
+	}
+}
+
+// easyDragSplitSeams pins the S0.1 module splits: each moved function lives only in its new
+// module, the module that lost it reaches it through the new module, and the facades other
+// modules call keep their exact export line.
+var easyDragSplitSeams = []struct {
+	file   string
+	has    []string
+	hasNot []string
+}{
+	{"easydrag-header.js", []string{"function renderHeader(", "function renderSaveState(", "function syncSaveChip(", "function renderIssues(", "function renderLastRun(", "function runNowState(", "const SAVE_ICONS", "ED.header = { create };"}, nil},
+	{"easydrag-editor.js", []string{"ED.header.create({", "function renderBanner(", "ED.editor = { create };"}, []string{"function renderHeader(", "function renderSaveState(", "function stateOf(", "function runNowState(", "const SAVE_ICONS"}},
+}
+
+func TestEasyDragSplitSeams(t *testing.T) {
+	for _, seam := range easyDragSplitSeams {
+		text := readDesktopAssetText(t, "js/desktop/apps/"+seam.file)
+		for _, marker := range seam.has {
+			if !strings.Contains(text, marker) {
+				t.Errorf("%s misses %q", seam.file, marker)
+			}
+		}
+		for _, marker := range seam.hasNot {
+			if strings.Contains(text, marker) {
+				t.Errorf("%s still has %q, which moved out in S0.1", seam.file, marker)
+			}
 		}
 	}
 }
