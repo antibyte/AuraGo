@@ -42,7 +42,7 @@ const (
 // flowsCollectionRoutes are the first path segments under /api/desktop/flows/ that
 // handleFlows dispatches as a collection route, not as a flow id. Only routes that exist
 // are listed: a new collection route in handleFlows adds its segment here.
-var flowsCollectionRoutes = map[string]bool{"secrets": true, "runs": true, "node-types": true, "templates": true, "validate": true, "ai-proposal": true, "packs": true, "approvals": true}
+var flowsCollectionRoutes = map[string]bool{"secrets": true, "credentials": true, "runs": true, "node-types": true, "templates": true, "validate": true, "ai-proposal": true, "packs": true, "approvals": true}
 
 // flowIDPattern accepts what can be a flow id (flows.NewFlowID gives "flow_" and ten
 // characters); anything else is FLOW_NOT_FOUND before the store is asked.
@@ -478,6 +478,8 @@ func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case len(parts) == 0:
 		s.flowsCollection(w, r)
+	case parts[0] == "credentials":
+		s.flowsCredentials(w, r, parts[1:])
 	case parts[0] == "secrets":
 		s.flowsSecrets(w, r, parts[1:])
 	case parts[0] == "runs":
@@ -562,6 +564,8 @@ func isFlowsAPIPath(path string) bool {
 // (validRouteBearer) and handleFlows apply it; session users are not affected.
 func flowsRequiredScope(method string, parts []string) string {
 	switch {
+	case len(parts) >= 1 && parts[0] == "credentials":
+		return desktopScopeAdmin
 	case len(parts) >= 2 && parts[1] == "scenarios":
 		return desktopScopeAdmin
 	case method == http.MethodGet || method == http.MethodHead:

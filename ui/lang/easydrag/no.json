@@ -1521,5 +1521,8 @@
   "easydrag.ui.credential_moved": "Flyttet. Publiser flyten, så kan du rydde opp i gamle kopier.",
   "easydrag.ui.credential_undo_reset": "Angre-historikken er nullstilt.",
   "easydrag.ui.credential_replace_confirm": "Det finnes allerede en hemmelighet som heter {name}. Vil du erstatte verdien?",
-  "easydrag.ui.error_flow_version_purged": "Denne versjonen kan ikke lenger brukes: den inneholdt innskrevet legitimasjon og er merket for opprydding."
+  "easydrag.ui.error_flow_version_purged": "Denne versjonen kan ikke lenger brukes: den inneholdt innskrevet legitimasjon og er merket for opprydding.",
+  "easydrag.ui.cred_hint_title": "Innskrevet legitimasjon funnet",
+  "easydrag.ui.cred_hint_text": "Gamle kopier av innskrevne tokens kan fortsatt ligge i flowene, kjøringene og sikkerhetskopiene dine. Rydd opp i noen få trinn.",
+  "easydrag.ui.cred_hint_action": "Se gjennom og rydd opp"
 }

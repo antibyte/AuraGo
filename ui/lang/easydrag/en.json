@@ -1521,5 +1521,8 @@
   "easydrag.ui.credential_moved": "Moved. Publish the flow, then you can clean up old copies.",
   "easydrag.ui.credential_undo_reset": "Undo history was reset.",
   "easydrag.ui.credential_replace_confirm": "A secret named {name} already exists. Replace its value?",
-  "easydrag.ui.error_flow_version_purged": "This version can no longer be used: it held a typed credential and was marked for cleanup."
+  "easydrag.ui.error_flow_version_purged": "This version can no longer be used: it held a typed credential and was marked for cleanup.",
+  "easydrag.ui.cred_hint_title": "Typed credentials found",
+  "easydrag.ui.cred_hint_text": "Old copies of typed tokens may still sit in your flows, runs and backups. Clean them up in a few steps.",
+  "easydrag.ui.cred_hint_action": "Review and clean up"
 }

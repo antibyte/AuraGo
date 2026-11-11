@@ -1521,5 +1521,8 @@
   "easydrag.ui.credential_moved": "已移入。发布流程后，你可以清理旧副本。",
   "easydrag.ui.credential_undo_reset": "撤销历史已重置。",
   "easydrag.ui.credential_replace_confirm": "名为 {name} 的密钥已存在。要替换它的值吗？",
-  "easydrag.ui.error_flow_version_purged": "此版本已无法使用：它包含手动输入的凭据，已被标记为待清理。"
+  "easydrag.ui.error_flow_version_purged": "此版本已无法使用：它包含手动输入的凭据，已被标记为待清理。",
+  "easydrag.ui.cred_hint_title": "发现手动输入的凭据",
+  "easydrag.ui.cred_hint_text": "手动输入的令牌的旧副本可能仍保存在你的流程、运行记录和备份中。几步即可清理。",
+  "easydrag.ui.cred_hint_action": "查看并清理"
 }

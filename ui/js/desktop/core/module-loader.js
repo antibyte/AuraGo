@@ -319,6 +319,7 @@
                 '/js/desktop/apps/easydrag-credentials-move.js',
                 '/js/desktop/apps/easydrag-library-pause.js',
                 '/js/desktop/apps/easydrag-pack.js',
+                '/js/desktop/apps/easydrag-credentials-purge.js',
                 '/js/desktop/apps/easydrag-home-grid.js',
                 '/js/desktop/apps/easydrag-home.js',
                 '/js/desktop/apps/easydrag-dialogs.js',

@@ -1164,5 +1164,6 @@ await import('./test-easydrag-compare.mjs');
 await import('./test-easydrag-approvals.mjs');
 await import('./test-easydrag-credentials.mjs');
 await import('./test-easydrag-credentials-move.mjs');
+await (await import('./test-easydrag-credentials-purge.mjs')).run();
 await import('../internal/flows/testdata/collection_filters_test.cjs');
 console.log('all EasyDrag checks passed');

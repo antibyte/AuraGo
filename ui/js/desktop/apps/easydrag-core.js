@@ -377,7 +377,8 @@
             validate: (doc, mode) => api(base + '/validate', json('POST', { doc, mode })),
             secrets: () => api(base + '/secrets'),
             saveSecret: (name, value) => api(base + '/secrets/' + enc(name), json('PUT', { value })),
-            deleteSecret: name => api(base + '/secrets/' + enc(name), { method: 'DELETE' })
+            deleteSecret: name => api(base + '/secrets/' + enc(name), { method: 'DELETE' }),
+            credentialScan: (fresh, signal) => api(base + '/credentials/scan' + query({ fresh: fresh ? '1' : '' }), { signal, cache: 'no-store' })
         };
         Object.keys(client).forEach(name => {
             if (name.endsWith('Url')) return;

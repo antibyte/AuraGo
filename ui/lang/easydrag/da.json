@@ -1521,5 +1521,8 @@
   "easydrag.ui.credential_moved": "Flyttet. Udgiv flowet, så kan du rydde op i gamle kopier.",
   "easydrag.ui.credential_undo_reset": "Fortryd-historikken er nulstillet.",
   "easydrag.ui.credential_replace_confirm": "Der findes allerede en hemmelighed med navnet {name}. Skal værdien erstattes?",
-  "easydrag.ui.error_flow_version_purged": "Denne version kan ikke længere bruges: den indeholdt en indtastet adgangskode og er markeret til oprydning."
+  "easydrag.ui.error_flow_version_purged": "Denne version kan ikke længere bruges: den indeholdt en indtastet adgangskode og er markeret til oprydning.",
+  "easydrag.ui.cred_hint_title": "Indtastede adgangsoplysninger fundet",
+  "easydrag.ui.cred_hint_text": "Gamle kopier af indtastede tokens kan stadig ligge i dine flows, kørsler og sikkerhedskopier. Ryd op i få trin.",
+  "easydrag.ui.cred_hint_action": "Gennemgå og ryd op"
 }

@@ -129,6 +129,8 @@
         const tplGrid = el.querySelector('.ed-template-grid');
         const runtime = ED.durable && ED.durable.supported(app) ? ED.durable.observe(Object.assign({}, app, { root: el })) : null;
         if (runtime) { el.insertBefore(runtime.el, el.querySelector('.ed-home-toolbar')); bag.add(() => runtime.dispose()); }
+        const credentialHint = ED.credentialsPurge && ED.credentialsPurge.mountHint(el, app);
+        if (credentialHint) bag.add(() => credentialHint.dispose());
         // The grid is no live region (every refresh would read all cards); meaningful changes
         // are announced on their own (a deleted flow).
         const voice = core.announcer(el.querySelector('[data-ed-home-live]'));
@@ -486,6 +488,7 @@
             render();
             reportLoaded();
             focusLeftFlow();
+            if (credentialHint) void credentialHint.refresh();
         }
 
         // retryTemplates loads the templates again (their Try again). Focus that was on the old button

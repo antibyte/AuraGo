@@ -171,6 +171,7 @@ type Service struct {
 	locks      flowLocks
 	draftLocks flowLocks
 	lastSweep  time.Time // retentionLoop only
+	scan       scanCache
 
 	// startMu serializes Start. It is not taken by Shutdown, which only needs mu.
 	startMu sync.Mutex
@@ -359,6 +360,7 @@ func (s *Service) isClosed() bool {
 func (s *Service) retentionLoop() {
 	defer close(s.done)
 	s.sweepPurgeBackups()
+	s.initialCredentialScan()
 	ticker := time.NewTicker(s.cfg.RetentionInterval)
 	defer ticker.Stop()
 	for {

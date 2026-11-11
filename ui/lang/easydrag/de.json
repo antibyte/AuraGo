@@ -1521,5 +1521,8 @@
   "easydrag.ui.credential_moved": "Verschoben. Veröffentliche den Flow, dann kannst du alte Kopien bereinigen.",
   "easydrag.ui.credential_undo_reset": "Der Rückgängig-Verlauf wurde zurückgesetzt.",
   "easydrag.ui.credential_replace_confirm": "Ein Geheimnis namens {name} gibt es schon. Soll sein Wert ersetzt werden?",
-  "easydrag.ui.error_flow_version_purged": "Diese Version kann nicht mehr verwendet werden: Sie enthielt ein getipptes Zugangsdatum und ist zur Bereinigung markiert."
+  "easydrag.ui.error_flow_version_purged": "Diese Version kann nicht mehr verwendet werden: Sie enthielt ein getipptes Zugangsdatum und ist zur Bereinigung markiert.",
+  "easydrag.ui.cred_hint_title": "Getippte Zugangsdaten gefunden",
+  "easydrag.ui.cred_hint_text": "Alte Kopien getippter Tokens liegen vielleicht noch in deinen Flows, Läufen und Sicherungen. Räume sie in wenigen Schritten auf.",
+  "easydrag.ui.cred_hint_action": "Prüfen und bereinigen"
 }

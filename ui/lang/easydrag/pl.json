@@ -1521,5 +1521,8 @@
   "easydrag.ui.credential_moved": "Przeniesiono. Opublikuj przepływ, a potem możesz wyczyścić stare kopie.",
   "easydrag.ui.credential_undo_reset": "Historia cofania została wyzerowana.",
   "easydrag.ui.credential_replace_confirm": "Sekret o nazwie {name} już istnieje. Zastąpić jego wartość?",
-  "easydrag.ui.error_flow_version_purged": "Tej wersji nie można już używać: zawierała wpisane dane uwierzytelniające i została oznaczona do wyczyszczenia."
+  "easydrag.ui.error_flow_version_purged": "Tej wersji nie można już używać: zawierała wpisane dane uwierzytelniające i została oznaczona do wyczyszczenia.",
+  "easydrag.ui.cred_hint_title": "Znaleziono wpisane dane uwierzytelniające",
+  "easydrag.ui.cred_hint_text": "Stare kopie wpisanych tokenów mogą nadal znajdować się w twoich flow, uruchomieniach i kopiach zapasowych. Wyczyść je w kilku krokach.",
+  "easydrag.ui.cred_hint_action": "Przejrzyj i wyczyść"
 }

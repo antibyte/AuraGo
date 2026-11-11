@@ -1521,5 +1521,8 @@
   "easydrag.ui.credential_moved": "移しました。フローを公開すると、古いコピーを整理できます。",
   "easydrag.ui.credential_undo_reset": "元に戻す履歴をリセットしました。",
   "easydrag.ui.credential_replace_confirm": "{name} というシークレットは既にあります。値を置き換えますか？",
-  "easydrag.ui.error_flow_version_purged": "このバージョンは使用できません。入力された認証情報が含まれていたため、クリーンアップ対象になっています。"
+  "easydrag.ui.error_flow_version_purged": "このバージョンは使用できません。入力された認証情報が含まれていたため、クリーンアップ対象になっています。",
+  "easydrag.ui.cred_hint_title": "入力された認証情報が見つかりました",
+  "easydrag.ui.cred_hint_text": "入力したトークンの古いコピーが、フロー・実行履歴・バックアップに残っている可能性があります。数ステップで消去できます。",
+  "easydrag.ui.cred_hint_action": "確認してクリーンアップ"
 }

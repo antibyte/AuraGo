@@ -1521,5 +1521,8 @@
   "easydrag.ui.credential_moved": "Přesunuto. Publikuj flow, potom můžeš vyčistit staré kopie.",
   "easydrag.ui.credential_undo_reset": "Historie kroků zpět byla vynulována.",
   "easydrag.ui.credential_replace_confirm": "Tajemství s názvem {name} už existuje. Nahradit jeho hodnotu?",
-  "easydrag.ui.error_flow_version_purged": "Tuto verzi už nelze použít: obsahovala ručně zadané přihlašovací údaje a je označena k vyčištění."
+  "easydrag.ui.error_flow_version_purged": "Tuto verzi už nelze použít: obsahovala ručně zadané přihlašovací údaje a je označena k vyčištění.",
+  "easydrag.ui.cred_hint_title": "Nalezeny ručně zadané přístupové údaje",
+  "easydrag.ui.cred_hint_text": "Staré kopie ručně zadaných tokenů mohou stále ležet ve tvých flow, během a zálohách. Vyčisti je v několika krocích.",
+  "easydrag.ui.cred_hint_action": "Zkontrolovat a vyčistit"
 }

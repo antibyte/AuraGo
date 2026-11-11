@@ -1521,5 +1521,8 @@
   "easydrag.ui.credential_moved": "Déplacé. Publie le flux, puis tu pourras nettoyer les anciennes copies.",
   "easydrag.ui.credential_undo_reset": "L’historique d’annulation a été réinitialisé.",
   "easydrag.ui.credential_replace_confirm": "Un secret nommé {name} existe déjà. Remplacer sa valeur ?",
-  "easydrag.ui.error_flow_version_purged": "Cette version ne peut plus être utilisée : elle contenait un identifiant saisi et est marquée pour nettoyage."
+  "easydrag.ui.error_flow_version_purged": "Cette version ne peut plus être utilisée : elle contenait un identifiant saisi et est marquée pour nettoyage.",
+  "easydrag.ui.cred_hint_title": "Identifiants saisis détectés",
+  "easydrag.ui.cred_hint_text": "D'anciennes copies de jetons saisis peuvent encore se trouver dans tes flows, exécutions et sauvegardes. Nettoie-les en quelques étapes.",
+  "easydrag.ui.cred_hint_action": "Vérifier et nettoyer"
 }

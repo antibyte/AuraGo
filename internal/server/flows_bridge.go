@@ -452,6 +452,9 @@ func (h flowMissionHooks) NextFlowRun(missionID string) (time.Time, bool) {
 
 // broadcastFlowsChanged tells open editors to refresh their flow list.
 func (s *Server) broadcastFlowsChanged(flowID, reason string) {
+	if s.Flows != nil {
+		s.Flows.InvalidateCredentialScan()
+	}
 	broadcastDesktopEvent(s, s.DesktopHub, desktop.Event{Type: "flows_changed",
 		Payload: map[string]interface{}{"flow_id": flowID, "reason": reason}, CreatedAt: time.Now().UTC()})
 }
