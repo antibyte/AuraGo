@@ -688,7 +688,7 @@ async function openReconfigureModal(nestId) {
     try {
         const history = await api('nests/' + nestId + '/config-history?limit=100');
         const applied = history.find(rev => rev.id === nest.applied_config_rev);
-        if (applied?.permissions_json) permissions = JSON.parse(applied.permissions_json);
+        if (applied?.permissions_json && applied.nest_id === nest.id && applied.egg_id === nest.egg_id) permissions = JSON.parse(applied.permissions_json);
     } catch (err) {
         showToast(err.message, 'error');
         return;

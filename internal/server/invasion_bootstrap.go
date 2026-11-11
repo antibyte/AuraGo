@@ -67,6 +67,12 @@ func (s *Server) restoreEggPermissions(nest invasion.NestRecord, data []byte, pa
 	if err != nil {
 		return nil, err
 	}
+	if revision.NestID != nest.ID || revision.EggID != nest.EggID {
+		if completeReview {
+			return data, nil
+		}
+		return nil, fmt.Errorf("Egg assignment changed; permissions need explicit review")
+	}
 	if revision.PermissionsJSON == "" && completeReview {
 		return data, nil
 	}

@@ -52,6 +52,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
   and [] revocations. History failures keep editing safe and retryable. Empty
   tool lists deny shell/Python. Keep all sixteen Invasion locales aligned; verify
   `TestInvasionPermissionRevocationBrowser` and the Invasion locale tests.
+  Load an applied permission snapshot only when both nest and Egg IDs match;
+  reassignment starts with unchecked grants for explicit review.
 
 <!-- pinball:start -->
 - AuraPinball (`pinball`, Games) lazily loads its isolated pinned Three.js runtime (the

@@ -29,6 +29,11 @@ Vault key. Explicit per-Egg key references take precedence. OAuth sessions and
 the master's managed-local provider cannot be copied to another machine; select
 a separately reachable static provider for that Egg.
 
+Reconfiguration and rollback use the same provider binding and private key
+selection. Later partial edits retain the chosen connection settings. Permission
+snapshots belong to one nest/Egg pair; reassigning a nest requires a new explicit
+permission review, and another Egg's revision cannot be rolled back onto it.
+
 Back up the installation before the coordinated upgrade. New Invasion database
 columns are migrated only after a consistent private backup succeeds. Binary
 rollback cannot start unmarked legacy backups. Existing remote machines are not

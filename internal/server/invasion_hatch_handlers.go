@@ -1072,6 +1072,26 @@ func handleInvasionNestSafeReconfigure(s *Server) http.HandlerFunc {
 			eggMasterKey, _ = invasion.GenerateSharedKey()
 		}
 
+		var previous invasion.SafeConfigPatch
+		if nest.AppliedConfigRev != "" {
+			current, readErr := invasion.GetSafeConfigRevision(s.InvasionDB, nest.AppliedConfigRev)
+			if readErr != nil {
+				jsonError(w, "Cannot read applied Egg configuration", http.StatusConflict)
+				return
+			}
+			if current.NestID == nest.ID && current.EggID == nest.EggID {
+				previous, readErr = invasion.JSONToPatch(current.PatchJSON)
+				if readErr != nil {
+					jsonError(w, "Cannot read applied Egg connection settings", http.StatusConflict)
+					return
+				}
+			}
+		}
+		egg, patch, err = prepareEggConfigPatch(masterCfg, egg, previous, patch)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		cfgYAML, err := invasion.GenerateEggConfig(masterCfg, egg, nest, sharedKey, masterURL, eggMasterKey)
 		if err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to generate config", "Safe reconfigure config generation failed", err, "nest_id", id)
@@ -1084,7 +1104,9 @@ func handleInvasionNestSafeReconfigure(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusConflict)
 			return
 		}
-		patchedYAML, err := invasion.ApplySafeConfigPatch(cfgYAML, patch)
+		yamlPatch := patch
+		yamlPatch.Provider, yamlPatch.InheritLLM = nil, nil
+		patchedYAML, err := invasion.ApplySafeConfigPatch(cfgYAML, yamlPatch)
 		if err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to apply patch", "Safe reconfigure patch failed", err, "nest_id", id)
 			return
@@ -1265,6 +1287,10 @@ func handleInvasionNestConfigRollback(s *Server) http.HandlerFunc {
 		}
 
 		// Re-generate config at the target revision's patch state
+		if rev.EggID != egg.ID {
+			jsonError(w, "Revision does not belong to the assigned Egg", http.StatusConflict)
+			return
+		}
 		// We re-apply the target revision's patch to a fresh config
 		patch, err := invasion.JSONToPatch(rev.PatchJSON)
 		if err != nil {
@@ -1284,13 +1310,20 @@ func handleInvasionNestConfigRollback(s *Server) http.HandlerFunc {
 			eggMasterKey, _ = invasion.GenerateSharedKey()
 		}
 
+		egg, patch, err = prepareEggConfigPatch(masterCfg, egg, invasion.SafeConfigPatch{}, patch)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		cfgYAML, err := invasion.GenerateEggConfig(masterCfg, egg, nest, sharedKey, masterURL, eggMasterKey)
 		if err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to generate config", "Config rollback config generation failed", err, "nest_id", id)
 			return
 		}
 
-		patchedYAML, err := invasion.ApplySafeConfigPatch(cfgYAML, patch)
+		yamlPatch := patch
+		yamlPatch.Provider, yamlPatch.InheritLLM = nil, nil
+		patchedYAML, err := invasion.ApplySafeConfigPatch(cfgYAML, yamlPatch)
 		if err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to apply patch", "Config rollback patch apply failed", err, "nest_id", id)
 			return

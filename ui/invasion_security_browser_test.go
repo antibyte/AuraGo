@@ -15,7 +15,7 @@ func TestInvasionPermissionRevocationBrowser(t *testing.T) {
   window.t = key=>key; window.showToast = message=>{window.lastToast=message;};
   window.openModal = ()=>{}; window.closeModal = ()=>{};
   window.fetch = async (url,options={}) => {
-   if(url.includes('config-history')) return {ok:true,json:async()=>[{id:'rev',permissions_json:JSON.stringify({allowed_tools:['shell','python'],allow_filesystem_write:true,allow_network_requests:true,allow_unsandboxed_shell:true,allow_remote_shell:true,allow_self_update:true})}]};
+   if(url.includes('config-history')) return {ok:true,json:async()=>[{id:'rev',nest_id:'nest',egg_id:window.otherEgg?'old-egg':'egg',permissions_json:JSON.stringify({allowed_tools:['shell','python'],allow_filesystem_write:true,allow_network_requests:true,allow_unsandboxed_shell:true,allow_remote_shell:true,allow_self_update:true})}]};
    if(options.method==='POST'){window.sent=JSON.parse(options.body);return {ok:!window.fail,json:async()=>window.fail?{error:'offline'}:{status:'applied'}};}
    return {ok:true,json:async()=>[]};
   };
@@ -23,7 +23,7 @@ func TestInvasionPermissionRevocationBrowser(t *testing.T) {
 	if err := page.AddScriptTag("", normalizeAssetText(mustReadUIFile(t, "js/invasion/main.js"))); err != nil {
 		t.Fatal(err)
 	}
-	page.MustEval(`async()=>{nestsData=[{id:'nest',name:'fixture',applied_config_rev:'rev'}];await openReconfigureModal('nest');}`)
+	page.MustEval(`async()=>{nestsData=[{id:'nest',egg_id:'egg',name:'fixture',applied_config_rev:'rev'}];await openReconfigureModal('nest');}`)
 	if !page.MustEval(`()=>document.getElementById('reconfigure-allow-unsandboxed').checked && document.getElementById('reconfigure-allowed-tools').value.includes('shell')`).Bool() {
 		t.Fatal("applied permissions were not loaded")
 	}
@@ -38,5 +38,9 @@ func TestInvasionPermissionRevocationBrowser(t *testing.T) {
 	page.MustEval(`async()=>{window.fail=false;await applyReconfigure();}`)
 	if !page.MustEval(`()=>lastToast==='invasion.reconfigure_success' && sent.allowed_tools.length===0`).Bool() {
 		t.Fatal("retry did not submit the revocations")
+	}
+	page.MustEval(`async()=>{window.otherEgg=true;await openReconfigureModal('nest');}`)
+	if !page.MustEval(`()=>document.getElementById('reconfigure-allowed-tools').value==='[]'&&Array.from(document.querySelectorAll('#reconfigure-modal input[type=checkbox]')).every(el=>!el.checked)`).Bool() {
+		t.Fatal("another Egg's grants were copied into the review")
 	}
 }
