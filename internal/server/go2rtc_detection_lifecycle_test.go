@@ -142,6 +142,7 @@ func newGo2RTCLifecycleServer(t *testing.T, autoStart, detecting bool) (*Server,
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
 	cfg := &config.Config{ConfigPath: configPath}
+	cfg.Embeddings.CorpusMaxSizeMB = config.DefaultCorpusMaxSizeMB
 	cfg.Directories.DataDir = filepath.Join(tmpDir, "data")
 	cfg.Docker.Enabled = true
 	cfg.Docker.Host = "tcp://" + strings.TrimPrefix(dockerAPI.URL, "http://")
