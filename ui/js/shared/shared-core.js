@@ -1167,6 +1167,23 @@ const _modalCtl = (function () {
 // Shared with js/precision/workspace.js (a classic-script const is not a window property).
 window.AuraModalController = _modalCtl;
 
+// A legacy end event must not replace the richer verdict for the same tool run.
+window.shouldShowAgentToolStatus = (() => {
+    const outcomes = new WeakMap();
+    const finalStates = new Set(['succeeded', 'sanitized', 'failed', 'blocked', 'cancelled', 'unknown', 'deferred', 'needs_setup']);
+    return (owner, data) => {
+        if (!owner) return true;
+        const event = data.event || data.type;
+        const payload = data.payload || data;
+        const name = String(payload.tool_name || payload.toolName || data.detail || data.message || '').trim();
+        let known = outcomes.get(owner);
+        if (!known) { known = new Set(); outcomes.set(owner, known); }
+        if (event === 'tool_start' || event === 'agent_action' && payload.state === 'started') known.delete(name);
+        if (event === 'agent_action' && finalStates.has(payload.state)) known.add(name);
+        return event !== 'tool_end' || !known.has(name);
+    };
+})();
+
 // Both chat surfaces keep questions retryable until the server accepts the answer or stop.
 window.bindAgentQuestionDialog = function (overlay, sessionId, endpoint, errorText) {
     let pending = false;

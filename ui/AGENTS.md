@@ -34,6 +34,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
   an optional scrubbed error; both chat surfaces retain partial text and show the
   concrete failure. Recovery notices alone remain transient. Stop/clear success
   requires a successful HTTP response. Verify `TestDesktopChatFailuresAndQuestionCancellationBrowser`.
+  Both chat surfaces retain typed tool verdicts when a legacy `tool_end` follows;
+  a new start resets that tool's verdict through `shouldShowAgentToolStatus`.
 
 - Embeddings always shows the corpus limit, including with its provider disabled:
   1024 MiB default, integer range 1..1048576, restart-only. Dashboard memory shows

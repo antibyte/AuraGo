@@ -369,6 +369,7 @@ function connectSSE() {
     window.AuraSSE.on('agent_action', function (payload) {
         if (!isCurrentSession(payload)) return;
         if (!payload) return;
+        window.shouldShowAgentToolStatus(agentStatusDiv, { event: 'agent_action', payload });
         const toolName = payload.tool_name || payload.toolName || 'tool';
         const state = String(payload.state || '').toLowerCase();
         let message = '';
@@ -405,6 +406,7 @@ function handleSSEMessage(e) {
         let message = '';
         if (!data.event) return;
         if (data.session_id && data.session_id !== getActiveSessionId()) return;
+        if (!window.shouldShowAgentToolStatus(agentStatusDiv, data)) return;
         if (data.event === 'thinking' || data.event === 'tool_start' || data.event === 'co_agent_spawn' || data.event === 'coding' || data.event === 'progress') {
             chatSetHidden(agentStatusDiv, false);
         }

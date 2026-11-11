@@ -93,5 +93,8 @@ func TestDesktopChatFailuresAndQuestionCancellationBrowser(t *testing.T) {
 		if !p.MustEval(`state=>{const text=DesktopChatRenderer.formatAgentActionStatus({event:'agent_action',payload:{state,tool_name:'fixture_tool'}});return text.includes('fixture_tool')&&!text.includes('recovery');}`, state).Bool() {
 			t.Fatalf("incorrect %s tool state", state)
 		}
+		if !p.MustEval(`state=>{const owner=document.createElement('div');const action={event:'agent_action',payload:{state,tool_name:'fixture_tool'}};const end={event:'tool_end',detail:'fixture_tool'};if(!shouldShowAgentToolStatus(owner,action)||shouldShowAgentToolStatus(owner,end))return false;shouldShowAgentToolStatus(owner,{event:'tool_start',detail:'fixture_tool'});return shouldShowAgentToolStatus(owner,end);}`, state).Bool() {
+			t.Fatalf("legacy end overwrote %s or poisoned the next run", state)
+		}
 	}
 }
