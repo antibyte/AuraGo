@@ -100,6 +100,23 @@ func (b *EgressBrowser) Err() error // why it ended: nil after Close, ErrEgressP
 
   If any of them cannot authenticate, the plan stops and asks the owner. A request that cannot authenticate still fails closed, so this is a functional question, not a security hole.
 
+**A.1 spike result (2026-11-11, Chrome/157.0.8103.51, go-rod v0.116.2).** Each cell is one fresh Chrome and one fresh proxy; the proxy forces a 407 on the first request to every key.
+
+| kind | browser-wide | browser-wide+attach |
+|---|---|---|
+| nav | PASS | PASS |
+| subresource | PASS | PASS |
+| fetch | PASS | PASS |
+| xhr | PASS | PASS |
+| websocket | FAIL | FAIL |
+| worker | PASS | PASS |
+| serviceworker | NOT-OBSERVED | NOT-OBSERVED |
+| prefetch | FAIL | FAIL |
+
+Verdict: STOP. No variant authenticates every kind (see the table). The plan waits for the owner before A.2.
+
+Details. The Chrome challenge reads `source=Proxy origin=http://<proxy host:port> scheme=basic`; Task A.3 can filter on `Source == "Proxy"` and an origin equal to the proxy address. Per-target attach changed nothing: both variants give the same table. `websocket` and `prefetch` reached the proxy, got the 407, and Chrome never raised `Fetch.authRequired` for them, so the request stayed unauthenticated and failed closed (no leak). `serviceworker` was never seen at the proxy, even after a rerun with a 15 s settle (both variants), so by the spike rule it counts as a failure. `nav`, `subresource`, `fetch`, `xhr` and the dedicated `worker` authenticate with the plain browser-wide `Fetch.enable`.
+
 ### 3.4 Failing closed and the path check
 - **Proxy death.** `CaptureProxy` gets a `Done()` channel that closes when its listener stops for any reason. When it closes, the helper cancels the browser context and records `ErrEgressProxyDied`. Callers return that error and never partial content.
 - **No direct fallback.** Chrome with an explicit `--proxy-server` never falls back to a direct connection.
