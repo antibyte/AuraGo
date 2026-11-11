@@ -343,6 +343,7 @@
             proposeNew: (body, signal) => api(base + '/ai-proposal', Object.assign(json('POST', body), { signal })),
             extractPreview: (id, body, signal) => api(flow(id) + '/extract/preview', Object.assign(json('POST', body), { signal })),
             extractApply: (id, body, signal) => api(flow(id) + '/extract/apply', Object.assign(json('POST', body), { signal })),
+            moveCredential: (id, body) => api(flow(id) + '/credentials/move', json('POST', body)),
             extractReconcile: (id, body, signal) => api(flow(id) + '/extract/reconcile', Object.assign(json('POST', body), { signal })),
             scenarios: (id, signal) => api(flow(id) + '/scenarios', { signal }),
             scenario: (id, scenarioId, signal) => api(flow(id) + '/scenarios/' + enc(scenarioId), { signal }),

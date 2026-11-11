@@ -138,6 +138,7 @@
             onConflict: () => ED.dialogs.conflict(ed)
         });
         extraction = !isBlock && ED.extraction && ED.extraction.create(ed, canvas);
+        ed.credentialsMove = !isBlock && ED.credentialsMove ? ED.credentialsMove.create(ed) : null;
         ed.runtime = !isBlock && ED.durable && ED.durable.supported(ed) ? ED.durable.observe(ed) : null;
         ed.childHistory = ED.childHistory ? ED.childHistory.create(ed) : null;
 
@@ -641,6 +642,7 @@
             partialRevision = ed.publishIncomplete ? Number(ed.flow.live_revision) || 0 : 0;
             renderHeader();
             setMenus();
+            if (ed.credentialsMove) ed.credentialsMove.afterPublish();
         }));
         bag.add(ed.bus.on('restored', res => {
             if (!res || !res.flow) return;

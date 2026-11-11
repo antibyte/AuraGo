@@ -1513,5 +1513,11 @@
   "easydrag.option.auth_in_query": "Adresseparameter",
   "easydrag.ui.error_flow_credential_not_movable": "Denne verdien kan ikke flyttes til hvelvet. Fjern den fra flyten i stedet.",
   "easydrag.ui.error_flow_secret_exists": "Det finnes allerede en hemmelighet med dette navnet.",
-  "easydrag.ui.restore_masked": "Passord og tilgangstokens i denne kopien er maskert og vises som [redacted]. Skriv dem inn på nytt etter gjenopprettingen."
+  "easydrag.ui.restore_masked": "Passord og tilgangstokens i denne kopien er maskert og vises som [redacted]. Skriv dem inn på nytt etter gjenopprettingen.",
+  "easydrag.ui.credential_move": "Flytt til hvelvet",
+  "easydrag.ui.credential_remove": "Fjern verdi",
+  "easydrag.ui.credential_move_text": "Verdien legges i hvelvet og erstattes i denne flyten. Berørte steder: {count}.",
+  "easydrag.ui.credential_move_name": "Navn på hemmeligheten",
+  "easydrag.ui.credential_moved": "Flyttet. Publiser flyten, så kan du rydde opp i gamle kopier.",
+  "easydrag.ui.credential_replace_confirm": "Det finnes allerede en hemmelighet som heter {name}. Vil du erstatte verdien?"
 }

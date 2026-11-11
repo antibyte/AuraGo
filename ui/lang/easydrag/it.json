@@ -1513,5 +1513,11 @@
   "easydrag.option.auth_in_query": "Parametro dell’indirizzo",
   "easydrag.ui.error_flow_credential_not_movable": "Questo valore non può essere spostato nel caveau. Rimuovilo invece dal flusso.",
   "easydrag.ui.error_flow_secret_exists": "Esiste già un segreto con questo nome.",
-  "easydrag.ui.restore_masked": "Le password e i token di accesso in questa copia sono stati oscurati e compaiono come [redacted]. Reinseriscili dopo il ripristino."
+  "easydrag.ui.restore_masked": "Le password e i token di accesso in questa copia sono stati oscurati e compaiono come [redacted]. Reinseriscili dopo il ripristino.",
+  "easydrag.ui.credential_move": "Sposta nel caveau",
+  "easydrag.ui.credential_remove": "Rimuovi il valore",
+  "easydrag.ui.credential_move_text": "Il valore va nel caveau e viene sostituito in questo flusso. Punti interessati: {count}.",
+  "easydrag.ui.credential_move_name": "Nome del segreto",
+  "easydrag.ui.credential_moved": "Spostato. Pubblica il flusso, poi potrai ripulire le vecchie copie.",
+  "easydrag.ui.credential_replace_confirm": "Esiste già un segreto chiamato {name}. Sostituire il suo valore?"
 }

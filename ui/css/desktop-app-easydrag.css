@@ -1029,6 +1029,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-mode[aria-pressed="true"] { color: var(--ed-selected-text); border-color: var(--ed-selected-color); background: var(--ed-selected); }
 .ed-field-issue { display: flex; align-items: center; gap: 6px; color: var(--ed-warn-ink); font-size: 12px; }
 .ed-field-issue .ed-icon { width: 14px; height: 14px; }
+.ed-field-issue .ed-btn { margin-left: auto; flex: none; }
 .ed-field.has-issue .ed-input, .ed-field.has-issue .ed-tpl { border-color: color-mix(in srgb, var(--ed-warn) 60%, var(--ed-border)); }
 .ed-field.is-sink > .ed-field-head label::after { content: " ⚑"; content: " ⚑" / ""; color: var(--ed-warn-ink); font-size: 11px; }
 .ed-field.is-drop { background: color-mix(in srgb, var(--ed-accent) 8%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ed-accent) 45%, transparent); }

@@ -316,6 +316,7 @@
                 '/js/desktop/apps/easydrag-runs.js',
                 '/js/desktop/apps/easydrag-metadata.js',
                 '/js/desktop/apps/easydrag-publish.js',
+                '/js/desktop/apps/easydrag-credentials-move.js',
                 '/js/desktop/apps/easydrag-library-pause.js',
                 '/js/desktop/apps/easydrag-pack.js',
                 '/js/desktop/apps/easydrag-home-grid.js',

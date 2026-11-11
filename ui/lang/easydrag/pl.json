@@ -1513,5 +1513,11 @@
   "easydrag.option.auth_in_query": "Parametr adresu",
   "easydrag.ui.error_flow_credential_not_movable": "Tej wartości nie można przenieść do skarbca. Usuń ją z przepływu.",
   "easydrag.ui.error_flow_secret_exists": "Sekret o tej nazwie już istnieje.",
-  "easydrag.ui.restore_masked": "Hasła i tokeny dostępu w tej kopii zostały zamaskowane i widnieją jako [redacted]. Po przywróceniu wpisz je ponownie."
+  "easydrag.ui.restore_masked": "Hasła i tokeny dostępu w tej kopii zostały zamaskowane i widnieją jako [redacted]. Po przywróceniu wpisz je ponownie.",
+  "easydrag.ui.credential_move": "Przenieś do skarbca",
+  "easydrag.ui.credential_remove": "Usuń wartość",
+  "easydrag.ui.credential_move_text": "Wartość trafi do skarbca i zostanie zastąpiona w tym przepływie. Zmienione miejsca: {count}.",
+  "easydrag.ui.credential_move_name": "Nazwa sekretu",
+  "easydrag.ui.credential_moved": "Przeniesiono. Opublikuj przepływ, a potem możesz wyczyścić stare kopie.",
+  "easydrag.ui.credential_replace_confirm": "Sekret o nazwie {name} już istnieje. Zastąpić jego wartość?"
 }

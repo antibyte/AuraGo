@@ -1513,5 +1513,11 @@
   "easydrag.option.auth_in_query": "アドレスのパラメーター",
   "easydrag.ui.error_flow_credential_not_movable": "この値は保管庫へ移せません。代わりにフローから削除してください。",
   "easydrag.ui.error_flow_secret_exists": "この名前のシークレットは既にあります。",
-  "easydrag.ui.restore_masked": "このコピー内のパスワードとアクセストークンはマスクされ、[redacted] と表示されます。復元後に入力し直してください。"
+  "easydrag.ui.restore_masked": "このコピー内のパスワードとアクセストークンはマスクされ、[redacted] と表示されます。復元後に入力し直してください。",
+  "easydrag.ui.credential_move": "保管庫へ移す",
+  "easydrag.ui.credential_remove": "値を削除",
+  "easydrag.ui.credential_move_text": "値は保管庫に保存され、このフローでは置き換えられます。対象箇所：{count}",
+  "easydrag.ui.credential_move_name": "シークレット名",
+  "easydrag.ui.credential_moved": "移しました。フローを公開すると、古いコピーを整理できます。",
+  "easydrag.ui.credential_replace_confirm": "{name} というシークレットは既にあります。値を置き換えますか？"
 }

@@ -1513,5 +1513,11 @@
   "easydrag.option.auth_in_query": "Address parameter",
   "easydrag.ui.error_flow_credential_not_movable": "This value cannot be moved to the vault. Remove it from the flow instead.",
   "easydrag.ui.error_flow_secret_exists": "A secret with this name already exists.",
-  "easydrag.ui.restore_masked": "Passwords and access tokens in this copy were masked and show as [redacted]. Enter them again after restoring."
+  "easydrag.ui.restore_masked": "Passwords and access tokens in this copy were masked and show as [redacted]. Enter them again after restoring.",
+  "easydrag.ui.credential_move": "Move to the vault",
+  "easydrag.ui.credential_remove": "Remove value",
+  "easydrag.ui.credential_move_text": "The value goes into the vault and is replaced in this flow. Places affected: {count}.",
+  "easydrag.ui.credential_move_name": "Secret name",
+  "easydrag.ui.credential_moved": "Moved. Publish the flow, then you can clean up old copies.",
+  "easydrag.ui.credential_replace_confirm": "A secret named {name} already exists. Replace its value?"
 }

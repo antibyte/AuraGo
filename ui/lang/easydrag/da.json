@@ -1513,5 +1513,11 @@
   "easydrag.option.auth_in_query": "Adresseparameter",
   "easydrag.ui.error_flow_credential_not_movable": "Værdien kan ikke flyttes til tresoren. Fjern den i stedet fra flowet.",
   "easydrag.ui.error_flow_secret_exists": "Der findes allerede en hemmelighed med dette navn.",
-  "easydrag.ui.restore_masked": "Adgangskoder og adgangstokens i denne kopi er maskeret og vises som [redacted]. Indtast dem igen efter gendannelsen."
+  "easydrag.ui.restore_masked": "Adgangskoder og adgangstokens i denne kopi er maskeret og vises som [redacted]. Indtast dem igen efter gendannelsen.",
+  "easydrag.ui.credential_move": "Flyt til tresoren",
+  "easydrag.ui.credential_remove": "Fjern værdi",
+  "easydrag.ui.credential_move_text": "Værdien lægges i tresoren og erstattes i dette flow. Berørte steder: {count}.",
+  "easydrag.ui.credential_move_name": "Navn på hemmeligheden",
+  "easydrag.ui.credential_moved": "Flyttet. Udgiv flowet, så kan du rydde op i gamle kopier.",
+  "easydrag.ui.credential_replace_confirm": "Der findes allerede en hemmelighed med navnet {name}. Skal værdien erstattes?"
 }

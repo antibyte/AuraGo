@@ -1513,5 +1513,11 @@
   "easydrag.option.auth_in_query": "Paramètre d’adresse",
   "easydrag.ui.error_flow_credential_not_movable": "Cette valeur ne peut pas être déplacée dans le coffre. Retire-la plutôt du flux.",
   "easydrag.ui.error_flow_secret_exists": "Un secret portant ce nom existe déjà.",
-  "easydrag.ui.restore_masked": "Les mots de passe et jetons d’accès de cette copie ont été masqués et apparaissent comme [redacted]. Saisis-les de nouveau après la restauration."
+  "easydrag.ui.restore_masked": "Les mots de passe et jetons d’accès de cette copie ont été masqués et apparaissent comme [redacted]. Saisis-les de nouveau après la restauration.",
+  "easydrag.ui.credential_move": "Déplacer dans le coffre",
+  "easydrag.ui.credential_remove": "Retirer la valeur",
+  "easydrag.ui.credential_move_text": "La valeur va dans le coffre et est remplacée dans ce flux. Endroits concernés : {count}.",
+  "easydrag.ui.credential_move_name": "Nom du secret",
+  "easydrag.ui.credential_moved": "Déplacé. Publie le flux, puis tu pourras nettoyer les anciennes copies.",
+  "easydrag.ui.credential_replace_confirm": "Un secret nommé {name} existe déjà. Remplacer sa valeur ?"
 }

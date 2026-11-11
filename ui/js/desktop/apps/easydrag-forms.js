@@ -341,6 +341,7 @@
                     field.appendChild(box);
                 }
                 box.querySelector('span').textContent = core.issueText(t, issue);
+                if (env.ed.credentialsMove) env.ed.credentialsMove.decorate(box, issue, node);
                 markField(entry, issue);
             });
         }
@@ -371,6 +372,7 @@
                     '<div class="ed-field-preview" hidden></div>' +
                     (issue ? '<div class="ed-field-issue" id="' + esc(id) + '-issue">' + core.icon('alert') + '<span>' + esc(core.issueText(t, issue)) + '</span></div>' : '') + '</div>');
                 const control = controlFor(param, value, id, labelId);
+                if (issue && env.ed.credentialsMove) env.ed.credentialsMove.decorate(field.querySelector('.ed-field-issue'), issue, node);
                 if (grouped) {
                     if (control.getAttribute('role') === null) control.setAttribute('role', 'group');
                     control.setAttribute('aria-labelledby', labelId);

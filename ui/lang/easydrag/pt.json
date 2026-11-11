@@ -1513,5 +1513,11 @@
   "easydrag.option.auth_in_query": "Parâmetro do endereço",
   "easydrag.ui.error_flow_credential_not_movable": "Este valor não pode ser movido para o cofre. Remova-o do fluxo.",
   "easydrag.ui.error_flow_secret_exists": "Já existe um segredo com este nome.",
-  "easydrag.ui.restore_masked": "As senhas e os tokens de acesso desta cópia foram ocultados e aparecem como [redacted]. Digite-os de novo após restaurar."
+  "easydrag.ui.restore_masked": "As senhas e os tokens de acesso desta cópia foram ocultados e aparecem como [redacted]. Digite-os de novo após restaurar.",
+  "easydrag.ui.credential_move": "Mover para o cofre",
+  "easydrag.ui.credential_remove": "Remover valor",
+  "easydrag.ui.credential_move_text": "O valor vai para o cofre e é substituído neste fluxo. Locais afetados: {count}.",
+  "easydrag.ui.credential_move_name": "Nome do segredo",
+  "easydrag.ui.credential_moved": "Movido. Publique o fluxo e depois você poderá limpar as cópias antigas.",
+  "easydrag.ui.credential_replace_confirm": "Já existe um segredo chamado {name}. Substituir o valor dele?"
 }

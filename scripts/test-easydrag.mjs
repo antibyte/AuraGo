@@ -1163,5 +1163,6 @@ await import('./test-easydrag-compare.mjs');
 // C15: durable approval DTO bounds and review wire safety.
 await import('./test-easydrag-approvals.mjs');
 await import('./test-easydrag-credentials.mjs');
+await import('./test-easydrag-credentials-move.mjs');
 await import('../internal/flows/testdata/collection_filters_test.cjs');
 console.log('all EasyDrag checks passed');

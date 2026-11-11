@@ -1513,5 +1513,11 @@
   "easydrag.option.auth_in_query": "Παράμετρος διεύθυνσης",
   "easydrag.ui.error_flow_credential_not_movable": "Αυτή η τιμή δεν μπορεί να μετακινηθεί στο θησαυροφυλάκιο. Αφαίρεσέ την από τη ροή.",
   "easydrag.ui.error_flow_secret_exists": "Υπάρχει ήδη μυστικό με αυτό το όνομα.",
-  "easydrag.ui.restore_masked": "Οι κωδικοί και τα διακριτικά πρόσβασης σε αυτό το αντίγραφο αποκρύφθηκαν και εμφανίζονται ως [redacted]. Πληκτρολόγησέ τα ξανά μετά την επαναφορά."
+  "easydrag.ui.restore_masked": "Οι κωδικοί και τα διακριτικά πρόσβασης σε αυτό το αντίγραφο αποκρύφθηκαν και εμφανίζονται ως [redacted]. Πληκτρολόγησέ τα ξανά μετά την επαναφορά.",
+  "easydrag.ui.credential_move": "Μετακίνηση στο θησαυροφυλάκιο",
+  "easydrag.ui.credential_remove": "Αφαίρεση τιμής",
+  "easydrag.ui.credential_move_text": "Η τιμή αποθηκεύεται στο θησαυροφυλάκιο και αντικαθίσταται σε αυτή τη ροή. Επηρεαζόμενα σημεία: {count}.",
+  "easydrag.ui.credential_move_name": "Όνομα μυστικού",
+  "easydrag.ui.credential_moved": "Μετακινήθηκε. Δημοσίευσε τη ροή και μετά μπορείς να καθαρίσεις τα παλιά αντίγραφα.",
+  "easydrag.ui.credential_replace_confirm": "Υπάρχει ήδη μυστικό με όνομα {name}. Να αντικατασταθεί η τιμή του;"
 }

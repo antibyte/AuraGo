@@ -1513,5 +1513,11 @@
   "easydrag.option.auth_in_query": "Adressparameter",
   "easydrag.ui.error_flow_credential_not_movable": "Dieser Wert lässt sich nicht in den Tresor verschieben. Entferne ihn stattdessen aus dem Flow.",
   "easydrag.ui.error_flow_secret_exists": "Ein Geheimnis mit diesem Namen gibt es schon.",
-  "easydrag.ui.restore_masked": "Passwörter und Zugriffstoken in dieser Kopie wurden maskiert und erscheinen als [redacted]. Gib sie nach dem Wiederherstellen neu ein."
+  "easydrag.ui.restore_masked": "Passwörter und Zugriffstoken in dieser Kopie wurden maskiert und erscheinen als [redacted]. Gib sie nach dem Wiederherstellen neu ein.",
+  "easydrag.ui.credential_move": "In den Tresor verschieben",
+  "easydrag.ui.credential_remove": "Wert entfernen",
+  "easydrag.ui.credential_move_text": "Der Wert kommt in den Tresor und wird in diesem Flow ersetzt. Betroffene Stellen: {count}.",
+  "easydrag.ui.credential_move_name": "Name des Geheimnisses",
+  "easydrag.ui.credential_moved": "Verschoben. Veröffentliche den Flow, dann kannst du alte Kopien bereinigen.",
+  "easydrag.ui.credential_replace_confirm": "Ein Geheimnis namens {name} gibt es schon. Soll sein Wert ersetzt werden?"
 }
