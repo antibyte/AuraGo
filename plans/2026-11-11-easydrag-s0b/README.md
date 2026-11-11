@@ -95,6 +95,14 @@ Each amendment is applied in the named task. The spec has been updated where it 
 5. **Spike rule (A.1).** A speculation-rules prefetch that headless Chrome never issues counts as a pass, because a request that is never sent cannot leak; A.5 exercises it again. Any other kind that does not show up after one rerun counts as a failure.
 6. **Auth handling (A.1, A.3).** rod's `HandleAuth` answers one challenge per call. The helper uses its own `EachEvent` loop on `Fetch.authRequired` and answers only challenges whose source is the proxy and whose origin is the proxy address.
 
+6a. **No proxy credentials (A.1 result, owner decision 7).**
+   - The spike showed that Chrome never answers the proxy challenge over DevTools for WebSockets and prefetch, and the service-worker fetch never reached the proxy. The owner chose no credentials (spec §3.3).
+   - A.2 implements `Done()`, the check host and the `Dialed()` / `Refused()` log, but not `WithProxyCredentials` or the 407 answer.
+   - A.3 implements the helper without the DevTools auth loop and without `egressPerTargetAuth`.
+   - Leave out the tests for credentials.
+   - Everything else in A.2 to A.6 stands.
+   - A.5's service-worker probe must still show that the worker registered. If it does not register behind the proxy, the test reports that plainly instead of passing silently.
+
 **Part B1**
 
 7. **Order.** B.5 (client masking, `ED.credentials`) runs before B.4, because the UI action reads `ED.credentials.findings`. The headings keep the spec's numbers.

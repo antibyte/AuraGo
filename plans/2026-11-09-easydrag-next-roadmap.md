@@ -337,7 +337,8 @@ Pillars: foundation, safety.
   - encrypts the pre-purge backup with the master key, or deletes it once the purge is verified;
   - shows, in the same dialog, the older migration snapshots that contain typed credentials (`.flows-v2-backup-*` and `.flows-v3-backup-*`, store.go:274-281) and offers to delete them.
 - read_only only removes abilities; no notice is needed.
-- The FD-18 proxy binds to loopback, uses credentials created per call that never appear on a command line, and fails the step closed if the proxy dies.
+- The FD-18 proxy binds to loopback on a random port, lives for at most 2 minutes, refuses private, link-local, metadata and LAN targets, checks that Chrome really uses it, and fails the step closed if the proxy dies.
+  - It has no credentials. The S0b spike showed that Chrome cannot answer a proxy challenge over DevTools for WebSockets and prefetch. A local program using the proxy would reach only the public internet, which it reaches anyway (owner decision, 2026-11-11, `plans/2026-11-11-easydrag-s0b-spec.md` §3.3).
 
 **Main code areas**
 - New modules:

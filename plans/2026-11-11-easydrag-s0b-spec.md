@@ -85,7 +85,18 @@ func (b *EgressBrowser) Err() error // why it ended: nil after Close, ErrEgressP
 - **The slot is always released,** including when the launch or the DevTools dial fails. This is the lesson of c1d427ffc; a test pins it.
 - **The browser binary.** It is resolved the way the sites resolve it today. `reference_chrome_launch_from_agent` applies to tests.
 
-### 3.3 Proxy credentials per call
+### 3.3 Proxy credentials per call (dropped after the A.1 spike)
+
+**Owner decision 7 (2026-11-11, after the spike): no proxy credentials.**
+- **Why there are none.** Chrome cannot answer the proxy challenge over DevTools for WebSockets and speculation-rules prefetch, and the service-worker fetch never reached the proxy (table below). With credentials, pages that need a WebSocket would break in the scraper and in web capture.
+- **What credentials would have added.** The proxy is reachable only on `127.0.0.1` at a random port. It lives for at most 2 minutes, and it refuses every private, link-local, metadata and LAN target. A local program that used it could reach only the public internet, which it reaches without it. Credentials would have added nothing that is worth that breakage.
+- **What changes.** The proxy keeps loopback, the random port, the lifetime, failing closed and the path check (§3.4), and has no credentials.
+  - A.2 drops `WithProxyCredentials` and the 407 handling.
+  - A.3 drops the DevTools auth loop.
+- **Roadmap.** The roadmap guardrail at line 340 is amended to match.
+
+The text below is the original design, kept for the record.
+
 - `CaptureProxy` gets optional credentials, set by an option on both start functions. When they are set, the proxy answers a request without a matching `Proxy-Authorization: Basic …` with 407 and `Proxy-Authenticate: Basic realm="aurago-egress"`. That covers plain requests and CONNECT.
 - `LaunchEgressBrowser` creates 16 random bytes for the user and 16 for the password, hex-encoded, for every call.
 - Chrome receives them only over the DevTools protocol, through rod's auth handling, which uses `Fetch.authRequired` with `handleAuthRequests`. They never appear on a command line, in an environment variable or in a file.
@@ -113,7 +124,7 @@ func (b *EgressBrowser) Err() error // why it ended: nil after Close, ErrEgressP
 | serviceworker | NOT-OBSERVED | NOT-OBSERVED |
 | prefetch | FAIL | FAIL |
 
-Verdict: STOP. No variant authenticates every kind (see the table). The plan waits for the owner before A.2.
+Verdict: STOP. No variant authenticates every kind (see the table). The owner then chose no proxy credentials (owner decision 7, at the top of this section).
 
 Details. The Chrome challenge reads `source=Proxy origin=http://<proxy host:port> scheme=basic`; Task A.3 can filter on `Source == "Proxy"` and an origin equal to the proxy address. Per-target attach changed nothing: both variants give the same table. `websocket` and `prefetch` reached the proxy, got the 407, and Chrome never raised `Fetch.authRequired` for them, so the request stayed unauthenticated and failed closed (no leak). `serviceworker` was never seen at the proxy, even after a rerun with a 15 s settle (both variants), so by the spike rule it counts as a failure. `nav`, `subresource`, `fetch`, `xhr` and the dedicated `worker` authenticate with the plain browser-wide `Fetch.enable`.
 
@@ -405,7 +416,7 @@ Parts A and B touch separate files and can run in parallel, in two worktrees. Pa
 
 ## 9. Acceptance checklist
 - [ ] Every site in §3.5 uses `LaunchEgressBrowser`. `getSharedBrowser` and `GuardRodPageSSRF` are gone.
-- [ ] The proxy binds to loopback. It takes credentials made per call, which appear in no command line, environment variable or file. It fails the step closed when it dies, and the path check catches a bypass.
+- [ ] The proxy binds to loopback on a random port and has no credentials (owner decision 7). It fails the step closed when it dies, and the path check catches a bypass.
 - [ ] The S8 fixture is refused locally, and once live on aurago-test (roadmap line 320).
 - [ ] One rule drives validation, redaction and client masking. Go and JS pass the same vectors.
 - [ ] "In den Tresor verschieben" works for a header, a query parameter and URL user info. The value never travels back to the browser.
