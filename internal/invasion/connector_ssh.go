@@ -84,6 +84,9 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 	}
 
 	// 2. Transfer binary
+	if err := c.Stop(ctx, nest, secret); err != nil {
+		return configNotDelivered(fmt.Errorf("failed to stop Egg before deployment: %w", err))
+	}
 	remoteBinary := baseDir + "/aurago"
 	if err := sshTransferFile(ctx, nest.Host, nest.Port, nest.Username, secret, payload.BinaryPath, sftpPath(remoteBinary), "upload"); err != nil {
 		return configNotDelivered(fmt.Errorf("failed to transfer binary: %w", err))
@@ -116,41 +119,47 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 		}
 	}
 
-	// 5. Write vault if included
-	if payload.IncludeVault && len(payload.VaultData) > 0 {
-		remoteVault := baseDir + "/data/vault.enc"
-		if err := writeSSHDeployFile(ctx, nest, secret, remoteVault, payload.VaultData); err != nil {
-			return fmt.Errorf("failed to write vault: %w", err)
+	// Bootstrap merges the selected export into the existing Vault at startup.
+	if len(payload.Bootstrap) > 0 {
+		if err := writeSSHDeployFile(ctx, nest, secret, baseDir+"/data/"+EggBootstrapFile, payload.Bootstrap); err != nil {
+			return fmt.Errorf("write egg bootstrap: %w", err)
 		}
 	}
 
 	// 6. Write master key to .env
 	envContent := fmt.Sprintf("AURAGO_MASTER_KEY=%s", payload.MasterKey)
 	envPath := baseDir + "/.env"
-	if err := writeSSHDeployFile(ctx, nest, secret, envPath, []byte(envContent+"\n")); err != nil {
+	if err := writeSSHDeployFile(ctx, nest, secret, envPath, []byte(envContent+"\n"), true); err != nil {
 		return fmt.Errorf("failed to write .env: %w", err)
 	}
 
 	// 7. Start the egg
+	if err := writeSSHDeployFile(ctx, nest, secret, baseDir+"/.egg-security-version", []byte("1\n")); err != nil {
+		return fmt.Errorf("write Egg security marker: %w", err)
+	}
 	if payload.Permanent {
 		return c.installService(ctx, nest, secret, baseDir)
 	}
 	return c.startProcess(ctx, nest, secret, baseDir)
 }
 
-func sshDeployFileScript(path string, data []byte) string {
+func sshDeployFileScript(path string, data []byte, ifAbsent ...bool) string {
 	// Only the fixed bash -s command is sent as an SSH exec argument. Payload
 	// bytes travel through stdin; mktemp/rename preserve the previous valid file.
+	publish := "mv -f -- \"$tmp\" \"$target\"\n"
+	if len(ifAbsent) > 0 && ifAbsent[0] {
+		publish = "if [ ! -f \"$target\" ]; then test ! -f \"$(dirname \"$target\")/data/vault.bin\"; ln -- \"$tmp\" \"$target\" || test -f \"$target\"; fi\nchmod 600 -- \"$target\"\nrm -f -- \"$tmp\"\n"
+	}
 	return "set -eu\numask 077\n" +
 		"target=" + shellPath(path) + "\n" +
 		"tmp=$(mktemp \"${target}.tmp.XXXXXXXX\")\n" +
 		"trap 'rm -f -- \"$tmp\"' EXIT HUP INT TERM\n" +
 		"base64 -d > \"$tmp\" <<'AURAGO_DEPLOY_DATA'\n" + base64.StdEncoding.EncodeToString(data) + "\nAURAGO_DEPLOY_DATA\n" +
-		"chmod 600 -- \"$tmp\"\nmv -f -- \"$tmp\" \"$target\"\ntrap - EXIT HUP INT TERM\n"
+		"chmod 600 -- \"$tmp\"\n" + publish + "trap - EXIT HUP INT TERM\n"
 }
 
-func writeSSHDeployFile(ctx context.Context, nest NestRecord, secret []byte, path string, data []byte) error {
-	_, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, "bash -s", strings.NewReader(sshDeployFileScript(path, data)))
+func writeSSHDeployFile(ctx context.Context, nest NestRecord, secret []byte, path string, data []byte, ifAbsent ...bool) error {
+	_, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, "bash -s", strings.NewReader(sshDeployFileScript(path, data, ifAbsent...)))
 	return err
 }
 
@@ -333,7 +342,7 @@ func (c *SSHConnector) HealthCheck(ctx context.Context, nest NestRecord, secret 
 
 // Reconfigure writes a patched config.yaml to the remote egg and restarts it.
 // The egg process/container is stopped, the config is replaced, and then restarted.
-func (c *SSHConnector) Reconfigure(ctx context.Context, nest NestRecord, secret []byte, configYAML []byte) error {
+func (c *SSHConnector) Reconfigure(ctx context.Context, nest NestRecord, secret []byte, configYAML []byte, bootstrap ...[]byte) error {
 	baseDir, err := sshEggBaseDir(nest.ID)
 	if err != nil {
 		return err
@@ -351,6 +360,11 @@ func (c *SSHConnector) Reconfigure(ctx context.Context, nest NestRecord, secret 
 	}
 
 	// 3. Restart the egg (try systemd first, fall back to nohup)
+	if len(bootstrap) > 0 && len(bootstrap[0]) > 0 {
+		if err := writeSSHDeployFile(ctx, nest, secret, baseDir+"/data/"+EggBootstrapFile, bootstrap[0]); err != nil {
+			return fmt.Errorf("write egg bootstrap: %w", err)
+		}
+	}
 	prefix, err := sshEggIDPrefix(nest.ID)
 	if err != nil {
 		return err
@@ -379,6 +393,10 @@ func (c *SSHConnector) Rollback(ctx context.Context, nest NestRecord, secret []b
 	}
 	if !strings.Contains(output, "ok") {
 		return fmt.Errorf("no backup found for rollback")
+	}
+	marker, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, "cat "+shellPath(backupDir+"/.egg-security-version"))
+	if err != nil || strings.TrimSpace(marker) != "1" {
+		return fmt.Errorf("legacy Egg backup cannot be started; re-hatch using the current master")
 	}
 
 	// Stop current egg

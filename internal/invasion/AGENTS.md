@@ -13,7 +13,7 @@ the Egg runtime in `cmd/aurago`.
   and read-only state. Disabling closes connections without stopping remote
   processes; registering and sending recheck policy at their shared boundary.
 
-- Protocol v2 signs the structured envelope, including ID, identities, version,
+- Protocol v3 signs the structured envelope, including ID, identities, version,
   direction, server challenge, sequence and payload. Every socket gets a random
   256-bit challenge. Accept only increasing sequences in that session, timestamps
   at most two minutes old or thirty seconds ahead, and the authenticated peer's
@@ -21,31 +21,11 @@ the Egg runtime in `cmd/aurago`.
 - Update Master and Eggs together. Legacy connections fail with
   `invasion_protocol_upgrade_required`; never add an unsigned/legacy fallback.
   HMAC authenticates traffic; use WSS or an authenticated encrypted network for
-  transport confidentiality. Do not add automatic TLS exceptions beyond the
-  missing-certificate fallback below.
-- Eggs of a self-signed master pin its certificate: `GenerateEggConfig` writes
-  `egg_mode.tls_pin_sha256` (SHA-256 hex of the DER leaf in the first
-  CERTIFICATE block of `<data_dir>/certs/selfsigned.crt`, the path
-  `server.NewTLSConfigFromConfig` uses). `EggClient` checks every HTTP and
-  WebSocket handshake in `pinnedTLSConfig`'s `VerifyConnection` (a pin wins
-  over `tls_skip_verify`): the leaf matches the pin (direct routes), or its
-  chain verifies against the Egg host's trust store for the host of
-  `master_url` (never the SNI, which is empty for IP addresses). The second
-  branch accepts a `custom` route through a TLS-terminating proxy only when the
-  proxy's certificate is trusted by the Egg host (public CA, or a private CA in
-  the host trust store). The one automatic exception: an unreadable
-  certificate at generation time falls back to `tls_skip_verify: true` with a
-  warning so hatching keeps working. `tls_skip_verify` from older configs is
-  still honoured, with a startup warning; a malformed pin is logged as an
-  error at startup. Regenerating the master certificate locks pinned Eggs out
-  until the master restarts and a safe-reconfigure (which regenerates the
-  whole config) delivers the new pin. Tests: `TestGenerateEggConfig_*TLSPin*`,
-  `TestGenerateEggConfig_SelfSignedWithoutCertificate_FallsBackToTLSSkipVerify`,
-  `TestEggClientAcceptsPinnedCertAndRejectsOthers`,
-  `TestEggClientAcceptsTrustedChainWhenPinDiffers`,
-  `TestEggClientRejectsTrustedChainForAnotherHost`,
-  `TestEggClientConnectDialsOnlyThePinnedMaster`, `TestPinnedTLSConfigVerifier`
-  (bridge) and `TestCertRegenerateTellsOperatorToSafeReconfigureEggs` (server).
+  transport confidentiality.
+- Generated Eggs require security policy version 1. Reject tls_skip_verify and
+  malformed pins at startup and before deployment. Missing/unreadable master
+  certificates fail configuration generation before publishing credentials.
+  A pinned leaf or a normally trusted chain for master_url remains supported.
 - Only an active Egg assigned to the active nest may authenticate. Apply the
   pre-authentication frame limit and finite handshake/write budgets.
 - Connection-owned cleanup, heartbeat expiry and acknowledgements bind to the
@@ -97,14 +77,24 @@ the Egg runtime in `cmd/aurago`.
   `TestInvasionHandshake*`, `TestInvasionRehatchRevokesRotationCandidates`,
   `TestInvasionRotateKey*`, `TestEggPrevKeyFreshBoundaries`,
   `TestInvasionSendSecretRefusesReservedNames` (server).
-- The Egg's `config.yaml` must stay writable. The hatch-time
-  `egg_mode.shared_key` is migrated into the vault and removed from the file
-  at startup; if it cannot be removed, the overwriting migration copies the
-  hatch-time key over a persisted rotation at every restart and the Egg is
-  locked out.
-- SSH deployment and reconfiguration transmit secret-bearing file content over
-  encrypted stdin with a fixed exec command. Publish private mode-0600 temporary
-  files atomically as the configured SSH user; keep the last valid file on error.
+- Generated YAML contains provider bindings and no master/HMAC/API keys.
+  Docker and SSH deliver mode-0600 egg-bootstrap.json before startup. Import
+  selected exports and explicit secret updates with Vault.WriteSecrets, retaining
+  the local Vault key and unrelated entries. An atomic receipt prevents leftover
+  inputs from overwriting later rotations. Failed import or removal blocks startup.
+- Preserve existing .env keys. A Vault without its actual key requires authenticated
+  operator recovery; never overwrite it with a newly generated key.
+- Empty tool lists grant neither shell nor Python. Only the documented shell/Python
+  selectors are valid. File writes, network and unsandboxed shell are explicit,
+  default-off grants; unsandboxed shell additionally requires shell selection.
+  Every applied configuration revision contains a full permission snapshot.
+  Omitted patch fields retain rights; false and [] revoke. Legacy snapshots
+  cannot be restored. Reconfiguration of legacy/uncertain state requires review.
+- SSH transmits private content over encrypted stdin with a fixed command and
+  atomically publishes mode-0600 files. Stop the old process before replacement.
+- Remote Docker secret bootstrap requires TLS, mTLS or SSH. Plain HTTP is refused.
+  Stop the previous container before writing its shared data volume. Only backups
+  marked with the current Egg security version may be started by binary rollback.
 - `docker_remote` nests with an empty `docker_tls` keep plain HTTP (default port
   2375). `tls`/`mtls` use HTTPS (default 2376), TLS 1.2+, the stored CA or system
   roots and never skip verification; unusable material fails every request
@@ -120,9 +110,12 @@ the Egg runtime in `cmd/aurago`.
 - The Docker TLS configuration (`dockerTLSClientConfig`, with `DockerTLSMaterial` as a type alias) and the SSH Engine dialer (`dialDockerEngineOverSSH`) are thin wrappers over `internal/dockerhost/transport`, which the Docker Manager shares. Change TLS or tunnel behaviour there; the invasion names, the `dockerSSHSocketOpenTimeout` test hook (passed in as the socket-open budget) and every error text stay as they are.
 - A hatch stores the new `egg_shared_<id>` before Deploy and puts the previous key back (vault compare-and-swap) only when Deploy returns `ErrEggConfigNotDelivered`: Docker before `copyConfigToContainer`, SSH before the config write. Never after a possible delivery or a rollback; marked errors keep their text.
 - SSH eggs live in `~/.aurago-egg-<prefix>`: shell steps write `$HOME` (shellPath), SFTP gets the home-relative path (`sftpPath`, SFTP never expands `~`), the user unit uses `%h`. Every process lookup (deploy start, Stop, Status, HealthCheck) matches the user's `aurago` processes by executable (`<base dir>/aurago` or "(deleted)", also via the `pwd -P` path when `$HOME` is a symlink), never by command line (`pgrep -f`/`pkill -f` also match the remote shell, and a process-mode egg runs as `./aurago`). A hatch stops a running egg (SIGTERM, exe re-checked while waiting up to 10 s, then SIGKILL) before it starts the new one, also before `systemctl --user restart` of a permanent egg. Only `nohup` runs in the background, with stdin from /dev/null, so start commands return.
-- `export_nest_secret` decides whether `include_vault` copies the nest secret (`nest_<id>`) into the egg vault. Rows from before the column migrate to 1, new nests start at 0, and updates without the field keep it. `InitDB` copies a pre-existing database to `<db>.pre-export-nest-secret.bak` (VACUUM INTO, never overwritten) before adding the column; a failed copy is logged and the migration still runs.
+- `export_nest_secret` decides whether `include_vault` copies the nest secret (`nest_<id>`) into the egg vault. Rows from before the column migrate to 1, new nests start at 0, and updates without the field keep it. `InitDB` copies a pre-existing database to `<db>.pre-export-nest-secret.bak` (VACUUM INTO, never overwritten) before adding the column; a failed copy aborts migration. New Egg grant/snapshot columns also require a private, consistent pre-migration backup.
 
 ## Verification
+
+The coordinated cutover and operator recovery path are documented in
+`../../documentation/invasion-security.md`.
 
 Run bridge and invasion tests, server Invasion/MissionRemote regressions, and
 Linux CGO race tests for concurrent heartbeat, result and rekey traffic. Exercise

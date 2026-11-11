@@ -1887,12 +1887,13 @@ ansible:
     dockerfile_dir: ""     # Directory containing Dockerfile.ansible (default: ".")
 egg_mode:
     enabled: false
+    security_policy_version: 0 # generated Eggs require version 1; legacy configurations must be regenerated
     master_url: ""         # WebSocket URL of the master (ws[s]://host:port/api/invasion/ws)
     shared_key: ""         # hex-encoded AES-256 shared key (set via vault: egg_shared_key)
     egg_id: ""
     nest_id: ""
     tls_pin_sha256: ""     # SHA-256 hex of the master's certificate (written by the master for self-signed TLS)
-    tls_skip_verify: false # legacy: skip TLS certificate verification (only for configs written by older masters)
+    tls_skip_verify: false # true is rejected; use a certificate pin or a trusted certificate chain
 github:
     enabled: false
     readonly: false

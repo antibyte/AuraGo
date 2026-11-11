@@ -109,6 +109,7 @@ func (s *Server) runEggHatch(nest invasion.NestRecord, egg invasion.EggRecord, d
 
 // deployEgg performs the actual deployment of an egg to a nest.
 func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) error {
+	masterCfg := s.ConfigSnapshot()
 	// 1. Generate shared key for master↔egg HMAC
 	sharedKey, err := invasion.GenerateSharedKey()
 	if err != nil {
@@ -116,7 +117,7 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 	}
 
 	// 2. Resolve the master URL the egg should connect to
-	masterURL := invasion.ResolveMasterURL(s.Cfg, nest)
+	masterURL := invasion.ResolveMasterURL(masterCfg, nest)
 
 	// 3. Optionally export vault
 	var vaultData []byte
@@ -135,7 +136,7 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 	}
 
 	// 4. Generate egg config.yaml
-	cfgYAML, err := invasion.GenerateEggConfig(s.Cfg, egg, nest, sharedKey, masterURL, eggMasterKey)
+	cfgYAML, err := invasion.GenerateEggConfig(masterCfg, egg, nest, sharedKey, masterURL, eggMasterKey)
 	if err != nil {
 		return fmt.Errorf("failed to generate egg config: %w", err)
 	}
@@ -167,9 +168,18 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 	}
 
 	// 8. Build deployment payload
+	permissions, err := invasion.EggPermissionsJSON(cfgYAML)
+	if err != nil {
+		return err
+	}
+	bootstrap, err := s.eggBootstrap(masterCfg, egg, sharedKey, eggMasterKey, vaultData)
+	if err != nil {
+		return err
+	}
 	payload := invasion.EggDeployPayload{
 		BinaryPath:   binaryPath,
 		ConfigYAML:   cfgYAML,
+		Bootstrap:    bootstrap,
 		ResourcesPkg: resourcesPath,
 		SharedKey:    sharedKey,
 		EggPort:      egg.EggPort,
@@ -185,6 +195,15 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 	}
 
 	// 9. Create deployment history record
+	revisionID, err := invasion.CreateSafeConfigRevision(s.InvasionDB, nest.ID, egg.ID, "{}", invasion.HashConfigYAML(cfgYAML), "hatch", permissions)
+	if err != nil {
+		restorePreviousKey(invasion.ErrEggConfigNotDelivered)
+		return err
+	}
+	if err := invasion.UpdateNestConfigRev(s.InvasionDB, nest.ID, revisionID, nest.AppliedConfigRev); err != nil {
+		restorePreviousKey(invasion.ErrEggConfigNotDelivered)
+		return err
+	}
 	binaryHash := hashFile(binaryPath)
 	configHash := hashBytes(cfgYAML)
 	var deployID string
@@ -199,6 +218,7 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 	defer cancel()
 
 	if err := connector.Deploy(ctx, nest, secretBytes, payload); err != nil {
+		_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, revisionID, "failed", "deployment failed")
 		if deployID != "" {
 			_ = invasion.UpdateDeploymentStatus(s.InvasionDB, deployID, "failed")
 		}
@@ -213,6 +233,7 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 	// 11. Health check with brief stabilization delay
 	time.Sleep(3 * time.Second)
 	if err := connector.HealthCheck(ctx, nest, secretBytes); err != nil {
+		_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, revisionID, "failed", "deployment health check failed")
 		s.Logger.Warn("Health check failed after deploy, attempting auto-rollback", "nest_id", nest.ID, "error", err)
 		if deployID != "" {
 			_ = invasion.UpdateDeploymentStatus(s.InvasionDB, deployID, "failed")
@@ -234,7 +255,7 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 		_ = invasion.UpdateDeploymentStatus(s.InvasionDB, deployID, "verified")
 	}
 
-	return nil
+	return invasion.MarkSafeConfigRevisionApplied(s.InvasionDB, nest.ID, revisionID)
 }
 
 func eggVaultExportKeys(egg invasion.EggRecord, nest invasion.NestRecord) []string {
@@ -567,7 +588,7 @@ func handleInvasionWebSocket(s *Server) http.HandlerFunc {
 		}
 		_ = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 		// Legacy clients understand error envelopes and display this upgrade notice.
-		// Protocol v2 clients recognize the versioned challenge before sending auth.
+		// Protocol v3 clients recognize the versioned challenge before sending auth.
 		notice, _ := json.Marshal(bridge.ErrorPayload{Code: "invasion_protocol_upgrade_required", Message: bridge.UpgradeRequired})
 		if err := conn.WriteJSON(bridge.Message{Protocol: bridge.ProtocolVersion, Type: bridge.MsgError, Session: challenge, Payload: notice}); err != nil {
 			return
@@ -1044,29 +1065,45 @@ func handleInvasionNestSafeReconfigure(s *Server) http.HandlerFunc {
 			jsonError(w, "Shared key not found — re-hatch required", http.StatusConflict)
 			return
 		}
-		masterURL := invasion.ResolveMasterURL(s.Cfg, nest)
+		masterCfg := s.ConfigSnapshot()
+		masterURL := invasion.ResolveMasterURL(masterCfg, nest)
 		eggMasterKey, _ := s.Vault.ReadSecret("egg_master_key_" + nest.ID)
 		if eggMasterKey == "" {
 			eggMasterKey, _ = invasion.GenerateSharedKey()
 		}
 
-		cfgYAML, err := invasion.GenerateEggConfig(s.Cfg, egg, nest, sharedKey, masterURL, eggMasterKey)
+		cfgYAML, err := invasion.GenerateEggConfig(masterCfg, egg, nest, sharedKey, masterURL, eggMasterKey)
 		if err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to generate config", "Safe reconfigure config generation failed", err, "nest_id", id)
 			return
 		}
 
 		// Apply patch
+		cfgYAML, err = s.restoreEggPermissions(nest, cfgYAML, patch)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusConflict)
+			return
+		}
 		patchedYAML, err := invasion.ApplySafeConfigPatch(cfgYAML, patch)
 		if err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to apply patch", "Safe reconfigure patch failed", err, "nest_id", id)
 			return
 		}
 
+		bootstrap, bootstrapErr := s.eggBootstrap(masterCfg, egg, "", "", nil)
+		if bootstrapErr != nil {
+			jsonError(w, "Cannot prepare private Egg bootstrap", http.StatusConflict)
+			return
+		}
 		// Create revision record
+		permissions, err := invasion.EggPermissionsJSON(patchedYAML)
+		if err != nil {
+			jsonError(w, "Invalid effective Egg permissions", http.StatusBadRequest)
+			return
+		}
 		patchJSON, _ := invasion.PatchToJSON(patch)
 		configHash := invasion.HashConfigYAML(patchedYAML)
-		revID, err := invasion.CreateSafeConfigRevision(s.InvasionDB, nest.ID, nest.EggID, patchJSON, configHash, "safe_reconfigure")
+		revID, err := invasion.CreateSafeConfigRevision(s.InvasionDB, nest.ID, nest.EggID, patchJSON, configHash, "safe_reconfigure", permissions)
 		if err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to create revision", "Safe reconfigure revision creation failed", err, "nest_id", id)
 			return
@@ -1074,7 +1111,8 @@ func handleInvasionNestSafeReconfigure(s *Server) http.HandlerFunc {
 
 		// Set desired config rev on nest
 		if err := invasion.UpdateNestConfigRev(s.InvasionDB, nest.ID, revID, nest.AppliedConfigRev); err != nil {
-			s.Logger.Warn("Failed to update nest desired_config_rev", "nest_id", id, "error", err)
+			jsonError(w, "Cannot record desired config revision", http.StatusConflict)
+			return
 		}
 
 		// Mark revision as applying
@@ -1094,7 +1132,7 @@ func handleInvasionNestSafeReconfigure(s *Server) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 		defer cancel()
 
-		if err := connector.Reconfigure(ctx, nest, secretBytes, patchedYAML); err != nil {
+		if err := connector.Reconfigure(ctx, nest, secretBytes, patchedYAML, bootstrap); err != nil {
 			_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, revID, "failed", err.Error())
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Reconfigure failed: "+err.Error(), "Safe reconfigure connector failed", err, "nest_id", id)
 			return
@@ -1110,8 +1148,10 @@ func handleInvasionNestSafeReconfigure(s *Server) http.HandlerFunc {
 		}
 
 		// Mark as applied
-		_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, revID, "applied", "")
-		_ = invasion.UpdateNestConfigRev(s.InvasionDB, nest.ID, revID, revID)
+		if err := invasion.MarkSafeConfigRevisionApplied(s.InvasionDB, nest.ID, revID); err != nil {
+			jsonError(w, err.Error(), http.StatusConflict)
+			return
+		}
 
 		writeJSON(w, map[string]interface{}{
 			"status":      "applied",
@@ -1203,6 +1243,10 @@ func handleInvasionNestConfigRollback(s *Server) http.HandlerFunc {
 			jsonError(w, "Can only roll back to an applied revision", http.StatusBadRequest)
 			return
 		}
+		if rev.PermissionsJSON == "" {
+			jsonError(w, "Legacy permission revisions cannot be restored; review rights and reconfigure", http.StatusConflict)
+			return
+		}
 
 		// Get nest and egg
 		nest, err := invasion.GetNest(s.InvasionDB, id)
@@ -1233,13 +1277,14 @@ func handleInvasionNestConfigRollback(s *Server) http.HandlerFunc {
 			jsonError(w, "Shared key not found — re-hatch required", http.StatusConflict)
 			return
 		}
-		masterURL := invasion.ResolveMasterURL(s.Cfg, nest)
+		masterCfg := s.ConfigSnapshot()
+		masterURL := invasion.ResolveMasterURL(masterCfg, nest)
 		eggMasterKey, _ := s.Vault.ReadSecret("egg_master_key_" + nest.ID)
 		if eggMasterKey == "" {
 			eggMasterKey, _ = invasion.GenerateSharedKey()
 		}
 
-		cfgYAML, err := invasion.GenerateEggConfig(s.Cfg, egg, nest, sharedKey, masterURL, eggMasterKey)
+		cfgYAML, err := invasion.GenerateEggConfig(masterCfg, egg, nest, sharedKey, masterURL, eggMasterKey)
 		if err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to generate config", "Config rollback config generation failed", err, "nest_id", id)
 			return
@@ -1251,15 +1296,29 @@ func handleInvasionNestConfigRollback(s *Server) http.HandlerFunc {
 			return
 		}
 
+		bootstrap, bootstrapErr := s.eggBootstrap(masterCfg, egg, "", "", nil)
+		if bootstrapErr != nil {
+			jsonError(w, "Cannot prepare private Egg bootstrap", http.StatusConflict)
+			return
+		}
 		// Create a rollback revision record
+		patchedYAML, err = invasion.ApplyEggPermissions(patchedYAML, rev.PermissionsJSON)
+		if err != nil {
+			jsonError(w, "Unverified permission revision cannot be restored", http.StatusConflict)
+			return
+		}
 		patchJSON, _ := invasion.PatchToJSON(patch)
 		configHash := invasion.HashConfigYAML(patchedYAML)
-		rollbackRevID, err := invasion.CreateSafeConfigRevision(s.InvasionDB, nest.ID, nest.EggID, patchJSON, configHash, "rollback")
+		rollbackRevID, err := invasion.CreateSafeConfigRevision(s.InvasionDB, nest.ID, nest.EggID, patchJSON, configHash, "rollback", rev.PermissionsJSON)
 		if err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to create rollback revision", "Config rollback revision creation failed", err, "nest_id", id)
 			return
 		}
 
+		if err := invasion.UpdateNestConfigRev(s.InvasionDB, nest.ID, rollbackRevID, nest.AppliedConfigRev); err != nil {
+			jsonError(w, "Cannot record desired config revision", http.StatusConflict)
+			return
+		}
 		_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, rollbackRevID, "applying", "")
 
 		// Get the transport credential for the connector
@@ -1276,7 +1335,7 @@ func handleInvasionNestConfigRollback(s *Server) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 		defer cancel()
 
-		if err := connector.Reconfigure(ctx, nest, secretBytes, patchedYAML); err != nil {
+		if err := connector.Reconfigure(ctx, nest, secretBytes, patchedYAML, bootstrap); err != nil {
 			_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, rollbackRevID, "failed", err.Error())
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Rollback reconfigure failed: "+err.Error(), "Config rollback connector failed", err, "nest_id", id)
 			return
@@ -1291,8 +1350,10 @@ func handleInvasionNestConfigRollback(s *Server) http.HandlerFunc {
 		}
 
 		// Mark rollback as applied, mark old current as rolled_back
-		_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, rollbackRevID, "applied", "")
-		_ = invasion.UpdateNestConfigRev(s.InvasionDB, nest.ID, rollbackRevID, rollbackRevID)
+		if err := invasion.MarkSafeConfigRevisionApplied(s.InvasionDB, nest.ID, rollbackRevID); err != nil {
+			jsonError(w, err.Error(), http.StatusConflict)
+			return
+		}
 
 		writeJSON(w, map[string]interface{}{
 			"status":               "rolled_back",

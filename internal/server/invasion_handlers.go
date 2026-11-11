@@ -597,58 +597,67 @@ func handleInvasionEggs(s *Server) http.HandlerFunc {
 			}
 			// Strip api_key_ref from response, add has_api_key flag
 			type eggResponse struct {
-				ID           string `json:"id"`
-				Name         string `json:"name"`
-				Description  string `json:"description"`
-				Model        string `json:"model"`
-				Provider     string `json:"provider"`
-				BaseURL      string `json:"base_url"`
-				Active       bool   `json:"active"`
-				HasAPIKey    bool   `json:"has_api_key"`
-				Permanent    bool   `json:"permanent"`
-				IncludeVault bool   `json:"include_vault"`
-				InheritLLM   bool   `json:"inherit_llm"`
-				EggPort      int    `json:"egg_port"`
-				AllowedTools string `json:"allowed_tools"`
-				CreatedAt    string `json:"created_at"`
-				UpdatedAt    string `json:"updated_at"`
+				ID                    string `json:"id"`
+				Name                  string `json:"name"`
+				Description           string `json:"description"`
+				Model                 string `json:"model"`
+				Provider              string `json:"provider"`
+				BaseURL               string `json:"base_url"`
+				Active                bool   `json:"active"`
+				HasAPIKey             bool   `json:"has_api_key"`
+				Permanent             bool   `json:"permanent"`
+				IncludeVault          bool   `json:"include_vault"`
+				InheritLLM            bool   `json:"inherit_llm"`
+				EggPort               int    `json:"egg_port"`
+				AllowFilesystemWrite  bool   `json:"allow_filesystem_write"`
+				AllowNetworkRequests  bool   `json:"allow_network_requests"`
+				AllowUnsandboxedShell bool   `json:"allow_unsandboxed_shell"`
+				AllowedTools          string `json:"allowed_tools"`
+				CreatedAt             string `json:"created_at"`
+				UpdatedAt             string `json:"updated_at"`
 			}
 			resp := make([]eggResponse, 0, len(eggs))
 			for _, e := range eggs {
 				resp = append(resp, eggResponse{
-					ID:           e.ID,
-					Name:         e.Name,
-					Description:  e.Description,
-					Model:        e.Model,
-					Provider:     e.Provider,
-					BaseURL:      e.BaseURL,
-					Active:       e.Active,
-					HasAPIKey:    e.APIKeyRef != "",
-					Permanent:    e.Permanent,
-					IncludeVault: e.IncludeVault,
-					InheritLLM:   e.InheritLLM,
-					EggPort:      e.EggPort,
-					AllowedTools: e.AllowedTools,
-					CreatedAt:    e.CreatedAt,
-					UpdatedAt:    e.UpdatedAt,
+					ID:                    e.ID,
+					Name:                  e.Name,
+					Description:           e.Description,
+					Model:                 e.Model,
+					Provider:              e.Provider,
+					BaseURL:               e.BaseURL,
+					Active:                e.Active,
+					HasAPIKey:             e.APIKeyRef != "",
+					Permanent:             e.Permanent,
+					IncludeVault:          e.IncludeVault,
+					InheritLLM:            e.InheritLLM,
+					EggPort:               e.EggPort,
+					AllowedTools:          e.AllowedTools,
+					AllowUnsandboxedShell: e.AllowUnsandboxedShell,
+					AllowNetworkRequests:  e.AllowNetworkRequests,
+					AllowFilesystemWrite:  e.AllowFilesystemWrite,
+					CreatedAt:             e.CreatedAt,
+					UpdatedAt:             e.UpdatedAt,
 				})
 			}
 			writeJSON(w, resp)
 
 		case http.MethodPost:
 			var req struct {
-				Name         string `json:"name"`
-				Description  string `json:"description"`
-				Model        string `json:"model"`
-				Provider     string `json:"provider"`
-				BaseURL      string `json:"base_url"`
-				APIKey       string `json:"api_key"`
-				Active       bool   `json:"active"`
-				Permanent    bool   `json:"permanent"`
-				IncludeVault bool   `json:"include_vault"`
-				InheritLLM   bool   `json:"inherit_llm"`
-				EggPort      int    `json:"egg_port"`
-				AllowedTools string `json:"allowed_tools"`
+				Name                  string `json:"name"`
+				Description           string `json:"description"`
+				Model                 string `json:"model"`
+				Provider              string `json:"provider"`
+				BaseURL               string `json:"base_url"`
+				APIKey                string `json:"api_key"`
+				Active                bool   `json:"active"`
+				Permanent             bool   `json:"permanent"`
+				IncludeVault          bool   `json:"include_vault"`
+				InheritLLM            bool   `json:"inherit_llm"`
+				EggPort               int    `json:"egg_port"`
+				AllowFilesystemWrite  bool   `json:"allow_filesystem_write"`
+				AllowNetworkRequests  bool   `json:"allow_network_requests"`
+				AllowUnsandboxedShell bool   `json:"allow_unsandboxed_shell"`
+				AllowedTools          string `json:"allowed_tools"`
 			}
 			if err := decodeJSONRequest(w, r, &req, s); err != nil {
 				jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
@@ -660,19 +669,26 @@ func handleInvasionEggs(s *Server) http.HandlerFunc {
 			}
 
 			egg := invasion.EggRecord{
-				Name:         req.Name,
-				Description:  req.Description,
-				Model:        req.Model,
-				Provider:     req.Provider,
-				BaseURL:      req.BaseURL,
-				Active:       req.Active,
-				Permanent:    req.Permanent,
-				IncludeVault: req.IncludeVault,
-				InheritLLM:   req.InheritLLM,
-				EggPort:      req.EggPort,
-				AllowedTools: req.AllowedTools,
+				Name:                  req.Name,
+				Description:           req.Description,
+				Model:                 req.Model,
+				Provider:              req.Provider,
+				BaseURL:               req.BaseURL,
+				Active:                req.Active,
+				Permanent:             req.Permanent,
+				IncludeVault:          req.IncludeVault,
+				InheritLLM:            req.InheritLLM,
+				EggPort:               req.EggPort,
+				AllowedTools:          req.AllowedTools,
+				AllowUnsandboxedShell: req.AllowUnsandboxedShell,
+				AllowNetworkRequests:  req.AllowNetworkRequests,
+				AllowFilesystemWrite:  req.AllowFilesystemWrite,
 			}
 
+			if err := invasion.ValidateEggPermissions(egg); err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 			id, err := invasion.CreateEgg(s.InvasionDB, egg)
 			if err != nil {
 				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to create egg", "Failed to create invasion egg", err)
@@ -726,37 +742,43 @@ func handleInvasionEgg(s *Server) http.HandlerFunc {
 				return
 			}
 			writeJSON(w, map[string]interface{}{
-				"id":            egg.ID,
-				"name":          egg.Name,
-				"description":   egg.Description,
-				"model":         egg.Model,
-				"provider":      egg.Provider,
-				"base_url":      egg.BaseURL,
-				"active":        egg.Active,
-				"has_api_key":   egg.APIKeyRef != "",
-				"permanent":     egg.Permanent,
-				"include_vault": egg.IncludeVault,
-				"inherit_llm":   egg.InheritLLM,
-				"egg_port":      egg.EggPort,
-				"allowed_tools": egg.AllowedTools,
-				"created_at":    egg.CreatedAt,
-				"updated_at":    egg.UpdatedAt,
+				"id":                      egg.ID,
+				"name":                    egg.Name,
+				"description":             egg.Description,
+				"model":                   egg.Model,
+				"provider":                egg.Provider,
+				"base_url":                egg.BaseURL,
+				"active":                  egg.Active,
+				"has_api_key":             egg.APIKeyRef != "",
+				"permanent":               egg.Permanent,
+				"include_vault":           egg.IncludeVault,
+				"inherit_llm":             egg.InheritLLM,
+				"egg_port":                egg.EggPort,
+				"allowed_tools":           egg.AllowedTools,
+				"allow_unsandboxed_shell": egg.AllowUnsandboxedShell,
+				"allow_network_requests":  egg.AllowNetworkRequests,
+				"allow_filesystem_write":  egg.AllowFilesystemWrite,
+				"created_at":              egg.CreatedAt,
+				"updated_at":              egg.UpdatedAt,
 			})
 
 		case http.MethodPut:
 			var req struct {
-				Name         string `json:"name"`
-				Description  string `json:"description"`
-				Model        string `json:"model"`
-				Provider     string `json:"provider"`
-				BaseURL      string `json:"base_url"`
-				APIKey       string `json:"api_key"`
-				Active       bool   `json:"active"`
-				Permanent    bool   `json:"permanent"`
-				IncludeVault bool   `json:"include_vault"`
-				InheritLLM   bool   `json:"inherit_llm"`
-				EggPort      int    `json:"egg_port"`
-				AllowedTools string `json:"allowed_tools"`
+				Name                  string `json:"name"`
+				Description           string `json:"description"`
+				Model                 string `json:"model"`
+				Provider              string `json:"provider"`
+				BaseURL               string `json:"base_url"`
+				APIKey                string `json:"api_key"`
+				Active                bool   `json:"active"`
+				Permanent             bool   `json:"permanent"`
+				IncludeVault          bool   `json:"include_vault"`
+				InheritLLM            bool   `json:"inherit_llm"`
+				EggPort               int    `json:"egg_port"`
+				AllowFilesystemWrite  bool   `json:"allow_filesystem_write"`
+				AllowNetworkRequests  bool   `json:"allow_network_requests"`
+				AllowUnsandboxedShell bool   `json:"allow_unsandboxed_shell"`
+				AllowedTools          string `json:"allowed_tools"`
 			}
 			if err := decodeJSONRequest(w, r, &req, s); err != nil {
 				jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
@@ -780,6 +802,13 @@ func handleInvasionEgg(s *Server) http.HandlerFunc {
 			existing.InheritLLM = req.InheritLLM
 			existing.EggPort = req.EggPort
 			existing.AllowedTools = req.AllowedTools
+			existing.AllowUnsandboxedShell = req.AllowUnsandboxedShell
+			existing.AllowNetworkRequests = req.AllowNetworkRequests
+			existing.AllowFilesystemWrite = req.AllowFilesystemWrite
+			if err := invasion.ValidateEggPermissions(existing); err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 
 			if req.APIKey != "" {
 				vaultKey := "egg_apikey_" + id

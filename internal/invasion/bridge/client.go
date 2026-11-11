@@ -33,8 +33,8 @@ type EggClient struct {
 	NestID        string
 	SharedKey     string // hex-encoded
 	Version       string
-	TLSSkipVerify bool   // legacy: skip TLS certificate verification (configs written by older masters)
-	TLSPinSHA256  string // SHA-256 hex of the master's DER leaf certificate; wins over TLSSkipVerify
+	TLSSkipVerify bool   // forbidden legacy option; connect rejects it
+	TLSPinSHA256  string // SHA-256 hex of the master's DER leaf certificate
 	HTTPClient    *http.Client
 
 	rootCAs *x509.CertPool // trust store for the chain fallback of a pinned client; nil = system roots (tests inject a CA)
@@ -368,14 +368,11 @@ func (c *EggClient) httpClient() *http.Client {
 }
 
 // masterTLSConfig is the TLS configuration for every connection to the master
-// (HTTP and WebSocket). A pin wins over the legacy skip-verify; nil means the
+// (HTTP and WebSocket). A pin allows a matching leaf or trusted chain; nil means the
 // default verification against the system roots.
 func (c *EggClient) masterTLSConfig() *tls.Config {
 	if pin := strings.TrimSpace(c.TLSPinSHA256); pin != "" {
 		return pinnedTLSConfig(pin, c.masterHost(), c.rootCAs)
-	}
-	if c.TLSSkipVerify {
-		return &tls.Config{InsecureSkipVerify: true} //nolint:gosec // legacy config from an older master; warned at startup
 	}
 	return nil
 }
@@ -441,6 +438,9 @@ func pinnedTLSConfig(pin, host string, roots *x509.CertPool) *tls.Config {
 }
 
 func (c *EggClient) connect() error {
+	if c.TLSSkipVerify {
+		return fmt.Errorf("tls_skip_verify is forbidden; regenerate the Egg configuration")
+	}
 	dialer := websocket.Dialer{HandshakeTimeout: 10 * time.Second, TLSClientConfig: c.masterTLSConfig()}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()

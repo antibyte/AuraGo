@@ -2,7 +2,6 @@ package invasion
 
 import (
 	"aurago/internal/config"
-	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -11,8 +10,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/hex"
 	"encoding/pem"
-	"log"
-	"log/slog"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -62,7 +59,7 @@ func TestGenerateEggConfig_MinimalConfig(t *testing.T) {
 	if eggMode["master_url"] != "ws://localhost:8080/api/invasion/ws" {
 		t.Errorf("master_url = %v", eggMode["master_url"])
 	}
-	if eggMode["shared_key"] != "aabb" {
+	if eggMode["shared_key"] != nil {
 		t.Errorf("shared_key = %v", eggMode["shared_key"])
 	}
 	if eggMode["egg_id"] != "egg-1" {
@@ -93,7 +90,7 @@ func TestGenerateEggConfig_InheritLLM(t *testing.T) {
 	var parsed map[string]interface{}
 	yaml.Unmarshal(data, &parsed)
 
-	llm, ok := parsed["llm"].(map[string]interface{})
+	llm, ok := parsed["providers"].([]interface{})[0].(map[string]interface{})
 	if !ok {
 		t.Fatal("llm section missing")
 	}
@@ -109,7 +106,7 @@ func TestGenerateEggConfig_AllowedTools_ShellOnly(t *testing.T) {
 	masterCfg := minimalMasterCfg()
 	egg := EggRecord{
 		ID: "e1", Name: "W", EggPort: 8099,
-		AllowedTools: `["shell","file_write"]`,
+		AllowedTools: `["shell"]`,
 	}
 	nest := NestRecord{ID: "n1", Name: "S"}
 
@@ -128,8 +125,8 @@ func TestGenerateEggConfig_AllowedTools_ShellOnly(t *testing.T) {
 	if agent["allow_shell"] != true {
 		t.Error("allow_shell should be true for shell tool")
 	}
-	if agent["allow_unsandboxed_shell"] != true {
-		t.Error("allow_unsandboxed_shell should be written explicitly and follow allow_shell")
+	if agent["allow_unsandboxed_shell"] != false {
+		t.Error("allow_unsandboxed_shell requires a separate explicit grant")
 	}
 	if agent["allow_python"] != false {
 		t.Error("allow_python should be false when python not in AllowedTools")
@@ -140,7 +137,7 @@ func TestGenerateEggConfig_AllowedTools_PythonOnly(t *testing.T) {
 	masterCfg := minimalMasterCfg()
 	egg := EggRecord{
 		ID: "e1", Name: "W", EggPort: 8099,
-		AllowedTools: `["python_execute","file_read"]`,
+		AllowedTools: `["python_execute"]`,
 	}
 	nest := NestRecord{ID: "n1", Name: "S"}
 
@@ -161,7 +158,7 @@ func TestGenerateEggConfig_AllowedTools_PythonOnly(t *testing.T) {
 	}
 }
 
-func TestGenerateEggConfig_EmptyAllowedTools_DefaultsTrue(t *testing.T) {
+func TestGenerateEggConfig_EmptyAllowedTools_DefaultsFalse(t *testing.T) {
 	masterCfg := minimalMasterCfg()
 	egg := EggRecord{ID: "e1", Name: "W", EggPort: 8099, AllowedTools: ""}
 	nest := NestRecord{ID: "n1", Name: "S"}
@@ -172,11 +169,11 @@ func TestGenerateEggConfig_EmptyAllowedTools_DefaultsTrue(t *testing.T) {
 	yaml.Unmarshal(data, &parsed)
 
 	agent := parsed["agent"].(map[string]interface{})
-	if agent["allow_shell"] != true {
-		t.Error("allow_shell should default to true with empty AllowedTools")
+	if agent["allow_shell"] != false {
+		t.Error("allow_shell should default to false with empty AllowedTools")
 	}
-	if agent["allow_python"] != true {
-		t.Error("allow_python should default to true with empty AllowedTools")
+	if agent["allow_python"] != false {
+		t.Error("allow_python should default to false with empty AllowedTools")
 	}
 }
 
@@ -213,7 +210,7 @@ func TestGenerateEggConfig_MasterKey(t *testing.T) {
 	yaml.Unmarshal(data, &parsed)
 
 	server := parsed["server"].(map[string]interface{})
-	if server["master_key"] != "egg-master-key-hex" {
+	if server["master_key"] != nil {
 		t.Errorf("master_key = %v", server["master_key"])
 	}
 }
@@ -573,65 +570,15 @@ func TestGenerateEggConfig_PinsWheneverTheMasterServesSelfSigned(t *testing.T) {
 	}
 }
 
-// Without a readable master certificate (HTTPS not started yet, file deleted
-// or corrupt) hatching keeps working: the generator falls back to the legacy
-// tls_skip_verify and warns once.
-func TestGenerateEggConfig_SelfSignedWithoutCertificate_FallsBackToTLSSkipVerify(t *testing.T) {
-	origLogWriter, origLogFlags := log.Writer(), log.Flags()
-	cases := map[string]func(t *testing.T, dataDir string){
-		"missing": func(*testing.T, string) {},
-		"not pem": func(t *testing.T, dataDir string) {
-			writeMasterCertFile(t, dataDir, []byte("not a certificate"))
-		},
-		"invalid der": func(t *testing.T, dataDir string) {
-			writeMasterCertFile(t, dataDir, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: []byte("garbage")}))
-		},
-		"no certificate block": func(t *testing.T, dataDir string) {
-			_, keyPEM, _ := newMasterSelfSignedCertPEM(t)
-			writeMasterCertFile(t, dataDir, keyPEM)
-		},
-	}
-	for name, prepare := range cases {
-		t.Run(name, func(t *testing.T) {
-			masterCfg := minimalMasterCfg()
-			masterCfg.Server.HTTPS.Enabled = true
-			masterCfg.Server.HTTPS.CertMode = "selfsigned"
-			masterCfg.Directories.DataDir = t.TempDir()
-			prepare(t, masterCfg.Directories.DataDir)
-
-			// slog.SetDefault with a custom handler also redirects the standard
-			// log package and resets its flags; restoring the previous slog
-			// default does not undo that, so restore log explicitly too.
-			var logs bytes.Buffer
-			prev, prevWriter, prevFlags := slog.Default(), log.Writer(), log.Flags()
-			slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn})))
-			t.Cleanup(func() {
-				slog.SetDefault(prev)
-				log.SetOutput(prevWriter)
-				log.SetFlags(prevFlags)
-			})
-
-			eggMode := generatedEggMode(t, masterCfg)
-			if eggMode["tls_skip_verify"] != true {
-				t.Errorf("tls_skip_verify = %v, want true as the fallback", eggMode["tls_skip_verify"])
-			}
-			if _, exists := eggMode["tls_pin_sha256"]; exists {
-				t.Error("fallback must not emit tls_pin_sha256")
-			}
-			if n := strings.Count(logs.String(), "level=WARN"); n != 1 {
-				t.Errorf("want exactly one warning, got %d:\n%s", n, logs.String())
-			}
-			if !strings.Contains(logs.String(), "selfsigned.crt") {
-				t.Errorf("warning should name the certificate path:\n%s", logs.String())
-			}
-		})
-	}
-	if log.Writer() != origLogWriter || log.Flags() != origLogFlags {
-		t.Error("the standard log package was left redirected to the test handler")
+func TestGenerateEggConfig_SelfSignedWithoutCertificateFails(t *testing.T) {
+	cfg := minimalMasterCfg()
+	cfg.Server.HTTPS.Enabled = true
+	cfg.Server.HTTPS.CertMode = "selfsigned"
+	cfg.Directories.DataDir = t.TempDir()
+	if _, err := GenerateEggConfig(cfg, EggRecord{}, NestRecord{}, "", "wss://localhost", ""); err == nil {
+		t.Fatal("missing certificate accepted")
 	}
 }
-
-// ── ApplySafeConfigPatch tests ──────────────────────────────────────────────
 
 func TestApplySafeConfigPatch_Model(t *testing.T) {
 	masterCfg := minimalMasterCfg()
@@ -648,7 +595,7 @@ func TestApplySafeConfigPatch_Model(t *testing.T) {
 
 	var cfg map[string]interface{}
 	yaml.Unmarshal(patched, &cfg)
-	llm := cfg["llm"].(map[string]interface{})
+	llm := cfg["providers"].([]interface{})[0].(map[string]interface{})
 	if llm["model"] != "gpt-4o" {
 		t.Errorf("model = %v, want gpt-4o", llm["model"])
 	}
@@ -755,8 +702,8 @@ func TestApplySafeConfigPatch_ProviderAndBaseURL(t *testing.T) {
 
 	var cfg map[string]interface{}
 	yaml.Unmarshal(patched, &cfg)
-	llm := cfg["llm"].(map[string]interface{})
-	if llm["provider"] != "openai" {
+	llm := cfg["providers"].([]interface{})[0].(map[string]interface{})
+	if llm["type"] != "openai" {
 		t.Errorf("provider = %v, want openai", llm["provider"])
 	}
 	if llm["base_url"] != "https://api.openai.com/v1" {

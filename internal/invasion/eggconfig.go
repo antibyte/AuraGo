@@ -10,7 +10,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"strings"
 
@@ -32,54 +31,24 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 
 	// ── Server ──
 	cfg["server"] = map[string]interface{}{
-		"host":       "0.0.0.0",
-		"port":       egg.EggPort,
-		"master_key": eggMasterKey,
+		"host": "0.0.0.0",
+		"port": egg.EggPort,
 	}
 
 	// ── LLM — either inherit from master or use egg's own ──
+	providerType, baseURL, model, temperature := egg.Provider, egg.BaseURL, egg.Model, 0.7
 	if egg.InheritLLM {
-		caps := llm.ResolveConfigProviderCapabilities(masterCfg)
-		// SECURITY NOTE: The master's API key is included in the config YAML.
-		// For Docker deployments the config is copied into the container as a file
-		// (not an env var) to prevent exposure via "docker inspect". For SSH
-		// deployments the config is written with restricted permissions on the
-		// remote host. The egg host must be considered trusted — a compromised
-		// egg can extract the key from its config file.
-		cfg["llm"] = map[string]interface{}{
-			"provider":             masterCfg.LLM.ProviderType,
-			"base_url":             masterCfg.LLM.BaseURL,
-			"api_key":              masterCfg.LLM.APIKey,
-			"model":                masterCfg.LLM.Model,
-			"use_native_functions": caps.ToolCalling,
-			"temperature":          masterCfg.LLM.Temperature,
-			"structured_outputs":   caps.StructuredOutputs,
-			"multimodal":           caps.Multimodal,
-		}
-	} else {
-		caps := llm.ResolveProviderCapabilities(config.ProviderEntry{
-			Type:  egg.Provider,
-			Model: egg.Model,
-		}, llm.CapabilityFallback{
-			ToolCalling:       true,
-			StructuredOutputs: false,
-			Multimodal:        false,
-		})
-		llmSection := map[string]interface{}{
-			"provider":             egg.Provider,
-			"base_url":             egg.BaseURL,
-			"model":                egg.Model,
-			"use_native_functions": caps.ToolCalling,
-			"temperature":          0.7,
-			"structured_outputs":   caps.StructuredOutputs,
-			"multimodal":           caps.Multimodal,
-		}
-		// API key will be empty here — it must be injected from vault or sent via secret channel
-		if egg.APIKeyRef != "" {
-			llmSection["api_key"] = "" // placeholder, egg will use vault
-		}
-		cfg["llm"] = llmSection
+		providerType, baseURL, model, temperature = masterCfg.LLM.ProviderType, masterCfg.LLM.BaseURL, masterCfg.LLM.Model, masterCfg.LLM.Temperature
 	}
+	if providerType == "" {
+		providerType = "openai"
+	}
+	caps := llm.ResolveProviderCapabilities(config.ProviderEntry{Type: providerType, Model: model}, llm.CapabilityFallback{ToolCalling: true})
+	if egg.InheritLLM {
+		caps = llm.ResolveConfigProviderCapabilities(masterCfg)
+	}
+	cfg["providers"] = []map[string]interface{}{{"id": "main", "name": "Egg LLM", "type": providerType, "base_url": baseURL, "model": model}}
+	cfg["llm"] = map[string]interface{}{"provider": "main", "temperature": temperature, "use_native_functions": caps.ToolCalling, "structured_outputs": caps.StructuredOutputs, "multimodal": caps.Multimodal}
 
 	// ── Directories (standard paths) ──
 	cfg["directories"] = map[string]interface{}{
@@ -100,25 +69,21 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 	}
 
 	// ── Agent — worker mode, no personality ──
-	// Derive permission flags from the egg's allowed_tools configuration.
-	// If no tools are specified (empty = default set), grant shell and python.
-	allowShell := true
-	allowPython := true
-	if egg.AllowedTools != "" {
-		// Parse the JSON array of allowed tool IDs
-		var tools []string
-		if err := json.Unmarshal([]byte(egg.AllowedTools), &tools); err == nil && len(tools) > 0 {
-			allowShell = false
-			allowPython = false
-			for _, t := range tools {
-				switch strings.TrimSpace(t) {
-				case "shell", "execute_shell_command":
-					allowShell = true
-				case "python", "python_execute":
-					allowPython = true
-				}
-			}
+	selected, err := parseEggAllowedTools(egg.AllowedTools)
+	if err != nil {
+		return nil, err
+	}
+	allowShell, allowPython := false, false
+	for _, tool := range selected {
+		switch tool {
+		case "shell", "execute_shell_command":
+			allowShell = true
+		case "python", "python_execute":
+			allowPython = true
 		}
+	}
+	if egg.AllowUnsandboxedShell && !allowShell {
+		return nil, fmt.Errorf("unsandboxed shell requires an explicit shell tool grant")
 	}
 	cfg["agent"] = map[string]interface{}{
 		"system_language":            masterCfg.Agent.SystemLanguage,
@@ -132,10 +97,10 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 		"debug_mode":                 false,
 		"user_profiling":             false,
 		"allow_shell":                allowShell,
-		"allow_unsandboxed_shell":    allowShell, // explicit, so a hatched egg never relies on the legacy shell grandfather
+		"allow_unsandboxed_shell":    egg.AllowUnsandboxedShell,
 		"allow_python":               allowPython,
-		"allow_filesystem_write":     true,
-		"allow_network_requests":     true,
+		"allow_filesystem_write":     egg.AllowFilesystemWrite,
+		"allow_network_requests":     egg.AllowNetworkRequests,
 		"allow_remote_shell":         false,
 		"allow_self_update":          false,
 		"sudo_enabled":               false,
@@ -192,11 +157,11 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 
 	// ── EggMode (the critical section) ──
 	eggModeCfg := map[string]interface{}{
-		"enabled":    true,
-		"master_url": masterURL,
-		"shared_key": sharedKey,
-		"egg_id":     egg.ID,
-		"nest_id":    nest.ID,
+		"security_policy_version": EggSecurityPolicyVersion,
+		"enabled":                 true,
+		"master_url":              masterURL,
+		"egg_id":                  egg.ID,
+		"nest_id":                 nest.ID,
 	}
 	// When the master serves self-signed TLS, the egg pins the master's leaf
 	// certificate (SHA-256 of its DER) instead of trusting any certificate.
@@ -207,13 +172,7 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 		if pin, err := masterCertPin(certPath); err == nil {
 			eggModeCfg["tls_pin_sha256"] = pin
 		} else {
-			// No readable certificate (the master has not served HTTPS since it
-			// was enabled, or the file was deleted or is corrupt). Hatching must
-			// keep working, so fall back to the legacy skip-verify; a
-			// safe-reconfigure once the certificate exists delivers the pin.
-			slog.Warn("[Invasion] Master self-signed certificate unreadable; egg config falls back to tls_skip_verify",
-				"path", certPath, "error", err)
-			eggModeCfg["tls_skip_verify"] = true
+			return nil, fmt.Errorf("master certificate unavailable; hatch refused: %w", err)
 		}
 	}
 	cfg["egg_mode"] = eggModeCfg
@@ -224,6 +183,24 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 	}
 
 	return data, nil
+}
+
+func parseEggAllowedTools(raw string) ([]string, error) {
+	tools := []string{}
+	if strings.TrimSpace(raw) == "" {
+		return tools, nil
+	}
+	if err := json.Unmarshal([]byte(raw), &tools); err != nil || tools == nil {
+		return nil, fmt.Errorf("allowed_tools must be a JSON array")
+	}
+	for i, tool := range tools {
+		tool = strings.TrimSpace(tool)
+		if !allowedToolsWhitelist[tool] {
+			return nil, fmt.Errorf("unknown tool in allowed_tools: %s", tool)
+		}
+		tools[i] = tool
+	}
+	return tools, nil
 }
 
 // masterCertPin returns the lowercase SHA-256 hex of the DER leaf certificate
@@ -256,6 +233,9 @@ func masterCertPin(path string) (string, error) {
 // It returns the modified config YAML bytes. The original config is not modified.
 // Only whitelisted fields are changed; all other sections remain untouched.
 func ApplySafeConfigPatch(originalYAML []byte, patch SafeConfigPatch) ([]byte, error) {
+	if err := ValidateSafeConfigPatch(patch); err != nil {
+		return nil, err
+	}
 	var cfg map[string]interface{}
 	if err := yaml.Unmarshal(originalYAML, &cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse existing config: %w", err)
@@ -269,19 +249,23 @@ func ApplySafeConfigPatch(originalYAML []byte, patch SafeConfigPatch) ([]byte, e
 		// for audit purposes but it has no effect on the YAML directly.
 	}
 
-	if patch.Provider != nil {
-		if llm, ok := cfg["llm"].(map[string]interface{}); ok {
-			llm["provider"] = *patch.Provider
+	if patch.Provider != nil || patch.BaseURL != nil || patch.Model != nil {
+		providers, ok := cfg["providers"].([]interface{})
+		if !ok || len(providers) != 1 {
+			return nil, fmt.Errorf("Egg configuration requires one provider binding")
 		}
-	}
-	if patch.BaseURL != nil {
-		if llm, ok := cfg["llm"].(map[string]interface{}); ok {
-			llm["base_url"] = *patch.BaseURL
+		provider, ok := providers[0].(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("invalid Egg provider binding")
 		}
-	}
-	if patch.Model != nil {
-		if llm, ok := cfg["llm"].(map[string]interface{}); ok {
-			llm["model"] = *patch.Model
+		if patch.Provider != nil {
+			provider["type"] = *patch.Provider
+		}
+		if patch.BaseURL != nil {
+			provider["base_url"] = *patch.BaseURL
+		}
+		if patch.Model != nil {
+			provider["model"] = *patch.Model
 		}
 	}
 
@@ -296,6 +280,11 @@ func ApplySafeConfigPatch(originalYAML []byte, patch SafeConfigPatch) ([]byte, e
 			agent["allow_network_requests"] = *patch.AllowNetworkRequests
 		}
 	}
+	if patch.AllowUnsandboxedShell != nil {
+		if agent, ok := cfg["agent"].(map[string]interface{}); ok {
+			agent["allow_unsandboxed_shell"] = *patch.AllowUnsandboxedShell
+		}
+	}
 	if patch.AllowRemoteShell != nil {
 		if agent, ok := cfg["agent"].(map[string]interface{}); ok {
 			agent["allow_remote_shell"] = *patch.AllowRemoteShell
@@ -308,7 +297,7 @@ func ApplySafeConfigPatch(originalYAML []byte, patch SafeConfigPatch) ([]byte, e
 	}
 
 	// ── Allowed tools → derive allow_shell / allow_python ──
-	if len(patch.AllowedTools) > 0 {
+	if patch.AllowedTools != nil {
 		allowShell := false
 		allowPython := false
 		for _, t := range patch.AllowedTools {
@@ -321,7 +310,9 @@ func ApplySafeConfigPatch(originalYAML []byte, patch SafeConfigPatch) ([]byte, e
 		}
 		if agent, ok := cfg["agent"].(map[string]interface{}); ok {
 			agent["allow_shell"] = allowShell
-			agent["allow_unsandboxed_shell"] = allowShell
+			if !allowShell && patch.AllowUnsandboxedShell == nil {
+				agent["allow_unsandboxed_shell"] = false
+			}
 			agent["allow_python"] = allowPython
 		}
 	}
@@ -329,6 +320,13 @@ func ApplySafeConfigPatch(originalYAML []byte, patch SafeConfigPatch) ([]byte, e
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal patched config: %w", err)
+	}
+	var parsed config.Config
+	if err := yaml.Unmarshal(data, &parsed); err != nil {
+		return nil, err
+	}
+	if err := ValidateEggPolicy(&parsed); err != nil {
+		return nil, err
 	}
 	return data, nil
 }

@@ -14,6 +14,8 @@ This folder owns the Ansible, Browser Automation and browser-egress Dockerfiles,
 - Compose names these Dockerfiles explicitly. Native auto-builds also find them under `deploy/docker/`, retaining context-root Dockerfiles for existing custom build contexts.
 - Root `Dockerfile` copies `docker-entrypoint.sh` to `/app/docker-entrypoint.sh`; `.dockerignore` must include that source despite the general shell-script exclusion.
 - Release cleanup must preserve this entire source folder.
+- The entrypoint preserves an existing data/.env master key. An existing Vault
+  without its original key refuses startup; never generate a replacement key.
 
 ## Work Guidance
 

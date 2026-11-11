@@ -137,6 +137,12 @@ func sshDeployStepName(s sshDeployStep) string {
 		return "resources"
 	case strings.Contains(s.cmd, "cp -a"):
 		return "backup"
+	case strings.Contains(s.cmd, "nohup ./aurago"):
+		return "start"
+	case strings.HasPrefix(s.cmd, "systemctl --user stop"):
+		return "service-stop"
+	case strings.Contains(s.cmd, "isegg()"):
+		return "process-stop"
 	case strings.HasPrefix(s.cmd, "mkdir -p"):
 		return "mkdir"
 	case strings.HasPrefix(s.cmd, "chmod +x"):
@@ -145,12 +151,12 @@ func sshDeployStepName(s sshDeployStep) string {
 		return "unpack"
 	case s.cmd == "bash -s" && strings.Contains(s.input, "/config.yaml'"):
 		return "config"
-	case s.cmd == "bash -s" && strings.Contains(s.input, "/data/vault.enc'"):
-		return "vault"
+	case s.cmd == "bash -s" && strings.Contains(s.input, "/data/egg-bootstrap.json'"):
+		return "bootstrap"
+	case s.cmd == "bash -s" && strings.Contains(s.input, "/.egg-security-version'"):
+		return "marker"
 	case s.cmd == "bash -s" && strings.Contains(s.input, "/.env'"):
 		return "env"
-	case strings.Contains(s.cmd, "nohup ./aurago"):
-		return "start"
 	}
 	return "unknown: " + s.cmd
 }
@@ -193,7 +199,7 @@ func sshDeployTestNest() NestRecord {
 func sshDeployTestPayload() EggDeployPayload {
 	return EggDeployPayload{
 		BinaryPath: "aurago", ConfigYAML: []byte("egg_mode:\n  shared_key: hatch-key\n"),
-		ResourcesPkg: "resources.dat", IncludeVault: true, VaultData: []byte("vault"),
+		ResourcesPkg: "resources.dat", IncludeVault: true, Bootstrap: []byte("private-bootstrap"),
 		MasterKey: strings.Repeat("ab", 32),
 	}
 }
@@ -203,7 +209,7 @@ func TestSSHConnectorDeployStepOrderIsUnchanged(t *testing.T) {
 	if err := (&SSHConnector{}).Deploy(context.Background(), sshDeployTestNest(), []byte("secret"), sshDeployTestPayload()); err != nil {
 		t.Fatalf("Deploy: %v", err)
 	}
-	want := "backup,mkdir,binary,chmod,config,resources,unpack,vault,env,start"
+	want := "backup,mkdir,service-stop,process-stop,binary,chmod,config,resources,unpack,bootstrap,env,marker,start"
 	if got := strings.Join(*steps, ","); got != want {
 		t.Fatalf("steps = %s, want %s", got, want)
 	}
@@ -221,7 +227,7 @@ func TestSSHConnectorDeployMarksOnlyFailuresBeforeTheConfigWrite(t *testing.T) {
 		{"config", "failed to write config", false},
 		{"resources", "failed to transfer resources", false},
 		{"unpack", "failed to unpack resources", false},
-		{"vault", "failed to write vault", false},
+		{"bootstrap", "write egg bootstrap", false},
 		{"env", "failed to write .env", false},
 		{"start", "failed to start egg process", false},
 	}
@@ -460,7 +466,12 @@ func TestSSHConnectorRestartFallbacksDetachTheEggFromTheSession(t *testing.T) {
 	if !strings.HasPrefix(restart, "systemctl --user restart aurago-egg-12345678 2>/dev/null || (") || !strings.Contains(restart, detached) {
 		t.Fatalf("Reconfigure restart = %q, want the service restart with a detached nohup fallback", restart)
 	}
-	cmds = sshCommandsWithOutput(t, func(string) string { return "ok\n" })
+	cmds = sshCommandsWithOutput(t, func(cmd string) string {
+		if strings.Contains(cmd, ".egg-security-version") {
+			return "1\n"
+		}
+		return "ok\n"
+	})
 	if err := c.Rollback(context.Background(), nest, nil); err != nil {
 		t.Fatalf("Rollback: %v", err)
 	}

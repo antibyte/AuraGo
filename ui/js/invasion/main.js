@@ -388,6 +388,9 @@ function openEggModal(egg = null) {
 
     document.getElementById('egg-port').value = egg?.egg_port || 8099;
     document.getElementById('egg-allowed-tools').value = egg?.allowed_tools || '';
+    document.getElementById('egg-allow-filesystem').checked = !!egg?.allow_filesystem_write;
+    document.getElementById('egg-allow-network').checked = !!egg?.allow_network_requests;
+    document.getElementById('egg-allow-unsandboxed').checked = !!egg?.allow_unsandboxed_shell;
     document.getElementById('egg-permanent').checked = !!egg?.permanent;
     document.getElementById('egg-include-vault').checked = !!egg?.include_vault;
     document.getElementById('egg-inherit-llm').checked = egg?.inherit_llm !== false;
@@ -548,6 +551,9 @@ async function saveEgg() {
         active: document.getElementById('egg-active').checked,
         egg_port: parseInt(document.getElementById('egg-port').value) || 8099,
         allowed_tools: document.getElementById('egg-allowed-tools').value.trim(),
+        allow_filesystem_write: document.getElementById('egg-allow-filesystem').checked,
+        allow_network_requests: document.getElementById('egg-allow-network').checked,
+        allow_unsandboxed_shell: document.getElementById('egg-allow-unsandboxed').checked,
         permanent: document.getElementById('egg-permanent').checked,
         include_vault: document.getElementById('egg-include-vault').checked,
         inherit_llm: document.getElementById('egg-inherit-llm').checked,
@@ -678,6 +684,15 @@ async function requestDelete(type, id, name) {
 async function openReconfigureModal(nestId) {
     const nest = nestsData.find(n => n.id === nestId);
     if (!nest) return;
+    let permissions = {};
+    try {
+        const history = await api('nests/' + nestId + '/config-history?limit=100');
+        const applied = history.find(rev => rev.id === nest.applied_config_rev);
+        if (applied?.permissions_json) permissions = JSON.parse(applied.permissions_json);
+    } catch (err) {
+        showToast(err.message, 'error');
+        return;
+    }
 
     document.getElementById('reconfigure-nest-id').value = nestId;
     document.getElementById('reconfigure-modal-title').textContent =
@@ -697,11 +712,12 @@ async function openReconfigureModal(nestId) {
     document.getElementById('reconfigure-provider').value = '';
     document.getElementById('reconfigure-model').value = '';
     document.getElementById('reconfigure-base-url').value = '';
-    document.getElementById('reconfigure-allowed-tools').value = '';
-    document.getElementById('reconfigure-allow-filesystem').checked = false;
-    document.getElementById('reconfigure-allow-network').checked = false;
-    document.getElementById('reconfigure-allow-remote-shell').checked = false;
-    document.getElementById('reconfigure-allow-self-update').checked = false;
+    document.getElementById('reconfigure-allowed-tools').value = JSON.stringify(permissions.allowed_tools || []);
+    document.getElementById('reconfigure-allow-filesystem').checked = !!permissions.allow_filesystem_write;
+    document.getElementById('reconfigure-allow-network').checked = !!permissions.allow_network_requests;
+    document.getElementById('reconfigure-allow-unsandboxed').checked = !!permissions.allow_unsandboxed_shell;
+    document.getElementById('reconfigure-allow-remote-shell').checked = !!permissions.allow_remote_shell;
+    document.getElementById('reconfigure-allow-self-update').checked = !!permissions.allow_self_update;
 
     openModal('reconfigure-modal');
 }
@@ -711,7 +727,7 @@ async function applyReconfigure() {
     if (!nestId) return;
 
     const allowedToolsRaw = document.getElementById('reconfigure-allowed-tools').value.trim();
-    let allowedTools = null;
+    let allowedTools = [];
     if (allowedToolsRaw) {
         try {
             allowedTools = JSON.parse(allowedToolsRaw);
@@ -735,20 +751,15 @@ async function applyReconfigure() {
     if (baseUrl) patch.base_url = baseUrl;
     if (allowedTools !== null) patch.allowed_tools = allowedTools;
 
-    // Runtime flags — only include if at least one is checked
+    // Submit the reviewed state, including explicit revocations.
     const flags = {
         allow_filesystem_write: document.getElementById('reconfigure-allow-filesystem').checked,
         allow_network_requests: document.getElementById('reconfigure-allow-network').checked,
+        allow_unsandboxed_shell: document.getElementById('reconfigure-allow-unsandboxed').checked,
         allow_remote_shell: document.getElementById('reconfigure-allow-remote-shell').checked,
         allow_self_update: document.getElementById('reconfigure-allow-self-update').checked,
     };
-    const anyFlag = Object.values(flags).some(v => v);
-    if (anyFlag) {
-        patch.allow_filesystem_write = flags.allow_filesystem_write;
-        patch.allow_network_requests = flags.allow_network_requests;
-        patch.allow_remote_shell = flags.allow_remote_shell;
-        patch.allow_self_update = flags.allow_self_update;
-    }
+    Object.assign(patch, flags);
 
     if (Object.keys(patch).length === 0) {
         showToast(t('invasion.reconfigure_no_changes'), 'error');

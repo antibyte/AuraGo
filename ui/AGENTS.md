@@ -27,6 +27,12 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 ## Ownership
 
+- Invasion's Egg editor stores explicit file/network/unsandboxed grants. The
+  reconfiguration dialog loads the applied permission snapshot and submits false
+  and [] revocations. History failures keep editing safe and retryable. Empty
+  tool lists deny shell/Python. Keep all sixteen Invasion locales aligned; verify
+  `TestInvasionPermissionRevocationBrowser` and the Invasion locale tests.
+
 <!-- pinball:start -->
 - AuraPinball (`pinball`, Games) lazily loads its isolated pinned Three.js runtime (the
   custom physics, rules, lamps, DMD and audio are first-party code).

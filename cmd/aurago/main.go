@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -448,6 +449,23 @@ func main() {
 		os.Exit(1)
 	}
 	security.RetainProcessMasterKey(masterKey)
+	if cfg.EggMode.Enabled {
+		if err := invasion.ValidateEggPolicy(cfg); err != nil {
+			appLog.Error("Unsafe or obsolete Egg configuration", "error", err)
+			os.Exit(1)
+		}
+		if err := invasion.ApplyEggBootstrap(cfg.Directories.DataDir, vault); err != nil {
+			appLog.Error("Egg bootstrap failed; startup refused", "error", err)
+			os.Exit(1)
+		}
+		key, keyErr := vault.ReadSecret("egg_shared_key")
+		if decoded, err := hex.DecodeString(key); keyErr != nil || err != nil || len(decoded) != 32 {
+			appLog.Error("Egg shared key missing or invalid; startup refused")
+			os.Exit(1)
+		}
+		security.RegisterSensitive(key)
+		cfg.EggMode.SharedKey = key
+	}
 	// Merge staged vault secrets of a restore whose files were applied above.
 	if restoreRoot != "" {
 		restorepending.ApplyStagedVault(restoreRoot, vault, appLog)

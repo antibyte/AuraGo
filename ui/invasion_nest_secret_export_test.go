@@ -9,7 +9,7 @@ import (
 
 func TestInvasionNestSecretExportStringsAreTranslated(t *testing.T) {
 	langs := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
-	keys := []string{"invasion.export_nest_secret", "invasion.export_nest_secret_hint"}
+	keys := []string{"invasion.export_nest_secret", "invasion.export_nest_secret_hint", "invasion.allow_unsandboxed", "invasion.reconfigure_tools_hint"}
 	en, err := readJSONFileMap(filepath.Join("lang", "invasion", "en.json"))
 	if err != nil {
 		t.Fatal(err)

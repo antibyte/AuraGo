@@ -73,6 +73,11 @@ func (c *DockerConnector) Validate(ctx context.Context, nest NestRecord, secret 
 }
 
 func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []byte, payload EggDeployPayload) error {
+	if len(payload.Bootstrap) > 0 || payload.MasterKey != "" {
+		if err := requirePrivateDockerBootstrap(nest); err != nil {
+			return configNotDelivered(err)
+		}
+	}
 	containerName, err := dockerEggContainerName(nest.ID)
 	if err != nil {
 		return configNotDelivered(err)
@@ -116,6 +121,19 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 	// 2. Remove any stale backup, then rename current container as backup
 	_ = c.removeContainer(ctx, nest, secret, backupName)
 	_ = c.renameContainer(ctx, nest, secret, containerName, backupName)
+	stopURL := c.apiURL(nest, fmt.Sprintf("/containers/%s/stop?t=15", backupName))
+	stopRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, stopURL, nil)
+	if err != nil {
+		return configNotDelivered(err)
+	}
+	stopped, err := c.httpClient(nest, secret).Do(stopRequest)
+	if err != nil {
+		return configNotDelivered(fmt.Errorf("stop previous Egg before private bootstrap: %w", err))
+	}
+	stopped.Body.Close()
+	if stopped.StatusCode != http.StatusNoContent && stopped.StatusCode != http.StatusNotModified && stopped.StatusCode != http.StatusNotFound {
+		return configNotDelivered(fmt.Errorf("stop previous Egg returned HTTP %d", stopped.StatusCode))
+	}
 
 	// 3. Create container with minimal env vars.
 	// The full configuration (including secrets like the shared key and API keys)
@@ -144,7 +162,7 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 
 	// 4. Copy config.yaml into the container via the Docker Archive API.
 	// This ensures secrets (shared key, API keys) are not visible in "docker inspect".
-	if err := c.copyConfigToContainer(ctx, nest, secret, containerName, payload.ConfigYAML); err != nil {
+	if err := c.copyConfigToContainer(ctx, nest, secret, containerName, payload.ConfigYAML, payload.Bootstrap); err != nil {
 		// Clean up the created container on failure
 		_ = c.removeContainer(ctx, nest, secret, containerName)
 		return fmt.Errorf("failed to copy config to container: %w", err)
@@ -176,8 +194,9 @@ func dockerEggCreateBody(image, nestID string, payload EggDeployPayload) map[str
 		"AURAGO_SERVER_HOST=0.0.0.0",
 	}
 	return map[string]interface{}{
-		"Image": image,
-		"Env":   envVars,
+		"Image":  image,
+		"Labels": map[string]string{"aurago.egg-security": "1"},
+		"Env":    envVars,
 		"ExposedPorts": map[string]interface{}{
 			fmt.Sprintf("%d/tcp", eggPort): map[string]interface{}{},
 			"8089/tcp":                     map[string]interface{}{},
@@ -242,8 +261,8 @@ func extractServerPort(cfgYAML []byte) int {
 // copyConfigToContainer copies the egg config YAML into a container via the
 // Docker Engine Archive API (PUT /containers/{id}/archive). The config is
 // written to /app/data/config.yaml with mode 0600 (owner read/write only).
-func (c *DockerConnector) copyConfigToContainer(ctx context.Context, nest NestRecord, secret []byte, containerName string, configYAML []byte) error {
-	archive, err := buildDockerEggConfigArchive(configYAML)
+func (c *DockerConnector) copyConfigToContainer(ctx context.Context, nest NestRecord, secret []byte, containerName string, configYAML []byte, bootstrap ...[]byte) error {
+	archive, err := buildDockerEggConfigArchive(configYAML, bootstrap...)
 	if err != nil {
 		return err
 	}
@@ -270,7 +289,7 @@ func (c *DockerConnector) copyConfigToContainer(ctx context.Context, nest NestRe
 	return nil
 }
 
-func buildDockerEggConfigArchive(configYAML []byte) ([]byte, error) {
+func buildDockerEggConfigArchive(configYAML []byte, bootstrap ...[]byte) ([]byte, error) {
 	var buf bytes.Buffer
 	tw := tar.NewWriter(&buf)
 	hdr := &tar.Header{
@@ -287,6 +306,16 @@ func buildDockerEggConfigArchive(configYAML []byte) ([]byte, error) {
 	}
 	if _, err := tw.Write(configYAML); err != nil {
 		return nil, fmt.Errorf("failed to write config to tar: %w", err)
+	}
+	if len(bootstrap) > 0 && len(bootstrap[0]) > 0 {
+		bootstrapHeader := *hdr
+		bootstrapHeader.Name, bootstrapHeader.Size = EggBootstrapFile, int64(len(bootstrap[0]))
+		if err := tw.WriteHeader(&bootstrapHeader); err != nil {
+			return nil, fmt.Errorf("write bootstrap header: %w", err)
+		}
+		if _, err := tw.Write(bootstrap[0]); err != nil {
+			return nil, fmt.Errorf("write bootstrap: %w", err)
+		}
 	}
 	if err := tw.Close(); err != nil {
 		return nil, fmt.Errorf("failed to close tar archive: %w", err)
@@ -695,7 +724,12 @@ func (c *DockerConnector) HealthCheck(ctx context.Context, nest NestRecord, secr
 
 // Reconfigure writes a patched config.yaml into the running egg container and restarts it.
 // The container is stopped, the config is replaced via the archive API, then restarted.
-func (c *DockerConnector) Reconfigure(ctx context.Context, nest NestRecord, secret []byte, configYAML []byte) error {
+func (c *DockerConnector) Reconfigure(ctx context.Context, nest NestRecord, secret []byte, configYAML []byte, bootstrap ...[]byte) error {
+	if len(bootstrap) > 0 && len(bootstrap[0]) > 0 {
+		if err := requirePrivateDockerBootstrap(nest); err != nil {
+			return err
+		}
+	}
 	containerName, err := dockerEggContainerName(nest.ID)
 	if err != nil {
 		return err
@@ -707,7 +741,7 @@ func (c *DockerConnector) Reconfigure(ctx context.Context, nest NestRecord, secr
 	}
 
 	// 2. Copy the patched config into the container
-	if err := c.copyConfigToContainer(ctx, nest, secret, containerName, configYAML); err != nil {
+	if err := c.copyConfigToContainer(ctx, nest, secret, containerName, configYAML, bootstrap...); err != nil {
 		return fmt.Errorf("failed to copy patched config to container: %w", err)
 	}
 
@@ -749,9 +783,15 @@ func (c *DockerConnector) Rollback(ctx context.Context, nest NestRecord, secret 
 	if err != nil {
 		return fmt.Errorf("failed to check backup container: %w", err)
 	}
-	resp.Body.Close()
+	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusNotFound {
 		return fmt.Errorf("no backup container found for rollback")
+	}
+	var backup struct {
+		Config struct{ Labels map[string]string }
+	}
+	if resp.StatusCode != http.StatusOK || json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&backup) != nil || backup.Config.Labels["aurago.egg-security"] != "1" {
+		return fmt.Errorf("legacy Egg backup cannot be started; re-hatch using the current master")
 	}
 
 	// Remove the failed new container

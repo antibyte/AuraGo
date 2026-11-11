@@ -279,6 +279,9 @@ if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
         echo "[Entrypoint] Loading master key from $ENV_FILE"
         export AURAGO_MASTER_KEY="$(read_master_key_from_env_file "$ENV_FILE")"
         export AURAGO_MASTER_KEY
+    elif [ -s /app/data/vault.bin ]; then
+        echo "[Entrypoint] FATAL: Existing vault has no master key; restore its original key before starting."
+        exit 1
     else
         echo "[Entrypoint] Generating new master key..."
         if ! NEW_KEY="$(generate_master_key)"; then

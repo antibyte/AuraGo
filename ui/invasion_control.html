@@ -280,6 +280,12 @@
             <div class="form-group">
                 <label for="egg-allowed-tools" data-i18n="invasion.allowed_tools"></label>
                 <input type="text" id="egg-allowed-tools" placeholder='["shell","python"]'>
+                <small class="hint-subtle" data-i18n="invasion.reconfigure_tools_hint"></small>
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" id="egg-allow-filesystem"> <span data-i18n="invasion.reconfigure_allow_filesystem"></span></label>
+                <label><input type="checkbox" id="egg-allow-network"> <span data-i18n="invasion.reconfigure_allow_network"></span></label>
+                <label><input type="checkbox" id="egg-allow-unsandboxed"> <span data-i18n="invasion.allow_unsandboxed"></span></label>
             </div>
             <div class="form-group">
                 <div class="toggle-wrap">
@@ -355,6 +361,7 @@
             </div>
             <fieldset class="reconfigure-fieldset">
                 <legend data-i18n="invasion.reconfigure_runtime_flags"></legend>
+                <label><input type="checkbox" id="reconfigure-allow-unsandboxed"> <span data-i18n="invasion.allow_unsandboxed"></span></label>
                 <div class="reconfigure-toggles">
                     <div class="toggle-wrap">
                         <label class="toggle">

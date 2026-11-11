@@ -11,6 +11,7 @@ import (
 type EggDeployPayload struct {
 	BinaryPath   string // path to the aurago binary for the target architecture
 	ConfigYAML   []byte // generated config.yaml content
+	Bootstrap    []byte // private temporary Vault import, never configuration or logs
 	ResourcesPkg string // path to the egg-specific resources.dat
 	SharedKey    string // hex-encoded AES-256 key for master↔egg communication
 	EggPort      int    // HTTP port the egg server listens on
@@ -48,7 +49,14 @@ type NestConnector interface {
 	// Reconfigure applies a safe config patch to a running egg.
 	// It writes the new config YAML and restarts the egg process/container.
 	// The configYAML parameter contains the fully patched config.
-	Reconfigure(ctx context.Context, nest NestRecord, secret []byte, configYAML []byte) error
+	Reconfigure(ctx context.Context, nest NestRecord, secret []byte, configYAML []byte, bootstrap ...[]byte) error
+}
+
+func requirePrivateDockerBootstrap(nest NestRecord) error {
+	if nest.DeployMethod != "docker_local" && nest.DeployMethod != "docker_ssh" && nest.DockerTLS == "" {
+		return fmt.Errorf("secret-bearing Egg deployment requires Docker TLS, mTLS or SSH")
+	}
+	return nil
 }
 
 // eggIDPrefix returns the first eight characters of a nest ID. Egg service

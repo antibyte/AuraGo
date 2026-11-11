@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-const ProtocolVersion = 2
-const UpgradeRequired = "invasion_protocol_upgrade_required: upgrade master and egg to protocol v2"
+const ProtocolVersion = 3
+const UpgradeRequired = "invasion_protocol_upgrade_required: upgrade master and egg to protocol v3"
 
 // Session binds ordered messages to a fresh server challenge and both identities.
 // The owning connection serializes Prepare with writes and Accept with key changes.

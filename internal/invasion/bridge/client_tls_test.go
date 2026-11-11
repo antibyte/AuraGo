@@ -177,14 +177,13 @@ func TestEggClientAcceptsPinnedCertAndRejectsOthers(t *testing.T) {
 		}
 	}
 
-	// Legacy configs without a pin keep their behaviour: tls_skip_verify accepts
-	// any certificate, the default client verifies against the system roots.
+	// Legacy skip verification is rejected; the HTTP helper verifies roots too.
 	legacy := (&EggClient{MasterURL: other.wsURL(), TLSSkipVerify: true}).httpClient()
 	resp, err := legacy.Get(other.URL)
-	if err != nil {
-		t.Fatalf("legacy tls_skip_verify client rejected the master: %v", err)
+	if err == nil {
+		resp.Body.Close()
+		t.Fatal("legacy skip verification was accepted")
 	}
-	_ = resp.Body.Close()
 	resp, err = (&EggClient{MasterURL: other.wsURL()}).httpClient().Get(other.URL)
 	if err == nil {
 		_ = resp.Body.Close()
@@ -268,7 +267,6 @@ func TestEggClientConnectDialsOnlyThePinnedMaster(t *testing.T) {
 
 	c = NewEggClient(other.wsURL(), "egg", "nest", key, "test", testLogger())
 	c.TLSPinSHA256 = pinned.pin
-	c.TLSSkipVerify = true
 	err = c.connect()
 	if err == nil || !strings.Contains(err.Error(), "websocket dial") || !strings.Contains(err.Error(), pinRejectText) {
 		t.Fatalf("mismatching dial: err = %v, want a websocket dial error with %q", err, pinRejectText)

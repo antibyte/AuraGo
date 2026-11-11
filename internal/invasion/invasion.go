@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -66,11 +65,14 @@ type EggRecord struct {
 	APIKeyRef   string `json:"api_key_ref"` // vault reference for API key
 	Active      bool   `json:"active"`
 	// ── Deployment settings ──
-	Permanent    bool   `json:"permanent"`     // install as systemd service vs. run once
-	IncludeVault bool   `json:"include_vault"` // ship the master vault (target must be secure!)
-	InheritLLM   bool   `json:"inherit_llm"`   // inherit master LLM config instead of own fields
-	EggPort      int    `json:"egg_port"`      // port for the egg HTTP/WS server (default 8099)
-	AllowedTools string `json:"allowed_tools"` // JSON array of allowed tool IDs (empty = default set)
+	Permanent             bool   `json:"permanent"`     // install as systemd service vs. run once
+	IncludeVault          bool   `json:"include_vault"` // ship the master vault (target must be secure!)
+	InheritLLM            bool   `json:"inherit_llm"`   // inherit master LLM config instead of own fields
+	EggPort               int    `json:"egg_port"`      // port for the egg HTTP/WS server (default 8099)
+	AllowedTools          string `json:"allowed_tools"` // JSON array of allowed tool IDs (empty = default set)
+	AllowFilesystemWrite  bool   `json:"allow_filesystem_write"`
+	AllowNetworkRequests  bool   `json:"allow_network_requests"`
+	AllowUnsandboxedShell bool   `json:"allow_unsandboxed_shell"`
 
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
@@ -83,6 +85,10 @@ func InitDB(dbPath string) (*sql.DB, error) {
 	db, err := dbutil.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open invasion database: %w", err)
+	}
+	if err := prepareEggSecurityMigration(db, dbPath, existingDB); err != nil {
+		db.Close()
+		return nil, err
 	}
 
 	nestsSchema := `
@@ -128,6 +134,9 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		inherit_llm   INTEGER NOT NULL DEFAULT 0,
 		egg_port      INTEGER NOT NULL DEFAULT 8099,
 		allowed_tools TEXT DEFAULT '',
+		allow_filesystem_write INTEGER NOT NULL DEFAULT 0,
+		allow_network_requests INTEGER NOT NULL DEFAULT 0,
+		allow_unsandboxed_shell INTEGER NOT NULL DEFAULT 0,
 		created_at    TEXT NOT NULL,
 		updated_at    TEXT NOT NULL
 	);`
@@ -250,6 +259,7 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		revision_number INTEGER NOT NULL,
 		patch_json      TEXT NOT NULL,
 		config_hash     TEXT NOT NULL,
+		permissions_json TEXT NOT NULL DEFAULT '',
 		status          TEXT NOT NULL DEFAULT 'pending',
 		source          TEXT NOT NULL DEFAULT 'safe_reconfigure',
 		error_message   TEXT DEFAULT '',
@@ -263,19 +273,6 @@ func InitDB(dbPath string) (*sql.DB, error) {
 	if _, err := db.Exec(safeRevSchema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to create safe_config_revisions schema: %w", err)
-	}
-
-	// Root AGENTS.md: back up before a schema migration. A database that
-	// existed before this start and still lacks export_nest_secret is copied
-	// once. A failed copy is logged and the additive ALTER still runs:
-	// refusing it would disable Invasion Control, because every nests query
-	// lists the column.
-	if existingDB {
-		if backup, err := backupBeforeExportNestSecretMigration(db, dbPath); err != nil {
-			slog.Warn("Invasion database backup before the export_nest_secret migration failed; migrating without a backup", "error", err)
-		} else if backup != "" {
-			slog.Info("Invasion database backed up before adding export_nest_secret", "backup", backup)
-		}
 	}
 
 	// ── Migrations — add columns that may be missing on older DBs ──
@@ -311,6 +308,10 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		}
 	}
 
+	if err := migrateEggSecurity(db); err != nil {
+		db.Close()
+		return nil, err
+	}
 	// Drop the personality column if it still exists (eggs no longer use personality)
 	// SQLite doesn't support DROP COLUMN before 3.35.0, so we just ignore it.
 
@@ -492,6 +493,9 @@ func ToggleNestActive(db *sql.DB, id string, active bool) error {
 
 // CreateEgg generates a UUID and inserts a new egg record.
 func CreateEgg(db *sql.DB, e EggRecord) (string, error) {
+	if err := ValidateEggPermissions(e); err != nil {
+		return "", err
+	}
 	e.ID = uid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
 	e.CreatedAt = now
@@ -504,13 +508,13 @@ func CreateEgg(db *sql.DB, e EggRecord) (string, error) {
 
 func insertEgg(db *sql.DB, e EggRecord) error {
 	query := `INSERT INTO eggs (id, name, description, model, provider, base_url, api_key_ref, active,
-	           permanent, include_vault, inherit_llm, egg_port, allowed_tools, created_at, updated_at)
-	           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	           permanent, include_vault, inherit_llm, egg_port, allowed_tools, allow_filesystem_write, allow_network_requests, allow_unsandboxed_shell, created_at, updated_at)
+	           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	if e.EggPort <= 0 {
 		e.EggPort = 8099
 	}
 	_, err := db.Exec(query, e.ID, e.Name, e.Description, e.Model, e.Provider, e.BaseURL, e.APIKeyRef,
-		dbutil.BoolToInt(e.Active), dbutil.BoolToInt(e.Permanent), dbutil.BoolToInt(e.IncludeVault), dbutil.BoolToInt(e.InheritLLM), e.EggPort, e.AllowedTools, e.CreatedAt, e.UpdatedAt)
+		dbutil.BoolToInt(e.Active), dbutil.BoolToInt(e.Permanent), dbutil.BoolToInt(e.IncludeVault), dbutil.BoolToInt(e.InheritLLM), e.EggPort, e.AllowedTools, dbutil.BoolToInt(e.AllowFilesystemWrite), dbutil.BoolToInt(e.AllowNetworkRequests), dbutil.BoolToInt(e.AllowUnsandboxedShell), e.CreatedAt, e.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to insert egg: %w", err)
 	}
@@ -520,12 +524,12 @@ func insertEgg(db *sql.DB, e EggRecord) error {
 // GetEgg retrieves a single egg by ID.
 func GetEgg(db *sql.DB, id string) (EggRecord, error) {
 	query := `SELECT id, name, description, model, provider, base_url, api_key_ref, active,
-	          permanent, include_vault, inherit_llm, egg_port, allowed_tools, created_at, updated_at FROM eggs WHERE id = ?`
+	          permanent, include_vault, inherit_llm, egg_port, allowed_tools, allow_filesystem_write, allow_network_requests, allow_unsandboxed_shell, created_at, updated_at FROM eggs WHERE id = ?`
 	var e EggRecord
 	var active, permanent, includeVault, inheritLLM int
 	var descNull, modelNull, provNull, urlNull, keyNull, toolsNull sql.NullString
 	err := db.QueryRow(query, id).Scan(&e.ID, &e.Name, &descNull, &modelNull, &provNull, &urlNull, &keyNull, &active,
-		&permanent, &includeVault, &inheritLLM, &e.EggPort, &toolsNull, &e.CreatedAt, &e.UpdatedAt)
+		&permanent, &includeVault, &inheritLLM, &e.EggPort, &toolsNull, &e.AllowFilesystemWrite, &e.AllowNetworkRequests, &e.AllowUnsandboxedShell, &e.CreatedAt, &e.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return EggRecord{}, fmt.Errorf("egg not found: %s", id)
@@ -551,7 +555,7 @@ func GetEgg(db *sql.DB, id string) (EggRecord, error) {
 // ListEggs returns all egg records.
 func ListEggs(db *sql.DB) ([]EggRecord, error) {
 	query := `SELECT id, name, description, model, provider, base_url, api_key_ref, active,
-	          permanent, include_vault, inherit_llm, egg_port, allowed_tools, created_at, updated_at FROM eggs ORDER BY name`
+	          permanent, include_vault, inherit_llm, egg_port, allowed_tools, allow_filesystem_write, allow_network_requests, allow_unsandboxed_shell, created_at, updated_at FROM eggs ORDER BY name`
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list eggs: %w", err)
@@ -562,14 +566,17 @@ func ListEggs(db *sql.DB) ([]EggRecord, error) {
 
 // UpdateEgg updates an existing egg record.
 func UpdateEgg(db *sql.DB, e EggRecord) error {
+	if err := ValidateEggPermissions(e); err != nil {
+		return err
+	}
 	e.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	query := `UPDATE eggs SET name=?, description=?, model=?, provider=?, base_url=?, api_key_ref=?, active=?,
-	          permanent=?, include_vault=?, inherit_llm=?, egg_port=?, allowed_tools=?, updated_at=? WHERE id=?`
+	          permanent=?, include_vault=?, inherit_llm=?, egg_port=?, allowed_tools=?, allow_filesystem_write=?, allow_network_requests=?, allow_unsandboxed_shell=?, updated_at=? WHERE id=?`
 	if e.EggPort <= 0 {
 		e.EggPort = 8099
 	}
 	res, err := db.Exec(query, e.Name, e.Description, e.Model, e.Provider, e.BaseURL, e.APIKeyRef, dbutil.BoolToInt(e.Active),
-		dbutil.BoolToInt(e.Permanent), dbutil.BoolToInt(e.IncludeVault), dbutil.BoolToInt(e.InheritLLM), e.EggPort, e.AllowedTools, e.UpdatedAt, e.ID)
+		dbutil.BoolToInt(e.Permanent), dbutil.BoolToInt(e.IncludeVault), dbutil.BoolToInt(e.InheritLLM), e.EggPort, e.AllowedTools, dbutil.BoolToInt(e.AllowFilesystemWrite), dbutil.BoolToInt(e.AllowNetworkRequests), dbutil.BoolToInt(e.AllowUnsandboxedShell), e.UpdatedAt, e.ID)
 	if err != nil {
 		return fmt.Errorf("failed to update egg: %w", err)
 	}
@@ -641,7 +648,7 @@ func scanEggs(rows *sql.Rows) ([]EggRecord, error) {
 		var active, permanent, includeVault, inheritLLM int
 		var descNull, modelNull, provNull, urlNull, keyNull, toolsNull sql.NullString
 		if err := rows.Scan(&e.ID, &e.Name, &descNull, &modelNull, &provNull, &urlNull, &keyNull, &active,
-			&permanent, &includeVault, &inheritLLM, &e.EggPort, &toolsNull, &e.CreatedAt, &e.UpdatedAt); err != nil {
+			&permanent, &includeVault, &inheritLLM, &e.EggPort, &toolsNull, &e.AllowFilesystemWrite, &e.AllowNetworkRequests, &e.AllowUnsandboxedShell, &e.CreatedAt, &e.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan egg row: %w", err)
 		}
 		e.Description = nullStr(descNull)
@@ -984,15 +991,16 @@ func scanDeployments(rows *sql.Rows) ([]DeploymentRecord, error) {
 // SafeConfigPatch represents a whitelist-based set of safe configuration changes
 // that can be applied to a running egg without touching secrets or transport.
 type SafeConfigPatch struct {
-	InheritLLM           *bool    `json:"inherit_llm,omitempty"`
-	Provider             *string  `json:"provider,omitempty"`
-	BaseURL              *string  `json:"base_url,omitempty"`
-	Model                *string  `json:"model,omitempty"`
-	AllowedTools         []string `json:"allowed_tools,omitempty"`
-	AllowFilesystemWrite *bool    `json:"allow_filesystem_write,omitempty"`
-	AllowNetworkRequests *bool    `json:"allow_network_requests,omitempty"`
-	AllowRemoteShell     *bool    `json:"allow_remote_shell,omitempty"`
-	AllowSelfUpdate      *bool    `json:"allow_self_update,omitempty"`
+	InheritLLM            *bool    `json:"inherit_llm,omitempty"`
+	Provider              *string  `json:"provider,omitempty"`
+	BaseURL               *string  `json:"base_url,omitempty"`
+	Model                 *string  `json:"model,omitempty"`
+	AllowedTools          []string `json:"allowed_tools,omitempty"`
+	AllowFilesystemWrite  *bool    `json:"allow_filesystem_write,omitempty"`
+	AllowNetworkRequests  *bool    `json:"allow_network_requests,omitempty"`
+	AllowUnsandboxedShell *bool    `json:"allow_unsandboxed_shell,omitempty"`
+	AllowRemoteShell      *bool    `json:"allow_remote_shell,omitempty"`
+	AllowSelfUpdate       *bool    `json:"allow_self_update,omitempty"`
 }
 
 // ValidateSafeConfigPatch checks that a patch only contains allowed fields
@@ -1005,13 +1013,9 @@ func ValidateSafeConfigPatch(patch SafeConfigPatch) error {
 		}
 	}
 	// Validate allowed tools against known whitelist
-	if len(patch.AllowedTools) > 0 {
-		known := map[string]bool{
-			"shell": true, "execute_shell_command": true,
-			"python": true, "python_execute": true,
-		}
+	if patch.AllowedTools != nil {
 		for _, t := range patch.AllowedTools {
-			if !known[t] {
+			if !allowedToolsWhitelist[t] {
 				return fmt.Errorf("unknown tool in allowed_tools: %s", t)
 			}
 		}
@@ -1021,21 +1025,26 @@ func ValidateSafeConfigPatch(patch SafeConfigPatch) error {
 
 // SafeConfigRevision tracks a single safe config change for audit and rollback.
 type SafeConfigRevision struct {
-	ID             string `json:"id"`
-	NestID         string `json:"nest_id"`
-	EggID          string `json:"egg_id"`
-	RevisionNumber int    `json:"revision_number"`
-	PatchJSON      string `json:"patch_json"`
-	ConfigHash     string `json:"config_hash"`
-	Status         string `json:"status"` // pending, applying, applied, failed, rolled_back
-	Source         string `json:"source"` // safe_reconfigure, rollback
-	ErrorMessage   string `json:"error_message"`
-	CreatedAt      string `json:"created_at"`
-	AppliedAt      string `json:"applied_at"`
+	ID              string `json:"id"`
+	NestID          string `json:"nest_id"`
+	EggID           string `json:"egg_id"`
+	RevisionNumber  int    `json:"revision_number"`
+	PatchJSON       string `json:"patch_json"`
+	ConfigHash      string `json:"config_hash"`
+	PermissionsJSON string `json:"permissions_json"`
+	Status          string `json:"status"` // pending, applying, applied, failed, rolled_back
+	Source          string `json:"source"` // safe_reconfigure, rollback
+	ErrorMessage    string `json:"error_message"`
+	CreatedAt       string `json:"created_at"`
+	AppliedAt       string `json:"applied_at"`
 }
 
 // CreateSafeConfigRevision inserts a new safe config revision and returns its ID.
-func CreateSafeConfigRevision(db *sql.DB, nestID, eggID, patchJSON, configHash, source string) (string, error) {
+func CreateSafeConfigRevision(db *sql.DB, nestID, eggID, patchJSON, configHash, source string, permissions ...string) (string, error) {
+	permissionsJSON := ""
+	if len(permissions) > 0 {
+		permissionsJSON = permissions[0]
+	}
 	// Determine next revision number for this nest
 	var maxRev int
 	row := db.QueryRow(`SELECT COALESCE(MAX(revision_number), 0) FROM safe_config_revisions WHERE nest_id = ?`, nestID)
@@ -1046,9 +1055,9 @@ func CreateSafeConfigRevision(db *sql.DB, nestID, eggID, patchJSON, configHash, 
 	id := uid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, err := db.Exec(`INSERT INTO safe_config_revisions
-		(id, nest_id, egg_id, revision_number, patch_json, config_hash, status, source, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
-		id, nestID, eggID, maxRev+1, patchJSON, configHash, source, now)
+		(id, nest_id, egg_id, revision_number, patch_json, config_hash, status, source, created_at, permissions_json)
+		VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
+		id, nestID, eggID, maxRev+1, patchJSON, configHash, source, now, permissionsJSON)
 	if err != nil {
 		return "", fmt.Errorf("failed to create safe config revision: %w", err)
 	}
@@ -1081,12 +1090,12 @@ func UpdateSafeConfigRevisionStatus(db *sql.DB, revID, status, errMsg string) er
 // GetSafeConfigRevision retrieves a single revision by ID.
 func GetSafeConfigRevision(db *sql.DB, revID string) (*SafeConfigRevision, error) {
 	row := db.QueryRow(`SELECT id, nest_id, egg_id, revision_number, patch_json, config_hash,
-		status, source, error_message, created_at, applied_at
+		status, source, error_message, created_at, applied_at, permissions_json
 		FROM safe_config_revisions WHERE id = ?`, revID)
 	var r SafeConfigRevision
 	var appliedAt sql.NullString
 	if err := row.Scan(&r.ID, &r.NestID, &r.EggID, &r.RevisionNumber, &r.PatchJSON, &r.ConfigHash,
-		&r.Status, &r.Source, &r.ErrorMessage, &r.CreatedAt, &appliedAt); err != nil {
+		&r.Status, &r.Source, &r.ErrorMessage, &r.CreatedAt, &appliedAt, &r.PermissionsJSON); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("revision not found: %s", revID)
 		}
@@ -1099,13 +1108,13 @@ func GetSafeConfigRevision(db *sql.DB, revID string) (*SafeConfigRevision, error
 // GetLatestAppliedRevision returns the most recently applied revision for a nest.
 func GetLatestAppliedRevision(db *sql.DB, nestID string) (*SafeConfigRevision, error) {
 	row := db.QueryRow(`SELECT id, nest_id, egg_id, revision_number, patch_json, config_hash,
-		status, source, error_message, created_at, applied_at
+		status, source, error_message, created_at, applied_at, permissions_json
 		FROM safe_config_revisions WHERE nest_id = ? AND status = 'applied'
 		ORDER BY revision_number DESC LIMIT 1`, nestID)
 	var r SafeConfigRevision
 	var appliedAt sql.NullString
 	if err := row.Scan(&r.ID, &r.NestID, &r.EggID, &r.RevisionNumber, &r.PatchJSON, &r.ConfigHash,
-		&r.Status, &r.Source, &r.ErrorMessage, &r.CreatedAt, &appliedAt); err != nil {
+		&r.Status, &r.Source, &r.ErrorMessage, &r.CreatedAt, &appliedAt, &r.PermissionsJSON); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil // no applied revision yet
 		}
@@ -1121,7 +1130,7 @@ func ListSafeConfigRevisions(db *sql.DB, nestID string, limit int) ([]SafeConfig
 		limit = 20
 	}
 	rows, err := db.Query(`SELECT id, nest_id, egg_id, revision_number, patch_json, config_hash,
-		status, source, error_message, created_at, applied_at
+		status, source, error_message, created_at, applied_at, permissions_json
 		FROM safe_config_revisions WHERE nest_id = ?
 		ORDER BY revision_number DESC LIMIT ?`, nestID, limit)
 	if err != nil {
@@ -1133,7 +1142,7 @@ func ListSafeConfigRevisions(db *sql.DB, nestID string, limit int) ([]SafeConfig
 		var r SafeConfigRevision
 		var appliedAt sql.NullString
 		if err := rows.Scan(&r.ID, &r.NestID, &r.EggID, &r.RevisionNumber, &r.PatchJSON, &r.ConfigHash,
-			&r.Status, &r.Source, &r.ErrorMessage, &r.CreatedAt, &appliedAt); err != nil {
+			&r.Status, &r.Source, &r.ErrorMessage, &r.CreatedAt, &appliedAt, &r.PermissionsJSON); err != nil {
 			return nil, fmt.Errorf("failed to scan revision: %w", err)
 		}
 		r.AppliedAt = nullStr(appliedAt)
@@ -1161,11 +1170,42 @@ func HashConfigYAML(data []byte) string {
 
 // PatchToJSON serializes a SafeConfigPatch to JSON string.
 func PatchToJSON(patch SafeConfigPatch) (string, error) {
-	data, err := json.Marshal(patch)
+	var tools *[]string
+	if patch.AllowedTools != nil {
+		tools = &patch.AllowedTools
+	}
+	data, err := json.Marshal(struct {
+		SafeConfigPatch
+		AllowedTools *[]string `json:"allowed_tools,omitempty"`
+	}{patch, tools})
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal patch: %w", err)
 	}
 	return string(data), nil
+}
+
+// MarkSafeConfigRevisionApplied publishes the snapshot and nest pointer together.
+func MarkSafeConfigRevisionApplied(db *sql.DB, nestID, revisionID string) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	result, err := tx.Exec(`UPDATE nests SET applied_config_rev=? WHERE id=? AND desired_config_rev=?`, revisionID, nestID, revisionID)
+	if err != nil {
+		return err
+	}
+	if count, err := result.RowsAffected(); err != nil || count != 1 {
+		return fmt.Errorf("Egg configuration changed concurrently; review the effective permissions")
+	}
+	result, err = tx.Exec(`UPDATE safe_config_revisions SET status='applied',applied_at=? WHERE id=? AND nest_id=?`, time.Now().UTC().Format(time.RFC3339), revisionID, nestID)
+	if err != nil {
+		return err
+	}
+	if count, err := result.RowsAffected(); err != nil || count != 1 {
+		return fmt.Errorf("Egg revision no longer exists")
+	}
+	return tx.Commit()
 }
 
 // JSONToPatch deserializes a SafeConfigPatch from JSON string.
@@ -1201,14 +1241,5 @@ func backupBeforeExportNestSecretMigration(db *sql.DB, dbPath string) (string, e
 	if hasColumn > 0 {
 		return "", nil
 	}
-	target := dbPath + exportNestSecretBackupSuffix
-	if _, err := os.Stat(target); err == nil {
-		target += "." + time.Now().UTC().Format("20060102T150405.000000000Z")
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return "", fmt.Errorf("check backup path: %w", err)
-	}
-	if _, err := db.Exec(`VACUUM INTO ?`, target); err != nil {
-		return "", fmt.Errorf("copy invasion database to %s: %w", target, err)
-	}
-	return target, nil
+	return backupInvasionDatabase(db, dbPath+exportNestSecretBackupSuffix)
 }
