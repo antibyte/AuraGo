@@ -619,7 +619,7 @@ export async function run(env) {
         const src = name => fs.readFileSync(path.join(apps, name), 'utf8');
         eq('ff2 M9 forgetFlow knows every per-flow key prefix',
             [src('easydrag-saver.js').includes("'aurago.easydrag.draft.'"), src('easydrag-editor.js').includes("'aurago.easydrag.view.'"),
-                src('easydrag-runs.js').includes("'aurago.easydrag.effects-ok.'"), src('easydrag-runs.js').includes("'aurago.easydrag.test-trigger.'"),
+                src('easydrag-runs.js').includes("'aurago.easydrag.effects-ok.'"), src('easydrag-run-start.js').includes("'aurago.easydrag.test-trigger.'"),
                 src('easydrag-groups.js').includes("'aurago.easydrag.group-view.'"),
                 (src('easydrag-core.js').match(/const FLOW_KEYS = \[([^\]]*)\]/) || [])[1]],
             [true, true, true, true, true, "'aurago.easydrag.draft.', 'aurago.easydrag.view.', 'aurago.easydrag.effects-ok.', 'aurago.easydrag.test-trigger.', 'aurago.easydrag.group-view.'"]);

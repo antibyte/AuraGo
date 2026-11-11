@@ -9,7 +9,7 @@ import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 
 const MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-canvas.js'];
-const UI_MODULES = ['easydrag-core.js', 'easydrag-durable.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-testing.js', 'easydrag-child-history.js', 'easydrag-run-stream.js', 'easydrag-runs.js', 'easydrag-library-pause.js', 'easydrag-home.js'];
+const UI_MODULES = ['easydrag-core.js', 'easydrag-durable.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-testing.js', 'easydrag-child-history.js', 'easydrag-run-stream.js', 'easydrag-run-start.js', 'easydrag-runs.js', 'easydrag-library-pause.js', 'easydrag-home.js'];
 const T1 = 'n_tttttttt';
 const T2 = 'n_uuuuuuuu';
 const TG = 'n_telegram';
