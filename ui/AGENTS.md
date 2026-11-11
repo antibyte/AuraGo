@@ -1356,6 +1356,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
   after a streamed wake; the status wait must exceed that polling cadence.
 - The full Docker Manager browser journey owns a three-minute page context;
   the shared 30-second startup context is too short for its combined lifecycle checks.
+  It also closes and reopens the same native dialog in one event turn: the old
+  close must preserve the new view, confirmation result and focus.
 - Orbit's native drag/tilt probe uses static-scene quality 3 so software GL does
   not stale its velocity samples. Scene, coverage and quality assertions retain quality 1.
 - Browser contracts (Chrome or Edge):

@@ -77,6 +77,8 @@
             requestClose(false, true);
         });
         dialog.addEventListener('close', () => {
+            // Native close events are queued; this element may already host a new view.
+            if (dialog.open) return;
             while (stack.length) stack.pop().onClose?.(false);
             clearContent();
             const target = opener;

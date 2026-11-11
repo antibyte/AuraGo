@@ -502,7 +502,8 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   endpoint it was saved for: when the address (trimmed, case-insensitive, no IPv6 brackets), the effective port (empty = 22) or the
   SSH user changes, or the kind becomes SSH, the server refuses to reuse it (`invalid_host`, field `ssh_secret`) and the form
   (`storedSecretUsable`) asks for it again up front and says why; TLS material is kept. The dialog content is emptied whenever the
-  view stack is empty, so a typed password or PEM key never stays in the closed `<dialog>`; `docker-manager.ui.v1` holds prefs only.
+  view stack is empty, so a typed password or PEM key never stays in the closed `<dialog>`. A queued native close from its
+  previous use must preserve a reopened dialog's views, pending result and focus. `docker-manager.ui.v1` holds prefs only.
   Plain TCP carries a visible warning. Names are unique ignoring case and "Local" is reserved (checked in the form, enforced by the server).
 - Protected containers (lock icon) ask before stop, restart, pause, kill and remove. The server never confirms the first four;
   a protected remove answers 409 `container_protected_confirmation_required` with `owner` and `message` (the shared text of
