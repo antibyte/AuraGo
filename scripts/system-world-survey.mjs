@@ -45,6 +45,12 @@
  *                  x/z offset is rotated by the resident's heading), looking at resident + lookHeight
  *                  (default 0.9). Needs tier medium+ for N>=3 and high+ for N>=10 (resident limit).
  *   sequence N, intervalMs  capture N frames named <name>-00, -01 ... every intervalMs (default 350)
+ *   stepDt, sequenceFrames, stepsPerFrame  sequence mode (phase 6): the animation loop is held and sequenceFrames pictures <name>-NN are taken with
+ *                  stepsPerFrame (default 1) fixed simulation steps of stepDt seconds between them. Optional: waitUntil (expression over city and __sw, 0.1 s steps
+ *                  until true, at most waitSteps = 1200), aimAt (traffic body id fixed as the camera target after the wait), path (keyframes [x,y,z,tx,ty,tz],
+ *                  linear in time; relative to anchor {asset,index} when given), mode "street" (street mode; the eye spring owns y; the visitor body is carried
+ *                  along), settleMs (wait per frame). The furniture-set sync is not forced per frame, so a walk shows what the app itself does. After the run each
+ *                  sequence is composed into <name>-sheet.png (at most 16 frames per sheet), and report.json shots carry sequence and lobbiesShown.
  *   eval           JS source run in the page before the final camera is applied; has `city`, `__sw`,
  *                  `scene` (the scene object). If the scene has no position/followResident the camera
  *                  is left as eval set it.
@@ -75,7 +81,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { decodePNG, clipped, maskOf, maskLumas, percentile, litShare, toneCount } from './system-world-picture-checks.mjs';
+import { decodePNG, clipped, maskOf, maskLumas, percentile, litShare, toneCount, writeSheet } from './system-world-picture-checks.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
@@ -114,7 +120,7 @@ function replaceOnce(text, find, replacement, label) {
 
 const EXPOSE = 'globalThis.__sw = { THREE, camera, controls, scene, renderer, composer, experience, traffic, weather, atmosphere, surfaces, windows, sun, bloom, drones, '
   + 'model, catalogV3: () => catalog3, lobbies: lobbyRender, '
-  + 'staticCity, nearHeight: NEAR_HEIGHT, harbour, gulls, particles, furniture: () => furnitureSets, '
+  + 'staticCity, nearHeight: NEAR_HEIGHT, harbour, gulls, particles, furniture: () => furnitureSets, companion: () => companion, '
   + 'cancelFlight: () => { flight = null; }, mode: () => mode };\n  ';
 
 async function buildBundle(withoutFurniture) {
@@ -131,7 +137,7 @@ async function buildBundle(withoutFurniture) {
         if (isScene) {
           if (withoutFurniture) text = replaceOnce(text, '...furnishing().map(', '...furnishing().filter(() => false).map(', 'drop the furnishing pieces from kitPlacements');
           text = replaceOnce(text, '  return {\n    districts, canvas, update, focus(id)', '  ' + EXPOSE + 'return {\n    districts, canvas, update, focus(id)', 'expose internals before createCity return');
-          text += "\nexport { SOLE as surveySole } from './sysworld-footing.js';\nexport { groundHeight as surveyGroundHeight } from './sysworld-exploration.js';\n";
+          text += "\nexport { SOLE as surveySole } from './sysworld-footing.js';\nexport { groundHeight as surveyGroundHeight } from './sysworld-exploration.js';\nexport { gullPose as surveyGullPose } from './sysworld-gulls.js';\n";
         } else {
           text = replaceOnce(text, '    add,patrol,update,suspend,\n', '    add,patrol,update,suspend,actors,\n', 'expose society actors');
         }
@@ -367,8 +373,72 @@ async function main() {
     if (scene.feet !== undefined) shot.feet = feetGaps(scene.feet);
     if (scene.inventory) shot.inventory = inventory(scene.building ? buildingCentre(scene.building) : sw.controls.target);
     if (scene.masks) { await captureMask(name, scene.masks); shot.mask = true; }
+    if (scene.sequenceOf) { shot.sequence = scene.sequenceOf; shot.lobbiesShown = sw.lobbies.stats().shown; }
     shots.push(shot);
     return wanted;
+  }
+  // Sequence mode (phase 6): sequenceFrames pictures with stepsPerFrame fixed simulation steps of stepDt seconds between
+  // them; the animation loop is held. Optional: waitUntil (expression; 0.1 s steps until true, at most waitSteps),
+  // aimAt (traffic body id: the target is fixed on it after the wait), path (keyframes [x,y,z,tx,ty,tz], linear in
+  // time; relative to anchor {asset,index} when given), mode "street" (the eye spring owns y), settleMs per frame.
+  async function runSequence(scene) {
+    const n = scene.sequenceFrames, steps = scene.stepsPerFrame || 1, dt = scene.stepDt, total = Math.max(1, (n - 1) * steps), street = scene.mode === 'street';
+    let path = scene.path || null;
+    if (path && scene.anchor) { const p = module.kitPlacements.filter(q => q.asset === scene.anchor.asset)[scene.anchor.index || 0]; if (!p) throw Error('no anchor ' + scene.anchor.asset);
+      path = path.map(k => [k[0] + p.x, k[1] + p.y, k[2] + p.z, k[3] + p.x, k[4] + p.y, k[5] + p.z]); }
+    frozen = true;
+    // hideCompanion: the companion's root group (an unnamed scene child standing where companion.stats().position says) is hidden for the run.
+    let hidden = null;
+    if (scene.hideCompanion) {
+      const c = sw.companion && sw.companion(), at = c && c.stats().position;
+      const hasMesh = o => { let m = false; o.traverse(n => { if (n.isMesh) m = true; }); return m; };
+      if (at) hidden = sw.scene.children.find(o => o.isGroup && !o.name && hasMesh(o) && Math.abs(o.position.x - at[0]) < 0.02 && Math.abs(o.position.z - at[1]) < 0.02) || null;
+      log('hideCompanion: stats position ' + JSON.stringify(at) + ', group ' + (hidden ? 'found, children ' + hidden.children.length + ', visible ' + hidden.visible : 'not found'));
+      if (!hidden) throw Error('hideCompanion: the companion group was not found');
+    }
+    const hiddenWas = hidden && hidden.visible;
+    // hideNames: every scene node whose name starts with one of these (e.g. city-white-robot, the hovering life robots) is hidden for the run.
+    const hideList = [];
+    if (scene.hideNames) sw.scene.traverse(n => { if (n.name && scene.hideNames.some(h => n.name.indexOf(h) === 0)) hideList.push([n, n.visible]); });
+    // followGull N: the target is the world position of flock gull N, read from the module's own gullPose at the sea clock, before every picture.
+    const pose = { x: 0, y: 0, z: 0, heading: 0, bank: 0, flap: 0 };
+    const aimGull = () => { if (scene.followGull === undefined) return; module.surveyGullPose(scene.followGull, sw.atmosphere.seaTime(), sw.harbour.barge(), pose); sw.controls.target.set(pose.x, pose.y, pose.z); sw.controls.update(); };
+    if (street) { city.setMode('street'); sw.cancelFlight(); }
+    const place = k => {
+      if (!path) return;
+      const t = Math.min(1, k / total) * (path.length - 1), i = Math.min(path.length - 2, Math.floor(t)), f = t - i, a = path[i], b = path[i + 1], at = j => a[j] + (b[j] - a[j]) * f;
+      sw.camera.position.set(at(0), street && k > 0 ? sw.camera.position.y : at(1), at(2));
+      if (street) sw.camera.lookAt(at(3), at(4), at(5)); else { sw.controls.target.set(at(3), at(4), at(5)); sw.controls.update(); }
+      const body = sw.traffic.body('visitor');
+      // The visitor body is carried along with the path (the walk is the harness's, not the user's), so the app's own
+      // propose/solve step does not pull the camera back; in street mode only y is left to the eye spring.
+      if (body) { body.x = sw.camera.position.x; body.z = sw.camera.position.z; if (!street || k === 0) body.y = sw.camera.position.y; }
+    };
+    try {
+      place(0);
+      if (scene.waitUntil) {
+        const until = new AsyncFunction('city', '__sw', 'return (' + scene.waitUntil + ');'), limit = scene.waitSteps || 1200; let k = 0;
+        for (; k < limit && !(await until(city, sw)); k++) { elapsed += .1; city.update(.1, elapsed); syncNear(); }
+        if (k >= limit) {
+          const note = scene.waitReport ? ' [' + JSON.stringify(await new AsyncFunction('city', '__sw', 'return (' + scene.waitReport + ');')(city, sw)) + ']' : '';
+          throw Error('waitUntil never held: ' + scene.waitUntil + note);
+        }
+      }
+      if (scene.aimAt) { const b = sw.traffic.body(scene.aimAt); if (!b) throw Error('no body ' + scene.aimAt); sw.controls.target.set(b.x, b.y + 1.5, b.z); sw.controls.update(); }
+      for (let f = 0, k = 0; f < n; f++) {
+        if (f > 0) for (let s = 0; s < steps; s++) { k++; place(k); elapsed += dt; city.update(dt, elapsed); syncNear(); }
+        if (hidden) hidden.visible = false;
+        for (const h of hideList) h[0].visible = false;
+        aimGull();
+        if (scene.settleMs) await sleep(scene.settleMs);
+        await captureFrame(Object.assign({}, scene, { position: undefined, followResident: undefined, masks: undefined, sequenceOf: scene.name, checks: f === 0 ? scene.checks : null }), scene.name + '-' + String(f).padStart(2, '0'), null);
+      }
+    } finally {
+      if (hidden) hidden.visible = hiddenWas;
+      for (const h of hideList) h[0].visible = h[1];
+      frozen = false;
+      if (street) city.setMode('orbit');
+    }
   }
 
   for (const scene of config.scenes) {
@@ -381,10 +451,13 @@ async function main() {
       await sleep(scene.waitMs === undefined ? 400 : scene.waitMs);
       if (scene.eval) await new AsyncFunction('city', '__sw', 'scene', scene.eval)(city, sw, scene);
       if (scene.freeze) { frozen = true; for (const t of scene.toggles || []) restore.push(applyToggle(t)); }
-      const count = scene.sequence > 0 ? scene.sequence : 1;
-      for (let i = 0; i < count; i++) {
-        if (i > 0) await sleep(scene.intervalMs === undefined ? 350 : scene.intervalMs);
-        wanted = await captureFrame(scene, count > 1 ? scene.name + '-' + String(i).padStart(2, '0') : scene.name, wanted);
+      if (scene.stepDt) await runSequence(scene);
+      else {
+        const count = scene.sequence > 0 ? scene.sequence : 1;
+        for (let i = 0; i < count; i++) {
+          if (i > 0) await sleep(scene.intervalMs === undefined ? 350 : scene.intervalMs);
+          wanted = await captureFrame(scene, count > 1 ? scene.name + '-' + String(i).padStart(2, '0') : scene.name, wanted);
+        }
       }
       if (config.timing) {
         applyCamera(scene); syncNear();
@@ -556,6 +629,7 @@ async function main() {
   if (report && report.shots && report.shots.length) {
     failures = await measure(report, outDir);
     await fs.writeFile(path.join(outDir, 'report.json'), JSON.stringify(report, null, 2));
+    for (const name of new Set(report.shots.filter(s => s.sequence).map(s => s.sequence))) console.log('sheet ' + writeSheet(outDir, name));
   }
   const errorCount = report?.errors?.length || 0;
   console.log('--- summary ---');
