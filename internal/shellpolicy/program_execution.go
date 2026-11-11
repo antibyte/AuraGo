@@ -152,27 +152,36 @@ func executableEnvironmentMutation(words []string, escape byte) bool {
 	args := words[1:]
 	switch escape {
 	case '\\':
+		assignment := strings.Replace(words[0], "+=", "=", 1)
+		if commandAssignment.MatchString(assignment) && executableEnvironment(assignment) {
+			return true
+		}
 		switch head {
 		case "export", "readonly", "declare", "typeset":
 			for _, arg := range args {
+				arg = strings.Replace(arg, "+=", "=", 1)
 				if commandAssignment.MatchString(arg) && executableEnvironment(arg) {
 					return true
 				}
 			}
 		}
 	case '^':
-		if strings.TrimLeft(head, "@") == "set" {
-			assignment := strings.TrimSpace(strings.Join(args, " "))
-			if len(args) > 0 && strings.EqualFold(args[0], "/a") {
-				for _, match := range arithmeticEnvironmentAssignment.FindAllStringSubmatch(strings.Join(args[1:], " "), -1) {
+		head = strings.TrimLeft(head, "@")
+		assignment := strings.TrimSpace(strings.Join(args, " "))
+		if strings.HasPrefix(head, "set/") {
+			assignment, head = head[3:]+" "+assignment, "set"
+		}
+		if head == "set" {
+			if strings.HasPrefix(strings.ToLower(assignment), "/a") {
+				for _, match := range arithmeticEnvironmentAssignment.FindAllStringSubmatch(assignment[2:], -1) {
 					if executableEnvironment(match[1]) {
 						return true
 					}
 				}
 				return false
 			}
-			if len(args) > 0 && strings.EqualFold(args[0], "/p") {
-				assignment = strings.TrimSpace(strings.Join(args[1:], " "))
+			if strings.HasPrefix(strings.ToLower(assignment), "/p") {
+				assignment = strings.TrimSpace(assignment[2:])
 			}
 			key, _, found := strings.Cut(assignment, "=")
 			return found && executableEnvironment(strings.TrimSpace(key))

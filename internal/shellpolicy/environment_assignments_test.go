@@ -15,6 +15,7 @@ func TestExecutableEnvironmentAssignments(t *testing.T) {
 				`export GIT_EDITOR=classification-only; git commit --allow-empty`,
 				`export 'GIT_PAGER=classification-only'; git log`,
 				`export GIT_ED\ITOR=classification-only`,
+				`export GIT_EDITOR+=classification-only`, `GIT_EDITOR+=classification-only git commit`,
 				`readonly EDITOR=classification-only`,
 				`declare -x GIT_SEQUENCE_EDITOR=classification-only`,
 				`typeset -- GIT_SSH_COMMAND=classification-only`,
@@ -33,6 +34,7 @@ func TestExecutableEnvironmentAssignments(t *testing.T) {
 				`set "GIT_PAGER=classification-only"`, `@set EDITOR=classification-only`,
 				`se^t GIT_ED^ITOR=classification-only`, `set /p GIT_EDITOR=Prompt`,
 				`set /a GIT_EDITOR=1`, `set /a x=1,GIT_EDITOR=2`, `set /a x=GIT_EDITOR=2`,
+				`set /aGIT_EDITOR=1`, `set/aGIT_EDITOR=1`, `@set/pGIT_EDITOR=Prompt`,
 			},
 			allowed: []string{
 				`set LANG=C & git status`, `set GIT_EDITOR`, `set NOTE=GIT_EDITOR=literal`,
@@ -48,6 +50,7 @@ func TestExecutableEnvironmentAssignments(t *testing.T) {
 				`Set-Item Env:GIT_PAGER classification-only`, `si -Path Env:EDITOR -Value classification-only`,
 				`New-Item -Path:Env:GIT_EDITOR -Value classification-only`,
 				`Set-Item -LiteralPath Env:\GIT_SEQUENCE_EDITOR -Value classification-only`,
+				`Microsoft.PowerShell.Management\Set-Item Env:GIT_EDITOR classification-only`,
 			},
 			allowed: []string{
 				`$env:LANG='C'; git status`, `$env:GIT_EDITOR`, `$env:GIT_EDITOR -eq 'literal'`,
