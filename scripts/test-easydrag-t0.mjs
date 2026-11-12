@@ -35,6 +35,7 @@ export const GO_STEPS = [
     { label: 'go internal/server (flow)', args: ['test', './internal/server', '-run', '(?i)flow'], env: {} },
     { label: 'go internal/tools (flow)', args: ['test', './internal/tools', '-run', '(?i)flow'], env: {} },
     { label: 'go ui (easydrag)', args: ['test', './ui', '-run', '(?i)easydrag'], env: { AURAGO_RUN_BROWSER_SMOKE: '0' } },
+    { label: 'flowsdoc drift', args: ['test', './cmd/flowsdoc'], env: {} },
 ];
 
 const TAIL_LINES = 60;
