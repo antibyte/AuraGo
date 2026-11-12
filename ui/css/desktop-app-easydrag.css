@@ -1413,19 +1413,28 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 @media (pointer: coarse) {
     .ed-app .ed-wire-hit { stroke-width: 44px; }
     .ed-app .ed-wire-btn { width: 44px; height: 44px; }
+    .ed-app .ed-wire-actions { flex-direction: column; }
 }
 @container (max-width: 760px) {
     .ed-app .ed-wire-hit { stroke-width: 44px; }
     .ed-app .ed-wire-btn { width: 44px; height: 44px; }
+    .ed-app .ed-wire-actions { flex-direction: column; }
 }
-/* The 44 px tools wrap into two rows that cover the selected card's upper 54 px, so a finger could not
-   long-press or drag the card by its body: under a coarse pointer or in a narrow window the tools sit
-   under the card. */
+/* The 44 px tools would cover the selected card's upper 54 px, so a finger could not long-press or drag the
+   card by its body: under a coarse pointer or in a narrow window the tools sit under the card, in one row.
+   The selected card paints above the next one, its error moves below the tools, and an 8 px bridge keeps
+   the hover over the gap. */
 @media (pointer: coarse) {
-    .ed-app .ed-node-tools { top: calc(100% + 6px); }
+    .ed-app .ed-node-tools { top: calc(100% + 6px); flex-wrap: nowrap; max-width: none; }
+    .ed-app .ed-node-tools::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 8px; }
+    .ed-app .ed-node.is-selected { z-index: 1; }
+    .ed-app .ed-node:is(.is-selected, :hover, :focus-within) .ed-node-error { top: calc(100% + 64px); }
 }
 @container (max-width: 760px) {
-    .ed-app .ed-node-tools { top: calc(100% + 6px); }
+    .ed-app .ed-node-tools { top: calc(100% + 6px); flex-wrap: nowrap; max-width: none; }
+    .ed-app .ed-node-tools::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 8px; }
+    .ed-app .ed-node.is-selected { z-index: 1; }
+    .ed-app .ed-node:is(.is-selected, :hover, :focus-within) .ed-node-error { top: calc(100% + 64px); }
 }
 
 @media (prefers-reduced-motion: reduce) {

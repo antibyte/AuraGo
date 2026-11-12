@@ -182,16 +182,27 @@
             return g;
         }
 
+        // swallowNextClick eats the click a long press gives on release: the menu opened under the finger,
+        // and the click would run the item there. It lasts for 800 ms at most.
+        function swallowNextClick() {
+            const eat = (ev) => { ev.preventDefault(); ev.stopPropagation(); off(); };
+            const off = () => { clearTimeout(timer); document.removeEventListener('click', eat, true); };
+            const timer = setTimeout(off, 800);
+            document.addEventListener('click', eat, true);
+        }
+
         // startPan moves the view with the pointer. A finger that lands on a wire and does not travel
         // (tapped) selects the wire: the pan captures the pointer, so the wire never gets its own click.
         function startPan(event, tapped) {
             event.preventDefault();
             const start = { x: event.clientX, y: event.clientY, view: Object.assign({}, ed.view) };
             let moved = false;
+            // A finger shakes more than a mouse: a tap may travel 10 px.
+            const slop = event.pointerType === 'touch' ? 10 : DRAG_THRESHOLD;
             el.classList.add('is-panning');
             capture(event, ev => {
                 if (pinch) return;
-                if (Math.hypot(ev.clientX - start.x, ev.clientY - start.y) >= DRAG_THRESHOLD) moved = true;
+                if (Math.hypot(ev.clientX - start.x, ev.clientY - start.y) >= slop) moved = true;
                 canvas.setView({ x: start.view.x + ev.clientX - start.x, y: start.view.y + ev.clientY - start.y, zoom: start.view.zoom });
             }, (ev, cancelled) => {
                 el.classList.remove('is-panning');
@@ -241,7 +252,7 @@
             let dropEdge = null;
             if (event.pointerType === 'touch') {
                 const groupId = selectionReady && ed.groups && ed.groups.memberOf(nodeId);
-                longPress = setTimeout(() => { if (!moved) { if (groupId) { if (gesture) gesture.abort(); pointers.delete(event.pointerId); ed.groups.open(groupId); } else openNodeMenu(nodeId, start.x, start.y); } }, 550);
+                longPress = setTimeout(() => { if (!moved) { if (groupId) { if (gesture) gesture.abort(); pointers.delete(event.pointerId); ed.groups.open(groupId); } else { swallowNextClick(); openNodeMenu(nodeId, start.x, start.y); } } }, 550);
             }
             capture(event, ev => {
                 const dx = (ev.clientX - start.x) / ed.view.zoom;

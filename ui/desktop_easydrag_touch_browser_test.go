@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/proto"
 )
 
@@ -232,8 +233,18 @@ func TestEasyDragTouchInsertOnWire(t *testing.T) {
 			s := startEasyDragTouch(t, vp.w, vp.h)
 			page := s.page
 			p := s.touchEdgePoint("e_1")
-			s.touchTap(p.x, p.y)
+			// A finger travels a few pixels in a tap: 6 px in two moves is still a tap and selects the wire.
+			s.touchDrag(p, touchPoint{p.x + 6, p.y}, 2)
+			s.wait(`()=>edFixture.editor().selectedEdge==='e_1'`)
+			// The tap pinned the wire's actions, as a plain tap does.
 			s.wait(`()=>{const a=document.querySelector('.ed-wire-actions');return !!a && !a.hidden && edFixture.editor().selectedEdge==='e_1' && !!document.querySelector('.ed-edge.is-selected[data-edge-id="e_1"]')}`)
+			// The 44 px pill covers neither card's port: the finger can still reach both.
+			for _, port := range []string{`.ed-node[data-node-id="n_zeitplan"] .ed-port--out`, `.ed-node[data-node-id="n_suche"] .ed-port--in`} {
+				covered := page.MustEval(`sel=>{const t=document.querySelector(sel);if(!t)return 'no '+sel;const r=t.getBoundingClientRect();const e=document.elementFromPoint((r.left+r.right)/2,(r.top+r.bottom)/2);return e&&e.closest('.ed-wire-actions')?'covered':''}`, port).Str()
+				if covered != "" {
+					t.Fatalf("the Insert/Delete pill is on top of %s: %s", port, covered)
+				}
+			}
 			// A finger has no hover to keep the actions open: they must outlive the 220 ms hide delay.
 			time.Sleep(450 * time.Millisecond)
 			s.wait(`()=>{const a=document.querySelector('.ed-wire-actions');const b=a && a.querySelector('[data-ed-wire="insert"]');if(!a||a.hidden||!b)return false;const r=b.getBoundingClientRect();return r.width>=24 && r.height>=24}`)
@@ -263,6 +274,14 @@ func TestEasyDragTouchDeleteWire(t *testing.T) {
 			s.touchTap(p.x, p.y)
 			time.Sleep(450 * time.Millisecond)
 			s.wait(`()=>{const a=document.querySelector('.ed-wire-actions');const b=a && a.querySelector('[data-ed-wire="delete"]');if(!a||a.hidden||!b)return false;const r=b.getBoundingClientRect();return r.width>=24 && r.height>=24 && edFixture.editor().selectedEdge==='e_1'}`)
+			// Escape clears the selection, and the pinned actions go with it.
+			page.MustEval(`()=>document.querySelector('.ed-canvas').focus()`)
+			page.KeyActions().Type(input.Escape).MustDo()
+			s.wait(`()=>document.querySelector('.ed-wire-actions').hidden && edFixture.editor().selectedEdge===null`)
+			p = s.touchEdgePoint("e_1")
+			s.touchTap(p.x, p.y)
+			time.Sleep(450 * time.Millisecond)
+			s.wait(`()=>{const a=document.querySelector('.ed-wire-actions');return !!a && !a.hidden && edFixture.editor().selectedEdge==='e_1'}`)
 			s.touchTapElement(`.ed-wire-actions [data-ed-wire="delete"]`)
 			s.wait(`()=>{const m=edFixture.editor().model;return m.doc.edges.length===2 && !m.edge('e_1') && m.doc.nodes.length===4 && document.querySelector('.ed-wire-actions').hidden && !document.querySelector('.ed-edge[data-edge-id="e_1"]')}`)
 			s.shot("touch-wire-deleted-" + vp.name)
@@ -286,15 +305,7 @@ func TestEasyDragTouchCardTools(t *testing.T) {
 			card := `.ed-node[data-node-id="n_zeitplan"]`
 			s.touchTapElement(card)
 			s.wait(`()=>{const c=document.querySelector('` + card + `');const tools=c.querySelector('.ed-node-tools');const cs=getComputedStyle(tools);return c.classList.contains('is-selected') && cs.opacity==='1' && cs.pointerEvents==='auto' && cs.visibility==='visible'}`)
-			// Every tool is on top at its centre and not smaller than 24 px.
-			for _, tool := range []string{"add", "connect", "test", "disable", "duplicate", "delete"} {
-				sel := card + ` [data-ed-node-tool="` + tool + `"]`
-				s.touchAssertHit(sel, s.touchCentre(sel))
-				size := page.MustEval(`sel=>{const r=document.querySelector(sel).getBoundingClientRect();return Math.min(r.width,r.height)}`, sel).Num()
-				if size < 24 {
-					t.Fatalf("tool %s is %.0f px: under 24 px", tool, size)
-				}
-			}
+			s.touchAssertTools(card)
 			s.shot("touch-card-tools-" + vp.name)
 			disable := card + ` [data-ed-node-tool="disable"]`
 			s.touchTapElement(disable)
@@ -307,15 +318,40 @@ func TestEasyDragTouchCardTools(t *testing.T) {
 			if under := page.MustEval(`(x,y)=>!!document.elementFromPoint(x,y).closest('.ed-node-tools')`, p.x, p.y).Bool(); under {
 				t.Fatalf("the card body at (%.0f, %.0f) is covered by its own tools: a finger cannot long-press or drag it", p.x, p.y)
 			}
-			// The menu opens while the finger is still down. The finger is then cancelled, not lifted: the
-			// menu opens under the finger, and CDP (unlike a real long press, which gives a context menu and
-			// no click) sends a click on release to whatever is under it, here the first menu item.
+			// The menu opens while the finger is still down. The finger is then lifted at the same point:
+			// a real long press gives a context menu and no click, but CDP touch goes through Chrome's
+			// gesture detection, so the release can produce a click on whatever is under the finger, here
+			// the first menu item. The editor swallows that click: the menu stays open and nothing runs.
+			page.MustEval(`()=>{window.__itemClicks=0;document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('.vd-context-item'))window.__itemClicks++;});}`)
 			s.touchSend(proto.InputDispatchTouchEventTypeTouchStart, p)
 			s.wait(`()=>document.querySelectorAll('.vd-context-menu .vd-context-item').length>0`)
-			s.touchSend(proto.InputDispatchTouchEventTypeTouchCancel)
+			s.touchSend(proto.InputDispatchTouchEventTypeTouchEnd)
+			time.Sleep(500 * time.Millisecond)
+			if !page.MustEval(`()=>!!document.querySelector('.vd-context-menu .vd-context-item') && !document.querySelector('.ed-detail') && window.__itemClicks===0`).Bool() {
+				t.Fatalf("the long press release ran a menu item or closed the menu")
+			}
 			s.shot("touch-card-menu-" + vp.name)
 			page.MustEval(`()=>aurora.closeContextMenu()`)
 			s.wait(`()=>!document.querySelector('.vd-context-menu')`)
+			// A selected failed card: its error box sits below the one-row toolbar, not on it.
+			page.MustEval(`()=>{const ed=edFixture.editor();ed.run={id:'r_touch',status:'error',mode:'test',steps:new Map([['n_zeitplan',{node_id:'n_zeitplan',status:'error',error_code:'FLOW_TOOL_FAILED',error_message:'the tool failed on this step'}]])};ed.bus.emit('run',ed.run);}`)
+			s.wait(`()=>!!document.querySelector('.ed-node[data-node-id="n_zeitplan"] .ed-node-error')`)
+			// The step history panel of a run opens over the canvas; it is not under test here.
+			page.MustEval(`()=>{const r=document.querySelector('.ed-run-results');if(r)r.style.display='none';}`)
+			failed := `.ed-node[data-node-id="n_zeitplan"]`
+			s.touchTapElement(failed)
+			s.wait(`()=>document.querySelector('` + failed + `').classList.contains('is-selected')`)
+			s.touchAssertTools(failed)
+			if over := page.MustEval(`sel=>{const c=document.querySelector(sel);const a=c.querySelector('.ed-node-tools').getBoundingClientRect(),b=c.querySelector('.ed-node-error').getBoundingClientRect();return a.left<b.right&&b.left<a.right&&a.top<b.bottom&&b.top<a.bottom}`, failed).Bool(); over {
+				t.Fatalf("the failed step's error box covers the toolbar of the selected card")
+			}
+			page.MustEval(`()=>{const ed=edFixture.editor();ed.run=null;ed.bus.emit('run',null);}`)
+			// A card with another card 48 px below it (the auto-layout gap): its toolbar is on top of that card.
+			page.MustEval(`()=>{const ed=edFixture.editor();const a=ed.model.node('n_zeitplan'),b=ed.model.node('n_ki');const h=document.querySelector('.ed-node[data-node-id="n_zeitplan"]').offsetHeight;ed.model.moveNodes(['n_ki'],a.position.x-b.position.x,a.position.y+h+48-b.position.y);}`)
+			s.touchStable()
+			s.touchTapElement(card)
+			s.wait(`()=>document.querySelector('` + card + `').classList.contains('is-selected')`)
+			s.touchAssertTools(card)
 			s.failOnPageErrors("touch card tools")
 		})
 	}
@@ -387,5 +423,22 @@ func TestEasyDragTouchBoxSelect(t *testing.T) {
 			}
 			s.failOnPageErrors("touch box select")
 		})
+	}
+}
+
+// touchAssertTools checks the six tools of a card: each is on top at its centre (nothing, a later card
+// included, would take the press), not smaller than 24 px, and inside the canvas.
+func (s *easyDragSmoke) touchAssertTools(card string) {
+	s.t.Helper()
+	for _, tool := range []string{"add", "connect", "test", "disable", "duplicate", "delete"} {
+		sel := card + ` [data-ed-node-tool="` + tool + `"]`
+		s.touchAssertHit(sel, s.touchCentre(sel))
+		size := s.page.MustEval(`sel=>{const r=document.querySelector(sel).getBoundingClientRect();return Math.min(r.width,r.height)}`, sel).Num()
+		if size < 24 {
+			s.t.Fatalf("tool %s is %.0f px: under 24 px", tool, size)
+		}
+		if clipped := s.page.MustEval(`sel=>{const r=document.querySelector(sel).getBoundingClientRect(),c=document.querySelector('.ed-canvas').getBoundingClientRect();return r.left<c.left-1||r.right>c.right+1||r.top<c.top-1||r.bottom>c.bottom+1}`, sel).Bool(); clipped {
+			s.t.Fatalf("tool %s is clipped by the canvas", tool)
+		}
 	}
 }

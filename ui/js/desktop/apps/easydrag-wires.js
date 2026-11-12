@@ -20,6 +20,7 @@
         let hideTimer = 0;
         // pinned: a tapped wire keeps its actions open until the next press elsewhere (a finger has no hover).
         let pinned = false;
+        let tappedAt = -1000; // when the last tap on a wire opened the actions
         let pathNode = null;
         let pathSet = new Set();
         // highlight's path is valid for this model and version (a run view brings its own model).
@@ -211,6 +212,8 @@
         }
 
         bag.listen(layer, 'pointerover', (event) => {
+            // A finger has no hover: its tap (tapEdge) opens the actions, and they must not appear under it first.
+            if (pinned || event.pointerType === 'touch') return;
             const g = event.target.closest('.ed-edge');
             if (g && !ed.dragging) showActions(g.dataset.edgeId);
         });
@@ -227,6 +230,9 @@
             if (pinned && !event.target.closest('.ed-wire-actions')) hideActions(true);
         }, true);
         bag.listen(actions, 'click', (event) => {
+            // The actions open at the end of a tap, under the finger: the click that ends that tap is not a press on a button.
+            if (Date.now() - tappedAt < 350) return;
+            if (ed.readonly || ed.runView) { hideActions(true); return; }
             const btn = event.target.closest('[data-ed-wire]');
             if (!btn || !hoverEdge) return;
             const edgeId = hoverEdge;
@@ -252,6 +258,7 @@
             selectEdge(edgeId);
             showActions(edgeId);
             pinned = !actions.hidden;
+            tappedAt = Date.now();
         }
 
         bag.listen(layer, 'click', (event) => {
@@ -310,13 +317,17 @@
         }
 
         bag.add(ed.bus.on('model', change => {
-            if (change.kind === 'reset') { pathModel = null; pathVersion = -1; }
+            if (change.kind === 'reset') { pathModel = null; pathVersion = -1; hideActions(true); }
             if (change.structural || change.kind !== 'change' || change.meta) render();
             else renderFor(change.nodes);
         }));
         bag.add(ed.bus.on('run', onRun));
         bag.add(ed.bus.on('group-view', () => { hideActions(true); render(); }));
-        bag.add(ed.bus.on('selection', () => { if (ed.selection.size) { ed.selectedEdge = null; } markSelected(); }));
+        bag.add(ed.bus.on('selection', () => {
+            if (ed.selection.size) { ed.selectedEdge = null; }
+            if (pinned && ed.selectedEdge !== hoverEdge) hideActions(true);
+            markSelected();
+        }));
         bag.add(ed.bus.on('view', () => { if (hoverEdge) placeActions(hoverEdge); }));
 
         return {
