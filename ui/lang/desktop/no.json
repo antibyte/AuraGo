@@ -4997,7 +4997,7 @@
   "homepage_studio.sites_deployments": "Utrullinger",
   "homepage_studio.sites_drift_clean": "Synkronisert",
   "homepage_studio.sites_drift_local_changed": "Lokale endringer",
-  "homepage_studio.sites_drift_not_deployed": "Ikke deployet",
+  "homepage_studio.sites_drift_not_deployed": "Publisering ikke bekreftet",
   "homepage_studio.sites_drift_remote_changed": "Fjernendringer",
   "homepage_studio.sites_drift_remote_unknown": "Fjernstatus ukjent",
   "homepage_studio.sites_empty": "Ingen administrerte nettsteder ennå",

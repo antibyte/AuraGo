@@ -4997,7 +4997,7 @@
   "homepage_studio.sites_deployments": "部署",
   "homepage_studio.sites_drift_clean": "已同步",
   "homepage_studio.sites_drift_local_changed": "本地有更改",
-  "homepage_studio.sites_drift_not_deployed": "未部署",
+  "homepage_studio.sites_drift_not_deployed": "发布状态未确认",
   "homepage_studio.sites_drift_remote_changed": "远程有更改",
   "homepage_studio.sites_drift_remote_unknown": "远程状态未知",
   "homepage_studio.sites_empty": "暂无托管网站",

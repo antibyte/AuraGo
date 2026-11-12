@@ -4997,7 +4997,7 @@
   "homepage_studio.sites_deployments": "Nasazení",
   "homepage_studio.sites_drift_clean": "Synchronizováno",
   "homepage_studio.sites_drift_local_changed": "Lokální změny",
-  "homepage_studio.sites_drift_not_deployed": "Nenasazeno",
+  "homepage_studio.sites_drift_not_deployed": "Zveřejnění nepotvrzeno",
   "homepage_studio.sites_drift_remote_changed": "Vzdálené změny",
   "homepage_studio.sites_drift_remote_unknown": "Vzdálený stav neznámý",
   "homepage_studio.sites_empty": "Zatím žádné spravované stránky",

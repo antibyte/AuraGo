@@ -4997,7 +4997,7 @@
   "homepage_studio.sites_deployments": "Αναπτύξεις",
   "homepage_studio.sites_drift_clean": "Σε συγχρονισμό",
   "homepage_studio.sites_drift_local_changed": "Τοπικές αλλαγές",
-  "homepage_studio.sites_drift_not_deployed": "Δεν έχει αναπτυχθεί",
+  "homepage_studio.sites_drift_not_deployed": "Μη επιβεβαιωμένη δημοσίευση",
   "homepage_studio.sites_drift_remote_changed": "Απομακρυσμένες αλλαγές",
   "homepage_studio.sites_drift_remote_unknown": "Απομακρυσμένη κατάσταση άγνωστη",
   "homepage_studio.sites_empty": "Καμία διαχειριζόμενη ιστοσελίδα ακόμη",

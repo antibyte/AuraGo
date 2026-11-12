@@ -4997,7 +4997,7 @@
   "homepage_studio.sites_deployments": "Driftsättningar",
   "homepage_studio.sites_drift_clean": "Synkroniserad",
   "homepage_studio.sites_drift_local_changed": "Lokala ändringar",
-  "homepage_studio.sites_drift_not_deployed": "Inte deployad",
+  "homepage_studio.sites_drift_not_deployed": "Publicering inte bekräftad",
   "homepage_studio.sites_drift_remote_changed": "Fjärrändringar",
   "homepage_studio.sites_drift_remote_unknown": "Fjärrstatus okänd",
   "homepage_studio.sites_empty": "Inga hanterade webbplatser ännu",

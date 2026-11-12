@@ -4997,7 +4997,7 @@
   "homepage_studio.sites_deployments": "デプロイメント",
   "homepage_studio.sites_drift_clean": "同期済み",
   "homepage_studio.sites_drift_local_changed": "ローカル変更あり",
-  "homepage_studio.sites_drift_not_deployed": "未デプロイ",
+  "homepage_studio.sites_drift_not_deployed": "公開未確認",
   "homepage_studio.sites_drift_remote_changed": "リモート変更あり",
   "homepage_studio.sites_drift_remote_unknown": "リモート状態不明",
   "homepage_studio.sites_empty": "管理サイトはまだありません",

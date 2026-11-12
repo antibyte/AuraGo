@@ -4997,7 +4997,7 @@
   "homepage_studio.sites_deployments": "Deploymenty",
   "homepage_studio.sites_drift_clean": "Zsynchronizowano",
   "homepage_studio.sites_drift_local_changed": "Zmiany lokalne",
-  "homepage_studio.sites_drift_not_deployed": "Brak deploymentu",
+  "homepage_studio.sites_drift_not_deployed": "Publikacja niepotwierdzona",
   "homepage_studio.sites_drift_remote_changed": "Zmiany zdalne",
   "homepage_studio.sites_drift_remote_unknown": "Stan zdalny nieznany",
   "homepage_studio.sites_empty": "Brak zarządzanych stron",

@@ -92,6 +92,8 @@ documents. An empty HTTP 404 therefore shows an explanation rather than a white
 preview. Refresh checks again and restores the preview when the page recovers.
 Website selection and deployment provider scope the preview URL; a stored cloud
 URL alone does not establish reachability. These reads never publish a website.
+The "Publication unconfirmed" badge means the ledger has no confirmed publication
+for the current version. It does not prove that no copy exists on an external host.
 
 Local publication serves a filtered immutable snapshot, mounted read-only into
 Caddy. Editing source files cannot alter it. Restart restores the saved snapshot

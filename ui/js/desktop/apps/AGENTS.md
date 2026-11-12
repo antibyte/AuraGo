@@ -5475,6 +5475,8 @@ registration lives in `internal/desktop/types.go`.
   an empty viewport frame must not cover that guidance. Refresh rechecks status,
   and stale requests cannot repaint a newer selection. Verify
   `TestHomepageStudioFailedLocalPreviewBrowser` and Homepage Studio target tests.
+  The `not_deployed` badge means publication of the current version is unconfirmed
+  in the ledger; it must not claim that no external website exists.
 - Homepage Studio visible UI strings use `homepage_studio.*` keys in all
   16 `ui/lang/desktop/*.json` files. The local webhost name fallback
   uses `homepage_studio.default_name`. Chat-stream failures reuse

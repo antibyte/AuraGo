@@ -4997,7 +4997,7 @@
   "homepage_studio.sites_deployments": "डिप्लॉयमेंट",
   "homepage_studio.sites_drift_clean": "सिंक में",
   "homepage_studio.sites_drift_local_changed": "लोकल परिवर्तन",
-  "homepage_studio.sites_drift_not_deployed": "डिप्लॉय नहीं किया गया",
+  "homepage_studio.sites_drift_not_deployed": "प्रकाशन की पुष्टि नहीं हुई",
   "homepage_studio.sites_drift_remote_changed": "रिमोट परिवर्तन",
   "homepage_studio.sites_drift_remote_unknown": "रिमोट स्थिति अज्ञात",
   "homepage_studio.sites_empty": "अभी कोई प्रबंधित साइट नहीं",
