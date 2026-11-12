@@ -128,6 +128,7 @@ func TestPlannerFlowAdmissionRefusedOnPurposeIsCanceled(t *testing.T) {
 	}{
 		{"paused", ErrFlowRunsPaused, "canceled", flowRunsPausedOutput, 0},
 		{"unavailable and wrapped", fmt.Errorf("start: %w", ErrFlowsUnavailable), "canceled", flowsUnavailableOutput, 0},
+		{"start failed", &FlowStartFailedError{Err: errors.New("the flow has not been published yet")}, "canceled", flowStartFailedOutput, 0},
 		{"other error", errors.New("store down"), "unknown", unknownNote, 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

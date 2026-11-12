@@ -525,6 +525,7 @@
   "easydrag.ui.error_flow_schema": "Het flowdocument heeft een onbekend formaat.",
   "easydrag.ui.error_flow_secret_unavailable": "Er ontbreekt een geheim.",
   "easydrag.ui.error_flow_shutdown": "AuraGo wordt afgesloten.",
+  "easydrag.ui.error_flow_start_failed": "De flow kon niet starten.",
   "easydrag.ui.error_flow_stopped": "De flow is gestopt.",
   "easydrag.ui.error_flow_template_error": "Een gegevensverwijzing kon niet worden opgelost.",
   "easydrag.ui.error_flow_too_large": "De flow of de gegevens ervan zijn te groot.",

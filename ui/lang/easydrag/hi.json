@@ -525,6 +525,7 @@
   "easydrag.ui.error_flow_schema": "फ़्लो दस्तावेज़ का प्रारूप अज्ञात है।",
   "easydrag.ui.error_flow_secret_unavailable": "एक सीक्रेट मौजूद नहीं है।",
   "easydrag.ui.error_flow_shutdown": "AuraGo बंद हो रहा है।",
+  "easydrag.ui.error_flow_start_failed": "फ़्लो शुरू नहीं हो सका।",
   "easydrag.ui.error_flow_stopped": "फ़्लो रोक दिया गया।",
   "easydrag.ui.error_flow_template_error": "डेटा संदर्भ हल नहीं हो सका।",
   "easydrag.ui.error_flow_too_large": "फ़्लो या उसका डेटा बहुत बड़ा है।",

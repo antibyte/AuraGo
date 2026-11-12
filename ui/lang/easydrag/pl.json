@@ -525,6 +525,7 @@
   "easydrag.ui.error_flow_schema": "Dokument przepływu ma nieznany format.",
   "easydrag.ui.error_flow_secret_unavailable": "Brakuje sekretu.",
   "easydrag.ui.error_flow_shutdown": "AuraGo się wyłącza.",
+  "easydrag.ui.error_flow_start_failed": "Nie udało się uruchomić przepływu.",
   "easydrag.ui.error_flow_stopped": "Przepływ został zatrzymany.",
   "easydrag.ui.error_flow_template_error": "Nie udało się rozwiązać odwołania do danych.",
   "easydrag.ui.error_flow_too_large": "Przepływ lub jego dane są za duże.",

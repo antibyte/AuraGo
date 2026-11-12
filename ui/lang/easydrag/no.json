@@ -525,6 +525,7 @@
   "easydrag.ui.error_flow_schema": "Flytdokumentet har et ukjent format.",
   "easydrag.ui.error_flow_secret_unavailable": "En hemmelighet mangler.",
   "easydrag.ui.error_flow_shutdown": "AuraGo avsluttes.",
+  "easydrag.ui.error_flow_start_failed": "Flyten kunne ikke starte.",
   "easydrag.ui.error_flow_stopped": "Flyten ble stoppet.",
   "easydrag.ui.error_flow_template_error": "En datareferanse kunne ikke løses.",
   "easydrag.ui.error_flow_too_large": "Flyten eller dataene er for store.",

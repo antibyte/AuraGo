@@ -525,6 +525,7 @@
   "easydrag.ui.error_flow_schema": "Το έγγραφο της ροής έχει άγνωστη μορφή.",
   "easydrag.ui.error_flow_secret_unavailable": "Λείπει ένα μυστικό.",
   "easydrag.ui.error_flow_shutdown": "Το AuraGo τερματίζεται.",
+  "easydrag.ui.error_flow_start_failed": "Η ροή δεν μπόρεσε να ξεκινήσει.",
   "easydrag.ui.error_flow_stopped": "Η ροή σταμάτησε.",
   "easydrag.ui.error_flow_template_error": "Μια αναφορά δεδομένων δεν ήταν δυνατό να επιλυθεί.",
   "easydrag.ui.error_flow_too_large": "Η ροή ή τα δεδομένα της είναι πολύ μεγάλα.",

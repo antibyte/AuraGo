@@ -525,6 +525,7 @@
   "easydrag.ui.error_flow_schema": "フロー文書の形式が不明です。",
   "easydrag.ui.error_flow_secret_unavailable": "シークレットが見つかりません。",
   "easydrag.ui.error_flow_shutdown": "AuraGo はシャットダウン中です。",
+  "easydrag.ui.error_flow_start_failed": "フローを開始できませんでした。",
   "easydrag.ui.error_flow_stopped": "フローは停止されました。",
   "easydrag.ui.error_flow_template_error": "データ参照を解決できませんでした。",
   "easydrag.ui.error_flow_too_large": "フローまたはそのデータが大きすぎます。",

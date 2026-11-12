@@ -525,6 +525,7 @@
   "easydrag.ui.error_flow_schema": "Flowdokumentet har et ukendt format.",
   "easydrag.ui.error_flow_secret_unavailable": "En hemmelighed mangler.",
   "easydrag.ui.error_flow_shutdown": "AuraGo lukker ned.",
+  "easydrag.ui.error_flow_start_failed": "Flowet kunne ikke starte.",
   "easydrag.ui.error_flow_stopped": "Flowet blev stoppet.",
   "easydrag.ui.error_flow_template_error": "En datareference kunne ikke opløses.",
   "easydrag.ui.error_flow_too_large": "Flowet eller dets data er for store.",

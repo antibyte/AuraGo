@@ -134,11 +134,7 @@ var ErrFlowQueueFull = errors.New("too many flow runs are waiting; this one was 
 // startFlowRunReported is StartFlowRun for Mission Control's own starts (Run, the trigger API):
 // with a FlowRunReporter, a start the flow skipped becomes a MissionTriggerSkippedError.
 func startFlowRunReported(hooks FlowHooks, missionID, triggerType, triggerData string) error {
-	reporter, ok := hooks.(FlowRunReporter)
-	if !ok {
-		return hooks.StartFlowRun(missionID, "", triggerType, triggerData)
-	}
-	out, err := reporter.StartFlowRunReported(missionID, "", triggerType, triggerData)
+	out, err := startFlowHooks(hooks, missionID, "", triggerType, triggerData)
 	if err != nil {
 		return err
 	}
@@ -146,6 +142,15 @@ func startFlowRunReported(hooks FlowHooks, missionID, triggerType, triggerData s
 		return &MissionTriggerSkippedError{Reason: FlowStartSkippedReason}
 	}
 	return nil
+}
+
+// startFlowHooks starts a flow run through hooks and reports what the start did: with a
+// FlowRunReporter its outcome, else the plain StartFlowRun and an empty outcome.
+func startFlowHooks(hooks FlowHooks, missionID, nodeID, triggerType, triggerData string) (FlowStartOutcome, error) {
+	if reporter, ok := hooks.(FlowRunReporter); ok {
+		return reporter.StartFlowRunReported(missionID, nodeID, triggerType, triggerData)
+	}
+	return FlowStartOutcome{}, hooks.StartFlowRun(missionID, nodeID, triggerType, triggerData)
 }
 
 // ErrFlowMissionManaged rejects changes to flow missions outside EasyDrag. The text contains
@@ -160,6 +165,21 @@ var ErrFlowsUnavailable = errors.New("flows are not available")
 // tools.missions.readonly is on. No run was started; Mission Control notes it on the flow
 // mission instead of treating it as a failed start.
 var ErrFlowRunsPaused = errors.New("flow runs are paused while missions are read-only")
+
+// ErrFlowStartFailed marks a flow start that failed for a reason of the flow (it is not
+// published, its trigger is not an enabled one, the runner could not start the run). The flow
+// service recorded the failure as a failed run (FLOW_START_FAILED) and reported it once per
+// streak; Mission Control notes it on the flow mission like a refusal (flowRefusal) instead of
+// only logging it. Wrap the cause with FlowStartFailedError.
+var ErrFlowStartFailed = errors.New("the flow could not start")
+
+// FlowStartFailedError wraps the cause of a start failure so errors.Is finds ErrFlowStartFailed
+// and the cause alike, and keeps the cause's text, which the mission API shows its caller.
+type FlowStartFailedError struct{ Err error }
+
+func (e *FlowStartFailedError) Error() string        { return e.Err.Error() }
+func (e *FlowStartFailedError) Unwrap() error        { return e.Err }
+func (e *FlowStartFailedError) Is(target error) bool { return target == ErrFlowStartFailed }
 
 func isFlowMission(m *MissionV2) bool { return m != nil && m.ExecutionType == ExecutionFlow }
 
@@ -864,17 +884,26 @@ func (m *MissionManagerV2) shouldFireFlowSpecLocked(missionID string, spec FlowT
 	return true
 }
 
-// startFlowRun starts a flow run through hooks. Without hooks, or when they refuse on purpose
-// (flowRefusal), the mission shows why and nothing more is logged than the first refusal.
+// startFlowRun starts a flow run through hooks. Without hooks, or when they refuse on purpose or
+// report a start failure (flowRefusal), the mission shows why and nothing more is logged than
+// the first refusal. A start the flow skipped gets a quiet note (noteFlowSkipLocked).
 // Callers do not hold m.mu.
 func (m *MissionManagerV2) startFlowRun(hooks FlowHooks, missionID, nodeID, triggerType, data string) {
+	var out FlowStartOutcome
 	var err error
 	if hooks == nil {
 		err = ErrFlowsUnavailable
 	} else {
-		err = hooks.StartFlowRun(missionID, nodeID, triggerType, data)
+		out, err = startFlowHooks(hooks, missionID, nodeID, triggerType, data)
 	}
 	if err == nil {
+		if out.Status == "skipped" {
+			m.mu.Lock()
+			if m.noteFlowSkipLocked(missionID) {
+				m.saveFlowNotesLocked()
+			}
+			m.mu.Unlock()
+		}
 		return
 	}
 	reason := flowRefusal(err)
@@ -893,7 +922,8 @@ func (m *MissionManagerV2) startFlowRun(hooks FlowHooks, missionID, nodeID, trig
 }
 
 // flowRefusal returns the sentinel behind a flow run that was refused on purpose,
-// ErrFlowRunsPaused, ErrFlowsUnavailable or ErrFlowQueueFull, and nil for every other error.
+// ErrFlowRunsPaused, ErrFlowsUnavailable or ErrFlowQueueFull, or that failed to start for a
+// reason of the flow (ErrFlowStartFailed), and nil for every other error.
 func flowRefusal(err error) error {
 	switch {
 	case errors.Is(err, ErrFlowRunsPaused):
@@ -902,6 +932,8 @@ func flowRefusal(err error) error {
 		return ErrFlowsUnavailable
 	case errors.Is(err, ErrFlowQueueFull):
 		return ErrFlowQueueFull
+	case errors.Is(err, ErrFlowStartFailed):
+		return ErrFlowStartFailed
 	}
 	return nil
 }
@@ -913,6 +945,8 @@ func flowRefusalOutput(reason error) string {
 		return flowRunsPausedOutput
 	case ErrFlowQueueFull:
 		return flowQueueFullOutput
+	case ErrFlowStartFailed:
+		return flowStartFailedOutput
 	}
 	return flowsUnavailableOutput
 }
@@ -928,6 +962,29 @@ const flowsUnavailableOutput = "EasyDrag flows are not available (switched off, 
 // flowRunsPausedOutput is the LastOutput of a flow mission whose trigger fired while missions
 // are read-only (ErrFlowRunsPaused).
 const flowRunsPausedOutput = "EasyDrag flow runs are paused while missions are read-only; the flow did not run"
+
+// flowStartFailedOutput is the LastOutput of a flow mission whose trigger fired but could not
+// start a run for a reason of the flow (ErrFlowStartFailed). The reason is in the flow's run
+// history (FLOW_START_FAILED); the German word of the note is "Start fehlgeschlagen".
+const flowStartFailedOutput = "The EasyDrag flow could not start (see its run history); this trigger started no run"
+
+// flowStartSkippedOutput is the LastOutput of a flow mission whose trigger the flow's skip policy
+// dropped, because a run of the flow was still going (noteFlowSkipLocked).
+const flowStartSkippedOutput = "A trigger was skipped because a run of this EasyDrag flow was still active"
+
+// noteFlowSkipLocked shows on a flow mission that a trigger was skipped (the flow's skip policy).
+// It is quiet: it sets the output only and leaves the result, the counters and the status alone,
+// and only when the mission does not show a skip already, so a trigger that keeps firing while
+// the flow runs rewrites nothing. The next run result replaces it. It reports whether the mission
+// changed and does not save. Caller holds m.mu for writing.
+func (m *MissionManagerV2) noteFlowSkipLocked(missionID string) bool {
+	mission, ok := m.missions[missionID]
+	if !ok || !isFlowMission(mission) || mission.LastOutput == flowStartSkippedOutput {
+		return false
+	}
+	mission.LastOutput = flowStartSkippedOutput
+	return true
+}
 
 // noteFlowRefusalLocked shows a note on a flow mission (a refused trigger or run, a published
 // revision that needs republishing): LastResult "error" with output (flowsUnavailableOutput or flowRunsPausedOutput).
@@ -966,7 +1023,7 @@ func logFlowRefusal(changed bool, reason error, args ...any) {
 }
 
 // NoteFlowRunRefused shows on a flow mission that a run was refused on purpose: reason is
-// ErrFlowRunsPaused or ErrFlowsUnavailable (wrapped or not). The flow service reports it for a
+// ErrFlowRunsPaused or ErrFlowsUnavailable (a refusal or ErrFlowStartFailed, wrapped or not). The flow service reports it for a
 // queued run its gate stopped before it executed. It saves only when the note changed, logs like
 // a refused trigger and reports whether the mission changed; any other reason is ignored.
 func (m *MissionManagerV2) NoteFlowRunRefused(missionID string, reason error) bool {

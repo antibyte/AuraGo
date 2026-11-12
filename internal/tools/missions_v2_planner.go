@@ -132,13 +132,15 @@ func (m *MissionManagerV2) processPlannerFlowAdmissions() {
 			}
 			hooks, id, node, data := m.flowHooks, target.MissionID, target.NodeID, event.Data
 			m.mu.Unlock()
+			var out FlowStartOutcome
 			err := func() (err error) {
 				defer func() {
 					if recover() != nil {
 						err = fmt.Errorf("planner flow dispatch outcome unknown")
 					}
 				}()
-				return hooks.StartFlowRun(id, node, string(TriggerPlannerAppointmentDue), data)
+				out, err = startFlowHooks(hooks, id, node, string(TriggerPlannerAppointmentDue), data)
+				return err
 			}()
 			m.mu.Lock()
 			if reason := flowRefusal(err); reason != nil {
@@ -160,6 +162,9 @@ func (m *MissionManagerV2) processPlannerFlowAdmissions() {
 				}
 			} else {
 				target.State = "accepted"
+				if out.Status == "skipped" && m.noteFlowSkipLocked(id) {
+					m.saveFlowNotesLocked()
+				}
 			}
 			if err := m.saveQueueLocked(); err != nil {
 				slog.Error("Failed to save planner flow dispatch outcome", "error", err)

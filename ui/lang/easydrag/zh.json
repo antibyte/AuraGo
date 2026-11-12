@@ -525,6 +525,7 @@
   "easydrag.ui.error_flow_schema": "流程文档的格式未知。",
   "easydrag.ui.error_flow_secret_unavailable": "缺少一个密钥。",
   "easydrag.ui.error_flow_shutdown": "AuraGo 正在关闭。",
+  "easydrag.ui.error_flow_start_failed": "流程无法启动。",
   "easydrag.ui.error_flow_stopped": "流程已停止。",
   "easydrag.ui.error_flow_template_error": "无法解析数据引用。",
   "easydrag.ui.error_flow_too_large": "流程或其数据过大。",

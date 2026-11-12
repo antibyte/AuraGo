@@ -261,7 +261,7 @@ func TestEasyDragUIKeysExistInAllLocales(t *testing.T) {
 			"flow_approval_auth_unavailable", "flow_durable_approval_conflict", "flow_durable_approval_not_found", "flow_durable_approval_unavailable", "flow_approval_rejected", "flow_approval_expired",
 			"flow_credential_not_movable", "flow_secret_exists",
 			// The 503 causes other than flows switched off (FLOWS_DISABLED), audit 2026-10-08 finding 1.2.
-			"flow_mission_control_unavailable", "flow_runner_stopped", "flow_vault_unavailable", "flow_request_cancelled"},
+			"flow_mission_control_unavailable", "flow_runner_stopped", "flow_vault_unavailable", "flow_request_cancelled", "flow_start_failed"},
 	}
 	for prefix := range prefixes {
 		if _, ok := families[prefix]; !ok {

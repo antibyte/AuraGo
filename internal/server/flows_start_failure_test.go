@@ -10,6 +10,7 @@ import (
 	"aurago/internal/desktop"
 	"aurago/internal/flows"
 	"aurago/internal/planner"
+	"aurago/internal/tools"
 )
 
 // A flow mission whose flow is not published fires its trigger twice. The first start failure
@@ -71,8 +72,9 @@ func TestFlowStartFailureIsRecordedOncePerStreak(t *testing.T) {
 	hooks := flowMissionHooks{s: s}
 	fire := func() {
 		t.Helper()
-		if _, err := hooks.StartFlowRunReported(rec.MissionID, "", "webhook", ""); !errors.Is(err, flows.ErrNotPublished) {
-			t.Fatalf("a trigger of an unpublished flow: err = %v, want ErrNotPublished", err)
+		_, err := hooks.StartFlowRunReported(rec.MissionID, "", "webhook", "")
+		if !errors.Is(err, flows.ErrNotPublished) || !errors.Is(err, tools.ErrFlowStartFailed) {
+			t.Fatalf("a trigger of an unpublished flow: err = %v, want ErrNotPublished marked as tools.ErrFlowStartFailed", err)
 		}
 	}
 

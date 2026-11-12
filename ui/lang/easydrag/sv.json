@@ -525,6 +525,7 @@
   "easydrag.ui.error_flow_schema": "Flödesdokumentet har ett okänt format.",
   "easydrag.ui.error_flow_secret_unavailable": "En hemlighet saknas.",
   "easydrag.ui.error_flow_shutdown": "AuraGo stängs av.",
+  "easydrag.ui.error_flow_start_failed": "Flödet kunde inte starta.",
   "easydrag.ui.error_flow_stopped": "Flödet stoppades.",
   "easydrag.ui.error_flow_template_error": "En datareferens kunde inte lösas upp.",
   "easydrag.ui.error_flow_too_large": "Flödet eller dess data är för stora.",

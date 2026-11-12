@@ -373,7 +373,8 @@ func (h flowMissionHooks) StartFlowRun(missionID, nodeID, triggerType, triggerDa
 // or missions are read-only (automaticFlowRunsAllowed: tools.ErrFlowsUnavailable or
 // tools.ErrFlowRunsPaused), so cron, event and dependent-mission triggers follow the switches at
 // once. It reports the run id and status (a skip of the flow's skip policy included) and marks a
-// full queue (flowStartError). A cancel does not come through here and stays open.
+// full queue (flowStartError). A start that fails for a reason of the flow (flows.IsStartFailure)
+// is marked tools.ErrFlowStartFailed, so Mission Control notes it on the mission. A cancel does not come through here and stays open.
 func (h flowMissionHooks) StartFlowRunReported(missionID, nodeID, triggerType, triggerData string) (tools.FlowStartOutcome, error) {
 	if h.s.Flows == nil {
 		return tools.FlowStartOutcome{}, tools.ErrFlowsUnavailable
@@ -383,7 +384,12 @@ func (h flowMissionHooks) StartFlowRunReported(missionID, nodeID, triggerType, t
 	}
 	res, err := h.s.Flows.TriggerFromMission(missionID, nodeID, triggerType, flows.NormalizeTriggerData(triggerType, triggerData))
 	if err != nil {
-		return tools.FlowStartOutcome{}, flowStartError(err)
+		err = flowStartError(err)
+		if flows.IsStartFailure(err) {
+			// The Service recorded a failed run for it (once per streak); Mission Control notes it.
+			err = &tools.FlowStartFailedError{Err: err}
+		}
+		return tools.FlowStartOutcome{}, err
 	}
 	h.s.Logger.Debug("Flow run requested by Mission Control", "mission_id", missionID, "run", res.RunID, "status", string(res.Status))
 	return tools.FlowStartOutcome{RunID: res.RunID, Status: string(res.Status)}, nil

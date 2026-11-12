@@ -525,6 +525,7 @@
   "easydrag.ui.error_flow_schema": "O documento do fluxo tem um formato desconhecido.",
   "easydrag.ui.error_flow_secret_unavailable": "Falta um segredo.",
   "easydrag.ui.error_flow_shutdown": "O AuraGo está sendo desligado.",
+  "easydrag.ui.error_flow_start_failed": "O fluxo não pôde ser iniciado.",
   "easydrag.ui.error_flow_stopped": "O fluxo foi interrompido.",
   "easydrag.ui.error_flow_template_error": "Não foi possível resolver uma referência de dados.",
   "easydrag.ui.error_flow_too_large": "O fluxo ou os dados dele são grandes demais.",
