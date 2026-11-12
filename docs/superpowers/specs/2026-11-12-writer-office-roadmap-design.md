@@ -147,6 +147,14 @@ Plan: `docs/superpowers/plans/2026-11-12-writer-wave0-foundation.md`.
 
 Paste from a menu needs `navigator.clipboard`, which browsers allow only over HTTPS or localhost. When it is unavailable the menu item explains that Ctrl+V works.
 
+Wave 1 is planned in three parts, each shippable on its own (user, 2026-11-12):
+
+- **1a** — registry extension, complete menus, clipboard commands, dialogs, zoom, toolbar additions, shortcuts. Plan: `docs/superpowers/plans/2026-11-12-writer-wave1a-commands-menus.md`.
+- **1b** — right-click menu and contextual bar. Planned after 1a has landed.
+- **1c** — start state and recent documents. Planned after 1b.
+
+Decided while planning 1a: superscript and subscript are menu items, not toolbar buttons; the format painter is "Copy formatting" and "Paste formatting" in the Format menu, because the engine does not expose the one-click painter's arming; "simple markup" is not offered, because the review module declares three display modes; "whole page" zoom is computed by Writer, because the engine fits the page width only.
+
 ### Wave 2 — Business documents
 
 | Item | Size |
