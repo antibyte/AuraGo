@@ -225,6 +225,11 @@ func TestStartFailureStreak(t *testing.T) {
 			{"mission missing", ErrFlowMissionMissing, ""},
 			{"mission control unavailable", ErrMissionControlUnavailable, ""},
 			{"caller gave up", context.Canceled, ""},
+			{"durable capacity", fmt.Errorf("start: %w", ErrDurableCapacity), ""},
+			{"durable unavailable", ErrDurableUnavailable, ""},
+			{"durable disabled", ErrDurableDisabled, ""},
+			{"recovery unavailable", fmt.Errorf("%w: %w", ErrRunRecoveryUnavailable, errors.New("disk I/O error")), ""},
+			{"approval auth unavailable stays counted", ErrDurableApprovalAuthUnavailable, "start_error: " + ErrDurableApprovalAuthUnavailable.Error()},
 		} {
 			if got := startFailureReason(tc.err); got != tc.want {
 				t.Errorf("%s: reason = %q, want %q", tc.name, got, tc.want)

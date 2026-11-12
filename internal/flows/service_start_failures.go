@@ -27,7 +27,9 @@ const (
 //   - the flow was deleted meanwhile (ErrNotFound), the runner is shutting down (ErrRunnerClosed),
 //     the queue is full (ErrQueueFull, also ErrRunnerQueueFull) or the caller's context ended;
 //   - the flow is switched off or Mission Control cannot say (ErrFlowDisabled,
-//     ErrFlowMissionMissing, ErrMissionControlUnavailable), the refusals of the block admission.
+//     ErrFlowMissionMissing, ErrMissionControlUnavailable), the refusals of the block admission;
+//   - the durable runner refuses or cannot serve (ErrDurableCapacity, ErrDurableUnavailable,
+//     ErrDurableDisabled, ErrRunRecoveryUnavailable): a condition of the service, not of the flow.
 //
 // Otherwise it returns the reason that names the streak.
 func startFailureReason(err error) string {
@@ -40,6 +42,7 @@ func startFailureReason(err error) string {
 		return startFailureNoTrigger
 	case errors.Is(err, ErrNotFound), errors.Is(err, ErrRunnerClosed), errors.Is(err, ErrQueueFull),
 		errors.Is(err, ErrFlowDisabled), errors.Is(err, ErrFlowMissionMissing), errors.Is(err, ErrMissionControlUnavailable),
+		errors.Is(err, ErrDurableCapacity), errors.Is(err, ErrDurableUnavailable), errors.Is(err, ErrDurableDisabled), errors.Is(err, ErrRunRecoveryUnavailable),
 		errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		return ""
 	}

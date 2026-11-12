@@ -11,6 +11,7 @@ var (
 	ErrDurableDisabled                = errors.New("durable processing is disabled")
 	ErrDurableUnavailable             = errors.New("durable processing is unavailable")
 	ErrDurableCapacity                = errors.New("durable processing capacity is exhausted")
+	ErrRunRecoveryUnavailable         = errors.New("durable run recovery unavailable")
 	ErrDurableInvalidGraph            = errors.New("the graph cannot run durably")
 	ErrDurableGenerationConflict      = errors.New("the durable generation changed")
 	ErrDurableMissionCancel           = errors.New("durable runs require an individual generation-fenced cancellation")

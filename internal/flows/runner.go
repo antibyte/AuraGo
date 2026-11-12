@@ -456,7 +456,7 @@ func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResul
 		break
 	}
 	if req.Mode != ModeTest && r.recoveryErr != nil {
-		return StartResult{}, fmt.Errorf("durable run recovery unavailable: %w", r.recoveryErr)
+		return StartResult{}, fmt.Errorf("%w: %w", ErrRunRecoveryUnavailable, r.recoveryErr)
 	}
 	counted := req.Mode != ModeTest
 	flowID := req.Flow.ID
