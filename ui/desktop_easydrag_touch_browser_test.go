@@ -249,3 +249,27 @@ func TestEasyDragTouchInsertOnWire(t *testing.T) {
 		})
 	}
 }
+
+// TestEasyDragTouchDeleteWire taps a wire and then its Delete button: the wire is gone, its
+// neighbours stay, the actions leave, and undo brings the wire back.
+func TestEasyDragTouchDeleteWire(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	for _, vp := range easyDragTouchViewports {
+		vp := vp
+		t.Run(vp.name, func(t *testing.T) {
+			s := startEasyDragTouch(t, vp.w, vp.h)
+			page := s.page
+			p := s.touchEdgePoint("e_1")
+			s.touchTap(p.x, p.y)
+			time.Sleep(450 * time.Millisecond)
+			s.wait(`()=>{const a=document.querySelector('.ed-wire-actions');const b=a && a.querySelector('[data-ed-wire="delete"]');if(!a||a.hidden||!b)return false;const r=b.getBoundingClientRect();return r.width>=24 && r.height>=24 && edFixture.editor().selectedEdge==='e_1'}`)
+			s.touchTapElement(`.ed-wire-actions [data-ed-wire="delete"]`)
+			s.wait(`()=>{const m=edFixture.editor().model;return m.doc.edges.length===2 && !m.edge('e_1') && m.doc.nodes.length===4 && document.querySelector('.ed-wire-actions').hidden && !document.querySelector('.ed-edge[data-edge-id="e_1"]')}`)
+			s.shot("touch-wire-deleted-" + vp.name)
+			s.clearToasts()
+			page.MustEval(`()=>edFixture.editor().model.undo()`)
+			s.wait(`()=>edFixture.editor().model.doc.edges.length===3 && !!edFixture.editor().model.edge('e_1')`)
+			s.failOnPageErrors("touch delete wire")
+		})
+	}
+}
