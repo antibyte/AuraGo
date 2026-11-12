@@ -273,3 +273,50 @@ func TestEasyDragTouchDeleteWire(t *testing.T) {
 		})
 	}
 }
+
+// TestEasyDragTouchCardTools taps a card: it is selected, its tools are on top and big enough, and the
+// Disable tool works by tap (twice: off, on). A long press opens the card's menu.
+func TestEasyDragTouchCardTools(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	for _, vp := range easyDragTouchViewports {
+		vp := vp
+		t.Run(vp.name, func(t *testing.T) {
+			s := startEasyDragTouch(t, vp.w, vp.h)
+			page := s.page
+			card := `.ed-node[data-node-id="n_zeitplan"]`
+			s.touchTapElement(card)
+			s.wait(`()=>{const c=document.querySelector('` + card + `');const tools=c.querySelector('.ed-node-tools');const cs=getComputedStyle(tools);return c.classList.contains('is-selected') && cs.opacity==='1' && cs.pointerEvents==='auto' && cs.visibility==='visible'}`)
+			// Every tool is on top at its centre and not smaller than 24 px.
+			for _, tool := range []string{"add", "connect", "test", "disable", "duplicate", "delete"} {
+				sel := card + ` [data-ed-node-tool="` + tool + `"]`
+				s.touchAssertHit(sel, s.touchCentre(sel))
+				size := page.MustEval(`sel=>{const r=document.querySelector(sel).getBoundingClientRect();return Math.min(r.width,r.height)}`, sel).Num()
+				if size < 24 {
+					t.Fatalf("tool %s is %.0f px: under 24 px", tool, size)
+				}
+			}
+			s.shot("touch-card-tools-" + vp.name)
+			disable := card + ` [data-ed-node-tool="disable"]`
+			s.touchTapElement(disable)
+			s.wait(`()=>edFixture.editor().model.node('n_zeitplan').settings.disabled===true`)
+			s.touchTapElement(disable)
+			s.wait(`()=>!edFixture.editor().model.node('n_zeitplan').settings.disabled`)
+			// A long press opens the card menu.
+			p := s.touchCentre(card)
+			s.touchAssertHit(card, p)
+			if under := page.MustEval(`(x,y)=>!!document.elementFromPoint(x,y).closest('.ed-node-tools')`, p.x, p.y).Bool(); under {
+				t.Fatalf("the card body at (%.0f, %.0f) is covered by its own tools: a finger cannot long-press or drag it", p.x, p.y)
+			}
+			// The menu opens while the finger is still down. The finger is then cancelled, not lifted: the
+			// menu opens under the finger, and CDP (unlike a real long press, which gives a context menu and
+			// no click) sends a click on release to whatever is under it, here the first menu item.
+			s.touchSend(proto.InputDispatchTouchEventTypeTouchStart, p)
+			s.wait(`()=>document.querySelectorAll('.vd-context-menu .vd-context-item').length>0`)
+			s.touchSend(proto.InputDispatchTouchEventTypeTouchCancel)
+			s.shot("touch-card-menu-" + vp.name)
+			page.MustEval(`()=>aurora.closeContextMenu()`)
+			s.wait(`()=>!document.querySelector('.vd-context-menu')`)
+			s.failOnPageErrors("touch card tools")
+		})
+	}
+}

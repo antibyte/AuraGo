@@ -1418,6 +1418,15 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     .ed-app .ed-wire-hit { stroke-width: 44px; }
     .ed-app .ed-wire-btn { width: 44px; height: 44px; }
 }
+/* The 44 px tools wrap into two rows that cover the selected card's upper 54 px, so a finger could not
+   long-press or drag the card by its body: under a coarse pointer or in a narrow window the tools sit
+   under the card. */
+@media (pointer: coarse) {
+    .ed-app .ed-node-tools { top: calc(100% + 6px); }
+}
+@container (max-width: 760px) {
+    .ed-app .ed-node-tools { top: calc(100% + 6px); }
+}
 
 @media (prefers-reduced-motion: reduce) {
     .ed-app *, .ed-app *::before, .ed-app *::after {
