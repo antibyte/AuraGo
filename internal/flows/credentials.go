@@ -663,6 +663,9 @@ func RedactCredentials(f *Flow) (*Flow, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Defence in depth: local packs scrub the same texts again in sanitizeLocalPackFlow
+	// (local_pack.go), after this function ran. Keep both; a change to what is scrubbed here
+	// must be mirrored there, and the other way round.
 	if c.Groups != nil {
 		for i := range *c.Groups {
 			group := &(*c.Groups)[i]

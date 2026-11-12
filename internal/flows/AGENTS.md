@@ -828,7 +828,7 @@ the contracts below describe the implemented behavior of each delivered slice.
   titles into the agent's system prompt. Times go to the tool in UTC and the node output keeps the zone the date
   was written in; the planner itself compares times as text (`GetDueNotifications`,
   `AutoExpireAppointments`), a root cause a separate task has to fix.
-- Templates (`TemplateFlow(id, tr)`, listed by `Templates()`): six, all free of lint warnings. Their texts are
+- Templates (`TemplateFlow(id, tr)`, listed by `Templates()`; the list lives in `templates_builtin.go`, which changes more often than this guide, so no count is named here): all free of lint warnings. Their texts are
   trusted repo translations and may hold expressions (plan 1c's reminder and budget texts read trigger fields).
   The webhook body and the feed titles go through `boundedExpr`, which truncates to `templateUntrustedRunes`
   (40000 runes) so a worst case of four bytes per rune stays under the 256 KiB prompt cap; the search snippets

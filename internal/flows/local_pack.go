@@ -415,6 +415,10 @@ func sanitizeLocalPackFlow(source *Flow, clearSample bool) (*Flow, error) {
 	if err != nil || redacted == nil {
 		return nil, ErrLocalPackInvalid
 	}
+	// Defence in depth: RedactCredentials (credentials.go) already scrubbed notes, group texts
+	// and credential parameters on the copy it returned. The scrub here repeats it for the
+	// texts a pack stores, and also covers labels, the name and the description. Keep both;
+	// a change to what is scrubbed here must be mirrored there, and the other way round.
 	for i := range redacted.Nodes {
 		node := &redacted.Nodes[i]
 		node.Label = security.ScrubSecrets(node.Label)
