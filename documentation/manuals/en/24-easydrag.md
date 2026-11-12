@@ -9,6 +9,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 1. [Your First Flow](#your-first-flow)
 2. [The Editor](#the-editor)
    - [Visual groups](#visual-groups)
+   - [Schedule trigger](#schedule-trigger)
 3. [Saving](#saving)
 4. [Testing](#testing)
 5. [Publishing](#publishing)
@@ -275,6 +276,24 @@ per list, 256 fields per object, 32 nested levels, 100,000 values and 2 MiB of t
 bytes. Oversized data fails clearly. Existing flow limits still apply; the local visual
 preview can impose smaller limits to stay responsive.
 
+### Schedule trigger
+
+The **Schedule** trigger starts the flow at fixed times. *Repeat* offers seven modes:
+
+| Mode | What you enter | When it runs |
+|---|---|---|
+| Every few minutes | *Minutes*: 1, 2, 3, 4, 5, 6, 10, 12, 15, 20 or 30 | every n minutes from the full hour (with 15: at :00, :15, :30 and :45) |
+| Every few hours | *Hours*: 1, 2, 3, 4, 6, 8 or 12 | at minute 0, every n hours from 00:00 (with 6: at 00:00, 06:00, 12:00 and 18:00) |
+| Daily | *Time* (HH:MM) | every day at that time |
+| Weekdays (Mon–Fri) | *Time* | Monday to Friday at that time |
+| Weekly | *Time* and *Weekdays* | on the chosen days |
+| Monthly | *Time* and *Day of month* (1–31) | on that day of the month |
+| Cron expression | 5 or 6 fields | as the expression says, at most once a minute |
+
+An interval has to divide the hour (60 minutes) or the day (24 hours) evenly, or the gaps would be uneven: every 7 minutes would run at :56 and again at :00. EasyDrag therefore refuses other values, and the field names the valid ones.
+
+A month without the chosen day skips that run. *Day of month* 29, 30 or 31 does not move to the last day of the month: day 31 runs only in January, March, May, July, August, October and December, day 30 never in February, and day 29 in February only in leap years.
+
 ## Saving
 
 - EasyDrag saves one second after your last change. The chip at the bottom right shows the state:
@@ -312,6 +331,7 @@ the AuraGo server and excluded from flow exports. A complete backup also needs t
 password-protected Vault export; the matching key is required to recover these data.
 
 - **Test** saves the draft first; a draft that cannot be saved is not tested. The flow needs a trigger that is turned on.
+- The dialog opens in **Simulation** when the steps it would run have effects outside AuraGo (named ones, or a risky step whose effects cannot be named) and every step of the flow can be simulated. A flow without such steps opens as a **Real test**, and so does a flow with a step that cannot be simulated: a generic tool step, *Persistent wait* or *Request approval*. Which steps have effects is checked for the steps that would run (with *Test step*, only that step); whether they can be simulated is checked for every step of the flow. The mode you pick stays: EasyDrag never switches a test you chose, or one already in Simulation, back to a real test.
 - The test dialog shows the trigger data the test starts with. With several triggers, pick one under *Start from*. Change the JSON to try other cases; *Remember this data for later tests* keeps your edit.
 - Stored test data shows secret values as `[redacted]`. Left unchanged, the test uses the real stored data. Replace exact redaction and omission placeholders in edited data before a real test; incomplete edited data is refused.
 - A test has real effects. The dialog lists each kind (*Sends messages*, *Writes files*, *Controls devices*, …) with the steps that may cause it. Each step counts with what its building block does by default and with what its actual settings do, so an HTTP request with POST counts as sending, although the building block alone does not. If AuraGo cannot check the settings, or a building block cannot name its effects, the dialog says that the effects could not be fully checked. **Run test** confirms the listed kinds once the test has started, while the flow stays open; *Don't ask again for this flow* remembers them on this device. A test that does not start (AuraGo refuses it or cannot be reached) confirms nothing. A kind you have not confirmed yet is asked again.
@@ -359,8 +379,9 @@ error-message text. Comparing never replays a step.
 - **Run now** (⋯ menu, the *Flow* menu, or a card's menu on the start page) starts the published version. The flow must be **Active**: while it is paused, *Run now* is turned off and its tooltip says to switch the flow on first, as Mission Control refuses to run a paused mission. **Test** works either way.
 - A flow set to *Skip* in its settings does not start a new run while one is still going, so **Run now** starts nothing and says so; such flows skip new runs until the running one has ended.
 - A failed live run notifies as the flow settings say: on the desktop (the default), as a push notification, on Telegram, on WhatsApp or not at all. A flow notifies once when it starts failing, then at most once an hour while it keeps failing. Clicking the desktop notification opens EasyDrag on that run.
+- A trigger that cannot start the flow is a failed run too, whether a mission trigger (such as *Mission finished*) or a *Date & time* schedule fires it. When the flow is not published, has no trigger that is turned on, or cannot start for another reason (for example a version that no longer passes the checks), EasyDrag records a run with the status *Run failed*, the code `FLOW_START_FAILED` and the reason in plain words, notifies as the flow settings say, and notes the failure on the mission in Mission Control. Opening such a run in the run view shows the reason. The same reason several times in a row is reported once, so a scheduled flow that is not published does not notify every minute. A different reason, or a start that works in between, begins a new report; after AuraGo restarts, the first failure is reported again. Refusals are not failures and record no run: paused flows, a full queue, the durable-run capacity and EasyDrag being switched off are only noted on the mission.
 - After a desktop reload, an open flow is opened again.
-- When a *Stop* step ends a run while other steps still run, they get up to 30 seconds to finish; then they are stopped and show *Effect may have happened*: what they send or change may already have happened. If one of them fails after a stop with *Success*, the run counts as failed; after a stop with *Error*, the stop's message stays.
+- When a *Stop* step ends a run with *Success*, the run stays successful and says so: the run view and the test result show *Ended by a stop step: <name of the stop step>*. Steps that were still running get up to 30 seconds to finish; then they are stopped and, if they could have sent or changed something, show *Effect may have happened*: what they send or change may already have happened. Steps the stop never reached show as skipped. If one of the running steps fails after a stop with *Success*, the run counts as failed and shows no stop hint; after a stop with *Error*, the run fails with the stop's message.
 - A *Wait* step frees its run slot while it waits, so waiting flows do not hold up others; afterwards the run queues for a free slot. At most 64 runs wait like this at a time; beyond that a wait keeps its slot.
 - A flow set to *parallel* uses at most half of the parallel runs at once. At most 200 runs (and 64 MiB of their trigger data) wait for a start in total; beyond that new triggers are dropped, and Mission Control notes it on the flow.
 - Live and test runs are kept apart: *Runs kept per flow* counts live runs, and the newest 20 test runs are kept on their own. Very large runs keep the inputs and outputs of their first steps only (4 MiB per run); later steps show *Shortened*.
@@ -452,6 +473,8 @@ accepts the name `daily`. A whole external path, `../config`, subfolders or a
 Windows drive/stream in the name stops the step with `FLOW_PARAM_INVALID` before
 any file access. This also applies to tests and previously published versions.
 The filesystem tool's permissions and protected paths still apply.
+
+**Write file** replaces a file that already exists. This is the default of *If the file exists* (*Overwrite*); the other choices are *Keep both (new name)* and *Stop with an error*. The step's card shows the choice after the path, for example `reports/daily.txt · overwrites`, so a flow that replaces its file says so at a glance. A retried step writes the same file again.
 
 - Under *If this step fails* in a step's *Settings* you choose *Stop the run*, *Continue* (the next steps get the error as data; on an *If* step they get it along *No*, on a *Switch* step along *Otherwise*, never along *Yes* or a case) or *Error path* (an extra *Error* output for steps that handle the failure). *Retries*, *Seconds between* and *Time limit (s)* sit next to it.
 - *Data name* in the same tab is the name later steps use in references (`{{data_name.field}}`).

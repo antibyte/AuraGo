@@ -9,6 +9,7 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 1. [Der erste Flow](#der-erste-flow)
 2. [Der Editor](#der-editor)
    - [Visuelle Gruppen](#visuelle-gruppen)
+   - [Zeitplan-Auslöser](#zeitplan-auslöser)
 3. [Speichern](#speichern)
 4. [Testen](#testen)
 5. [Veröffentlichen](#veröffentlichen)
@@ -308,6 +309,24 @@ Die Filter verändern ihre Eingabe nicht. Jede Operation ist auf 10.000 Einträg
 begrenzt. Zu große Daten führen zu einem klaren Fehler. Die bisherigen Flow-Grenzen gelten
 weiter; die lokale visuelle Vorschau darf für flüssige Bedienung kleinere Grenzen setzen.
 
+### Zeitplan-Auslöser
+
+Der Auslöser **Zeitplan** startet den Flow zu festen Zeiten. *Wiederholung* bietet sieben Arten:
+
+| Art | Was du eingibst | Wann er läuft |
+|---|---|---|
+| Alle paar Minuten | *Minuten*: 1, 2, 3, 4, 5, 6, 10, 12, 15, 20 oder 30 | alle n Minuten ab der vollen Stunde (bei 15: um :00, :15, :30 und :45) |
+| Alle paar Stunden | *Stunden*: 1, 2, 3, 4, 6, 8 oder 12 | in Minute 0, alle n Stunden ab 00:00 Uhr (bei 6: um 00:00, 06:00, 12:00 und 18:00 Uhr) |
+| Täglich | *Uhrzeit* (HH:MM) | jeden Tag zu dieser Zeit |
+| Werktags (Mo–Fr) | *Uhrzeit* | Montag bis Freitag zu dieser Zeit |
+| Wöchentlich | *Uhrzeit* und *Wochentage* | an den gewählten Tagen |
+| Monatlich | *Uhrzeit* und *Tag im Monat* (1–31) | an diesem Tag des Monats |
+| Cron-Ausdruck | 5 oder 6 Felder | wie der Ausdruck es sagt, höchstens einmal pro Minute |
+
+Ein Intervall muss die Stunde (60 Minuten) oder den Tag (24 Stunden) ohne Rest teilen, sonst wären die Abstände ungleich: Alle 7 Minuten liefe um :56 und gleich wieder um :00. EasyDrag lehnt andere Werte deshalb ab, und das Feld nennt die gültigen.
+
+Hat ein Monat den gewählten Tag nicht, entfällt der Lauf in diesem Monat. *Tag im Monat* 29, 30 oder 31 rückt nicht auf den letzten Tag des Monats vor: Tag 31 läuft nur im Januar, März, Mai, Juli, August, Oktober und Dezember, Tag 30 nie im Februar und Tag 29 im Februar nur in Schaltjahren.
+
 ## Speichern
 
 - EasyDrag speichert eine Sekunde nach deiner letzten Änderung. Die Anzeige unten rechts zeigt den Stand:
@@ -352,6 +371,7 @@ Eine vollständige Sicherung braucht auch den passwortgeschützten Vault-Export;
 den zugehörigen Schlüssel können diese Daten nicht wiederhergestellt werden.
 
 - **Testen** speichert zuerst den Entwurf; einen Entwurf, der sich nicht speichern lässt, testet EasyDrag nicht. Der Flow braucht einen eingeschalteten Auslöser.
+- Der Dialog öffnet in der **Simulation**, wenn die Schritte, die er ausführen würde, Auswirkungen außerhalb von AuraGo haben (benannte oder ein riskanter Schritt, dessen Auswirkungen sich nicht benennen lassen) und sich jeder Schritt des Flows simulieren lässt. Ein Flow ohne solche Schritte öffnet als **Echter Test**, ebenso ein Flow mit einem Schritt, der sich nicht simulieren lässt: einem generischen Werkzeug-Schritt, *Fortsetzbare Wartezeit* oder *Freigabe anfordern*. Welche Schritte Auswirkungen haben, wird für die Schritte geprüft, die laufen würden (bei *Schritt testen* nur für diesen Schritt); ob sie sich simulieren lassen, wird für jeden Schritt des Flows geprüft. Eine Auswahl von dir bleibt bestehen: EasyDrag schaltet einen gewählten oder bereits simulierten Test nie auf einen echten Test zurück.
 - Der Testdialog zeigt die Daten, mit denen der Auslöser den Test startet. Hat der Flow mehrere Auslöser, wählst du einen unter *Starten mit*. Ändere das JSON, um andere Fälle auszuprobieren; *Diese Daten für spätere Tests merken* behält deine Änderung.
 - Gespeicherte Testdaten zeigen geheime Werte als `[redacted]`. Unverändert nutzt der Test die echten gespeicherten Daten. Ersetze exakte Platzhalter für ausgeblendete oder ausgelassene Werte in bearbeiteten Daten vor einem echten Test; unvollständige bearbeitete Daten werden abgelehnt.
 - Ein Test hat echte Auswirkungen. Der Dialog nennt jede Art (*Sendet Nachrichten*, *Schreibt Dateien*, *Steuert Geräte*, …) mit den Schritten, die sie auslösen können. Jeder Schritt zählt mit dem, was sein Baustein standardmäßig tut, und mit dem, was seine tatsächlichen Einstellungen tun; eine HTTP-Anfrage mit POST zählt deshalb als Senden, obwohl der Baustein allein das nicht tut. Kann AuraGo die Einstellungen nicht prüfen oder kann ein Baustein seine Auswirkungen nicht nennen, sagt der Dialog, dass sich die Auswirkungen nicht vollständig prüfen ließen. **Test starten** bestätigt die genannten Arten, sobald der Test gestartet ist, solange der Flow offen bleibt; *Für diesen Flow nicht mehr fragen* merkt sie auf diesem Gerät. Ein Test, der nicht startet (AuraGo lehnt ihn ab oder ist nicht erreichbar), bestätigt nichts. Eine Art, die du noch nicht bestätigt hast, fragt EasyDrag wieder ab.
@@ -405,8 +425,9 @@ Beim Vergleichen wird kein Schritt erneut ausgeführt.
 - **Jetzt ausführen** (Menü ⋯, das Menü *Flow* oder das Menü einer Karte auf der Startseite) startet die veröffentlichte Version. Der Flow muss **Aktiv** sein: Solange er pausiert ist, ist *Jetzt ausführen* ausgeschaltet, und sein Tooltip sagt, dass du den Flow zuerst einschalten musst, so wie Mission Control eine pausierte Mission nicht ausführt. **Testen** geht in beiden Fällen.
 - Ein Flow, der in seinen Einstellungen auf *Überspringen* steht, überspringt neue Läufe, solange noch einer läuft: **Jetzt ausführen** startet dann nichts und sagt das.
 - Ein fehlgeschlagener Live-Lauf benachrichtigt so, wie es die Flow-Einstellungen sagen: auf dem Desktop (Standard), per Push, per Telegram, per WhatsApp oder gar nicht. Ein Flow benachrichtigt einmal, wenn er zu scheitern beginnt, danach höchstens einmal pro Stunde, solange er weiter scheitert. Ein Klick auf die Desktop-Benachrichtigung öffnet EasyDrag bei diesem Lauf.
+- Ein Auslöser, der den Flow nicht starten kann, ist ebenfalls ein fehlgeschlagener Lauf, ob ihn ein Missions-Auslöser (etwa *Mission beendet*) oder ein Zeitplan vom Typ *Datum & Uhrzeit* feuert. Ist der Flow nicht veröffentlicht, hat keinen eingeschalteten Auslöser oder kann aus einem anderen Grund nicht starten (zum Beispiel eine Version, die die Prüfungen nicht mehr besteht), legt EasyDrag einen Lauf mit dem Status *Lauf fehlgeschlagen*, dem Code `FLOW_START_FAILED` und dem Grund in Klartext an, benachrichtigt so, wie es die Flow-Einstellungen sagen, und vermerkt den Fehler an der Mission in Mission Control. Öffnest du einen solchen Lauf in der Laufansicht, zeigt sie den Grund. Derselbe Grund mehrmals hintereinander wird nur einmal gemeldet; ein geplanter Flow, der nicht veröffentlicht ist, benachrichtigt also nicht jede Minute. Ein anderer Grund oder ein dazwischen geglückter Start beginnt eine neue Meldung; nach einem Neustart von AuraGo wird der erste Fehler wieder gemeldet. Abweisungen sind keine Fehler und legen keinen Lauf an: pausierte Flows, eine volle Warteschlange, die Kapazität für fortsetzbare Läufe und abgeschaltetes EasyDrag werden nur an der Mission vermerkt.
 - Nach einem Neuladen des Desktops öffnet sich ein offener Flow wieder.
-- Beendet ein *Stopp*-Schritt einen Lauf, während andere Schritte noch laufen, haben diese bis zu 30 Sekunden Zeit; danach werden sie gestoppt und zeigen *Wirkung möglicherweise erfolgt*: Was sie senden oder ändern, kann schon passiert sein. Scheitert einer davon nach einem Stopp mit *Erfolg*, gilt der Lauf als fehlgeschlagen; nach einem Stopp mit *Fehler* bleibt dessen Meldung.
+- Beendet ein *Stopp*-Schritt einen Lauf mit *Erfolg*, bleibt der Lauf erfolgreich und sagt das: Die Laufansicht und das Testergebnis zeigen *Durch Stopp beendet: <Name des Stopp-Schritts>*. Schritte, die noch liefen, haben bis zu 30 Sekunden Zeit; danach werden sie gestoppt und zeigen, wenn sie etwas gesendet oder geändert haben könnten, *Wirkung möglicherweise erfolgt*: Was sie senden oder ändern, kann schon passiert sein. Schritte, die der Stopp nie erreicht hat, gelten als übersprungen. Scheitert einer der laufenden Schritte nach einem Stopp mit *Erfolg*, gilt der Lauf als fehlgeschlagen und zeigt keinen Stopp-Hinweis; nach einem Stopp mit *Fehler* scheitert der Lauf mit dessen Meldung.
 - Ein *Warten*-Schritt gibt seinen Platz frei, solange er wartet, damit wartende Flows andere nicht aufhalten; danach reiht sich der Lauf wieder für einen freien Platz ein. Höchstens 64 Läufe warten gleichzeitig so; darüber hinaus behält ein Warten seinen Platz.
 - Ein Flow mit Nebenläufigkeit *parallel* belegt höchstens die Hälfte der gleichzeitigen Läufe. Insgesamt warten höchstens 200 Läufe (und 64 MiB ihrer Auslöser-Daten) auf ihren Start; darüber hinaus werden neue Auslöser verworfen, und Mission Control vermerkt das am Flow.
 - Live- und Testläufe werden getrennt aufbewahrt: *Gespeicherte Läufe pro Flow* zählt die Live-Läufe, die neuesten 20 Testläufe bleiben unabhängig davon erhalten. Sehr große Läufe behalten nur die Ein- und Ausgaben ihrer ersten Schritte (4 MiB pro Lauf); spätere Schritte zeigen *Gekürzt*.
@@ -515,6 +536,8 @@ Ein vollständiger fremder Pfad, `../config`, Unterordner oder ein Windows-Laufw
 oder Datenstrom im Namen stoppen den Schritt vor jedem Dateizugriff mit
 `FLOW_PARAM_INVALID`. Das gilt auch für Tests und bereits veröffentlichte Versionen.
 Die Berechtigungen und geschützten Pfade des Dateisystem-Werkzeugs gelten weiterhin.
+
+**Datei schreiben** ersetzt eine Datei, die schon existiert. Das ist die Voreinstellung von *Wenn die Datei existiert* (*Überschreiben*); die anderen Möglichkeiten sind *Beide behalten (neuer Name)* und *Mit Fehler abbrechen*. Die Karte des Schritts zeigt die Wahl hinter dem Pfad, zum Beispiel `reports/daily.txt · überschreibt`; ein Flow, der seine Datei ersetzt, sagt das also auf einen Blick. Ein wiederholter Schritt schreibt dieselbe Datei erneut.
 
 - In den *Einstellungen* eines Schritts wählst du unter *Wenn der Schritt fehlschlägt*: *Lauf stoppen*, *Weitermachen* (die nächsten Schritte erhalten den Fehler als Daten; bei einem *Wenn*-Schritt über *Nein*, bei einem *Verzweigung*-Schritt über *Sonst*, nie über *Ja* oder einen Fall) oder *Fehlerpfad* (ein eigener Ausgang *Fehler* für Schritte, die auf den Fehler reagieren). *Wiederholungen*, *Sekunden dazwischen* und *Zeitlimit (s)* stehen daneben.
 - Der *Datenname* im selben Tab ist der Name, unter dem spätere Schritte die Ausgabe lesen (`{{datenname.feld}}`).
