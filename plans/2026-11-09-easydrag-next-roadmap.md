@@ -1368,7 +1368,18 @@ The ten waves sum to 22.5 relative units instead of 20.5, for two reasons. The p
 - This section and the Appendix A Wave column are the schedule. All wave references in §3, §4 and §7 to §10 were updated to strategy A on 2026-11-10; if one still disagrees, this section decides.
 
 **Wave 0: Clear the deck** (relative duration 1.5; unchanged from strategy C).
-- *Status 2026-11-11:* S0 landed on main at 79c7c601a (25 commits, 5265dd841 to 79c7c601a, not pushed, not deployed). Spec `plans/2026-11-10-easydrag-s0-spec.md` (§5.1 and §8 amended after review), plan `plans/2026-11-11-easydrag-s0/`. runs.js is 138 lines, editor.js 894, home.js 886 and fields.js 645. Four review batches found 10 Important findings; all are fixed on the branch. S0b is still open.
+- *Status 2026-11-11:* S0 landed on main at 79c7c601a (25 commits, 5265dd841 to 79c7c601a, not pushed, not deployed). Spec `plans/2026-11-10-easydrag-s0-spec.md` (§5.1 and §8 amended after review), plan `plans/2026-11-11-easydrag-s0/`. runs.js is 138 lines, editor.js 894, home.js 886 and fields.js 645. Four review batches found 10 Important findings; all are fixed on the branch.
+- *Status 2026-11-12:* S0b landed on main and is not pushed or deployed.
+  - **Part A, browser egress.** Landed at c4370ae91, 10 commits.
+    - `security.LaunchEgressBrowser` gives each of the five browser sites a fresh Chrome behind its own loopback proxy. The proxy has no credentials (owner decision after the spike).
+    - It fails closed on limits and on refused redirects.
+    - The S8 fixture is refused locally and live on aurago-test.
+  - **Part B, credential hygiene.** Landed at 53bd11eff, 20 commits from 7ef581da6.
+    - One rule covers Go and JS.
+    - "In den Tresor verschieben" works for headers, query parameters and URL user info.
+    - The guided purge uses an encrypted 7-day backup and schema 9 marks. The acceptance fixture finds none of the three tokens anywhere.
+  - **Records.** Spec `plans/2026-11-11-easydrag-s0b-spec.md`, plan `plans/2026-11-11-easydrag-s0b/`. Three review batches found 16 Important findings; all are fixed.
+  - **Next.** Wave 0 still has S0c (the hygiene track); Wave 1 comes after it.
 - *Includes:* S0 and S0b (§7):
   - S0: the FD-03 counter baseline (step 0); the FD-10 splits of runs.js, editor.js, home.js and fields.js; the FD-17, AI-16 and OP-17 trust sweep; the FD-12 subset; UI-02 and UI-03 from E3 and E2;
   - S0b: FD-13 and FD-18.
