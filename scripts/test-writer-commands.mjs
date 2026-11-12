@@ -37,9 +37,35 @@ function harness(options = {}) {
         editor: () => state.editor, lib: () => lib, loading: () => state.loading,
         act: id => { log.acted.push(id); return true; }, active: id => (options.open || []).includes(id),
         notice: (message, error) => log.notices.push({message, error}),
-        refresh: () => { log.refreshed++; }
+        refresh: () => { log.refreshed++; },
+        clipboard: kind => options.clipboard ? options.clipboard[kind] : true
     });
     return {commands, editor, log, state};
+}
+
+{ // Without clipboard access the clipboard commands are refused with a reason, and nothing runs.
+    const {commands, log} = harness({clipboard: {write: false, read: true}});
+    assert.equal(commands.state('cut').enabled, false);
+    assert.equal(commands.state('cut').reason, 'desktop.clipboard_write_unavailable');
+    assert.equal(commands.state('copy').enabled, false);
+    assert.equal(commands.state('paste').enabled, true);
+    assert.equal(commands.menuItem('cut').disabledHint, 'desktop.clipboard_write_unavailable');
+    assert.equal(commands.invoke('cut'), false);
+    assert.equal(log.exec.length, 0);
+    assert.equal(log.notices[0].message, 'command_unavailable · desktop.clipboard_write_unavailable');
+    assert.equal(commands.invoke('selectAll'), true);
+}
+{ // A refused app action does not reach the app; it explains itself only when there is a reason.
+    const {commands, log} = harness({readonly: true});
+    assert.equal(commands.invoke('link'), false);
+    assert.equal(commands.invoke('new'), false);
+    assert.equal(log.acted.length, 0);
+    assert.equal(log.notices.length, 0);
+    const tracked = harness({mode: 'suggesting'});
+    assert.equal(tracked.commands.invoke('table'), false);
+    assert.equal(tracked.log.acted.length, 0);
+    assert.equal(tracked.log.notices[0].message, 'command_unavailable · tracking_unsupported');
+    assert.equal(tracked.commands.invoke('outline'), true);
 }
 
 { // Suggesting mode refuses structural commands before the engine is asked.

@@ -20,7 +20,8 @@
         const tr = (key, params) => ctx.t?.('desktop.writer_' + key, params) || key;
         const commands = window.WriterCommands.create({tr, t: (key, params) => ctx.t?.(key, params) || key, readonly: !!ctx.readonly,
             editor: () => editor, lib: () => lib, loading: () => loading, act: id => act(id), notice, refresh: () => refresh(),
-            format: value => Number(value).toLocaleString(locale), active: id => activeAction(id)});
+            format: value => Number(value).toLocaleString(locale), active: id => activeAction(id),
+            clipboard: kind => kind === 'write' ? !!navigator.clipboard?.writeText : !!navigator.clipboard?.readText});
         const {can, run} = commands, colors = window.WriterCommands.colors;
         const icon = window.WriterToolbar.icons(ctx, esc);
         const button = id => '<button type="button" data-action="' + id + '" title="' + esc(commands.tooltip(id)) + '" aria-label="' + esc(commands.label(id)) + '">' + icon(commands.get(id).icon, commands.get(id).fallback) + '</button>';
@@ -481,6 +482,7 @@
                 } catch(_) { html=''; }
             }
             if(!html && !text)text=await navigator.clipboard.readText();
+            if(!html && !text)return;
             run(plain?{type:'pasteWithoutFormatting',text}:html?{type:'paste',text,html:sanitize(html)}:{type:'paste',text});
         }
         async function insertImage(file, options = {}) {
@@ -553,7 +555,10 @@
                         break;
                     }
                     case 'tracking':run({type:'setEditingMode',mode:commands.tracking()?'editing':'suggesting'});break;
-                    case 'paste':case 'pastePlain':await pasteFromClipboard(action==='pastePlain');break;
+                    case 'paste':case 'pastePlain':
+                        try{await pasteFromClipboard(action==='pastePlain');}
+                        catch(_){notice(ctx.t('desktop.clipboard_read_unavailable'),true,'info');}
+                        break;
                     case 'page':case 'goToPage':await dialogs.goToPage();break;
                     case 'table':await dialogs.table();break;
                     case 'link':await dialogs.link();break;

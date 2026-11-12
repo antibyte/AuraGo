@@ -50,13 +50,14 @@
     //   control    'select', 'number' or 'color' instead of a button; options are the values of a select; value is a colour default
     //   write      refused in a read-only window; needsEditor: refused without a document
     //   untracked  command type whose tracking refusal disables the action
+    //   clipboard  'read' or 'write': refused when the browser gives no clipboard access (plain http)
     const DEFINITIONS = [
         {id: 'undo', slot: 'history.undo', label: 'undo', icon: 'undo', fallback: '↶', shortcut: 'Ctrl+Z'},
         {id: 'redo', slot: 'history.redo', label: 'redo', icon: 'redo', fallback: '↷', shortcut: 'Ctrl+Y'},
-        {id: 'cut', command: {type: 'cut'}, label: 'cut', icon: 'cut', hint: 'Ctrl+X'},
-        {id: 'copy', command: {type: 'copy'}, label: 'copy', icon: 'copy', hint: 'Ctrl+C'},
-        {id: 'paste', label: 'paste', icon: 'paste', hint: 'Ctrl+V', write: true, needsEditor: true},
-        {id: 'pastePlain', label: 'paste_plain', hint: 'Ctrl+Shift+V', write: true, needsEditor: true},
+        {id: 'cut', command: {type: 'cut'}, label: 'cut', icon: 'cut', hint: 'Ctrl+X', clipboard: 'write'},
+        {id: 'copy', command: {type: 'copy'}, label: 'copy', icon: 'copy', hint: 'Ctrl+C', clipboard: 'write'},
+        {id: 'paste', label: 'paste', icon: 'paste', hint: 'Ctrl+V', write: true, needsEditor: true, clipboard: 'read'},
+        {id: 'pastePlain', label: 'paste_plain', hint: 'Ctrl+Shift+V', write: true, needsEditor: true, clipboard: 'read'},
         {id: 'selectAll', command: {type: 'selectAll'}, label: 'select_all', hint: 'Ctrl+A'},
         {id: 'style', slot: 'styles.style', label: 'style', control: 'select'},
         {id: 'fontFamily', slot: 'font.family', label: 'font', control: 'select'},
@@ -139,13 +140,17 @@
         {id: 'shortcuts', label: 'shortcuts', icon: 'keyboard'}
     ];
     // host: {tr, t, readonly, editor(), lib(), loading(), act(id), notice(message, error), refresh(),
-    //        active(id)?: whether an app action is switched on, format(number)?: a number in the user's locale}
+    //        active(id)?: whether an app action is switched on, format(number)?: a number in the user's locale,
+    //        clipboard(kind)?: whether the system clipboard can be read or written}
     function create(host) {
         const byId = new Map(DEFINITIONS.map(definition => [definition.id, definition]));
         const get = id => byId.get(id);
         const tracking = () => host.editor()?.snapshot().editingMode === 'suggesting';
         // Why a command type is refused before the engine is asked; '' when it is not.
         const blocked = type => tracking() && UNTRACKABLE.has(type) ? host.tr('tracking_unsupported') : '';
+        // Why a clipboard command is refused before anything runs; '' when it is not.
+        const denied = definition => definition.clipboard && host.clipboard && !host.clipboard(definition.clipboard)
+            ? host.t('desktop.clipboard_' + definition.clipboard + '_unavailable') : '';
         function can(command) {
             const editor = host.editor();
             if (!editor || !command) return {ok: false};
@@ -153,14 +158,14 @@
             if (reason) return {ok: false, reason};
             return TABLE_OPS.has(command.type) ? host.lib().tableCommand(editor, command, true) : editor.can(command);
         }
+        const refuse = reason => { host.notice(host.tr('command_unavailable') + (reason ? ' · ' + reason : ''), true); return false; };
         function run(command) {
             const editor = host.editor();
             if (!editor || !command || host.loading()) return false;
-            const refuse = result => host.notice(host.tr('command_unavailable') + (result.reason ? ' · ' + result.reason : ''), true);
             const allowed = can(command);
-            if (!allowed.ok) { refuse(allowed); return false; }
+            if (!allowed.ok) return refuse(allowed.reason);
             const result = TABLE_OPS.has(command.type) ? host.lib().tableCommand(editor, command) : editor.exec(command);
-            if (!result.ok) refuse(result);
+            if (!result.ok) refuse(result.reason);
             host.refresh();
             return result.ok;
         }
@@ -181,6 +186,8 @@
         function state(id) {
             const definition = get(id), editor = host.editor(), off = {enabled: false, active: false, reason: ''};
             if (!definition) return off;
+            const refusal = denied(definition);
+            if (refusal) return {enabled: false, active: false, reason: refusal};
             if (definition.slot || definition.command) {
                 const engineCommand = editor ? command(id) : null;
                 if (!engineCommand) return off;
@@ -192,7 +199,17 @@
             const reason = definition.untracked ? blocked(definition.untracked) : '';
             return {enabled: !reason, active: !!host.active?.(id), reason};
         }
-        const invoke = id => get(id)?.slot || get(id)?.command ? run(command(id)) : host.act(id);
+        // Engine commands announce their own refusals in run(); app actions and clipboard commands are gated here.
+        function invoke(id) {
+            const definition = get(id);
+            if (!definition) return false;
+            const engine = definition.slot || definition.command;
+            if (!engine || definition.clipboard) {
+                const current = state(id);
+                if (!current.enabled) return current.reason ? refuse(current.reason) : false;
+            }
+            return engine ? run(command(id)) : host.act(id);
+        }
         // The engine wants a bare hex for colours, a palette name for highlights, half-points for sizes and lines for spacing.
         function valueCommand(slot, value) {
             const lib = host.lib();
@@ -218,6 +235,7 @@
             else if (definition.hint) item.shortcutHint = definition.hint;
             // A pressed toolbar toggle follows the selection; menus only mark modes and open panels.
             if (current.active && !definition.toggle) item.checked = true;
+            if (!current.enabled && current.reason) item.disabledHint = current.reason;
             return item;
         }
         return {get, can, run, blocked, tracking, label, tooltip, format, command, state, invoke, valueCommand, actionForKey, menuItem};
