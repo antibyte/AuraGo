@@ -93,6 +93,7 @@ func TestDesktopWriterAppBrowser(t *testing.T) {
 	page.MustEval(`async()=>await WriterApp.instances.get('test').act('blank')`)
 	verifyWriterDocumentStart(t, page, "test")
 	verifyWriterPointerFocus(t, page, "test", "")
+	verifyWriterToolbarOverflow(t, page)
 	result := page.MustEval(`async()=>{
         const app=WriterApp.instances.get('test'),editor=app.editor;
         const run=c=>{const r=editor.exec(c);if(!r.ok)throw Error(JSON.stringify({c,r}));return r;};

@@ -4423,6 +4423,7 @@
   "desktop.writer_text": "Text",
   "desktop.writer_title_placeholder": "Titel",
   "desktop.writer_toc": "Innehållsförteckning",
+  "desktop.writer_toolbar_more": "Fler verktyg",
   "desktop.writer_tracking": "Spåra ändringar",
   "desktop.writer_tracking_hint": "Text och formateringsändringar som stöds registreras. Andra åtgärder förklarar varför de inte är tillgängliga.",
   "desktop.writer_tracking_unsupported": "Den här åtgärden kan inte spåras tillförlitligt. Byt till redigeringsläge.",

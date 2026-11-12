@@ -4423,6 +4423,7 @@
   "desktop.writer_text": "Tekst",
   "desktop.writer_title_placeholder": "Titel",
   "desktop.writer_toc": "Indholdsfortegnelse",
+  "desktop.writer_toolbar_more": "Flere værktøjer",
   "desktop.writer_tracking": "Registrer ændringer",
   "desktop.writer_tracking_hint": "Tekst og understøttede formateringsændringer registreres. Andre handlinger forklarer, hvorfor de ikke er tilgængelige.",
   "desktop.writer_tracking_unsupported": "Denne handling kan ikke registreres pålideligt. Skift til redigeringstilstand.",

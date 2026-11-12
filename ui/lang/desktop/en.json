@@ -4424,6 +4424,7 @@
   "desktop.writer_text": "Text",
   "desktop.writer_title_placeholder": "Title",
   "desktop.writer_toc": "Table of contents",
+  "desktop.writer_toolbar_more": "More tools",
   "desktop.writer_tracking": "Track changes",
   "desktop.writer_tracking_hint": "Text and supported formatting changes are recorded. Other operations explain why they are unavailable.",
   "desktop.writer_tracking_unsupported": "This operation cannot be tracked reliably. Switch to editing mode to use it.",

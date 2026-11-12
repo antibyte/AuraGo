@@ -4423,6 +4423,7 @@
   "desktop.writer_text": "Texto",
   "desktop.writer_title_placeholder": "Título",
   "desktop.writer_toc": "Sumário",
+  "desktop.writer_toolbar_more": "Mais ferramentas",
   "desktop.writer_tracking": "Controlar alterações",
   "desktop.writer_tracking_hint": "Alterações de texto e de formatação compatíveis são registradas. Outras operações explicam por que estão indisponíveis.",
   "desktop.writer_tracking_unsupported": "Esta operação não pode ser registrada com segurança. Mude para o modo de edição.",

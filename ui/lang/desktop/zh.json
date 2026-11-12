@@ -4423,6 +4423,7 @@
   "desktop.writer_text": "文本",
   "desktop.writer_title_placeholder": "标题",
   "desktop.writer_toc": "目录",
+  "desktop.writer_toolbar_more": "更多工具",
   "desktop.writer_tracking": "修订",
   "desktop.writer_tracking_hint": "记录文本和受支持格式的更改。其他操作会说明不可用的原因。",
   "desktop.writer_tracking_unsupported": "此操作无法可靠地记录修订。请切换到编辑模式。",

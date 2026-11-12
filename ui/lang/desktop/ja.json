@@ -4423,6 +4423,7 @@
   "desktop.writer_text": "テキスト",
   "desktop.writer_title_placeholder": "タイトル",
   "desktop.writer_toc": "目次",
+  "desktop.writer_toolbar_more": "その他のツール",
   "desktop.writer_tracking": "変更履歴の記録",
   "desktop.writer_tracking_hint": "テキストと対応する書式の変更を記録します。それ以外の操作には利用できない理由が表示されます。",
   "desktop.writer_tracking_unsupported": "この操作は変更履歴を確実に記録できません。編集モードに切り替えてください。",

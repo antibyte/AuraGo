@@ -1,7 +1,7 @@
 (function () {
     'use strict';
-    // The shared icon atlases carry no keys for text alignment, underline, indent or the
-    // colour controls, so Autor draws those few glyphs itself, in the toolbar's line style.
+    // The shared icon atlases carry no keys for text alignment, underline, indent, the
+    // colour controls or the overflow button, so Autor draws those few glyphs itself, in the toolbar's line style.
     const GLYPHS = {
         'align-left': '<path d="M4 6h16M4 12h9M4 18h16"/>',
         'align-center': '<path d="M4 6h16M7.5 12h9M4 18h16"/>',
@@ -11,7 +11,8 @@
         'indent': '<path d="M4 5h16M4 12h8M4 19h16"/><path d="M12 8l4 4-4 4"/>',
         'outdent': '<path d="M4 5h16M4 12h8M4 19h16"/><path d="M16 8l-4 4 4 4"/>',
         'text-color': '<path d="M12 4L5.5 15M12 4l6.5 11"/><path d="M8.6 10.6h6.8"/><path d="M6 19.5h12" stroke-width="3"/>',
-        'highlight': '<path d="M14 4l6 6-9 9H5v-6z"/><path d="M11 7l6 6"/><path d="M6 20.5h12" stroke-width="3"/>'
+        'highlight': '<path d="M14 4l6 6-9 9H5v-6z"/><path d="M11 7l6 6"/><path d="M6 20.5h12" stroke-width="3"/>',
+        'more': '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>'
     };
     // icon(key, fallback): a local glyph, else the shell's icon, else the text stand-in.
     function icons(ctx, esc) {
@@ -31,7 +32,21 @@
         {id: 'colors', priority: 5, className: 'writer-colors', items: ['textColor', 'highlight']},
         {id: 'insert', priority: 6, className: 'writer-tool-tail', items: ['insert']}
     ];
-    const STYLE_LABELS = {normal: 'style_normal', title: 'style_title', subtitle: 'style_subtitle', quote: 'style_quote', caption: 'style_caption', nospacing: 'style_no_spacing', listparagraph: 'style_list_paragraph'};
+    // The ids of the groups that must leave a bar of `available` pixels. groups: [{id, priority, width}]
+    // in bar order. The lowest priority leaves first; the bar always keeps one group.
+    function fit(groups, available, moreWidth, gap) {
+        const width = list => list.reduce((sum, group) => sum + group.width, 0) + Math.max(0, list.length - 1) * gap;
+        if (width(groups) <= available) return [];
+        const hidden = [];
+        let visible = groups.slice();
+        for (const group of groups.slice().sort((a, b) => a.priority - b.priority)) {
+            if (visible.length <= 1 || width(visible) + gap + moreWidth <= available) break;
+            visible = visible.filter(candidate => candidate !== group);
+            hidden.push(group.id);
+        }
+        return hidden;
+    }
+    const STYLE_LABELS ={normal: 'style_normal', title: 'style_title', subtitle: 'style_subtitle', quote: 'style_quote', caption: 'style_caption', nospacing: 'style_no_spacing', listparagraph: 'style_list_paragraph'};
     // app: the state facade of writer.js ({root, tr, esc, ctx, commands, editor, ...}).
     function create(app) {
         const {root, tr, esc, ctx, commands} = app, icon = icons(ctx, esc), colors = window.WriterCommands.colors, life = new AbortController();
@@ -46,8 +61,46 @@
             if (definition.control === 'color') return '<label class="writer-color" title="' + name + '">' + icon(definition.icon, '') + '<input type="color" ' + attrs(id) + ' value="' + definition.value + '" aria-label="' + name + '"></label>';
             return '<button type="button" ' + attrs(id) + ' title="' + esc(commands.tooltip(id)) + '" aria-label="' + name + '">' + icon(definition.icon, definition.fallback) + '</button>';
         }
+        const moreLabel = esc(tr('toolbar_more'));
         wrap.innerHTML = '<div class="writer-toolbar" role="toolbar" aria-label="' + esc(tr('format_bar')) + '">' +
-            GROUPS.map(group => '<div class="writer-toolgroup' + (group.className ? ' ' + group.className : '') + '" data-group="' + group.id + '">' + group.items.map(control).join('') + '</div>').join('') + '</div>';
+            GROUPS.map(group => '<div class="writer-toolgroup' + (group.className ? ' ' + group.className : '') + '" data-group="' + group.id + '">' + group.items.map(control).join('') + '</div>').join('') +
+            '<button type="button" class="writer-toolbar-more" data-toolbar-more aria-haspopup="true" aria-expanded="false" title="' + moreLabel + '" aria-label="' + moreLabel + '" hidden>' + icon('more', '⋯') + '</button></div>' +
+            '<div class="writer-toolbar-overflow" data-toolbar-overflow role="group" aria-label="' + moreLabel + '" hidden></div>';
+        const bar = wrap.querySelector('.writer-toolbar'), more = wrap.querySelector('[data-toolbar-more]'), overflow = wrap.querySelector('[data-toolbar-overflow]');
+        const nodes = GROUPS.map(group => ({id: group.id, priority: group.priority, node: wrap.querySelector('[data-group="' + group.id + '"]')}));
+        const FIELDS = 'button,select,input';
+        function closeOverflow() {
+            if (overflow.hidden) return false;
+            overflow.hidden = true;
+            more.setAttribute('aria-expanded', 'false');
+            return true;
+        }
+        // The bar is one tab stop: the control that last had focus, else the first enabled one.
+        function rove(target) {
+            const list = [...bar.querySelectorAll(FIELDS)].filter(el => !el.disabled && !el.hidden);
+            const current = list.includes(target) ? target : list.find(el => el.tabIndex === 0) || list[0];
+            for (const el of bar.querySelectorAll(FIELDS)) el.tabIndex = el === current ? 0 : -1;
+        }
+        // Put every group back, measure, then move what does not fit into the popover.
+        function layout() {
+            if (!bar.clientWidth) return;   // hidden in focus mode: keep the last arrangement
+            const focused = wrap.contains(document.activeElement) ? document.activeElement : null;
+            more.hidden = false;
+            for (const group of nodes) bar.insertBefore(group.node, more);
+            const style = getComputedStyle(bar), gap = parseFloat(style.columnGap) || 0;
+            const available = bar.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+            const hidden = new Set(fit(nodes.map(group => ({id: group.id, priority: group.priority, width: group.node.offsetWidth})), available, more.offsetWidth, gap));
+            for (const group of nodes) if (hidden.has(group.id)) overflow.appendChild(group.node);
+            for (const el of overflow.querySelectorAll(FIELDS)) el.tabIndex = 0;
+            more.hidden = !hidden.size;
+            if (!hidden.size) closeOverflow();
+            rove();
+            // Moving a node blurs it; give the focus back where it was.
+            if (focused && focused.isConnected && focused !== document.activeElement) focused.focus({preventScroll: true});
+        }
+        let frame = 0;
+        const observer = new ResizeObserver(() => { cancelAnimationFrame(frame); frame = requestAnimationFrame(layout); });
+        observer.observe(wrap);
         const valueCommand = el => commands.valueCommand(el.dataset.slot, el.dataset.slot === 'font.size' ? el.valueAsNumber : el.value);
         const unavailable = reason => tr('command_unavailable') + (reason ? ' · ' + reason : '');
         // Tooltips change rarely; writing an unchanged one restarts the browser's tooltip timer.
@@ -86,6 +139,7 @@
                 el.disabled = !allowed.ok;
                 setTitle(el, allowed.ok ? '' : unavailable(allowed.reason));
             }
+            rove();
         }
         wrap.addEventListener('click', event => {
             const el = event.target.closest('button[data-slot]');
@@ -97,7 +151,30 @@
             if (!el.checkValidity()) { el.reportValidity(); return; }
             commands.run(valueCommand(el));
         }, {signal: life.signal});
-        return {fill, refresh, dispose() { life.abort(); }};
+        more.addEventListener('click', () => {
+            overflow.hidden = !overflow.hidden;
+            more.setAttribute('aria-expanded', String(!overflow.hidden));
+        }, {signal: life.signal});
+        document.addEventListener('pointerdown', event => { if (!wrap.contains(event.target)) closeOverflow(); }, {signal: life.signal});
+        bar.addEventListener('focusin', event => { if (event.target.matches(FIELDS)) rove(event.target); }, {signal: life.signal});
+        // Left and Right move through the bar. Up and Down stay with the select and the size field.
+        bar.addEventListener('keydown', event => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) || event.altKey || event.ctrlKey || event.metaKey) return;
+            const list = [...bar.querySelectorAll(FIELDS)].filter(el => !el.disabled && !el.hidden), index = list.indexOf(event.target);
+            const edge = event.key === 'Home' || event.key === 'End';
+            if (index < 0 || (edge && !event.target.matches('button'))) return;
+            event.preventDefault();
+            const next = event.key === 'Home' ? list[0] : event.key === 'End' ? list.at(-1) : list[(index + (event.key === 'ArrowRight' ? 1 : -1) + list.length) % list.length];
+            rove(next);
+            next.focus();
+        }, {signal: life.signal});
+        // Escape closes the popover and returns to its button; false when it was not open.
+        function escape() {
+            if (!closeOverflow()) return false;
+            more.focus();
+            return true;
+        }
+        return {fill, refresh, escape, dispose() { life.abort(); observer.disconnect(); cancelAnimationFrame(frame); }};
     }
-    window.WriterToolbar = {create, icons, groups: GROUPS};
+    window.WriterToolbar = {create, icons, groups: GROUPS, fit};
 })();

@@ -79,3 +79,31 @@ func verifyWriterShell(t *testing.T, page *rod.Page, dir string) {
 		t.Fatal(failures)
 	}
 }
+
+// verifyWriterToolbarOverflow narrows the standalone Writer fixture and checks that
+// low-priority groups move into the overflow popover instead of scrolling the bar.
+func verifyWriterToolbarOverflow(t *testing.T, page *rod.Page) {
+	t.Helper()
+	page.MustEval(`async()=>{
+        const host=document.getElementById('host'),wait=()=>new Promise(r=>setTimeout(r,300));
+        const bar=document.querySelector('.writer-toolbar'),more=document.querySelector('[data-toolbar-more]'),overflow=document.querySelector('[data-toolbar-overflow]');
+        await wait();
+        if(!more.hidden||overflow.children.length)throw Error('overflow in use although the bar fits');
+        if(bar.querySelectorAll('[tabindex="0"]').length!==1)throw Error('the bar needs exactly one tab stop');
+        host.style.width='520px';await wait();
+        if(bar.scrollWidth>bar.clientWidth+1)throw Error('narrow toolbar still overflows: '+bar.scrollWidth+'>'+bar.clientWidth);
+        if(more.hidden)throw Error('narrow toolbar has no overflow button');
+        if(!bar.querySelector('[data-slot="font.size"]'))throw Error('the font group left the bar');
+        if(!overflow.querySelector('[data-slot="text.color"]'))throw Error('the colour group did not move to the overflow');
+        more.click();
+        if(overflow.hidden||more.getAttribute('aria-expanded')!=='true')throw Error('overflow popover did not open');
+        bar.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+        if(!overflow.hidden||document.activeElement!==more)throw Error('Escape did not close the overflow popover');
+        const first=bar.querySelector('[data-tool="undo"]'),second=bar.querySelector('[data-tool="redo"]');
+        for(const el of [first,second])el.disabled=false;
+        first.focus();first.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));
+        if(document.activeElement!==second||second.tabIndex!==0||first.tabIndex!==-1)throw Error('ArrowRight did not move the tab stop');
+        host.style.width='';await wait();
+        if(!more.hidden||overflow.children.length)throw Error('overflow not restored at full width');
+    }`)
+}

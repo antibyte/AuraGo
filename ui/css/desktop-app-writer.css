@@ -25,7 +25,7 @@
 .writer-document-menu strong{font-size:11px;color:var(--writer-muted);overflow-wrap:anywhere;padding:8px}
 .writer-document-menu button{text-align:left}
 .writer-toolbar-wrap{position:relative;flex-shrink:0}
-.writer-toolbar{display:flex;align-items:center;gap:7px;padding:7px 14px;min-height:47px;flex-shrink:0;overflow-x:auto;overflow-y:hidden;border-bottom:1px solid var(--writer-border);background:var(--writer-bar);box-shadow:var(--vd-mat-bar-edge,none);scrollbar-width:thin}
+.writer-toolbar{display:flex;align-items:center;gap:7px;padding:7px 14px;min-height:47px;flex-shrink:0;overflow:hidden;border-bottom:1px solid var(--writer-border);background:var(--writer-bar);box-shadow:var(--vd-mat-bar-edge,none)}
 .writer-toolgroup{display:flex;align-items:center;gap:3px;flex-shrink:0;border-right:1px solid var(--writer-border);padding-right:7px}
 .writer-toolbar-wrap button{width:30px;height:30px;display:grid;place-items:center;padding:4px}
 .writer-toolbar-wrap [data-slot="text.bold"]{font-weight:800}
@@ -34,6 +34,9 @@
 .writer-toolbar-wrap .writer-glyph{display:block;pointer-events:none}
 .writer-toolbar-wrap .writer-colors{gap:6px;border-right:0}
 .writer-toolbar-wrap .writer-tool-tail{border-right:0;padding-right:0}
+.writer-toolbar-more{margin-left:auto;flex-shrink:0}
+.writer-toolbar-overflow{position:absolute;z-index:11;top:calc(100% - 3px);right:10px;display:flex;flex-wrap:wrap;align-items:center;gap:7px;max-width:calc(100% - 20px);padding:8px;background:var(--writer-card);border:1px solid var(--vd-mat-card-border,var(--writer-border));border-radius:var(--vd-mat-card-radius,10px);box-shadow:var(--vd-mat-card-shadow,0 0 #0000),0 18px 40px #0006}
+.writer-toolbar-overflow .writer-toolgroup{border-right:0;padding-right:0}
 .writer-toolbar-wrap .writer-color{display:flex;align-items:center;gap:5px;padding:2px 5px;border-radius:var(--vd-mat-btn-radius,6px);cursor:pointer}
 .writer-toolbar-wrap .writer-color:hover{background:var(--writer-hover)}
 .writer-toolbar-wrap .writer-color input[type=color]{width:26px;height:26px;min-height:26px;padding:2px;border:1px solid var(--writer-border);border-radius:5px;background:var(--writer-field);cursor:pointer}

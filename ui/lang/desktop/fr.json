@@ -4423,6 +4423,7 @@
   "desktop.writer_text": "Texte",
   "desktop.writer_title_placeholder": "Titre",
   "desktop.writer_toc": "Table des matières",
+  "desktop.writer_toolbar_more": "Plus d'outils",
   "desktop.writer_tracking": "Suivi des modifications",
   "desktop.writer_tracking_hint": "Le texte et les modifications de mise en forme prises en charge sont suivis. Les autres opérations indiquent pourquoi elles sont indisponibles.",
   "desktop.writer_tracking_unsupported": "Cette opération ne peut pas être suivie de façon fiable. Passez en mode modification.",

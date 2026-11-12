@@ -4423,6 +4423,7 @@
   "desktop.writer_text": "Text",
   "desktop.writer_title_placeholder": "Titel",
   "desktop.writer_toc": "Inhaltsverzeichnis",
+  "desktop.writer_toolbar_more": "Weitere Werkzeuge",
   "desktop.writer_tracking": "Änderungen verfolgen",
   "desktop.writer_tracking_hint": "Text und unterstützte Formatänderungen werden erfasst. Andere Befehle zeigen, warum sie nicht verfügbar sind.",
   "desktop.writer_tracking_unsupported": "Dieser Vorgang kann nicht zuverlässig nachverfolgt werden. Wechsle dafür in den Bearbeitungsmodus.",

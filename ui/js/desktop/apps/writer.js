@@ -571,8 +571,9 @@
             const action=commands.actionForKey(event);
             if(action){event.preventDefault();event.stopPropagation();commands.invoke(action);}
             if(event.key==='Escape'){
-                // The menu is the topmost layer; focus mode hides every panel and leaves on Escape.
+                // The overflow popover and the menu are the topmost layers; focus mode hides every panel and leaves on Escape.
                 // The engine keeps the event: Escape also leaves a note scope or the format painter.
+                if(toolbar.escape())return;
                 if(!find('[data-document-menu]').hidden){closeDocumentMenu();return;}
                 if(root.classList.contains('writer-focus')){setFocus(false);return;}
                 if(rightPanel){showPanel('right',rightPanel);return;}

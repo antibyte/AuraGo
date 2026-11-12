@@ -4423,6 +4423,7 @@
   "desktop.writer_text": "Texto",
   "desktop.writer_title_placeholder": "Título",
   "desktop.writer_toc": "Tabla de contenido",
+  "desktop.writer_toolbar_more": "Más herramientas",
   "desktop.writer_tracking": "Control de cambios",
   "desktop.writer_tracking_hint": "Se registran los cambios de texto y de formato compatibles. Las demás operaciones explican por qué no están disponibles.",
   "desktop.writer_tracking_unsupported": "Esta operación no se puede registrar de forma fiable. Cambia al modo de edición.",
