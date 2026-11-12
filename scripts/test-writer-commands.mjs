@@ -239,6 +239,30 @@ function harness(options = {}) {
     assert.equal(commands.valueCommand('list.lineSpacing', '').value, 1, 'an unknown spacing still probes with a valid value');
 }
 
+{ // A command can belong to one editing scope; outside it the command is off.
+    const body = harness();
+    assert.equal(body.commands.state('headerFirstPage').enabled, false);
+    assert.equal(body.commands.invoke('headerFirstPage'), false);
+    assert.equal(body.log.acted.length, 0);
+    const header = harness({snapshot: {scope: {kind: 'headerFooter'}}, open: ['headerFirstPage']});
+    assert.equal(header.commands.state('headerFirstPage').enabled, true);
+    assert.equal(header.commands.state('headerFirstPage').active, true);
+    assert.equal(header.commands.state('headerOddEven').active, false);
+    assert.equal(header.commands.invoke('headerOddEven'), true);
+    assert.equal(header.log.acted[0], 'headerOddEven');
+    assert.equal(harness({snapshot: {scope: {kind: 'headerFooter'}}, readonly: true}).commands.state('headerFirstPage').enabled, false);
+}
+{ // The Wave 1b engine commands carry their exact shapes.
+    const {commands, log} = harness();
+    for (const id of ['rotateLeft', 'rotateRight', 'deleteImage', 'borders', 'noBorders']) assert.equal(commands.invoke(id), true, id);
+    assert.equal(log.exec.map(command => command.type + ':' + (command.action || command.scope || '')).join(), 'transformImage:rotateCCW,transformImage:rotateCW,deleteImage:,setTableBorders:all,setTableBorders:none');
+    assert.equal(log.exec[3].spec.style, 'single');
+    assert.equal(log.exec[4].target, 'all');
+    assert.equal(commands.state('comment').enabled, true);
+    assert.equal(harness({readonly: true}).commands.state('comment').enabled, false);
+    for (const id of ['rowAbove', 'rowBelow', 'columnLeft', 'columnRight', 'deleteRow', 'deleteColumn', 'deleteTable', 'mergeCells', 'splitCell', 'borders', 'noBorders', 'rotateLeft', 'rotateRight'])
+        assert.ok(commands.get(id).glyph, id + ' has a glyph for the contextual bar');
+}
 // The table itself.
 const definitions = WriterCommands.definitions, ids = definitions.map(definition => definition.id);
 assert.equal(new Set(ids).size, ids.length, 'ids are unique');
@@ -251,6 +275,7 @@ for (const definition of definitions) {
     assert.ok(!(definition.shortcut && definition.hint), definition.id + ' shows one shortcut');
     if (definition.keys) assert.ok(definition.shortcut, definition.id + ' shows the shortcut it binds');
     if (definition.options) assert.equal(definition.control, 'select', definition.id + ': only a select has options');
+    if (definition.scope) assert.ok(!definition.slot && !definition.command, definition.id + ': only app actions are scoped');
 }
 
 // Every label of the table and every literal tr('key') of the Writer files exists in all sixteen languages.

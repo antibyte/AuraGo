@@ -14,7 +14,20 @@
         'highlight': '<path d="M14 4l6 6-9 9H5v-6z"/><path d="M11 7l6 6"/><path d="M6 20.5h12" stroke-width="3"/>',
         'more': '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
         'table': '<rect x="4" y="5" width="16" height="14" rx="1.5"/><path d="M4 10h16M4 14.5h16M10 5v14"/>',
-        'clear-format': '<path d="M5 5h11M10.5 5l-2.5 12"/><path d="M14.5 14.5l5 5M19.5 14.5l-5 5"/>'
+        'clear-format': '<path d="M5 5h11M10.5 5l-2.5 12"/><path d="M14.5 14.5l5 5M19.5 14.5l-5 5"/>',
+        'row-above': '<rect x="4" y="11" width="16" height="9" rx="1"/><path d="M4 15.5h16M12 11v9"/><path d="M12 3v5M9.5 5.5h5"/>',
+        'row-below': '<rect x="4" y="4" width="16" height="9" rx="1"/><path d="M4 8.5h16M12 4v9"/><path d="M12 16v5M9.5 18.5h5"/>',
+        'col-left': '<rect x="11" y="4" width="9" height="16" rx="1"/><path d="M15.5 4v16M11 12h9"/><path d="M3 12h5M5.5 9.5v5"/>',
+        'col-right': '<rect x="4" y="4" width="9" height="16" rx="1"/><path d="M8.5 4v16M4 12h9"/><path d="M16 12h5M18.5 9.5v5"/>',
+        'row-delete': '<rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 9.5h16M4 14.5h16"/><path d="M10 10.5l4 3M14 10.5l-4 3"/>',
+        'col-delete': '<rect x="4" y="4" width="16" height="16" rx="1"/><path d="M9.5 4v16M14.5 4v16"/><path d="M10.5 10l3 4M13.5 10l-3 4"/>',
+        'table-delete': '<rect x="4" y="5" width="16" height="14" rx="1.5"/><path d="M4 10h16M10 5v14"/><path d="M13.5 12.5l4 4M17.5 12.5l-4 4"/>',
+        'merge-cells': '<rect x="4" y="6" width="16" height="12" rx="1"/><path d="M12 6v2.5M12 15.5V18"/><path d="M8 12h8M10 10l-2 2 2 2M14 10l2 2-2 2"/>',
+        'split-cell': '<rect x="4" y="6" width="16" height="12" rx="1"/><path d="M12 6v12"/><path d="M6.5 12H9M15 12h2.5"/>',
+        'borders-all': '<rect x="4" y="4" width="16" height="16" rx="1"/><path d="M12 4v16M4 12h16"/>',
+        'borders-none': '<rect x="4" y="4" width="16" height="16" rx="1" stroke-dasharray="2 2.5"/><path d="M12 4v16M4 12h16" stroke-dasharray="2 2.5"/>',
+        'rotate-left': '<path d="M5 9a8 8 0 1 1-1 6"/><path d="M5 4v5h5"/>',
+        'rotate-right': '<path d="M19 9a8 8 0 1 0 1 6"/><path d="M19 4v5h-5"/>'
     };
     // icon(key, fallback): a local glyph, else the shell's icon, else the text stand-in.
     function icons(ctx, esc) {

@@ -49,6 +49,7 @@
     //   toggle     pressed state from the engine, for the toolbar; active(snapshot) is a state menus show as a check mark
     //   control    'select', 'number' or 'color' instead of a button; options are the values of a select; value is a colour default
     //   write      refused in a read-only window; needsEditor: refused without a document
+    //   scope      editing scope ('headerFooter') an app action belongs to; refused anywhere else
     //   untracked  command type whose tracking refusal disables the action
     //   clipboard  'read' or 'write': refused when the browser gives no clipboard access (plain http)
     const DEFINITIONS = [
@@ -124,15 +125,23 @@
         {id: 'footer', command: {type: 'editHeaderFooter', position: 'footer'}, label: 'footer'},
         {id: 'pageNumber', slot: 'insert.pageXofY', label: 'page_numbers'},
         {id: 'backDocument', command: {type: 'exitHeaderFooter'}, label: 'back_document'},
-        {id: 'rowAbove', command: {type: 'insertRow', where: 'above'}, label: 'row_above'},
-        {id: 'rowBelow', command: {type: 'insertRow', where: 'below'}, label: 'row_below'},
-        {id: 'columnLeft', command: {type: 'insertColumn', where: 'left'}, label: 'column_left'},
-        {id: 'columnRight', command: {type: 'insertColumn', where: 'right'}, label: 'column_right'},
-        {id: 'deleteRow', command: {type: 'deleteRow'}, label: 'delete_row'},
-        {id: 'deleteColumn', command: {type: 'deleteColumn'}, label: 'delete_column'},
-        {id: 'deleteTable', command: {type: 'deleteTable'}, label: 'table_delete'},
-        {id: 'mergeCells', command: {type: 'mergeCells'}, label: 'merge_cells'},
-        {id: 'splitCell', command: {type: 'splitCell', rows: 1, cols: 2}, label: 'split_cell'},
+        {id: 'rowAbove', command: {type: 'insertRow', where: 'above'}, label: 'row_above', glyph: 'row-above', fallback: '↥'},
+        {id: 'rowBelow', command: {type: 'insertRow', where: 'below'}, label: 'row_below', glyph: 'row-below', fallback: '↧'},
+        {id: 'columnLeft', command: {type: 'insertColumn', where: 'left'}, label: 'column_left', glyph: 'col-left', fallback: '↤'},
+        {id: 'columnRight', command: {type: 'insertColumn', where: 'right'}, label: 'column_right', glyph: 'col-right', fallback: '↦'},
+        {id: 'deleteRow', command: {type: 'deleteRow'}, label: 'delete_row', glyph: 'row-delete', fallback: '⊟'},
+        {id: 'deleteColumn', command: {type: 'deleteColumn'}, label: 'delete_column', glyph: 'col-delete', fallback: '⊟'},
+        {id: 'deleteTable', command: {type: 'deleteTable'}, label: 'table_delete', glyph: 'table-delete', fallback: '⊠'},
+        {id: 'mergeCells', command: {type: 'mergeCells'}, label: 'merge_cells', glyph: 'merge-cells', fallback: '⧉'},
+        {id: 'splitCell', command: {type: 'splitCell', rows: 1, cols: 2}, label: 'split_cell', glyph: 'split-cell', fallback: '◫'},
+        {id: 'borders', command: {type: 'setTableBorders', scope: 'all', spec: {style: 'single', size: 4, color: {kind: 'hex', value: '64748B'}}}, label: 'borders', glyph: 'borders-all', fallback: '▦'},
+        {id: 'noBorders', command: {type: 'setTableBorders', scope: 'none', target: 'all'}, label: 'no_borders', glyph: 'borders-none', fallback: '▢'},
+        {id: 'rotateLeft', command: {type: 'transformImage', action: 'rotateCCW'}, label: 'rotate_left', glyph: 'rotate-left', fallback: '↺'},
+        {id: 'rotateRight', command: {type: 'transformImage', action: 'rotateCW'}, label: 'rotate_right', glyph: 'rotate-right', fallback: '↻'},
+        {id: 'deleteImage', command: {type: 'deleteImage'}, label: 'image_delete', icon: 'trash'},
+        {id: 'comment', label: 'comment', icon: 'chat', write: true, needsEditor: true},
+        {id: 'headerFirstPage', label: 'header_first_page', write: true, needsEditor: true, scope: 'headerFooter'},
+        {id: 'headerOddEven', label: 'header_odd_even', write: true, needsEditor: true, scope: 'headerFooter'},
         {id: 'wordCount', label: 'word_count_title', needsEditor: true},
         {id: 'tracking', label: 'tracking', write: true, needsEditor: true},
         {id: 'previousChange', slot: 'review.previousChange', label: 'previous_change'},
@@ -196,6 +205,7 @@
                 return {enabled: !!allowed.ok, active, reason: allowed.reason || ''};
             }
             if ((definition.write && host.readonly) || (definition.needsEditor && !editor)) return off;
+            if (definition.scope && editor.snapshot().scope?.kind !== definition.scope) return off;
             const reason = definition.untracked ? blocked(definition.untracked) : '';
             return {enabled: !reason, active: !!host.active?.(id), reason};
         }
