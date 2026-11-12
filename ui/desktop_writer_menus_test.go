@@ -15,7 +15,12 @@ const writerWave1Prelude = `
         const submit=()=>dialog().querySelector('[type=submit]').click();
         const body=()=>editor.surface.session.bodyText();
         const failed=()=>{const n=document.querySelector('[data-notice]');return !n.hidden&&n.dataset.error==='true'?document.querySelector('[data-notice-text]').textContent:'';};
-        const rewind=()=>{for(let i=0;i<80&&editor.snapshot().canUndo;i++)editor.exec({type:'undo'});};
+        const paper=JSON.stringify(editor.snapshot().pageSetup);
+        // Undo everything, then redo what the load itself did, until the page setup is the original again.
+        const rewind=()=>{
+            for(let i=0;i<80&&editor.snapshot().canUndo;i++)editor.exec({type:'undo'});
+            for(let i=0;i<20&&JSON.stringify(editor.snapshot().pageSetup)!==paper&&editor.snapshot().canRedo;i++)editor.exec({type:'redo'});
+        };
 `
 
 // verifyWriterDialogs drives the Wave 1a dialogs on the blank document and leaves it blank.
@@ -87,6 +92,7 @@ func verifyWriterDialogs(t *testing.T, page *rod.Page) {
             if(dialog())throw Error('table dialog stayed open');
         } finally { dialog()?.close(); rewind(); }
         if(body().trim())throw Error('the document was not left blank: '+JSON.stringify(body()));
+        if(JSON.stringify(editor.snapshot().pageSetup)!==paper)throw Error('the page setup was not restored: '+JSON.stringify(editor.snapshot().pageSetup));
     }`)
 }
 
@@ -130,6 +136,7 @@ func verifyWriterActions(t *testing.T, page *rod.Page) {
             rewind();
         }
         if(body().trim())throw Error('the document was not left blank: '+JSON.stringify(body()));
+        if(JSON.stringify(editor.snapshot().pageSetup)!==paper)throw Error('the page setup was not restored: '+JSON.stringify(editor.snapshot().pageSetup));
     }`)
 }
 
@@ -167,5 +174,6 @@ func verifyWriterMenus(t *testing.T, page *rod.Page) {
             if(editor.getSelectedTable()?.rowCount!==3)throw Error('row below gave '+JSON.stringify(editor.getSelectedTable()));
         } finally { rewind(); }
         if(body().trim())throw Error('the document was not left blank: '+JSON.stringify(body()));
+        if(JSON.stringify(editor.snapshot().pageSetup)!==paper)throw Error('the page setup was not restored: '+JSON.stringify(editor.snapshot().pageSetup));
     }`)
 }

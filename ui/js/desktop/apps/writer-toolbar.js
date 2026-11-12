@@ -58,7 +58,7 @@
         function control(id) {
             const definition = commands.get(id), name = esc(commands.label(id));
             // A select with options is complete here; the style and font lists are filled per document.
-            // The hidden empty option is what the select shows when the paragraph has another spacing.
+            // The hidden first option carries the paragraph's spacing when it is not one of the steps.
             if (definition.control === 'select') return '<select ' + attrs(id) + ' aria-label="' + name + '"' + (definition.options ? ' title="' + name + '"' : '') + '>' +
                 (definition.options ? '<option value="" hidden></option>' + definition.options.map(value => '<option value="' + value + '">' + esc(commands.format(value)) + '</option>').join('') : '') + '</select>';
             // The one number control is the font size, in points.
@@ -123,6 +123,13 @@
             wrap.querySelector('[data-slot="styles.style"]').innerHTML = editor.getDocumentStyles().filter(style => style.type === 'paragraph').map(style => option(style.styleId, styleLabel(style))).join('');
             wrap.querySelector('[data-slot="font.family"]').innerHTML = editor.getAvailableFonts().map(font => option(font, font)).join('');
         }
+        // A spacing that is not one of the steps is shown in the select's hidden first option.
+        function spacingValue(el, spacing) {
+            const value = spacing?.rule === 'multiple' ? String(spacing.value) : '';
+            const listed = !!value && [...el.options].some(option => option.value === value);
+            el.options[0].textContent = listed || !spacing ? '' : commands.format(spacing.value) + (spacing.rule === 'multiple' ? '' : ' pt');
+            return listed ? value : '';
+        }
         function refresh() {
             const editor = app.editor;
             if (!editor) return;
@@ -141,7 +148,7 @@
                     if (hex && el !== document.activeElement) el.value = hex;
                 } else if (el !== document.activeElement) {
                     el.value = slot === 'styles.style' ? fmt.styleId || 'Normal' : slot === 'font.family' ? fmt.fontFamily || 'Calibri'
-                        : slot === 'list.lineSpacing' ? (fmt.lineSpacing?.rule === 'multiple' ? String(fmt.lineSpacing.value) : '') : fmt.fontSizePt || 11;
+                        : slot === 'list.lineSpacing' ? spacingValue(el, fmt.lineSpacing) : fmt.fontSizePt || 11;
                 } else continue;
                 const allowed = commands.can(valueCommand(el));
                 el.disabled = !allowed.ok;
