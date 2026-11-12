@@ -43,6 +43,11 @@ reading credentials or calling another transport. Separate SMTP credentials are
 resolved from the Vault. Background fetches use `BODY.PEEK` and preserve unread
 status; deliberately opening a message in Mailer can mark it read.
 
+IMAP fetches decode MIME transfer encoding, multipart text and declared character
+sets before Guardian inspection. Malformed MIME keeps the untrusted legacy
+fallback; an encoding failure or incomplete scan is not permission to bypass
+quarantine or to repeatedly alert the user.
+
 ---
 
 ## list_email_accounts — List configured accounts

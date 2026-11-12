@@ -96,7 +96,7 @@ func searchUnseenUIDsTransportContext(parent context.Context, host string, port 
 }
 
 func fetchLegacyMessages(c *imapclient.Client, set *imap.SeqSet, byUID bool) ([]EmailMessage, error) {
-	headers := &imap.BodySectionName{Peek: true, BodyPartName: imap.BodyPartName{Specifier: imap.HeaderSpecifier, Fields: []string{"From", "To", "Subject", "Date"}}}
+	headers := &imap.BodySectionName{Peek: true, BodyPartName: imap.BodyPartName{Specifier: imap.HeaderSpecifier, Fields: []string{"From", "To", "Subject", "Date", "MIME-Version", "Content-Type", "Content-Transfer-Encoding"}}}
 	body := &imap.BodySectionName{Peek: true, BodyPartName: imap.BodyPartName{Specifier: "TEXT"}}
 	items := []imap.FetchItem{imap.FetchUid, headers.FetchItem(), body.FetchItem()}
 	fetched := make(chan *imap.Message, 50)
@@ -112,15 +112,27 @@ func fetchLegacyMessages(c *imapclient.Client, set *imap.SeqSet, byUID bool) ([]
 	messages := make([]EmailMessage, 0, len(fetched))
 	for remote := range fetched {
 		message := EmailMessage{UID: remote.Uid}
-		if raw, err := readLegacyIMAPSection(remote.GetBody(headers)); err != nil {
+		rawHeaders, err := readLegacyIMAPSection(remote.GetBody(headers))
+		if err != nil {
 			return nil, err
-		} else {
-			parseHeaders(&message, string(raw))
 		}
+		parseHeaders(&message, string(rawHeaders))
 		if raw, err := readLegacyIMAPSection(remote.GetBody(body)); err != nil {
 			return nil, err
 		} else {
-			message.Body = decodeBodyText(string(raw))
+			subject, _, _, _, text, html, _, _, parseErr := mailer.ParseMIME(append(rawHeaders, raw...), 2*maxLegacyEmailBodyBytes)
+			if parseErr == nil {
+				if subject != "" {
+					message.Subject = subject
+				}
+				if text == "" {
+					text = html
+				}
+				message.Body = cleanEmailBody(text)
+			} else {
+				// Preserve the existing untrusted fallback; invalid bytes still fail Guardian inspection.
+				message.Body = decodeBodyText(string(raw))
+			}
 			if len(message.Body) > 4096 {
 				message.Body = truncateUTF8Safe(message.Body, 4096) + "\n[... truncated]"
 			}

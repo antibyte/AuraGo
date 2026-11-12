@@ -18,6 +18,10 @@ failure behavior. Store apps and Tresor are excluded.
 
 ## Background mail and heartbeat
 
+Classic agent IMAP fetches decode declared character sets and MIME transfer
+encoding before security inspection, including multipart mail. A malformed
+message keeps the untrusted fallback and remains subject to the same inspection.
+
 An enabled inbox watcher checks new mail on its own configured interval, independent
 of the heartbeat. An incoming delivery runs in an isolated mail-event conversation
 and cannot continue a project from the main chat. By default, routine mail and

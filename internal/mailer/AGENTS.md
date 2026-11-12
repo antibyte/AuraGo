@@ -9,6 +9,10 @@ MIME parsing/composition, and provider-specific identifiers. Account records
 persist source references and presentation/policy metadata only; credentials
 remain in the Vault and are resolved only when an adapter is created.
 
+Classic agent tools and inbox watchers also reuse `ParseMIME` for transfer encoding,
+multipart text and declared charset decoding; their legacy result and fallback
+contracts remain in `../tools/AGENTS.md`.
+
 ## Safety and lifecycle
 
 - Classic SMTP/IMAP/POP3 dials share `dialMailTransport`: resolve once, validate
