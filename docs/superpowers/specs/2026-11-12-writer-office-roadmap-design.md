@@ -124,9 +124,11 @@ No visible feature; it makes the rest cheap.
 | Item | Size | Notes |
 | --- | --- | --- |
 | Command registry | M | Risk: enabled/active state out of sync with the engine. Covered by a node test. |
-| Shared form dialog | M | Passed to Writer through the office app context. |
+| Shared form dialog | M | A native `<dialog>` loaded with Writer's scripts; no shell change. First used for Insert table. |
 | Data-driven toolbar with overflow | M | Groups carry a priority; what does not fit moves into a "more" menu. Roving tabindex. Replaces horizontal scrolling. |
-| Design tokens | S | Replace the hard-coded colours with theme tokens and settle one spacing and size scale. Can run alongside Wave 1. |
+| Design tokens | S | Replace the hard-coded chrome colours with theme tokens. One spacing and size scale follows in Wave 1 with the chrome it changes. |
+
+Plan: `docs/superpowers/plans/2026-11-12-writer-wave0-foundation.md`.
 
 ### Wave 1 — Interaction
 
