@@ -816,6 +816,7 @@
   "easydrag.ui.run_stop_label": "停止 {time} 的运行",
   "easydrag.ui.run_stop_text": "{time} 的运行将被停止。已运行的步骤不会被撤销。",
   "easydrag.ui.run_stop_title": "要停止这次运行吗？",
+  "easydrag.ui.run_stopped_by": "由停止步骤结束：{step}",
   "easydrag.ui.run_stopping": "正在停止…",
   "easydrag.ui.run_stream_lost": "此次运行的实时视图已中断。",
   "easydrag.ui.run_view_banner": "{time} 的运行 · {status} · 版本 {revision}（只读）",

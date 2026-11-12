@@ -816,6 +816,7 @@
   "easydrag.ui.run_stop_label": "Zastavit běh z {time}",
   "easydrag.ui.run_stop_text": "Běh z {time} se zastaví. Kroky, které už proběhly, nebudou vráceny zpět.",
   "easydrag.ui.run_stop_title": "Zastavit tento běh?",
+  "easydrag.ui.run_stopped_by": "Ukončeno krokem Stop: {step}",
   "easydrag.ui.run_stopping": "Zastavování…",
   "easydrag.ui.run_stream_lost": "Živé zobrazení tohoto běhu se přerušilo.",
   "easydrag.ui.run_view_banner": "Běh z {time} · {status} · verze {revision} (jen ke čtení)",

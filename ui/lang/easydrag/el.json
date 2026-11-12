@@ -816,6 +816,7 @@
   "easydrag.ui.run_stop_label": "Διακοπή της εκτέλεσης της {time}",
   "easydrag.ui.run_stop_text": "Η εκτέλεση της {time} θα διακοπεί. Τα βήματα που έχουν ήδη εκτελεστεί δεν αναιρούνται.",
   "easydrag.ui.run_stop_title": "Διακοπή αυτής της εκτέλεσης;",
+  "easydrag.ui.run_stopped_by": "Τερματίστηκε από βήμα διακοπής: {step}",
   "easydrag.ui.run_stopping": "Διακόπτεται…",
   "easydrag.ui.run_stream_lost": "Η ζωντανή προβολή αυτής της εκτέλεσης σταμάτησε.",
   "easydrag.ui.run_view_banner": "Εκτέλεση της {time} · {status} · έκδοση {revision} (μόνο ανάγνωση)",

@@ -816,6 +816,7 @@
   "easydrag.ui.run_stop_label": "{time} का रन रोकें",
   "easydrag.ui.run_stop_text": "{time} का रन रुक जाएगा। जो चरण पहले ही चल चुके हैं, वे पूर्ववत नहीं होंगे।",
   "easydrag.ui.run_stop_title": "यह रन रोकें?",
+  "easydrag.ui.run_stopped_by": "स्टॉप चरण से समाप्त: {step}",
   "easydrag.ui.run_stopping": "रोका जा रहा है…",
   "easydrag.ui.run_stream_lost": "इस रन का लाइव दृश्य रुक गया।",
   "easydrag.ui.run_view_banner": "{time} का रन · {status} · संस्करण {revision} (केवल पढ़ने के लिए)",

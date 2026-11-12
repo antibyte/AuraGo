@@ -816,6 +816,7 @@
   "easydrag.ui.run_stop_label": "Lauf vom {time} stoppen",
   "easydrag.ui.run_stop_text": "Der Lauf vom {time} wird gestoppt. Schritte, die schon gelaufen sind, werden nicht rückgängig gemacht.",
   "easydrag.ui.run_stop_title": "Diesen Lauf stoppen?",
+  "easydrag.ui.run_stopped_by": "Durch Stopp beendet: {step}",
   "easydrag.ui.run_stopping": "Stoppt…",
   "easydrag.ui.run_stream_lost": "Die Live-Ansicht dieses Laufs ist abgebrochen.",
   "easydrag.ui.run_view_banner": "Lauf vom {time} · {status} · Version {revision} (schreibgeschützt)",

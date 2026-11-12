@@ -816,6 +816,7 @@
   "easydrag.ui.run_stop_label": "Arrêter l’exécution du {time}",
   "easydrag.ui.run_stop_text": "L’exécution du {time} sera arrêtée. Les étapes déjà exécutées ne sont pas annulées.",
   "easydrag.ui.run_stop_title": "Arrêter cette exécution ?",
+  "easydrag.ui.run_stopped_by": "Terminé par une étape d’arrêt : {step}",
   "easydrag.ui.run_stopping": "Arrêt…",
   "easydrag.ui.run_stream_lost": "L’affichage en direct de cette exécution s’est interrompu.",
   "easydrag.ui.run_view_banner": "Exécution du {time} · {status} · version {revision} (lecture seule)",

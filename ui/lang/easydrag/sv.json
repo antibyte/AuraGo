@@ -816,6 +816,7 @@
   "easydrag.ui.run_stop_label": "Stoppa körningen från {time}",
   "easydrag.ui.run_stop_text": "Körningen från {time} stoppas. Steg som redan har körts ångras inte.",
   "easydrag.ui.run_stop_title": "Stoppa den här körningen?",
+  "easydrag.ui.run_stopped_by": "Avslutad av ett stoppsteg: {step}",
   "easydrag.ui.run_stopping": "Stoppar…",
   "easydrag.ui.run_stream_lost": "Livevisningen av den här körningen avbröts.",
   "easydrag.ui.run_view_banner": "Körning från {time} · {status} · version {revision} (skrivskyddad)",

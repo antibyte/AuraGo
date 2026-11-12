@@ -283,12 +283,14 @@
             el.open = simulation || run.status === 'error';
             el.querySelector('summary').textContent = (simulation ? t('easydrag.ui.simulation_result') : t('easydrag.ui.run_diagnosis')) + ' · ' + core.tr(t, 'easydrag.ui.status_' + run.status, run.status);
             const failed = steps.find(step => step.status === 'error');
+            const stopped = stoppedBy({ run, steps }, ed.model);
             const complete = steps.filter(step => step.status === 'success');
             const preview = ed.isBlock && run.outputs ? null : contentResult(ed, complete);
             const label = step => { const n = ed.model.node(step.node_id); return n ? n.label || (ed.model.info(n.type) || {}).label || n.type : step.node_key || step.node_id; };
             el.querySelector('.ed-run-results-body').innerHTML =
                 (durable ? ED.durable.markup(ed, run) : '') +
                 (simulation ? '<p class="ed-hint">' + esc(t(ed.isBlock ? 'easydrag.ui.block_simulation_hint' : 'easydrag.ui.simulation_hint')) + '</p>' : '') +
+                (stopped ? '<p class="ed-hint" data-ed-stopped-by>' + esc(t('easydrag.ui.run_stopped_by', { step: stopped.label })) + '</p>' : '') +
                 (simulation && ed.isBlock && run.status === 'success' ? ED.blocks.outputMarkup(ed, run.outputs) : '') +
                 (ED.batches ? complete.filter(step => ed.model.node(step.node_id)?.type === 'component.each').map(step => ED.batches.resultMarkup(ed, step, true)).join('') : '') +
                 (failed ? '<section class="ed-run-diagnosis"><h3>' + esc(label(failed)) + '</h3><p>' + esc(core.stepErrorText(t, failed)) + '</p><p>' + esc(t('easydrag.ui.run_next_action')) + '</p>' + (!simulation ? '<h4>' + esc(t('easydrag.ui.run_completed_effects')) + '</h4><p>' + esc(complete.map(label).join(' · ') || '—') + '</p>' : '') + '</section>' : '') +
@@ -309,5 +311,25 @@
         bag.add(ed.bus.on('run', render));
         return { dispose() { bag.dispose(); el.remove(); } };
     }
-    ED.testing = { decorate, createResults, parseSample, contentResult, triggers, realEffects, effects, unknownEffects, simulationDefault, localSample };
+    // stoppedBy returns the logic.stop step that ended a successful run, or null (S0c A2). The
+    // stop step is a success for both stop choices, so the run's own status decides: a stop with
+    // status "error" and a failure inside the stop's grace end the run as an error and get no hint.
+    // detail is { run: { status }, steps: [step], doc? } as GET runs/{id}?include=doc answers it.
+    // The node comes from detail.doc; a run whose document is gone (a pruned version) takes the
+    // model node with the same id, and a node that is nowhere known gives null. The result is
+    // { step, node, label }; label is the node's own label, else its type's label, else the type.
+    function stoppedBy(detail, model) {
+        const run = detail && detail.run;
+        if (!run || run.status !== 'success' || !Array.isArray(detail.steps)) return null;
+        const docNodes = detail.doc && Array.isArray(detail.doc.nodes) ? detail.doc.nodes : null;
+        for (const step of detail.steps) {
+            if (!step || step.status !== 'success') continue;
+            const node = docNodes ? docNodes.find(n => n && n.id === step.node_id) : (model && typeof model.node === 'function' ? model.node(step.node_id) : null);
+            if (!node || node.type !== 'logic.stop') continue;
+            const info = model && typeof model.info === 'function' ? model.info(node.type) : null;
+            return { step, node, label: node.label || (info && info.label) || node.type };
+        }
+        return null;
+    }
+    ED.testing = { decorate, createResults, parseSample, contentResult, triggers, realEffects, effects, unknownEffects, simulationDefault, localSample, stoppedBy };
 })();

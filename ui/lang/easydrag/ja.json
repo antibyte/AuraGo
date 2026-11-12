@@ -816,6 +816,7 @@
   "easydrag.ui.run_stop_label": "{time} の実行を停止",
   "easydrag.ui.run_stop_text": "{time} の実行を停止します。すでに実行されたステップは元に戻りません。",
   "easydrag.ui.run_stop_title": "この実行を停止しますか？",
+  "easydrag.ui.run_stopped_by": "停止ステップで終了: {step}",
   "easydrag.ui.run_stopping": "停止しています…",
   "easydrag.ui.run_stream_lost": "この実行のライブ表示が止まりました。",
   "easydrag.ui.run_view_banner": "{time} の実行 · {status} · バージョン {revision}（読み取り専用）",

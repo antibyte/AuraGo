@@ -816,6 +816,7 @@
   "easydrag.ui.run_stop_label": "Stop kørslen fra {time}",
   "easydrag.ui.run_stop_text": "Kørslen fra {time} stoppes. Trin, der allerede er kørt, bliver ikke fortrudt.",
   "easydrag.ui.run_stop_title": "Stop denne kørsel?",
+  "easydrag.ui.run_stopped_by": "Afsluttet af stoptrin: {step}",
   "easydrag.ui.run_stopping": "Stopper…",
   "easydrag.ui.run_stream_lost": "Livevisningen af denne kørsel stoppede.",
   "easydrag.ui.run_view_banner": "Kørsel fra {time} · {status} · version {revision} (skrivebeskyttet)",

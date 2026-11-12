@@ -183,7 +183,12 @@
             const shown = stepsFrom(detail.steps, detail.run, detail.durable_status, detail.durable_status_error);
             shown.view = true;
             shown.finished = true;
-            if (ed.runView) ed.runView.data = runData(detail.run, detail.steps || []);
+            if (ed.runView) {
+                ed.runView.data = runData(detail.run, detail.steps || []);
+                // The hint of a run a stop step ended (S0c A2); renderBanner appends it to the banner text.
+                const stopped = ED.testing && ED.testing.stoppedBy(detail, ed.model);
+                ed.runView.stopHint = stopped ? t('easydrag.ui.run_stopped_by', { step: stopped.label }) : '';
+            }
             setRun(shown);
         }
 

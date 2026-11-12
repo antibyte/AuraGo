@@ -816,6 +816,7 @@
   "easydrag.ui.run_stop_label": "Uitvoering van {time} stoppen",
   "easydrag.ui.run_stop_text": "De uitvoering van {time} wordt gestopt. Stappen die al zijn uitgevoerd, worden niet teruggedraaid.",
   "easydrag.ui.run_stop_title": "Deze uitvoering stoppen?",
+  "easydrag.ui.run_stopped_by": "Beëindigd door een stopstap: {step}",
   "easydrag.ui.run_stopping": "Stoppen…",
   "easydrag.ui.run_stream_lost": "De live-weergave van deze uitvoering is gestopt.",
   "easydrag.ui.run_view_banner": "Uitvoering van {time} · {status} · versie {revision} (alleen-lezen)",

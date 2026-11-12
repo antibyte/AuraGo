@@ -816,6 +816,7 @@
   "easydrag.ui.run_stop_label": "Zatrzymaj uruchomienie z {time}",
   "easydrag.ui.run_stop_text": "Uruchomienie z {time} zostanie zatrzymane. Kroki, które już się wykonały, nie zostaną cofnięte.",
   "easydrag.ui.run_stop_title": "Zatrzymać to uruchomienie?",
+  "easydrag.ui.run_stopped_by": "Zakończono krokiem zatrzymania: {step}",
   "easydrag.ui.run_stopping": "Zatrzymywanie…",
   "easydrag.ui.run_stream_lost": "Podgląd na żywo tego uruchomienia został przerwany.",
   "easydrag.ui.run_view_banner": "Uruchomienie z {time} · {status} · wersja {revision} (tylko do odczytu)",

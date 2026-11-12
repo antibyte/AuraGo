@@ -816,6 +816,7 @@
   "easydrag.ui.run_stop_label": "Detener la ejecución del {time}",
   "easydrag.ui.run_stop_text": "La ejecución del {time} se detendrá. Los pasos que ya se ejecutaron no se deshacen.",
   "easydrag.ui.run_stop_title": "¿Detener esta ejecución?",
+  "easydrag.ui.run_stopped_by": "Finalizada por un paso de parada: {step}",
   "easydrag.ui.run_stopping": "Deteniendo…",
   "easydrag.ui.run_stream_lost": "La vista en directo de esta ejecución se detuvo.",
   "easydrag.ui.run_view_banner": "Ejecución del {time} · {status} · versión {revision} (solo lectura)",

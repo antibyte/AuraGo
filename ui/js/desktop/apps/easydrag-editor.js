@@ -157,7 +157,7 @@
                 revision: run.revision
             });
             const node = banner.querySelector('[data-ed-runview-text]');
-            if (node.textContent !== text) node.textContent = text;
+            const shown = text + (ed.runView.stopHint ? ' · ' + ed.runView.stopHint : ''); if (node.textContent !== shown) node.textContent = shown;
             const stop = banner.querySelector('[data-ed-cmd="stop-viewed"]');
             const approval = banner.querySelector('[data-ed-cmd="approval-review"]');
             const durableStatus = ED.durable && ED.durable.info(ed.run);
