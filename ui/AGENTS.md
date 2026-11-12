@@ -277,6 +277,12 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 ## Local Contracts
 
+- Desktop file drops belong to the workspace background and `#vd-icons` only.
+  Events bubbling from app windows, widgets, dialogs or already handled drop
+  targets must never create or move Desktop files. Preserve deliberate host,
+  local and cloud file drops onto the Desktop and app-owned import handling.
+  Verify `TestDesktopFileDropsStayOnDesktopBrowser`.
+
 - Config VM regressions load the production rendering/feedback dependencies through `scripts/config-test-runtime.mjs`, model response status/body methods and await confirmed asynchronous deletions. Atomic list credentials follow the current draft entry after reorder/removal; a saved numeric index cannot restore another entry's mask. Verify `node scripts/test-ui-regressions.mjs` and the Config browser tests.
 
 - Desktop phone and tablet layouts keep window controls and shell navigation

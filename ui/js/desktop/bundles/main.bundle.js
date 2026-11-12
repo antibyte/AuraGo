@@ -11990,11 +11990,19 @@ function wireWindow(win, id) {
         });
     }
 
+    function isDesktopFileDropSurface(event) {
+        return !event.defaultPrevented && (event.target === $('vd-workspace') || $('vd-icons')?.contains(event.target));
+    }
+
     function handleDesktopFileDragOver(event) {
+        const workspace = $('vd-workspace');
+        if (!isDesktopFileDropSurface(event)) {
+            workspace?.classList.remove('vd-desktop-file-drop-target');
+            return;
+        }
         if (!hasDesktopFileDragPayload(event) && !hasDesktopHostFileDrag(event) && !dataTransferHasType(event.dataTransfer, 'application/x-aurago-storage-files')) return;
         event.preventDefault();
         event.dataTransfer.dropEffect = hasDesktopHostFileDrag(event) ? 'copy' : 'move';
-        const workspace = $('vd-workspace');
         if (workspace) workspace.classList.add('vd-desktop-file-drop-target');
     }
 
@@ -12005,9 +12013,10 @@ function wireWindow(win, id) {
     }
 
     async function handleDesktopFileDrop(event) {
+        $('vd-workspace')?.classList.remove('vd-desktop-file-drop-target');
+        if (!isDesktopFileDropSurface(event)) return;
         if (dataTransferHasType(event.dataTransfer, 'application/x-aurago-storage-files')) {
             event.preventDefault(); event.stopPropagation();
-            $('vd-workspace')?.classList.remove('vd-desktop-file-drop-target');
             try {
                 const payload = JSON.parse(event.dataTransfer.getData('application/x-aurago-storage-files'));
                 await transferCloudFilesToLocal(payload.entries || [], 'Desktop', event.ctrlKey ? 'copy' : 'move');
@@ -12018,8 +12027,6 @@ function wireWindow(win, id) {
         if (payload) {
             event.preventDefault();
             event.stopPropagation();
-            const workspace = $('vd-workspace');
-            if (workspace) workspace.classList.remove('vd-desktop-file-drop-target');
             try {
                 await moveDraggedFilesToDesktop(payload.paths, event.clientX, event.clientY);
             } catch (err) {
@@ -12030,8 +12037,6 @@ function wireWindow(win, id) {
         if (!hasDesktopHostFileDrag(event)) return;
         event.preventDefault();
         event.stopPropagation();
-        const workspace = $('vd-workspace');
-        if (workspace) workspace.classList.remove('vd-desktop-file-drop-target');
         try {
             await uploadHostFilesToDesktop(event.dataTransfer.files, event.clientX, event.clientY);
         } catch (err) {
