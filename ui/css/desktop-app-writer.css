@@ -43,6 +43,7 @@
 .writer-fonts select{width:118px;height:30px;padding:3px 7px}
 .writer-fonts select[data-slot="font.family"]{width:125px}
 .writer-fonts input{width:54px;height:30px;padding:3px 5px;font-variant-numeric:tabular-nums}
+.writer-toolbar-wrap select[data-slot="list.lineSpacing"]{width:64px;height:30px;padding:3px 6px;font-variant-numeric:tabular-nums}
 .writer-workspace{display:flex;position:relative;flex:1;min-height:0;overflow:hidden}
 .writer-canvas{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;flex:1;background:var(--writer-well);box-shadow:var(--vd-mat-well-shadow,none)}
 .writer-ruler{height:22px;flex-shrink:0;display:flex;align-items:flex-start;justify-content:space-between;padding:2px 8%;margin:0 auto;width:min(100%,794px);color:var(--writer-muted);font-size:9px;font-variant-numeric:tabular-nums;background:repeating-linear-gradient(90deg,transparent,transparent calc(1.25% - 1px),color-mix(in srgb,var(--writer-muted) 22%,transparent) calc(1.25% - 1px),color-mix(in srgb,var(--writer-muted) 22%,transparent) 1.25%) bottom/100% 4px no-repeat}

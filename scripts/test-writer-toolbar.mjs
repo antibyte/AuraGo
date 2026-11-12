@@ -22,6 +22,9 @@ const icon = WriterToolbar.icons({iconMarkup: (key, fallback) => '<i>' + key + '
 assert.ok(icon('align-left', '≡').startsWith('<svg class="writer-glyph"'));
 assert.equal(icon('undo', '↶'), '<i>undo|↶</i>');
 assert.equal(WriterToolbar.icons({}, value => String(value))('undo', '↶'), '↶');
+// Wave 1a additions sit in the bar, and their glyphs are drawn locally.
+for (const id of ['clearFormat', 'lineSpacing', 'link', 'table', 'image']) assert.ok(placed.includes(id), id + ' is in the toolbar');
+for (const key of ['table', 'clear-format']) assert.ok(icon(key, '?').startsWith('<svg class="writer-glyph"'), key + ' is a local glyph');
 // The overflow rule: the lowest priority leaves first, the bar always keeps one group,
 // and the overflow button's width counts once something has left.
 const bar = [{id: 'history', priority: 9, width: 70}, {id: 'fonts', priority: 8, width: 300}, {id: 'marks', priority: 7, width: 130},

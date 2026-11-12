@@ -12,7 +12,9 @@
         'outdent': '<path d="M4 5h16M4 12h8M4 19h16"/><path d="M16 8l-4 4 4 4"/>',
         'text-color': '<path d="M12 4L5.5 15M12 4l6.5 11"/><path d="M8.6 10.6h6.8"/><path d="M6 19.5h12" stroke-width="3"/>',
         'highlight': '<path d="M14 4l6 6-9 9H5v-6z"/><path d="M11 7l6 6"/><path d="M6 20.5h12" stroke-width="3"/>',
-        'more': '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>'
+        'more': '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
+        'table': '<rect x="4" y="5" width="16" height="14" rx="1.5"/><path d="M4 10h16M4 14.5h16M10 5v14"/>',
+        'clear-format': '<path d="M5 5h11M10.5 5l-2.5 12"/><path d="M14.5 14.5l5 5M19.5 14.5l-5 5"/>'
     };
     // icon(key, fallback): a local glyph, else the shell's icon, else the text stand-in.
     function icons(ctx, esc) {
@@ -26,11 +28,11 @@
     const GROUPS = [
         {id: 'history', priority: 9, items: ['undo', 'redo']},
         {id: 'fonts', priority: 8, className: 'writer-fonts', items: ['style', 'fontFamily', 'fontSize']},
-        {id: 'marks', priority: 7, items: ['bold', 'italic', 'underline', 'strike']},
-        {id: 'alignment', priority: 4, items: ['alignLeft', 'alignCenter', 'alignRight', 'alignJustify']},
+        {id: 'marks', priority: 7, items: ['bold', 'italic', 'underline', 'strike', 'clearFormat']},
+        {id: 'alignment', priority: 4, items: ['alignLeft', 'alignCenter', 'alignRight', 'alignJustify', 'lineSpacing']},
         {id: 'lists', priority: 3, items: ['bullets', 'numbering', 'outdent', 'indent']},
         {id: 'colors', priority: 5, className: 'writer-colors', items: ['textColor', 'highlight']},
-        {id: 'insert', priority: 6, className: 'writer-tool-tail', items: ['insert']}
+        {id: 'insert', priority: 6, className: 'writer-tool-tail', items: ['link', 'table', 'image', 'insert']}
     ];
     // The ids of the groups that must leave a bar of `available` pixels. groups: [{id, priority, width}]
     // in bar order. The lowest priority leaves first; the bar always keeps one group.
@@ -55,7 +57,10 @@
         const attrs = id => 'data-tool="' + id + '" ' + (commands.get(id).slot ? 'data-slot="' + commands.get(id).slot + '"' : 'data-action="' + id + '"');
         function control(id) {
             const definition = commands.get(id), name = esc(commands.label(id));
-            if (definition.control === 'select') return '<select ' + attrs(id) + ' aria-label="' + name + '"></select>';
+            // A select with options is complete here; the style and font lists are filled per document.
+            // The hidden empty option is what the select shows when the paragraph has another spacing.
+            if (definition.control === 'select') return '<select ' + attrs(id) + ' aria-label="' + name + '"' + (definition.options ? ' title="' + name + '"' : '') + '>' +
+                (definition.options ? '<option value="" hidden></option>' + definition.options.map(value => '<option value="' + value + '">' + esc(commands.format(value)) + '</option>').join('') : '') + '</select>';
             // The one number control is the font size, in points.
             if (definition.control === 'number') return '<input type="number" ' + attrs(id) + ' required min="1" max="200" step=".5" value="11" aria-label="' + name + '">';
             if (definition.control === 'color') return '<label class="writer-color" title="' + name + '">' + icon(definition.glyph, '') + '<input type="color" ' + attrs(id) + ' value="' + definition.value + '" aria-label="' + name + '"></label>';
@@ -135,11 +140,18 @@
                     const hex = slot === 'text.color' ? colors.hex(fmt.color) : colors.highlightHex(fmt.highlight);
                     if (hex && el !== document.activeElement) el.value = hex;
                 } else if (el !== document.activeElement) {
-                    el.value = slot === 'styles.style' ? fmt.styleId || 'Normal' : slot === 'font.family' ? fmt.fontFamily || 'Calibri' : fmt.fontSizePt || 11;
+                    el.value = slot === 'styles.style' ? fmt.styleId || 'Normal' : slot === 'font.family' ? fmt.fontFamily || 'Calibri'
+                        : slot === 'list.lineSpacing' ? (fmt.lineSpacing?.rule === 'multiple' ? String(fmt.lineSpacing.value) : '') : fmt.fontSizePt || 11;
                 } else continue;
                 const allowed = commands.can(valueCommand(el));
                 el.disabled = !allowed.ok;
-                setTitle(el, allowed.ok ? '' : unavailable(allowed.reason));
+                setTitle(el, allowed.ok ? (commands.get(id).options ? commands.label(id) : '') : unavailable(allowed.reason));
+            }
+            // App actions in the bar (link, table, image) follow the registry state too.
+            for (const el of wrap.querySelectorAll('button[data-action]')) {
+                const state = commands.state(el.dataset.tool);
+                el.disabled = !state.enabled;
+                setTitle(el, state.enabled ? commands.tooltip(el.dataset.tool) : commands.tooltip(el.dataset.tool) + ' · ' + unavailable(state.reason));
             }
             rove();
         }
