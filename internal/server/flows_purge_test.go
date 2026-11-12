@@ -111,3 +111,35 @@ func TestCredentialPurgeEndpointWithAndWithoutAMasterKey(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 }
+
+func TestFlowsBlockVersionOfAMarkedRevisionAnswersFlowVersionPurged(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	ctx := context.Background()
+	block, err := s.Flows.CreateBlock(ctx, "Marked block")
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, _, err := s.Flows.PublishBlock(ctx, block.ID, block.DraftRevision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first.Draft.Name = "Marked block 2"
+	draft, _, err := s.Flows.SaveBlockDraft(ctx, block.ID, first.Draft, first.DraftRevision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.Flows.PublishBlock(ctx, block.ID, draft); err != nil {
+		t.Fatal(err)
+	}
+	path := flowBlocksPath + "/" + block.ID + "/versions/" + strconv.Itoa(first.LiveRevision)
+	if w := flowBlockCall(t, s, http.MethodGet, path, token, nil); w.Code != http.StatusOK {
+		t.Fatalf("an unmarked block version = %d %s", w.Code, w.Body.String())
+	}
+	if err := s.Flows.Store().MarkVersionsForPurge(ctx, block.ID, []int{first.LiveRevision}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	w := flowBlockCall(t, s, http.MethodGet, path, token, nil)
+	if w.Code != http.StatusConflict || flowsBody(t, w)["code"] != "FLOW_VERSION_PURGED" {
+		t.Fatalf("a marked block version = %d %s, want 409 FLOW_VERSION_PURGED", w.Code, w.Body.String())
+	}
+}

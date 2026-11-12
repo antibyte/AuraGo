@@ -92,10 +92,13 @@ func verifyBlockPinsTx(ctx context.Context, tx *sql.Tx, blocks []resolvedBlock) 
 		var raw string
 		query := `SELECT v.json FROM flow_versions v JOIN flows f ON f.id=v.flow_id
 			WHERE v.flow_id=? AND v.revision=? AND f.kind='block' AND f.mission_id='' AND length(CAST(v.json AS BLOB))<=?
-			AND (` + validStoredDocumentSQL("f.draft_json") + `) AND (f.live_json='' OR (` + validStoredDocumentSQL("f.live_json") + `))`
+			AND (` + validStoredDocumentSQL("f.draft_json") + `) AND (f.live_json='' OR (` + validStoredDocumentSQL("f.live_json") + `))` + notMarkedForPurgeSQL
 		if err := tx.QueryRowContext(ctx, query,
 			block.Ref.FlowID, block.Ref.Revision, MaxDocumentBytes).Scan(&raw); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
+				if versionMarked(ctx, tx, block.Ref.FlowID, block.Ref.Revision) {
+					return fmt.Errorf("%w: %w", errBlockPinConflict, ErrVersionPurged)
+				}
 				return errBlockPinConflict
 			}
 			return fmt.Errorf("read reusable block version: %w", err)

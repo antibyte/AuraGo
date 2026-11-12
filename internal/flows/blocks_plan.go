@@ -121,9 +121,12 @@ func prepareBlockPlanTx(ctx context.Context, tx *sql.Tx, doc *Flow, services *Se
 		var raw string
 		query := `SELECT v.json FROM flow_versions v JOIN flows f ON f.id=v.flow_id
 			WHERE v.flow_id=? AND v.revision=? AND f.kind='block' AND f.mission_id='' AND length(CAST(v.json AS BLOB))<=?
-			AND (` + validStoredDocumentSQL("f.draft_json") + `) AND (f.live_json='' OR (` + validStoredDocumentSQL("f.live_json") + `))`
+			AND (` + validStoredDocumentSQL("f.draft_json") + `) AND (f.live_json='' OR (` + validStoredDocumentSQL("f.live_json") + `))` + notMarkedForPurgeSQL
 		err := tx.QueryRowContext(ctx, query, id, revision, MaxDocumentBytes).Scan(&raw)
 		if errors.Is(err, sql.ErrNoRows) {
+			if versionMarked(ctx, tx, id, revision) {
+				return nil, fmt.Errorf("%w: %w", ErrBlockUnavailable, ErrVersionPurged)
+			}
 			return nil, ErrBlockUnavailable
 		}
 		if err != nil {

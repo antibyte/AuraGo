@@ -21,6 +21,22 @@ func versionPinnedSQL(flowExpr, revExpr string) string {
 	OR EXISTS (SELECT 1 FROM flow_durable_gates g WHERE g.flow_id = ` + flowExpr + ` AND g.revision = ` + revExpr + ` AND g.state = 'pending'))`
 }
 
+// notMarkedForPurgeSQL excludes a version row (alias v) that the credential purge marked. The block
+// loaders and the block pin writers use it: a marked revision is neither read nor newly pinned. A pin an
+// admitted run already holds keeps the revision alive (versionPinnedSQL) and is read through the run's own
+// plan or ChildTraceDocument, never through these loaders.
+const notMarkedForPurgeSQL = ` AND NOT EXISTS (SELECT 1 FROM flow_version_purge m WHERE m.flow_id=v.flow_id AND m.revision=v.revision)`
+
+type rowQuerier interface {
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
+// versionMarked reports whether a version is marked for the credential purge.
+func versionMarked(ctx context.Context, q rowQuerier, id string, revision int) bool {
+	var n int
+	return q.QueryRowContext(ctx, `SELECT COUNT(*) FROM flow_version_purge WHERE flow_id=? AND revision=?`, id, revision).Scan(&n) == nil && n > 0
+}
+
 // MarkVersionsForPurge marks published versions of one flow. The live revision is never marked.
 func (s *Store) MarkVersionsForPurge(ctx context.Context, flowID string, revisions []int, now time.Time) error {
 	tx, err := s.db.BeginTx(ctx, nil)
