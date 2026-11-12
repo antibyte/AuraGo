@@ -887,6 +887,7 @@
   "easydrag.ui.state_publish_incomplete": "公開が未完了",
   "easydrag.ui.state_published": "公開済み",
   "easydrag.ui.state_run_view": "過去の実行",
+  "easydrag.ui.state_run_view_started": "{time} の実行",
   "easydrag.ui.status_cancelled": "停止",
   "easydrag.ui.status_error": "失敗",
   "easydrag.ui.status_pending": "保留中",

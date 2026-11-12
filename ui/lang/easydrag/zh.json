@@ -887,6 +887,7 @@
   "easydrag.ui.state_publish_incomplete": "发布未完成",
   "easydrag.ui.state_published": "已发布",
   "easydrag.ui.state_run_view": "历史运行",
+  "easydrag.ui.state_run_view_started": "{time} 的运行",
   "easydrag.ui.status_cancelled": "已停止",
   "easydrag.ui.status_error": "失败",
   "easydrag.ui.status_pending": "等待中",

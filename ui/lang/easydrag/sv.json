@@ -887,6 +887,7 @@
   "easydrag.ui.state_publish_incomplete": "Publicering ej slutförd",
   "easydrag.ui.state_published": "Publicerat",
   "easydrag.ui.state_run_view": "Tidigare körning",
+  "easydrag.ui.state_run_view_started": "Körning från {time}",
   "easydrag.ui.status_cancelled": "Stoppades",
   "easydrag.ui.status_error": "Misslyckades",
   "easydrag.ui.status_pending": "Väntar",

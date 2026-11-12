@@ -887,6 +887,7 @@
   "easydrag.ui.state_publish_incomplete": "Publication inachevée",
   "easydrag.ui.state_published": "Publié",
   "easydrag.ui.state_run_view": "Exécution passée",
+  "easydrag.ui.state_run_view_started": "Exécution du {time}",
   "easydrag.ui.status_cancelled": "Arrêtée",
   "easydrag.ui.status_error": "Échec",
   "easydrag.ui.status_pending": "En attente",

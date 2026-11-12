@@ -839,6 +839,14 @@ export async function run(env) {
         eq('ux the run view keeps Run now visible and disabled',
             [viewBtn.hidden, viewBtn.disabled, viewBtn.getAttribute('title') || viewBtn.title],
             [false, true, 'state_run_view']);
+        // A run view that knows its start time names it in the tooltip instead of repeating the chip (S0c A7).
+        ahead.ed.runView = { run: { id: 'r9', status: 'success', revision: 2, started_at: '2026-10-25T10:00:00Z' } };
+        ahead.ed.bus.emit('enabled');
+        const timedBtn = cmdBtn(ahead.el, 'run-now');
+        const timedTitle = timedBtn.getAttribute('title') || timedBtn.title;
+        eq('ux the run view tooltip names the start time, not the chip text again',
+            [timedTitle.startsWith('state_run_view_started:'), timedTitle.length > 'state_run_view_started:'.length, timedTitle === 'state_run_view'],
+            [true, true, false]);
 
         draft.dispose();
         on.editor.dispose();

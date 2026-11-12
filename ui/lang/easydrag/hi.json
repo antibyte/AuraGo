@@ -887,6 +887,7 @@
   "easydrag.ui.state_publish_incomplete": "प्रकाशन अधूरा",
   "easydrag.ui.state_published": "प्रकाशित",
   "easydrag.ui.state_run_view": "पिछला रन",
+  "easydrag.ui.state_run_view_started": "{time} का रन",
   "easydrag.ui.status_cancelled": "रोका गया",
   "easydrag.ui.status_error": "विफल",
   "easydrag.ui.status_pending": "प्रतीक्षारत",

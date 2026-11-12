@@ -887,6 +887,7 @@
   "easydrag.ui.state_publish_incomplete": "Publiceren niet voltooid",
   "easydrag.ui.state_published": "Gepubliceerd",
   "easydrag.ui.state_run_view": "Eerdere uitvoering",
+  "easydrag.ui.state_run_view_started": "Uitvoering van {time}",
   "easydrag.ui.status_cancelled": "Gestopt",
   "easydrag.ui.status_error": "Mislukt",
   "easydrag.ui.status_pending": "Wacht",

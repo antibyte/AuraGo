@@ -887,6 +887,7 @@
   "easydrag.ui.state_publish_incomplete": "Ημιτελής δημοσίευση",
   "easydrag.ui.state_published": "Δημοσιευμένη",
   "easydrag.ui.state_run_view": "Προηγούμενη εκτέλεση",
+  "easydrag.ui.state_run_view_started": "Εκτέλεση της {time}",
   "easydrag.ui.status_cancelled": "Διακόπηκε",
   "easydrag.ui.status_error": "Απέτυχε",
   "easydrag.ui.status_pending": "Εκκρεμεί",

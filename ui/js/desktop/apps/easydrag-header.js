@@ -49,7 +49,11 @@
         function runNowTitle() {
             const state = runNowState();
             if (state.hint) return state.hint;
-            if (ed.runView) return t('easydrag.ui.state_run_view');
+            if (ed.runView) {
+                // The chip beside it says "Past run"; the tooltip names which run, by its start time.
+                const started = core.fmt.dateTime(ed.runView.run && ed.runView.run.started_at);
+                return started ? t('easydrag.ui.state_run_view_started', { time: started }) : t('easydrag.ui.state_run_view');
+            }
             if (ed.readonly) return t('easydrag.ui.run_readonly');
             return '';
         }

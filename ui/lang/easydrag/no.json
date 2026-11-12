@@ -887,6 +887,7 @@
   "easydrag.ui.state_publish_incomplete": "Publisering ikke fullført",
   "easydrag.ui.state_published": "Publisert",
   "easydrag.ui.state_run_view": "Tidligere kjøring",
+  "easydrag.ui.state_run_view_started": "Kjøring fra {time}",
   "easydrag.ui.status_cancelled": "Stoppet",
   "easydrag.ui.status_error": "Mislyktes",
   "easydrag.ui.status_pending": "Venter",

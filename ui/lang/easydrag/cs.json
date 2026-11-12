@@ -887,6 +887,7 @@
   "easydrag.ui.state_publish_incomplete": "Publikování nedokončeno",
   "easydrag.ui.state_published": "Publikováno",
   "easydrag.ui.state_run_view": "Minulý běh",
+  "easydrag.ui.state_run_view_started": "Běh z {time}",
   "easydrag.ui.status_cancelled": "Zastaveno",
   "easydrag.ui.status_error": "Selhalo",
   "easydrag.ui.status_pending": "Čeká",
