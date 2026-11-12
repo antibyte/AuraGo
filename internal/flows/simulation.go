@@ -75,6 +75,37 @@ func simulationPureType(typ string) bool {
 	return false
 }
 
+// SimulationBehavior says what Simulation does with one step.
+type SimulationBehavior string
+
+const (
+	// SimulationRunsLocally: pure logic. The step runs as in a real run, without side effects.
+	SimulationRunsLocally SimulationBehavior = "runs_locally"
+	// SimulationNeedsSample: the step is replaced by the sample output of the test dialog.
+	// Without one the simulation stops with FLOW_SIMULATION_FIXTURE_REQUIRED.
+	SimulationNeedsSample SimulationBehavior = "needs_sample"
+	// SimulationUnsupported: Simulate refuses a draft that contains the step (durable steps,
+	// generic tool steps).
+	SimulationUnsupported SimulationBehavior = "unsupported"
+	// SimulationSuppliesData: a trigger. It starts the run with the test data.
+	SimulationSuppliesData SimulationBehavior = "supplies_data"
+)
+
+// SimulationBehaviorOf is the one rule for what Simulation does with a step of this type.
+// Service.Simulate runs a step for real only when it answers SimulationRunsLocally, and
+// cmd/flowsdoc prints the same answer in the manuals. trigger is NodeDef.Trigger.
+func SimulationBehaviorOf(typ string, trigger bool) SimulationBehavior {
+	switch {
+	case trigger:
+		return SimulationSuppliesData
+	case !simulatableType(typ):
+		return SimulationUnsupported
+	case simulationPureType(typ) || typ == blockCallType || typ == blockEachType:
+		return SimulationRunsLocally
+	}
+	return SimulationNeedsSample
+}
+
 func (c simulationClock) Now() time.Time { return c.at }
 func (c simulationClock) After(time.Duration) <-chan time.Time {
 	ch := make(chan time.Time, 1)
@@ -153,7 +184,7 @@ func (s *Service) Simulate(ctx context.Context, id string, req SimulationRequest
 		if def.Trigger {
 			continue
 		}
-		pure := simulationPureType(def.Type) || def.Type == blockCallType || def.Type == blockEachType
+		pure := SimulationBehaviorOf(def.Type, false) == SimulationRunsLocally
 		copyDef := *def
 		original := def.Execute
 		copyDef.Execute = func(nodeCtx context.Context, in ExecInput) (ExecResult, error) {
