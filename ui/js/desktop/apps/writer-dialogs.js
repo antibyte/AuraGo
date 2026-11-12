@@ -17,7 +17,7 @@
             if (size) commands.run({type: 'insertTable', rows: size.rows, cols: size.cols});
         }
         // An address without a scheme is a web address; only web, mail, phone and in-document targets are links.
-        const address = value => /^[a-z][a-z0-9+.-]*:/i.test(value) || value.startsWith('#') ? value : 'https://' + value;
+        const address = value => (/^[a-z][a-z0-9+.-]*:/i.test(value) && !/^[^:/?#]+:\d/.test(value)) || value.startsWith('#') ? value : 'https://' + value;
         async function link() {
             const editor = app.editor;
             if (!editor) return;
@@ -26,7 +26,7 @@
             const fields = [{id: 'href', label: tr('link_address'), value: current?.href || '', placeholder: 'https://', required: true, maxlength: 2000}];
             if (!current && !selected) fields.unshift({id: 'text', label: tr('link_text'), value: '', maxlength: 500});
             const answer = await ask(tr('hyperlink'), fields, {extraLabel: current ? tr('link_remove') : '',
-                validate: values => /^(https?:|mailto:|tel:|#)/i.test(address(values.href)) ? '' : tr('link_invalid')});
+                validate: values => /^(https?:|ftps?:|mailto:|tel:|#)/i.test(address(values.href)) ? '' : tr('link_invalid')});
             if (!answer || app.editor !== editor) return;
             // The engine edits a link where the selection is: inserting over a link replaces its
             // address and keeps its text, and unlinking keeps the text. hyperlinkAt's range is the
@@ -39,7 +39,7 @@
         async function goToPage() {
             const editor = app.editor;
             if (!editor) return;
-            const total = editor.getTotalPages(), current = editor.getCurrentPage('viewport') || 1;
+            const total = Math.max(1, editor.getTotalPages()), current = editor.getCurrentPage('viewport') || 1;
             const answer = await ask(tr('go_page'), [{id: 'page', label: tr('page_count', {current, total}), type: 'number', value: current, min: 1, max: total, step: 1, required: true}]);
             if (answer && app.editor === editor) editor.scrollToPage(Math.max(1, Math.min(total, answer.page)));
         }

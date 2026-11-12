@@ -77,6 +77,11 @@ func verifyWriterDialogs(t *testing.T, page *rod.Page) {
             if(rows.length<4)throw Error('word count shows '+rows.length+' rows');
             if(rows[1].querySelector('strong').textContent!=='3')throw Error('three words expected, got '+rows[1].textContent);
             if(dialog().querySelector('[data-form-cancel]'))throw Error('an information dialog has no Cancel');
+            let leaked=false;const spy=()=>{leaked=true;};
+            document.addEventListener('keydown',spy);
+            dialog().querySelector('[type=submit]').dispatchEvent(new KeyboardEvent('keydown',{key:'k',ctrlKey:true,bubbles:true,cancelable:true}));
+            document.removeEventListener('keydown',spy);
+            if(leaked)throw Error('a key pressed in the dialog reached the desktop');
             submit();await wait(150);
             // The shortcut overview lists what the registry binds.
             void app.act('shortcuts');await wait(200);
@@ -125,8 +130,11 @@ func verifyWriterActions(t *testing.T, page *rod.Page) {
             const whole=editor.getZoom(),sheet=document.querySelector('.docx-page').getBoundingClientRect(),view=document.querySelector('[data-scroll]');
             if(sheet.height>view.clientHeight||sheet.width>view.clientWidth)throw Error('whole page does not fit: '+Math.round(sheet.width)+'x'+Math.round(sheet.height)+' in '+view.clientWidth+'x'+view.clientHeight);
             const turn=new WheelEvent('wheel',{deltaY:-100,ctrlKey:true,bubbles:true,cancelable:true});
-            view.dispatchEvent(turn);
-            if(!turn.defaultPrevented||Math.abs(editor.getZoom()-(whole+.1))>.011)throw Error('Ctrl+wheel: '+editor.getZoom()+' after '+whole);
+            view.dispatchEvent(turn);await wait(150);
+            if(!turn.defaultPrevented||Math.abs(editor.getZoom()-whole*Math.exp(.1))>.02)throw Error('Ctrl+wheel: '+editor.getZoom()+' after '+whole);
+            const stepped=editor.getZoom(),sideways=new WheelEvent('wheel',{deltaY:0,deltaX:80,ctrlKey:true,bubbles:true,cancelable:true});
+            view.dispatchEvent(sideways);await wait(150);
+            if(editor.getZoom()!==stepped)throw Error('a horizontal wheel changed the zoom');
             const scroll=new WheelEvent('wheel',{deltaY:-100,bubbles:true,cancelable:true});
             view.dispatchEvent(scroll);
             if(scroll.defaultPrevented)throw Error('a plain wheel must scroll');

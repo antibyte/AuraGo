@@ -47,6 +47,9 @@
             '<button type="submit" class="vd-button vd-button-primary">' + escapeHTML(options.submitLabel) + '</button></div></form>';
         // The dialog lives on the body, so an app's own key handlers never see its keys.
         document.body.appendChild(node);
+        // Keys stay in the dialog: the shell would run the active window's menu shortcuts otherwise.
+        // Escape still closes it; that is the dialog's own cancel event, not a key handler.
+        node.addEventListener('keydown', event => event.stopPropagation());
         return new Promise(resolve => {
             const form = node.querySelector('form'), error = node.querySelector('[data-form-error]');
             const input = fieldId => form.querySelector('[data-form-field="' + CSS.escape(fieldId) + '"]');

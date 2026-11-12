@@ -465,6 +465,7 @@
             const sheet=root.querySelector('.docx-page'),view=find('[data-scroll]');
             if(!sheet || !view)return editor.getZoom();
             const box=sheet.getBoundingClientRect();
+            if(!box.width || !box.height)return editor.getZoom();
             return editor.getZoom()*Math.min((view.clientWidth-32)/box.width,(view.clientHeight-32)/box.height);
         }
         // A menu click carries no clipboard event, so the clipboard is read here. Tracking takes
@@ -603,7 +604,7 @@
             const s=editor && !loading?editor.snapshot():null;
             return JSON.stringify([!!s,!!ctx.readonly,s?.editingMode,s?.reviewDisplayMode,!!s?.showParagraphMarks,!!s?.canUndo,!!s?.canRedo,!!s?.selectionCollapsed,
                 !!s?.table,!!s?.image,s?.scope?.kind,s?.formatting?.lineSpacing?.value,leftPanel,rightPanel,root.classList.contains('writer-focus'),
-                !!s?.table && can({type:'mergeCells'}).ok,!!s && can({type:'pasteFormatting'}).ok]);
+                ...(s?['mergeCells','splitCell','pasteFormat','previousChange','nextChange','backDocument'].map(id=>commands.state(id).enabled):[])]);
         }
         root.addEventListener('pointerdown',event=>{if(event.target.closest('.writer-toolbar-wrap,.writer-right,.writer-views'))pinSelection();},{signal:lifecycle.signal});
         root.addEventListener('click',event=>{
@@ -625,9 +626,16 @@
             void(async()=>{for(const file of files)await insertImage(file);})().catch(fail);
         },{capture:true,signal:lifecycle.signal});
         mount.addEventListener('dragover',event=>{if(event.dataTransfer?.types.includes('Files'))event.preventDefault();},{signal:lifecycle.signal});
+        // One wheel notch (deltaY 100) is about ten percent; a trackpad pinch sends many small deltas,
+        // so the factor follows the delta and the document is zoomed once per frame.
+        let wheelZoom=0,wheelFrame=0;
         find('[data-scroll]').addEventListener('wheel',event=>{
             if(!(event.ctrlKey || event.metaKey) || !editor)return;
-            event.preventDefault();zoomTo(editor.getZoom()+(event.deltaY<0?.1:-.1));
+            event.preventDefault();
+            if(!event.deltaY)return;
+            wheelZoom=Math.max(.25,Math.min(3,(wheelZoom || editor.getZoom())*Math.exp(-Math.max(-200,Math.min(200,event.deltaY))/1000)));
+            if(wheelFrame)return;
+            wheelFrame=requestAnimationFrame(()=>{wheelFrame=0;const target=wheelZoom;wheelZoom=0;zoomTo(target);});
         },{passive:false,signal:lifecycle.signal});
         root.addEventListener('keydown',event=>{
             const action=commands.actionForKey(event);
@@ -645,7 +653,7 @@
         window.addEventListener('beforeunload',event=>{if(queue?.dirty){event.preventDefault();event.returnValue='';}},{signal:lifecycle.signal});
         function cleanup() {
             if(disposed)return;disposed=true;generation++;
-            clearTimeout(updateTimer);clearTimeout(draftTimer);clearTimeout(draftDeadline);
+            clearTimeout(updateTimer);clearTimeout(draftTimer);clearTimeout(draftDeadline);cancelAnimationFrame(wheelFrame);
             lifecycle.abort();documentLife.abort();rulerResize.disconnect();toolbar.dispose();panels.dispose();queue?.dispose();editor?.destroy();
             ctx.setWindowBeforeClose?.(windowId,null);ctx.clearWindowMenus?.(windowId);instances.delete(windowId);
         }
