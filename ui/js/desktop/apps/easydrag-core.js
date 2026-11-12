@@ -145,6 +145,12 @@
         return names.length === 1 ? t(keyOne, { name: names[0] }) : t(keyMany, { count: names.length });
     }
 
+    // pluralKey picks the key of a count text: base + suffix when the count is exactly one, else
+    // base. It is the choice stepsText makes (one or several), for texts that keep their {count}.
+    function pluralKey(base, count, suffix) {
+        return count === 1 ? base + (suffix || '_one') : base;
+    }
+
     // removeConnection deletes one connection on the user's behalf (the wire's button, Delete, the
     // inspector) and says which two steps it joined.
     function removeConnection(ed, edgeId) {
@@ -549,7 +555,7 @@
     }
 
     ED.core = {
-        ICONS, icon, esc, tr, clamp, debounce, announcer, say, stepsText, removeConnection, frame, emitter, bag, el, isEditable, isMod, shortcut, IS_MAC,
+        ICONS, icon, esc, tr, clamp, debounce, announcer, say, stepsText, pluralKey, removeConnection, frame, emitter, bag, el, isEditable, isMod, shortcut, IS_MAC,
         randomID, lang, fmt, storage, FLOW_KEYS, forgetFlow, createApi, errorCode, errorText, issueText, stepErrorText, modal, capturePointer, catOf, openFlowSettings
     };
 })();
