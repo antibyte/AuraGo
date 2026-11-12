@@ -390,7 +390,7 @@ func fileWriteDef(env CatalogEnv) *NodeDef {
 		{Name: "path", Kind: ParamText, LabelKey: "easydrag.param.file_path", HelpKey: "easydrag.help.file_write_path", Required: true, Templatable: true, SensitiveSink: true},
 		{Name: "content", Kind: ParamTextarea, LabelKey: "easydrag.param.file_content", Templatable: true, SensitiveSink: true, OutputIndependent: true},
 		{Name: "if_exists", Kind: ParamSegmented, LabelKey: "easydrag.param.if_exists", Default: "overwrite",
-			Options: []Option{option("overwrite", "if_exists_overwrite"), option("unique", "if_exists_unique"), option("fail", "if_exists_fail")}},
+			Options: []Option{cardOption("overwrite", "if_exists_overwrite"), cardOption("unique", "if_exists_unique"), cardOption("fail", "if_exists_fail")}},
 	}
 	def.OutputFields = []FieldSpec{{Name: "file", Type: "file", Primary: true}}
 	def.Validate = func(n *Node, _ ValidateContext) []Issue {

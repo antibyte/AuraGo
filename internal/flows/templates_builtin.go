@@ -341,6 +341,7 @@ func CatalogI18nKeys(reg *Registry) []string {
 		add(p.HelpKey)
 		for _, o := range p.Options {
 			add(o.LabelKey)
+			add(o.CardLabelKey)
 		}
 		for _, f := range p.Fields {
 			addParam(f)

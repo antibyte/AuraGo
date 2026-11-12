@@ -69,6 +69,9 @@ type Option struct {
 	Value    string `json:"value"`
 	LabelKey string `json:"label_key,omitempty"`
 	Label    string `json:"label,omitempty"`
+	// CardLabelKey is an optional short word for the node card's second line (the control keeps
+	// LabelKey). Only file.write's if_exists sets it; the node-types API sends it as card_label.
+	CardLabelKey string `json:"card_label_key,omitempty"`
 }
 
 // Visibility shows a parameter only when another parameter has one of the given values.

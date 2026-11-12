@@ -58,6 +58,13 @@ func option(value, key string) Option {
 	return Option{Value: value, LabelKey: "easydrag.option." + key}
 }
 
+// cardOption is option with a short card word under "<label key>.card".
+func cardOption(value, key string) Option {
+	o := option(value, key)
+	o.CardLabelKey = o.LabelKey + ".card"
+	return o
+}
+
 func paramIssue(n *Node, code string, sev Severity, param, msg string) Issue {
 	return Issue{Code: code, Severity: sev, NodeID: n.ID, Param: param, Message: msg}
 }

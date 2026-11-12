@@ -112,6 +112,8 @@ type ParamInfo struct {
 type OptionInfo struct {
 	Value string `json:"value"`
 	Label string `json:"label"`
+	// CardLabel is the short word the node card shows for this value; empty when the option has none.
+	CardLabel string `json:"card_label,omitempty"`
 }
 
 // FieldInfo is a translated output field.
@@ -352,7 +354,13 @@ func describeParam(p ParamSpec, tr func(string) string) ParamInfo {
 		SensitiveSink: p.SensitiveSink, Min: cloneFloat(p.Min), Max: cloneFloat(p.Max), Step: cloneFloat(p.Step),
 	}
 	for _, o := range p.Options {
-		info.Options = append(info.Options, OptionInfo{Value: o.Value, Label: firstNonEmpty(localize(tr, o.LabelKey, o.Label), o.Value)})
+		oi := OptionInfo{Value: o.Value, Label: firstNonEmpty(localize(tr, o.LabelKey, o.Label), o.Value)}
+		if o.CardLabelKey != "" {
+			if card := localize(tr, o.CardLabelKey, ""); card != o.CardLabelKey {
+				oi.CardLabel = card
+			}
+		}
+		info.Options = append(info.Options, oi)
 	}
 	for _, f := range p.Fields {
 		info.Fields = append(info.Fields, describeParam(f, tr))

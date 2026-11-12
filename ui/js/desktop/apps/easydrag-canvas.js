@@ -349,7 +349,7 @@
             if (value === undefined || value === null || value === '') return '';
             if (spec && Array.isArray(spec.options)) {
                 const opt = spec.options.find(o => String(o.value) === String(value));
-                if (opt) return opt.label;
+                if (opt) return opt.card_label || opt.label;
             }
             if (typeof value === 'object') return Array.isArray(value) ? t('easydrag.ui.summary_items', { count: value.length }) : '';
             let text = String(value).replace(/\{\{\s*([a-z][a-z0-9_]*)([^}]*)\}\}/g, (m, root, rest) => {

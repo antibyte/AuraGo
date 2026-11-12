@@ -375,7 +375,7 @@ func TestParamsFromSchemaSurvivesOddSchemas(t *testing.T) {
 				t.Errorf("string enum options = %+v", p.Options)
 			}
 		case "mixed_enum":
-			if got := fmt.Sprint(p.Options); got != "[{a  a} {1  1} {true  true}]" {
+			if got := fmt.Sprint(p.Options); got != "[{a  a } {1  1 } {true  true }]" {
 				t.Errorf("mixed enum options = %s", got)
 			}
 		case "output_path":
