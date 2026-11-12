@@ -77,7 +77,7 @@ func TestDesktopWindowMenuAssets(t *testing.T) {
 	}
 
 	for _, path := range []string{
-		filepath.Join("js", "desktop", "apps", "writer.js"),
+		filepath.Join("js", "desktop", "apps", "writer-menus.js"),
 		filepath.Join("js", "desktop", "apps", "sheets.js"),
 		filepath.Join("js", "desktop", "apps", "code-studio.js"),
 		filepath.Join("js", "desktop", "apps", "radio.js"),
