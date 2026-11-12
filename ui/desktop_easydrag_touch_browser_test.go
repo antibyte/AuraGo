@@ -320,3 +320,35 @@ func TestEasyDragTouchCardTools(t *testing.T) {
 		})
 	}
 }
+
+// TestEasyDragTouchMappingChip fills a field by tap: tap the field, open the input tab, tap the
+// "ki.text" row. HTML5 drag cannot be started by a finger; the row's click is the fallback.
+func TestEasyDragTouchMappingChip(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	for _, vp := range easyDragTouchViewports {
+		vp := vp
+		t.Run(vp.name, func(t *testing.T) {
+			s := startEasyDragTouch(t, vp.w, vp.h)
+			page := s.page
+			page.MustEval(`()=>{const ed=edFixture.editor();ed.model.setParam('n_pdf','content','Text: ');ed.bus.emit('open-detail',{nodeId:'n_pdf'});}`)
+			field := `.ed-detail .ed-field[data-param="content"]`
+			s.wait(`()=>!!document.querySelector('` + field + ` .ed-tpl-view')`)
+			s.touchScrollTo(field + ` .ed-tpl-view`)
+			s.touchTapElement(field + ` .ed-tpl-view`)
+			s.wait(`()=>!!document.querySelector('` + field + ` .ed-tpl.is-editing')`)
+			s.touchTapElement(`.ed-detail [data-ed-narrow="input"]`)
+			row := `.ed-detail .ed-tree-row[data-ref="ki.text"]`
+			s.wait(`()=>!!document.querySelector('` + row + `') && document.querySelector('` + row + `').getClientRects().length>0`)
+			s.touchScrollTo(row)
+			if h := page.MustEval(`sel=>document.querySelector(sel).getBoundingClientRect().height`, row).Num(); h < 24 {
+				t.Fatalf("the tree row is %.0f px high: under 24 px", h)
+			}
+			s.shot("touch-mapping-row-" + vp.name)
+			s.touchTapElement(row)
+			s.wait(`()=>edFixture.editor().model.node('n_pdf').params.content.includes('{{ki.text}}')`)
+			s.wait(`()=>document.querySelectorAll('` + field + ` .ed-ref').length>=1 || !!document.querySelector('` + field + ` .ed-tpl')`)
+			s.shot("touch-mapping-inserted-" + vp.name)
+			s.failOnPageErrors("touch mapping chip")
+		})
+	}
+}
