@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "character": "Zombert",
+  "date": "2026-11-12",
+  "original_pet_id": "aurago-zombie",
+  "sprite_reference": "internal/desktop/pets_assets/aurago-zombie/spritesheet.webp",
+  "sprite_sha256": "d8e8409ea5bdc7068d3fe1a85da96e2fd00b7644980e24019114625e378887d0",
+  "reference_generator": "Built-in imagegen",
+  "reference_sha256": "b59e453274d32c4efe269593af612b811785549370cb998263e9de50438fbafb",
+  "reference_dimensions": [
+    1199,
+    1312
+  ],
+  "model_created": false,
+  "rig_created": false,
+  "desktop_integrated": false,
+  "nc_ai": {
+    "endpoint": "https://openapi.ai.nc.com/3d/varco/v1/image-to-3d",
+    "request_id": "002e6f0f8bbe2d528742c56acf95d541",
+    "parameters": {
+      "target_face_type": "tri",
+      "target_face_num": 180000,
+      "generate_texture": true,
+      "seed": 12112026
+    },
+    "status": "failed",
+    "error": "processing failed",
+    "cause": "CAS upload failed: HTTP 401 Unauthorized",
+    "result_http_status": 500,
+    "resubmitted": false,
+    "retry": {
+      "request_id": "1c63307d4b9c415b0474f83fbd842329",
+      "parameters": {
+        "target_face_type": "tri",
+        "target_face_num": 180000,
+        "generate_texture": true,
+        "seed": 12112026
+      },
+      "status": "failed",
+      "user_requested": true,
+      "error": "processing failed",
+      "cause": "CAS upload failed: HTTP 401 - {\"error\":\"Unauthorized\"}",
+      "result_http_status": 500
+    }
+  },
+  "fallbacks": [
+    {
+      "service": "microsoft/TRELLIS.2",
+      "status": "upstream generation exception; no model returned"
+    },
+    {
+      "service": "trellis-community/TRELLIS",
+      "status": "upstream generation exception; no model returned"
+    },
+    {
+      "service": "stabilityai/stable-fast-3d",
+      "status": "upstream generation exception; no model returned"
+    }
+  ]
+}

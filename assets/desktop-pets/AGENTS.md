@@ -2,11 +2,14 @@
 
 ## Purpose
 
-Authoring sources and reproducible animation assets for the optional real-time Punk desktop pet.
+Authoring sources and reproducible animation assets for optional real-time desktop pets.
 
 ## Ownership
 
 - `punk/source.blend` and `punk/reference.png` retain the locally authored Rigify character and its reference image.
+- `zombert/reference.png`, `reference-prompt.txt` and `generation.json` retain
+  Zombert's modeling reference and generation provenance. A reference alone is
+  not a runtime model or a selectable 3D pet; check the recorded output status.
 - `mesh2motion/` retains the pinned official CC0 human animations and the MIT retargeting math used by the offline build.
 - Runtime files live in `ui/3d/pets/punk/`; `ui/js/desktop/core/pet-3d.js` owns rendering and interactive pose layers. The shared pet runtime owns placement, settings, notifications and drag physics.
 
