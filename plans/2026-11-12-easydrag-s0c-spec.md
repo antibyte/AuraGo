@@ -1,6 +1,6 @@
 # EasyDrag S0c "Hygiene track": design spec
 
-**Status:** design spec, 2026-11-12. The owner approved the design in the brainstorming session the same day. Implementation plan: `plans/2026-11-12-easydrag-s0c/` (to follow).
+**Status:** design spec, 2026-11-12. The owner approved the design in the brainstorming session the same day. Implementation plan: [`plans/2026-11-12-easydrag-s0c/README.md`](2026-11-12-easydrag-s0c/README.md). Planning amended some points of this spec; until the coordinator copies them in here as each part lands, the README's "Amendments found while planning" take precedence.
 **Roadmap:** `plans/2026-11-09-easydrag-next-roadmap.md`, E1 items FD-12 (rest), FD-15, FD-16 and FD-20 (lines 289-310, acceptance 321-322), Wave 0 (§6), gates of Waves 2 and 3.
 **Predecessors:** S0 landed at 79c7c601a (`plans/2026-11-10-easydrag-s0-spec.md`). S0b landed at c4370ae91 (Part A) and 53bd11eff (Part B) (`plans/2026-11-11-easydrag-s0b-spec.md`). Nothing is pushed.
 
