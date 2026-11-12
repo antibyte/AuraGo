@@ -89,8 +89,8 @@ func TestOfficeAppsExposeNewAndSaveAsMenus(t *testing.T) {
 			markers: []string{
 				"case 'new':",
 				"function saveAs()",
-				"item('new','new','Ctrl+N'",
-				"item('saveAs','save_as'",
+				"item('new')",
+				"item('saveAs')",
 				"ctx.saveFileDialog",
 				"await guard()",
 			},
@@ -148,7 +148,7 @@ func TestEditorWriterAndSheetsExposeAgentMenus(t *testing.T) {
 			markers: []string{
 				"id:'agent'",
 				"labelKey:'desktop.menu_agent'",
-				"item('assist','assist')",
+				"item('assist')",
 			},
 		},
 		{

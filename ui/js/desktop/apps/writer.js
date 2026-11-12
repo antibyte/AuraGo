@@ -21,8 +21,6 @@
         const commands = window.WriterCommands.create({tr, t: (key, params) => ctx.t?.(key, params) || key, readonly: !!ctx.readonly,
             editor: () => editor, lib: () => lib, loading: () => loading, act: id => act(id), notice, refresh: () => refresh()});
         const {can, run} = commands, colors = window.WriterCommands.colors;
-        const actionIcons = {new:'file-plus',open:'folder-open',saveAs:'copy',docx:'file-text',html:'file-code',md:'notes',txt:'file-text',print:'printer',
-            outline:'list',format:'sliders',review:'chat',assist:'star',insert:'plus',focus:'maximize',fit:'monitor'};
         // The shared icon atlases carry no keys for text alignment, underline, indent or
         // colour controls, so Autor draws those few glyphs itself, in the toolbar's line style.
         const glyphs = {
@@ -41,7 +39,6 @@
             if(shape)return '<svg class="writer-glyph" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'+shape+'</svg>';
             return ctx.iconMarkup?.(key, fallback, 'writer-icon', 18, 'action') || esc(fallback);
         };
-        const actionIcon = (action, fallback) => icon(actionIcons[action] || action, fallback);
         // Action ids are not icon names; every slot names the shared key it draws.
         const slotIcons = {
             'history.undo':'undo','history.redo':'redo',
@@ -51,15 +48,15 @@
             'text.color':'text-color','text.highlight':'highlight'
         };
         const toggleSlots = new Set(['text.bold','text.italic','text.underline','text.strike','alignment.left','alignment.center','alignment.right','alignment.justify','list.bullet','list.numbered']);
-        const button = (action, label, symbol) => '<button type="button" data-action="' + action + '" title="' + esc(tr(label)) + '" aria-label="' + esc(tr(label)) + '">' + actionIcon(action, symbol) + '</button>';
+        const button = id => '<button type="button" data-action="' + id + '" title="' + esc(commands.tooltip(id)) + '" aria-label="' + esc(commands.label(id)) + '">' + icon(commands.get(id).icon, commands.get(id).fallback) + '</button>';
         const slotButton = (slot, label, symbol) => '<button type="button" data-slot="' + slot + '" title="' + esc(tr(label)) + '" aria-label="' + esc(tr(label)) + '">' + icon(slotIcons[slot] || label, symbol) + '</button>';
         const colorField = (slot, label, value) => '<label class="writer-color" title="' + esc(tr(label)) + '">' + icon(slotIcons[slot], '') +
             '<input type="color" data-slot="' + slot + '" value="' + value + '" aria-label="' + esc(tr(label)) + '"></label>';
         const menuId = 'writer-document-menu-' + String(windowId).replace(/[^\w-]/g,'-');
         host.innerHTML = '<div class="writer-app" data-writer="' + esc(windowId) + '">' +
             '<header class="writer-documentbar"><div class="writer-document"><button class="writer-document-name" data-action="document" aria-expanded="false" aria-controls="' + menuId + '"><span data-name></span><span aria-hidden="true">⌄</span></button><span data-save-state role="status" aria-live="polite">' + esc(tr('loading')) + '</span></div>' +
-            '<nav class="writer-views" aria-label="' + esc(tr('panels')) + '">' + button('outline','outline','☷') + button('search','find','⌕') + '<span class="writer-divider"></span>' +
-            button('format','format','A') + button('review','review','☷') + button('assist','assist','✦') + '</nav></header>' +
+            '<nav class="writer-views" aria-label="' + esc(tr('panels')) + '">' + button('outline') + button('search') + '<span class="writer-divider"></span>' +
+            button('format') + button('review') + button('assist') + '</nav></header>' +
             '<div class="writer-document-menu" id="' + menuId + '" data-document-menu hidden><strong data-location></strong><button data-action="rename">' + esc(tr('rename')) + '</button><button data-action="saveAs">' + esc(tr('save_as')) + '</button><button data-action="save">' + esc(tr('save')) + '</button></div>' +
             '<div class="writer-toolbar" role="toolbar" aria-label="' + esc(tr('format_bar')) + '">' +
             '<div class="writer-toolgroup">' + slotButton('history.undo','undo','↶') + slotButton('history.redo','redo','↷') + '</div>' +
@@ -68,11 +65,11 @@
             '<div class="writer-toolgroup">' + slotButton('alignment.left','align_left','≡') + slotButton('alignment.center','align_center','≡') + slotButton('alignment.right','align_right','≡') + slotButton('alignment.justify','justify','≡') + '</div>' +
             '<div class="writer-toolgroup">' + slotButton('list.bullet','bullets','•') + slotButton('list.numbered','numbering','1.') + slotButton('list.outdent','outdent','⇤') + slotButton('list.indent','indent','⇥') + '</div>' +
             '<div class="writer-toolgroup writer-colors">' + colorField('text.color','color','#172033') + colorField('text.highlight','highlight','#ffff00') + '</div>' +
-            button('insert','insert','＋') + '</div>' +
+            button('insert') + '</div>' +
             '<div class="writer-notice" data-notice role="alert" hidden><span data-notice-text></span><button data-action="retry" hidden>' + esc(tr('retry')) + '</button><button data-action="saveAs" hidden>' + esc(tr('save_as')) + '</button><button data-action="reload" hidden>' + esc(tr('reopen')) + '</button><button data-action="dismiss" aria-label="' + esc(tr('close')) + '"><span aria-hidden="true">×</span></button></div>' +
             '<div class="writer-workspace"><aside class="writer-left" data-left hidden></aside><main class="writer-canvas"><div class="writer-ruler" aria-hidden="true"><span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10</span><span>12</span><span>14</span><span>16</span></div><div class="writer-viewport docx-editor__scroll-container" data-scroll><div class="writer-editor docx-editor" data-editor></div></div><div class="writer-loading" data-loading><div class="writer-load-message"><p data-load-status role="status">' + esc(tr('loading')) + '</p><div class="writer-load-actions" data-load-actions hidden><button data-action="new"' + (ctx.readonly?' disabled':'') + '>' + esc(tr('new')) + '</button><button data-action="open">' + esc(tr('open')) + '</button></div></div></div></main><aside class="writer-right" data-right hidden></aside></div>' +
             '<footer class="writer-statusbar"><button data-action="page" data-page></button><span data-count></span><span class="writer-status-spacer"></span><span data-language title="' + esc(tr('language_unknown')) + '"></span>' +
-            button('focus','focus_mode','⛶') + '<button data-action="zoomOut" aria-label="' + esc(tr('zoom_out')) + '">−</button><button data-action="fit" data-zoom title="' + esc(tr('fit')) + '">100%</button><button data-action="zoomIn" aria-label="' + esc(tr('zoom_in')) + '">+</button></footer>' +
+            button('focus') + '<button data-action="zoomOut" aria-label="' + esc(tr('zoom_out')) + '">−</button><button data-action="fit" data-zoom title="' + esc(tr('fit')) + '">100%</button><button data-action="zoomIn" aria-label="' + esc(tr('zoom_in')) + '">+</button></footer>' +
             '<button class="writer-focus-exit" data-action="focus" hidden title="' + esc(tr('focus_exit')) + '" aria-label="' + esc(tr('focus_exit')) + '">' + icon('restore','⛶') + '</button>' +
             '<input data-image type="file" accept="image/png,image/jpeg,image/webp" hidden></div>';
         const root = host.firstElementChild, find = selector => root.querySelector(selector), mount = find('[data-editor]');
@@ -601,24 +598,19 @@
             }catch(error){fail(error);}
         }
         function setMenus() {
-            const item=(id,label,shortcut,disabled)=>({id,label:tr(label),icon:actionIcons[id] || id,shortcut,disabled,action:()=>act(id)});
+            const item=commands.menuItem;
             ctx.setWindowMenus?.(windowId,[
                 {id:'file',labelKey:'desktop.menu_file',items:[
-                    item('new','new','Ctrl+N',ctx.readonly),item('open','open','Ctrl+O'),
-                    item('save','save','Ctrl+S',ctx.readonly || !editor),item('saveAs','save_as',null,ctx.readonly || !editor),
+                    item('new'),item('open'),item('save'),item('saveAs'),
                     {type:'separator'},
                     {id:'gog-import',label:ctx.t('desktop.gog.import'),disabled:ctx.readonly,action:()=>gogOffice('import')},
                     {id:'gog-export',label:ctx.t('desktop.gog.export'),disabled:ctx.readonly||!editor,action:()=>gogOffice('export')},
-                    {type:'separator'},item('docx','download_docx',null,!editor),item('html','export_html',null,!editor),item('md','export_md',null,!editor),item('txt','export_txt',null,!editor),
-                    {type:'separator'},item('print','print','Ctrl+P',!editor)]},
-                {id:'edit',labelKey:'desktop.menu_edit',items:[
-                    {id:'undo',label:tr('undo'),icon:'undo',shortcut:'Ctrl+Z',action:()=>run({type:'undo'})},
-                    {id:'redo',label:tr('redo'),icon:'redo',shortcut:'Ctrl+Y',action:()=>run({type:'redo'})},
-                    item('search','find','Ctrl+F'),item('review','review'),item('format','format'),item('insert','insert')]},
-                {id:'insert',label:tr('insert'),items:[item('image','image',null,ctx.readonly || !editor),
-                    {id:'qr',label:ctx.t('desktop.qr_insert'),icon:'image',disabled:ctx.readonly || !editor || editor.snapshot().editingMode==='suggesting',action:()=>act('qr')}]},
-                {id:'agent',labelKey:'desktop.menu_agent',items:[item('assist','assist')]},
-                {id:'view',label:tr('view'),items:[item('outline','outline'),item('focus','focus_mode'),item('fit','fit')]}
+                    {type:'separator'},item('docx'),item('html'),item('md'),item('txt'),
+                    {type:'separator'},item('print')]},
+                {id:'edit',labelKey:'desktop.menu_edit',items:[item('undo'),item('redo'),item('search'),item('review'),item('format'),item('insert')]},
+                {id:'insert',label:tr('insert'),items:[item('image'),item('qr')]},
+                {id:'agent',labelKey:'desktop.menu_agent',items:[item('assist')]},
+                {id:'view',label:tr('view'),items:[item('outline'),item('focus'),item('fit')]}
             ]);
         }
         root.addEventListener('pointerdown',event=>{if(event.target.closest('.writer-toolbar,.writer-right,.writer-views'))pinSelection();},{signal:lifecycle.signal});
@@ -647,8 +639,8 @@
         },{capture:true,signal:lifecycle.signal});
         mount.addEventListener('dragover',event=>{if(event.dataTransfer?.types.includes('Files'))event.preventDefault();},{signal:lifecycle.signal});
         root.addEventListener('keydown',event=>{
-            const command=event.ctrlKey || event.metaKey,action=command && {s:event.shiftKey?'saveAs':'save',o:'open',n:'new',f:'search',h:'search',p:'print'}[event.key.toLowerCase()];
-            if(action){event.preventDefault();event.stopPropagation();act(action);}
+            const action=commands.actionForKey(event);
+            if(action){event.preventDefault();event.stopPropagation();commands.invoke(action);}
             if(event.key==='Escape'){
                 // The menu is the topmost layer; focus mode hides every panel and leaves on Escape.
                 // The engine keeps the event: Escape also leaves a note scope or the format painter.
