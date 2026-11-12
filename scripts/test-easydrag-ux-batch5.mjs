@@ -820,9 +820,10 @@ export async function run(env) {
 
     // ── F6: run-event rendering cost ──
 
-    await guardAsync('b5 F6 run events repaint only the steps they touch: 300 steps, 1000 events', async () => {
+    // The checks are counts, so they hold at any size. The test's mini DOM scans every card per event, so 300 steps took 200 s; 40 steps take 4 s.
+    await guardAsync('b5 F6 run events repaint only the steps they touch: 40 steps, 160 events', async () => {
         const started = performance.now();
-        const chain = chainDoc(300);
+        const chain = chainDoc(40);
         const s = await session(req => (req.method === 'POST' && req.url === '/api/desktop/flows/f1/run' ? { run_id: 'r1' } : undefined),
             { enabled: true, flow: { draft: chain, live: chain, live_revision: 2, published_draft_revision: 3 } });
         s.editor.el.querySelector('[data-ed-cmd="run-now"]').fire('click');
@@ -830,17 +831,17 @@ export async function run(env) {
         const source = s.h.sources[s.h.sources.length - 1];
         const stats = s.ed.renderStats;
         const before = { cards: stats.cards, paints: stats.paints, wires: stats.wires };
-        for (let k = 0; k < 500; k++) {
-            const id = chain.nodes[1 + (k % 299)].id;
+        for (let k = 0; k < 80; k++) {
+            const id = chain.nodes[1 + (k % 39)].id;
             source.emit('event', { seq: 2 * k + 1, type: 'step_started', node_id: id });
             source.emit('event', { seq: 2 * k + 2, type: 'step_finished', node_id: id, step: { node_id: id, status: 'success', duration_ms: 3, item_count: 1 } });
         }
-        console.log('info b5 F6 1000 events complete in ' + Math.round(performance.now() - started) + ' ms');
+        console.log('info b5 F6 160 events complete in ' + Math.round(performance.now() - started) + ' ms');
         s.h.flushFrames();
-        const used = [stats.cards - before.cards, stats.paints - before.paints, stats.wires - before.wires <= 2000];
+        const used = [stats.cards - before.cards, stats.paints - before.paints, stats.wires - before.wires <= 320];
         eq('b5 F6 no card is re-rendered, one paint per event, at most two wires per event, every finished step\'s wire has its pill',
-            [used, s.editor.el.querySelectorAll('.ed-pill').length, s.card(chain.nodes[1].id).className.includes('status-success'), s.card(chain.nodes[299].id).className.includes('status-success'), s.h.logged],
-            [[0, 1000, true], 298, true, true, []]);
+            [used, s.editor.el.querySelectorAll('.ed-pill').length, s.card(chain.nodes[1].id).className.includes('status-success'), s.card(chain.nodes[39].id).className.includes('status-success'), s.h.logged],
+            [[0, 160, true], 38, true, true, []]);
         eq('b5 F6 renderStats carries the S0.0 counters', Object.keys(stats).sort(), ['align', 'allRects', 'cards', 'edgeNear', 'groups', 'minimap', 'paints', 'wireScans', 'wires']);
         s.editor.dispose();
     });
