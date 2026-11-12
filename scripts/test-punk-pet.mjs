@@ -7,21 +7,26 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..'),ui=resolve(root,'ui');
-const scratch=resolve(root,'disposable/_punk-pet');mkdirSync(scratch,{recursive:true});
-const model=readFileSync(resolve(ui,'3d/pets/punk/model.glb'));
+const pet=process.argv.includes('--pet=zombert')?'zombert':'punk';
+assert.ok(process.argv.slice(2).every(arg=>arg==='--pet=zombert'),'Unknown pet test argument');
+const spritePetId=pet==='zombert'?'aurago-zombie':'aurago-punk',modelPetId=spritePetId+'-3d';
+const jointCount=pet==='zombert'?53:71;
+const scratch=resolve(root,'disposable/_'+pet+'-pet');mkdirSync(scratch,{recursive:true});
+const model=readFileSync(resolve(ui,'3d/pets',pet,'model.glb'));
 const length=model.readUInt32LE(12),doc=JSON.parse(model.subarray(20,20+length));
-assert.equal(doc.skins[0].joints.length,71);
+assert.equal(doc.skins[0].joints.length,jointCount);
 const jointSet=new Set(doc.skins[0].joints),parents=new Map();
 doc.nodes.forEach((n,i)=>(n.children||[]).forEach(c=>parents.set(c,i)));
 assert.equal([...jointSet].filter(i=>!jointSet.has(parents.get(i))).length,1,'All limbs and fingers must share the body root');
 const indexByName=new Map(doc.nodes.map((n,i)=>[n.name,i]));
 assert.equal(parents.get(indexByName.get('DEF-thumb.01.L')),indexByName.get('DEF-hand.L'));
+const binary=model.subarray(28+length);
+if(pet==='punk'){
 const eyes=doc.nodes[indexByName.get('PunkPersona_Eyes')];
 assert.ok(eyes?.mesh!==undefined,'The model must contain the authored eyes');
 assert.equal(parents.get(indexByName.get('PunkPersona_Eyes')),indexByName.get('DEF-spine.006'),'Eyes must follow the animated head');
 assert.equal(eyes.skin,undefined,'Rigid head-bound eyes must not introduce another skin');
 assert.deepEqual(doc.meshes[eyes.mesh].primitives.map(p=>doc.materials[p.material].name).sort(),['Eye catchlight','Eye iris','Eye pupil','Eye sclera']);
-const binary=model.subarray(28+length);
 function eyeWidth(material,side){
     const primitive=doc.meshes[eyes.mesh].primitives.find(p=>doc.materials[p.material].name===material);
     const a=doc.accessors[primitive.attributes.POSITION],v=doc.bufferViews[a.bufferView],positions=[];
@@ -31,9 +36,19 @@ function eyeWidth(material,side){
     return Math.max(...positions)-Math.min(...positions);
 }
 for(const side of [-1,1]){const ratio=eyeWidth('Eye iris',side)/eyeWidth('Eye sclera',side);assert.ok(ratio>.58&&ratio<.68,'Reference-sized irises must leave restrained sclera');}
+}
 for(const node of doc.nodes.filter(n=>n.skin!==undefined))for(const primitive of doc.meshes[node.mesh].primitives){const a=doc.accessors[primitive.attributes.WEIGHTS_0],v=doc.bufferViews[a.bufferView];assert.equal(a.type,'VEC4');assert.equal(a.componentType,5126);for(let i=0;i<a.count;i++){const offset=(v.byteOffset||0)+(a.byteOffset||0)+i*(v.byteStride||16);let sum=0;for(let j=0;j<4;j++)sum+=binary.readFloatLE(offset+j*4);assert.ok(Math.abs(sum-1)<.0001);}}
+if(pet==='zombert'){
+    const primitive=doc.meshes[0].primitives[0],head=doc.skins[0].joints.indexOf(indexByName.get('DEF-spine.006'));
+    const position=doc.accessors[primitive.attributes.POSITION],joints=doc.accessors[primitive.attributes.JOINTS_0],weights=doc.accessors[primitive.attributes.WEIGHTS_0];
+    const offset=(a,i,size)=>(doc.bufferViews[a.bufferView].byteOffset||0)+(a.byteOffset||0)+i*(doc.bufferViews[a.bufferView].byteStride||size);
+    assert.equal(joints.componentType,5121);
+    for(let i=0;i<position.count;i++)if(Math.abs(binary.readFloatLE(offset(position,i,12)))>.6)for(let j=0;j<4;j++){
+        assert.ok(binary.readUInt8(offset(joints,i,4)+j)!==head||binary.readFloatLE(offset(weights,i,16)+j*4)<.00001,'Raised fingertips must not be bound to the skull');
+    }
+}
 for(const image of doc.images){const view=doc.bufferViews[image.bufferView],bytes=binary.subarray(view.byteOffset,view.byteOffset+view.byteLength);assert.equal(bytes.toString('ascii',1,4),'PNG');assert.ok(bytes.readUInt32BE(16)<=1024&&bytes.readUInt32BE(20)<=1024,'Runtime textures must actually be resized');}
-const pack=JSON.parse(readFileSync(resolve(ui,'3d/pets/punk/motions.json'),'utf8'));
+const pack=JSON.parse(readFileSync(resolve(ui,'3d/pets',pet,'motions.json'),'utf8'));
 assert.equal(pack.clips.length,30);
 assert.equal(pack.model_sha256,createHash('sha256').update(model).digest('hex'));
 for(const item of pack.clips){const source=readFileSync(resolve(root,'assets/desktop-pets/mesh2motion/animations',item.id+'.glb'));assert.equal(item.source_sha256,createHash('sha256').update(source).digest('hex'));}
@@ -42,7 +57,7 @@ assert.ok(browser,'Chrome/Edge is required for the real WebGL pet test');
 const labels=JSON.parse(readFileSync(resolve(ui,'lang/desktop/de.json'),'utf8'));
 const html=`<!doctype html><html lang="de"><head><meta charset="utf-8"><link rel="stylesheet" href="/css/desktop-shell.bundle.css"><style>body{margin:0;background:#252331;color:white;font:16px system-ui}.vd-taskbar{position:fixed;bottom:0;width:100%;height:48px;background:#131219}#title{padding:20px}button{margin:8px}#test-window{position:absolute;inset:0;background:#252331;pointer-events:auto}</style></head><body class="desktop-body" data-animations="true" data-theme="standard" data-scheme="dark"><main class="vd-shell"><section class="vd-workspace" id="vd-workspace"><div class="vd-window-layer" id="test-window-layer"><div id="test-window"></div></div></section></main><div id="title">AuraGo Â· Punk 3D Â· Mesh2Motion</div><div class="vd-taskbar"></div><script>
 window.I18N=${JSON.stringify(labels)};window.BUILD_VERSION='pet-test';
-window.state={bootstrap:{pets:[{id:'aurago-punk-3d',display_name:'Punk 3D',subcategory:'3d',spritesheet:'spritesheet.webp'},{id:'aurago-punk',display_name:'Punk',spritesheet:'spritesheet.webp'}],active_pet_id:'aurago-punk-3d',settings:{'pet.enabled':'true','pet.scale':'2','pet.position_x':'350','pet.position_y':'240','pet.gravity':'false'}}};
+window.state={bootstrap:{pets:[{id:'${modelPetId}',display_name:'${pet} 3D',subcategory:'3d',spritesheet:'spritesheet.webp'},{id:'${spritePetId}',display_name:'${pet}',spritesheet:'spritesheet.webp'}],active_pet_id:'${modelPetId}',settings:{'pet.enabled':'true','pet.scale':'2','pet.position_x':'350','pet.position_y':'240','pet.gravity':'false'}}};
 window.settingValue=k=>state.bootstrap.settings[k];window.t=k=>I18N[k]||k;window.shellLayout=()=> 'taskbar';window.notifications=[];window.showDesktopNotification=x=>notifications.push(x);window.showContextMenu=(x,y,items)=>window.menuItems=items;window.openApp=()=>{};
 window.api=async(url,options)=>{if(options&&options.body){const {key,value}=JSON.parse(options.body);state.bootstrap.settings[key]=value;}return {pets:state.bootstrap.pets,active_pet_id:state.bootstrap.active_pet_id,settings:state.bootstrap.settings};};
 window.until=async(predicate,message)=>{const end=Date.now()+30000;while(Date.now()<end){if(predicate())return;await new Promise(r=>setTimeout(r,30));}throw Error('Timed out: '+message+' '+JSON.stringify({notifications,hidden:document.hidden,model:window.PetRuntime?.inspect3D()}));};
@@ -52,7 +67,7 @@ let delay=0,fail=false;
 const server=http.createServer((request,response)=>{
     try{const pathname=new URL(request.url,'http://localhost').pathname;
         if(pathname==='/'){response.setHeader('Content-Type','text/html; charset=utf-8');response.end(html);return;}
-        if(pathname.includes('/files/desktop/Pets/')){response.setHeader('Content-Type','image/webp');response.end(readFileSync(resolve(root,'internal/desktop/pets_assets/aurago-punk/spritesheet.webp')));return;}
+        if(pathname.includes('/files/desktop/Pets/')){response.setHeader('Content-Type','image/webp');response.end(readFileSync(resolve(root,'internal/desktop/pets_assets',spritePetId,'spritesheet.webp')));return;}
         const file=resolve(ui,'.'+decodeURIComponent(pathname));if(!file.startsWith(ui+sep))throw Error('path');
         const send=()=>{if(fail&&pathname.endsWith('motions.json')){response.statusCode=503;response.end();return;}response.setHeader('Content-Type',{'.json':'application/json','.js':'text/javascript','.css':'text/css','.png':'image/png'}[extname(file)]||'application/octet-stream');response.end(readFileSync(file));};
         if(delay&&pathname.endsWith('motions.json'))setTimeout(send,delay);else send();
@@ -78,7 +93,7 @@ try{
     await call('Page.navigate',{url:'http://127.0.0.1:'+server.address().port});await loaded;
     await call('Page.bringToFront');
     const initial=await evaluate(`(async()=>{await until(()=>window.PetRuntime&&PetRuntime.inspect3D()?.frames>3,'3D load');return PetRuntime.inspect3D();})()`);
-    assert.equal(initial.bones,71);assert.equal(initial.clips,30);assert.ok(initial.triangles>40000&&initial.triangles<=60000);
+    assert.equal(initial.bones,jointCount);assert.equal(initial.clips,30);assert.ok(initial.triangles>40000&&initial.triangles<=60000);
     const checkLayering=async()=>{
         for(const theme of ['standard','fruity'])for(const onTop of [false,true,false]){
             await evaluate(`document.body.dataset.theme=${JSON.stringify(theme)};PetRuntime.syncBootstrap({settings:{'pet.always_on_top':'${onTop}'}});PetRuntime.load();`);
@@ -120,6 +135,8 @@ try{
         await evaluate(`until(()=>PetRuntime.inspect3D().state==='dragging','drag starts '+${JSON.stringify(reason)})`);return point;
     };
     for(const reason of ['captureLoss','outsideRelease','blur','missingRelease']){
+        // Let the preceding release publish its position before measuring the next press.
+        await evaluate(`new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))`);
         const point=await beginDrag(reason);
         if(reason==='captureLoss')await evaluate(`document.querySelector('.vd-pet-layer').dispatchEvent(new PointerEvent('lostpointercapture',{pointerId:gesturePointer,bubbles:true}))`);
         if(reason==='outsideRelease'){await evaluate(`document.querySelector('.vd-pet-layer').releasePointerCapture(gesturePointer)`);await mouse('mouseReleased',20,20);}
@@ -146,22 +163,40 @@ try{
     await call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
     await evaluate(`(async()=>{await until(()=>PetRuntime.inspect3D().reducedMotion,'reduced motion media change');await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));})()`);const reduced=await evaluate('PetRuntime.inspect3D().frames');await new Promise(r=>setTimeout(r,200));assert.equal(await evaluate('PetRuntime.inspect3D().frames'),reduced,'Reduced motion must stop continuous rendering');
     await call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
-    await evaluate(`window.oldCanvas=document.querySelector('.vd-pet-sprite canvas');changePet('aurago-punk');`);
+    const otherPet=pet==='zombert'?'aurago-punk-3d':'aurago-zombie-3d',otherJoints=pet==='zombert'?71:53;
+    await evaluate(`(async()=>{state.bootstrap.pets.push({id:'${otherPet}',subcategory:'3d',spritesheet:'spritesheet.webp'});changePet('${otherPet}');await until(()=>PetRuntime.inspect3D()?.bones===${otherJoints},'switch between 3D pets');})()`);
+    delay=300;
+    await evaluate(`(async()=>{changePet('${modelPetId}');await new Promise(r=>requestAnimationFrame(r));changePet('${otherPet}');await until(()=>PetRuntime.inspect3D()?.bones===${otherJoints},'cancel stale 3D model');})()`);
+    delay=0;
+    await evaluate(`(async()=>{changePet('${modelPetId}');await until(()=>PetRuntime.inspect3D()?.bones===${jointCount},'restore selected 3D pet');let rejected=false;try{await AuraPunkPet3D.create(document.createElement('div'),{petId:'constructor'});}catch{rejected=true;}if(!rejected)throw Error('Unknown model id accepted');})()`);
+    await evaluate(`window.oldCanvas=document.querySelector('.vd-pet-sprite canvas');changePet('${spritePetId}');`);
     assert.equal(await evaluate('PetRuntime.inspect3D()'),null);assert.equal(await evaluate('document.querySelectorAll(".vd-pet-sprite canvas").length'),0);assert.equal(await evaluate('oldCanvas.getContext("webgl2").isContextLost()'),true);
     await evaluate(`document.getElementById('test-window-layer').hidden=false;`);
     await checkLayering();
     delay=400;
-    await evaluate(`changePet('aurago-punk-3d');`);
+    await evaluate(`changePet('${modelPetId}');`);
     await evaluate(`new Promise(r=>requestAnimationFrame(r))`);
     inputChecks.loadingHidesSprite=await evaluate(`getComputedStyle(document.querySelector('.vd-pet-sprite')).backgroundImage==='none'&&getComputedStyle(document.querySelector('.vd-pet-sprite')).pointerEvents==='none'`);
-    await evaluate(`changePet('aurago-punk');`);await new Promise(r=>setTimeout(r,600));assert.equal(await evaluate('document.querySelectorAll(".vd-pet-sprite canvas").length'),0,'Late load must not revive a removed pet');
+    await evaluate(`changePet('${spritePetId}');`);await new Promise(r=>setTimeout(r,600));assert.equal(await evaluate('document.querySelectorAll(".vd-pet-sprite canvas").length'),0,'Late load must not revive a removed pet');
     delay=0;fail=true;
-    await evaluate(`changePet('aurago-punk-3d')`);await evaluate(`until(()=>notifications.length===1,'sprite fallback')`);
+    await evaluate(`changePet('${modelPetId}')`);await evaluate(`until(()=>notifications.length===1,'sprite fallback')`);
     assert.equal(await evaluate('document.querySelectorAll(".vd-pet-sprite canvas").length'),0);
     assert.equal(await evaluate(`getComputedStyle(document.querySelector('.vd-pet-sprite')).backgroundImage!=='none'&&getComputedStyle(document.querySelector('.vd-pet-sprite')).pointerEvents==='auto'`),true,'The sprite fallback must remain visible and interactive after failure');
     fail=false;await evaluate(`PetRuntime.load();`);await evaluate(`until(()=>PetRuntime.inspect3D()?.frames>2,'retry after failure')`);
     await evaluate(`document.querySelector('.vd-pet-sprite canvas').getContext('webgl2').getExtension('WEBGL_lose_context').loseContext()`);
     await evaluate(`until(()=>notifications.length===2&&!PetRuntime.inspect3D(),'context-loss fallback')`);
+    const posters=await evaluate(`(async()=>{
+        await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='/js/desktop/apps/pet-picker.js';s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});
+        const host=document.createElement('section');host.hidden=true;document.body.appendChild(host);
+        state.bootstrap.pets.push({id:'constructor',subcategory:'3d',spritesheet:'spritesheet.webp'});
+        PetPickerApp.render(host,'pet-test',{api:async()=>state.bootstrap,t:window.t});
+        await until(()=>host.querySelector('[data-id="constructor"]'),'picker catalog');
+        const result=['aurago-punk-3d','aurago-zombie-3d','constructor'].map(id=>{const thumb=host.querySelector('[data-id="'+id+'"] .vd-pet-picker-thumb');return {id,model:thumb.classList.contains('is-model'),image:thumb.style.backgroundImage};});
+        host.remove();return result;
+    })()`);
+    assert.ok(posters[0].model&&posters[0].image.includes('/3d/pets/punk/thumbnail.png'));
+    assert.ok(posters[1].model&&posters[1].image.includes('/3d/pets/zombert/thumbnail.png'));
+    assert.ok(!posters[2].model&&posters[2].image.includes('/files/desktop/Pets/constructor/'));
     assert.deepEqual(errors,[]);
     assert.deepEqual(inputChecks,{clickDoesNotStartDrag:true,captureLoss:true,outsideRelease:true,blur:true,missingRelease:true,loadingHidesSprite:true});
     console.log(JSON.stringify({passed:true,initial,inputChecks,gazeRange:right-left,checks:['actual skin render','normalized weights','connected T-pose skeleton','30 pinned motions','3D and sprite foreground toggles in Standard and Fruity','desktop pet hit testing','pointer gaze without drift','agent reactions','manual gestures','greeting without position jump','pickup and drop','real fall and landing','no landing on grounded refresh or dock width change','speech bubbles','hidden-tab pause and resume','reduced motion','GPU disposal','late-load cancellation','asset failure fallback','context loss fallback']},null,2));

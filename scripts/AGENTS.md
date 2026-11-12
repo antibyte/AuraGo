@@ -39,10 +39,12 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
   catalogs and their files, shared mini aliases/SVG symbols, and EasyDrag's
   literal app-local icon calls. `TestDesktopAllAppIconsBrowser` verifies every
   built-in app identity and the shared action supplements in light and dark.
-- Punk 3D pet: Blender runs `assets/desktop-pets/build_model.py`, then
+- 3D pets: Blender runs `assets/desktop-pets/build_model.py` (Punk) or
+  `assets/desktop-pets/build_zombert.py` (Zombert), then
   `node scripts/build-punk-pet-motions.mjs` retargets the pinned Mesh2Motion clips.
   `node scripts/test-punk-pet.mjs` checks encoded texture sizes, skin/motion
   provenance and real Chrome/Edge WebGL interaction/failure/disposal behavior.
+  Both Node commands accept `--pet=zombert`; the default remains Punk.
 
 - Aura Drift: `node scripts/test-aura-drift-audio.mjs --fast` checks the pack and
   requested-music queue priority; the full run also decodes assets with FFmpeg.

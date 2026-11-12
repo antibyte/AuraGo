@@ -37,8 +37,10 @@
     async function create(host, options) {
         const T = window.AuraDriftThree;
         const { signal, versionedURL, onFailure, scale } = options;
+        const folder = options.petId === 'aurago-punk-3d' ? 'punk' : options.petId === 'aurago-zombie-3d' ? 'zombert' : null;
+        if (!folder) throw new Error('Unknown bundled 3D pet');
         const read = async (name, maxBytes) => {
-            const response = await fetch(versionedURL('/3d/pets/punk/' + name), { signal, credentials: 'same-origin' });
+            const response = await fetch(versionedURL('/3d/pets/' + folder + '/' + name), { signal, credentials: 'same-origin' });
             if (!response.ok) throw new Error('Pet asset HTTP ' + response.status);
             const bytes = await response.arrayBuffer();
             if (bytes.byteLength > maxBytes) throw new Error('Pet asset exceeds budget');

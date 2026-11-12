@@ -102,14 +102,17 @@
                 grid.innerHTML = `<div class="vd-pet-picker-empty">${esc(t('desktop.pet_empty'))}</div>`;
                 return;
             }
-            grid.innerHTML = pets.map(pet => `
+            grid.innerHTML = pets.map(pet => {
+                const model = pet.subcategory === '3d' && (pet.id === 'aurago-punk-3d' ? 'punk' : pet.id === 'aurago-zombie-3d' ? 'zombert' : null);
+                return `
                 <div class="vd-pet-picker-card${pet.id === activeId ? ' is-active' : ''}" data-id="${esc(pet.id)}">
-                    <div class="vd-pet-picker-thumb${pet.id === 'aurago-punk-3d' && pet.subcategory === '3d' ? ' is-model' : ''}" style="background-image:url('${pet.id === 'aurago-punk-3d' && pet.subcategory === '3d' ? '/3d/pets/punk/thumbnail.png?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev') : petAssetURL(pet.id, pet.spritesheet)}')"></div>
+                    <div class="vd-pet-picker-thumb${model ? ' is-model' : ''}" style="background-image:url('${model ? '/3d/pets/' + model + '/thumbnail.png?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev') : petAssetURL(pet.id, pet.spritesheet)}')"></div>
                     <div class="vd-pet-picker-name">${esc(pet.display_name || pet.id)}</div>
                     <div class="vd-pet-picker-desc">${esc(pet.description || '')}</div>
                     <button type="button" class="vd-pet-picker-select vd-btn-secondary" data-id="${esc(pet.id)}">${esc(t('desktop.pet_select'))}</button>
                 </div>
-            `).join('');
+                `;
+            }).join('');
             grid.querySelectorAll('.vd-pet-picker-select').forEach(btn => {
                 btn.addEventListener('click', () => activatePet(btn.dataset.id));
             });

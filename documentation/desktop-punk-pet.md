@@ -15,3 +15,19 @@ The Three.js renderer, model, textures and motions load only when this companion
 Mesh2Motion supplies the movement library. The body/hand model and rig were authored separately from AuraGo's Punk reference using NC AI and Blender. The character supports body and finger animation; it has no facial-expression/lip-sync rig or cloth/hair simulation. It does not inspect screen content or operate other windows.
 
 Authoring and reproducible build/verification commands are in `assets/desktop-pets/AGENTS.md`; upstream licensing and pinned provenance are in `licences/mesh2motion/NOTICE.md`.
+
+## Zombert 3D
+
+Select **Zombert 3D** for the detailed zombie companion. It has the same controls,
+thirty offline Mesh2Motion movements and sprite fallback as Punk 3D. The original
+**Zombert** sprite remains separately selectable; adding the model never changes
+the active pet automatically.
+
+The model was generated from Zombert's retained ImageGen T-pose reference through
+VARCO's OAuth MCP workflow, then finger-rigged and prepared in Blender. Its runtime
+has 50,000 triangles, 53 connected joints and 1024-pixel packed textures. The
+180,000-triangle original, VARCO finger rig and editable Blender source remain in
+`assets/desktop-pets/zombert/`. `generation.json` records task ids and hashes;
+neither provider credentials nor a cloud connection are needed during playback.
+Body and fingers animate; facial expressions, lip-sync and cloth simulation are
+not part of this rig.

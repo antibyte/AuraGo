@@ -11,9 +11,9 @@
     1199,
     1312
   ],
-  "model_created": false,
-  "rig_created": false,
-  "desktop_integrated": false,
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
   "nc_ai": {
     "endpoint": "https://openapi.ai.nc.com/3d/varco/v1/image-to-3d",
     "request_id": "002e6f0f8bbe2d528742c56acf95d541",
@@ -71,5 +71,45 @@
       "service": "stabilityai/stable-fast-3d",
       "status": "upstream generation exception; no model returned"
     }
-  ]
+  ],
+  "deployment": "local_checkout_only",
+  "varco": {
+    "transport": "OAuth MCP",
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "generation_execution_id": "9e3caaa2-6c6b-477b-befc-10adb035bf44",
+    "mesh_task_id": "c6b1e110-8357-4ff6-a0f9-99aaafe2d01c",
+    "rig_execution_id": "95522c67-b768-4b56-baf6-aa16f5cebd43",
+    "rig_task_id": "ddb3ca22-c646-433c-818a-ae90f8a5aa5a",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "t_pose": true,
+    "rigging_mode": "humanoid-fingers",
+    "status": "success"
+  },
+  "retained_sources": {
+    "varco-source.glb": {
+      "bytes": 20818136,
+      "sha256": "0cc51319faa760036e7852cd39d2c20b5b611c60378d0e91360a64f9755a458b"
+    },
+    "varco-rigged.glb": {
+      "bytes": 24629308,
+      "sha256": "debe3ce54904ec4ea5bbfc1e62697ddaab91c5e30540c0123e649d747ea8a89e"
+    },
+    "source.blend": {
+      "bytes": 22848041,
+      "sha256": "79501cd314b04f97a4e1f5c6173322e33049febc55ce2c28adb16e43f43a49f0"
+    }
+  },
+  "runtime": {
+    "pet_id": "aurago-zombie-3d",
+    "folder": "ui/3d/pets/zombert",
+    "triangles": 50000,
+    "joints": 53,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Pinned Mesh2Motion CC0 clips",
+    "model_sha256": "70690028f269c164ad6c30dd10c0da70f3b4721745af85290234c3d31cf24883"
+  }
 }

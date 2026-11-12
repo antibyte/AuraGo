@@ -1,0 +1,8 @@
+{
+  "source_sha256": "debe3ce54904ec4ea5bbfc1e62697ddaab91c5e30540c0123e649d747ea8a89e",
+  "triangles": 50000,
+  "vertices": 64897,
+  "deform_joints": 53,
+  "texture_max_size": 1024,
+  "model_sha256": "70690028f269c164ad6c30dd10c0da70f3b4721745af85290234c3d31cf24883"
+}

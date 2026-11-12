@@ -3566,8 +3566,7 @@
     const modelAmbientStates = ['waving', 'jumping', 'running', 'running', 'dancing', 'sitting', 'sleeping', 'nodding', 'playing', 'clapping'];
 
     function isModelPet(pet) {
-        // shortcut: only bundled Punk is 3D; add a validated model manifest when more 3D pets are requested.
-        return pet && pet.id === 'aurago-punk-3d' && pet.subcategory === '3d';
+        return pet && ['aurago-punk-3d', 'aurago-zombie-3d'].includes(pet.id) && pet.subcategory === '3d';
     }
 
     function releaseModelPet() {
@@ -3582,6 +3581,7 @@
     function loadModelPet() {
         if (modelAbort || !spriteEl) return;
         const host = spriteEl;
+        const petId = loadedPetId;
         host.classList.add('is-3d-loading');
         const epoch = ++modelEpoch;
         modelAbort = new AbortController();
@@ -3596,7 +3596,7 @@
             .then(() => window.AuraLazyAssets.loadScript('/js/desktop/core/pet-3d.js'))
             .then(() => {
                 signal.throwIfAborted();
-                return window.AuraPunkPet3D.create(host, { signal, versionedURL, scale: petScale, onFailure: failed });
+                return window.AuraPunkPet3D.create(host, { petId, signal, versionedURL, scale: petScale, onFailure: failed });
             }).then(controller => {
                 if (signal.aborted || epoch !== modelEpoch || host !== spriteEl) { controller.dispose(); return; }
                 modelPet = controller;

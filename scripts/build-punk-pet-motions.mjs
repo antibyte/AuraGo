@@ -9,9 +9,11 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const pet=process.argv.includes('--pet=zombert')?'zombert':'punk';
+assert.ok(process.argv.slice(2).every(arg=>arg==='--pet=zombert'),'Unknown pet build argument');
 const source=path.join(root,'assets/desktop-pets/mesh2motion');
-const out=path.join(root,'ui/3d/pets/punk');
-const scratch=path.join(root,'disposable/_punk-pet');
+const out=path.join(root,'ui/3d/pets',pet);
+const scratch=path.join(root,'disposable/_'+pet+'-pet');
 await mkdir(scratch,{recursive:true});
 const vendor=path.join(source,'retarget');
 await build({stdin:{contents:`export { Rig } from './Rig.ts'; export { HumanClipRetargeter } from './HumanClipRetargeter.ts'; export { RigifyMapper } from './RigifyMapper.ts';`,resolveDir:vendor},outfile:path.join(scratch,'retarget.mjs'),bundle:true,platform:'node',format:'esm',packages:'external',logLevel:'silent'});
@@ -58,7 +60,7 @@ for(const motion of input.animations){
     assert.equal(file.gltf.animations.length,1);
     const baked=HumanClipRetargeter.retarget(file.gltf.animations[0],new Rig(src.skeleton).fromConfig(config),new Rig(target.skeleton).fromConfig(targetConfig),{clip_name:motion.id,fps:24});
     baked.optimize();
-    assert.ok(baked.tracks.length>=60);
+    assert.ok(baked.tracks.length>=target.skeleton.bones.length);
     assert.ok(baked.tracks.every(t=>[...t.values].every(Number.isFinite)));
     assert.ok(baked.tracks.some(t=>t.values.some((v,i)=>i>=t.getValueSize()&&Math.abs(v-t.values[i%t.getValueSize()])>.01)));
     clips.push({id:motion.id,name:motion.name,loop:motion.loop,source_sha256:file.hash,clip:THREE.AnimationClip.toJSON(baked)});
@@ -67,4 +69,4 @@ const body=JSON.stringify({version:1,repository:input.repository,revision:input.
 assert.ok(Buffer.byteLength(body)<10*1024*1024);
 await writeFile(path.join(out,'motions.json'),body);
 await writeFile(path.join(out,'motions-manifest.json'),JSON.stringify({revision:input.revision,skeleton_sha256:src.hash,clips:clips.map(({id,name,loop,source_sha256,clip})=>({id,name,loop,source_sha256,duration:clip.duration})),bytes:Buffer.byteLength(body),sha256:createHash('sha256').update(body).digest('hex')},null,2)+'\n');
-console.log(`Punk pet: ${clips.length} retargeted Mesh2Motion clips, ${Buffer.byteLength(body)} bytes`);
+console.log(`${pet} pet: ${clips.length} retargeted Mesh2Motion clips, ${Buffer.byteLength(body)} bytes`);
