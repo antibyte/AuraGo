@@ -50,3 +50,24 @@ assert.equal(stoppedBy(pruned, null), null, 'no model at all');
 assert.equal(stoppedBy(null, model), null, 'no detail');
 assert.equal(stoppedBy({ run: { status: 'success' } }, model), null, 'no steps');
 console.log('easydrag stop hint: ok');
+
+// 5. (S0c review A) A run that never started has no failed step, only a run-level error_code: the
+// results panel still says why. createResults runs on a minimal stub of the core and the canvas.
+{
+    const body = { innerHTML: '' }, summary = { textContent: '' };
+    const el = { hidden: true, open: false, querySelector: sel => (sel === 'summary' ? summary : body), addEventListener() {} };
+    box.window.EasyDrag.core = {
+        bag: () => ({ listen() {}, add() {}, dispose() {} }), el: () => el, tr: (t, key, fallback) => fallback,
+        stepErrorText: (t, s) => (s && s.error_code ? 'ERR ' + s.error_code + (s.error_message ? ': ' + s.error_message : '') : ''),
+        fmt: { duration: String }
+    };
+    box.window.EasyDrag.runs = { isFinal: () => true };
+    let onRun = null;
+    const ed = { t: key => key, esc: s => String(s), model: model, isBlock: false, bus: { on: (name, fn) => { onRun = fn; return () => {}; } }, run: null };
+    box.window.EasyDrag.testing.createResults(ed, { el: { appendChild() {} } });
+    const paint = record => { ed.run = { id: 'r1', mode: 'live', status: 'error', steps: new Map(), record }; onRun(); return body.innerHTML; };
+    const failedStart = paint({ id: 'r1', status: 'error', error_code: 'FLOW_START_FAILED', error_message: 'the flow is not published' });
+    assert.ok(failedStart.includes('<p class="ed-hint">ERR FLOW_START_FAILED: the flow is not published</p>'), 'a run-level error without a failed step is shown');
+    assert.ok(!paint({ id: 'r2', status: 'error' }).includes('ERR '), 'no error_code, no hint');
+}
+console.log('easydrag start failure results: ok');

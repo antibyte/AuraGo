@@ -481,6 +481,17 @@ export async function run(env) {
         ]);
         eq('b5 G3 the retained-run fallback words exist in all 16 locales', missingKeys(apps, ['easydrag.ui.run_view_missing', 'easydrag.ui.child_history_legacy']), []);
     });
+    await guardAsync('b5 G3 a start-failed run with no document notifies the start failure, not "version cleaned up"', async () => {
+        const s = await session(req => (req.url === '/api/desktop/flows/runs/r1?include=doc'
+            ? { run: { id: 'r1', status: 'error', mode: 'live', revision: 0, error_code: 'FLOW_START_FAILED', error_message: 'the flow is not published' }, steps: [], doc_missing: 'version_pruned' } : undefined));
+        s.editor.showRun('r1');
+        await settle();
+        const note = s.h.notes.at(-1) || {};
+        eq('b5 G3 a FLOW_START_FAILED run notifies an error with the start-failure text and opens no modal',
+            [s.h.notes.length, note.type, String(note.message).includes('error_flow_start_failed'), String(note.message).includes('run_view_'), !!s.ed.runView, s.h.dialogs.length],
+            [1, 'error', true, false, false, 0]);
+        s.editor.dispose();
+    });
     // ── U12: header Undo/Redo and the deletion toast ──
 
     await guardAsync('b5 U12 header Undo and Redo, and a toast that takes a deletion back', async () => {

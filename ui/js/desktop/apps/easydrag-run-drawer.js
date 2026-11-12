@@ -155,6 +155,11 @@
             try {
                 const detail = await ed.api.run(runId, true);
                 if (rc.disposed || mine !== rc.viewSeq) return;
+                if (detail.run && detail.run.error_code === 'FLOW_START_FAILED') {
+                    // A run that never started has no flow version to show (S0c review A); say why it failed.
+                    ed.ctx.notify({ title: t('easydrag.ui.runs_title'), message: core.stepErrorText(t, detail.run), type: 'error' });
+                    return;
+                }
                 if (!detail.doc) {
                     ED.childHistory.missing(ed, detail);
                     return;
