@@ -1082,6 +1082,7 @@ the contracts below describe the implemented behavior of each delivered slice.
   enforces this: `TestCatalogTranslationsAreComplete` (en holds every key; every locale holds exactly en's keys,
   the server's `easydrag.notify.*` and `easydrag.option.*` strings included, with the same placeholders) and
   `TestTemplatesAreValidInEveryLocale` (the starter templates validate in every locale).
+- After changing a node label or description in `ui/lang/easydrag/en.json` or `de.json`, run `go run ./cmd/flowsdoc`; T0's drift test `TestFlowsDocBlocksMatchTheCatalog` fails otherwise.
 
 ## Credential purge backups
 

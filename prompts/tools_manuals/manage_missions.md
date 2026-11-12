@@ -22,6 +22,27 @@ Missions support four execution types (set via the V2 API):
 
 For a saved durable flow run, history may report `status: "unknown"` when its authoritative run can no longer be checked. `last_known_status` is an earlier observation, not evidence that the run is still active or finished. Confirm the run in EasyDrag before describing an outcome.
 
+## Flow trigger types
+
+A flow starts from its trigger nodes. These are the types (type id, name, what starts the flow). The triggers of a flow are set in EasyDrag; this tool cannot add or change them.
+
+<!-- BEGIN GENERATED: flows-triggers -->
+- `trigger.startup` (AuraGo start): Starts every time AuraGo starts.
+- `trigger.budget` (Budget alert): Starts when the AI budget reaches its warning level or is used up.
+- `trigger.datetime` (Date & time): Starts once at a date and time, or every year.
+- `trigger.device` (Device): Starts when a remote device connects or disconnects.
+- `trigger.email` (Email received): Starts when a matching email arrives.
+- `trigger.ha_state` (Home Assistant state): Starts when a Home Assistant entity changes its state.
+- `trigger.manual` (Manual start): Starts with “Run now” and with test runs.
+- `trigger.mission_completed` (Mission finished): Starts when another mission or flow has finished.
+- `trigger.mqtt` (MQTT message): Starts when a message arrives on an MQTT topic.
+- `trigger.person_detected` (Person detected): Starts when a network camera detects a person.
+- `trigger.fritzbox_call` (Phone call): Starts on a Fritz!Box call or voicemail.
+- `trigger.planner` (Planner): Starts when an appointment is due or a to-do is overdue.
+- `trigger.schedule` (Schedule): Starts at regular times, for example every weekday at 7:00.
+- `trigger.webhook` (Webhook): Starts when a webhook is called.
+<!-- END GENERATED: flows-triggers -->
+
 ## Examples
 
 ```json

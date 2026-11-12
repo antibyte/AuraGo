@@ -24,6 +24,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 13. [When EasyDrag Is Switched Off](#when-easydrag-is-switched-off)
 14. [Keyboard Shortcuts](#keyboard-shortcuts)
 15. [Reusable Local Blocks](#reusable-local-blocks)
+16. [Reference: triggers and steps](#reference-triggers-and-steps)
 
 ---
 
@@ -544,6 +545,68 @@ Ctrl+S, Ctrl+Enter and Ctrl+K work in the editor, including while the step inspe
 | Alt+Shift+F | Arrange automatically |
 | ? | Show these shortcuts |
 | Esc | Close or clear the selection; in a run view, back to the draft |
+
+## Reference: triggers and steps
+
+<!-- The two tables below are generated from the building-block catalog. Run `go run ./cmd/flowsdoc` to update them; a test fails when they no longer match. -->
+
+Names, descriptions and effects come from the building-block catalog. *Effects* are what a block does with its default settings. What a flow really does is decided when you publish, from the actual settings of each step (see [Publishing](#publishing)); an HTTP request with POST, for example, counts as sending. Generic tool steps ("any permitted tool") depend on the tool and are not listed. *In Simulation* says what the Simulation of the test dialog does with the block (see [Testing](#testing)).
+
+### Triggers
+
+<!-- BEGIN GENERATED: flows-triggers -->
+| Name | Category | What it does | Effects (default settings) | In Simulation |
+|---|---|---|---|---|
+| AuraGo start | Triggers | Starts every time AuraGo starts. | None | Supplies the test data |
+| Budget alert | Triggers | Starts when the AI budget reaches its warning level or is used up. | None | Supplies the test data |
+| Date & time | Triggers | Starts once at a date and time, or every year. | None | Supplies the test data |
+| Device | Triggers | Starts when a remote device connects or disconnects. | None | Supplies the test data |
+| Email received | Triggers | Starts when a matching email arrives. | None | Supplies the test data |
+| Home Assistant state | Triggers | Starts when a Home Assistant entity changes its state. | None | Supplies the test data |
+| Manual start | Triggers | Starts with “Run now” and with test runs. | None | Supplies the test data |
+| Mission finished | Triggers | Starts when another mission or flow has finished. | None | Supplies the test data |
+| MQTT message | Triggers | Starts when a message arrives on an MQTT topic. | None | Supplies the test data |
+| Person detected | Triggers | Starts when a network camera detects a person. | None | Supplies the test data |
+| Phone call | Triggers | Starts on a Fritz!Box call or voicemail. | None | Supplies the test data |
+| Planner | Triggers | Starts when an appointment is due or a to-do is overdue. | None | Supplies the test data |
+| Schedule | Triggers | Starts at regular times, for example every weekday at 7:00. | None | Supplies the test data |
+| Webhook | Triggers | Starts when a webhook is called. | None | Supplies the test data |
+<!-- END GENERATED: flows-triggers -->
+
+### Steps
+
+<!-- BEGIN GENERATED: flows-steps -->
+| Name | Category | What it does | Effects (default settings) | In Simulation |
+|---|---|---|---|---|
+| Call block | Logic | Use an exact published block version with named inputs. The call has no automatic retries. | None | Runs locally |
+| For each item | Logic | Process a list in order with one published pure block version. | None | Runs locally |
+| If | Logic | Continues on “true” or “false” depending on a condition. | None | Runs locally |
+| Merge | Logic | Waits for several branches and combines their results. | None | Runs locally |
+| Persistent wait | Logic | Saves this pure local run and continues after the wait, including after a restart. Requires enabled restart-safe processing. | None | Cannot be simulated |
+| Request approval | Logic | Pauses this eligible local flow until an administrator reviews the complete request. Opening it never approves it. | None | Cannot be simulated |
+| Set fields | Logic | Creates fields from fixed values or data of earlier steps. | None | Runs locally |
+| Stop | Logic | Ends the run with success or with an error. | None | Runs locally |
+| Switch | Logic | Routes the data to the first or to every matching case. | None | Runs locally |
+| Wait | Logic | Pauses the run for a while or until a time (at most 60 minutes). | None | Replaced by your sample output |
+| AI step | AI | Asks the AI model and returns text or structured fields. | None | Replaced by your sample output |
+| Decision | AI | Scores choices against state and registered images. Routes on one question or returns structured answers. | None | Replaced by your sample output |
+| HTTP request | Web | Calls a web API and returns the response. | None | Replaced by your sample output |
+| Read web page | Web | Loads a web page or an RSS feed and returns its text. | None | Replaced by your sample output |
+| Web search | Web | Searches the web and returns the top results. | None | Replaced by your sample output |
+| Create PDF | Documents & files | Creates a PDF document from text, Markdown or HTML. | Writes files | Replaced by your sample output |
+| Read file | Documents & files | Reads a text file from the workspace. | None | Replaced by your sample output |
+| Read PDF | Documents & files | Extracts the text of a PDF file. | None | Replaced by your sample output |
+| Write file | Documents & files | Writes text to a file in the workspace. | Writes files | Replaced by your sample output |
+| Discord message | Notifications | Sends a message to a Discord channel. | Sends messages | Replaced by your sample output |
+| Push notification | Notifications | Sends a notification to your devices. | Sends messages | Replaced by your sample output |
+| Send email | Notifications | Sends an email, optionally with an attachment. | Sends messages | Replaced by your sample output |
+| Telegram message | Notifications | Sends a Telegram message, optionally with a file. | Sends messages | Replaced by your sample output |
+| WhatsApp message | Notifications | Sends you a WhatsApp message, optionally with a file. | Sends messages | Replaced by your sample output |
+| Home Assistant | Smart home | Reads the state of an entity or calls a Home Assistant service. | Controls devices | Replaced by your sample output |
+| MQTT publish | Smart home | Publishes a message to an MQTT topic. | Controls devices | Replaced by your sample output |
+| Add appointment | Planner | Creates an appointment in the planner. | None | Replaced by your sample output |
+| Add to-do | Planner | Creates a to-do in the planner. | None | Replaced by your sample output |
+<!-- END GENERATED: flows-steps -->
 
 ---
 

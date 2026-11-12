@@ -24,6 +24,7 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 13. [Wenn EasyDrag abgeschaltet ist](#wenn-easydrag-abgeschaltet-ist)
 14. [Tastenkürzel](#tastenkürzel)
 15. [Wiederverwendbare lokale Bausteine](#wiederverwendbare-lokale-bausteine)
+16. [Referenz: Auslöser und Schritte](#referenz-auslöser-und-schritte)
 
 ---
 
@@ -610,6 +611,68 @@ Strg+S, Strg+Enter und Strg+K wirken im Editor, auch solange der Schritt-Inspekt
 | Alt+Umschalt+F | Automatisch anordnen |
 | ? | Diese Kürzel zeigen |
 | Esc | Schließen oder Auswahl aufheben; in der Ansicht eines Laufs zurück zum Entwurf |
+
+## Referenz: Auslöser und Schritte
+
+<!-- Die beiden Tabellen unten werden aus dem Baustein-Katalog erzeugt. `go run ./cmd/flowsdoc` aktualisiert sie; ein Test schlägt fehl, wenn sie nicht mehr zum Katalog passen. -->
+
+Namen, Beschreibungen und Wirkungen stammen aus dem Baustein-Katalog. *Wirkungen* nennt, was ein Baustein mit seinen Standardeinstellungen tut. Was ein Flow wirklich tut, entscheidet sich beim Veröffentlichen aus den tatsächlichen Einstellungen jedes Schritts (siehe [Veröffentlichen](#veröffentlichen)); eine HTTP-Anfrage mit POST zählt zum Beispiel als Senden. Generische Werkzeug-Schritte („jedes freigegebene Werkzeug“) hängen vom Werkzeug ab und stehen nicht in der Liste. *In der Simulation* sagt, was die Simulation des Testdialogs mit dem Baustein macht (siehe [Testen](#testen)).
+
+### Auslöser
+
+<!-- BEGIN GENERATED: flows-triggers -->
+| Name | Kategorie | Was er tut | Wirkungen (Standardeinstellungen) | In der Simulation |
+|---|---|---|---|---|
+| AuraGo-Start | Auslöser | Startet bei jedem Start von AuraGo. | Keine | Liefert die Testdaten |
+| Budget-Warnung | Auslöser | Startet, wenn das KI-Budget die Warnschwelle erreicht oder aufgebraucht ist. | Keine | Liefert die Testdaten |
+| Datum & Uhrzeit | Auslöser | Startet einmal zu einem Zeitpunkt oder jedes Jahr. | Keine | Liefert die Testdaten |
+| E-Mail empfangen | Auslöser | Startet, wenn eine passende E-Mail ankommt. | Keine | Liefert die Testdaten |
+| Gerät | Auslöser | Startet, wenn sich ein entferntes Gerät verbindet oder trennt. | Keine | Liefert die Testdaten |
+| Home-Assistant-Zustand | Auslöser | Startet, wenn eine Home-Assistant-Entität ihren Zustand ändert. | Keine | Liefert die Testdaten |
+| Manueller Start | Auslöser | Startet mit „Jetzt ausführen“ und bei Testläufen. | Keine | Liefert die Testdaten |
+| Mission beendet | Auslöser | Startet, wenn eine andere Mission oder ein anderer Flow fertig ist. | Keine | Liefert die Testdaten |
+| MQTT-Nachricht | Auslöser | Startet, wenn eine Nachricht in einem MQTT-Topic ankommt. | Keine | Liefert die Testdaten |
+| Person erkannt | Auslöser | Startet, wenn eine Netzwerkkamera eine Person erkennt. | Keine | Liefert die Testdaten |
+| Planer | Auslöser | Startet, wenn ein Termin fällig oder eine Aufgabe überfällig ist. | Keine | Liefert die Testdaten |
+| Telefonanruf | Auslöser | Startet bei einem Fritz!Box-Anruf oder einer Sprachnachricht. | Keine | Liefert die Testdaten |
+| Webhook | Auslöser | Startet, wenn ein Webhook aufgerufen wird. | Keine | Liefert die Testdaten |
+| Zeitplan | Auslöser | Startet zu festen Zeiten, zum Beispiel werktags um 7:00. | Keine | Liefert die Testdaten |
+<!-- END GENERATED: flows-triggers -->
+
+### Schritte
+
+<!-- BEGIN GENERATED: flows-steps -->
+| Name | Kategorie | Was er tut | Wirkungen (Standardeinstellungen) | In der Simulation |
+|---|---|---|---|---|
+| Baustein aufrufen | Logik | Verwende eine genaue veröffentlichte Bausteinversion mit benannten Eingaben. Der Aufruf wird nicht automatisch wiederholt. | Keine | Läuft lokal |
+| Felder setzen | Logik | Erzeugt Felder aus festen Werten oder Daten früherer Schritte. | Keine | Läuft lokal |
+| Fortsetzbare Wartezeit | Logik | Speichert diesen rein lokalen Lauf und setzt ihn nach der Wartezeit fort, auch nach einem Neustart. Erfordert aktivierte fortsetzbare Verarbeitung. | Keine | Lässt sich nicht simulieren |
+| Freigabe anfordern | Logik | Hält diesen geeigneten lokalen Flow an, bis ein Admin die vollständige Anfrage prüft. Das Öffnen erteilt keine Freigabe. | Keine | Lässt sich nicht simulieren |
+| Für jeden Eintrag | Logik | Verarbeitet eine Liste in Reihenfolge mit einer veröffentlichten reinen Bausteinversion. | Keine | Läuft lokal |
+| Stopp | Logik | Beendet den Lauf mit Erfolg oder mit einem Fehler. | Keine | Läuft lokal |
+| Verzweigung | Logik | Leitet die Daten zum ersten oder zu jedem passenden Fall. | Keine | Läuft lokal |
+| Warten | Logik | Pausiert den Lauf eine Weile oder bis zu einer Uhrzeit (höchstens 60 Minuten). | Keine | Wird durch deine Beispielausgabe ersetzt |
+| Wenn | Logik | Geht je nach Bedingung bei „wahr“ oder „falsch“ weiter. | Keine | Läuft lokal |
+| Zusammenführen | Logik | Wartet auf mehrere Zweige und fasst ihre Ergebnisse zusammen. | Keine | Läuft lokal |
+| Entscheidung | KI | Bewertet Optionen anhand des Zustands und registrierter Bilder. Leitet eine Frage weiter oder liefert strukturierte Antworten. | Keine | Wird durch deine Beispielausgabe ersetzt |
+| KI-Schritt | KI | Fragt das KI-Modell und liefert Text oder strukturierte Felder. | Keine | Wird durch deine Beispielausgabe ersetzt |
+| HTTP-Anfrage | Web | Ruft eine Web-API auf und liefert die Antwort. | Keine | Wird durch deine Beispielausgabe ersetzt |
+| Webseite lesen | Web | Lädt eine Webseite oder einen RSS-Feed und liefert den Text. | Keine | Wird durch deine Beispielausgabe ersetzt |
+| Websuche | Web | Durchsucht das Web und liefert die besten Treffer. | Keine | Wird durch deine Beispielausgabe ersetzt |
+| Datei lesen | Dokumente & Dateien | Liest eine Textdatei aus dem Arbeitsbereich. | Keine | Wird durch deine Beispielausgabe ersetzt |
+| Datei schreiben | Dokumente & Dateien | Schreibt Text in eine Datei im Arbeitsbereich. | Schreibt Dateien | Wird durch deine Beispielausgabe ersetzt |
+| PDF erstellen | Dokumente & Dateien | Erstellt ein PDF-Dokument aus Text, Markdown oder HTML. | Schreibt Dateien | Wird durch deine Beispielausgabe ersetzt |
+| PDF lesen | Dokumente & Dateien | Liest den Text einer PDF-Datei aus. | Keine | Wird durch deine Beispielausgabe ersetzt |
+| Discord-Nachricht | Benachrichtigungen | Sendet eine Nachricht in einen Discord-Kanal. | Sendet Nachrichten | Wird durch deine Beispielausgabe ersetzt |
+| E-Mail senden | Benachrichtigungen | Sendet eine E-Mail, auf Wunsch mit Anhang. | Sendet Nachrichten | Wird durch deine Beispielausgabe ersetzt |
+| Push-Benachrichtigung | Benachrichtigungen | Sendet eine Benachrichtigung an deine Geräte. | Sendet Nachrichten | Wird durch deine Beispielausgabe ersetzt |
+| Telegram-Nachricht | Benachrichtigungen | Sendet eine Telegram-Nachricht, auf Wunsch mit Datei. | Sendet Nachrichten | Wird durch deine Beispielausgabe ersetzt |
+| WhatsApp-Nachricht | Benachrichtigungen | Sendet dir eine WhatsApp-Nachricht, auf Wunsch mit Datei. | Sendet Nachrichten | Wird durch deine Beispielausgabe ersetzt |
+| Home Assistant | Smart Home | Liest den Zustand einer Entität oder ruft einen Home-Assistant-Dienst auf. | Steuert Geräte | Wird durch deine Beispielausgabe ersetzt |
+| MQTT senden | Smart Home | Veröffentlicht eine Nachricht in einem MQTT-Topic. | Steuert Geräte | Wird durch deine Beispielausgabe ersetzt |
+| Aufgabe anlegen | Planer | Legt eine Aufgabe im Planer an. | Keine | Wird durch deine Beispielausgabe ersetzt |
+| Termin anlegen | Planer | Legt einen Termin im Planer an. | Keine | Wird durch deine Beispielausgabe ersetzt |
+<!-- END GENERATED: flows-steps -->
 
 ---
 
