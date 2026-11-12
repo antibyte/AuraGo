@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -56,12 +57,33 @@ func newSmokeBrowser(t *testing.T) *rod.Browser {
 func newSmokeBrowserWith(t *testing.T, tweak func(*launcher.Launcher)) *rod.Browser {
 	t.Helper()
 
+	browser, stop, failure := launchSmokeBrowser(tweak)
+	if failure != nil {
+		if failure.unavailable {
+			browserSmokeUnavailable(t, "%s", failure.message)
+		}
+		t.Fatal(failure.message)
+	}
+	t.Cleanup(stop)
+	return browser
+}
+
+// smokeBrowserFailure says why launchSmokeBrowser gave no browser. unavailable means Chrome is
+// missing or would not start: a test skips then, unless AURAGO_RUN_BROWSER_SMOKE=1 demands it.
+type smokeBrowserFailure struct {
+	message     string
+	unavailable bool
+}
+
+// launchSmokeBrowser starts a headless Chrome the way every smoke test does and returns it with a
+// stop function (close the browser, kill the process, cancel the launch context). It ties nothing
+// to a *testing.T, so the shared EasyDrag browser can outlive the test that started it.
+func launchSmokeBrowser(tweak func(*launcher.Launcher)) (*rod.Browser, func(), *smokeBrowserFailure) {
 	bin, ok := browserExecutable()
 	if !ok {
-		browserSmokeUnavailable(t, "headless browser smoke test requires Chrome or Edge (set CHROME_BIN)")
+		return nil, nil, &smokeBrowserFailure{message: "headless browser smoke test requires Chrome or Edge (set CHROME_BIN)", unavailable: true}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
-	t.Cleanup(cancel)
 	l := launcher.New().
 		Context(ctx).
 		Bin(bin).
@@ -69,10 +91,11 @@ func newSmokeBrowserWith(t *testing.T, tweak func(*launcher.Launcher)) *rod.Brow
 		NoSandbox(true).
 		Set("disable-gpu").
 		Set("disable-dev-shm-usage")
+	kill := func() {}
 	if runtime.GOOS == "windows" {
 		// Rod's leakless helper can hang before publishing the child PID on Windows.
 		l.Leakless(false)
-		t.Cleanup(l.Kill)
+		kill = l.Kill
 	}
 	if os.Getenv("AURAGO_BROWSER_MUTE_AUDIO") == "1" {
 		l.Set("mute-audio")
@@ -82,14 +105,17 @@ func newSmokeBrowserWith(t *testing.T, tweak func(*launcher.Launcher)) *rod.Brow
 	}
 	u, err := l.Launch()
 	if err != nil {
-		browserSmokeUnavailable(t, "headless browser launch failed: %v", err)
+		kill()
+		cancel()
+		return nil, nil, &smokeBrowserFailure{message: fmt.Sprintf("headless browser launch failed: %v", err), unavailable: true}
 	}
 	browser := rod.New().ControlURL(u)
 	if err := browser.Connect(); err != nil {
-		t.Fatalf("connect headless browser for UI smoke test: %v", err)
+		kill()
+		cancel()
+		return nil, nil, &smokeBrowserFailure{message: fmt.Sprintf("connect headless browser for UI smoke test: %v", err)}
 	}
-	t.Cleanup(func() { _ = browser.Close() })
-	return browser
+	return browser, func() { _ = browser.Close(); kill(); cancel() }, nil
 }
 
 func browserExecutable() (string, bool) {

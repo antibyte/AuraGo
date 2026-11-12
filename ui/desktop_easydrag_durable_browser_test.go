@@ -62,8 +62,7 @@ func TestDesktopEasyDragDurableBrowser(t *testing.T) {
 func TestConfigEasyDragDurableSwitchBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	origin := configRefreshFixtureOrigin(t, "de", false)
-	p := newSmokeBrowser(t).MustPage()
-	defer p.MustClose()
+	p := newEasyDragPage(t, easyDragSmokeOptions{})
 	p.MustEvalOnNewDocument(`(()=>{const old=window.fetch.bind(window);window.fetch=async(input,init)=>{const u=new URL(String(input),location.href),result=await old(input,init);if(u.pathname==='/api/config' && (!init||!init.method||init.method==='GET') && result.ok){const body=await result.json();body.flows=Object.assign({},body.flows,{durable_enabled:false});body._flows_durable_status={configured:false,effective:false,recovery_available:false,reason:'service_unavailable',waiting_count:null,claimed_count:null,blocked_count:null};return new Response(JSON.stringify(body),{status:200,headers:{'Content-Type':'application/json'}});}return result;};})()`)
 	p.MustSetViewport(1440, 900, 1, false)
 	p.MustNavigate(origin + "/config#flows").MustWaitLoad()

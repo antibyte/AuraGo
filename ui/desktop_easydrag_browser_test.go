@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -337,6 +338,8 @@ func (s *easyDragSmoke) deletedElsewhere() {
 	s.failOnPageErrors("deleted elsewhere")
 }
 
+// easydrag-helpers:begin (TestEasyDragBrowserTestsUseTheSmokeHelper allows browser launches in this section only)
+
 // easyDragSmoke holds the page and the screenshot folder of TestDesktopEasyDragBrowser.
 type easyDragSmoke struct {
 	t    *testing.T
@@ -344,10 +347,85 @@ type easyDragSmoke struct {
 	dir  string
 }
 
+// easyDragSmokeOptions changes how startEasyDragSmokeWith opens the editor.
+type easyDragSmokeOptions struct {
+	Fixtures       []string // extra fixture scripts, as startEasyDragSmoke's variadic argument
+	PrivateBrowser bool     // an own Chrome instead of the shared one (launch flags, browser-wide state)
+	Motion         bool     // leave prefers-reduced-motion alone; the test sets it itself
+	Width, Height  int      // the viewport; 0 means 1440×900
+}
+
+// sharedEasyDragChrome is the one Chrome of the go test process. TestMain closes it.
+var sharedEasyDragChrome struct {
+	once    sync.Once
+	browser *rod.Browser
+	stop    func()
+	failure *smokeBrowserFailure
+}
+
+// sharedEasyDragBrowser returns the Chrome that every EasyDrag browser test shares, started on
+// first use. Tests take a fresh incognito context of it (newEasyDragPage) and never close it.
+func sharedEasyDragBrowser(t *testing.T) *rod.Browser {
+	t.Helper()
+	c := &sharedEasyDragChrome
+	c.once.Do(func() { c.browser, c.stop, c.failure = launchSmokeBrowser(nil) })
+	if c.failure != nil {
+		if c.failure.unavailable {
+			browserSmokeUnavailable(t, "%s", c.failure.message)
+		}
+		t.Fatal(c.failure.message)
+	}
+	return c.browser
+}
+
+// closeSharedEasyDragBrowser is TestMain's end of sharedEasyDragBrowser; it does nothing when no
+// test started the browser.
+func closeSharedEasyDragBrowser() {
+	if sharedEasyDragChrome.stop != nil {
+		sharedEasyDragChrome.stop()
+	}
+}
+
+// newEasyDragPage opens a blank page in a fresh incognito context of the shared browser (or in an
+// own Chrome with PrivateBrowser) and sets the viewport. The page and its context close in
+// t.Cleanup, the page first.
+func newEasyDragPage(t *testing.T, opts easyDragSmokeOptions) *rod.Page {
+	t.Helper()
+	var browser *rod.Browser
+	if opts.PrivateBrowser {
+		browser = newSmokeBrowser(t)
+	} else {
+		incognito, err := sharedEasyDragBrowser(t).Incognito()
+		if err != nil {
+			t.Fatalf("open an incognito context in the shared browser: %v", err)
+		}
+		t.Cleanup(func() { _ = incognito.Close() })
+		browser = incognito
+	}
+	page := browser.MustPage().Timeout(150 * time.Second)
+	t.Cleanup(func() { _ = page.Close() })
+	width, height := opts.Width, opts.Height
+	if width == 0 {
+		width = 1440
+	}
+	if height == 0 {
+		height = 900
+	}
+	page.MustSetViewport(width, height, 1, false)
+	return page
+}
+
 // startEasyDragSmoke serves the desktop shell with the aurora and EasyDrag fixtures and opens
 // EasyDrag in a 1440×900 page.
 func startEasyDragSmoke(t *testing.T, extraFixtures ...string) *easyDragSmoke {
 	t.Helper()
+	return startEasyDragSmokeWith(t, easyDragSmokeOptions{Fixtures: extraFixtures})
+}
+
+// startEasyDragSmokeWith is startEasyDragSmoke with options.
+func startEasyDragSmokeWith(t *testing.T, opts easyDragSmokeOptions) *easyDragSmoke {
+	t.Helper()
+	extraFixtures := opts.Fixtures
 	html := regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(readDesktopAssetText(t, "desktop.html"), "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
 	html = strings.Replace(html, "</body>", `<script src="/js/shared/lazy-assets.js"></script><script src="/js/desktop/core/module-loader.js"></script><script src="/easydrag-shell.js"></script><script src="/testdata/aurora-fixture.js"></script><script src="/testdata/easydrag-fixture.js"></script></body>`, 1)
@@ -415,13 +493,13 @@ func startEasyDragSmoke(t *testing.T, extraFixtures ...string) *easyDragSmoke {
 		t.Fatal(err)
 	}
 
-	page := newSmokeBrowser(t).MustPage().Timeout(150 * time.Second)
-	t.Cleanup(func() { _ = page.Close() })
-	page.MustSetViewport(1440, 900, 1, false)
+	page := newEasyDragPage(t, opts)
 	page.MustNavigate(srv.URL + "/fixture").MustWaitLoad()
 	page.MustEval(`async()=>{await fixtureReady;await fixtureOpen('easydrag');}`)
 	return &easyDragSmoke{t: t, page: page, dir: dir}
 }
+
+// easydrag-helpers:end
 
 func (s *easyDragSmoke) wait(expr string) {
 	s.t.Helper()
