@@ -19,7 +19,8 @@
         const ctx = context || {}, esc = ctx.esc || escapeHTML;
         const tr = (key, params) => ctx.t?.('desktop.writer_' + key, params) || key;
         const commands = window.WriterCommands.create({tr, t: (key, params) => ctx.t?.(key, params) || key, readonly: !!ctx.readonly,
-            editor: () => editor, lib: () => lib, loading: () => loading, act: id => act(id), notice, refresh: () => refresh()});
+            editor: () => editor, lib: () => lib, loading: () => loading, act: id => act(id), notice, refresh: () => refresh(),
+            format: value => Number(value).toLocaleString(locale)});
         const {can, run} = commands, colors = window.WriterCommands.colors;
         const icon = window.WriterToolbar.icons(ctx, esc);
         const button = id => '<button type="button" data-action="' + id + '" title="' + esc(commands.tooltip(id)) + '" aria-label="' + esc(commands.label(id)) + '">' + icon(commands.get(id).icon, commands.get(id).fallback) + '</button>';
@@ -52,13 +53,14 @@
         const state = {ctx,esc,tr,root,find,get editor(){return editor;},get lib(){return lib;},
             get revision(){return queue?.revision || 0;}, get readonly(){return !!ctx.readonly;},
             commands,run,can,blocked:commands.blocked,notice,prompt:(key,value)=>ctx.promptDialog(tr(key),value || ''),
-            form:(title,fields)=>window.AuraFormDialog.open({title:tr(title),fields,submitLabel:ctx.t('desktop.ok'),cancelLabel:ctx.t('desktop.cancel'),signal:documentLife.signal}),
+            windowId,signal:()=>documentLife.signal,countWords:text=>countWords(text),
             act,refresh:()=>refresh(),pinSelection,
             markCommand:commands.valueCommand,colorHex:colors.hex,highlightHex:colors.highlightHex,
             get author(){return author;},set author(value){author=value;localStorage.setItem('aurago.writer.author',value);editor.setAuthor(value);}
         };
         const panels = window.WriterPanels.create(state);
         const toolbar = window.WriterToolbar.create(state);
+        const dialogs = window.WriterDialogs.create(state);
         const instance = {dispose:cleanup,get editor(){return editor;},get session(){return queue;},get path(){return path;},act,reloadIfChanged};
         instances.set(windowId,instance);
         window.AuraDesktopEmail?.attach(windowId, '.writer-documentbar', () => ({
@@ -503,7 +505,11 @@
                     case 'focus':setFocus(!root.classList.contains('writer-focus'));break;
                     case 'fit':editor?.setZoomMode({type:'fit',fit:'pageWidth',minZoom:.25,maxZoom:1});refresh();break;
                     case 'zoomIn':case 'zoomOut':editor?.setZoom(Math.max(.25,Math.min(3,editor.getZoom()+(action==='zoomIn'?.1:-.1))));refresh();break;
-                    case 'page':{const value=await ctx.promptDialog(tr('go_page'),String(editor?.getCurrentPage() || 1));if(value && editor)editor.scrollToPage(Math.max(1,Math.min(editor.getTotalPages(),Number(value)||1)));break;}
+                    case 'page':case 'goToPage':await dialogs.goToPage();break;
+                    case 'table':await dialogs.table();break;
+                    case 'link':await dialogs.link();break;
+                    case 'wordCount':await dialogs.wordCount();break;
+                    case 'shortcuts':await dialogs.shortcuts();break;
                     case 'image':find('[data-image]').click();break;
                     case 'qr':await insertQR();break;
                     case 'print':if(editor)await panels.print(await editor.save(),lib,documentFonts);break;

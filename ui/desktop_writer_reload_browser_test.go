@@ -67,7 +67,7 @@ func TestDesktopWriterReloadsChangedFileOnReopen(t *testing.T) {
 		fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <link rel="stylesheet" href="/js/vendor/writer/engine.css"><link rel="stylesheet" href="/css/desktop-app-writer.css">
 <style>html,body{margin:0;height:100%}#host{height:100%}</style></head><body class="desktop-body"><div id="host"></div>
-<script src="/js/vendor/purify.min.js"></script><script src="/js/vendor/marked.min.js"></script><script src="/js/desktop/apps/writer-session.js"></script><script src="/js/desktop/apps/writer-commands.js"></script><script src="/js/desktop/shared/form-dialog.js"></script><script src="/js/desktop/apps/writer-toolbar.js"></script><script src="/js/desktop/apps/writer-panels.js"></script><script src="/js/desktop/apps/writer.js"></script>
+<script src="/js/vendor/purify.min.js"></script><script src="/js/vendor/marked.min.js"></script><script src="/js/desktop/apps/writer-session.js"></script><script src="/js/desktop/apps/writer-commands.js"></script><script src="/js/desktop/shared/form-dialog.js"></script><script src="/js/desktop/apps/writer-toolbar.js"></script><script src="/js/desktop/apps/writer-dialogs.js"></script><script src="/js/desktop/apps/writer-panels.js"></script><script src="/js/desktop/apps/writer.js"></script>
 <script>window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/en.json')).json();WriterApp.render(document.getElementById('host'),'test',{path:'`+docPath+`',t:(key,params)=>String(labels[key]||key).replace(/\{\{(\w+)\}\}/g,(_,x)=>params?.[x]??''),promptDialog:async(title,value)=>value,confirmDialog:async()=>false,setWindowBeforeClose:()=>{},setWindowMenus:()=>{}});})();</script></body></html>`)
 	})
 	srv := httptest.NewServer(mux)
