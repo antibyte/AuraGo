@@ -2,6 +2,7 @@ package server
 
 import (
 	"aurago/internal/flows"
+	"aurago/internal/security"
 	"context"
 	"net/http"
 	"strconv"
@@ -72,5 +73,41 @@ func TestCredentialScanEndpointNeedsAdminAndNeverReturnsAValue(t *testing.T) {
 	}
 	if w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/credentials/scan", token, "{}"); w.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("POST scan = %d, want 405", w.Code)
+	}
+}
+
+func TestCredentialPurgeEndpointWithAndWithoutAMasterKey(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	doc, err := flows.ParseFlow([]byte(tokenFlowJSON))
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc.ID = "flow_tokenflow2"
+	if _, err := s.Flows.Store().CreateFlow(context.Background(), doc, "", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	security.RetainProcessMasterKey("")
+	if w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/credentials/purge", token, `{"snapshots":[]}`); w.Code != http.StatusUnprocessableEntity || flowsBody(t, w)["code"] != "FLOW_PURGE_NO_KEY" {
+		t.Fatalf("purge without a master key = %d %s, want 422 FLOW_PURGE_NO_KEY", w.Code, w.Body.String())
+	}
+	security.RetainProcessMasterKey(strings.Repeat("0123456789abcdef", 4))
+	t.Cleanup(func() { security.RetainProcessMasterKey("") })
+	if w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/credentials/purge", token, `{"snapshots":[".flows-v7-backup-nothere"]}`); w.Code != http.StatusBadRequest || flowsBody(t, w)["code"] != "FLOW_PURGE_SNAPSHOT_INVALID" {
+		t.Fatalf("purge of a missing snapshot = %d %s", w.Code, w.Body.String())
+	}
+	if w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/credentials/purge", token, `{"snapshots":[]}`); w.Code != http.StatusAccepted {
+		t.Fatalf("purge = %d %s, want 202", w.Code, w.Body.String())
+	}
+	deadline := time.Now().Add(20 * time.Second)
+	for {
+		w := flowsCall(t, s, http.MethodGet, "/api/desktop/flows/credentials/purge", token, "")
+		state := flowsBody(t, w)["state"].(map[string]any)
+		if state["status"] == "done" {
+			break
+		}
+		if state["status"] == "failed" || time.Now().After(deadline) {
+			t.Fatalf("purge state = %v", state)
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }

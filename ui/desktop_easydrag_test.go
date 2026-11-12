@@ -230,6 +230,8 @@ func TestEasyDragUIKeysExistInAllLocales(t *testing.T) {
 		"easydrag.ui.home_bulk_outcome_":  {"confirmed", "save_uncertain", "active", "unresolved", "not_attempted"},
 		"easydrag.ui.pack_":               {"export", "import", "intro", "warning", "parent", "blocks", "block_version", "content", "preview", "import_action", "success", "success_detail", "open", "unknown", "reconcile", "unconfirmed", "invalid", "too_large", "finish_status", "finish_status_text"},
 		"easydrag.ui.error_flow_pack_":    {"too_large", "invalid", "unsupported", "conflict"},
+		"easydrag.ui.error_flow_purge_":   {"busy", "runs_active", "no_key", "no_space", "snapshot_invalid", "unavailable"},
+		"easydrag.ui.cred_step_":          {"backup", "versions", "redact", "compact", "snapshots", "verify"},
 		"easydrag.ui.error_flow_version_": {"purged"},
 		"easydrag.ui.approval_state_":     {"pending", "approved", "rejected", "expired", "cancelled", "stale", "unknown"},
 		"easydrag.ui.approval_blocked_":   {"approval_auth_unavailable", "session_required", "readonly", "durable_disabled", "stale", "key_unavailable", "checkpoint_unavailable", "decision_complete", "deadline_elapsed", "runtime_unavailable"},

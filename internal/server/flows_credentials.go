@@ -24,6 +24,28 @@ func (s *Server) flowsCredentials(w http.ResponseWriter, r *http.Request, rest [
 		}
 		w.Header().Set("Cache-Control", "no-store")
 		flowsJSON(w, http.StatusOK, map[string]any{"report": report})
+	case len(rest) == 1 && rest[0] == "purge":
+		switch r.Method {
+		case http.MethodGet:
+			w.Header().Set("Cache-Control", "no-store")
+			flowsJSON(w, http.StatusOK, map[string]any{"state": s.Flows.CredentialPurgeState()})
+		case http.MethodPost:
+			var body struct {
+				Snapshots []string `json:"snapshots"`
+			}
+			if !flowsDecode(w, r, &body, flowsSmallBodyLimit, false) {
+				return
+			}
+			state, err := s.Flows.StartCredentialPurge(body.Snapshots)
+			if err != nil {
+				s.flowsErrorFrom(w, r, err)
+				return
+			}
+			s.recordFlowAudit("flow_credentials_purge", "", "", "Credential cleanup started")
+			flowsJSON(w, http.StatusAccepted, map[string]any{"state": state})
+		default:
+			flowsMethodNotAllowed(w)
+		}
 	default:
 		flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "unknown flow route")
 	}

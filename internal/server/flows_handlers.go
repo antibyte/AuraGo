@@ -250,6 +250,18 @@ func (s *Server) flowsErrorFrom(w http.ResponseWriter, r *http.Request, err erro
 		flowsError(w, http.StatusConflict, "FLOW_REVISION_CONFLICT", flowsErrorText(err))
 	case errors.Is(err, flows.ErrVersionPurged):
 		flowsError(w, http.StatusConflict, "FLOW_VERSION_PURGED", "this version was marked for credential cleanup")
+	case errors.Is(err, flows.ErrPurgeBusy):
+		flowsError(w, http.StatusConflict, "FLOW_PURGE_BUSY", "a credential cleanup is already running")
+	case errors.Is(err, flows.ErrPurgeRunsActive):
+		flowsError(w, http.StatusConflict, "FLOW_PURGE_RUNS_ACTIVE", "a flow run is running; try again when it has finished")
+	case errors.Is(err, flows.ErrPurgeNoKey):
+		flowsError(w, http.StatusUnprocessableEntity, "FLOW_PURGE_NO_KEY", flowsErrorText(err))
+	case errors.Is(err, flows.ErrPurgeNoSpace):
+		flowsError(w, http.StatusUnprocessableEntity, "FLOW_PURGE_NO_SPACE", flowsErrorText(err))
+	case errors.Is(err, flows.ErrPurgeUnavailable):
+		flowsError(w, http.StatusUnprocessableEntity, "FLOW_PURGE_UNAVAILABLE", flowsErrorText(err))
+	case errors.Is(err, flows.ErrPurgeSnapshot):
+		flowsError(w, http.StatusBadRequest, "FLOW_PURGE_SNAPSHOT_INVALID", "a chosen snapshot does not exist")
 	case errors.Is(err, flows.ErrBlockUnavailable):
 		flowsError(w, http.StatusConflict, "FLOW_BLOCK_UNAVAILABLE", "the referenced block revision is unavailable")
 	case errors.Is(err, flows.ErrBlockInvalid):

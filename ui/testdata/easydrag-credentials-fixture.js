@@ -41,6 +41,8 @@
         const url = new URL(String(input), location.origin), opts = options || {}, method = String(opts.method || 'GET').toUpperCase();
         if (!url.pathname.startsWith(base)) return previous(input, opts);
         const parts = url.pathname.slice(base.length).split('/').filter(Boolean).map(decodeURIComponent);
+        // The start-page hint asks for the scan; this fixture has nothing to clean up.
+        if (method === 'GET' && parts[0] === 'credentials' && parts[1] === 'scan') return reply({ report: { drafts: [], live: [], versions_purgeable: 0, versions_pinned: 0, runs: 0, steps: 0, test_rows: 0, snapshots: [], leftovers: [], backups: [] } });
         const entry = parts[0] && window.edFixture.state.flows.get(parts[0]);
         if (method === 'POST' && entry && parts[1] === 'credentials' && parts[2] === 'move') return move(entry.rec, JSON.parse(opts.body));
         const response = await previous(input, opts);

@@ -378,7 +378,9 @@
             secrets: () => api(base + '/secrets'),
             saveSecret: (name, value) => api(base + '/secrets/' + enc(name), json('PUT', { value })),
             deleteSecret: name => api(base + '/secrets/' + enc(name), { method: 'DELETE' }),
-            credentialScan: (fresh, signal) => api(base + '/credentials/scan' + query({ fresh: fresh ? '1' : '' }), { signal, cache: 'no-store' })
+            credentialScan: (fresh, signal) => api(base + '/credentials/scan' + query({ fresh: fresh ? '1' : '' }), { signal, cache: 'no-store' }),
+            credentialPurgeState: signal => api(base + '/credentials/purge', { signal, cache: 'no-store' }),
+            credentialPurgeStart: snapshots => api(base + '/credentials/purge', json('POST', { snapshots }))
         };
         Object.keys(client).forEach(name => {
             if (name.endsWith('Url')) return;

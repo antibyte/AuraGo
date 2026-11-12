@@ -189,6 +189,7 @@ type Runner struct {
 	resumers             []*resumeWait // parked runs waiting for a slot again (A7)
 	parked               int           // runs whose global slot is given back (A7)
 	nextTicket           uint64        // arrival order of waiting runs and resumers
+	dispatchHeld         bool          // HoldDispatch: nothing starts
 	cancels              map[string]activeRun
 	baseCtx              context.Context
 	baseStop             context.CancelFunc
@@ -481,7 +482,7 @@ func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResul
 	r.mu.Lock()
 	closed, busy := r.closed, exclusive && r.busyLocked(flowID)
 	full := busy && len(r.flowQueue[flowID]) >= r.cfg.MaxQueuedPerFlow
-	slotless := r.slots >= r.cfg.MaxParallelRuns || !r.fitsLocked(flowID, counted)
+	slotless := r.dispatchHeld || r.slots >= r.cfg.MaxParallelRuns || !r.fitsLocked(flowID, counted)
 	if !exclusive && slotless {
 		// For a queue or skip flow's test run, its waiting live run counts too. The check is
 		// made before the second locked step: a resumer (A7) can take the last free slot in
@@ -627,7 +628,7 @@ func (r *Runner) admitLocked(p *pendingRun) bool {
 	}
 	// A run that does not start at once waited, so it asks the gate when it executes (batch 3).
 	// Decided before the launch: the run's goroutine reads the flag.
-	if !(r.slots < r.cfg.MaxParallelRuns && r.fitsLocked(p.rec.FlowID, p.counted) && r.nextWaitingLocked() < 0) {
+	if r.dispatchHeld || !(r.slots < r.cfg.MaxParallelRuns && r.fitsLocked(p.rec.FlowID, p.counted) && r.nextWaitingLocked() < 0) {
 		p.waited = true
 	}
 	r.nextTicket++
@@ -644,7 +645,7 @@ func (r *Runner) admitLocked(p *pendingRun) bool {
 // flow cannot hold up the runs of other flows queued behind its own (S5). Every run in r.waiting
 // has p.waited set unless admitLocked launches it at once, so Runner.execute asks the gate.
 func (r *Runner) dispatchLocked() {
-	for !r.closed && r.slots < r.cfg.MaxParallelRuns {
+	for !r.closed && !r.dispatchHeld && r.slots < r.cfg.MaxParallelRuns {
 		wi, ri := r.nextWaitingLocked(), r.nextResumerLocked()
 		if wi < 0 && ri < 0 {
 			return

@@ -172,6 +172,7 @@ type Service struct {
 	draftLocks flowLocks
 	lastSweep  time.Time // retentionLoop only
 	scan       scanCache
+	purge      purgeState
 
 	// startMu serializes Start. It is not taken by Shutdown, which only needs mu.
 	startMu sync.Mutex

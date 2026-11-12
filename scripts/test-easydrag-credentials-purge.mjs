@@ -30,6 +30,20 @@ export async function run() {
     const markup = purge.hintMarkup(t, Object.assign({}, empty, { runs: 2 }));
     assert.ok(markup.includes('Title &#60;b&#62;') && !markup.includes('<b>'), 'the title is escaped');
     assert.ok(markup.includes('data-ed-credentials-open') && markup.includes('Clean') && markup.includes('Text'));
+    const tt = (key, params) => key + (params ? '[' + Object.values(params).join(',') + ']' : ''); // esc() would mangle JSON quotes
+    const full = Object.assign({}, empty, { versions_purgeable: 2, versions_pinned: 1, runs: 3, steps: 4, test_rows: 5,
+        drafts: [{ flow_id: 'flow_a', name: 'A <i>' }], live: [{ flow_id: 'flow_a', name: 'A <i>' }, { flow_id: 'flow_b', name: 'B' }],
+        snapshots: [{ name: '.flows-v7-backup-abc', bytes: 2048, mod_time: '2026-11-01T10:00:00Z' }] });
+    const dialog = purge.dialogMarkup(tt, full);
+    assert.ok(dialog.includes('cred_purge_versions[2]') && dialog.includes('cred_purge_rows[3,9]') && dialog.includes('cred_purge_pinned[1]'));
+    assert.equal((dialog.match(/data-ed-credentials-flow=/g) || []).length, 2, 'a flow with a draft finding is listed once, as move first');
+    assert.ok(dialog.includes('cred_purge_move_first') && dialog.includes('cred_purge_republish') && dialog.includes('A &#60;i&#62;'), 'names are escaped');
+    assert.ok(/data-ed-credentials-snapshot="\.flows-v7-backup-abc"/.test(dialog) && /checked/.test(dialog), 'snapshots are checked by default');
+    assert.ok(dialog.includes('cred_purge_outside'));
+    assert.ok(purge.stateMarkup(tt, { status: 'running', step: 'redact' }).includes('cred_purge_step'));
+    assert.ok(purge.stateMarkup(tt, { status: 'done', clean: true }).includes('cred_purge_clean'));
+    assert.ok(purge.stateMarkup(tt, { status: 'done', clean: false, remaining: [{ where: 'flows.db-wal', count: 1 }] }).includes('flows.db-wal'));
+    assert.ok(purge.stateMarkup(tt, { status: 'failed', failed_step: 'compact', backup: 'x.enc' }).includes('cred_purge_backup'));
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) { await run(); console.log('credentials purge hint checks passed'); }
