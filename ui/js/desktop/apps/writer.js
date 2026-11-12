@@ -18,6 +18,9 @@
         dispose(windowId);
         const ctx = context || {}, esc = ctx.esc || escapeHTML;
         const tr = (key, params) => ctx.t?.('desktop.writer_' + key, params) || key;
+        const commands = window.WriterCommands.create({tr, t: (key, params) => ctx.t?.(key, params) || key, readonly: !!ctx.readonly,
+            editor: () => editor, lib: () => lib, loading: () => loading, act: id => act(id), notice, refresh: () => refresh()});
+        const {can, run} = commands, colors = window.WriterCommands.colors;
         const actionIcons = {new:'file-plus',open:'folder-open',saveAs:'copy',docx:'file-text',html:'file-code',md:'notes',txt:'file-text',print:'printer',
             outline:'list',format:'sliders',review:'chat',assist:'star',insert:'plus',focus:'maximize',fit:'monitor'};
         // The shared icon atlases carry no keys for text alignment, underline, indent or
@@ -87,10 +90,8 @@
         const locale = document.documentElement.lang || 'en';
         const state = {ctx,esc,tr,root,find,get editor(){return editor;},get lib(){return lib;},
             get revision(){return queue?.revision || 0;}, get readonly(){return !!ctx.readonly;},
-            run,can,notice,prompt:(key,value)=>ctx.promptDialog(tr(key),value || ''),act,refresh:()=>refresh(),pinSelection,
-            markCommand:(slot,value)=>slot==='text.color'?lib.commandForSlotValue(slot,colorValue(value).replace('#','')):
-                slot==='text.highlight'?lib.commandForSlotValue(slot,highlightName(value)):lib.commandForSlotValue(slot,value),
-            colorHex:value=>colorValue(value),highlightHex:value=>highlightHex(value),
+            commands,run,can,blocked:commands.blocked,notice,prompt:(key,value)=>ctx.promptDialog(tr(key),value || ''),act,refresh:()=>refresh(),pinSelection,
+            markCommand:commands.valueCommand,colorHex:colors.hex,highlightHex:colors.highlightHex,
             get author(){return author;},set author(value){author=value;localStorage.setItem('aurago.writer.author',value);editor.setAuthor(value);}
         };
         const panels = window.WriterPanels.create(state);
@@ -134,20 +135,6 @@
             const resolved = kind || (error?.status === 412 ? 'conflict' : 'save');
             if (resolved !== 'saveAs') retrySaveAs = null;
             notice(resolved === 'conflict' ? tr('conflict') : (error?.message || String(error)), true, resolved);
-        }
-        function can(command) {
-            if(!editor || !command)return {ok:false};
-            if(editor.snapshot().editingMode==='suggesting' && /^(insert(Table|Row|Column|Image|Note|Toc|Break|PageField|Hyperlink)|delete(Table|Row|Column|Note)|mergeCells|splitCell|set(PageSetup|TableBorders|CellFill|ImageProperties|ImageWrapType|NoteProperties)|convertNote)$/.test(command.type))
-                return {ok:false,reason:tr('tracking_unsupported')};
-            return ['mergeCells','splitCell'].includes(command.type)?lib.tableCommand(editor,command,true):editor.can(command);
-        }
-        function run(command) {
-            if (!editor || !command || loading) return false;
-            const allowed=can(command);if(!allowed.ok){notice(tr('command_unavailable')+(allowed.reason?' · '+allowed.reason:''),true);return false;}
-            const result = ['mergeCells','splitCell'].includes(command.type) ? lib.tableCommand(editor,command) : editor.exec(command);
-            if (!result.ok) notice(tr('command_unavailable') + (result.reason ? ' · ' + result.reason : ''),true);
-            refresh();
-            return result.ok;
         }
         function draftKey(){return location.origin+':'+path;}
         async function storeDraft(bytes,revision) {
@@ -318,36 +305,9 @@
             find('[data-slot="styles.style"]').innerHTML=editor.getDocumentStyles().filter(x=>x.type==='paragraph').map(x=>option(x.styleId,styleLabel(x))).join('');
             find('[data-slot="font.family"]').innerHTML=editor.getAvailableFonts().map(x=>option(x,x)).join('');
         }
-        function valueCommand(control) {
-            const slot=control.dataset.slot;
-            // The DOCX engine wants a bare hex for colours and a palette name for highlights.
-            if(slot==='text.color')return lib.commandForSlotValue(slot,colorValue(control.value).replace('#',''));
-            if(slot==='text.highlight')return lib.commandForSlotValue(slot,highlightName(control.value));
-            // The toolbar displays points; the DOCX command consumes integer half-points.
-            return lib.commandForSlotValue(slot,slot==='font.size'?control.valueAsNumber*2:control.value);
-        }
+        const valueCommand = control => commands.valueCommand(control.dataset.slot, control.dataset.slot === 'font.size' ? control.valueAsNumber : control.value);
         function refreshSoon(){clearTimeout(updateTimer);updateTimer=setTimeout(refresh,75);}
         const countWords = text => text.trim()?(Intl.Segmenter?[...new Intl.Segmenter(locale,{granularity:'word'}).segment(text)].filter(x=>x.isWordLike).length:text.trim().split(/\s+/).length):0;
-        const colorValue = value => {
-            const raw=value&&typeof value==='object'?(value.value??value.resolvedHex??''):value;
-            const body=String(raw??'').trim().replace(/^#/,'');
-            return /^[0-9a-fA-F]{6}$/.test(body)?'#'+body.toLowerCase():'';
-        };
-        // The OOXML highlight palette holds named colours only; pick the closest one.
-        const highlightColors = {black:'000000',blue:'0000ff',cyan:'00ffff',darkBlue:'000080',darkCyan:'008080',darkGray:'808080',darkGreen:'008000',
-            darkMagenta:'800080',darkRed:'800000',darkYellow:'808000',green:'00ff00',lightGray:'c0c0c0',magenta:'ff00ff',red:'ff0000',white:'ffffff',yellow:'ffff00'};
-        function highlightName(value) {
-            const hex=colorValue(value);
-            if(!hex)return '';
-            const red=parseInt(hex.slice(1,3),16),green=parseInt(hex.slice(3,5),16),blue=parseInt(hex.slice(5,7),16);
-            let nearest='',distance=Infinity;
-            for(const [name,value] of Object.entries(highlightColors)) {
-                const delta=(red-parseInt(value.slice(0,2),16))**2+(green-parseInt(value.slice(2,4),16))**2+(blue-parseInt(value.slice(4,6),16))**2;
-                if(delta<distance){distance=delta;nearest=name;}
-            }
-            return nearest;
-        }
-        const highlightHex = value => highlightColors[String(value??'').trim()]?'#'+highlightColors[String(value??'').trim()]:colorValue(value);
         // The ruler mirrors the engine's own page box, so the zero mark sits on the text edge.
         function syncRuler(setup) {
             const ruler=find('.writer-ruler'),canvas=find('.writer-canvas'),page=root.querySelector('.docx-page');
@@ -382,7 +342,7 @@
                     if(toggleSlots.has(slot))el.setAttribute('aria-pressed',String(!!command && editor.isActive(command)));
                     else el.removeAttribute('aria-pressed');
                 } else if(slot==='text.color'||slot==='text.highlight') {
-                    const hex=slot==='text.color'?colorValue(fmt.color):highlightHex(fmt.highlight);
+                    const hex=slot==='text.color'?colors.hex(fmt.color):colors.highlightHex(fmt.highlight);
                     if(hex && el!==document.activeElement)el.value=hex;
                     const allowed=can(valueCommand(el));
                     el.disabled=!allowed.ok;el.title=allowed.ok?'':tr('command_unavailable')+(allowed.reason?' · '+allowed.reason:'');
@@ -550,7 +510,7 @@
         }
         async function insertImage(file, options = {}) {
             if(!editor || ctx.readonly || !/^image\/(png|jpeg|webp)$/.test(file.type))throw new Error(tr('image_format'));
-            if(editor.snapshot().editingMode==='suggesting')throw new Error(tr('tracking_unsupported'));
+            const refusal=commands.blocked('insertImage');if(refusal)throw new Error(refusal);
             if(file.size>20*1024*1024)throw new Error(tr('image_large'));
             const active=editor,revision=options.expectedRevision ?? editor.getDocumentHandle().revision;
             if(options.expectedEditor && (editor!==options.expectedEditor || revision!==editor.getDocumentHandle().revision))throw new Error(ctx.t('desktop.qr_stale'));
@@ -558,7 +518,7 @@
             const command={type:'insertImage',data:new Uint8Array(await file.arrayBuffer()),mime:file.type,widthPoints:options.widthPoints ?? bitmap.width*.75,heightPoints:options.heightPoints ?? bitmap.height*.75,expectedPackageRevision:revision,description:file.name || ''};
             bitmap.close();if(disposed || editor!==active)return;
             if(options.selection) {
-                if(ctx.readonly || editor.snapshot().editingMode==='suggesting' || editor.getDocumentHandle().revision!==revision)throw new Error(ctx.t('desktop.qr_stale'));
+                if(ctx.readonly || commands.blocked('insertImage') || editor.getDocumentHandle().revision!==revision)throw new Error(ctx.t('desktop.qr_stale'));
                 // Native image insertion needs a caret; keep the selected text and insert at its captured start.
                 const restored=editor.exec({type:'setSelection',range:{anchor:options.selection.anchor,head:options.selection.anchor}});
                 if(!restored.ok)throw new Error(ctx.t('desktop.qr_stale'));
@@ -568,10 +528,10 @@
         let qrOpening=false;
         async function insertQR() {
             if(qrOpening || !editor || ctx.readonly)return;
-            if(editor.snapshot().editingMode==='suggesting')throw new Error(tr('tracking_unsupported'));
+            const refusal=commands.blocked('insertImage');if(refusal)throw new Error(refusal);
             const source=editor,revision=source.getDocumentHandle().revision,selection=structuredClone(source.surface.state().selection);
             const retained=source.retainSelection(),signal=documentLife.signal;
-            const current=()=>!disposed && !signal.aborted && editor===source && !ctx.readonly && source.getDocumentHandle().revision===revision && source.snapshot().editingMode!=='suggesting';
+            const current=()=>!disposed && !signal.aborted && editor===source && !ctx.readonly && source.getDocumentHandle().revision===revision && !commands.blocked('insertImage');
             qrOpening=true;
             try {
                 await window.AuraDesktopModules.loadAppAssets('qr');

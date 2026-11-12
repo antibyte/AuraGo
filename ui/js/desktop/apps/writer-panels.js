@@ -95,8 +95,9 @@
                 button.disabled=!allowed.ok;
                 button.title=allowed.ok?'':tr('command_unavailable')+(allowed.reason?' · '+allowed.reason:'');
             }
-            for(const el of root.querySelectorAll('[data-panel-command="table_insert"],[data-panel-command="hyperlink"],[data-action="image"]')){
-                el.disabled=app.readonly || editor.snapshot().editingMode==='suggesting';el.title=el.disabled?tr('tracking_unsupported'):'';
+            for(const [selector,type] of [['[data-panel-command="table_insert"]','insertTable'],['[data-panel-command="hyperlink"]','insertHyperlink'],['.writer-right [data-action="image"]','insertImage']]) {
+                const reason=app.blocked(type);
+                for(const el of root.querySelectorAll(selector)){el.disabled=app.readonly || !!reason;el.title=reason;}
             }
             if(left==='outline') {
                 const outline=editor.getOutline(),signature=JSON.stringify(outline);
@@ -140,13 +141,14 @@
                 for(const [key,v] of Object.entries(fields)) {
                     const el=find('[data-field="'+key+'"]');if(el && el!==document.activeElement)el.value=v;
                 }
+                // The engine command each field sends decides whether tracking refuses it.
+                const fieldCommands={paper:'setPageSetup',orientation:'setPageSetup',marginTop:'setPageSetup',marginBottom:'setPageSetup',marginLeft:'setPageSetup',marginRight:'setPageSetup',
+                    cellFill:'setCellFill',imageWidth:'setImageProperties',imageAlt:'setImageProperties',imageWrap:'setImageWrapType'};
                 for(const el of root.querySelectorAll('.writer-right input,.writer-right select')){
-                    const key=el.dataset.field, tracking=snapshot.editingMode==='suggesting';
-                    el.disabled=app.readonly || (tracking && ['paper','orientation','marginTop','marginBottom','marginLeft','marginRight','cellFill','imageWidth','imageAlt','imageWrap'].includes(key));
+                    const key=el.dataset.field,type=fieldCommands[key];
+                    el.disabled=app.readonly || !!(type && app.blocked(type)) || (key==='cellFill' && !editor.getSelectedTable()) || (!!key?.startsWith('image') && !image);
                     el.title=el.disabled?tr('command_unavailable'):'';
                 }
-                for(const key of ['cellFill']){const el=find('[data-field="'+key+'"]');if(el)el.disabled=app.readonly || snapshot.editingMode==='suggesting' || !editor.getSelectedTable();}
-                for(const key of ['imageWidth','imageAlt','imageWrap']){const el=find('[data-field="'+key+'"]');if(el)el.disabled=app.readonly || snapshot.editingMode==='suggesting' || !image;}
             }
             if(right==='review') {
                 const mode=find('[data-field="tracking"]');if(mode)mode.value=snapshot.editingMode;
