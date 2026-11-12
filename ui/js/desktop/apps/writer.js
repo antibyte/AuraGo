@@ -20,7 +20,7 @@
         const tr = (key, params) => ctx.t?.('desktop.writer_' + key, params) || key;
         const commands = window.WriterCommands.create({tr, t: (key, params) => ctx.t?.(key, params) || key, readonly: !!ctx.readonly,
             editor: () => editor, lib: () => lib, loading: () => loading, act: id => act(id), notice, refresh: () => refresh(),
-            format: value => Number(value).toLocaleString(locale)});
+            format: value => Number(value).toLocaleString(locale), active: id => activeAction(id)});
         const {can, run} = commands, colors = window.WriterCommands.colors;
         const icon = window.WriterToolbar.icons(ctx, esc);
         const button = id => '<button type="button" data-action="' + id + '" title="' + esc(commands.tooltip(id)) + '" aria-label="' + esc(commands.label(id)) + '">' + icon(commands.get(id).icon, commands.get(id).fallback) + '</button>';
@@ -34,7 +34,7 @@
             '<div class="writer-notice" data-notice role="alert" hidden><span data-notice-text></span><button data-action="retry" hidden>' + esc(tr('retry')) + '</button><button data-action="saveAs" hidden>' + esc(tr('save_as')) + '</button><button data-action="reload" hidden>' + esc(tr('reopen')) + '</button><button data-action="dismiss" aria-label="' + esc(tr('close')) + '"><span aria-hidden="true">×</span></button></div>' +
             '<div class="writer-workspace"><aside class="writer-left" data-left hidden></aside><main class="writer-canvas"><div class="writer-ruler" aria-hidden="true"><span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10</span><span>12</span><span>14</span><span>16</span></div><div class="writer-viewport docx-editor__scroll-container" data-scroll><div class="writer-editor docx-editor" data-editor></div></div><div class="writer-loading" data-loading><div class="writer-load-message"><p data-load-status role="status">' + esc(tr('loading')) + '</p><div class="writer-load-actions" data-load-actions hidden><button data-action="new"' + (ctx.readonly?' disabled':'') + '>' + esc(tr('new')) + '</button><button data-action="open">' + esc(tr('open')) + '</button></div></div></div></main><aside class="writer-right" data-right hidden></aside></div>' +
             '<footer class="writer-statusbar"><button data-action="page" data-page></button><span data-count></span><span class="writer-status-spacer"></span><span data-language title="' + esc(tr('language_unknown')) + '"></span>' +
-            button('focus') + '<button data-action="zoomOut" aria-label="' + esc(tr('zoom_out')) + '">−</button><button data-action="fit" data-zoom title="' + esc(tr('fit')) + '">100%</button><button data-action="zoomIn" aria-label="' + esc(tr('zoom_in')) + '">+</button></footer>' +
+            button('focus') + '<button data-action="zoomOut" aria-label="' + esc(tr('zoom_out')) + '">−</button><button data-action="zoomMenu" data-zoom aria-haspopup="menu" title="' + esc(tr('zoom')) + '">100%</button><button data-action="zoomIn" aria-label="' + esc(tr('zoom_in')) + '">+</button></footer>' +
             '<button class="writer-focus-exit" data-action="focus" hidden title="' + esc(tr('focus_exit')) + '" aria-label="' + esc(tr('focus_exit')) + '">' + icon('restore','⛶') + '</button>' +
             '<input data-image type="file" accept="image/png,image/jpeg,image/webp" hidden></div>';
         const root = host.firstElementChild, find = selector => root.querySelector(selector), mount = find('[data-editor]');
@@ -443,6 +443,44 @@
             const exit=find('.writer-focus-exit');
             if(exit)exit.hidden=!on;
         }
+        // Whether an app action is switched on; menus show it as a check mark.
+        function activeAction(id) {
+            if(id==='outline' || id==='search')return leftPanel===id;
+            if(['format','review','assist','insert'].includes(id))return rightPanel===id;
+            if(id==='focus')return root.classList.contains('writer-focus');
+            if(id==='tracking')return commands.tracking();
+            return false;
+        }
+        // The engine rejects a zoom outside its range instead of clamping it.
+        function zoomTo(value) {
+            if(!editor)return;
+            editor.setZoom(Math.max(.25,Math.min(3,Math.round(value*100)/100)));
+            refresh();
+        }
+        // The engine fits the page width only; a whole page is the smaller of the two ratios.
+        function wholePageZoom() {
+            const sheet=root.querySelector('.docx-page'),view=find('[data-scroll]');
+            if(!sheet || !view)return editor.getZoom();
+            const box=sheet.getBoundingClientRect();
+            return editor.getZoom()*Math.min((view.clientWidth-32)/box.width,(view.clientHeight-32)/box.height);
+        }
+        // A menu click carries no clipboard event, so the clipboard is read here. Tracking takes
+        // text only, like the paste handler below.
+        async function pasteFromClipboard(plain) {
+            if(!editor)return;
+            if(!navigator.clipboard?.readText)throw new Error(ctx.t('desktop.clipboard_read_unavailable'));
+            let text='',html='';
+            if(!plain && !commands.tracking() && navigator.clipboard.read) {
+                try {
+                    for(const entry of await navigator.clipboard.read()) {
+                        if(entry.types.includes('text/html'))html=await (await entry.getType('text/html')).text();
+                        if(entry.types.includes('text/plain'))text=await (await entry.getType('text/plain')).text();
+                    }
+                } catch(_) { html=''; }
+            }
+            if(!html && !text)text=await navigator.clipboard.readText();
+            run(plain?{type:'pasteWithoutFormatting',text}:html?{type:'paste',text,html:sanitize(html)}:{type:'paste',text});
+        }
         async function insertImage(file, options = {}) {
             if(!editor || ctx.readonly || !/^image\/(png|jpeg|webp)$/.test(file.type))throw new Error(tr('image_format'));
             const refusal=commands.blocked('insertImage');if(refusal)throw new Error(refusal);
@@ -504,7 +542,16 @@
                     case 'blank':case 'letter':case 'report':case 'meeting':if(!ctx.readonly && await guard())await load(newPath(),action);break;
                     case 'focus':setFocus(!root.classList.contains('writer-focus'));break;
                     case 'fit':editor?.setZoomMode({type:'fit',fit:'pageWidth',minZoom:.25,maxZoom:1});refresh();break;
-                    case 'zoomIn':case 'zoomOut':editor?.setZoom(Math.max(.25,Math.min(3,editor.getZoom()+(action==='zoomIn'?.1:-.1))));refresh();break;
+                    case 'zoomIn':case 'zoomOut':if(editor)zoomTo(editor.getZoom()+(action==='zoomIn'?.1:-.1));break;
+                    case 'zoomPage':if(editor)zoomTo(wholePageZoom());break;
+                    case 'zoomMenu':{
+                        const box=find('[data-zoom]').getBoundingClientRect(),ids=['fit','zoomPage','zoom50','zoom75','zoom100','zoom125','zoom150','zoom200'];
+                        if(ctx.showContextMenu)ctx.showContextMenu(box.left,box.top,ids.map(id=>Object.assign(commands.menuItem(id),{icon:'zoom-in'})));
+                        else await act('fit');
+                        break;
+                    }
+                    case 'tracking':run({type:'setEditingMode',mode:commands.tracking()?'editing':'suggesting'});break;
+                    case 'paste':case 'pastePlain':await pasteFromClipboard(action==='pastePlain');break;
                     case 'page':case 'goToPage':await dialogs.goToPage();break;
                     case 'table':await dialogs.table();break;
                     case 'link':await dialogs.link();break;
@@ -515,6 +562,7 @@
                     case 'print':if(editor)await panels.print(await editor.save(),lib,documentFonts);break;
                     case 'docx':if(editor)download(await editor.save(),MIME,basename(path));break;
                     case 'html':case 'md':case 'txt':await exportSimple(action);break;
+                    default:{const preset=/^zoom(\d+)$/.exec(action);if(preset && editor)zoomTo(Number(preset[1])/100);}
                 }
             } catch(error){if(action==='print')notice(ctx.t('desktop.print_failed'),true);else fail(error);}
         }
@@ -575,6 +623,10 @@
             void(async()=>{for(const file of files)await insertImage(file);})().catch(fail);
         },{capture:true,signal:lifecycle.signal});
         mount.addEventListener('dragover',event=>{if(event.dataTransfer?.types.includes('Files'))event.preventDefault();},{signal:lifecycle.signal});
+        find('[data-scroll]').addEventListener('wheel',event=>{
+            if(!(event.ctrlKey || event.metaKey) || !editor)return;
+            event.preventDefault();zoomTo(editor.getZoom()+(event.deltaY<0?.1:-.1));
+        },{passive:false,signal:lifecycle.signal});
         root.addEventListener('keydown',event=>{
             const action=commands.actionForKey(event);
             if(action){event.preventDefault();event.stopPropagation();commands.invoke(action);}

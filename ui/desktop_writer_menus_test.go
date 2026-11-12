@@ -89,3 +89,46 @@ func verifyWriterDialogs(t *testing.T, page *rod.Page) {
         if(body().trim())throw Error('the document was not left blank: '+JSON.stringify(body()));
     }`)
 }
+
+// verifyWriterActions covers the app actions behind the Edit and View menus: paste from the
+// system clipboard (stubbed), the tracking switch, zoom presets and Ctrl+wheel.
+func verifyWriterActions(t *testing.T, page *rod.Page) {
+	t.Helper()
+	page.MustEval(`async()=>{` + writerWave1Prelude + `
+        const own=Object.getOwnPropertyDescriptor(navigator,'clipboard');
+        Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
+            read:async()=>[{types:['text/html','text/plain'],getType:async type=>new Blob([type==='text/html'?'<p><b>Rich paste</b></p>':'Rich paste'],{type})}],
+            readText:async()=>'Plain paste'}});
+        try {
+            await app.act('paste');await wait(200);
+            if(failed())throw Error('paste: '+failed());
+            if(!body().includes('Rich paste'))throw Error('paste inserted '+JSON.stringify(body()));
+            await app.act('pastePlain');await wait(200);
+            if(failed())throw Error('paste without formatting: '+failed());
+            if(!body().includes('Plain paste'))throw Error('plain paste inserted '+JSON.stringify(body()));
+            editor.exec({type:'selectAll'});
+            for(const type of ['copy','cut'])if(!editor.can({type}).ok)throw Error(type+' is refused on a selection: '+editor.can({type}).reason);
+            await app.act('tracking');
+            if(editor.snapshot().editingMode!=='suggesting')throw Error('tracking did not switch on');
+            await app.act('tracking');
+            if(editor.snapshot().editingMode!=='editing')throw Error('tracking did not switch off');
+            await app.act('zoom150');
+            if(Math.abs(editor.getZoom()-1.5)>.001)throw Error('zoom150 gave '+editor.getZoom());
+            if(document.querySelector('[data-zoom]').textContent!=='150%')throw Error('the status bar shows '+document.querySelector('[data-zoom]').textContent);
+            await app.act('zoomPage');await wait(300);
+            const whole=editor.getZoom(),sheet=document.querySelector('.docx-page').getBoundingClientRect(),view=document.querySelector('[data-scroll]');
+            if(sheet.height>view.clientHeight||sheet.width>view.clientWidth)throw Error('whole page does not fit: '+Math.round(sheet.width)+'x'+Math.round(sheet.height)+' in '+view.clientWidth+'x'+view.clientHeight);
+            const turn=new WheelEvent('wheel',{deltaY:-100,ctrlKey:true,bubbles:true,cancelable:true});
+            view.dispatchEvent(turn);
+            if(!turn.defaultPrevented||Math.abs(editor.getZoom()-(whole+.1))>.011)throw Error('Ctrl+wheel: '+editor.getZoom()+' after '+whole);
+            const scroll=new WheelEvent('wheel',{deltaY:-100,bubbles:true,cancelable:true});
+            view.dispatchEvent(scroll);
+            if(scroll.defaultPrevented)throw Error('a plain wheel must scroll');
+            await app.act('fit');
+        } finally {
+            if(own)Object.defineProperty(navigator,'clipboard',own);else delete navigator.clipboard;
+            rewind();
+        }
+        if(body().trim())throw Error('the document was not left blank: '+JSON.stringify(body()));
+    }`)
+}

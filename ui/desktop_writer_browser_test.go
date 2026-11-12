@@ -96,6 +96,7 @@ func TestDesktopWriterAppBrowser(t *testing.T) {
 	verifyWriterToolbarOverflow(t, page)
 	verifyWriterTableDialog(t, page)
 	verifyWriterDialogs(t, page)
+	verifyWriterActions(t, page)
 	result := page.MustEval(`async()=>{
         const app=WriterApp.instances.get('test'),editor=app.editor;
         const run=c=>{const r=editor.exec(c);if(!r.ok)throw Error(JSON.stringify({c,r}));return r;};
