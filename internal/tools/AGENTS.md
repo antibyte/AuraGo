@@ -402,6 +402,13 @@ None.
 
 ### Managed Homepage mutation ledger
 
+- Homepage `status` reports `local_preview` separately from container/TCP state.
+  Probe only the configured loopback root with the caller context, a two-second
+  deadline, no redirects and the existing 2 MiB document/integrity bound. Return
+  fixed error codes, HTTP status and saved project identity, never response bodies.
+  Homepage lifecycle unit tests must use explicit fake Docker hosts; an available
+  host engine must never replace a real publication with a temporary test mount.
+  Verify `TestHomepageProbeLocalPreview*` and the deployment-guidance tests.
 - Reconciliation, current file-state snapshots and artifact manifests use hash-only inventories: stream the complete SHA-256 and inspect only the binary prefix, without retaining or redacting bodies. Revision/diff/restore consumers request bounded content and keep every credential exclusion. Verify `TestHomepageInventory*` and `BenchmarkHomepageInventory`.
 - Revision saves compare hash-only metadata with the latest baseline before requesting content. Unchanged saves retain their existing no-change response without building or redacting bodies; changed saves still perform the complete content pass and recalculate the delta. Verify `TestHomepageRevisionPreflight*` and `BenchmarkHomepageSaveUnchangedRevision`.
 

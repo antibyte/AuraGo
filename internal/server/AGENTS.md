@@ -731,6 +731,9 @@ Server-owned HTTP and cross-component integration contracts.
 - Dashboard and `/api/github/repos` list through the paged `GitHubListRepos` helper with no slice limit.
 
 ### Homepage Managed Website Ledger
+- Homepage status forwards the HTTP request context to tool diagnostics. Its
+  additive `local_preview` observation is independent of container `running` and
+  query `status`; preserve both distinctions in Desktop aliases and UI consumers.
 - Quick tunnels use active registry identities and a private static snapshot through the shared Cloudflare publication boundary. The config UI selects `cloudflare_tunnel.quick_project_dir` from registered projects. Explicit tool/API ports and the former in-container arbitrary-port entry point fail closed. Disable/read-only, workspace/registry changes and project selection changes revoke active quick publication; shutdown cannot be blocked by agent read-only grants. Named/token tunnels remain separate.
 - Cloudflare start/stop/restart routes require admin/CSRF and use saved settings plus read-only gates. Both config-save paths validate ports and stop revoked connectors before publishing the new Docker permissions; refuse saves on uncertain termination. Startup reconciles verified Docker containers even without auto-start. Dashboard and both status endpoints use the shared observed state, including unknown engine state and TLS warnings. Verify Cloudflare config/API tests and the enabled Cloudflare browser tests.
 - Managed homepage/web projects use `data/homepage_registry.db` as the system of record for project identity, local file state, structured events, revision links, deployment targets, deployment history, remote observations, and drift status.

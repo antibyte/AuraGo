@@ -85,6 +85,14 @@ before initialization; they never become newly agent-created history.
 
 ## Deployment and observation
 
+Homepage Studio distinguishes a running container from an available website.
+The status response's `local_preview` checks the configured local HTTP root,
+reports its HTTP status and saved project directory, and rejects empty or invalid
+documents. An empty HTTP 404 therefore shows an explanation rather than a white
+preview. Refresh checks again and restores the preview when the page recovers.
+Website selection and deployment provider scope the preview URL; a stored cloud
+URL alone does not establish reachability. These reads never publish a website.
+
 Local publication serves a filtered immutable snapshot, mounted read-only into
 Caddy. Editing source files cannot alter it. Restart restores the saved snapshot
 and refuses invalid state or a changed index hash. Failed activation restores the

@@ -4987,7 +4987,7 @@
   "homepage_studio.preview_empty_title": "Ainda sem pré-visualização ao vivo",
   "homepage_studio.preview_loading": "Carregando pré-visualização...",
   "homepage_studio.preview_tab": "Visualização",
-  "homepage_studio.preview_unavailable": "Pré-visualização indisponível — inicie primeiro o container homepage",
+  "homepage_studio.preview_unavailable": "Seleciona um site e um destino e verifica se existe uma página publicada e acessível.",
   "homepage_studio.readonly_hint": "Modo somente leitura — a edição está desativada",
   "homepage_studio.readonly_placeholder": "Descreva as alterações do seu site…",
   "homepage_studio.refresh": "Atualizar",

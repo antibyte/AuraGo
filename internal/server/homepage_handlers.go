@@ -36,6 +36,7 @@ func handleHomepageStatus(s *Server) http.HandlerFunc {
 		}
 
 		cfg := tools.HomepageConfig{
+			Context:               r.Context(),
 			DockerHost:            cfgSnapshot.Docker.Host,
 			WorkspacePath:         cfgSnapshot.Homepage.WorkspacePath,
 			WebServerPort:         cfgSnapshot.Homepage.WebServerPort,

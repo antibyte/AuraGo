@@ -4987,7 +4987,7 @@
   "homepage_studio.preview_empty_title": "尚无实时预览",
   "homepage_studio.preview_loading": "加载预览中...",
   "homepage_studio.preview_tab": "预览",
-  "homepage_studio.preview_unavailable": "预览不可用 — 请先启动主页容器",
+  "homepage_studio.preview_unavailable": "请选择网站和发布目标，并确认该页面已在目标上发布且可以访问。",
   "homepage_studio.readonly_hint": "只读模式 — 编辑已禁用",
   "homepage_studio.readonly_placeholder": "描述您的网站更改…",
   "homepage_studio.refresh": "刷新",

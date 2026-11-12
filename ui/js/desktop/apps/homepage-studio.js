@@ -41,6 +41,7 @@
             target: 'local',
             previewUrl: '',
             statusLoaded: false,
+            statusRequest: 0,
             lastStatus: null,
             homepageEnabled: false,
             deploymentTargets: [],
@@ -51,7 +52,7 @@
             chatCollapsed: false, inspectorCollapsed: false,
             chatWidth: 0, inspectorWidth: 0,
             selectedSiteId: 0, selectedSiteName: '', busyStart: 0,
-            busyTimer: null, persistTimer: null, refreshTimer: null,
+            busyTimer: null, persistTimer: null,
             listeners: [],
             modules: { preview: null, sites: null, history: null, annotate: null, designs: null }
         };        instances.set(windowId, state);
@@ -330,7 +331,7 @@
                     if (state.modules.designs) state.modules.designs.setSite(detail);
                     updateSitePill(detail);
                     if (state.modules.history) state.modules.history.setProjectId(state.selectedSiteId);
-                    if (state.lastStatus) refreshHomepageTargets(state.lastStatus);
+                    if (state.lastStatus) loadStatus();
                     if (state.modules.annotate) state.modules.annotate.contextChanged();
                     schedulePersist();
                 },
@@ -502,11 +503,15 @@
         }
         /* Status */
         async function loadStatus() {
+            const request = ++state.statusRequest;
             statusDot.className = 'vd-hp-status-dot loading';
             statusText.textContent = t('homepage_studio.checking_status');
             statusPill.title = t('homepage_studio.checking_status');
             try {
                 const data = await api('/api/desktop/integrations/homepage/status');
+                if (state.disposed || request !== state.statusRequest) return false;
+                await loadHomepageTargets();
+                if (state.disposed || request !== state.statusRequest) return false;
                 state.statusLoaded = true;
                 state.lastStatus = data;
                 state.homepageEnabled = data && data.status !== 'disabled';
@@ -516,7 +521,7 @@
                     state.previewUrl = '';
                     updatePreviewUrl();
                     if (state.modules.history) state.modules.history.setEnabled(false);
-                    return;
+                    return false;
                 }
 
                 const webRunning = data && data.web_container && data.web_container.running;
@@ -528,12 +533,12 @@
                     ? t('homepage_studio.status_online')
                     : t('homepage_studio.status_offline');
                 const target = String(state.target || 'local');
+                state.previewUrl = homepageStatusPreviewURL(data, state.target);
                 if (target !== 'local') {
-                    /* A cloud target is only healthy when it actually resolves. */
                     const targetLabel = t('homepage_studio.target_' + target);
-                    if (homepageStatusPreviewURL(data, target)) {
-                        kind = 'online';
-                        text = targetLabel + ' · ' + t('homepage_studio.status_target_reachable');
+                    if (state.previewUrl) {
+                        kind = 'unknown';
+                        text = targetLabel + ' · ' + t('homepage_studio.sites_target_unknown');
                     } else {
                         kind = 'offline';
                         text = targetLabel + ' · ' + t('homepage_studio.target_unreachable');
@@ -547,16 +552,22 @@
                         extras.push(t('homepage_studio.status_tunnel'));
                     }
                     if (extras.length) text += ' · ' + extras.join(' · ');
+                    if (data.local_preview && !state.previewUrl) {
+                        kind = 'offline';
+                        text = t('homepage_studio.target_unreachable');
+                        if (!data.local_preview.available && data.local_preview.http_status) text += ' (HTTP ' + data.local_preview.http_status + ')';
+                    }
                 }
                 setStatus(kind, text);
 
-                state.previewUrl = homepageStatusPreviewURL(data, state.target);
                 updatePreviewUrl();
-                refreshHomepageTargets(data);
+                return true;
             } catch (_) {
+                if (state.disposed || request !== state.statusRequest) return false;
                 setStatus('offline', t('homepage_studio.status_error'));
                 state.previewUrl = '';
                 updatePreviewUrl();
+                return false;
             }
         }
 
@@ -567,17 +578,6 @@
         }
 
         function homepageTargetLabel(target) { const value = String(target || 'local'); return t('homepage_studio.target_' + value); }
-
-        function refreshHomepageTargets(statusData) {
-            loadHomepageTargets().then(() => {
-                if (state.disposed) return;
-                const nextURL = homepageStatusPreviewURL(statusData, state.target);
-                if (nextURL !== state.previewUrl) {
-                    state.previewUrl = nextURL;
-                    updatePreviewUrl();
-                }
-            });
-        }
 
         function firstString(...values) {
             for (const value of values) {
@@ -609,33 +609,21 @@
         }
 
         async function loadHomepageTargets() {
-            if (state.targetsLoading) return state.targetsLoading;
-            state.targetsLoading = (async () => {
+            const siteId = Number(state.selectedSiteId) || 0;
+            if (state.targetsLoading && state.targetsLoading.siteId === siteId) return state.targetsLoading.promise;
+            const loading = { siteId, promise: null };
+            loading.promise = (async () => {
                 const nextTargets = [];
                 const webhostsData = await safeHomepageApi('/api/desktop/integrations/integrations/webhosts');
                 const webhosts = Array.isArray(webhostsData && webhostsData.webhosts) ? webhostsData.webhosts : [];
                 for (const item of webhosts) {
-                    if (item && item.id === 'homepage') {
+                    if (!siteId && item && item.id === 'homepage') {
                         homepageTargets.add(nextTargets, 'local', item.url, item.name || t('homepage_studio.default_name'), firstPreviewURL);
                     }
                 }
 
-                /* The sites panel owns the site list; the target resolver reuses
-                   that list instead of fetching a second copy of it. */
-                let sites = state.modules.sites && typeof state.modules.sites.getSites === 'function'
-                    ? state.modules.sites.getSites()
-                    : [];
-                if (!sites.length) {
-                    const sitesData = await safeHomepageApi('/api/desktop/integrations/homepage/sites');
-                    sites = Array.isArray(sitesData && sitesData.sites) ? sitesData.sites : [];
-                }
-                for (const site of sites) {
-                    homepageTargets.collect(site, nextTargets, firstPreviewURL);
-                }
-
-                /* Only the selected site needs its detail; the provider URLs of
-                   the other sites come from the status payload. */
-                const detailId = Number(state.selectedSiteId) || 0;
+                /* Only the selected site's targets belong to this preview. */
+                const detailId = siteId;
                 if (detailId > 0) {
                     const cached = state.modules.sites && typeof state.modules.sites.getDetail === 'function'
                         ? state.modules.sites.getDetail(detailId)
@@ -648,15 +636,17 @@
                     homepageTargets.collect(site, nextTargets, firstPreviewURL);
                 }
 
+                if (state.disposed || state.targetsLoading !== loading) return [];
                 state.deploymentTargets = nextTargets;
                 return nextTargets;
             })().catch(() => {
-                state.deploymentTargets = [];
-                return state.deploymentTargets;
+                if (state.targetsLoading === loading) state.deploymentTargets = [];
+                return [];
             }).finally(() => {
-                state.targetsLoading = null;
+                if (state.targetsLoading === loading) state.targetsLoading = null;
             });
-            return state.targetsLoading;
+            state.targetsLoading = loading;
+            return loading.promise;
         }
 
         async function safeHomepageApi(path) {
@@ -673,6 +663,7 @@
             const pythonRunning = data.python_server && data.python_server.running;
             const serverRunning = webRunning || pythonRunning;
             const externalURL = homepageTargets.external(target, state.deploymentTargets);
+            if (state.selectedSiteId && target !== 'local') return externalURL;
 
             const objectURL = key => {
                 const obj = data[key];
@@ -694,6 +685,11 @@
                     break;
             }
 
+            if (data.local_preview) {
+                if (!data.local_preview.available) return '';
+                const site = state.modules.sites && state.modules.sites.getDetail(state.selectedSiteId);
+                if (state.selectedSiteId && (!site || site.project_dir !== data.local_preview.project_dir)) return '';
+            }
             if (data.preview_url) return firstPreviewURL(data.preview_url);
             if (serverRunning && data.tunnel_url) return firstPreviewURL(data.tunnel_url);
             if (webRunning && data.web_container.browser_url) {
@@ -744,12 +740,14 @@
                 previewLoading.classList.add('active');
                 previewLoading.setAttribute('aria-hidden', 'false');
                 iframe.onload = () => {
+                    if (state.disposed || !iframe.isConnected) return;
                     previewLoading.classList.remove('active');
                     previewLoading.setAttribute('aria-hidden', 'true');
                 };
                 iframe.onerror = () => {
-                    previewLoading.classList.remove('active');
-                    previewLoading.setAttribute('aria-hidden', 'true');
+                    if (state.disposed || !iframe.isConnected) return;
+                    hidePreview();
+                    setStatus('offline', t('homepage_studio.target_unreachable'));
                 };
                 iframe.src = safeURL;
             }
@@ -758,18 +756,16 @@
         function hidePreview() {
             const iframe = previewFrame ? previewFrame.querySelector('.vd-hp-preview-iframe') : null;
             if (iframe) iframe.remove();
+            previewLoading.classList.remove('active');
+            previewLoading.setAttribute('aria-hidden', 'true');
             previewPlaceholder.style.display = '';
         }
 
         /* The preview frame needs an accessible name. */
         function previewFrameTitle() { const label = t('homepage_studio.preview_tab'); return state.selectedSiteName ? label + ': ' + state.selectedSiteName : label; }
 
-        function refreshPreview() {
-            if (state.disposed) return;
-            if (!state.previewUrl) {
-                loadStatus();
-                return;
-            }
+        async function refreshPreview() {
+            if (state.disposed || !await loadStatus()) return;
             const safeURL = safeExternalURL(state.previewUrl);
             if (!safeURL) {
                 previewLoading.classList.remove('active');
@@ -783,6 +779,7 @@
             if (iframe) {
                 iframe.title = previewFrameTitle();
                 iframe.onload = () => {
+                    if (state.disposed || !iframe.isConnected) return;
                     previewLoading.classList.remove('active');
                     previewLoading.setAttribute('aria-hidden', 'true');
                 };
@@ -887,17 +884,9 @@
                 scrollToEnd();
                 announce(t('homepage_studio.agent_finished'));
                 if (state.disposed) return;
-                refreshPreview();
                 loadHistoryPanel();
-                if (state.modules.sites) state.modules.sites.load();
-
-                if (streamingContent.trim()) {
-                    if (state.refreshTimer) clearTimeout(state.refreshTimer);
-                    state.refreshTimer = setTimeout(() => {
-                        state.refreshTimer = null;
-                        if (!state.disposed) refreshPreview();
-                    }, 500);
-                }
+                const sitesReady = state.modules.sites ? state.modules.sites.load() : Promise.resolve();
+                Promise.resolve(sitesReady).then(() => { if (!state.disposed) refreshPreview(); });
             }
 
             function doReject(err) {
@@ -1074,7 +1063,6 @@
         if (!state) return;
         if (state.abortCtrl) { state.abortCtrl.abort(); state.abortCtrl = null; }
         if (state.persistTimer) { clearTimeout(state.persistTimer); state.persistTimer = null; }
-        if (state.refreshTimer) { clearTimeout(state.refreshTimer); state.refreshTimer = null; }
         persistHomepageDraft(state, windowId);
         state.disposed = true;
         if (state.busyTimer) { clearInterval(state.busyTimer); state.busyTimer = null; }

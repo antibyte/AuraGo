@@ -3,6 +3,8 @@ package tools
 import (
 	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +13,13 @@ import (
 
 func discardLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
+
+func unavailableHomepageDockerHost(t *testing.T) string {
+	t.Helper()
+	server := httptest.NewServer(http.NotFoundHandler())
+	t.Cleanup(server.Close)
+	return strings.Replace(server.URL, "http://", "tcp://", 1)
 }
 
 func TestDecorateHomepageBuildFailureMissingBuildScript(t *testing.T) {
@@ -25,7 +34,7 @@ func TestDecorateHomepageBuildFailureMissingBuildScript(t *testing.T) {
 }
 
 func TestHomepageWebServerStartMissingSourcePathExplainsSrvRoot(t *testing.T) {
-	cfg := HomepageConfig{WorkspacePath: t.TempDir(), WebServerPort: 8080}
+	cfg := HomepageConfig{WorkspacePath: t.TempDir(), WebServerPort: 8080, DockerHost: unavailableHomepageDockerHost(t)}
 	result := HomepageWebServerStart(cfg, "missing-site", ".", discardLogger())
 	if !strings.Contains(result, "aurago-homepage-web") {
 		t.Fatalf("expected Caddy container guidance, got: %s", result)
@@ -93,15 +102,11 @@ func TestHomepageWebServerStartRestoresSavedState(t *testing.T) {
 	saveWebserverState(dir, "my-site", "out")
 
 	// Start with empty projectDir/buildDir — should restore saved state
-	cfg := HomepageConfig{WorkspacePath: dir, WebServerPort: 0}
-	// Since Docker is unavailable in tests, this should hit the error path
-	// but the important thing is it tries to use the restored state.
+	cfg := HomepageConfig{WorkspacePath: dir, DockerHost: unavailableHomepageDockerHost(t)}
 	result := HomepageWebServerStart(cfg, "", "", discardLogger())
 
-	// The function should either succeed (Python fallback) or give a Docker error,
-	// but NOT "Local publish source does not exist" since the restored path exists.
-	if strings.Contains(result, "does not exist") {
-		t.Fatalf("should not report missing path when saved state exists, got: %s", result)
+	if !strings.Contains(result, "Docker not available and local Python server is disabled") {
+		t.Fatalf("restored source must reach the isolated runtime check, got: %s", result)
 	}
 }
 
@@ -319,11 +324,10 @@ func TestFindServableProjectAutoDetectedByWebServerStart(t *testing.T) {
 	os.WriteFile(filepath.Join(dir, "phaser-demo", "out", "index.html"), []byte("<h1>Game</h1>"), 0644)
 
 	// No saved state — should auto-detect phaser-demo/out
-	cfg := HomepageConfig{WorkspacePath: dir, WebServerPort: 0}
+	cfg := HomepageConfig{WorkspacePath: dir, DockerHost: unavailableHomepageDockerHost(t)}
 	result := HomepageWebServerStart(cfg, "", "", discardLogger())
 
-	// Should not report "does not exist" because auto-detection finds phaser-demo/out
-	if strings.Contains(result, "does not exist") {
-		t.Fatalf("auto-detect should find phaser-demo/out, got: %s", result)
+	if !strings.Contains(result, "Docker not available and local Python server is disabled") {
+		t.Fatalf("detected source must reach the isolated runtime check, got: %s", result)
 	}
 }

@@ -65,23 +65,25 @@
 
     function collectTargets(site, targets, previewURL) {
         if (!site || typeof site !== 'object') return;
-        addTarget(targets, 'remote', site.last_deploy_url, site.name || site.project_dir, previewURL);
         const deployTargets = Array.isArray(site.deploy_targets) ? site.deploy_targets : [];
         for (const target of deployTargets) {
+            if (!target || target.status === 'inactive') continue;
             const provider = normalizeTargetProvider(target && target.provider);
             const label = firstString(target && target.provider_target_id, site.name, site.project_dir, provider);
-            const url = previewURL(target && target.url, target && target.remote_path);
+            const url = previewURL(target && target.url);
             addTarget(targets, provider, url, label, previewURL);
         }
         const deployments = Array.isArray(site.deployments) ? site.deployments : [];
         for (const deployment of deployments) {
             const provider = normalizeTargetProvider(deployment && deployment.provider);
+            if (!deployment || !['ok', 'success'].includes(deployment.status) || deployTargets.some(item => normalizeTargetProvider(item && item.provider) === provider)) continue;
             const label = firstString(deployment && deployment.provider_deploy_id, site.name, site.project_dir, provider);
             addTarget(targets, provider, deployment && deployment.url, label, previewURL);
         }
         const observations = Array.isArray(site.remote_observations) ? site.remote_observations : [];
         for (const observation of observations) {
             const provider = normalizeTargetProvider(observation && observation.provider);
+            if (!observation || observation.status !== 'ok' || deployTargets.some(item => normalizeTargetProvider(item && item.provider) === provider)) continue;
             const label = firstString(observation && observation.provider_deploy_id, site.name, site.project_dir, provider);
             addTarget(targets, provider, observation && observation.url, label, previewURL);
         }
@@ -91,7 +93,7 @@
         if (!Array.isArray(deploymentTargets) || !deploymentTargets.length) return '';
         const selected = normalizeTargetProvider(target);
         const aliases = {
-            local: ['local', 'homepage'],
+            local: ['local', 'homepage', 'caddy', 'python_fallback'],
             vercel: ['vercel'],
             netlify: ['netlify'],
             here_now: ['here_now'],
@@ -100,11 +102,6 @@
         const allowed = aliases[selected] || [selected];
         const exact = deploymentTargets.find(item => item && allowed.includes(item.provider) && item.url);
         if (exact) return exact.url;
-        const externalTargets = ['remote', 'vercel', 'netlify', 'here_now'];
-        if (externalTargets.includes(selected)) {
-            const fallback = deploymentTargets.find(item => item && item.provider !== 'local' && item.url);
-            if (fallback) return fallback.url;
-        }
         return '';
     }
 
@@ -180,7 +177,7 @@
                 state.loading = false;
                 if (!isDisposed()) render();
             }
-            if (state.selectedId) loadDetail(state.selectedId);
+            if (state.selectedId) await loadDetail(state.selectedId);
         }
 
         async function loadDetail(id) {

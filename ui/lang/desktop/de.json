@@ -4987,7 +4987,7 @@
   "homepage_studio.preview_empty_title": "Noch keine Live-Vorschau",
   "homepage_studio.preview_loading": "Vorschau wird geladen...",
   "homepage_studio.preview_tab": "Vorschau",
-  "homepage_studio.preview_unavailable": "Vorschau nicht verfügbar — starte zuerst den Homepage-Container",
+  "homepage_studio.preview_unavailable": "Wähle eine Website und ein Ziel aus und prüfe, ob dort eine Seite veröffentlicht und erreichbar ist.",
   "homepage_studio.readonly_hint": "Nur-Lese-Modus — Bearbeitung ist deaktiviert",
   "homepage_studio.readonly_placeholder": "Beschreibe deine Website-Änderungen…",
   "homepage_studio.refresh": "Aktualisieren",

@@ -4987,7 +4987,7 @@
   "homepage_studio.preview_empty_title": "Ingen live-forhåndsvisning ennå",
   "homepage_studio.preview_loading": "Laster forhåndsvisning...",
   "homepage_studio.preview_tab": "Forhåndsvisning",
-  "homepage_studio.preview_unavailable": "Forhåndsvisning utilgjengelig — start homepage-containeren først",
+  "homepage_studio.preview_unavailable": "Velg et nettsted og et mål, og sjekk at en side er publisert og tilgjengelig der.",
   "homepage_studio.readonly_hint": "Kun lesemodus — redigering er deaktivert",
   "homepage_studio.readonly_placeholder": "Beskriv endringene på nettstedet ditt…",
   "homepage_studio.refresh": "Oppdater",

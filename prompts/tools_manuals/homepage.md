@@ -107,6 +107,9 @@ If Docker is unavailable and `homepage.allow_local_server` is enabled, AuraGo ca
 
 ### status — Get environment status
 Returns status of Docker containers or Python fallback server.
+The separate `local_preview` observation reports `available`, `http_status`, and
+the saved `project_dir`. A running container or successful query does not prove
+that its root serves a valid website; empty/error responses are unavailable.
 ```json
 {"action": "homepage", "operation": "status"}
 ```

@@ -6,7 +6,11 @@ Use homepage workspace paths and project directories. Do not use generic filesys
 
 Project-scoped operations must use workspace-relative `project_dir` or `name` values, for example `my-site`. Use the actual project directory from the homepage workspace or registry; do not use guessed folder names, absolute host folders, or `/workspace/...` paths.
 
-**Before planning changes, read `homepage_registry` → `list_history`. After init, build, or publish, call `homepage_registry` → `add_history`.**
+For `status`, inspect `local_preview.available`, `http_status`, and `project_dir`
+as well as container state. `running: true` does not prove that the website is
+available; an empty HTTP 404 or invalid document is a failed preview. A successful
+status query is not a successful publication. Do not change deployment providers
+to work around a failed local preview without the user's instruction.
 
 
 ## Managed website identity and change reasons

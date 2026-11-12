@@ -4987,7 +4987,7 @@
   "homepage_studio.preview_empty_title": "Ingen live-förhandsvisning ännu",
   "homepage_studio.preview_loading": "Laddar förhandsvisning...",
   "homepage_studio.preview_tab": "Förhandsgranskning",
-  "homepage_studio.preview_unavailable": "Förhandsvisning inte tillgänglig — starta först homepage-container",
+  "homepage_studio.preview_unavailable": "Välj en webbplats och ett mål och kontrollera att en sida är publicerad och tillgänglig där.",
   "homepage_studio.readonly_hint": "Skrivskyddat läge — redigering är inaktiverad",
   "homepage_studio.readonly_placeholder": "Beskriv dina webbplatsändringar…",
   "homepage_studio.refresh": "Uppdatera",

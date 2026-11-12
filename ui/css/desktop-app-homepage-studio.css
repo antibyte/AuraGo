@@ -1811,6 +1811,10 @@
 
 /* ---------- Device viewport (scaled preview frame) ---------- */
 
+.vd-hp-preview-frame:not(:has(.vd-hp-preview-iframe)) {
+    display: none;
+}
+
 .vd-hp-preview-frame {
     position: absolute;
     top: 0;

@@ -240,5 +240,8 @@ A homepage task is not complete until every applicable step below has actually r
 4. **Lighthouse before publishing.** Before deploying or publishing a project for real users, run `homepage_quality` `lighthouse` and address material accessibility or performance regressions it surfaces, or record them with `log_problem` when out of scope for the task.
 5. **Registry stays current.** Supply a meaningful reason for every mutation and verify its automatic ledger event. Use log_problem with a reason when something blocks completion. A task is not done while known problems remain unlogged.
 6. **Deploy verification.** For `deploy`, `deploy_netlify`, `deploy_vercel`, or `deploy_here_now`, report success only after the tool's own live-URL verification confirms the public page responds; the upload step alone is not proof of a working deploy.
+   Match the verified URL to the selected website and deployment provider. A running
+   container is not a working preview: inspect `status.local_preview.available`
+   and its HTTP status. Do not silently substitute another site or provider.
 
 If a step was skipped because a capability was unavailable (Docker missing, `allow_local_server` fallback active, no deploy requested), say so explicitly instead of implying full verification happened.

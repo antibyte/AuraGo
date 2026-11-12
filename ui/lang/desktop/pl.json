@@ -4987,7 +4987,7 @@
   "homepage_studio.preview_empty_title": "Brak podglądu na żywo",
   "homepage_studio.preview_loading": "Ładowanie podglądu...",
   "homepage_studio.preview_tab": "Podgląd",
-  "homepage_studio.preview_unavailable": "Podgląd niedostępny — najpierw uruchom kontener homepage",
+  "homepage_studio.preview_unavailable": "Wybierz witrynę i cel, a następnie sprawdź, czy strona jest tam opublikowana i dostępna.",
   "homepage_studio.readonly_hint": "Tryb tylko do odczytu — edycja jest wyłączona",
   "homepage_studio.readonly_placeholder": "Opisz zmiany na swojej stronie…",
   "homepage_studio.refresh": "Odśwież",

@@ -631,6 +631,7 @@ func HomepageStop(cfg HomepageConfig, logger *slog.Logger) string {
 func HomepageStatus(cfg HomepageConfig, logger *slog.Logger) string {
 	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	result := map[string]interface{}{"status": "ok"}
+	result["local_preview"] = homepageProbeLocalPreview(cfg)
 
 	// Check Docker availability
 	dockerAvailable := checkDockerAvailable(cfg.DockerHost, cfg.Context)

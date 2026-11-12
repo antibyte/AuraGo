@@ -136,9 +136,7 @@ func TestHomepageStudioUsesExternalHomepageTargets(t *testing.T) {
 		"function collectTargets(",
 		"function externalTargetURL(",
 		"deploy_targets",
-		"last_deploy_url",
 		"provider_target_id",
-		"remote_path",
 	} {
 		if !strings.Contains(sites, want) {
 			t.Fatalf("homepage studio sites module external target support missing marker %q", want)
@@ -168,23 +166,6 @@ func TestHomepageStudioUsesLedgerDeploymentsAndObservationsForExternalTargets(t 
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("homepage studio external target fallback missing marker %q", want)
-		}
-	}
-}
-
-func TestHomepageStudioCloudTargetsFallbackToKnownExternalURL(t *testing.T) {
-	t.Parallel()
-
-	// The known cloud providers and the fallback to a non-local deployment
-	// target live in the sites module that owns the target list.
-	source := readDesktopAssetText(t, "js/desktop/apps/homepage-studio-sites.js")
-	for _, want := range []string{
-		"const externalTargets = ['remote', 'vercel', 'netlify', 'here_now'];",
-		"externalTargets.includes(selected)",
-		"item.provider !== 'local'",
-	} {
-		if !strings.Contains(source, want) {
-			t.Fatalf("homepage studio cloud target fallback missing marker %q", want)
 		}
 	}
 }
@@ -309,7 +290,7 @@ func TestHomepageStudioGermanUsesInformalAddress(t *testing.T) {
 	}
 	for key, want := range map[string]string{
 		"homepage_studio.chat_placeholder":    "Beschreibe deine Website-Änderungen...",
-		"homepage_studio.preview_unavailable": "Vorschau nicht verfügbar — starte zuerst den Homepage-Container",
+		"homepage_studio.preview_unavailable": "Wähle eine Website und ein Ziel aus und prüfe, ob dort eine Seite veröffentlicht und erreichbar ist.",
 		"homepage_studio.preview_empty_title": "Noch keine Live-Vorschau",
 		"homepage_studio.welcome":             "Willkommen im Homepage-Studio! Beschreibe die Website, die du erstellen möchtest, und ich erstelle sie für dich.",
 	} {
@@ -683,7 +664,7 @@ const cases = [
 	['remote uses the remote url', 'remote', status, [], 'https://remote.test/app'],
 	['vercel falls back to its deployment target', 'vercel', { status: 'ok' }, vercelTarget, 'https://deploy.vercel.test/app'],
 	['remote falls back to its deployment target', 'remote', { status: 'ok' }, remoteTarget, 'https://deploy.remote.test/app'],
-	['remote falls back to a known external target', 'remote', { status: 'ok' }, vercelTarget, 'https://deploy.vercel.test/app'],
+	['remote never borrows a Vercel target', 'remote', { status: 'ok' }, vercelTarget, ''],
 	['a local target never serves a cloud target', 'vercel', { status: 'ok' }, localTarget, ''],
 	['a rejected url is not previewed', 'vercel', { status: 'ok', vercel_url: 'javascript:alert(1)' }, vercelTarget, 'https://deploy.vercel.test/app'],
 	['a rejected preview url is not previewed', 'local', { status: 'ok', preview_url: 'javascript:alert(1)' }, [], '']
@@ -783,7 +764,7 @@ state.selectedSiteId = 0;
 await refresh();
 assert.equal(listCalls(), 0, 'the site list of the panel must be reused');
 assert.equal(detailCalls(), 0, 'without a selection no site detail is needed');
-assert.equal(state.deploymentTargets.length, 31, 'every site contributes its deployment target');
+assert.equal(state.deploymentTargets.length, 1, 'without a site selection only the local webhost is available');
 
 calls.length = 0;
 state.selectedSiteId = 7;
@@ -796,14 +777,14 @@ calls.length = 0;
 panelSites = [];
 state.selectedSiteId = 0;
 await refresh();
-assert.equal(listCalls(), 1, 'the site list is fetched at most once');
+assert.equal(listCalls(), 0, 'target resolution never duplicates the panel site list');
 assert.equal(detailCalls(), 0, 'no site detail is fetched without a selection');
 
 calls.length = 0;
 state.selectedSiteId = 3;
 cachedDetail = null;
 await refresh();
-assert.equal(listCalls(), 1, 'the site list stays at one request');
+assert.equal(listCalls(), 0, 'only the selected detail is requested');
 assert.equal(detailCalls(), 1, 'only the selected site needs its detail');
 
 calls.length = 0;

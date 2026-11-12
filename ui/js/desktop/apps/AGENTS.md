@@ -5465,12 +5465,16 @@ registration lives in `internal/desktop/types.go`.
   reconcile, and history delete disabled). Destructive history deletes use
   the shell `confirmDialog` passed by `menus-and-routing.js`; native
   `alert`/`confirm`/`prompt` are forbidden in all four modules.
-- Homepage Studio loads its site list **once per status load** and refreshes
-  only the detail of the selected site; the target resolver reuses the sites
-  panel list and its cached detail instead of issuing a second request per
-  site. The status pill describes the **selected target** (container running,
-  cloud target reachable, cloud target unreachable), not only the local
-  container.
+- Homepage Studio loads its site list on opening and after chat completion;
+  target/status refreshes reuse the sites panel's cached selected detail instead
+  of issuing a second list request.
+  Preview targets belong only to the selected website and provider; inactive
+  targets and failed deployments cannot be revived through history fallbacks.
+  A stored cloud URL has unknown reachability. Local `local_preview` failure or
+  a different saved project hides the iframe and shows the empty-state guidance;
+  an empty viewport frame must not cover that guidance. Refresh rechecks status,
+  and stale requests cannot repaint a newer selection. Verify
+  `TestHomepageStudioFailedLocalPreviewBrowser` and Homepage Studio target tests.
 - Homepage Studio visible UI strings use `homepage_studio.*` keys in all
   16 `ui/lang/desktop/*.json` files. The local webhost name fallback
   uses `homepage_studio.default_name`. Chat-stream failures reuse

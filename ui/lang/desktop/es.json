@@ -4987,7 +4987,7 @@
   "homepage_studio.preview_empty_title": "Aún no hay vista previa en vivo",
   "homepage_studio.preview_loading": "Cargando vista previa...",
   "homepage_studio.preview_tab": "Vista previa",
-  "homepage_studio.preview_unavailable": "Vista previa no disponible — inicia primero el contenedor de homepage",
+  "homepage_studio.preview_unavailable": "Selecciona un sitio web y un destino y comprueba que haya una página publicada y accesible.",
   "homepage_studio.readonly_hint": "Modo de solo lectura — la edición está desactivada",
   "homepage_studio.readonly_placeholder": "Describe los cambios en tu sitio web…",
   "homepage_studio.refresh": "Actualizar",

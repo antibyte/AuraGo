@@ -13,10 +13,10 @@ func TestHomepageStatusOKEnvelopeDoesNotImplyOnlineBrowser(t *testing.T) {
  if(!fn)throw new Error('production status renderer not found');
  const observed=[];
  for(const running of [false,true]){
-  const statusDot={},statusText={},statusPill={},state={modules:{}};
+  const statusDot={},statusText={},statusPill={},state={modules:{},statusRequest:0};
   const data={status:'ok',mode:'python_fallback',python_server:{running}};
   const api=async()=>data,t=key=>key,setStatus=(kind,text)=>observed.push(kind);
-  const homepageStatusPreviewURL=()=>'',updatePreviewUrl=()=>{},refreshHomepageTargets=()=>{};
+  const homepageStatusPreviewURL=()=>'',updatePreviewUrl=()=>{},loadHomepageTargets=async()=>[];
   await eval('('+fn[0]+')')();
  }
  return observed;
