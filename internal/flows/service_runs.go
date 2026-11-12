@@ -229,6 +229,12 @@ func (s *Service) notEnabledReason(missionID string) error {
 // source (NormalizeTriggerData caps raw text at 8 MiB). The runner's ErrQueueFull and
 // ErrRunnerClosed are returned unchanged.
 //
+// A start that fails for a reason of the flow (ErrNotPublished, ErrNoTrigger, any start error
+// that is no refusal; see startFailureReason) is also recorded as a failed live run with
+// StartFailedCode and reported to the bridge's StartFailureReporter, once per failure streak
+// and on a goroutine of its own (afterTriggerStart). The caller still gets the error. A start
+// (started or queued) ends the streak.
+//
 // It takes no flow lock (see startLive), so Mission Control may call it synchronously,
 // also from inside MissionBridge.FlowRunFinished when a finished run fires dependent
 // missions.
@@ -248,7 +254,9 @@ func (s *Service) TriggerFromMission(missionID, nodeID, triggerType string, data
 		}
 		data = nil
 	}
-	return s.startLive(context.Background(), rec, nodeID, triggerType, data, true)
+	res, err := s.startLive(context.Background(), rec, nodeID, triggerType, data, true)
+	s.afterTriggerStart(rec, nodeID, triggerType, res, err)
+	return res, err
 }
 
 // startLive starts a run of rec's live revision. gated marks a run that a trigger started
@@ -660,6 +668,9 @@ func leafOutputs(f *Flow, res RunResult) map[string]any {
 // is returned without a log line of its own: the timer service logs it with the retry, keeps
 // the occurrence stored and tries it again after a backoff, with the same scheduled_for
 // (see TimerService). Past timerMaxRetryLateness the missed callback runs and starts no run.
+// A start failure that is a fault of the flow (a flow without a published revision, a node that
+// is no enabled trigger, any other start error that is no refusal) is also recorded as a failed
+// run, once per failure streak (afterTriggerStart).
 func (s *Service) onTimerFired(flowID, nodeID string, scheduledFor time.Time) error {
 	if gate, ok := s.bridge.(RunGate); ok {
 		if err := gate.AutomaticRunsAllowed(); err != nil {
@@ -679,6 +690,7 @@ func (s *Service) onTimerFired(flowID, nodeID string, scheduledFor time.Time) er
 	if rec.Live == nil {
 		s.logger.Warn("a date and time trigger fired for a flow without a published revision; no run was started",
 			"flow", flowID, "node", nodeID)
+		s.afterTriggerStart(rec, nodeID, "datetime", StartResult{}, ErrNotPublished)
 		return nil
 	}
 	if !s.bridge.FlowMissionEnabled(rec.MissionID) {
@@ -697,6 +709,7 @@ func (s *Service) onTimerFired(flowID, nodeID string, scheduledFor time.Time) er
 	}
 	data := map[string]any{"scheduled_for": scheduledFor.UTC().Format(time.RFC3339)}
 	res, err := s.startLive(context.Background(), rec, nodeID, "datetime", data, true)
+	s.afterTriggerStart(rec, nodeID, "datetime", res, err)
 	switch {
 	case err == nil && res.Status == StartSkipped:
 		s.logger.Info("a date and time trigger was skipped because a run of the flow is still active (concurrency: skip)",

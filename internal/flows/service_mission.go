@@ -440,5 +440,6 @@ func (s *Service) deleteLocked(ctx context.Context, id string) error {
 	}
 	s.runner.CancelFlow(id)
 	s.runner.forgetDeletedDurableFlow(id)
+	s.clearStartFailure(id)
 	return nil
 }

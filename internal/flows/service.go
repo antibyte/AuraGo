@@ -72,6 +72,18 @@ type RunGate interface {
 	AutomaticRunsAllowed() error
 }
 
+// StartFailureReporter is an optional MissionBridge extension, found by type assertion. A
+// trigger start that failed for a reason of the flow (Service.TriggerFromMission: the flow is not
+// published, the trigger is not an enabled one, the runner could not start the run) is recorded
+// as a failed live run (StartFailedCode). FlowStartFailed is called off the caller's goroutine,
+// once per failure streak, after that run was recorded. info.Started is false, no
+// FlowRunStarted came before, and no FlowRunFinished follows; info.Record and info.Result hold
+// the failed run, info.NotifyOnError the flow's setting. Like every bridge method it follows
+// the bridge rule: no call into a Service method that takes a flow lock.
+type StartFailureReporter interface {
+	FlowStartFailed(info RunFinishedInfo)
+}
+
 // RunFinishedInfo describes a finished live run for Mission Control. Every live run is
 // reported, also one whose flow was deleted while the run was queued or active; then
 // the fields hold what is still known.
@@ -191,6 +203,12 @@ type Service struct {
 	// reconciling counts the ReconcileMissions calls in progress; Shutdown waits for them.
 	// Add happens only under mu while !closed, so it never races with Shutdown's Wait.
 	reconciling sync.WaitGroup
+	// startStreaks holds, by flow id, the reason of the flow's current start-failure streak
+	// (see recordStartFailure); guarded by mu. A successful start and a delete remove the entry.
+	startStreaks map[string]string
+	// startFailures counts the goroutines that record a start failure. Add happens only under mu
+	// while !closed, so it never races with Shutdown's Wait.
+	startFailures sync.WaitGroup
 }
 
 // NewService wires engine, runner and timers. Call Start, and Shutdown when done.
@@ -217,7 +235,7 @@ func NewService(store *Store, reg *Registry, services *Services, bridge MissionB
 		cfg.RetentionInterval = time.Hour
 	}
 	s := &Service{store: store, reg: reg, services: services, bridge: bridge, cfg: cfg, logger: logger,
-		history: map[string]runHistory{}, stop: make(chan struct{}), done: make(chan struct{})}
+		history: map[string]runHistory{}, startStreaks: map[string]string{}, stop: make(chan struct{}), done: make(chan struct{})}
 	s.bootTime = services.Now()
 	authority, _ := bridge.(DurableAuthority)
 	approvalAuthority, _ := bridge.(DurableApprovalAuthority)
@@ -312,7 +330,7 @@ func (s *Service) Start(ctx context.Context) error {
 }
 
 // Shutdown stops the timers, cancels the runs and waits for them, for the retention
-// loop and for a ReconcileMissions in progress (which stops after the flow it is
+// loop and for a ReconcileMissions in progress and for the goroutines that record a start failure (which stops after the flow it is
 // working on), or until ctx ends (then it returns ctx's error and the rest ends in the
 // background). It may be called more than once, and without Start.
 //
@@ -340,6 +358,7 @@ func (s *Service) Shutdown(ctx context.Context) error {
 	reconciled := make(chan struct{})
 	go func() {
 		s.reconciling.Wait()
+		s.startFailures.Wait()
 		close(reconciled)
 	}()
 	select {
