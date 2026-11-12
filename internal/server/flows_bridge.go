@@ -133,6 +133,7 @@ func (b flowMissionBridge) FlowMissionEnabled(missionID string) bool {
 var _ flows.MissionReconciler = flowMissionBridge{}
 var _ flows.RunGate = flowMissionBridge{}
 var _ flows.LiveIssuesNoter = flowMissionBridge{}
+var _ flows.StartFailureReporter = flowMissionBridge{}
 
 // NoteFlowLiveIssues implements flows.LiveIssuesNoter: Mission Control shows on the flow mission
 // that its published version no longer passes the current checks.
@@ -290,6 +291,20 @@ func (b flowMissionBridge) FlowRunFinished(info flows.RunFinishedInfo) {
 		}
 	}
 	broadcastMissionState(b.s)
+	b.s.broadcastFlowsChanged(info.Record.FlowID, "run_finished")
+}
+
+// FlowStartFailed implements flows.StartFailureReporter: a trigger start that failed and was
+// recorded as a failed run (flows.StartFailedCode). It runs on the Service's own goroutine,
+// once per failure streak, so the planner and notification work here is safe. It gives the
+// failure the same follow-up as a failed run (planner issue, failure notification by
+// settings.notify_on_error, open editors refresh) but none of what a started run owns:
+// FlowRunStarted was never called, so mm.FlowRunFinishedAtDepth must not run (it would release a
+// running slot that no run took and count a run).
+func (b flowMissionBridge) FlowStartFailed(info flows.RunFinishedInfo) {
+	_, message := flowOutcome(info, flowRunOutputs{})
+	b.s.flowIssue(info, true, message)
+	b.s.notifyFlowFailure(info, message)
 	b.s.broadcastFlowsChanged(info.Record.FlowID, "run_finished")
 }
 

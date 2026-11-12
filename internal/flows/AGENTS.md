@@ -1070,6 +1070,13 @@ the contracts below describe the implemented behavior of each delivered slice.
     `flowsStartRetryJoinTimeout` (2 s), because a Start stuck in SQLite does not observe its context. The bridge notes
     a run the gate stopped (`FLOW_RUNS_PAUSED`, `Started` false) on the flow mission like a refused trigger
     (`MissionManagerV2.NoteFlowRunRefused`, reason re-asked from `automaticFlowRunsAllowed`).
+  A trigger start that fails for a reason of the flow is recorded by the Service as a failed live run
+  (`TriggerFromMission` → `afterTriggerStart` → `recordStartFailure`, code `FLOW_START_FAILED`, no steps, one
+  record per failure streak, kept in `Service.startStreaks`) and reported through the optional
+  `StartFailureReporter`. The bridge's `FlowStartFailed` gives it a planner issue, the failure notification and a
+  `run_finished` broadcast, and never calls `FlowRunFinishedAtDepth` (no running slot was taken). Refusals
+  (closed `RunGate`, `ErrRunnerClosed`, `ErrNotFound`, `ErrQueueFull`, a switched-off flow) record nothing. Date/Time
+  timers (`onTimerFired`) count like mission triggers; Run now and test runs answer their caller and do not record.
 - `Service.CancelMissionRuns`, `MissionEnabledChanged` and `NextTimer` serve Mission Control (see Service).
 - Every key of `CatalogI18nKeys` must exist in `ui/lang/easydrag/<16 locales>.json`. `catalog_i18n_test.go`
   enforces this: `TestCatalogTranslationsAreComplete` (en holds every key; every locale holds exactly en's keys,
