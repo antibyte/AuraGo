@@ -37,6 +37,8 @@ scope lives in `../../plans/2026-11-06-goldfish-adventure.md`; runtime ownership
   as the composited scene before accepting a cutout.
 - Scene plates contain no baked actors. Runtime actors, condition-controlled
   state plates and props must align with the authored hotspot coordinates.
+  Keep actor feet on the visible floor and check nearby prop hitboxes after
+  staging changes; R02 pointer coverage lives in `TestGoldfishAdventureOpeningBrowser`.
 - Cinematic beats are visual consequences of already committed state. They
   cannot award/consume items. Every sequence pauses, skips and disposes safely;
   reduced motion retains key poses without movement.

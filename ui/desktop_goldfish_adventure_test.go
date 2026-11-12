@@ -100,7 +100,7 @@ func goldfishAssertBarReadable(t *testing.T, page *rod.Page, theme string) {
 
 func TestGoldfishAdventureOpeningBrowser(t *testing.T) {
 	page := auraDriftFixture(t)
-	page = page.Timeout(45 * time.Second)
+	page = page.Timeout(75 * time.Second)
 	page.MustSetViewport(1440, 1000, 1, false)
 	goldfishManualReading(page)
 	page.MustEval(`async () => { await fixtureOpen('goldfish-adventure'); }`)
@@ -164,6 +164,71 @@ func TestGoldfishAdventureOpeningBrowser(t *testing.T) {
 	page.MustWait(`() => document.querySelector('.agfish-app')?.dataset.room === 'R02'`)
 	if page.MustEval(`() => !document.querySelector('.agfish-start') || document.querySelector('.agfish-start').hidden || !document.querySelector('.agfish-speech').hidden`).Bool() {
 		t.Fatal("reopening must show the start/continue screen without advancing the game")
+	}
+	page.MustElement(".agfish-start .agfish-primary:not([hidden])").MustClick()
+	page.MustWait(`() => document.querySelector('.agfish-start').hidden && !document.querySelector('.agfish-app').classList.contains('agfish-art-loading')`)
+	goldfishDismissDialogue(page)
+	moveToScene := func(x, y float64) {
+		point := page.MustEval(`(x, y) => {
+            const box = document.querySelector('.agfish-canvas').getBoundingClientRect();
+            return [box.left + x * box.width, box.top + y * box.height];
+        }`, x, y).Arr()
+		page.Mouse.MustMoveTo(point[0].Num(), point[1].Num())
+	}
+	// Use points on the actual artwork, not the centers of the authored hitboxes.
+	for _, target := range []struct {
+		id   string
+		x, y float64
+	}{
+		{"counter", .20, .68}, // Clerk's body.
+		{"record", .225, .51}, // Public document tray.
+		{"clock", .575, .17},
+		{"clock", .66, .46}, // Stamp handles belong to the clock/stamp action too.
+		{"procedure", .78, .53},
+		{"complaints", .67, .67},
+	} {
+		moveToScene(target.x, target.y)
+		if !page.MustEval(`id => document.querySelector('[data-agfish-hotspot="' + id + '"]').matches(':hover') && document.querySelector('.agfish-sentence').textContent.includes(GoldfishContent.texts['goldfish.R02.' + id + '.label'])`, target.id).Bool() {
+			if base != "" {
+				page.MustScreenshot(filepath.Join(base, "goldfish-hotspot-failure.png"))
+			}
+			detail := page.MustEval(`(x, y) => {
+                const box = document.querySelector('.agfish-canvas').getBoundingClientRect();
+                const hit = document.elementFromPoint(box.left + x * box.width, box.top + y * box.height);
+                return JSON.stringify({hit: hit?.outerHTML, sentence: document.querySelector('.agfish-sentence').textContent, app: document.querySelector('.agfish-app').className});
+            }`, target.x, target.y).Str()
+			t.Fatalf("R02 %s has no matching hover target at artwork point (%g, %g): %s", target.id, target.x, target.y, detail)
+		}
+	}
+	clickScene := func(x, y float64) {
+		moveToScene(x, y)
+		page.Mouse.MustClick(proto.InputMouseButtonLeft)
+	}
+	waitForLine := func(key string) {
+		page.MustWait(`key => !document.querySelector('.agfish-app').classList.contains('agfish-busy') && !document.querySelector('.agfish-speech').hidden && document.querySelector('.agfish-line').textContent === GoldfishContent.texts[key]`, key)
+	}
+	clickScene(.20, .68)
+	waitForLine("goldfish.R02.counter.look.1")
+	goldfishDismissDialogue(page)
+	clickScene(.225, .51)
+	waitForLine("goldfish.r02_record.line.1")
+	goldfishDismissDialogue(page)
+	page.MustElement("[data-agfish-item=tool_clamp]").MustClick()
+	clickScene(.225, .51)
+	waitForLine("goldfish.r02_peel.line.1")
+	goldfishDismissDialogue(page)
+	clickScene(.66, .46)
+	waitForLine("goldfish.r02_stamp.line.1")
+	goldfishDismissDialogue(page)
+	page.MustElement("[data-agfish-item=own_record]").MustClick()
+	clickScene(.20, .68)
+	page.MustElement("[data-agfish-option=date]").MustClick()
+	waitForLine("goldfish.r02_submit.line.1")
+	goldfishDismissDialogue(page)
+	page.MustElement("[data-agfish-exit=R03]").MustClick()
+	page.MustWait(`() => document.querySelector('.agfish-app').dataset.room === 'R03' && !document.querySelector('.agfish-app').classList.contains('agfish-art-loading')`)
+	if messages := page.MustEval(`() => fixtureErrors.join('\n')`).Str(); messages != "" {
+		t.Fatal(messages)
 	}
 }
 

@@ -61,6 +61,9 @@ approved content and acceptance scope lives in
   else cancels an armed verb/item or choice menu, else opens the game menu. Hotspot
   and exit buttons stay semantic, focusable DOM over the canvas. Puzzle prompts are
   conversation menus in the bar; `GoldfishState.apply` alone judges the answer.
+- Match hotspot rectangles to the visible props and staged actors in the 16:9
+  scene. Moving an actor in `art-layout.json` also requires checking its hotspot;
+  adjacent objects must remain independently reachable.
 - Exits stay discoverable without pixel hunting: every exit hotspot carries a
   permanent direction sign on the frame edge (gold while open, grey and dashed
   while locked), and its label stays in the bar sentence on hover.
@@ -104,6 +107,9 @@ approved content and acceptance scope lives in
 - Check all 24 route/ending combinations, malformed/conflicting saves, and
   interrupted animations. Browser tests cover real asset loading, interaction,
   focus, both themes, motion settings and close/reopen lifecycle.
+- `TestGoldfishAdventureOpeningBrowser` hovers artwork coordinates in R02 and
+  solves its document/stamp puzzle with pointer clicks through the exit to R03;
+  selector-only clicks cannot verify hotspot placement.
 - Validate asset paths/hashes/alpha/atlas bounds and complete localization keys.
 - Rebuild and check Desktop bundles after shared shell registration changes.
 
