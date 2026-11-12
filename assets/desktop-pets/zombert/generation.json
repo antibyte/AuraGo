@@ -41,6 +41,21 @@
       "error": "processing failed",
       "cause": "CAS upload failed: HTTP 401 - {\"error\":\"Unauthorized\"}",
       "result_http_status": 500
+    },
+    "new_key_retry": {
+      "request_id": "16eacd510dcfd74665b67b208fccf855",
+      "parameters": {
+        "target_face_type": "tri",
+        "target_face_num": 180000,
+        "generate_texture": true,
+        "seed": 12112026
+      },
+      "key_replaced": true,
+      "key_check": "Authenticated voice catalog HTTP 200; no credential value recorded",
+      "status": "failed",
+      "error": "processing failed",
+      "cause": "CAS upload failed: HTTP 401 - {\"error\":\"Unauthorized\"}",
+      "result_http_status": 500
     }
   },
   "fallbacks": [
