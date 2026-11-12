@@ -245,7 +245,6 @@ func TestDesktopEasyDragLegibilityBrowser(t *testing.T) {
 		t.Fatalf("flows.Templates() lists %d recipes; S0.4 covers 12", len(recipes))
 	}
 	s := startEasyDragSmoke(t, "/testdata/easydrag-blocks-fixture.js", "/testdata/easydrag-groups-fixture.js")
-	setReducedMotion(t, s.page, "reduce")
 	page := s.page
 	page.MustEval(`()=>fixtureTheme('standard')`)
 

@@ -39,7 +39,6 @@ type easyDragS0ColourAudit struct {
 func TestDesktopEasyDragColourRolesBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	s := startEasyDragSmoke(t)
-	setReducedMotion(t, s.page, "reduce")
 	page := s.page
 	page.MustEval(`()=>fixtureTheme('standard')`)
 	page.MustEval(easyDragS0OpenFlowJS, page.MustEval(`()=>edFixture.seededID`).Str())

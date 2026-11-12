@@ -1,19 +1,12 @@
 package ui
 
-import (
-	"testing"
-
-	"github.com/go-rod/rod/lib/proto"
-)
+import "testing"
 
 // TestDesktopEasyDragCredentialsPurgeBrowser walks the hint card and the purge dialog against a stubbed backend.
 func TestDesktopEasyDragCredentialsPurgeBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	s := startEasyDragSmoke(t, "/testdata/easydrag-credentials-purge-fixture.js")
 	p := s.page
-	if err := (proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{{Name: "prefers-reduced-motion", Value: "reduce"}}}).Call(p); err != nil {
-		t.Fatal(err)
-	}
 	p.MustEval(`()=>fixtureTheme('standard')`)
 	s.wait(`()=>matchMedia('(prefers-reduced-motion: reduce)').matches`)
 	// The hint shows while plaintext remains.

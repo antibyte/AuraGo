@@ -16,9 +16,6 @@ func TestDesktopEasyDragTestModeBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	s := startEasyDragSmoke(t)
 	p := s.page
-	if err := (proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{{Name: "prefers-reduced-motion", Value: "reduce"}}}).Call(p); err != nil {
-		t.Fatal(err)
-	}
 	s.wait(`()=>!!document.querySelector('.ed-flow-card h3')`)
 	p.MustElement(`.ed-flow-card h3`).MustClick()
 	s.wait(`()=>!!edFixture.editor() && !!document.querySelector('[data-ed-cmd="test"]')`)
@@ -74,9 +71,6 @@ func TestDesktopEasyDragGoalCounterBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	s := startEasyDragSmoke(t)
 	p := s.page
-	if err := (proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{{Name: "prefers-reduced-motion", Value: "reduce"}}}).Call(p); err != nil {
-		t.Fatal(err)
-	}
 	s.wait(`()=>!!document.querySelector('.ed-flow-card h3')`)
 	p.MustElement(`.ed-flow-card h3`).MustClick()
 	s.wait(`()=>!!edFixture.editor()`)

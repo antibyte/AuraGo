@@ -30,7 +30,6 @@ func TestDesktopEasyDragContactSheetBrowser(t *testing.T) {
 		t.Fatal("set AURAGO_BROWSER_ARTIFACT_DIR to a scratch folder outside the repository")
 	}
 	s := startEasyDragSmoke(t)
-	setReducedMotion(t, s.page, "reduce")
 	page := s.page
 	owner := []string{"standard", "fruity-light", "fruity-dark"}
 	for _, name := range owner {

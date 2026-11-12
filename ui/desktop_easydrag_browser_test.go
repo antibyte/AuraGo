@@ -386,9 +386,19 @@ func closeSharedEasyDragBrowser() {
 	}
 }
 
+// setEasyDragReducedMotion makes the page report prefers-reduced-motion: reduce, so canvas
+// animations end at once and screenshots do not depend on timing.
+func setEasyDragReducedMotion(t *testing.T, page *rod.Page) {
+	t.Helper()
+	feature := &proto.EmulationMediaFeature{Name: "prefers-reduced-motion", Value: "reduce"}
+	if err := (proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{feature}}).Call(page); err != nil {
+		t.Fatalf("emulate prefers-reduced-motion: %v", err)
+	}
+}
+
 // newEasyDragPage opens a blank page in a fresh incognito context of the shared browser (or in an
-// own Chrome with PrivateBrowser) and sets the viewport. The page and its context close in
-// t.Cleanup, the page first.
+// own Chrome with PrivateBrowser), sets the viewport and, unless Motion is set, reduced motion.
+// The page and its context close in t.Cleanup, the page first.
 func newEasyDragPage(t *testing.T, opts easyDragSmokeOptions) *rod.Page {
 	t.Helper()
 	var browser *rod.Browser
@@ -412,6 +422,9 @@ func newEasyDragPage(t *testing.T, opts easyDragSmokeOptions) *rod.Page {
 		height = 900
 	}
 	page.MustSetViewport(width, height, 1, false)
+	if !opts.Motion {
+		setEasyDragReducedMotion(t, page)
+	}
 	return page
 }
 

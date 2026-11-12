@@ -1,10 +1,6 @@
 package ui
 
-import (
-	"testing"
-
-	"github.com/go-rod/rod/lib/proto"
-)
+import "testing"
 
 // TestDesktopEasyDragCredentialMoveBrowser walks the real controls: the credential warning of an
 // address, "move to the vault" with the proposed name, the editor with no trace of the token (model,
@@ -13,9 +9,6 @@ func TestDesktopEasyDragCredentialMoveBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	s := startEasyDragSmoke(t, "/testdata/easydrag-credentials-fixture.js")
 	p := s.page
-	if err := (proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{{Name: "prefers-reduced-motion", Value: "reduce"}}}).Call(p); err != nil {
-		t.Fatal(err)
-	}
 	const token = "tok-browser-1234567890"
 	s.wait(`()=>!!document.querySelector('.ed-flow-card h3')`)
 	p.MustElement(`.ed-flow-card h3`).MustClick()
