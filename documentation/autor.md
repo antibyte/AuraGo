@@ -13,14 +13,29 @@ When the window is too narrow for the whole bar, groups move into a More tools
 popover instead of scrolling: lists first, then alignment, colours, insert,
 text marks and the font controls; undo and redo always stay. The bar is one
 tab stop; Left and Right move between its controls. In the size field they move the caret, and Tab steps to the next control.
+The bar also holds clear formatting, line spacing, link, table and image.
+The window menus cover every command: File, Edit (including cut, copy, paste,
+paste without formatting, select all, find and go to page), View (panels,
+formatting marks, how tracked changes are shown, zoom, focus mode), Insert
+(table, image, QR code, link, page and section breaks, footnote, endnote,
+table of contents, text box, header, footer, page numbers, and back to the
+document from a header or footer), Format (text, paragraph, line spacing, copy
+and paste formatting, clear formatting), Table (insert, rows, columns, merge,
+split, delete), Tools (word count, track changes, the review panel, previous and
+next change, keyboard shortcuts) and Agent (the AI assistant). Superscript and
+subscript are in Format > Text. Ctrl+K opens the link dialog, which inserts,
+changes or removes a link; Ctrl+G goes to a page. Paste from the menu needs the
+browser's clipboard permission; Ctrl+V always works.
+The zoom button in the status bar offers fit to width, whole page and fixed
+steps; Ctrl with the mouse wheel zooms as well.
 Format provides paragraph spacing, page setup, table and image controls.
 Page setup recognizes A4 and Letter in both orientations. Other sizes stay as
 they are until a listed size is chosen. Indent, color and image controls follow
 the current selection.
 Insert provides tables, images, page breaks, footnotes, headers, footers,
 page numbers and document templates.
-A table is inserted from a dialog that asks for rows (1 to 100) and columns
-(1 to 30).
+A table is inserted from a dialog with a size grid and fields for rows
+(1 to 100) and columns (1 to 30).
 
 Outline and Search appear on the left. Format, Review and AI share the right
 panel. Panels overlay the document in narrow windows. Fit-to-width, manual zoom
@@ -77,7 +92,8 @@ separate simplified copy. DOCX-to-DOCX downloads preserve the full package.
 - `npm run test:writer` checks save queue timing, revisions, failures and disposal
   (`scripts/test-writer-session.mjs`), the command table with its tracking rule,
   shortcuts and language keys (`scripts/test-writer-commands.mjs`) and the toolbar
-  groups and overflow rule (`scripts/test-writer-toolbar.mjs`).
+  groups and overflow rule (`scripts/test-writer-toolbar.mjs`) and the window
+  menu model (`scripts/test-writer-menus.mjs`).
 - `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopWriter(App|Engine)Browser'`
   exercises the actual editor, review, round-trips, conflicts, AI, imports,
   images, printing and a 100-page document.
