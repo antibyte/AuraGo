@@ -230,7 +230,7 @@
                 case 'replace_one':if(matches[matchIndex])app.run({type:'replaceMatch',match:matches[matchIndex],text:value('replacement') || ''});searchSignature='';search(true);break;
                 case 'replace_all':app.run({type:'replaceAllMatches',query:value('query'),text:value('replacement') || '',matchCase:checked('matchCase'),wholeWord:checked('wholeWord')});searchSignature='';search(false);break;
                 case 'table_insert':await app.act('table');break;
-                case 'comment_add':{const text=await app.prompt('comment');if(text?.trim()){const result=editor.addComment(text,app.author);if(!result.ok)app.notice(result.reason || tr('select_text'),true);}break;}
+                case 'comment_add':await app.act('comment');break;
                 case 'accept_all':case 'reject_all':{
                     const items=editor.getReviewItems({placement:false}).filter(x=>x.kind==='revision');
                     if(items.some(x=>x.readOnly)){app.notice(tr('review_readonly'),true);break;}

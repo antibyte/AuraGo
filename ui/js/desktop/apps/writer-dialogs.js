@@ -55,7 +55,16 @@
         }
         const shortcuts = () => tell(tr('shortcuts'), window.WriterCommands.definitions.filter(definition => definition.shortcut || definition.hint)
             .map(definition => [commands.label(definition.id), definition.shortcut || definition.hint]));
-        return {table, link, goToPage, wordCount, shortcuts};
+        // A comment belongs to the selection; the engine says so when there is none.
+        async function comment() {
+            const editor = app.editor;
+            if (!editor) return;
+            const text = await app.prompt('comment');
+            if (!text?.trim() || app.editor !== editor) return;
+            const result = editor.addComment(text, app.author);
+            if (!result.ok) app.notice(result.reason || tr('select_text'), true);
+        }
+        return {table, link, goToPage, wordCount, shortcuts, comment};
     }
     window.WriterDialogs = {create};
 })();

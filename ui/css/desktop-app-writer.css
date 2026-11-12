@@ -47,6 +47,12 @@
 .writer-workspace{display:flex;position:relative;flex:1;min-height:0;overflow:hidden}
 .writer-canvas{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;flex:1;background:var(--writer-well);box-shadow:var(--vd-mat-well-shadow,none)}
 .writer-ruler{height:22px;flex-shrink:0;display:flex;align-items:flex-start;justify-content:space-between;padding:2px 8%;margin:0 auto;width:min(100%,794px);color:var(--writer-muted);font-size:9px;font-variant-numeric:tabular-nums;background:repeating-linear-gradient(90deg,transparent,transparent calc(1.25% - 1px),color-mix(in srgb,var(--writer-muted) 22%,transparent) calc(1.25% - 1px),color-mix(in srgb,var(--writer-muted) 22%,transparent) 1.25%) bottom/100% 4px no-repeat}
+.writer-contextbar{position:absolute;z-index:6;top:0;left:0;right:0;display:flex;align-items:center;gap:4px;min-height:34px;padding:2px 14px;overflow-x:auto;scrollbar-width:none;background:var(--writer-bar);border-bottom:1px solid var(--writer-border);box-shadow:var(--vd-mat-bar-edge,0 0 #0000),0 6px 14px #0003}
+.writer-contextbar strong{flex-shrink:0;margin-right:6px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--writer-muted);white-space:nowrap}
+.writer-contextbar button{flex-shrink:0;min-width:28px;height:28px;display:grid;place-items:center;padding:3px 5px;white-space:nowrap}
+.writer-contextbar .writer-context-text{padding-inline:9px}
+.writer-contextbar .writer-context-divider{flex-shrink:0;width:1px;height:18px;margin:0 4px;background:var(--writer-border)}
+.writer-contextbar .writer-glyph{display:block;pointer-events:none}
 .writer-viewport{flex:1;min-height:0;overflow:auto;padding:20px 24px 48px;scrollbar-color:color-mix(in srgb,var(--writer-muted) 50%,transparent) transparent;scrollbar-width:thin}.writer-editor{margin:0 auto;--doc-page-bg:#fff;--doc-page-bg-rendered:#fff;--doc-page-text:#192234;--doc-surface:transparent;--doc-bg:transparent;--doc-border:rgba(0,0,0,.15);--doc-scrollbar-thumb:color-mix(in srgb,var(--writer-muted) 50%,transparent);--doc-caret:#162f58}
 .writer-editor .docx-page{background:#fff;color:#192234;box-shadow:0 2px 5px #0003,0 12px 32px #0004}
 .writer-loading{position:absolute;inset:22px 0 0;display:grid;place-items:center;background:var(--writer-canvas);color:var(--writer-muted)}
@@ -105,7 +111,7 @@
 .writer-suggestion-text{border-left:2px solid var(--ds-color-success-fg,#62b397);padding-left:10px}
 .writer-app .writer-primary{border-color:var(--vd-mat-primary-border,var(--writer-accent));background:var(--vd-mat-primary,var(--vd-theme-accent-soft,#263e55));color:var(--vd-mat-primary-text,inherit);box-shadow:var(--vd-mat-primary-shadow,none)}
 .writer-app .writer-primary:hover:not(:disabled){background:var(--vd-mat-primary-hover,var(--vd-theme-control-hover,rgba(170,192,224,.1)))}
-.writer-focus .writer-documentbar,.writer-focus .writer-toolbar-wrap,.writer-focus .writer-left,.writer-focus .writer-right,.writer-focus .writer-ruler{display:none!important}
+.writer-focus .writer-documentbar,.writer-focus .writer-toolbar-wrap,.writer-focus .writer-left,.writer-focus .writer-right,.writer-focus .writer-ruler,.writer-focus .writer-contextbar{display:none!important}
 .writer-focus-exit{position:absolute;top:10px;right:14px;z-index:9;display:grid;place-items:center;width:34px;height:34px;padding:0;border-color:var(--vd-mat-btn-border,var(--writer-border));background:var(--writer-card);color:var(--writer-muted);opacity:.85}
 .writer-focus-exit:hover{opacity:1;color:var(--vd-text,#e4e8f0)}
 .writer-print-frame{position:fixed;left:-20000px;top:0;width:1200px;height:1000px;border:0}
