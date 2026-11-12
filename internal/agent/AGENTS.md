@@ -267,6 +267,7 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   it completely. A quarantined result contains a safe local notice instead of
   the original payload. Preserve the actual operation status, especially for
   AgentMail writes whose response is withheld; never invite replay of a send.
+- Unsolicited email turns have source `email` and an event-scoped session. Preserve their inherited tools mail-notification context through dispatch; `send_notification` and text-only `send_telegram` share the same high/critical priority and durable receipt policy. A skipped notification is not a delivered notice. Do not resume default-chat projects from a mail event. The server/tools guides own ingress and receipt details.
 - Modern email accounts keep independent disabled/agent_access/readonly/watch gates;
   the legacy email.enabled bit is migration input, not their global master switch.
   AgentMail delete operations additionally require default-off agentmail.allow_delete;

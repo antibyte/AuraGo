@@ -54,8 +54,9 @@ type emailWatcherContentEvaluator interface {
 }
 
 type quarantinedWatcherEmail struct {
-	uid    uint32
-	result security.GuardianResult
+	uid      uint32
+	result   security.GuardianResult
+	identity string
 }
 
 // EmailRelayCheatsheet contains optional trusted instructions appended to
@@ -256,7 +257,7 @@ func (ew *EmailWatcher) pollAccount(ctx context.Context, acct config.EmailAccoun
 	)
 	if err != nil {
 		ew.logger.Warn("[EmailWatcher] Fetch for notification failed", "account", acct.ID, "error", err)
-		if err := ew.notifyAgent(ctx, fmt.Sprintf("[EMAIL NOTIFICATION] Account: %s — %d new email(s) in %s. Fetch details with fetch_email (account: \"%s\").", acct.Name, len(newUIDs), acct.WatchFolder, acct.ID)); err != nil {
+		if err := ew.notifyAgent(ctx, fmt.Sprintf("[EMAIL NOTIFICATION] Account: %s — %d new email(s) in %s. Fetch details with fetch_email (account: \"%s\").", acct.Name, len(newUIDs), acct.WatchFolder, acct.ID), mailAccountEventID(acct, newUIDs, "new-mail")); err != nil {
 			for _, uid := range newUIDs {
 				delete(ew.lastUIDs[acct.ID], uid)
 			}
@@ -280,7 +281,11 @@ func (ew *EmailWatcher) pollAccount(ctx context.Context, acct config.EmailAccoun
 	}
 
 	if ordinaryCount > 0 {
-		if err := ew.notifyAgent(ctx, buildEmailNotificationPromptGrouped(acct, ordinaryCount, items, groups, ew.relaySheet)); err != nil {
+		identities := make([]string, 0, len(messages))
+		for _, message := range messages {
+			identities = append(identities, mailMessageIdentity(message))
+		}
+		if err := ew.notifyAgent(ctx, buildEmailNotificationPromptGrouped(acct, ordinaryCount, items, groups, ew.relaySheet), mailAccountEventID(acct, newUIDs, "new-mail", identities...)); err != nil {
 			quarantinedUIDs := make(map[uint32]bool, len(quarantined))
 			for _, item := range quarantined {
 				quarantinedUIDs[item.uid] = true
@@ -311,7 +316,7 @@ func (ew *EmailWatcher) notifyQuarantined(ctx context.Context, acct config.Email
 		}
 		reference := fmt.Sprintf("%s:%s:%d", acct.ID, acct.WatchFolder, item.uid)
 		notice := security.QuarantineNotice("email-watcher", reference, item.result)
-		if err := ew.notifyAgent(ctx, notice); err != nil {
+		if err := ew.notifyAgent(ctx, notice, mailAccountEventID(acct, []uint32{item.uid}, "quarantine:"+string(item.result.QuarantineReason), item.identity)); err != nil {
 			ew.logger.Warn("[EmailWatcher] Quarantine notice delivery failed", "account", acct.ID, "uid", item.uid)
 			continue
 		}
@@ -361,7 +366,7 @@ func (ew *EmailWatcher) collectMessages(ctx context.Context, acct config.EmailAc
 		}
 		if blocked != nil {
 			processedUIDs[msg.UID] = true
-			quarantined = append(quarantined, quarantinedWatcherEmail{uid: msg.UID, result: *blocked})
+			quarantined = append(quarantined, quarantinedWatcherEmail{uid: msg.UID, result: *blocked, identity: mailMessageIdentity(msg)})
 			continue
 		}
 		if ctx.Err() != nil {
@@ -483,7 +488,7 @@ func (ew *EmailWatcher) internalAPIURL() string {
 }
 
 // notifyAgent sends a loopback HTTP request to wake the agent.
-func (ew *EmailWatcher) notifyAgent(ctx context.Context, prompt string) error {
+func (ew *EmailWatcher) notifyAgent(ctx context.Context, prompt string, eventIDs ...string) error {
 	url := ew.internalAPIURL() + "/v1/chat/completions"
 	ew.mu.Lock()
 	internalToken := ew.internalToken
@@ -512,6 +517,13 @@ func (ew *EmailWatcher) notifyAgent(ctx context.Context, prompt string) error {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Internal-FollowUp", "true")
 	req.Header.Set("X-External-Source", string(security.ExternalEmail))
+	req.Header.Set("X-Session-ID", MailEventSessionID(prompt))
+	if len(eventIDs) > 0 && ValidMailEventSessionID(eventIDs[0]) {
+		req.Header.Set("X-Session-ID", eventIDs[0])
+	}
+	if strings.TrimSpace(ew.relaySheet.Content) != "" {
+		req.Header.Set("X-Mail-Relay-Instructions", "true")
+	}
 	if internalToken != "" {
 		req.Header.Set("X-Internal-Token", internalToken)
 	}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"aurago/internal/agentmail"
@@ -186,8 +187,12 @@ func (s *Server) notifyAgentMailLoopback(ctx context.Context, prompt string) err
 	// is enabled instead of being answered with 401.
 	headers.Set("X-Internal-FollowUp", "true")
 	headers.Set("X-External-Source", string(security.ExternalEmail))
+	headers.Set("X-Session-ID", tools.MailEventSessionID(prompt))
+	if sheet := s.loadAgentMailRelayCheatsheet(s.ConfigSnapshot().AgentMail.RelayCheatsheetID); strings.TrimSpace(sheet.Content) != "" {
+		headers.Set("X-Mail-Relay-Instructions", "true")
+	}
 	headers.Set("X-Internal-Token", s.internalToken)
-	client := NewInternalHTTPClient(3 * time.Minute)
+	client := NewInternalHTTPClient(35 * time.Minute)
 	resp, err := DoInternalRequestWithStartupRetry(ctx, client, http.MethodPost, url, payload, headers, 10*time.Second)
 	if err != nil {
 		return err

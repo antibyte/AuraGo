@@ -23,6 +23,15 @@ Send push notifications to one or more channels. Ideal for alerts, reminders, an
 | `message` | yes | Notification body text |
 | `tag`     | no  | Priority: `"low"`, `"normal"` (default), `"high"`, `"critical"` |
 
+### Automatic email notices
+
+For unsolicited email events, normal/low-priority notices are skipped unless a
+loaded relay cheatsheet explicitly requests routine forwarding. Use `tag: "high"`
+or `"critical"` only for a genuinely new, actionable, time-sensitive finding.
+Per-event/channel receipts prevent repeated sends across restarts. A `skipped`
+result is not a delivered message; an unknown delivery requires explicit review,
+not an automatic resend or a switch to another messaging tool.
+
 ### Channels
 
 - **ntfy** — Open-source push service (ntfy.sh or self-hosted). Configured in `config.yaml` under `notifications.ntfy`.

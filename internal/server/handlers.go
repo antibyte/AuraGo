@@ -330,6 +330,15 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			speechLabSessionID = chatSessionID
 		}
 		lastRequestMessage := req.Messages[len(req.Messages)-1]
+		mailEvent := isFollowUp && missionID == "" && trustedMailIngress(r, s)
+		if mailEvent {
+			// External deliveries never inherit a human conversation or its recap.
+			speechLabSessionID = tools.MailEventSessionID(lastRequestMessage.Content)
+			if eventID := r.Header.Get("X-Session-ID"); tools.ValidMailEventSessionID(eventID) {
+				speechLabSessionID = eventID
+			}
+			r = r.WithContext(tools.WithMailNotificationPolicy(r.Context(), turnCfg.Directories.DataDir, speechLabSessionID, r.Header.Get("X-Mail-Relay-Instructions") == "true"))
+		}
 		var speechLabReservation *speechLabTurnTokenReservation
 		markedSpeechLabInput := false
 		if !isFollowUp && missionID == "" {
@@ -491,6 +500,9 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 
 		// Build run configuration for the unified agent loop.
 		msgSource := chatCompletionMessageSource(isFollowUp, missionID)
+		if mailEvent {
+			msgSource = "email"
+		}
 		userIntent := ""
 		if !isFollowUp && missionID == "" && lastUserMsg.Role == openai.ChatMessageRoleUser {
 			userIntent = lastUserMsg.Content
@@ -564,6 +576,9 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		missionToolResultsBefore := missionToolResultCount{}
 
 		finalMessages := append([]openai.ChatCompletionMessage{}, recentMessages...)
+		if mailEvent {
+			finalMessages = append([]openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleSystem, Content: tools.MailEventInstructions}}, finalMessages...)
+		}
 		if sessionID == "default" {
 			if currentSummary := s.HistoryManager.GetSummary(); currentSummary != "" {
 				finalMessages = append([]openai.ChatCompletionMessage{{

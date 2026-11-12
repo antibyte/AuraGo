@@ -63,21 +63,35 @@ func (g *LLMGuardian) EvaluateContentStrict(ctx context.Context, contentType, co
 // from a sample, a truncated response or a permissive fail-safe cannot allow data.
 func (g *LLMGuardian) evaluateContentChunks(ctx context.Context, contentType, content, policy string) (result GuardianResult, err error) {
 	start := time.Now()
-	defer func() { result.Duration = time.Since(start) }()
-	if g == nil || g.client == nil || ctx.Err() != nil {
-		return ContentScanQuarantine(QuarantineUnavailable), fmt.Errorf("content scanner unavailable")
+	defer func() {
+		result.Duration = time.Since(start)
+		if err != nil && g != nil && g.logger != nil {
+			g.logger.Warn("[Guardian] Content inspection did not complete", "type", contentType, "error_code", err.Error(), "input_bytes", len(content))
+		}
+	}()
+	if g == nil || g.client == nil {
+		return ContentScanQuarantine(QuarantineUnavailable), fmt.Errorf("content_scan_unavailable")
+	}
+	if ctx.Err() != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return ContentScanQuarantine(QuarantineUnavailable), fmt.Errorf("content_scan_timeout")
+		}
+		return ContentScanQuarantine(QuarantineUnavailable), fmt.Errorf("content_scan_canceled")
 	}
 	const maxBytes = contentScanChunkBytes + (contentScanMaxChunks-1)*(contentScanChunkBytes-contentScanChunkOverlapBytes)
-	if len(content) > maxBytes || !utf8.ValidString(content) {
-		return ContentScanQuarantine(QuarantineIncomplete), fmt.Errorf("content exceeds complete scan limits")
+	if !utf8.ValidString(content) {
+		return ContentScanQuarantine(QuarantineIncomplete), fmt.Errorf("content_scan_invalid_utf8")
+	}
+	if len(content) > maxBytes {
+		return ContentScanQuarantine(QuarantineIncomplete), fmt.Errorf("content_scan_input_limit")
 	}
 	chunks := prepareContentScanChunks(content, contentScanChunkBytes, contentScanChunkOverlapBytes)
 	if len(chunks) > contentScanMaxChunks {
-		return ContentScanQuarantine(QuarantineIncomplete), fmt.Errorf("content exceeds complete scan limits")
+		return ContentScanQuarantine(QuarantineIncomplete), fmt.Errorf("content_scan_input_limit")
 	}
 	release, _, ok := g.acquireCheckSlot(start, "content_scan")
 	if !ok {
-		return ContentScanQuarantine(QuarantineUnavailable), fmt.Errorf("content scanner capacity exhausted")
+		return ContentScanQuarantine(QuarantineUnavailable), fmt.Errorf("content_scan_capacity")
 	}
 	defer release()
 	ctx, cancel := context.WithTimeout(ctx, 40*time.Second)
@@ -92,24 +106,41 @@ func (g *LLMGuardian) evaluateContentChunks(ctx context.Context, contentType, co
 			system += "\nAdditional security policy:\n" + policy
 		}
 		resp, callErr := g.completeTracked(ctx, openai.ChatCompletionRequest{
-			Model: g.model, Messages: g.buildMessages(system, user), MaxTokens: 2048, Temperature: 0,
+			// Reasoning models spend the completion budget before writing the verdict.
+			Model: g.model, Messages: g.buildMessages(system, user), MaxTokens: 8192, Temperature: 0,
 		})
 		if callErr != nil || ctx.Err() != nil {
 			result = ContentScanQuarantine(QuarantineUnavailable)
 			result.TokensUsed = tokens
-			return result, fmt.Errorf("content scan unavailable")
+			if ctx.Err() == context.DeadlineExceeded {
+				return result, fmt.Errorf("content_scan_timeout")
+			}
+			if ctx.Err() == context.Canceled {
+				return result, fmt.Errorf("content_scan_canceled")
+			}
+			return result, fmt.Errorf("content_scan_provider_error")
 		}
 		tokens += resp.Usage.TotalTokens
-		if len(resp.Choices) != 1 || resp.Choices[0].FinishReason != openai.FinishReasonStop || len(resp.Choices[0].Message.ToolCalls) != 0 || resp.Choices[0].Message.FunctionCall != nil {
+		if len(resp.Choices) != 1 {
 			result = ContentScanQuarantine(QuarantineIncomplete)
 			result.TokensUsed = tokens
-			return result, fmt.Errorf("incomplete content verdict")
+			return result, fmt.Errorf("content_scan_invalid_response")
+		}
+		if resp.Choices[0].FinishReason == openai.FinishReasonLength {
+			result = ContentScanQuarantine(QuarantineIncomplete)
+			result.TokensUsed = tokens
+			return result, fmt.Errorf("content_scan_output_limit")
+		}
+		if resp.Choices[0].FinishReason != openai.FinishReasonStop || len(resp.Choices[0].Message.ToolCalls) != 0 || resp.Choices[0].Message.FunctionCall != nil {
+			result = ContentScanQuarantine(QuarantineIncomplete)
+			result.TokensUsed = tokens
+			return result, fmt.Errorf("content_scan_invalid_response")
 		}
 		verdict, parseErr := ParseStrictContentVerdict(resp.Choices[0].Message.Content)
 		if parseErr != nil {
 			result = ContentScanQuarantine(QuarantineIncomplete)
 			result.TokensUsed = tokens
-			return result, parseErr
+			return result, fmt.Errorf("content_scan_invalid_verdict")
 		}
 		if verdict.Decision == DecisionQuarantine {
 			verdict.QuarantineReason = QuarantineSuspicious

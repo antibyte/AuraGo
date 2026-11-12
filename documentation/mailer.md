@@ -16,6 +16,27 @@ failed uploads retain retry/remove controls and block Send.
 See [Desktop email exports](desktop-email.md) for the supported apps, formats and
 failure behavior. Store apps and Tresor are excluded.
 
+## Background mail and heartbeat
+
+An enabled inbox watcher checks new mail on its own configured interval, independent
+of the heartbeat. An incoming delivery runs in an isolated mail-event conversation
+and cannot continue a project from the main chat. By default, routine mail and
+unchanged status do not create push/Telegram reports. New actionable high/critical
+findings may notify; a configured and successfully loaded relay cheatsheet may
+explicitly request routine forwarding.
+
+Notification receipts are stored as hashes and delivery states, without message
+text, in the existing system task store. Confirmed receipts prevent repeat sends
+for 30 days. Uncertain/interrupted sends remain pending for review and are never
+automatically replayed. The ledger admits at most 2,000 receipts; if full or
+unavailable, the automatic notification fails safely. Inspect an uncertain send
+before requesting a manual resend in the ordinary chat.
+
+Mail security inspection stays enabled. A message above the complete-scan size
+limit remains quarantined; the technical log distinguishes `content_scan_input_limit`
+from malformed/truncated model responses and scanner failures. These outcomes are
+inspection failures, not independent proof that the mail is malicious.
+
 ## Connect accounts
 
 Open Mailer, enable it, and choose **Connect existing account** or **New account**.

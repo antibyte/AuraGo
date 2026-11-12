@@ -118,7 +118,7 @@ func TestLoadAgentMailRelayCheatsheet(t *testing.T) {
 // header and token like every other internal loopback: with auth disabled the
 // turn is labelled internal (not an admin web turn), and with auth enabled it
 // is accepted instead of answered with 401.
-func TestAgentMailLoopbackIsAnInternalTurn(t *testing.T) {
+func TestAgentMailLoopbackDoesNotAnswerDefaultPendingQuestion(t *testing.T) {
 	for _, authEnabled := range []bool{false, true} {
 		authEnabled := authEnabled
 		t.Run(map[bool]string{false: "auth-disabled", true: "auth-enabled"}[authEnabled], func(t *testing.T) {
@@ -143,16 +143,13 @@ func TestAgentMailLoopbackIsAnInternalTurn(t *testing.T) {
 			defer tools.CancelQuestion("default")
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			if err := s.notifyAgentMailLoopback(ctx, "blue"); err != nil {
+			if err := s.notifyAgentMailLoopback(ctx, "/help"); err != nil {
 				t.Fatalf("notifyAgentMailLoopback: %v", err)
 			}
 			select {
-			case resp := <-ch:
-				if resp.Source != tools.QuestionSourceInternal {
-					t.Fatalf("AgentMail loopback answered as %q, want internal", resp.Source)
-				}
-			case <-time.After(time.Second):
-				t.Fatal("pending question was not reached by the loopback")
+			case <-ch:
+				t.Fatal("mail delivery answered a question in the human conversation")
+			default:
 			}
 		})
 	}

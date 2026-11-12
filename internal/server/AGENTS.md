@@ -123,6 +123,8 @@ Server-owned HTTP and cross-component integration contracts.
 
 ### Mail integration policy
 
+- Trusted mail deliveries select their own deterministic `mail-` session, ignoring caller-selected human sessions, and receive a fixed event-only system instruction. Never load the default history/recap or answer its pending question. Only process-token-authenticated ingress can install the mail notification policy or declare a loaded relay cheatsheet through `X-Mail-Relay-Instructions`; a configured but missing cheatsheet grants nothing. IMAP and AgentMail loopbacks use a 35-minute caller budget for the server's bounded synchronous turn. Verify `TestMailIngressNeverInheritsDefaultConversation`, `TestAgentMailLoopbackDoesNotAnswerDefaultPendingQuestion` and watcher lifecycle tests.
+
 - AgentMail status reads immutable config via ConfigSnapshot and protects its
   relay pointer/status with AgentMailMu, including replacement and shutdown.
 - Config and setup saves validate AgentMail HTTPS base syntax before persistence.

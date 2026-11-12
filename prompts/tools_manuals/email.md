@@ -16,6 +16,18 @@ quarantined has already executed: do not repeat the mutation.
 
 ---
 
+## Independent background deliveries
+
+The inbox watcher runs independently of the heartbeat interval. Each unsolicited
+delivery has its own mail-event session; it is not a continuation of a chat or
+project. Use the supplied summary and inspect only this event when more detail is
+necessary. Older inbox items are not new findings. Do not update unrelated project
+reports or repeat remembered status. Ordinary newsletters, advertising, releases
+and unchanged status finish silently. A genuinely new actionable urgent finding
+may use `send_notification` with `tag: "high"` or `"critical"`; a configured, loaded
+relay cheatsheet may explicitly request routine forwarding. A skipped notification
+was not sent. Never automatically resend a notification with an unknown outcome.
+
 ## Multi-Account Support
 
 Multiple email accounts can be configured. Each account has a unique `id`.

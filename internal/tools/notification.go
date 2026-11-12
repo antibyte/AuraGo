@@ -96,6 +96,18 @@ func SendNotificationContext(ctx context.Context, cfg *config.Config, logger *sl
 			return
 		}
 		var err error
+		finish, skipped, err := beginMailNotification(ctx, string(c), priority)
+		if err != nil {
+			results = append(results, result{Channel: string(c), Status: "error", Detail: err.Error()})
+			return
+		}
+		if skipped {
+			results = append(results, result{Channel: string(c), Status: "skipped", Detail: "mail event has no new urgent notice or was already delivered"})
+			return
+		}
+		if finish != nil {
+			defer finish(false)
+		}
 		switch c {
 		case ChannelNtfy:
 			err = sendNtfy(cfg, title, message, priority, ctx)
@@ -136,6 +148,9 @@ func SendNotificationContext(ctx context.Context, cfg *config.Config, logger *sl
 		default:
 			results = append(results, result{Channel: string(c), Status: "error", Detail: "unknown channel"})
 			return
+		}
+		if finish != nil {
+			err = errors.Join(err, finish(err == nil))
 		}
 		if err != nil {
 			logger.Warn("Notification failed", "channel", c, "error", err)

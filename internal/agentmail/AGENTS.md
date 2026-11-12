@@ -22,6 +22,7 @@ owns tool admission. Mailer's provider adapter remains in `../mailer`.
   `agentmail.allow_delete` grant at agent/server boundaries; readonly wins.
 - Register credentials before requests. Keep relay sender policy, successful-seed
   admission, quarantine, deduplication and shutdown joining intact.
+- Server relay handoff uses an isolated mail-event session and the shared notification receipt policy; it cannot answer a pending question in the default human chat. Server owns the trusted loaded-cheatsheet marker and the 35-minute loopback caller budget.
 
 ## Work Guidance
 

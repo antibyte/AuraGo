@@ -104,6 +104,16 @@ func SendTelegramFile(ctx context.Context, cfg *config.Config, logger *slog.Logg
 		return encode(map[string]any{"status": "error", "message": err.Error(),
 			"results": []map[string]string{{"channel": "telegram", "status": "error", "detail": err.Error()}}})
 	}
+	finish, skipped, err := beginMailNotification(nativeHTTPContext(ctx), "telegram", "normal")
+	if err != nil {
+		return fail(err)
+	}
+	if skipped {
+		return encode(map[string]any{"status": "success", "results": []map[string]string{{"channel": "telegram", "status": "skipped", "detail": "mail attachments require explicit relay instructions"}}})
+	}
+	if finish != nil {
+		defer finish(false)
+	}
 	if _, _, err := telegramDocumentTarget(cfg); err != nil {
 		return fail(err)
 	}
@@ -132,6 +142,11 @@ func SendTelegramFile(ctx context.Context, cfg *config.Config, logger *slog.Logg
 			err = fmt.Errorf("the text was sent as a message, but the document was not: %w", err)
 		}
 		return fail(err)
+	}
+	if finish != nil {
+		if err := finish(true); err != nil {
+			return fail(err)
+		}
 	}
 	return encode(map[string]any{"status": "success", "document": name,
 		"results": []map[string]string{{"channel": "telegram", "status": "sent"}}})

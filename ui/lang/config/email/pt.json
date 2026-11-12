@@ -66,7 +66,7 @@
   "config.email.smtp_host_help": "Endereço do servidor de e-mail de saída (SMTP) do seu provedor.",
   "config.email.username_help": "Nome de usuário para IMAP e SMTP, normalmente o endereço de e-mail completo.",
   "config.email.password_help": "Senha ou senha de aplicativo da conta. É armazenada criptografada no vault.",
-  "config.email.watch_enabled_help": "O AuraGo verifica regularmente a pasta escolhida abaixo em busca de novos e-mails e pode reagir a eles.",
+  "config.email.watch_enabled_help": "O AuraGo verifica regularmente a pasta escolhida abaixo em busca de novos e-mails e pode reagir a eles. A monitorização funciona independentemente da verificação periódica Heartbeat. Por predefinição, os emails normais e os estados inalterados não geram notificações.",
   "config.email.watch_folder_help": "Pasta IMAP monitorada em busca de novos e-mails. O padrão é INBOX.",
   "config.email.interval_seconds_help": "Com que frequência a pasta é verificada, em segundos (padrão 120). Intervalos menores sobrecarregam mais o servidor de e-mail.",
   "config.email.id_sanitised": "Só são permitidos a-z, 0-9, - e _. O ID será guardado como '{id}'.",
