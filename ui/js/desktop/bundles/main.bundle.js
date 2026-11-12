@@ -4869,6 +4869,7 @@
         }
         try {
             for (const path of unique) await api('/api/desktop/file?path=' + encodeURIComponent(path), { method: 'DELETE' });
+            desktopSound('file.delete');
             await loadBootstrap();
             const active = state.windows.get(state.activeWindowId);
             if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
@@ -23935,7 +23936,7 @@ if (appId === 'pixel') {
         beginWindowSwitcherHold(false);
     }
 
-    // Enter, Delete and F2 act on the selected desktop icon only while the keyboard belongs to
+    // Desktop icon shortcuts act only while the keyboard belongs to
     // the desktop: a focused icon, or the page body after the last press landed on the desktop.
     // A press inside a window or other shell surface keeps them off the icon even when the
     // pressed element cannot hold focus and the keys arrive at the page body.
@@ -24016,10 +24017,10 @@ if (appId === 'pixel') {
             return;
         }
         case 'Delete': {
-            const icon = selectedFileDirectoryIcon();
-            if (icon) {
+            const paths = desktopBatchPaths();
+            if (paths.length) {
                 event.preventDefault();
-                deletePath(icon.dataset.path);
+                deleteDesktopPaths(paths);
             }
             return;
         }

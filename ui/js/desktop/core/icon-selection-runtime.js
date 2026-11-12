@@ -316,6 +316,7 @@
         }
         try {
             for (const path of unique) await api('/api/desktop/file?path=' + encodeURIComponent(path), { method: 'DELETE' });
+            desktopSound('file.delete');
             await loadBootstrap();
             const active = state.windows.get(state.activeWindowId);
             if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);

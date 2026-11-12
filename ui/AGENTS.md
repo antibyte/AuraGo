@@ -227,14 +227,18 @@ New app-scoped prefixes must contain no `ad` substring; verify
   The injected receiver supports SDK-less apps and preserves normal keyboard
   events; navigation or frame disposal revokes forwarding. Verify
   `TestDesktopSDKKeyboardBridgeUsesLivePortForSDKAndLegacyApps`.
-- Desktop icon keys (Enter, Delete, F2) act on the selected icon only from the
-  desktop: a focused icon, or the page body after the last pointer press landed
+- Desktop icon keys (Enter, Delete, F2) act only from the desktop: a focused
+  icon, or the page body after the last pointer press landed
   on the desktop surface (`trackDesktopKeyboardScope`). Keys from windows,
   menus, dialogs, widgets or the taskbar, and keys another handler already
   consumed (`defaultPrevented`), never reach the icon; apps need no
   `stopPropagation` workaround. Global shell shortcuts (Ctrl+K, F1, F11,
   Alt+F4, switcher, snap) keep working inside windows. Verify
   `TestDesktopIconShortcutsStayOnDesktopBrowser`.
+- Delete uses all selected file/directory paths through `deleteDesktopPaths`,
+  with one optional confirmation for the whole selection. Cancel preserves
+  every file; app/shortcut icons are not file-deletion targets. Enter and F2
+  keep acting on the primary selected icon.
 
 - Precision Workspace is an opt-in design system. Operational consumers are
   `config.html`, `dashboard.html`, `plans.html`, `missions_v2.html`,

@@ -730,7 +730,7 @@
         beginWindowSwitcherHold(false);
     }
 
-    // Enter, Delete and F2 act on the selected desktop icon only while the keyboard belongs to
+    // Desktop icon shortcuts act only while the keyboard belongs to
     // the desktop: a focused icon, or the page body after the last press landed on the desktop.
     // A press inside a window or other shell surface keeps them off the icon even when the
     // pressed element cannot hold focus and the keys arrive at the page body.
@@ -811,10 +811,10 @@
             return;
         }
         case 'Delete': {
-            const icon = selectedFileDirectoryIcon();
-            if (icon) {
+            const paths = desktopBatchPaths();
+            if (paths.length) {
                 event.preventDefault();
-                deletePath(icon.dataset.path);
+                deleteDesktopPaths(paths);
             }
             return;
         }

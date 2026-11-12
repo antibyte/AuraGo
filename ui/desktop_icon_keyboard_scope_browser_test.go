@@ -12,6 +12,7 @@ import (
 
 	"aurago/internal/desktop"
 	"github.com/go-rod/rod/lib/input"
+	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 )
 
@@ -28,7 +29,7 @@ func TestDesktopIconShortcutsStayOnDesktopBrowser(t *testing.T) {
 	if cut < 0 {
 		t.Fatal("desktop startup seam missing")
 	}
-	shell = shell[:cut] + `window.aurora={state,loadIconManifest,applyDesktopSettings,renderIcons,renderStartApps,renderStartButtonIcon,wireShellChromeControls,bindViewportMetrics,handleDesktopKeydown,closeContextMenu,openApp,closeWindow};})();`
+	shell = shell[:cut] + `window.aurora={state,loadIconManifest,applyDesktopSettings,renderIcons,renderStartApps,renderStartButtonIcon,wireShellChromeControls,bindViewportMetrics,handleDesktopKeydown,selectAllDesktopIcons,closeContextMenu,openApp,closeWindow};})();`
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.FS(Content)))
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, html) })
@@ -42,7 +43,8 @@ func TestDesktopIconShortcutsStayOnDesktopBrowser(t *testing.T) {
 	mux.HandleFunc("/fixture-apps", func(w http.ResponseWriter, _ *http.Request) { json.NewEncoder(w).Encode(desktop.BuiltinApps()) })
 	server := httptest.NewServer(mux)
 	defer server.Close()
-	page := newSmokeBrowser(t).MustPage(server.URL + "/fixture").Timeout(60 * time.Second)
+	profile := t.TempDir()
+	page := newSmokeBrowserWith(t, func(l *launcher.Launcher) { l.UserDataDir(profile) }).MustPage(server.URL + "/fixture").Timeout(60 * time.Second)
 	defer page.Close()
 	page.MustWaitLoad()
 	page.MustSetViewport(1366, 900, 1, false)
@@ -175,6 +177,50 @@ func TestDesktopIconShortcutsStayOnDesktopBrowser(t *testing.T) {
 	page.MustEval(`()=>document.activeElement?.blur()`)
 	page.Keyboard.MustType(input.Delete)
 	waitForJSBool(t, page, `()=>fixtureMutations.length===1 && fixtureMutations[0]==='DELETE /api/desktop/file?path=Welcome.md'`)
+
+	// Delete uses the complete selection, including directories, with one optional confirmation.
+	for _, confirm := range []bool{false, true} {
+		page.MustEval(`confirm=>{
+            const files=[{name:'first.png',path:'Desktop/first.png',type:'file'},
+                {name:'second image.txt',path:'Desktop/second image.txt',type:'file'},
+                {name:'folder',path:'Desktop/folder',type:'directory'}];
+            aurora.state.bootstrap.desktop_files=files;
+            aurora.state.desktopFiles=files;
+            aurora.state.bootstrap.settings['files.confirm_delete']=confirm;
+            aurora.renderIcons();fixtureMutations.length=0;
+        }`, confirm)
+		click(`.vd-icon[data-path="Desktop/first.png"]`)
+		page.MustEval(`()=>aurora.selectAllDesktopIcons()`)
+		if count := page.MustEval(`()=>document.querySelectorAll('.vd-icon.selected[data-kind="file"],.vd-icon.selected[data-kind="directory"]').length`).Int(); count != 3 {
+			t.Fatalf("expected three selected file/directory icons, got %d", count)
+		}
+		if confirm {
+			page.MustEval(`()=>document.activeElement?.blur()`)
+		}
+		page.Keyboard.MustType(input.Delete)
+		if confirm {
+			waitForJSBool(t, page, `()=>document.querySelectorAll('.vd-modal-backdrop').length===1`)
+			page.MustEval(`()=>{
+                const text=document.querySelector('.vd-modal-copy').textContent;
+                for(const path of ['Desktop/first.png','Desktop/second image.txt','Desktop/folder'])if(!text.includes(path))throw Error('Missing selection in confirmation: '+path);
+                if(fixtureMutations.length)throw Error('Deleted before confirmation');
+            }`)
+			page.Keyboard.MustType(input.Escape)
+			settle()
+			if got := page.MustEval(`()=>JSON.stringify(fixtureMutations)`).Str(); got != "[]" {
+				t.Fatalf("cancelled batch deletion changed files: %s", got)
+			}
+			page.Keyboard.MustType(input.Delete)
+			waitForJSBool(t, page, `()=>document.querySelectorAll('.vd-modal-backdrop').length===1`)
+			click(`.vd-modal-backdrop [type="submit"]`)
+		}
+		settle()
+		page.MustEval(`()=>{
+            const expected=['Desktop/first.png','Desktop/second image.txt','Desktop/folder'].map(path=>'DELETE /api/desktop/file?path='+encodeURIComponent(path)).sort();
+            if(JSON.stringify([...fixtureMutations].sort())!==JSON.stringify(expected))throw Error('Delete did not use the complete selection: '+JSON.stringify(fixtureMutations));
+            if(document.querySelector('.vd-modal-backdrop'))throw Error('Batch deletion opened another confirmation');
+        }`)
+	}
 
 	if errors := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); errors != "[]" {
 		t.Fatal(errors)
