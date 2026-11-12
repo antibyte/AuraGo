@@ -353,7 +353,7 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
     transition: background var(--ed-fast) var(--ed-ease), color var(--ed-fast) var(--ed-ease);
 }
 .ed-seg button[aria-checked="true"] { background: var(--ed-selected); color: var(--ed-selected-text); box-shadow: var(--ds-elevation-1); }
-.ed-seg--small button { min-height: 22px; padding: 2px 10px; font-size: 12px; }
+.ed-seg--small button { min-height: 24px; padding: 2px 10px; font-size: 12px; }
 
 .ed-switch {
     position: relative; display: inline-block; width: 36px; height: 20px; flex: none; padding: 0;
@@ -371,7 +371,9 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-switch--small { width: 30px; height: 17px; }
 .ed-switch--small > span { width: 13px; height: 13px; }
 .ed-switch--small[aria-checked="true"] > span { transform: translateX(13px); }
-/* U9: the small switch keeps its look; a pseudo element widens its target to 34 × 25 px */
+/* U9: the small switch keeps its look; a pseudo element widens its target to 34 × 25 px.
+   Target-size exception (S0c A5, WCAG 2.5.8): `.ed-switch--small` is listed in the browser
+   target-size test because the visible switch is 30 × 17 px and the hit area is the ::before. */
 .ed-switch--small::before { content: ""; position: absolute; inset: -4px -2px; }
 .ed-switch-btn {
     display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 4px 10px;
@@ -466,6 +468,8 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-flow-card.is-active { border-color: color-mix(in srgb, var(--ed-ok) 35%, var(--ed-border)); }
 .ed-flow-card.is-bulk-selected { outline: 2px solid var(--ed-focus); outline-offset: 1px; }
 .ed-flow-select { position: absolute; z-index: 2; top: 8px; left: 8px; display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--ed-border); border-radius: 12px; background: color-mix(in srgb, var(--ed-panel-strong) 92%, transparent); box-shadow: var(--ed-shadow); cursor: pointer; }
+/* Target-size exception (S0c A5, WCAG 2.5.8): `.ed-flow-select input` is listed in the browser
+   target-size test because the 20 × 20 px checkbox sits inside the 44 × 44 px label above, which is the target. */
 .ed-flow-select input { width: 20px; height: 20px; margin: 0; accent-color: var(--ed-accent); }
 .ed-flow-select:focus-within { outline: 2px solid var(--ed-focus); outline-offset: 2px; }
 .ed-flow-select input:disabled { opacity: 0.55; }
@@ -751,7 +755,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 }
 .ed-port[data-ed-port="error"] .ed-port-label { color: var(--ed-danger-ink); }
 .ed-port-add {
-    position: absolute; left: 14px; top: 50%; width: 22px; height: 22px; padding: 0; margin-top: -11px;
+    position: absolute; left: 14px; top: 50%; width: 24px; height: 24px; padding: 0; margin-top: -12px;
     display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--ed-border-strong);
     background: var(--ed-panel-strong); color: var(--ed-muted); cursor: pointer; opacity: 0; transform: scale(0.6);
     transition: opacity var(--ed-fast) var(--ed-ease), transform var(--ed-fast) var(--ed-ease-spring);
