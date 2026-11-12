@@ -189,6 +189,9 @@ func (s *Service) runPurge(dbPath, dir, key string, snapshots []string, release 
 	}
 
 	enter(PurgeStepBackup)
+	if _, err := SweepPurgeBackups(dir, s.now()); err != nil {
+		s.logger.Warn("flows leftovers could not be swept before the purge", "error", err)
+	}
 	backup, err := s.store.writePurgeBackup(ctx, dir, key, s.now())
 	if err != nil {
 		fail(err)

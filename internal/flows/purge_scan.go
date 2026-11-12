@@ -319,14 +319,6 @@ func dirBytes(dir string) int64 {
 	return total
 }
 
-// isPlaintextLeftover names the temporary files a failed purge or restore may leave in clear.
-func isPlaintextLeftover(name string) bool {
-	if strings.HasSuffix(name, preRestoreTempExt) || strings.HasSuffix(name, ".restore.tmp") {
-		return true
-	}
-	return (strings.HasPrefix(name, PurgeBackupPrefix) || strings.HasPrefix(name, PreRestoreBackupPrefix)) && !strings.HasSuffix(name, PurgeBackupSuffix)
-}
-
 // listPurgeFiles fills the snapshot, leftover and encrypted-backup lists from the directory of flows.db.
 func listPurgeFiles(dir string, rep *CredentialReport) error {
 	entries, err := os.ReadDir(dir)
@@ -344,7 +336,7 @@ func listPurgeFiles(dir string, rep *CredentialReport) error {
 			rep.Snapshots = append(rep.Snapshots, SnapshotInfo{Name: name, Bytes: dirBytes(filepath.Join(dir, name)), ModTime: info.ModTime()})
 		case entry.Type().IsRegular() && isEncryptedBackupName(name):
 			rep.Backups = append(rep.Backups, BackupInfo{Name: name, Bytes: info.Size(), ModTime: info.ModTime(), ExpiresAt: info.ModTime().Add(PurgeBackupMaxAge)})
-		case entry.Type().IsRegular() && isPlaintextLeftover(name):
+		case entry.IsDir() && isPlaintextLeftoverDir(name), entry.Type().IsRegular() && isPlaintextLeftover(name):
 			rep.Leftovers = append(rep.Leftovers, SnapshotInfo{Name: name, Bytes: info.Size(), ModTime: info.ModTime()})
 		}
 	}

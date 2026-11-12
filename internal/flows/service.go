@@ -387,7 +387,11 @@ func (s *Service) sweepPurgeBackups() {
 	if err != nil || dir == "" {
 		return
 	}
-	deleted, err := SweepPurgeBackups(dir, s.now())
+	// A running purge owns its work directory, so only a quiet service sweeps plaintext leftovers.
+	s.purge.mu.Lock()
+	running := s.purge.state.Status == "running"
+	s.purge.mu.Unlock()
+	deleted, err := sweepPurgeDir(dir, s.now(), !running)
 	if err != nil {
 		s.logger.Warn("expired flows backups could not be deleted", "error", err)
 	}

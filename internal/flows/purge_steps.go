@@ -3,9 +3,7 @@ package flows
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,16 +20,15 @@ import (
 // writePurgeBackup copies flows.db with VACUUM INTO into a temporary file in dir, encrypts it into
 // .flows-purge-backup-<UTC>.enc and removes the plaintext copy. It returns the file name.
 func (s *Store) writePurgeBackup(ctx context.Context, dir, key string, now time.Time) (string, error) {
-	suffix := make([]byte, 6)
-	if _, err := rand.Read(suffix); err != nil {
+	work, err := newPurgeWorkDir(dir)
+	if err != nil {
 		return "", err
 	}
-	tmp := filepath.Join(dir, purgeTempPrefix+hex.EncodeToString(suffix))
-	defer os.Remove(tmp)
+	defer os.RemoveAll(work)
+	tmp := filepath.Join(work, "flows.db")
 	if _, err := s.db.ExecContext(ctx, `VACUUM INTO ?`, tmp); err != nil {
 		return "", fmt.Errorf("copy flows.db: %w", err)
 	}
-	_ = os.Chmod(tmp, 0o600)
 	name := PurgeBackupPrefix + now.UTC().Format(backupTimeLayout) + PurgeBackupSuffix
 	if err := security.EncryptFileWithMasterKey(tmp, filepath.Join(dir, name), PurgeBackupLabel, key); err != nil {
 		return "", fmt.Errorf("encrypt the backup: %w", err)
@@ -264,32 +261,49 @@ func (s *Store) verifyPurge(ctx context.Context, dbPath, dir string, literals []
 			remaining = append(remaining, item)
 		}
 	}
-	var needles [][]byte
+	// The database files are searched without the literals a kept document still needs; everything
+	// else (snapshots, other plaintext .flows-* files) is searched with the full literal set.
+	var allNeedles, dbNeedles [][]byte
 	// keep is expanded like the purge set, so the bare part of a kept "Bearer ..." value is kept too.
 	keep := map[string]struct{}{}
 	for _, lit := range expandLiterals(post.draftLive, post.versions) {
 		keep[lit] = struct{}{}
 	}
 	for _, lit := range literals {
+		allNeedles = append(allNeedles, []byte(lit))
 		if _, kept := keep[lit]; !kept {
-			needles = append(needles, []byte(lit))
+			dbNeedles = append(dbNeedles, []byte(lit))
 		}
 	}
-	files := []string{dbPath, dbPath + "-wal", dbPath + "-shm"}
+	type target struct {
+		path    string
+		needles [][]byte
+	}
+	files := []target{{dbPath, dbNeedles}, {dbPath + "-wal", dbNeedles}, {dbPath + "-shm", dbNeedles}}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
 	for _, entry := range entries {
 		name := entry.Name()
-		if entry.Type().IsRegular() && strings.HasPrefix(name, ".flows-") && !strings.HasSuffix(name, PurgeBackupSuffix) {
-			files = append(files, filepath.Join(dir, name))
+		switch {
+		case entry.Type().IsRegular() && strings.HasPrefix(name, ".flows-") && !strings.HasSuffix(name, PurgeBackupSuffix):
+			files = append(files, target{filepath.Join(dir, name), allNeedles})
+		case entry.IsDir() && snapshotNamePattern.MatchString(name):
+			inner, err := os.ReadDir(filepath.Join(dir, name))
+			if err != nil {
+				return nil, err
+			}
+			for _, item := range inner {
+				if item.Type().IsRegular() {
+					files = append(files, target{filepath.Join(dir, name, item.Name()), allNeedles})
+				}
+			}
 		}
 	}
-	inside, _ := filepath.Glob(filepath.Join(dir, ".flows-v*-backup-*", "*"))
-	files = append(files, inside...)
-	for _, file := range files {
-		hit, err := fileHasAny(file, needles)
+	for _, t := range files {
+		file := t.path
+		hit, err := fileHasAny(file, t.needles)
 		if err != nil {
 			return nil, err
 		}

@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // File format: magic "AGFE", version byte, chunk size (uint32, big endian), 16-byte random file
@@ -64,9 +65,31 @@ func fileCryptAAD(header []byte, final bool) []byte {
 	return aad
 }
 
-// fileCryptOutput creates the temporary file next to dst (mode 0600) that is renamed over dst on success.
-func fileCryptOutput(dst string) (*os.File, error) {
-	return os.CreateTemp(filepath.Dir(dst), ".enc-*.part")
+// PlaintextWorkDirPrefix names the 0700 directories that hold plaintext temporary files.
+const PlaintextWorkDirPrefix = ".flows-purge-work-"
+
+// fileCryptOutput creates the temporary file (mode 0600) that is renamed over dst on success. When
+// plain is set the content is plaintext: the file then lives in dst's directory only if that is a
+// plaintext work directory, otherwise in a fresh 0700 work directory next to dst. cleanup removes
+// that work directory.
+func fileCryptOutput(dst string, plain bool) (*os.File, func(), error) {
+	dir := filepath.Dir(dst)
+	cleanup := func() {}
+	if plain && !strings.HasPrefix(filepath.Base(dir), PlaintextWorkDirPrefix) {
+		work, err := os.MkdirTemp(dir, PlaintextWorkDirPrefix)
+		if err != nil {
+			return nil, nil, err
+		}
+		_ = os.Chmod(work, 0o700)
+		dir = work
+		cleanup = func() { _ = os.RemoveAll(work) }
+	}
+	f, err := os.CreateTemp(dir, ".enc-*.part")
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+	return f, cleanup, nil
 }
 
 func fileCryptFinish(out *os.File, dst string, err error) error {
@@ -101,10 +124,11 @@ func EncryptFileWithMasterKey(src, dst, label, masterKeyHex string) error {
 		return fmt.Errorf("open file to encrypt: %w", err)
 	}
 	defer in.Close()
-	out, err := fileCryptOutput(dst)
+	out, cleanup, err := fileCryptOutput(dst, false)
 	if err != nil {
 		return fmt.Errorf("create encrypted file: %w", err)
 	}
+	defer cleanup()
 	header := append([]byte(fileCryptMagic), fileCryptVersion)
 	header = binary.BigEndian.AppendUint32(header, fileCryptChunkSize)
 	header = append(header, salt...)
@@ -161,10 +185,11 @@ func DecryptFileWithMasterKey(src, dst, label, masterKeyHex string) error {
 	if err != nil {
 		return err
 	}
-	out, err := fileCryptOutput(dst)
+	out, cleanup, err := fileCryptOutput(dst, true)
 	if err != nil {
 		return fmt.Errorf("create decrypted file: %w", err)
 	}
+	defer cleanup()
 	return fileCryptFinish(out, dst, decryptChunks(in, out, aead, header))
 }
 

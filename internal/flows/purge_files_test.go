@@ -32,7 +32,6 @@ func TestSweepPurgeBackupsDeletesAtSevenDaysAndKeepsSix(t *testing.T) {
 	put(".flows-pre-restore-b.enc", 8*24*time.Hour)
 	put(".flows-purge-backup-c.enc", 6*24*time.Hour+23*time.Hour)
 	put("other.enc", 30*24*time.Hour)
-	put(".flows-purge-backup-tmp-plain", 30*24*time.Hour) // a plaintext leftover is the scan's business
 	deleted, err := SweepPurgeBackups(dir, now)
 	if err != nil {
 		t.Fatal(err)
@@ -41,7 +40,7 @@ func TestSweepPurgeBackupsDeletesAtSevenDaysAndKeepsSix(t *testing.T) {
 	if strings.Join(deleted, ",") != ".flows-pre-restore-b.enc,.flows-purge-backup-a.enc" {
 		t.Fatalf("deleted = %v", deleted)
 	}
-	for _, kept := range []string{".flows-purge-backup-c.enc", "other.enc", ".flows-purge-backup-tmp-plain"} {
+	for _, kept := range []string{".flows-purge-backup-c.enc", "other.enc"} {
 		if _, err := os.Stat(filepath.Join(dir, kept)); err != nil {
 			t.Fatalf("%s was swept: %v", kept, err)
 		}
