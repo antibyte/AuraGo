@@ -58,8 +58,8 @@
             if (definition.control === 'select') return '<select ' + attrs(id) + ' aria-label="' + name + '"></select>';
             // The one number control is the font size, in points.
             if (definition.control === 'number') return '<input type="number" ' + attrs(id) + ' required min="1" max="200" step=".5" value="11" aria-label="' + name + '">';
-            if (definition.control === 'color') return '<label class="writer-color" title="' + name + '">' + icon(definition.icon, '') + '<input type="color" ' + attrs(id) + ' value="' + definition.value + '" aria-label="' + name + '"></label>';
-            return '<button type="button" ' + attrs(id) + ' title="' + esc(commands.tooltip(id)) + '" aria-label="' + name + '">' + icon(definition.icon, definition.fallback) + '</button>';
+            if (definition.control === 'color') return '<label class="writer-color" title="' + name + '">' + icon(definition.glyph, '') + '<input type="color" ' + attrs(id) + ' value="' + definition.value + '" aria-label="' + name + '"></label>';
+            return '<button type="button" ' + attrs(id) + ' title="' + esc(commands.tooltip(id)) + '" aria-label="' + name + '">' + icon(definition.glyph || definition.icon, definition.fallback) + '</button>';
         }
         const moreLabel = esc(tr('toolbar_more')), overflowId = 'writer-toolbar-overflow-' + String(root.dataset.writer).replace(/[^\w-]/g, '-');
         wrap.innerHTML = '<div class="writer-toolbar" role="toolbar" aria-label="' + esc(tr('format_bar')) + '">' +

@@ -12,19 +12,20 @@ const types = ['insertTable', 'insertRow', 'insertColumn', 'insertImage', 'inser
     'deleteTable', 'deleteRow', 'deleteColumn', 'deleteNote', 'mergeCells', 'splitCell', 'setPageSetup', 'setTableBorders', 'setCellFill',
     'setImageProperties', 'setImageWrapType', 'setNoteProperties', 'convertNote',
     'undo', 'redo', 'paste', 'toggleMark', 'setAlignment', 'setIndent', 'setLineSpacing', 'setParagraphSpacing', 'setSelection', 'clearFormatting',
-    'insertTextBox', 'setEditingMode', 'editHeaderFooter', 'exitHeaderFooter', 'replaceMatch'];
+    'insertTextBox', 'setEditingMode', 'editHeaderFooter', 'exitHeaderFooter', 'replaceMatch', 'selectAll', 'copy', 'cut', 'removeHyperlink'];
 for (const type of types) assert.equal(WriterCommands.untrackable(type), legacy.test(type), type);
 
 function harness(options = {}) {
     const log = {exec: [], table: [], notices: [], refreshed: 0, acted: []};
     const editor = {
         mode: options.mode || 'editing', refused: new Set(options.refused || []), active: new Set(options.active || []),
-        snapshot() { return {editingMode: this.mode}; },
+        snapshot() { return Object.assign({editingMode: this.mode}, options.snapshot); },
         can(command) { return this.refused.has(command.type) ? {ok: false, reason: 'engine'} : {ok: true}; },
         exec(command) { log.exec.push(command); return {ok: true}; },
         isActive(command) { return this.active.has(command.type); }
     };
-    const slotTypes = {'history.undo': 'undo', 'history.redo': 'redo', 'text.bold': 'toggleBold', 'text.italic': 'toggleItalic'};
+    const slotTypes = {'history.undo': 'undo', 'history.redo': 'redo', 'text.bold': 'toggleBold', 'text.italic': 'toggleItalic',
+        'insert.pageBreak': 'insertBreak', 'insert.endnote': 'insertNote', 'insert.toc': 'insertToc'};
     const lib = {
         commandForSlot: slot => ({type: slotTypes[slot] || slot}),
         commandForSlotValue: (slot, value) => ({type: 'value', slot, value}),
@@ -32,9 +33,9 @@ function harness(options = {}) {
     };
     const state = {editor: options.noEditor ? null : editor, loading: !!options.loading};
     const commands = WriterCommands.create({
-        tr: key => key, t: key => key, readonly: !!options.readonly,
+        tr: key => key, t: key => key, readonly: !!options.readonly, format: value => 'n' + value,
         editor: () => state.editor, lib: () => lib, loading: () => state.loading,
-        act: id => { log.acted.push(id); return true; },
+        act: id => { log.acted.push(id); return true; }, active: id => (options.open || []).includes(id),
         notice: (message, error) => log.notices.push({message, error}),
         refresh: () => { log.refreshed++; }
     });
@@ -49,6 +50,7 @@ function harness(options = {}) {
     assert.equal(commands.can({type: 'undo'}).ok, true);
     assert.equal(commands.blocked('setPageSetup'), 'tracking_unsupported');
     assert.equal(commands.blocked('paste'), '');
+    assert.equal(commands.tracking(), true);
     assert.equal(commands.run({type: 'insertTable'}), false);
     assert.equal(log.exec.length, 0);
     assert.equal(log.notices[0].message, 'command_unavailable · tracking_unsupported');
@@ -59,9 +61,10 @@ function harness(options = {}) {
     const {commands, log} = harness();
     assert.equal(commands.can({type: 'mergeCells'}).ok, true);
     assert.equal(commands.run({type: 'splitCell', rows: 1, cols: 2}), true);
-    assert.equal(log.table.join(), 'mergeCells:true,splitCell:true,splitCell:false');
+    assert.equal(commands.invoke('mergeCells'), true);
+    assert.equal(log.table.join(), 'mergeCells:true,splitCell:true,splitCell:false,mergeCells:true,mergeCells:false');
     assert.equal(log.exec.length, 0);
-    assert.equal(log.refreshed, 1);
+    assert.equal(log.refreshed, 2);
 }
 { // Nothing runs while a document loads, and nothing is announced.
     const {commands, log} = harness({loading: true});
@@ -72,9 +75,9 @@ function harness(options = {}) {
 { // Without a document only document-free actions are enabled.
     const {commands} = harness({noEditor: true});
     assert.equal(commands.can({type: 'undo'}).ok, false);
-    assert.equal(commands.state('save').enabled, false);
-    assert.equal(commands.state('bold').enabled, false);
-    assert.equal(commands.state('open').enabled, true);
+    assert.equal(commands.tracking(), false);
+    for (const id of ['save', 'bold', 'copy', 'paste', 'goToPage', 'wordCount', 'zoom100', 'table', 'link']) assert.equal(commands.state(id).enabled, false, id);
+    for (const id of ['open', 'shortcuts', 'outline']) assert.equal(commands.state(id).enabled, true, id);
     assert.equal(commands.menuItem('undo').disabled, true);
     assert.equal(commands.menuItem('print').disabled, true);
     assert.equal(commands.menuItem('open').disabled, false);
@@ -91,16 +94,55 @@ function harness(options = {}) {
     assert.equal(commands.invoke('outline'), true);
     assert.equal(log.acted[0], 'outline');
 }
+{ // An entry can name its engine command directly.
+    const {commands, log} = harness({refused: ['cut']});
+    assert.equal(commands.state('copy').enabled, true);
+    assert.equal(commands.state('cut').enabled, false);
+    assert.equal(commands.state('cut').reason, 'engine');
+    assert.equal(commands.invoke('selectAll'), true);
+    assert.equal(log.exec[0].type, 'selectAll');
+    assert.equal(commands.invoke('rowAbove'), true);
+    assert.equal(log.exec[1].type + ':' + log.exec[1].where, 'insertRow:above');
+    assert.equal(commands.invoke('spacing150'), true);
+    assert.equal(log.exec[2].rule + ':' + log.exec[2].value, 'multiple:1.5');
+    assert.equal(log.acted.length, 0);
+}
+{ // Structural entries are refused while changes are tracked.
+    const {commands} = harness({mode: 'suggesting'});
+    for (const id of ['rowAbove', 'deleteTable', 'pageBreak', 'endnote', 'toc']) assert.equal(commands.state(id).reason, 'tracking_unsupported', id);
+    for (const id of ['copy', 'selectAll', 'superscript', 'marks', 'spacing115']) assert.equal(commands.state(id).enabled, true, id);
+}
+{ // A checked state comes from the snapshot, or from the app for its own actions.
+    const {commands} = harness({snapshot: {showParagraphMarks: true, reviewDisplayMode: 'proposed', formatting: {lineSpacing: {rule: 'multiple', value: 1.5}}}, open: ['outline']});
+    assert.equal(commands.state('marks').active, true);
+    assert.equal(commands.state('markupFinal').active, true);
+    assert.equal(commands.state('markupAll').active, false);
+    assert.equal(commands.state('spacing150').active, true);
+    assert.equal(commands.state('spacing100').active, false);
+    assert.equal(commands.state('outline').active, true);
+    assert.equal(commands.state('review').active, false);
+    assert.equal(commands.menuItem('marks').checked, true);
+    assert.equal(commands.menuItem('outline').checked, true);
+    assert.equal(commands.menuItem('markupAll').checked, undefined);
+}
+{ // Without a display mode in the snapshot, all changes are shown.
+    const {commands} = harness();
+    assert.equal(commands.state('markupAll').active, true);
+    assert.equal(commands.state('marks').active, false);
+}
 { // Read-only windows keep reading actions.
     const {commands} = harness({readonly: true});
-    for (const id of ['new', 'save', 'saveAs', 'image', 'qr']) assert.equal(commands.state(id).enabled, false, id);
-    for (const id of ['open', 'print', 'docx', 'search']) assert.equal(commands.state(id).enabled, true, id);
+    for (const id of ['new', 'save', 'saveAs', 'image', 'qr', 'paste', 'pastePlain', 'table', 'link', 'tracking']) assert.equal(commands.state(id).enabled, false, id);
+    for (const id of ['open', 'print', 'docx', 'search', 'goToPage', 'wordCount', 'zoomPage', 'shortcuts']) assert.equal(commands.state(id).enabled, true, id);
 }
 { // An action can name the command type that tracking refuses.
     const {commands} = harness({mode: 'suggesting'});
-    assert.equal(commands.state('qr').enabled, false);
-    assert.equal(commands.state('qr').reason, 'tracking_unsupported');
+    for (const id of ['qr', 'table', 'link']) {
+        assert.equal(commands.state(id).enabled, false, id);
+        assert.equal(commands.state(id).reason, 'tracking_unsupported', id);
+    }
     assert.equal(commands.state('image').enabled, true);
+    assert.equal(commands.state('paste').enabled, true);
 }
 { // Shortcuts match the exact modifier set.
     const {commands} = harness();
@@ -112,30 +154,44 @@ function harness(options = {}) {
     assert.equal(key('n'), 'new');
     assert.equal(key('o'), 'open');
     assert.equal(key('p'), 'print');
+    assert.equal(key('k'), 'link');
+    assert.equal(key('g'), 'goToPage');
     assert.equal(key('s', {ctrlKey: false, metaKey: true}), 'save', 'Cmd counts as Ctrl');
     assert.equal(key('s', {altKey: true}), '', 'AltGr letters are text, not shortcuts');
     assert.equal(key('o', {shiftKey: true}), '');
     assert.equal(key('s', {ctrlKey: false}), '');
-    assert.equal(key('z'), '', 'the engine owns undo');
+    for (const name of ['z', 'c', 'v', 'x', 'a']) assert.equal(key(name), '', 'the engine owns Ctrl+' + name);
 }
 { // Labels, tooltips and menu items.
-    const {commands, log} = harness();
+    const {commands, log} = harness({active: ['toggleBold']});
     assert.equal(commands.label('saveAs'), 'save_as');
     assert.equal(commands.label('qr'), 'desktop.qr_insert');
+    assert.equal(commands.label('zoom125'), '125%');
+    assert.equal(commands.label('spacing115'), 'n1.15');
+    assert.equal(commands.format(1.5), 'n1.5');
     assert.equal(commands.tooltip('save'), 'save (Ctrl+S)');
-    assert.equal(commands.tooltip('bold'), 'bold');
+    assert.equal(commands.tooltip('copy'), 'copy (Ctrl+C)');
+    assert.equal(commands.tooltip('bold'), 'bold (Ctrl+B)');
+    assert.equal(commands.tooltip('strike'), 'strike');
     const item = commands.menuItem('print');
     assert.equal(item.id, 'print');
     assert.equal(item.label, 'print');
     assert.equal(item.icon, 'printer');
     assert.equal(item.shortcut, 'Ctrl+P');
+    assert.equal(item.shortcutHint, undefined);
     assert.equal(item.disabled, false);
     item.action();
     assert.equal(log.acted[0], 'print');
-    assert.equal(commands.menuItem('undo').disabled, false, 'menus are built once, so a slot item only needs a document');
+    assert.equal(commands.menuItem('undo').disabled, false);
     assert.equal(commands.menuItem('search').icon, 'search');
+    // The shell dispatches `shortcut` itself; clipboard keys are only shown.
+    assert.equal(commands.menuItem('copy').shortcut, undefined);
+    assert.equal(commands.menuItem('copy').shortcutHint, 'Ctrl+C');
+    // A glyph is drawn by the toolbar only, and a pressed toggle is not a check mark.
+    assert.equal(commands.menuItem('alignLeft').icon, '');
+    assert.equal(commands.menuItem('bold').checked, undefined);
 }
-{ // The engine wants a bare hex, a palette name and half-points.
+{ // The engine wants a bare hex, a palette name, half-points and a number of lines.
     const colors = WriterCommands.colors;
     assert.equal(colors.hex('#AABBCC'), '#aabbcc');
     assert.equal(colors.hex('aabbcc'), '#aabbcc');
@@ -153,6 +209,8 @@ function harness(options = {}) {
     assert.equal(commands.valueCommand('text.highlight', '#fffe00').value, 'yellow');
     assert.equal(commands.valueCommand('font.size', 11.5).value, 23);
     assert.equal(commands.valueCommand('font.family', 'Carlito').value, 'Carlito');
+    assert.equal(commands.valueCommand('list.lineSpacing', '1.5').value, 1.5);
+    assert.equal(commands.valueCommand('list.lineSpacing', '').value, 1, 'an unknown spacing still probes with a valid value');
 }
 
 // The table itself.
@@ -161,13 +219,16 @@ assert.equal(new Set(ids).size, ids.length, 'ids are unique');
 const bound = definitions.flatMap(definition => definition.keys || []);
 assert.equal(new Set(bound).size, bound.length, 'no key is bound twice');
 for (const definition of definitions) {
-    assert.ok(definition.label || definition.fullLabel, definition.id + ' has a label');
-    assert.ok(definition.slot || !definition.toggle, definition.id + ': only engine slots toggle');
+    assert.ok(definition.label || definition.fullLabel || definition.text || definition.number !== undefined, definition.id + ' has a label');
+    assert.ok(!(definition.slot && definition.command), definition.id + ' is a slot or a command, not both');
+    assert.ok(definition.slot || definition.command || !definition.toggle, definition.id + ': only engine commands toggle');
+    assert.ok(!(definition.shortcut && definition.hint), definition.id + ' shows one shortcut');
     if (definition.keys) assert.ok(definition.shortcut, definition.id + ' shows the shortcut it binds');
+    if (definition.options) assert.equal(definition.control, 'select', definition.id + ': only a select has options');
 }
 
 // Every label of the table and every literal tr('key') of the Writer files exists in all sixteen languages.
-const used = new Set(definitions.map(definition => definition.fullLabel || 'desktop.writer_' + definition.label));
+const used = new Set(definitions.filter(definition => definition.fullLabel || definition.label).map(definition => definition.fullLabel || 'desktop.writer_' + definition.label));
 for (const file of readdirSync('ui/js/desktop/apps').filter(name => /^writer(-[a-z]+)?\.js$/.test(name)))
     for (const match of readFileSync('ui/js/desktop/apps/' + file, 'utf8').matchAll(/\btr\('([a-z0-9_]+)'[,)]/g)) used.add('desktop.writer_' + match[1]);
 const languages = readdirSync('ui/lang/desktop').filter(name => name.endsWith('.json'));

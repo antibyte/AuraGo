@@ -33,33 +33,55 @@
         const name = String(value ?? '').trim();
         return HIGHLIGHTS[name] ? '#' + HIGHLIGHTS[name] : colorHex(value);
     }
-    // One entry per command a surface can offer.
-    //   slot       engine toolbar slot; without it the id is an app action handled by writer.js
-    //   label      desktop.writer_* key; fullLabel names a key outside that prefix
-    //   icon       shared icon key or a glyph drawn by writer-toolbar.js; fallback is the text stand-in
-    //   shortcut   what menus and tooltips show; keys is what Writer itself binds (the engine binds the rest)
+    const shows = name => snapshot => (snapshot.reviewDisplayMode || 'all-markup') === name;
+    const zoom = percent => ({id: 'zoom' + percent, text: percent + '%', needsEditor: true});
+    const lines = value => ({id: 'spacing' + Math.round(value * 100), command: {type: 'setLineSpacing', rule: 'multiple', value}, number: value,
+        active: snapshot => snapshot.formatting?.lineSpacing?.rule === 'multiple' && snapshot.formatting.lineSpacing.value === value});
+    // One entry per command a surface can offer. An entry is one of three kinds:
+    //   slot       an engine toolbar slot
+    //   command    an engine command that has no slot
+    //   (neither)  an app action; its `case` lives in act() in writer.js
+    // Fields:
+    //   label      desktop.writer_* key; fullLabel names a key outside that prefix; text is a literal; number is formatted for the locale
+    //   icon       shared icon key, for menus and the toolbar; glyph is drawn by writer-toolbar.js and used there only
+    //   shortcut   shown in menus and tooltips, and dispatched by the shell outside editable content; keys is what Writer binds itself
+    //   hint       a shortcut that is only shown, because the engine or the browser owns the key
+    //   toggle     pressed state from the engine, for the toolbar; active(snapshot) is a state menus show as a check mark
+    //   control    'select', 'number' or 'color' instead of a button; options are the values of a select; value is a colour default
     //   write      refused in a read-only window; needsEditor: refused without a document
     //   untracked  command type whose tracking refusal disables the action
     const DEFINITIONS = [
         {id: 'undo', slot: 'history.undo', label: 'undo', icon: 'undo', fallback: '↶', shortcut: 'Ctrl+Z'},
         {id: 'redo', slot: 'history.redo', label: 'redo', icon: 'redo', fallback: '↷', shortcut: 'Ctrl+Y'},
+        {id: 'cut', command: {type: 'cut'}, label: 'cut', icon: 'cut', hint: 'Ctrl+X'},
+        {id: 'copy', command: {type: 'copy'}, label: 'copy', icon: 'copy', hint: 'Ctrl+C'},
+        {id: 'paste', label: 'paste', icon: 'paste', hint: 'Ctrl+V', write: true, needsEditor: true},
+        {id: 'pastePlain', label: 'paste_plain', hint: 'Ctrl+Shift+V', write: true, needsEditor: true},
+        {id: 'selectAll', command: {type: 'selectAll'}, label: 'select_all', hint: 'Ctrl+A'},
         {id: 'style', slot: 'styles.style', label: 'style', control: 'select'},
         {id: 'fontFamily', slot: 'font.family', label: 'font', control: 'select'},
         {id: 'fontSize', slot: 'font.size', label: 'size', control: 'number'},
-        {id: 'bold', slot: 'text.bold', label: 'bold', icon: 'format-bold', fallback: 'B', toggle: true},
-        {id: 'italic', slot: 'text.italic', label: 'italic', icon: 'format-italic', fallback: 'I', toggle: true},
-        {id: 'underline', slot: 'text.underline', label: 'underline', icon: 'format-underline', fallback: 'U', toggle: true},
+        {id: 'bold', slot: 'text.bold', label: 'bold', icon: 'format-bold', fallback: 'B', toggle: true, hint: 'Ctrl+B'},
+        {id: 'italic', slot: 'text.italic', label: 'italic', icon: 'format-italic', fallback: 'I', toggle: true, hint: 'Ctrl+I'},
+        {id: 'underline', slot: 'text.underline', label: 'underline', glyph: 'format-underline', fallback: 'U', toggle: true, hint: 'Ctrl+U'},
         {id: 'strike', slot: 'text.strike', label: 'strike', icon: 'format-strike', fallback: 'S', toggle: true},
-        {id: 'alignLeft', slot: 'alignment.left', label: 'align_left', icon: 'align-left', fallback: '≡', toggle: true},
-        {id: 'alignCenter', slot: 'alignment.center', label: 'align_center', icon: 'align-center', fallback: '≡', toggle: true},
-        {id: 'alignRight', slot: 'alignment.right', label: 'align_right', icon: 'align-right', fallback: '≡', toggle: true},
-        {id: 'alignJustify', slot: 'alignment.justify', label: 'justify', icon: 'align-justify', fallback: '≡', toggle: true},
+        {id: 'superscript', slot: 'script.super', label: 'superscript', toggle: true},
+        {id: 'subscript', slot: 'script.sub', label: 'subscript', toggle: true},
+        {id: 'clearFormat', slot: 'format.clear', label: 'clear_format', glyph: 'clear-format', fallback: 'T'},
+        {id: 'copyFormat', command: {type: 'copyFormatting'}, label: 'copy_format'},
+        {id: 'pasteFormat', command: {type: 'pasteFormatting'}, label: 'paste_format'},
+        {id: 'alignLeft', slot: 'alignment.left', label: 'align_left', glyph: 'align-left', fallback: '≡', toggle: true},
+        {id: 'alignCenter', slot: 'alignment.center', label: 'align_center', glyph: 'align-center', fallback: '≡', toggle: true},
+        {id: 'alignRight', slot: 'alignment.right', label: 'align_right', glyph: 'align-right', fallback: '≡', toggle: true},
+        {id: 'alignJustify', slot: 'alignment.justify', label: 'justify', glyph: 'align-justify', fallback: '≡', toggle: true},
+        {id: 'lineSpacing', slot: 'list.lineSpacing', label: 'line_spacing', control: 'select', options: [1, 1.15, 1.5, 2]},
+        lines(1), lines(1.15), lines(1.5), lines(2),
         {id: 'bullets', slot: 'list.bullet', label: 'bullets', icon: 'list', fallback: '•', toggle: true},
         {id: 'numbering', slot: 'list.numbered', label: 'numbering', icon: 'format-numbered', fallback: '1.', toggle: true},
-        {id: 'outdent', slot: 'list.outdent', label: 'outdent', icon: 'outdent', fallback: '⇤'},
-        {id: 'indent', slot: 'list.indent', label: 'indent', icon: 'indent', fallback: '⇥'},
-        {id: 'textColor', slot: 'text.color', label: 'color', icon: 'text-color', control: 'color', value: '#172033'},
-        {id: 'highlight', slot: 'text.highlight', label: 'highlight', icon: 'highlight', control: 'color', value: '#ffff00'},
+        {id: 'outdent', slot: 'list.outdent', label: 'outdent', glyph: 'outdent', fallback: '⇤'},
+        {id: 'indent', slot: 'list.indent', label: 'indent', glyph: 'indent', fallback: '⇥'},
+        {id: 'textColor', slot: 'text.color', label: 'color', glyph: 'text-color', control: 'color', value: '#172033'},
+        {id: 'highlight', slot: 'text.highlight', label: 'highlight', glyph: 'highlight', control: 'color', value: '#ffff00'},
         {id: 'new', label: 'new', icon: 'file-plus', shortcut: 'Ctrl+N', keys: ['n'], write: true},
         {id: 'open', label: 'open', icon: 'folder-open', shortcut: 'Ctrl+O', keys: ['o']},
         {id: 'save', label: 'save', icon: 'save', shortcut: 'Ctrl+S', keys: ['s'], write: true, needsEditor: true},
@@ -70,17 +92,54 @@
         {id: 'txt', label: 'export_txt', icon: 'file-text', needsEditor: true},
         {id: 'print', label: 'print', icon: 'printer', shortcut: 'Ctrl+P', keys: ['p'], needsEditor: true},
         {id: 'search', label: 'find', icon: 'search', fallback: '⌕', shortcut: 'Ctrl+F', keys: ['f', 'h']},
+        {id: 'goToPage', label: 'go_page', shortcut: 'Ctrl+G', keys: ['g'], needsEditor: true},
         {id: 'outline', label: 'outline', icon: 'list', fallback: '☷'},
         {id: 'format', label: 'format', icon: 'sliders', fallback: 'A'},
         {id: 'review', label: 'review', icon: 'chat', fallback: '☷'},
         {id: 'assist', label: 'assist', icon: 'star', fallback: '✦'},
         {id: 'insert', label: 'insert', icon: 'plus', fallback: '＋'},
-        {id: 'image', label: 'image', icon: 'image', write: true, needsEditor: true},
-        {id: 'qr', fullLabel: 'desktop.qr_insert', icon: 'image', write: true, needsEditor: true, untracked: 'insertImage'},
+        {id: 'marks', slot: 'review.paragraphMarks', label: 'marks', active: snapshot => !!snapshot.showParagraphMarks},
+        {id: 'markupAll', slot: 'review.allMarkup', label: 'markup_all', active: shows('all-markup')},
+        {id: 'markupFinal', slot: 'review.noMarkup', label: 'markup_final', active: shows('proposed')},
+        {id: 'markupOriginal', slot: 'review.original', label: 'original', active: shows('original')},
         {id: 'focus', label: 'focus_mode', icon: 'maximize', fallback: '⛶'},
-        {id: 'fit', label: 'fit', icon: 'monitor'}
+        {id: 'fit', label: 'fit', icon: 'monitor'},
+        {id: 'zoomPage', label: 'zoom_page', needsEditor: true},
+        zoom(50), zoom(75), zoom(100), zoom(125), zoom(150), zoom(200),
+        {id: 'zoomIn', label: 'zoom_in', icon: 'zoom-in', needsEditor: true},
+        {id: 'zoomOut', label: 'zoom_out', icon: 'zoom-out', needsEditor: true},
+        {id: 'table', label: 'table', glyph: 'table', fallback: '▦', write: true, needsEditor: true, untracked: 'insertTable'},
+        {id: 'image', label: 'image', icon: 'image', fallback: '▣', write: true, needsEditor: true},
+        {id: 'qr', fullLabel: 'desktop.qr_insert', icon: 'image', write: true, needsEditor: true, untracked: 'insertImage'},
+        {id: 'link', label: 'hyperlink', icon: 'link', fallback: '∞', shortcut: 'Ctrl+K', keys: ['k'], write: true, needsEditor: true, untracked: 'insertHyperlink'},
+        {id: 'pageBreak', slot: 'insert.pageBreak', label: 'page_break'},
+        {id: 'sectionNext', slot: 'insert.sectionBreakNextPage', label: 'section_next'},
+        {id: 'sectionContinuous', slot: 'insert.sectionBreakContinuous', label: 'section_continuous'},
+        {id: 'footnote', slot: 'insert.footnote', label: 'footnote'},
+        {id: 'endnote', slot: 'insert.endnote', label: 'endnote'},
+        {id: 'toc', slot: 'insert.toc', label: 'toc'},
+        {id: 'textBox', slot: 'insert.textBox', label: 'text_box'},
+        {id: 'header', command: {type: 'editHeaderFooter', position: 'header'}, label: 'header'},
+        {id: 'footer', command: {type: 'editHeaderFooter', position: 'footer'}, label: 'footer'},
+        {id: 'pageNumber', slot: 'insert.pageXofY', label: 'page_numbers'},
+        {id: 'backDocument', command: {type: 'exitHeaderFooter'}, label: 'back_document'},
+        {id: 'rowAbove', command: {type: 'insertRow', where: 'above'}, label: 'row_above'},
+        {id: 'rowBelow', command: {type: 'insertRow', where: 'below'}, label: 'row_below'},
+        {id: 'columnLeft', command: {type: 'insertColumn', where: 'left'}, label: 'column_left'},
+        {id: 'columnRight', command: {type: 'insertColumn', where: 'right'}, label: 'column_right'},
+        {id: 'deleteRow', command: {type: 'deleteRow'}, label: 'delete_row'},
+        {id: 'deleteColumn', command: {type: 'deleteColumn'}, label: 'delete_column'},
+        {id: 'deleteTable', command: {type: 'deleteTable'}, label: 'table_delete'},
+        {id: 'mergeCells', command: {type: 'mergeCells'}, label: 'merge_cells'},
+        {id: 'splitCell', command: {type: 'splitCell', rows: 1, cols: 2}, label: 'split_cell'},
+        {id: 'wordCount', label: 'word_count_title', needsEditor: true},
+        {id: 'tracking', label: 'tracking', write: true, needsEditor: true},
+        {id: 'previousChange', slot: 'review.previousChange', label: 'previous_change'},
+        {id: 'nextChange', slot: 'review.nextChange', label: 'next_change'},
+        {id: 'shortcuts', label: 'shortcuts', icon: 'keyboard'}
     ];
-    // host: {tr, t, readonly, editor(), lib(), loading(), act(id), notice(message, error), refresh()}
+    // host: {tr, t, readonly, editor(), lib(), loading(), act(id), notice(message, error), refresh(),
+    //        active(id)?: whether an app action is switched on, format(number)?: a number in the user's locale}
     function create(host) {
         const byId = new Map(DEFINITIONS.map(definition => [definition.id, definition]));
         const get = id => byId.get(id);
@@ -105,30 +164,42 @@
             host.refresh();
             return result.ok;
         }
-        const label = id => get(id).fullLabel ? host.t(get(id).fullLabel) : host.tr(get(id).label);
-        const tooltip = id => label(id) + (get(id).shortcut ? ' (' + get(id).shortcut + ')' : '');
-        // The engine command behind a slot entry; null for value slots and app actions.
-        const command = id => get(id)?.slot && host.lib() ? host.lib().commandForSlot(get(id).slot) : null;
+        const format = value => (host.format || String)(value);
+        function label(id) {
+            const definition = get(id);
+            if (definition.text) return definition.text;
+            if (definition.number !== undefined) return format(definition.number);
+            return definition.fullLabel ? host.t(definition.fullLabel) : host.tr(definition.label);
+        }
+        const tooltip = id => label(id) + (get(id).shortcut || get(id).hint ? ' (' + (get(id).shortcut || get(id).hint) + ')' : '');
+        // The engine command behind an entry; null for value slots and app actions.
+        function command(id) {
+            const definition = get(id);
+            if (definition?.command) return definition.command;
+            return definition?.slot && host.lib() ? host.lib().commandForSlot(definition.slot) : null;
+        }
         function state(id) {
             const definition = get(id), editor = host.editor(), off = {enabled: false, active: false, reason: ''};
             if (!definition) return off;
-            if (definition.slot) {
+            if (definition.slot || definition.command) {
                 const engineCommand = editor ? command(id) : null;
                 if (!engineCommand) return off;
                 const allowed = can(engineCommand);
-                return {enabled: !!allowed.ok, active: !!definition.toggle && !!editor.isActive(engineCommand), reason: allowed.reason || ''};
+                const active = definition.active ? !!definition.active(editor.snapshot()) : !!definition.toggle && !!editor.isActive(engineCommand);
+                return {enabled: !!allowed.ok, active, reason: allowed.reason || ''};
             }
             if ((definition.write && host.readonly) || (definition.needsEditor && !editor)) return off;
             const reason = definition.untracked ? blocked(definition.untracked) : '';
-            return {enabled: !reason, active: false, reason};
+            return {enabled: !reason, active: !!host.active?.(id), reason};
         }
-        const invoke = id => get(id)?.slot ? run(command(id)) : host.act(id);
-        // The engine wants a bare hex for colours, a palette name for highlights and half-points for sizes.
+        const invoke = id => get(id)?.slot || get(id)?.command ? run(command(id)) : host.act(id);
+        // The engine wants a bare hex for colours, a palette name for highlights, half-points for sizes and lines for spacing.
         function valueCommand(slot, value) {
             const lib = host.lib();
             if (slot === 'text.color') return lib.commandForSlotValue(slot, colorHex(value).replace('#', ''));
             if (slot === 'text.highlight') return lib.commandForSlotValue(slot, highlightName(value));
             if (slot === 'font.size') return lib.commandForSlotValue(slot, Number(value) * 2);
+            if (slot === 'list.lineSpacing') return lib.commandForSlotValue(slot, Number(value) || 1);
             return lib.commandForSlotValue(slot, value);
         }
         // The command a key press asks for, or '' when Writer does not bind it. Alt is excluded
@@ -138,10 +209,18 @@
             const key = (event.shiftKey ? 'shift+' : '') + String(event.key).toLowerCase();
             return DEFINITIONS.find(definition => definition.keys?.includes(key))?.id || '';
         }
-        // Window menus are built once per document, so a slot item is disabled only without a document.
-        const menuItem = id => ({id, label: label(id), icon: get(id).icon || id, shortcut: get(id).shortcut,
-            disabled: get(id).slot ? !host.editor() : !state(id).enabled, action: () => invoke(id)});
-        return {get, can, run, blocked, label, tooltip, command, state, invoke, valueCommand, actionForKey, menuItem};
+        // A menu item with the state of this moment. The shell reads `disabled` and `checked` when the
+        // menus are set, so writer-menus.js sets them again when that state changes.
+        function menuItem(id) {
+            const definition = get(id), current = state(id);
+            const item = {id, label: label(id), icon: definition.icon || '', disabled: !current.enabled, action: () => invoke(id)};
+            if (definition.shortcut) item.shortcut = definition.shortcut;
+            else if (definition.hint) item.shortcutHint = definition.hint;
+            // A pressed toolbar toggle follows the selection; menus only mark modes and open panels.
+            if (current.active && !definition.toggle) item.checked = true;
+            return item;
+        }
+        return {get, can, run, blocked, tracking, label, tooltip, format, command, state, invoke, valueCommand, actionForKey, menuItem};
     }
     window.WriterCommands = {create, definitions: DEFINITIONS, untrackable: type => UNTRACKABLE.has(type), colors: {hex: colorHex, highlightName, highlightHex}};
 })();
