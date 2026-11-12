@@ -106,8 +106,14 @@ func verifyWriterContext(t *testing.T, page *rod.Page) {
         if(bar.hidden||bar.querySelector('strong').textContent!=='Image')throw Error('no image bar: '+bar.outerHTML.slice(0,200));
         tool('rotateRight').click();await wait(300);
         if(editor.snapshot().image?.rotationDegrees!==90)throw Error('rotate right gave '+JSON.stringify(editor.snapshot().image?.rotationDegrees));
-        caret(1);await wait(250);
-        if(editor.snapshot().image||!bar.hidden)throw Error('the image bar stayed after the caret left the image');
+    `))
+	// A user leaves an image with a click; a programmatic caret keeps the engine's image selection.
+	text := page.MustEval(`()=>{const b=[...document.querySelectorAll('.docx-page .layout-run-text')].find(x=>x.textContent.includes('beta')).getBoundingClientRect();return {x:b.left+b.width/2,y:b.top+b.height/2};}`)
+	page.Mouse.MustMoveTo(text.Get("x").Num(), text.Get("y").Num())
+	page.Mouse.MustClick(proto.InputMouseButtonLeft)
+	settle()
+	page.MustEval(script(`
+        if(editor.snapshot().image||!bar.hidden)throw Error('the image bar stayed after a click into the text');
         rightClick(document.querySelector('.docx-page .docx-drawing'));
         if(!ids(window.contextMenu.items).includes('deleteDrawing'))throw Error('no image deletion in '+ids(window.contextMenu.items).join());
         entry('deleteDrawing').action();await wait(400);

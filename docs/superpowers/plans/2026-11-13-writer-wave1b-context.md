@@ -27,6 +27,7 @@ Roadmap: `docs/superpowers/specs/2026-11-12-writer-office-roadmap-design.md`, se
 - `{type:'transformImage',action:'rotateCW'}` and `{type:'deleteImage'}` work through `editor.exec` on the selected image. `setImageWrapType` is refused for an image Writer inserted ("wrap cannot be changed on this drawing"), which is why wrap is not in the bar.
 - `{type:'setHeaderFooterOptions',titlePage:true}` and `{evenAndOddHeaders:true}` work. `editor.getHeaderFooterState()` returns `{editing:'header'|'footer', titlePage, evenAndOddHeaders, ...}` while a header or footer is open and `null` in the body.
 - `snapshot().table` is `{rows, columns, rowIndex, columnIndex}` or `null`; `snapshot().scope.kind` is `'body'`, `'headerFooter'`, `'note'` or `'frame'`.
+- After `transformImage`, a programmatic `setSelection` to a text caret leaves `snapshot().image` set; a real click into the text clears it.
 - `editor.can({type:'removeHyperlink'})` is `ok` everywhere, so "is the caret in a link" is asked with `editor.query({type:'hyperlinkAt'})`.
 
 **From the type definitions, not probed.** The browser check in Task 3 is their proof; if it fails there, stop and report the thrown message:
@@ -648,6 +649,8 @@ func verifyWriterContext(t *testing.T, page *rod.Page) {
     `))
 }
 ```
+
+During implementation the last part of this helper was split: the image is left with a real click into the text, because a programmatic caret keeps the engine's image selection after a rotation; see `ui/desktop_writer_context_test.go`.
 
 In `ui/desktop_writer_browser_test.go`:
 
