@@ -37,12 +37,10 @@ Roadmap: `docs/superpowers/specs/2026-11-12-writer-office-roadmap-design.md`, se
 | `insert.toc`, `insert.textBox`, `insert.pageXofY` | `{type:'insertToc'}`, `{type:'insertTextBox'}`, `{type:'insertPageField',field:'PAGE_X_OF_Y'}` |
 | `list.lineSpacing` (value slot) | `commandForSlotValue(slot, 1.5)` gives `{type:'setLineSpacing',rule:'multiple',value:1.5}` |
 
-Commands without a slot, with their exact shapes: `{type:'selectAll'}`, `{type:'copy'}`, `{type:'cut'}`, `{type:'paste',text,html?}`, `{type:'pasteWithoutFormatting',text}`, `{type:'copyFormatting'}`, `{type:'pasteFormatting'}`, `{type:'insertRow',where:'above'|'below'}`, `{type:'insertColumn',where:'left'|'right'}`, `{type:'deleteRow'}`, `{type:'deleteColumn'}`, `{type:'deleteTable'}`, `{type:'insertHyperlink',href,text?,target?}`, `{type:'removeHyperlink',target?}`, `{type:'setEditingMode',mode}`. `editor.query({type:'hyperlinkAt'})` returns `{href, range}` or `null`; `range` is a valid `target`.
+Commands without a slot, with their exact shapes: `{type:'selectAll'}`, `{type:'copy'}`, `{type:'cut'}`, `{type:'paste',text,html?}`, `{type:'pasteWithoutFormatting',text}`, `{type:'copyFormatting'}`, `{type:'pasteFormatting'}`, `{type:'insertRow',where:'above'|'below'}`, `{type:'insertColumn',where:'left'|'right'}`, `{type:'deleteRow'}`, `{type:'deleteColumn'}`, `{type:'deleteTable'}`, `{type:'insertHyperlink',href,text?}`, `{type:'removeHyperlink'}`, `{type:'setEditingMode',mode}`. `editor.query({type:'hyperlinkAt'})` returns `{href, range}` or `null`. Its `range` is the whole paragraph, and neither hyperlink command takes a `target`: with the caret in a link, `insertHyperlink` replaces the address in place and `removeHyperlink` unlinks, both keeping the text (probed in the browser, 2026-11-12).
 
 **Not verified at runtime, so the browser checks in this plan are the proof.** If one of these fails, stop and report the thrown message; do not weaken the check:
 
-- `removeHyperlink` and `insertHyperlink` with `target: range` (editing a link in place).
-- `hyperlinkAt` finding the link right after it was inserted.
 - `copy` and `cut` writing the system clipboard from a menu click.
 - `editor.focus()` returning the caret after a menu command.
 - The toolbar still fitting a 1366 px window after Task 6. If it does not, Task 6 says what to drop.
@@ -954,6 +952,8 @@ func verifyWriterDialogs(t *testing.T, page *rod.Page) {
 }
 ```
 
+The link part of this helper was rewritten during implementation to edit and remove the link from a collapsed caret inside a longer paragraph; see `ui/desktop_writer_menus_test.go`.
+
 In `ui/desktop_writer_browser_test.go`, in `TestDesktopWriterAppBrowser`, add the call right after `verifyWriterTableDialog(t, page)`:
 
 ```go
@@ -995,12 +995,12 @@ Create `ui/js/desktop/apps/writer-dialogs.js`:
             const answer = await ask(tr('hyperlink'), fields, {extraLabel: current ? tr('link_remove') : '',
                 validate: values => /^(https?:|mailto:|tel:|#)/i.test(address(values.href)) ? '' : tr('link_invalid')});
             if (!answer || app.editor !== editor) return;
-            // Editing replaces the link over its own range; the text stays.
-            if (current && !commands.run({type: 'removeHyperlink', target: current.range})) return;
-            if (answer.extra) return;
+            // The engine edits a link where the selection is: inserting over a link replaces its
+            // address and keeps its text, and unlinking keeps the text. hyperlinkAt's range is the
+            // whole paragraph, so it is never used as a target.
+            if (answer.extra) { commands.run({type: 'removeHyperlink'}); return; }
             const command = {type: 'insertHyperlink', href: address(answer.href)};
-            if (current) command.target = current.range;
-            else if (answer.text) command.text = answer.text;
+            if (!current && answer.text) command.text = answer.text;
             commands.run(command);
         }
         async function goToPage() {

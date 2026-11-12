@@ -24,6 +24,7 @@ func verifyWriterDialogs(t *testing.T, page *rod.Page) {
 	page.MustEval(`async()=>{` + writerWave1Prelude + `
         try {
             // A link at a collapsed caret asks for text and address, and refuses a script address.
+            editor.exec({type:'paste',text:'Before '});
             void app.act('link');await wait(200);
             if(!dialog())throw Error('link dialog did not open');
             if(dialog().querySelector('[data-form-extra]'))throw Error('a new link offers no removal');
@@ -32,25 +33,34 @@ func verifyWriterDialogs(t *testing.T, page *rod.Page) {
             field('href').value='example.com';submit();await wait(300);
             if(dialog())throw Error('link dialog stayed open');
             if(failed())throw Error('link insert: '+failed());
-            if(!body().includes('AuraGo'))throw Error('the link text was not inserted: '+JSON.stringify(body()));
-            // The caret sits in the new link: editing shows its address and offers removal.
+            editor.exec({type:'paste',text:' after'});
+            if(body().trim()!=='Before AuraGo after')throw Error('the document reads '+JSON.stringify(body()));
+            // Editing and removing work from a collapsed caret inside the link, in a longer paragraph.
             editor.exec({type:'selectAll'});
+            const start=editor.surface.state().selection.anchor;
+            const caret=offset=>editor.exec({type:'setSelection',range:{anchor:{...start,offset},head:{...start,offset}}});
+            caret(9);
             const made=editor.query({type:'hyperlinkAt'});
             if(made?.href!=='https://example.com')throw Error('hyperlinkAt after insert: '+JSON.stringify(made));
             void app.act('link');await wait(200);
             if(field('text'))throw Error('editing a link must not ask for its text');
             if(field('href').value!=='https://example.com')throw Error('edit shows '+field('href').value);
+            if(!dialog().querySelector('[data-form-extra]'))throw Error('editing a link offers no removal');
             field('href').value='https://aurago.example/docs';submit();await wait(300);
             if(failed())throw Error('link edit: '+failed());
-            editor.exec({type:'selectAll'});
+            caret(9);
             const edited=editor.query({type:'hyperlinkAt'});
             if(edited?.href!=='https://aurago.example/docs')throw Error('hyperlinkAt after edit: '+JSON.stringify(edited));
+            if(body().trim()!=='Before AuraGo after')throw Error('editing the link changed the text: '+JSON.stringify(body()));
+            caret(2);
+            if(editor.query({type:'hyperlinkAt'}))throw Error('the link spread to the paragraph');
+            caret(9);
             void app.act('link');await wait(200);
             dialog().querySelector('[data-form-extra]').click();await wait(300);
             if(failed())throw Error('link removal: '+failed());
-            editor.exec({type:'selectAll'});
+            caret(9);
             if(editor.query({type:'hyperlinkAt'}))throw Error('the link was not removed');
-            if(!body().includes('AuraGo'))throw Error('removing the link removed its text');
+            if(body().trim()!=='Before AuraGo after')throw Error('removing the link changed the text: '+JSON.stringify(body()));
             // Go to page accepts a page of the document.
             void app.act('goToPage');await wait(200);
             if(field('page').max!==String(editor.getTotalPages()))throw Error('go to page allows up to '+field('page').max);
@@ -60,7 +70,7 @@ func verifyWriterDialogs(t *testing.T, page *rod.Page) {
             void app.act('wordCount');await wait(200);
             const rows=[...dialog().querySelectorAll('.vd-form-static')];
             if(rows.length<4)throw Error('word count shows '+rows.length+' rows');
-            if(rows[1].querySelector('strong').textContent!=='1')throw Error('one word expected, got '+rows[1].textContent);
+            if(rows[1].querySelector('strong').textContent!=='3')throw Error('three words expected, got '+rows[1].textContent);
             if(dialog().querySelector('[data-form-cancel]'))throw Error('an information dialog has no Cancel');
             submit();await wait(150);
             // The shortcut overview lists what the registry binds.

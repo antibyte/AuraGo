@@ -28,12 +28,12 @@
             const answer = await ask(tr('hyperlink'), fields, {extraLabel: current ? tr('link_remove') : '',
                 validate: values => /^(https?:|mailto:|tel:|#)/i.test(address(values.href)) ? '' : tr('link_invalid')});
             if (!answer || app.editor !== editor) return;
-            // Editing replaces the link over its own range; the text stays.
-            if (current && !commands.run({type: 'removeHyperlink', target: current.range})) return;
-            if (answer.extra) return;
+            // The engine edits a link where the selection is: inserting over a link replaces its
+            // address and keeps its text, and unlinking keeps the text. hyperlinkAt's range is the
+            // whole paragraph, so it is never used as a target.
+            if (answer.extra) { commands.run({type: 'removeHyperlink'}); return; }
             const command = {type: 'insertHyperlink', href: address(answer.href)};
-            if (current) command.target = current.range;
-            else if (answer.text) command.text = answer.text;
+            if (!current && answer.text) command.text = answer.text;
             commands.run(command);
         }
         async function goToPage() {
