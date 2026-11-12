@@ -1458,6 +1458,14 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     border-bottom: 1px solid color-mix(in srgb, var(--ed-warn) 45%, var(--ed-border));
 }
 .ed-home-stale p, .ed-home-stale .ed-error { margin: 0; color: var(--ed-text); }
+.ed-cred-hint {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; position: sticky; top: 0; z-index: 4;
+    margin: 0; padding: 10px 16px; color: var(--ed-text);
+    background: color-mix(in srgb, var(--ed-warn) 16%, var(--ed-chrome));
+    border-bottom: 1px solid color-mix(in srgb, var(--ed-warn) 45%, var(--ed-border));
+}
+.ed-cred-hint[hidden] { display: none; }
+.ed-cred-hint h3, .ed-cred-hint p { margin: 0; color: var(--ed-text); }
 .ed-empty-actions, .ed-empty-card .ed-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 100%; }
 .ed-home.is-drop-target { outline: 2px dashed var(--ed-accent); outline-offset: -8px; background: color-mix(in srgb, var(--ed-accent) 5%, var(--ed-bg)); }
 .ed-home-sort { width: auto; min-width: 140px; height: 34px; padding: 4px 10px; font-size: 12.5px; }

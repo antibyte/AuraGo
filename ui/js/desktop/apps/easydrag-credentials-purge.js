@@ -24,10 +24,11 @@
     }
 
     // mountHint puts the hint card into the start page. It asks the scan endpoint, which is admin only:
-    // a 401, 403 or any failure shows nothing.
+    // a 401, 403 or any failure shows nothing. The card has its own class: the start page's stale
+    // banner class (.ed-home-stale) marks "the list is out of date" and must never come from here.
     function mountHint(container, app) {
         if (app) bound = app;
-        const card = ED.core.el('<div class="ed-home-stale" role="status" data-ed-credentials-hint hidden></div>');
+        const card = ED.core.el('<div class="ed-cred-hint" role="status" data-ed-credentials-hint hidden></div>');
         const anchor = container.querySelector('.ed-home-toolbar');
         if (anchor) container.insertBefore(card, anchor); else container.appendChild(card);
         let disposed = false, sequence = 0;
