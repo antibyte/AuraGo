@@ -107,3 +107,34 @@ func verifyWriterToolbarOverflow(t *testing.T, page *rod.Page) {
         if(!more.hidden||overflow.children.length)throw Error('overflow not restored at full width');
     }`)
 }
+
+// verifyWriterTableDialog inserts a table through the form dialog: the form refuses an
+// invalid size, a valid one is answered as numbers and changes the document, and cancel
+// answers null. The engine object may be frozen, so the check listens at the dialog.
+func verifyWriterTableDialog(t *testing.T, page *rod.Page) {
+	t.Helper()
+	page.MustEval(`async()=>{
+        const app=WriterApp.instances.get('test'),wait=ms=>new Promise(r=>setTimeout(r,ms));
+        if(!document.querySelector('[data-panel-command="table_insert"]'))await app.act('insert');
+        const open=AuraFormDialog.open;let answer;
+        AuraFormDialog.open=options=>open(options).then(values=>(answer=values));
+        try {
+            const before=app.session.revision;
+            document.querySelector('[data-panel-command="table_insert"]').click();await wait(150);
+            const dialog=document.querySelector('dialog.vd-form-dialog');
+            if(!dialog?.open)throw Error('table dialog did not open');
+            const set=(id,value)=>{dialog.querySelector('[data-form-field="'+id+'"]').value=value;};
+            set('rows','0');dialog.querySelector('[type=submit]').click();await wait(50);
+            if(!dialog.open||answer!==undefined)throw Error('an invalid row count was accepted');
+            set('rows','2');set('cols','4');dialog.querySelector('[type=submit]').click();await wait(300);
+            if(document.querySelector('dialog.vd-form-dialog'))throw Error('table dialog stayed open');
+            if(answer?.rows!==2||answer?.cols!==4)throw Error('table dialog answered '+JSON.stringify(answer));
+            const notice=document.querySelector('[data-notice]');
+            if(!notice.hidden&&notice.dataset.error==='true')throw Error(document.querySelector('[data-notice-text]').textContent);
+            if(app.session.revision===before)throw Error('no table was inserted');
+            document.querySelector('[data-panel-command="table_insert"]').click();await wait(150);
+            document.querySelector('dialog.vd-form-dialog [data-form-cancel]').click();await wait(100);
+            if(document.querySelector('dialog.vd-form-dialog')||answer!==null)throw Error('cancel did not close the dialog with null');
+        } finally { AuraFormDialog.open=open; }
+    }`)
+}

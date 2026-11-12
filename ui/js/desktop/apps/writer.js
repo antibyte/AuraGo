@@ -51,7 +51,9 @@
         const locale = document.documentElement.lang || 'en';
         const state = {ctx,esc,tr,root,find,get editor(){return editor;},get lib(){return lib;},
             get revision(){return queue?.revision || 0;}, get readonly(){return !!ctx.readonly;},
-            commands,run,can,blocked:commands.blocked,notice,prompt:(key,value)=>ctx.promptDialog(tr(key),value || ''),act,refresh:()=>refresh(),pinSelection,
+            commands,run,can,blocked:commands.blocked,notice,prompt:(key,value)=>ctx.promptDialog(tr(key),value || ''),
+            form:(title,fields)=>window.AuraFormDialog.open({title:tr(title),fields,submitLabel:ctx.t('desktop.ok'),cancelLabel:ctx.t('desktop.cancel'),signal:documentLife.signal}),
+            act,refresh:()=>refresh(),pinSelection,
             markCommand:commands.valueCommand,colorHex:colors.hex,highlightHex:colors.highlightHex,
             get author(){return author;},set author(value){author=value;localStorage.setItem('aurago.writer.author',value);editor.setAuthor(value);}
         };

@@ -229,7 +229,13 @@
                 case 'previous':case 'next':search(false);if(matches.length){matchIndex=(matchIndex+(id==='next'?1:-1)+matches.length)%matches.length;search(true);}break;
                 case 'replace_one':if(matches[matchIndex])app.run({type:'replaceMatch',match:matches[matchIndex],text:value('replacement') || ''});searchSignature='';search(true);break;
                 case 'replace_all':app.run({type:'replaceAllMatches',query:value('query'),text:value('replacement') || '',matchCase:checked('matchCase'),wholeWord:checked('wholeWord')});searchSignature='';search(false);break;
-                case 'table_insert':{const answer=await app.prompt('table_dimensions','3 × 3');if(!answer)return;const [rows,cols]=answer.split(/[x×,;\s]+/).map(Number);if(rows>=1 && rows<=100 && cols>=1 && cols<=30)app.run({type:'insertTable',rows,cols});else app.notice(tr('table_dimensions'),true);break;}
+                case 'table_insert':{
+                    const size=await app.form('table',[
+                        {id:'rows',label:tr('table_rows'),type:'number',value:3,min:1,max:100,step:1,required:true},
+                        {id:'cols',label:tr('table_columns'),type:'number',value:3,min:1,max:30,step:1,required:true}]);
+                    if(size)app.run({type:'insertTable',rows:size.rows,cols:size.cols});
+                    break;
+                }
                 case 'comment_add':{const text=await app.prompt('comment');if(text?.trim()){const result=editor.addComment(text,app.author);if(!result.ok)app.notice(result.reason || tr('select_text'),true);}break;}
                 case 'accept_all':case 'reject_all':{
                     const items=editor.getReviewItems({placement:false}).filter(x=>x.kind==='revision');

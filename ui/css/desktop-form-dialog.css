@@ -1,0 +1,11 @@
+/* Shared form dialog (window.AuraFormDialog). Reuses the shell's modal input and button classes. */
+.vd-form-dialog{width:min(420px,calc(100vw - 32px));padding:var(--ds-space-5,20px);border:1px solid var(--ds-color-border-default,var(--vd-border,#ffffff26));border-radius:var(--ds-radius-xl,14px);background:var(--ds-color-surface-3,var(--vd-theme-panel-bg,#1b202a));color:var(--vd-text,#e4e8f0);box-shadow:var(--ds-elevation-5,0 18px 40px #0006);font:inherit}
+.vd-form-dialog::backdrop{background:rgba(8,12,22,.6)}
+.vd-form-dialog form{display:grid;gap:12px;margin:0}
+.vd-form-dialog h2{margin:0 0 2px;font-size:inherit;font-weight:900}
+.vd-form-dialog label{display:grid;gap:6px;color:var(--vd-muted,var(--vd-theme-muted,#a7b1c3))}
+.vd-form-dialog label.vd-form-check{display:flex;align-items:center;gap:8px}
+.vd-form-dialog .vd-modal-input{margin:0}
+.vd-form-dialog [role=alert]{margin:0;color:var(--ds-color-danger-fg,#f29a91)}
+.vd-form-dialog .vd-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+@media(prefers-reduced-motion:reduce){.vd-form-dialog{transition:none!important;animation:none!important}}

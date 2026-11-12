@@ -121,8 +121,8 @@
             styles: appStyles('/css/desktop-app-office.css')
         },
         'writer': {
-            styles: appStyles('/js/vendor/writer/engine.css', '/css/desktop-app-writer.css'),
-            scripts: ['/js/vendor/purify.min.js', '/js/vendor/marked.min.js', '/js/desktop/apps/writer-session.js', '/js/desktop/apps/writer-commands.js', '/js/desktop/apps/writer-toolbar.js', '/js/desktop/apps/writer-panels.js', '/js/desktop/apps/writer.js']
+            styles: appStyles('/js/vendor/writer/engine.css', '/css/desktop-form-dialog.css', '/css/desktop-app-writer.css'),
+            scripts: ['/js/vendor/purify.min.js', '/js/vendor/marked.min.js', '/js/desktop/apps/writer-session.js', '/js/desktop/apps/writer-commands.js', '/js/desktop/shared/form-dialog.js', '/js/desktop/apps/writer-toolbar.js', '/js/desktop/apps/writer-panels.js', '/js/desktop/apps/writer.js']
         },
         'sheets': {
             styles: appStyles('/js/vendor/sheets/engine.css', '/css/desktop-app-sheets.css'),
