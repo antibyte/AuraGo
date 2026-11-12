@@ -71,6 +71,10 @@ metal, tinted glass, bronze details and restrained warm interior lighting.
 The original city-kit geometry and materials were authored for AuraGo under MIT.
 The reused ThreeDee robot retains its existing artwork provenance (see below).
 
+## Sea life
+
+Fish and the other creatures of the Ocean chat theme swim in the city's water (`sysworld-sealife.js`, with `sysworld-sealife-paths.js` for the data and the closed-form motion and `sysworld-sealife-shaders.js` for the materials). Schools of four light fish and the drifting moon jellies (`ui/3d/system-world/sea-life/v1`: five light models, 231-311 triangles per fish and 1,378 per jelly, built by `assets/system-world/build_sea_life.py`; `python -I assets/system-world/build_sea_life.py --check` verifies them) live in box habitats along the quay and the shores; reef sharks, hammerheads, turtles, a whale and mantas use the chat's and the abyss kit's GLBs unchanged (the manta is sized for a 4 m span). The sea plane stays opaque: a submerged creature is drawn where the view ray through each vertex crosses it, a few centimetres nearer, so the water never hides it but the quay and the hulls still do. The swim deformation and colours are the chat's GLSL (chunks exported from `ui/js/chat/ocean-life-shaders.js`). The island is solid: fragments inside its footprint are discarded, so nothing of the sea life can show through the quay wall. Nothing loads on the low tier, the models load after first display outside the byte accounting, and nothing is submitted while the camera cannot see water (a street deep in the island). `node scripts/test-system-world-sealife.mjs` checks habitats, loops, leaps, the surface remap, manifests and the module; `__sw.sealife.locate()/debug()` aim the survey scenes (`sea-*`, `seq-sea-quay`) at events.
+
 ## Kit v3
 
 `build_world3.py` authors the kit v3 designs in Blender 5.2 LTS. `kit3.py` is the shared core.

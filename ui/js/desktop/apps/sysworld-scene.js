@@ -31,6 +31,7 @@ import { furnishing, SIZES as furnitureSizes, NEAR, NEAR_HEIGHT, SURFACES } from
 import { createPartInstances, partOf } from './sysworld-parts.js';
 import { createHarbour } from './sysworld-harbour.js';
 import { createGulls } from './sysworld-gulls.js';
+import { createSealife } from './sysworld-sealife.js';
 import { createParticles } from './sysworld-particles.js';
 import { createSoundFrame } from './sysworld-sound-frame.js';
 import { createFurnitureSets, setDesigns, FURNITURE_LOD } from './sysworld-furniture-lod.js';
@@ -332,6 +333,8 @@ export async function createCity(host, options) {
   // Harbour craft and gulls load after the first display (not part of expectedBytes).
   const lifeLoad = (id, lod) => catalog3.has(id) ? model(id, lod, 'v3') : Promise.reject(Error('Kit v3 design missing: ' + id));
   const harbour = createHarbour({ group: world, load: lifeLoad }); const gulls = createGulls({ group: world, load: lifeLoad });
+  // Sea life: plain GLBs from the System World, chat and abyss kits, loaded after first display (outside the byte accounting); a failed load leaves the sea empty.
+  const seaLoader = new GLTFLoader(), sealife = createSealife({ group: world, water: atmosphere.water(), load: (folder, file) => seaLoader.loadAsync(options.resourceURL('/3d/' + folder + file)).then(gltf => gltf.scene) });
   async function model(id, lod, kit = 'v1') {
     const key = kit + ':' + id + ':' + lod;
     if (!cache.has(key)) cache.set(key, (async () => {
@@ -457,7 +460,7 @@ export async function createCity(host, options) {
       sun.shadow.mapSize.set(config.shadow, config.shadow);
       sun.shadow.map?.dispose(); sun.shadow.map = null;
     }
-    renderer.shadowMap.needsUpdate = true; bloom.enabled = config.bloom; surfaces.setTier(tier); windows.setTier(tier); loadWindowLife(); lobbyRender.setTier(tier); harbour.setTier(tier); gulls.setTier(tier); particles.setTier(tier); atmosphere.setTier(tier);experience.setTier(tier);weather.setTier(tier);drones.setTier(tier);flow.setTier(tier);
+    renderer.shadowMap.needsUpdate = true; bloom.enabled = config.bloom; surfaces.setTier(tier); windows.setTier(tier); loadWindowLife(); lobbyRender.setTier(tier); harbour.setTier(tier); gulls.setTier(tier); sealife.setTier(tier); particles.setTier(tier); atmosphere.setTier(tier);experience.setTier(tier);weather.setTier(tier);drones.setTier(tier);flow.setTier(tier);
     resize(); options.onQuality?.(quality, tier);
   }
   function flyTo(position, target) {
@@ -665,6 +668,7 @@ export async function createCity(host, options) {
     const wind = atmosphere.wind(), seaTime = atmosphere.seaTime?.() ?? elapsed; surfaces.setWind(wind); swingBanners(wind, seaTime);
     harbour.update(seaTime, mood.day, wind, !reduced);
     gulls.update(seaTime, harbour.barge());
+    sealife.update(seaTime, camera, !reduced);
     particles.setMood(mood.day, mood.weather); particles.update(dt, !reduced, wind);
     // Soundscape (phase 5): one reused frame after the listener (onListener above) and the wind; the audio reads the
     // clocks, trams, the companion's gait, door openness and wind from it. Nothing here allocates.
@@ -716,7 +720,7 @@ export async function createCity(host, options) {
     if (disposed) return; disposed = true; generation++; abort.abort(); clearTimeout(lifeTimer); requests.forEach(c => c.abort());
     keys.clear(); if(document.pointerLockElement === canvas) document.exitPointerLock();
     options.signal?.removeEventListener('abort', dispose); cleanup.forEach(fn => fn()); observer?.disconnect(); controls.dispose();
-    life?.dispose();companion?.dispose();experience?.dispose();weather.dispose(); hologram.dispose(); drones.dispose();contact.dispose();traffic.dispose(); atmosphere.dispose(); surfaces.dispose(); windows.dispose(); lobbyRender.dispose(); harbour.dispose(); gulls.dispose(); particles.dispose(); flow.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose(); plots.dispose(); groundCover.forEach(m => m.dispose());
+    life?.dispose();companion?.dispose();experience?.dispose();weather.dispose(); hologram.dispose(); drones.dispose();contact.dispose();traffic.dispose(); atmosphere.dispose(); surfaces.dispose(); windows.dispose(); lobbyRender.dispose(); harbour.dispose(); gulls.dispose(); sealife.dispose(); particles.dispose(); flow.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose(); plots.dispose(); groundCover.forEach(m => m.dispose());
     geoSet.forEach(g => g.dispose()); matSet.forEach(m => m.dispose());
     composer.passes.forEach(p => p.dispose?.()); composer.dispose(); environment.dispose(); sun.shadow.dispose();
     renderer.dispose(); renderer.forceContextLoss(); canvas.remove(); cache.clear(); materials.clear();
@@ -726,7 +730,7 @@ export async function createCity(host, options) {
   companion = createCompanion({scene, resourceURL:options.resourceURL, signal:abort.signal, shadows:contact, onError:options.onCompanionError});
   soundFrame = createSoundFrame({ traffic, experience, companion });
   hologram.setReducedMotion(!!reduced); windows.setReducedMotion(!!reduced);
-  try { applyTier(); await rebuild(); } catch(e) { dispose(); throw e; } harbour.start(); gulls.start();
+  try { applyTier(); await rebuild(); } catch(e) { dispose(); throw e; } harbour.start(); gulls.start(); sealife.start();
   return {
     districts, canvas, update, focus(id) { cancelTour(); focus(id); }, setMode, setQuality, setData, dispose,
     interact(){experience.interact();},socialAction:experience.socialAction,
@@ -748,6 +752,6 @@ export async function createCity(host, options) {
       camera.position.copy(end).sub(homeTarget).applyAxisAngle(new THREE.Vector3(0, 1, 0), -.55).multiplyScalar(1.22).add(homeTarget); camera.position.y += 34;
       camera.lookAt(homeTarget); settleCamera(); flyTo(end, homeTarget); if (flight) flight.duration = 3.6;
     },
-    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), furnitureLod:furnitureSets?furnitureSets.stats():null, atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), windows:windows.stats(), lobbies:lobbyRender.stats(), harbour:harbour.stats(), gulls:gulls.stats(), particles:particles.stats(), furniture:kitPlacements.length-streetPlacements.length,nearHidden,drones:drones.stats(), flow:flow.stats(), companion:companion?.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size,kitModels:{v1:[...cache.keys()].filter(k=>k.startsWith('v1:')).length,v3:[...cache.keys()].filter(k=>k.startsWith('v3:')).length}, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), pitch:+Math.asin(THREE.MathUtils.clamp(camera.getWorldDirection(new THREE.Vector3()).y,-1,1)).toFixed(3), fov:camera.fov, renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
+    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), furnitureLod:furnitureSets?furnitureSets.stats():null, atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), windows:windows.stats(), lobbies:lobbyRender.stats(), harbour:harbour.stats(), gulls:gulls.stats(), sealife:sealife.stats(), particles:particles.stats(), furniture:kitPlacements.length-streetPlacements.length,nearHidden,drones:drones.stats(), flow:flow.stats(), companion:companion?.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size,kitModels:{v1:[...cache.keys()].filter(k=>k.startsWith('v1:')).length,v3:[...cache.keys()].filter(k=>k.startsWith('v3:')).length}, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), pitch:+Math.asin(THREE.MathUtils.clamp(camera.getWorldDirection(new THREE.Vector3()).y,-1,1)).toFixed(3), fov:camera.fov, renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
   };
 }

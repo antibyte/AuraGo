@@ -2,6 +2,6 @@
   "three": "0.186.1",
   "license": "MIT",
   "entry": "ui/js/chat/ocean-life-scene.js",
-  "bytes": 650386,
-  "sha256": "0ab1d64b131cd7227181286042fd024a39aa37825065115d9169b44b9b140235"
+  "bytes": 650474,
+  "sha256": "e1b9bf56be86d7427e2561c795e4530255b041c92a13e9e3fa45c63f44e0631a"
 }

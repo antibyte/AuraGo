@@ -1,0 +1,95 @@
+{
+  "kit": "aurago-system-world-sea-life",
+  "version": 1,
+  "license": "MIT",
+  "generator": "assets/system-world/build_sea_life.py",
+  "note": "decimated copies of the chat-ocean-life fish and the abyss moon jelly; both UV sets and the material names are kept",
+  "assets": [
+    {
+      "id": "fish_sardine",
+      "file": "fish-sardine.lod1.glb",
+      "bytes": 11068,
+      "sha256": "5214b8191d78e898ffa0012a6be7a00347220759c0c1083caed34626713e6b2a",
+      "triangles": 231,
+      "materials": [
+        "body",
+        "fin",
+        "eye"
+      ],
+      "length": 0.15,
+      "kit": "chat-ocean-life",
+      "source": "fish-sardine.glb",
+      "source_sha256": "b57c0a2d4720e98441945f6a833a354989476022b9f79d059593df09bad464aa",
+      "source_triangles": 1158
+    },
+    {
+      "id": "fish_tang",
+      "file": "fish-tang.lod1.glb",
+      "bytes": 13268,
+      "sha256": "8329d25d5ce9ac1e76d01d4995343adb7352bf91e95983f3977f90079841c4f2",
+      "triangles": 306,
+      "materials": [
+        "body",
+        "fin",
+        "eye"
+      ],
+      "length": 0.3,
+      "kit": "chat-ocean-life",
+      "source": "fish-tang.glb",
+      "source_sha256": "a6b1ebe2887882e8b66a63101aa6145d8eb5df37f4750fcc4af8d2a14a758da3",
+      "source_triangles": 1398
+    },
+    {
+      "id": "fish_clown",
+      "file": "fish-clown.lod1.glb",
+      "bytes": 13016,
+      "sha256": "250a9fca2900c03ab18e9a6615ccb66623a74e4c7a4535cf95583935d78a2464",
+      "triangles": 290,
+      "materials": [
+        "body",
+        "fin",
+        "eye"
+      ],
+      "length": 0.12,
+      "kit": "chat-ocean-life",
+      "source": "fish-clown.glb",
+      "source_sha256": "17ed7e30dee227996dca916d1b4bd35c0aa0154d04d425a7d04b1873e96d878d",
+      "source_triangles": 1320
+    },
+    {
+      "id": "fish_butterfly",
+      "file": "fish-butterfly.lod1.glb",
+      "bytes": 13472,
+      "sha256": "29eb4fa88f578d48939fac7c3db69836c37467f5fe2ccbd4b17fd19a426c9b4a",
+      "triangles": 311,
+      "materials": [
+        "body",
+        "fin",
+        "eye"
+      ],
+      "length": 0.2,
+      "kit": "chat-ocean-life",
+      "source": "fish-butterfly.glb",
+      "source_sha256": "4f2bd371fce622c52637e3ce244ae8133fa9a82088d8ed7593a273831d18214d",
+      "source_triangles": 1414
+    },
+    {
+      "id": "jelly_moon",
+      "file": "jelly-moon.lod1.glb",
+      "bytes": 65196,
+      "sha256": "f68dad004035b22f3a8671bd7c516c4781a7b3c5e420ff93909113846880c9ef",
+      "triangles": 1378,
+      "materials": [
+        "bell",
+        "gonad",
+        "arm",
+        "tentacle"
+      ],
+      "length": 2.1887,
+      "kit": "abyss",
+      "source": "jelly-moon.glb",
+      "source_sha256": "a010363570dcf4e32b1440691daab498aef34f30b4a3cfa60593e7dd4e486c29",
+      "source_triangles": 6896
+    }
+  ]
+}

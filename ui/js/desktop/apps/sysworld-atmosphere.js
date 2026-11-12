@@ -359,6 +359,8 @@ gl_Position=projectionMatrix*modelViewMatrix*p;}`,
     setPointScale(value) { pointScale.value = value; },
     wind: () => wind,
     seaTime: () => time.value,
+    // The sea's own live uniforms for things that sit in the water (sea life): daylight, dusk, sun, shallow and sky colours.
+    water: () => ({ day, dusk, sunDir: sea.material.uniforms.sunDir, sunColor: sea.material.uniforms.sunColor, shallow: sea.material.uniforms.shallow, sky: sea.material.uniforms.sky }),
     update(dt, elapsed, camera, animated) {
       const step = animated ? Math.min(.1, Math.max(0, dt)) : 0;
       time.value += step;

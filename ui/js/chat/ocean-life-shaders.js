@@ -22,29 +22,9 @@ vec2 fogAmounts(float dist) {
     return vec2((1.0 - exp(-fd * fd)) * uHaze, 1.0 - exp(-fa * fa));
 }`;
 
-const SHADER_ID = { fish: 0, shark: 1, turtle: 2, whale: 3 };
-const MATERIAL_KIND = { body: 0, fin: 1, eye: 2, shell: 3, flipper: 4, fluke: 5 };
-const DOUBLE_SIDED = { fin: true, flipper: true, fluke: true };
-const JELLY_PART = { bell: 0, gonad: 1, arm: 2, tentacle: 3 };
-
-const CREATURE_VERTEX = /* glsl */`
-attribute vec2 aAnim;          // (height, side) from TEXCOORD_1
-attribute vec4 aInst;          // phase, frequency, amplitude, fade (per instance)
-uniform float uTime;
-uniform float uShader;         // 0 fish, 1 shark, 2 turtle, 3 whale
-uniform float uSwimK;
-uniform float uLength;
-uniform float uFront;          // z of the nose after scaling
-varying vec3 vViewPos;
-varying vec3 vWorldPos;
-varying vec3 vWorldNormal;
-varying vec2 vUv;
-varying vec2 vAnim;
-varying float vFade;
-
-void main() {
-    vec3 p = position;
-    float partv = uv.y;
+// GLSL regions the city (ui/js/desktop/apps/sysworld-sealife-shaders.js) shares with the chat. They are plain text pasted back
+// into the chat shaders below at the same place, so the chat renders exactly what it did before.
+export const CREATURE_SWIM = /* glsl */`    float partv = uv.y;
     // 0 at the nose, 1 at the tail tip, measured on the body axis so fins follow the body they sit on
     float axis = clamp((uFront - position.z) / uLength, 0.0, 1.0);
     float t = uTime * aInst.y + aInst.x * 6.2831853;
@@ -65,34 +45,9 @@ void main() {
         // whale: vertical fluke stroke and a slow body wave
         float w = pow(axis, 2.2) * aInst.z;
         p.y += sin(t - axis * uSwimK) * w * (partv > 0.9 ? 1.3 : 1.0);
-    }
-    vec4 world = modelMatrix * instanceMatrix * vec4(p, 1.0);
-    vec4 mv = viewMatrix * world;
-    vViewPos = mv.xyz;
-    vWorldPos = world.xyz;
-    vWorldNormal = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * normal);
-    vUv = uv;
-    vAnim = aAnim;
-    vFade = aInst.w;
-    gl_Position = projectionMatrix * mv;
-}`;
+    }`;
 
-const CREATURE_FRAGMENT = /* glsl */`
-uniform float uTime;
-uniform float uBusy;
-uniform float uShader;
-uniform float uVariant;
-uniform float uMat;            // 0 body, 1 fin, 2 eye, 3 shell, 4 flipper, 5 fluke
-uniform vec3 uLightDir;
-${FOG_CHUNK}
-varying vec3 vViewPos;
-varying vec3 vWorldPos;
-varying vec3 vWorldNormal;
-varying vec2 vUv;
-varying vec2 vAnim;
-varying float vFade;
-
-float hash21(vec2 p) {
+export const CREATURE_COLORS = /* glsl */`float hash21(vec2 p) {
     p = fract(p * vec2(123.34, 456.21));
     p += dot(p, p + 45.32);
     return fract(p.x * p.y);
@@ -237,34 +192,9 @@ vec3 whaleColor(float along, float height, float side, float mat, vec3 N) {
     }
     // flukes, flippers, dorsal hump: body colour with a lighter underside
     return mix(base, vec3(0.42, 0.45, 0.48), smoothstep(0.1, -0.6, N.y) * 0.55);
-}
+}`;
 
-vec3 shade(vec3 albedo, vec3 N, vec3 V, vec3 L, vec3 wp, float gloss) {
-    float ndl = dot(N, L);
-    float diffuse = max(ndl, 0.0);
-    float wrap = clamp(ndl * 0.5 + 0.5, 0.0, 1.0);
-    vec3 sky = mix(vec3(0.07, 0.14, 0.24), vec3(0.6, 0.76, 0.84), N.y * 0.5 + 0.5);
-    vec3 sun = vec3(0.92, 1.0, 1.0);
-    vec3 lit = albedo * (sky * 0.8 + sun * (diffuse * 0.85 + wrap * 0.12));
-    // caustics: two scrolling value-noise layers on world xz, only on up-facing surfaces
-    float up = smoothstep(0.05, 0.75, N.y);
-    vec2 cp = wp.xz * 0.9;
-    float n1 = vnoise(cp * 1.3 + vec2(uTime * 0.16, uTime * 0.11));
-    float n2 = vnoise(cp * 2.1 - vec2(uTime * 0.12, -uTime * 0.17) + 7.3);
-    float web = clamp(1.0 - abs(n1 + n2 - 1.0), 0.0, 1.0);
-    lit += albedo * sun * pow(web, 6.0) * up * 0.9;
-    float rim = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 3.0);
-    lit += vec3(0.12, 0.38, 0.5) * rim * 0.4;
-    lit += sun * pow(max(dot(reflect(-L, N), V), 0.0), 40.0) * gloss * 0.5;
-    return lit * (1.0 + 0.08 * uBusy);
-}
-
-void main() {
-    vec3 N = normalize(vWorldNormal);
-    if (!gl_FrontFacing) N = -N;
-    vec3 V = normalize(cameraPosition - vWorldPos);
-    vec3 L = normalize(uLightDir);
-    float along = clamp(vUv.x, 0.0, 1.0);
+export const CREATURE_ALBEDO = /* glsl */`    float along = clamp(vUv.x, 0.0, 1.0);
     float partv = vUv.y;
     float height = vAnim.x;
     float side = vAnim.y;
@@ -284,37 +214,13 @@ void main() {
     } else {
         albedo = whaleColor(along, height, side, uMat, N);
         gloss = 0.1;
-    }
-    vec3 col = shade(albedo, N, V, L, vWorldPos, gloss);
-    // the whale is a silhouette: the rim glow and ambient light of shade() would lift it to the water colour
-    if (uShader > 2.5) col *= 0.45;
-    vec2 fog = fogAmounts(length(vViewPos));
-    col = mix(col, uFogColor, fog.x * 0.85);
-    gl_FragColor = vec4(col, alpha * (1.0 - fog.y) * vFade);
+    }`;
+
+export const JELLY_FN = /* glsl */`float contraction(float c) {
+    return c < 0.22 ? smoothstep(0.0, 0.22, c) : 1.0 - smoothstep(0.22, 1.0, c);
 }`;
 
-// Moon jelly: ported from the Tiefsee screensaver (abyss-scene.js) with straight alpha instead of
-// additive blending, so the bell reads as translucent against the Ocean water gradient.
-const JELLY_VERTEX = /* glsl */`
-attribute vec2 aAnim;
-attribute vec4 aInst;   // pulse cycle (accumulated on the CPU), frequency (0: the CPU owns the cycle), swim, fade
-attribute vec3 aTint;
-uniform float uTime;
-uniform float uPart;
-varying vec3 vViewPos;
-varying vec3 vNormal;
-varying vec2 vUv;
-varying vec2 vAnim;
-varying vec3 vTint;
-varying float vFade;
-varying float vPulse;
-
-float contraction(float c) {
-    return c < 0.22 ? smoothstep(0.0, 0.22, c) : 1.0 - smoothstep(0.22, 1.0, c);
-}
-
-void main() {
-    float cycle = fract(uTime * aInst.y + aInst.x);
+export const JELLY_SWIM = /* glsl */`    float cycle = fract(uTime * aInst.y + aInst.x);
     float k = contraction(cycle);
     float along = clamp(uv.x, 0.0, 1.0);
     float phase = uv.y;
@@ -332,35 +238,9 @@ void main() {
         p.y -= aInst.z * pow(max(along, 0.0), 1.2) * 0.35;
     } else {
         p *= 1.0 + 0.025 * sin(uTime * 1.3 + aInst.x * 6.2832);
-    }
-    vec4 mv = modelViewMatrix * instanceMatrix * vec4(p, 1.0);
-    vViewPos = mv.xyz;
-    vNormal = normalize(normalMatrix * mat3(instanceMatrix) * normal);
-    vUv = uv;
-    vAnim = aAnim;
-    vTint = aTint;
-    vFade = aInst.w;
-    vPulse = k;
-    gl_Position = projectionMatrix * mv;
-}`;
+    }`;
 
-const JELLY_FRAGMENT = /* glsl */`
-uniform float uTime;
-uniform float uPart;
-uniform float uBusy;
-uniform vec3 uBase;
-uniform vec3 uGlow;
-${FOG_CHUNK}
-varying vec3 vViewPos;
-varying vec3 vNormal;
-varying vec2 vUv;
-varying vec2 vAnim;
-varying vec3 vTint;
-varying float vFade;
-varying float vPulse;
-
-void main() {
-    vec3 V = normalize(-vViewPos);
+export const JELLY_COLOR = /* glsl */`    vec3 V = normalize(-vViewPos);
     vec3 N = normalize(vNormal);
     if (!gl_FrontFacing) N = -N;
     float facing = abs(dot(N, V));
@@ -390,7 +270,155 @@ void main() {
         float travel = exp(-pow((fract(along * 0.8 - uTime * 0.35 + phase) - 0.5) * 7.0, 2.0));
         col = base * 0.4 + glow * (0.3 + beads * 0.6 + travel * 0.9);
         alpha = 0.55 * (1.0 - along * 0.6);
-    }
+    }`;
+
+export const MANTA_SWIM = /* glsl */`    vec3 p = position;
+    vObj = position / uUnit;
+    float span = clamp(uv.x, 0.0, 1.0);
+    float ph = uTime * uFlap + aInst.x * 6.2831853;
+    float wave = sin(ph - span * 1.4);
+    p.y += wave * pow(span, 1.6) * 0.42 * uUnit;
+    p.z += cos(ph - span * 1.4) * pow(span, 2.0) * 0.08 * uUnit;`;
+
+export const MANTA_ALBEDO = /* glsl */`    vec3 top = mix(vec3(0.045, 0.07, 0.1), vec3(0.09, 0.13, 0.17), vSpan * 0.5);
+    float spots = smoothstep(0.72, 0.9, sin(vObj.x * 13.1) * sin(vObj.z * 11.7 + vObj.x * 3.1)) * (1.0 - smoothstep(0.2, 0.6, vSpan));
+    vec3 belly = mix(vec3(0.74, 0.78, 0.8), vec3(0.28, 0.33, 0.38), smoothstep(0.45, 1.0, vSpan));
+    belly *= 1.0 - 0.7 * spots;
+    vec3 albedo = mix(top, belly, step(0.5, vBelly));`;
+
+export const SHADER_ID = { fish: 0, shark: 1, turtle: 2, whale: 3 };
+export const MATERIAL_KIND = { body: 0, fin: 1, eye: 2, shell: 3, flipper: 4, fluke: 5 };
+export const DOUBLE_SIDED = { fin: true, flipper: true, fluke: true };
+export const JELLY_PART = { bell: 0, gonad: 1, arm: 2, tentacle: 3 };
+
+const CREATURE_VERTEX = /* glsl */`
+attribute vec2 aAnim;          // (height, side) from TEXCOORD_1
+attribute vec4 aInst;          // phase, frequency, amplitude, fade (per instance)
+uniform float uTime;
+uniform float uShader;         // 0 fish, 1 shark, 2 turtle, 3 whale
+uniform float uSwimK;
+uniform float uLength;
+uniform float uFront;          // z of the nose after scaling
+varying vec3 vViewPos;
+varying vec3 vWorldPos;
+varying vec3 vWorldNormal;
+varying vec2 vUv;
+varying vec2 vAnim;
+varying float vFade;
+
+void main() {
+    vec3 p = position;
+${CREATURE_SWIM}
+    vec4 world = modelMatrix * instanceMatrix * vec4(p, 1.0);
+    vec4 mv = viewMatrix * world;
+    vViewPos = mv.xyz;
+    vWorldPos = world.xyz;
+    vWorldNormal = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * normal);
+    vUv = uv;
+    vAnim = aAnim;
+    vFade = aInst.w;
+    gl_Position = projectionMatrix * mv;
+}`;
+
+const CREATURE_FRAGMENT = /* glsl */`
+uniform float uTime;
+uniform float uBusy;
+uniform float uShader;
+uniform float uVariant;
+uniform float uMat;            // 0 body, 1 fin, 2 eye, 3 shell, 4 flipper, 5 fluke
+uniform vec3 uLightDir;
+${FOG_CHUNK}
+varying vec3 vViewPos;
+varying vec3 vWorldPos;
+varying vec3 vWorldNormal;
+varying vec2 vUv;
+varying vec2 vAnim;
+varying float vFade;
+
+${CREATURE_COLORS}
+
+vec3 shade(vec3 albedo, vec3 N, vec3 V, vec3 L, vec3 wp, float gloss) {
+    float ndl = dot(N, L);
+    float diffuse = max(ndl, 0.0);
+    float wrap = clamp(ndl * 0.5 + 0.5, 0.0, 1.0);
+    vec3 sky = mix(vec3(0.07, 0.14, 0.24), vec3(0.6, 0.76, 0.84), N.y * 0.5 + 0.5);
+    vec3 sun = vec3(0.92, 1.0, 1.0);
+    vec3 lit = albedo * (sky * 0.8 + sun * (diffuse * 0.85 + wrap * 0.12));
+    // caustics: two scrolling value-noise layers on world xz, only on up-facing surfaces
+    float up = smoothstep(0.05, 0.75, N.y);
+    vec2 cp = wp.xz * 0.9;
+    float n1 = vnoise(cp * 1.3 + vec2(uTime * 0.16, uTime * 0.11));
+    float n2 = vnoise(cp * 2.1 - vec2(uTime * 0.12, -uTime * 0.17) + 7.3);
+    float web = clamp(1.0 - abs(n1 + n2 - 1.0), 0.0, 1.0);
+    lit += albedo * sun * pow(web, 6.0) * up * 0.9;
+    float rim = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 3.0);
+    lit += vec3(0.12, 0.38, 0.5) * rim * 0.4;
+    lit += sun * pow(max(dot(reflect(-L, N), V), 0.0), 40.0) * gloss * 0.5;
+    return lit * (1.0 + 0.08 * uBusy);
+}
+
+void main() {
+    vec3 N = normalize(vWorldNormal);
+    if (!gl_FrontFacing) N = -N;
+    vec3 V = normalize(cameraPosition - vWorldPos);
+    vec3 L = normalize(uLightDir);
+${CREATURE_ALBEDO}
+    vec3 col = shade(albedo, N, V, L, vWorldPos, gloss);
+    // the whale is a silhouette: the rim glow and ambient light of shade() would lift it to the water colour
+    if (uShader > 2.5) col *= 0.45;
+    vec2 fog = fogAmounts(length(vViewPos));
+    col = mix(col, uFogColor, fog.x * 0.85);
+    gl_FragColor = vec4(col, alpha * (1.0 - fog.y) * vFade);
+}`;
+
+// Moon jelly: ported from the Tiefsee screensaver (abyss-scene.js) with straight alpha instead of
+// additive blending, so the bell reads as translucent against the Ocean water gradient.
+const JELLY_VERTEX = /* glsl */`
+attribute vec2 aAnim;
+attribute vec4 aInst;   // pulse cycle (accumulated on the CPU), frequency (0: the CPU owns the cycle), swim, fade
+attribute vec3 aTint;
+uniform float uTime;
+uniform float uPart;
+varying vec3 vViewPos;
+varying vec3 vNormal;
+varying vec2 vUv;
+varying vec2 vAnim;
+varying vec3 vTint;
+varying float vFade;
+varying float vPulse;
+
+${JELLY_FN}
+
+void main() {
+${JELLY_SWIM}
+    vec4 mv = modelViewMatrix * instanceMatrix * vec4(p, 1.0);
+    vViewPos = mv.xyz;
+    vNormal = normalize(normalMatrix * mat3(instanceMatrix) * normal);
+    vUv = uv;
+    vAnim = aAnim;
+    vTint = aTint;
+    vFade = aInst.w;
+    vPulse = k;
+    gl_Position = projectionMatrix * mv;
+}`;
+
+const JELLY_FRAGMENT = /* glsl */`
+uniform float uTime;
+uniform float uPart;
+uniform float uBusy;
+uniform vec3 uBase;
+uniform vec3 uGlow;
+${FOG_CHUNK}
+varying vec3 vViewPos;
+varying vec3 vNormal;
+varying vec2 vUv;
+varying vec2 vAnim;
+varying vec3 vTint;
+varying float vFade;
+varying float vPulse;
+
+void main() {
+${JELLY_COLOR}
     vec2 fog = fogAmounts(length(vViewPos));
     float nearFade = smoothstep(1.5, 5.0, -vViewPos.z);
     col = mix(col, uFogColor, fog.x * 0.85);
@@ -411,13 +439,7 @@ varying float vSpan;
 varying vec3 vObj;
 varying float vFade;
 void main() {
-    vec3 p = position;
-    vObj = position / uUnit;
-    float span = clamp(uv.x, 0.0, 1.0);
-    float ph = uTime * uFlap + aInst.x * 6.2831853;
-    float wave = sin(ph - span * 1.4);
-    p.y += wave * pow(span, 1.6) * 0.42 * uUnit;
-    p.z += cos(ph - span * 1.4) * pow(span, 2.0) * 0.08 * uUnit;
+${MANTA_SWIM}
     vec4 world = modelMatrix * instanceMatrix * vec4(p, 1.0);
     vec4 mv = viewMatrix * world;
     vViewPos = mv.xyz;
@@ -443,11 +465,7 @@ void main() {
     vec3 V = normalize(-vViewPos);
     float light = clamp(dot(N, uLightDir), 0.0, 1.0);
     float sky = clamp(N.y * 0.5 + 0.5, 0.0, 1.0);
-    vec3 top = mix(vec3(0.045, 0.07, 0.1), vec3(0.09, 0.13, 0.17), vSpan * 0.5);
-    float spots = smoothstep(0.72, 0.9, sin(vObj.x * 13.1) * sin(vObj.z * 11.7 + vObj.x * 3.1)) * (1.0 - smoothstep(0.2, 0.6, vSpan));
-    vec3 belly = mix(vec3(0.74, 0.78, 0.8), vec3(0.28, 0.33, 0.38), smoothstep(0.45, 1.0, vSpan));
-    belly *= 1.0 - 0.7 * spots;
-    vec3 albedo = mix(top, belly, step(0.5, vBelly));
+${MANTA_ALBEDO}
     vec3 ambient = mix(vec3(0.04, 0.09, 0.16), vec3(0.32, 0.55, 0.66), sky);
     float rim = pow(clamp(1.0 - abs(dot(N, V)), 0.0, 1.0), 4.0);
     vec3 col = albedo * (ambient * 0.9 + vec3(0.65, 0.9, 1.0) * light * 0.95) + vec3(0.12, 0.34, 0.46) * rim * 0.35;
