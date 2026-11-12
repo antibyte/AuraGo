@@ -162,6 +162,58 @@ func TestSetupInstallKeepsMachinesOnDemandAndRemovesEmptyCgroups(t *testing.T) {
 	}
 }
 
+func TestSetupInstallRequiresGuestNetworking(t *testing.T) {
+	script := (SetupManager{}).installScript()
+	for _, required := range []string{
+		"install -m0644 /root/infra/boring-net.service /etc/systemd/system/boring-net.service\n",
+		"cat > /etc/systemd/system/boringd.service.d/aurago-network.conf <<'BORING_NETWORK_EOF'\n[Unit]\nRequires=boring-net.service\nAfter=boring-net.service\nBORING_NETWORK_EOF\n",
+		"\nsystemctl enable boring-net.service\n",
+	} {
+		if !strings.Contains(script, required) {
+			t.Fatalf("managed service must require guest networking: missing %q", required)
+		}
+	}
+	start := strings.Index(script, `log "starting guest networking"`)
+	end := strings.Index(script, `log "waiting for boringd health"`)
+	if start < 0 || end <= start {
+		t.Fatal("guest networking must be started before boringd health verification")
+	}
+
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash is unavailable")
+	}
+	for _, tc := range []struct {
+		name       string
+		networkErr string
+		wantOutput string
+	}{
+		{"ready", "0", "restart boring-net.service\nstart boringd\n"},
+		{"failed", "1", "restart boring-net.service\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			command := exec.Command(bash, "-s", "--", tc.networkErr)
+			command.Stdin = strings.NewReader(`set -euo pipefail
+network_fail="$1"
+log() { :; }
+systemctl() {
+  printf '%s\n' "$*"
+  if [ "$*" = "restart boring-net.service" ] && [ "$network_fail" = "1" ]; then
+    return 1
+  fi
+}
+` + script[start:end])
+			output, err := command.CombinedOutput()
+			if (err != nil) != (tc.networkErr == "1") {
+				t.Fatalf("unexpected setup result: %v\n%s", err, output)
+			}
+			if string(output) != tc.wantOutput {
+				t.Fatalf("service startup = %q, want %q", output, tc.wantOutput)
+			}
+		})
+	}
+}
+
 func TestSetupRepairReusesAssetsAndWaitsForBoringdHealth(t *testing.T) {
 	script := (SetupManager{}).installScript()
 

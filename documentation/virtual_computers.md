@@ -32,6 +32,15 @@ Repair applies the setting to existing hosts. Stopping the daemon removes empty
 child cgroups with depth-first `rmdir`; virtual controller files make
 `find -empty` unsuitable for cgroup cleanup.
 
+The managed `boringd` service requires `boring-net.service` to finish before it
+starts, including after a host reboot. This prepares the `boring0` bridge,
+DHCP/DNS, NAT and guest firewall. Install / Repair stops boringd, restarts the
+network service even if it was already active, and starts boringd only after
+network setup succeeds. If a VM reports `cold boot: tap bridge` with
+`boring0` / `Device does not exist`, update AuraGo and run **Install / Repair**
+on the configured KVM host, then retry the VM. Repair restarts the VM daemon;
+save work in running guests first.
+
 The installer verifies the pinned upstream source, applies AuraGo's reviewed base-path overlay, performs a locked npm build, and writes a revision marker used during startup reconciliation. Every run creates a unique immutable release and switches the `current` link atomically only after a successful build. The `boring-web.service` systemd unit runs with filesystem and privilege hardening. If activation fails, the distinct previous web release is restored. AuraGo installs Node.js privately below the configured Boring Computers install directory and does not replace the host's global `node`, `npm`, or `npx` commands.
 
 The same repair installs AuraGo's reviewed workspace extension. It applies only when the upstream revision and source-file hashes match, builds the embedded static `aurago-workspace-agent`, injects it into the Python and Desktop root filesystems, and verifies `aurago.workspace.v1` by booting both templates. Before reuse and after every rebuild it rejects symlinked, non-root-owned, group/world-writable, architecture-mismatched, or invalid ELF/ext4 runtime assets. A combined fingerprint covers the upstream commit, patch series, guest sources, and protocol. Agent Workspaces cannot be enabled until setup has recorded that verification and the running boringd reports the same fingerprint.

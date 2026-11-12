@@ -539,8 +539,7 @@ fi
 
 log "configuring guest networking"
 install -m0755 /root/infra/net-setup.sh /opt/boring/bin/net-setup.sh
-bash /opt/boring/bin/net-setup.sh
-cp /root/infra/boring-net.service /etc/systemd/system/ 2>/dev/null || true
+install -m0644 /root/infra/boring-net.service /etc/systemd/system/boring-net.service
 
 	# Managed Garage (optional volumes). Failure must not abort core boringd install.
 	GARAGE_OK=0
@@ -550,6 +549,14 @@ cp /root/infra/boring-net.service /etc/systemd/system/ 2>/dev/null || true
 	cd /opt/boring/src
 	CGO_ENABLED=0 /usr/local/go/bin/go build -trimpath -ldflags="-s -w -X main.workspaceAssetFingerprint=${WORKSPACE_ASSET_FINGERPRINT}" -o /usr/local/bin/boringd .
 	cp /root/infra/boringd.service /etc/systemd/system/boringd.service
+
+# Require the bridge, DHCP/DNS and firewall to be ready on every host boot.
+install -d -m0755 /etc/systemd/system/boringd.service.d
+cat > /etc/systemd/system/boringd.service.d/aurago-network.conf <<'BORING_NETWORK_EOF'
+[Unit]
+Requires=boring-net.service
+After=boring-net.service
+BORING_NETWORK_EOF
 
 # Ensure the service cleans up leftover empty child cgroups when it stops.
 # Delegate=yes lets boringd manage its own cgroup subtree; systemd will not
@@ -602,7 +609,7 @@ EOF
 
 log "starting boringd"
 systemctl daemon-reload
-systemctl enable boring-net.service 2>/dev/null || true
+systemctl enable boring-net.service
 systemctl enable boringd
 
 # Stop any previous boringd instance explicitly and wait for its cgroup to drain.
@@ -624,6 +631,8 @@ if [ -d "${BORING_CG}" ]; then
 	find "${BORING_CG}" -depth -mindepth 1 -maxdepth 3 -type d -exec rmdir -- {} + 2>/dev/null || true
 fi
 
+log "starting guest networking"
+systemctl restart boring-net.service
 log "starting fresh boringd instance"
 systemctl start boringd
 log "waiting for boringd health"
