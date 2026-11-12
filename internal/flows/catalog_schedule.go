@@ -37,11 +37,11 @@ func scheduleParams() []ParamSpec {
 			option("interval_minutes", "schedule_interval_minutes"), option("interval_hours", "schedule_interval_hours"),
 			option("daily", "schedule_daily"), option("weekdays", "schedule_weekdays"), option("weekly", "schedule_weekly"),
 			option("monthly", "schedule_monthly"), option("cron", "schedule_cron")}},
-		{Name: "minutes", Kind: ParamNumber, LabelKey: "easydrag.param.schedule_minutes", Required: true, Default: 15.0, VisibleIf: when("interval_minutes")},
-		{Name: "hours", Kind: ParamNumber, LabelKey: "easydrag.param.schedule_hours", Required: true, Default: 1.0, VisibleIf: when("interval_hours")},
+		{Name: "minutes", Kind: ParamNumber, LabelKey: "easydrag.param.schedule_minutes", HelpKey: "easydrag.help.schedule_minutes", Required: true, Default: 15.0, VisibleIf: when("interval_minutes")},
+		{Name: "hours", Kind: ParamNumber, LabelKey: "easydrag.param.schedule_hours", HelpKey: "easydrag.help.schedule_hours", Required: true, Default: 1.0, VisibleIf: when("interval_hours")},
 		{Name: "time", Kind: ParamText, LabelKey: "easydrag.param.schedule_time", Required: true, Default: "07:00", VisibleIf: when("daily", "weekdays", "weekly", "monthly")},
 		{Name: "weekdays", Kind: ParamMultiSelect, LabelKey: "easydrag.param.schedule_weekdays", Required: true, Options: days, VisibleIf: when("weekly")},
-		{Name: "day", Kind: ParamNumber, LabelKey: "easydrag.param.schedule_day", Required: true, Default: 1.0, VisibleIf: when("monthly")},
+		{Name: "day", Kind: ParamNumber, LabelKey: "easydrag.param.schedule_day", HelpKey: "easydrag.help.schedule_day", Required: true, Default: 1.0, VisibleIf: when("monthly")},
 		{Name: "cron", Kind: ParamCron, LabelKey: "easydrag.param.schedule_cron", Required: true, VisibleIf: when("cron")},
 	}
 }
