@@ -442,7 +442,9 @@
             if(target.dataset.editPatch){openDesigner(target.dataset.editPatch,null);return;}
             if(target.dataset.favourite){const id=target.dataset.favourite,list=libraryPrefs.favourites,at=list.indexOf(id);if(at>=0)list.splice(at,1);else list.unshift(id);saveLibraryPrefs();renderLibrary();return;}
             if(target.dataset.tag){activeTag=activeTag===target.dataset.tag?'':target.dataset.tag;renderLibrary();return;}
-            if(target.dataset.fxAdd){mutate(p=>{const t=p.tracks.find(t=>t.id===track()?.id);if(!t)return;if(!t.fx)t.fx={inserts:[]};if(t.fx.inserts.length>=M.MAX_INSERTS)return;t.fx.inserts.push(M.insertSpec('chorus',{mix:.3}));},'mix');return;}
+            // data-fx-add is a valueless marker, so its dataset value is an
+            // empty string: test for the attribute, not for a truthy value.
+            if(target.hasAttribute('data-fx-add')){mutate(p=>{const t=p.tracks.find(t=>t.id===track()?.id);if(!t)return;if(!t.fx)t.fx={inserts:[]};if(t.fx.inserts.length>=M.MAX_INSERTS)return;t.fx.inserts.push(M.insertSpec('chorus',{mix:.3}));},'mix');return;}
             if(target.dataset.fxRemove){const index=Number(target.dataset.fxRemove);mutate(p=>{const t=p.tracks.find(t=>t.id===track()?.id);if(t?.fx?.inserts)t.fx.inserts.splice(index,1);},'mix');return;}
             if(target.dataset.choose){selectedInstrument=target.dataset.choose;markRecent(target.dataset.choose);renderLibrary();return;}
             if(target.dataset.action){Promise.resolve().then(()=>actions[target.dataset.action]?.()).catch(fail);return;}

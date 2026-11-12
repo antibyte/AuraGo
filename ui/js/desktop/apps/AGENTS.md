@@ -672,6 +672,11 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   its wet path and works identically in live playback and offline WAV rendering.
   The master strip also owns the momentary Live FX nodes (filter drop, stutter);
   they are performance-only and must stay out of project data and offline renders.
+- The inspector's add-effect control is a valueless `data-fx-add` marker. The
+  delegated click handler in `synth-studio.js` must detect it with
+  `hasAttribute`, never a truthy `dataset.fxAdd`: an empty dataset value is
+  falsy and silently drops every click. `TestDesktopSynthStudioBrowser` pins the
+  appended chorus insert and its single undo step.
 - The master strip ends in a transparent brick-wall ceiling. `MASTER_CEILING`
   (0.966 / -0.3 dBFS) passes everything below `LIMITER_KNEE` (0.7) unchanged,
   then eases onto the ceiling; pre/post gains give the WaveShaper 2x full-scale

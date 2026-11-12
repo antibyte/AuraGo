@@ -119,6 +119,14 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	check("clip opens notes and FX rack", `()=>document.querySelectorAll('.ss-note').length>0 && document.querySelectorAll('.ss-inspector [data-param]').length===8`)
 	check("range sliders are drawn as knobs", `()=>{const i=[...document.querySelectorAll('.ss-inspector [data-param]')];return i.length===8&&i.every(e=>e.classList.contains('ss-ctl-native')&&e.nextElementSibling?.classList.contains('ss-ctl-knob'))}`)
 	page.MustElement("[data-work-tab=sound]").MustClick()
+	// Regression: the "Effekt hinzufügen" button is a valueless data-fx-add
+	// marker. A truthy dataset check used to swallow every click, leaving the
+	// effect rack unchanged. Use a real pointer click on the visible rack.
+	page.MustEval(`()=>{const i=synthInstance(),id=i.editor.selection().trackId;window.fxTrackId=id;window.fxBefore=i.project().tracks.find(t=>t.id===id).fx.inserts.length;}`)
+	page.MustElement(".ss-inspector [data-fx-add]").MustClick()
+	check("add effect appends a chorus insert to the rack", `()=>{const t=synthInstance().project().tracks.find(x=>x.id===fxTrackId),insert=t.fx.inserts.at(-1);return t.fx.inserts.length===fxBefore+1&&insert.type==='chorus'&&insert.mix===.3&&document.querySelectorAll('.ss-inspector .ss-fx-slot').length===fxBefore+1}`)
+	page.MustElement(".ss-app [data-action=undo]").MustClick()
+	check("add effect is one undo step", `()=>synthInstance().project().tracks.find(x=>x.id===fxTrackId).fx.inserts.length===fxBefore`)
 	knob := page.MustElement(".ss-inspector [data-param=tone] + .ss-ctl-knob")
 	box := knob.MustShape().Box()
 	cx, cy := box.X+box.Width/2, box.Y+box.Height/2
