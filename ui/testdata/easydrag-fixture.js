@@ -777,6 +777,8 @@
         if (!parts.length) answer = collection(method, body);
         else if (parts[0] === 'ai-proposal' && parts.length === 1 && method === 'POST') { const doc = localFirstResult(); answer = reply({ doc, issues: [], effects: effects(doc) }); }
         else if (parts[0] === 'secrets') answer = secrets(method, parts.slice(1), body);
+        // The start page's credential hint asks the scan; this fixture has nothing to clean (the report shape of the server).
+        else if (parts[0] === 'credentials' && parts[1] === 'scan' && parts.length === 2 && method === 'GET') answer = reply({ report: { drafts: [], live: [], versions_purgeable: 0, versions_pinned: 0, runs: 0, steps: 0, test_rows: 0, snapshots: [], leftovers: [], backups: [] } });
         else if (parts[0] === 'runs') answer = runRoute(method, parts.slice(1));
         else if (parts[0] === 'node-types') answer = nodeTypes(method, parts.slice(1), headers);
         else if (parts[0] === 'templates' && parts.length === 1) answer = method === 'GET' ? reply({ templates: clone(templates) }) : null;
