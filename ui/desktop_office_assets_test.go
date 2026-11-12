@@ -32,6 +32,7 @@ func TestDesktopOfficeAssetsAreEmbeddedAndRouted(t *testing.T) {
 		"/css/desktop-form-dialog.css",
 		"/js/desktop/apps/writer-toolbar.js",
 		"/js/desktop/apps/writer-dialogs.js",
+		"/js/desktop/apps/writer-menus.js",
 		"/js/desktop/apps/writer-panels.js",
 		"/js/desktop/apps/writer.js",
 		"/js/desktop/apps/sheets.js",

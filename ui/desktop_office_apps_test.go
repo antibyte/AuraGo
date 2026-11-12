@@ -89,11 +89,14 @@ func TestOfficeAppsExposeNewAndSaveAsMenus(t *testing.T) {
 			markers: []string{
 				"case 'new':",
 				"function saveAs()",
-				"item('new')",
-				"item('saveAs')",
 				"ctx.saveFileDialog",
 				"await guard()",
 			},
+		},
+		{
+			name:    "writer menus",
+			file:    "writer-menus.js",
+			markers: []string{"item('new')", "item('saveAs')"},
 		},
 		{
 			name: "sheets",
@@ -144,7 +147,7 @@ func TestEditorWriterAndSheetsExposeAgentMenus(t *testing.T) {
 		},
 		{
 			name: "writer",
-			path: "js/desktop/apps/writer.js",
+			path: "js/desktop/apps/writer-menus.js",
 			markers: []string{
 				"id:'agent'",
 				"labelKey:'desktop.menu_agent'",

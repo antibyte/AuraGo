@@ -132,3 +132,40 @@ func verifyWriterActions(t *testing.T, page *rod.Page) {
         if(body().trim())throw Error('the document was not left blank: '+JSON.stringify(body()));
     }`)
 }
+
+// verifyWriterMenus reads the menus the fixture's setWindowMenus received: their structure,
+// which shortcuts are only shown, and that checked and disabled follow the document.
+func verifyWriterMenus(t *testing.T, page *rod.Page) {
+	t.Helper()
+	page.MustEval(`async()=>{` + writerWave1Prelude + `
+        const flat=items=>items.flatMap(entry=>entry.items?flat(entry.items):[entry]);
+        const item=id=>flat(window.menus.flatMap(menu=>menu.items)).find(entry=>entry.id===id);
+        const titles=window.menus.map(menu=>menu.id).join();
+        if(titles!=='file,edit,view,insert,format,table,tools,agent')throw Error('menus: '+titles);
+        for(const id of ['cut','copy','paste','pastePlain','selectAll','goToPage','marks','markupAll','zoomPage','zoom125','link','endnote','sectionNext','textBox','superscript','spacing150','copyFormat','rowAbove','deleteTable','wordCount','tracking','nextChange','shortcuts','assist','gog-import'])
+            if(!item(id))throw Error('menu lacks '+id);
+        if(item('copy').shortcut||item('copy').shortcutHint!=='Ctrl+C')throw Error('copy must only show its shortcut');
+        if(item('link').shortcut!=='Ctrl+K')throw Error('link shortcut: '+item('link').shortcut);
+        if(!item('rowAbove').disabled)throw Error('row commands need a table');
+        if(!item('markupAll').checked||item('marks').checked||item('tracking').checked)throw Error('initial view state is wrong');
+        try {
+            item('marks').action();await wait(250);
+            if(!item('marks').checked)throw Error('formatting marks are not checked after switching them on');
+            item('marks').action();await wait(250);
+            if(item('marks').checked)throw Error('formatting marks stay checked');
+            item('tracking').action();await wait(250);
+            if(!item('tracking').checked||!item('table').disabled)throw Error('tracking must check its item and disable structural inserts');
+            item('tracking').action();await wait(250);
+            if(item('tracking').checked||item('table').disabled)throw Error('tracking did not switch off in the menus');
+            item('outline').action();await wait(250);
+            if(!item('outline').checked)throw Error('an open panel is not checked');
+            item('outline').action();await wait(250);
+            editor.exec({type:'insertTable',rows:2,cols:2});await wait(300);
+            if(item('rowAbove').disabled)throw Error('row commands stay disabled inside a table');
+            item('rowBelow').action();await wait(250);
+            if(failed())throw Error('row below: '+failed());
+            if(editor.getSelectedTable()?.rowCount!==3)throw Error('row below gave '+JSON.stringify(editor.getSelectedTable()));
+        } finally { rewind(); }
+        if(body().trim())throw Error('the document was not left blank: '+JSON.stringify(body()));
+    }`)
+}

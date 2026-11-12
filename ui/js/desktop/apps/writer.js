@@ -53,7 +53,7 @@
         const state = {ctx,esc,tr,root,find,get editor(){return editor;},get lib(){return lib;},
             get revision(){return queue?.revision || 0;}, get readonly(){return !!ctx.readonly;},
             commands,run,can,blocked:commands.blocked,notice,prompt:(key,value)=>ctx.promptDialog(tr(key),value || ''),
-            windowId,signal:()=>documentLife.signal,countWords:text=>countWords(text),
+            windowId,signal:()=>documentLife.signal,countWords:text=>countWords(text),menuSignature,fileMenuItems,
             act,refresh:()=>refresh(),pinSelection,
             markCommand:commands.valueCommand,colorHex:colors.hex,highlightHex:colors.highlightHex,
             get author(){return author;},set author(value){author=value;localStorage.setItem('aurago.writer.author',value);editor.setAuthor(value);}
@@ -61,6 +61,7 @@
         const panels = window.WriterPanels.create(state);
         const toolbar = window.WriterToolbar.create(state);
         const dialogs = window.WriterDialogs.create(state);
+        const menus = window.WriterMenus.create(state);
         const instance = {dispose:cleanup,get editor(){return editor;},get session(){return queue;},get path(){return path;},act,reloadIfChanged};
         instances.set(windowId,instance);
         window.AuraDesktopEmail?.attach(windowId, '.writer-documentbar', () => ({
@@ -209,7 +210,7 @@
                 find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;
                 find('[data-save-state]').textContent=tr(queue.dirty?'unsaved':'saved');
                 ctx.updateWindowContext?.(windowId,{path});
-                toolbar.fill();setMenus();refresh();
+                toolbar.fill();menus.sync(true);refresh();
                 const draft=await WriterSession.draft('get',draftKey()).catch(()=>null);
                 if(disposed || token!==generation)return;
                 const restore=draft?.bytes && !ctx.readonly && await ctx.confirmDialog(tr('recover'),tr('recover_detail'));
@@ -234,7 +235,7 @@
                 find('[data-loading]').hidden=false;find('[data-load-status]').textContent=tr('load_failed');find('[data-load-actions]').hidden=false;
                 find('[data-save-state]').textContent=tr('load_failed');find('[data-save-state]').dataset.state='error';
                 if(error.status===404)ctx.updateWindowContext?.(windowId,{path:''});
-                fail(error,'load');setMenus();
+                fail(error,'load');menus.sync(true);
             }
         }
         function sanitize(html) {
@@ -286,7 +287,7 @@
         function refresh() {
             if(!editor || disposed || loading)return;
             const snapshot=editor.snapshot();
-            toolbar.refresh();
+            toolbar.refresh();menus.sync();
             find('[data-page]').textContent=tr('page_count',{current:editor.getCurrentPage('viewport'),total:snapshot.page.total});
             if(statsRevision!==queue.revision) {
                 statsRevision=queue.revision;
@@ -442,6 +443,7 @@
             root.classList.toggle('writer-focus',on);
             const exit=find('.writer-focus-exit');
             if(exit)exit.hidden=!on;
+            menus.sync();
         }
         // Whether an app action is switched on; menus show it as a check mark.
         function activeAction(id) {
@@ -587,21 +589,16 @@
                 if(result?.file?.path&&!disposed)await load(result.file.path);
             }catch(error){fail(error);}
         }
-        function setMenus() {
-            const item=commands.menuItem;
-            ctx.setWindowMenus?.(windowId,[
-                {id:'file',labelKey:'desktop.menu_file',items:[
-                    item('new'),item('open'),item('save'),item('saveAs'),
-                    {type:'separator'},
-                    {id:'gog-import',label:ctx.t('desktop.gog.import'),disabled:ctx.readonly,action:()=>gogOffice('import')},
-                    {id:'gog-export',label:ctx.t('desktop.gog.export'),disabled:ctx.readonly||!editor,action:()=>gogOffice('export')},
-                    {type:'separator'},item('docx'),item('html'),item('md'),item('txt'),
-                    {type:'separator'},item('print')]},
-                {id:'edit',labelKey:'desktop.menu_edit',items:[item('undo'),item('redo'),item('search'),item('review'),item('format'),item('insert')]},
-                {id:'insert',label:tr('insert'),items:[item('image'),item('qr')]},
-                {id:'agent',labelKey:'desktop.menu_agent',items:[item('assist')]},
-                {id:'view',label:tr('view'),items:[item('outline'),item('focus'),item('fit')]}
-            ]);
+        function fileMenuItems() {
+            return [{id:'gog-import',label:ctx.t('desktop.gog.import'),disabled:ctx.readonly,action:()=>gogOffice('import')},
+                {id:'gog-export',label:ctx.t('desktop.gog.export'),disabled:ctx.readonly||!editor,action:()=>gogOffice('export')}];
+        }
+        // Everything a menu shows as enabled or checked. The bar is rebuilt when this changes.
+        function menuSignature() {
+            const s=editor && !loading?editor.snapshot():null;
+            return JSON.stringify([!!s,!!ctx.readonly,s?.editingMode,s?.reviewDisplayMode,!!s?.showParagraphMarks,!!s?.canUndo,!!s?.canRedo,!!s?.selectionCollapsed,
+                !!s?.table,!!s?.image,s?.scope?.kind,s?.formatting?.lineSpacing?.value,leftPanel,rightPanel,root.classList.contains('writer-focus'),
+                !!s?.table && can({type:'mergeCells'}).ok,!!s && can({type:'pasteFormatting'}).ok]);
         }
         root.addEventListener('pointerdown',event=>{if(event.target.closest('.writer-toolbar-wrap,.writer-right,.writer-views'))pinSelection();},{signal:lifecycle.signal});
         root.addEventListener('click',event=>{
@@ -647,7 +644,7 @@
             lifecycle.abort();documentLife.abort();rulerResize.disconnect();toolbar.dispose();panels.dispose();queue?.dispose();editor?.destroy();
             ctx.setWindowBeforeClose?.(windowId,null);ctx.clearWindowMenus?.(windowId);instances.delete(windowId);
         }
-        setMenus();void load(path,ctx.path?null:'blank');
+        menus.sync(true);void load(path,ctx.path?null:'blank');
     }
     function dispose(windowId){instances.get(windowId)?.dispose();}
     window.WriterApp={render,dispose,instances};
