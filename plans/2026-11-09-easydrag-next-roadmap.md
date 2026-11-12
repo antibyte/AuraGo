@@ -305,8 +305,8 @@ Pillars: foundation, safety.
     - the docked palette not restored after the run view below 900 px;
     - a duplicated "Vergangener Lauf";
     - U9/V4 targets under 24 px;
-  - "StartResult surfaced" is an entry criterion for OP-01 (Wave 3) and PE-16 (Wave 5), fixed in S0c by the Wave 2 exit, so trigger start failures reach run_failed and OP-01;
-  - "SSE redaction verified" is an entry criterion for the Wave 2 Testbank, which adds SSE consumers.
+  - "StartResult surfaced" is an entry criterion for OP-01 (Wave 3) and PE-16 (Wave 5), fixed in S0c by the Wave 2 exit, so trigger start failures reach run_failed and OP-01. Done in S0c: S0c spec §7, row 6;
+  - "SSE redaction verified" is an entry criterion for the Wave 2 Testbank, which adds SSE consumers. Done in S0c: S0c spec §7, row 5.
 - [FD-16] (S0c) Generated manual reference blocks and an agent manual, shared with OP-17.
 
 **Acceptance criteria**
@@ -1379,7 +1379,19 @@ The ten waves sum to 22.5 relative units instead of 20.5, for two reasons. The p
     - "In den Tresor verschieben" works for headers, query parameters and URL user info.
     - The guided purge uses an encrypted 7-day backup and schema 9 marks. The acceptance fixture finds none of the three tokens anywhere.
   - **Records.** Spec `plans/2026-11-11-easydrag-s0b-spec.md`, plan `plans/2026-11-11-easydrag-s0b/`. Three review batches found 16 Important findings; all are fixed.
-  - **Next.** Wave 0 still has S0c (the hygiene track); Wave 1 comes after it.
+- *Status 2026-11-12, S0c:* S0c landed on main and is not pushed or deployed. That closes Wave 0.
+  - **Parts:**
+    - A, the defect tail: c794f8ac9 to 497c65dbd;
+    - B, the test tiers: d6f8f69eb to f719679f3;
+    - C, the generated manual reference: 0fa4f7fbb to dd366741e;
+    - D, the touch audit: cf05f151d to 65cd54130.
+  - **T0:** `npm run test:easydrag:t0` takes 51.6 s with tests forced and 33.7 s cached. One shared Chrome and reduced motion run in every EasyDrag browser test.
+  - **FD-20:** every item has an outcome; the ledger is spec §7 of `plans/2026-11-12-easydrag-s0c-spec.md`.
+    - "StartResult surfaced" is fixed with tests (ledger row 6).
+    - "SSE redaction verified" is closed with evidence (row 5).
+    - Rows 18 and 22–26 are Wave 1 tasks.
+  - **Records.** Spec `plans/2026-11-12-easydrag-s0c-spec.md`, plan `plans/2026-11-12-easydrag-s0c/`. Four review batches found 14 Important findings; all are fixed.
+  - **Next.** Wave 1.
 - *Includes:* S0 and S0b (§7):
   - S0: the FD-03 counter baseline (step 0); the FD-10 splits of runs.js, editor.js, home.js and fields.js; the FD-17, AI-16 and OP-17 trust sweep; the FD-12 subset; UI-02 and UI-03 from E3 and E2;
   - S0b: FD-13 and FD-18.

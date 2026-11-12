@@ -1,6 +1,13 @@
 # EasyDrag S0c "Hygiene track": design spec
 
-**Status:** design spec, 2026-11-12. The owner approved the design in the brainstorming session the same day. Implementation plan: [`plans/2026-11-12-easydrag-s0c/README.md`](2026-11-12-easydrag-s0c/README.md). Planning amended some points of this spec; until the coordinator copies them in here as each part lands, the README's "Amendments found while planning" take precedence.
+**Status:** design spec, 2026-11-12. The owner approved the design in the brainstorming session the same day. Implementation plan: [`plans/2026-11-12-easydrag-s0c/README.md`](2026-11-12-easydrag-s0c/README.md). **Landed 2026-11-12 on main, not pushed or deployed:**
+- Part A: c794f8ac9 to 497c65dbd, 12 commits.
+- Part B: d6f8f69eb to f719679f3, 7 commits.
+- Part C: 0fa4f7fbb to dd366741e, 5 commits.
+- Part D: cf05f151d to 65cd54130, 7 commits.
+
+Planning and review changed some points of this spec. §12 lists them; the plan README has the details.
+
 **Roadmap:** `plans/2026-11-09-easydrag-next-roadmap.md`, E1 items FD-12 (rest), FD-15, FD-16 and FD-20 (lines 289-310, acceptance 321-322), Wave 0 (§6), gates of Waves 2 and 3.
 **Predecessors:** S0 landed at 79c7c601a (`plans/2026-11-10-easydrag-s0-spec.md`). S0b landed at c4370ae91 (Part A) and 53bd11eff (Part B) (`plans/2026-11-11-easydrag-s0b-spec.md`). Nothing is pushed.
 
@@ -145,6 +152,11 @@ Owner decisions (2026-11-12):
   5. `go test ./ui -run '(?i)easydrag'`, where the browser tests skip because `AURAGO_RUN_BROWSER_SMOKE` is unset.
 - **Stale scripts.** Each of the 35 scripts runs once before T0 exists. A script that fails on main is fixed, or deleted when what it tests no longer exists. The plan records each one.
 - **Target:** under 60 s with a warm build cache, on the owner's machine. The plan measures it and writes the number into this spec. If T0 is above 60 s, the slowest Go step moves to T1 and the spec records that, rather than missing the target silently.
+- **Measured on main at 65cd54130** (16 CPUs, warm build cache, no other load):
+  - 51.6 s with every Go test forced (`GOFLAGS=-count=1`);
+  - 33.7 s with Go results cached.
+  - The Node scripts and the Go steps run at the same time (§12). Run one after another, the warm total was 94 s.
+  - No step moved to T1.
 - **CI.** The Node job of `.github/workflows/security-gates.yml` (line 52) runs the Node scripts of T0 in addition to `npm run test:ui-regressions`. The Go steps already run in the Go job (`go test ./... -p 1`).
 - Go temp-directory settings stay with the caller's environment; the script sets none.
 
@@ -219,23 +231,32 @@ Outcome kinds: **fixed** (with a test), **closed** (already fixed; evidence give
 
 | # | Item (roadmap line) | Outcome | Evidence or task |
 |---|---|---|---|
-| 1 | logic.stop run-level semantics, defect E3, decision 13 (297) | fixed (A2) | `stoppedBy` Node test; the status-map entry is handed to Wave 1, FD-08 |
-| 2 | N20 help for divisors (298) | fixed (A4) | `catalog_i18n_test.go` covers the keys |
-| 3 | `internal/flows/AGENTS.md` says "six" templates (299; now line 831) | fixed (A7) | the count is removed |
-| 4 | mission_update debounce (301) | closed | `internal/server/mission_update_debounce.go:11` (250 ms); `TestFB4MissionUpdatesAreDebounced` |
-| 5 | SSE redaction per (run, seq) with a per-client cap (302); the Wave 2 entry "SSE redaction verified" (309) | closed | `flows_sse_cache.go:35-65`; `flowStreamsPerClient=8` at `flows_handlers_runs.go:381`; `TestFB4SSECacheScrubsAnEventOnce`, `TestFB4FlowStreamsAreCappedPerClient` |
-| 6 | start outcome discarded in `StartFlowRun` (303); "StartResult surfaced" for OP-01 and PE-16 (308) | fixed (A1) | the streak test in §3.1 |
-| 7 | LastRun missing omitzero (304) | closed | `internal/tools/missions_v2.go:157`; `TestFB4MissionLastRunIsLeftOutWhenZero` |
-| 8 | docked palette not restored after the run view below 900 px (305) | closed | `easydrag-editor.js:245-246`, `easydrag-palette.js:257-260`; the plan names the covering test in `scripts/test-easydrag-ux-batch5.mjs` or adds one (A7) |
-| 9 | duplicated "Vergangener Lauf" (306) | fixed (A7) | `de.json:884`; the header tooltip residual (`easydrag-header.js:52`, `:124-127`) |
-| 10 | U9/V4 targets under 24 px (307) | fixed (A5) | the T1 target-size test |
-| 11 | FD-12: help for schedule days 29–31 (291) | fixed (A4) | as item 2 |
-| 12 | FD-12: manual drift fixes (291) | fixed (C3) | the drift test plus the hand-written sections of §5.3 |
-| 13 | FD-12: file.write default, decision 4 (291) | fixed (A3) | the default test in §3.3 |
-| 14 | FD-16: the agent manual describes read_only and allow_publish as they behave (321) | closed | `prompts/tools_manuals/manage_missions.md:20-21`, `internal/config/flows.go:25-33` |
-| 15 | Found while planning: "1 Schritte" plurals | fixed (A6) | the plural Node test |
-| 16 | Found while planning: double scrub in packs | closed (A7) | comments at both sites; defence in depth |
-| 17+ | Touch findings (Part D) | fixed or handed to Wave 1 | one row per finding, added as D runs |
+| 1 | logic.stop run-level semantics, defect E3, decision 13 (297) | fixed (A2) | 3cff2a8da; `scripts/test-easydrag-stop-hint.mjs`; the status-map entry is row 24 |
+| 2 | N20 help for divisors (298) | fixed (A4) | 1b5136c46; `TestCatalogTranslationsAreComplete` covers the three help keys |
+| 3 | `internal/flows/AGENTS.md` says "six" templates (299) | fixed (A7.1) | eb11dafc9; the guide names no count |
+| 4 | mission_update debounce (301) | closed | `internal/server/mission_update_debounce.go:11` (250 ms); `TestFB4MissionUpdatesAreDebounced` (`mission_update_debounce_fb4_test.go:8`) |
+| 5 | SSE redaction per (run, seq) with a per-client cap (302); Wave 2 entry "SSE redaction verified" (309) | closed | `flows_sse_cache.go:35-65`; `flowStreamsPerClient = 8` at `flows_handlers_runs.go:381`; `TestFB4SSECacheScrubsAnEventOnce` (`flows_sse_fb4_test.go:10`), `TestFB4FlowStreamsAreCappedPerClient` (`:29`) |
+| 6 | start outcome discarded in `StartFlowRun` (303); "StartResult surfaced" for OP-01 and PE-16 (308) | fixed (A1) | c794f8ac9, 8a9d5a343, c26a05b0d, review 342c14b0d and 497c65dbd; `TestStartFailureStreak`, `TestFlowStartFailureIsRecordedOncePerStreak`, `TestFlowTriggerStartFailureNotesTheMission` |
+| 7 | LastRun missing omitzero (304) | closed | `internal/tools/missions_v2.go:157`; `TestFB4MissionLastRunIsLeftOutWhenZero` (`missions_v2_fb4_test.go:51`) |
+| 8 | docked palette not restored after the run view below 900 px (305) | closed | `easydrag-editor.js:246` calls `palette.restoreDocked()` (`easydrag-palette.js:257`); `scripts/test-easydrag-ux-batch5.mjs:427` |
+| 9 | duplicated "Vergangener Lauf" (306) | fixed (A7.2) | 88219ad56; the tooltip reads "Lauf vom {time}"; assertion in `scripts/test-easydrag-extra5.mjs` |
+| 10 | U9/V4 targets under 24 px (307) | fixed (A5, B.6) | edc3fbe14 (`.ed-seg--small button`, `.ed-port-add`), f719679f3 (`.ed-palette-setup`); `TestEasyDragTargetSizes` |
+| 11 | FD-12: help for schedule days 29–31 (291) | fixed (A4) | as row 2; checked against robfig/cron: a month without the day is skipped |
+| 12 | FD-12: manual drift fixes (291) | fixed (C) | 57181b434, b2b2e3904, review dd366741e; `TestFlowsDocBlocksMatchTheCatalog` (in T0 since d09f25497) |
+| 13 | FD-12: file.write default, decision 4 (291) | fixed (A3) | 212156456; `TestFileWriteDefaultsToOverwrite`, `TestFileWriteOptionsCarryCardLabels` |
+| 14 | FD-16: agent manual describes read_only and allow_publish as they behave (321) | closed | `prompts/tools_manuals/manage_missions.md:21`, `internal/config/flows.go:25-33`, `internal/agent/agent_dispatch_comm.go:1409-1415`; `TestManageMissionsFlowReadOnlyRefusesRuns` |
+| 15 | Found while planning: "1 Schritte" plurals | fixed (A6) | 7c30c000f; five `_one` keys via `core.pluralKey`; `scripts/test-easydrag-plurals.mjs` |
+| 16 | Found while planning: double scrub in packs | closed (A7.1) | eb11dafc9; a comment at each site names the other |
+| 17 | Touch F1: a tap on a wire did not select it, and Insert/Delete vanished 220 ms after the finger lifted | fixed (D.2, review D) | 38f2eb397, 65cd54130; `TestEasyDragTouchInsertOnWire` (with a 6 px tap), `TestEasyDragTouchDeleteWire` |
+| 18 | Touch F2: box select by finger; one finger on empty canvas always pans | handed to Wave 1 | a touch select mode that starts `startBoxSelect` for touch; then remove the skip in `TestEasyDragTouchBoxSelect` (d588d745e) |
+| 19 | Touch: mapping chip by the tap fallback | closed (works) | `TestEasyDragTouchMappingChip` (6a808597f) |
+| 20 | Touch F3: the card tools covered the selected card, so it could not be long-pressed or dragged by touch | fixed (D.4, review D) | ee84466f6, 65cd54130 (one row below the card, error box moved down, hover bridge); `TestEasyDragTouchCardTools` |
+| 21 | Review D: the stacked Insert/Delete pill covered both ports, pinned actions outlived a run view or Escape, the tap slop was 4 px, and a long-press release could click a menu item | fixed (review D) | 65cd54130; assertions in `TestEasyDragTouchInsertOnWire`, `TestEasyDragTouchDeleteWire`, `TestEasyDragTouchCardTools` |
+| 22 | `.ed-port-add` (invisible until hover) covers a wire's midpoint, so a finger there opens quick-add | handed to Wave 1 | `pointer-events: none` until its card is selected |
+| 23 | "1 …" plurals in other features: `folder_flows`, `cred_purge_versions`, `cred_purge_pinned` | handed to Wave 1 | `core.pluralKey`, about three lines each |
+| 24 | Status-map entry "stopped" (decision 13) | handed to Wave 1, FD-08 | a run-level reason "stopped" whose word is "durch Stopp beendet", on every run-status surface |
+| 25 | With a failed run, the step-history panel lies over the canvas at 1024×768 | handed to Wave 1 | seen while building the D review fixture; layout work for the run view |
+| 26 | The long-press menu opens under the finger | handed to Wave 1 (human session) | the release click is swallowed (65cd54130); check the feel on a real touch screen |
 
 ## 8. Testing
 
@@ -255,18 +276,18 @@ Essential tests only (owner's standing preference).
 - Files do not overlap between parallel parts. A owns the locale, CSS and product-code changes of §3. B touches only test helpers, scripts and CI. C touches only the manuals, the agent manual and `cmd/flowsdoc`. D adds CSS and JS only for its touch fixes.
 
 ## 10. Acceptance checklist
-- [ ] Every row of the ledger (§7) has an outcome, and each "fixed" row names its test.
-- [ ] A trigger start that fails records one failed run with `FLOW_START_FAILED`, one notification and one planner issue per streak; refusals record nothing.
-- [ ] A run ended by a "success" stop shows "durch Stopp beendet"; cut-off steps with effects show "unklar".
-- [ ] A file.write card shows "überschreibt" by default, and a test pins the default.
-- [ ] `npm run test:easydrag:t0` passes, and its time is recorded in this spec (target under 60 s warm).
-- [ ] The CI Node job runs the EasyDrag Node scripts.
-- [ ] All EasyDrag browser tests share one Chrome per process and set reduced motion through the helper; the guard test is green.
-- [ ] The target-size test is green.
-- [ ] The drift test is green, and fails when a catalog label changes without regenerating.
-- [ ] The five touch gestures are green at both viewports, or skipped with a Wave 1 ledger row.
-- [ ] Every new key is in all 16 locales; canvas.js has not grown; `TestShippedWebAssetsLoadNothingExternal` stays green.
-- [ ] The roadmap's Wave 0 status records S0c as landed, and its Wave 2 entry "SSE redaction verified" and the Wave 0/2/3 gate "StartResult surfaced" point at the ledger.
+- [x] Every row of the ledger (§7) has an outcome, and each "fixed" row names its test.
+- [x] A trigger start that fails records one failed run with `FLOW_START_FAILED`, one notification and one planner issue per streak; refusals record nothing.
+- [x] A run ended by a "success" stop shows "durch Stopp beendet"; cut-off steps with effects show "unklar".
+- [x] A file.write card shows "überschreibt" by default, and a test pins the default.
+- [x] `npm run test:easydrag:t0` passes, and its time is recorded in this spec (target under 60 s warm).
+- [x] The CI Node job runs the EasyDrag Node scripts.
+- [x] All EasyDrag browser tests share one Chrome per process and set reduced motion through the helper; the guard test is green.
+- [x] The target-size test is green.
+- [x] The drift test is green, and fails when a catalog label changes without regenerating.
+- [x] The five touch gestures are green at both viewports, or skipped with a Wave 1 ledger row.
+- [x] Every new key is in all 16 locales; canvas.js has not grown; `TestShippedWebAssetsLoadNothingExternal` stays green.
+- [x] The roadmap's Wave 0 status records S0c as landed, and its Wave 2 entry "SSE redaction verified" and the Wave 0/2/3 gate "StartResult surfaced" point at the ledger.
 
 ## 11. Risks
 - **T0 above 60 s.** `internal/server` compiles slowly. The plan measures first; the fallback (§4.1) moves the slowest step to T1 and records it.
@@ -274,3 +295,30 @@ Essential tests only (owner's standing preference).
 - **Start-failure noise.** A flow on a one-minute schedule that is unpublished would fail every minute. The streak rule records once per streak, and the existing flood rule (`flowFailureNotifier`) bounds notifications further.
 - **Touch emulation is not a real finger.** CDP touch events skip browser gesture heuristics such as scroll intervention. The audit finds missing paths, not feel; the Wave 1 human sessions judge feel.
 - **Generated tables grow the manual.** The steps table has one row per node type. It sits in a closing reference section, so the reading chapters stay short.
+
+## 12. Changes from planning and review
+
+The plan README (`plans/2026-11-12-easydrag-s0c/README.md`, "Amendments found while planning") has the full list. These change what this spec says:
+
+- **Start failures (§3.1):**
+  - Date/Time timers count too, because they have no caller to answer.
+  - Further refusals record nothing: `ErrQueueFull`, `ErrFlowDisabled`, the durable refusals (`ErrDurableCapacity`, `ErrDurableUnavailable`, `ErrDurableDisabled`, `ErrRunRecoveryUnavailable`), and a cancelled context.
+  - The mission note stays an English constant.
+  - EasyDrag shows the reason in a notification when such a run is opened, because a never-published flow has no document to show.
+- **Stop hint (§3.2):**
+  - It shows in the run-view banner and the test panel, not in the drawer's list rows.
+  - The cut-off chip is the existing "Wirkung möglicherweise erfolgt", not a new "unklar".
+- **file.write (§3.3):** the option values are `overwrite`, `unique` and `fail`.
+- **Plurals (§3.6):** five `_one` keys, not two.
+- **T0 (§4.1):**
+  - Node and Go run at the same time.
+  - `test-easydrag-ux-batch5.mjs`'s F6 check runs at 40 steps and 160 events, because the full size took 200 s.
+  - T0 forces the browser gate off for its `ui` step, and every job has a timeout.
+- **T1 (§4.2):**
+  - The shared Chrome is reset after a failed or panicking test.
+  - The guard also rejects `launchSmokeBrowser` and any `lib/launcher` import.
+- **Reference tables (§5.1):**
+  - The Simulation column has four outcomes.
+  - The tables list 14 triggers and 28 steps; generic `tool.*` steps are not registered by the catalog.
+  - The agent manual gets its own "Flow trigger types" section, because no hand-written list existed.
+- **Touch (§6.3):** wire selection by touch was a small finding and is fixed; only box select went to Wave 1.
