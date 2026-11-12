@@ -220,3 +220,32 @@ func TestEasyDragTouchHelper(t *testing.T) {
 		})
 	}
 }
+
+// TestEasyDragTouchInsertOnWire taps the wire between the trigger and the first step: the wire is
+// selected, its actions stay open for the next tap, Insert opens the quick-add list, and the step
+// chosen there lands between the two cards.
+func TestEasyDragTouchInsertOnWire(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	for _, vp := range easyDragTouchViewports {
+		vp := vp
+		t.Run(vp.name, func(t *testing.T) {
+			s := startEasyDragTouch(t, vp.w, vp.h)
+			page := s.page
+			p := s.touchEdgePoint("e_1")
+			s.touchTap(p.x, p.y)
+			s.wait(`()=>{const a=document.querySelector('.ed-wire-actions');return !!a && !a.hidden && edFixture.editor().selectedEdge==='e_1' && !!document.querySelector('.ed-edge.is-selected[data-edge-id="e_1"]')}`)
+			// A finger has no hover to keep the actions open: they must outlive the 220 ms hide delay.
+			time.Sleep(450 * time.Millisecond)
+			s.wait(`()=>{const a=document.querySelector('.ed-wire-actions');const b=a && a.querySelector('[data-ed-wire="insert"]');if(!a||a.hidden||!b)return false;const r=b.getBoundingClientRect();return r.width>=24 && r.height>=24}`)
+			s.shot("touch-wire-actions-" + vp.name)
+			s.touchTapElement(`.ed-wire-actions [data-ed-wire="insert"]`)
+			s.wait(`()=>!!document.querySelector('.ed-quick [data-ed-index="0"]') && document.querySelector('.ed-wire-actions').hidden`)
+			s.touchTapElement(`.ed-quick [data-ed-index="0"]`)
+			s.wait(`()=>{const m=edFixture.editor().model;if(m.doc.nodes.length!==5||m.doc.edges.length!==4)return false;const added=m.doc.nodes.find(n=>!['n_zeitplan','n_suche','n_ki','n_pdf'].includes(n.id));return !!added && m.incoming(added.id).map(e=>e.source.node).join()==='n_zeitplan' && m.incoming('n_suche').map(e=>e.source.node).join()===added.id && !document.querySelector('.ed-quick')}`)
+			s.shot("touch-wire-inserted-" + vp.name)
+			page.MustEval(`()=>edFixture.editor().model.undo()`)
+			s.wait(`()=>edFixture.editor().model.doc.nodes.length===4 && edFixture.editor().model.doc.edges.length===3`)
+			s.failOnPageErrors("touch insert on wire")
+		})
+	}
+}

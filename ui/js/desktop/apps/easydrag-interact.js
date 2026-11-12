@@ -159,7 +159,7 @@
                 const first = ed.groups.movable(item.members)[0]; if (first) startNodeDrag(event, first, true); return;
             }
             const panGesture = event.button === 1 || spaceDown || (event.pointerType === 'touch' && !nodeEl);
-            if (panGesture) { startPan(event); return; }
+            if (panGesture) { startPan(event, event.pointerType === 'touch' ? event.target.closest('.ed-edge') : null); return; }
             if (event.button !== 0) return;
             if (portEl && nodeEl && !readonly()) { startConnect(event, nodeEl.dataset.nodeId, portEl.dataset.edPort, portEl.dataset.edSide); return; }
             if (nodeEl) { startNodeDrag(event, nodeEl.dataset.nodeId); return; }
@@ -182,14 +182,21 @@
             return g;
         }
 
-        function startPan(event) {
+        // startPan moves the view with the pointer. A finger that lands on a wire and does not travel
+        // (tapped) selects the wire: the pan captures the pointer, so the wire never gets its own click.
+        function startPan(event, tapped) {
             event.preventDefault();
             const start = { x: event.clientX, y: event.clientY, view: Object.assign({}, ed.view) };
+            let moved = false;
             el.classList.add('is-panning');
             capture(event, ev => {
                 if (pinch) return;
+                if (Math.hypot(ev.clientX - start.x, ev.clientY - start.y) >= DRAG_THRESHOLD) moved = true;
                 canvas.setView({ x: start.view.x + ev.clientX - start.x, y: start.view.y + ev.clientY - start.y, zoom: start.view.zoom });
-            }, () => { el.classList.remove('is-panning'); });
+            }, (ev, cancelled) => {
+                el.classList.remove('is-panning');
+                if (tapped && !moved && !cancelled) wires.tapEdge(tapped.dataset.edgeId);
+            });
         }
 
         // startPinch ends the first finger's pan, drag or box select (a drag moves back) and zooms

@@ -18,6 +18,8 @@
         const pillEls = new Map(); // edge id -> { g, w } of its run pill
         let hoverEdge = null;
         let hideTimer = 0;
+        // pinned: a tapped wire keeps its actions open until the next press elsewhere (a finger has no hover).
+        let pinned = false;
         let pathNode = null;
         let pathSet = new Set();
         // highlight's path is valid for this model and version (a run view brings its own model).
@@ -200,6 +202,7 @@
             clearTimeout(hideTimer);
             const hide = () => {
                 actions.hidden = true;
+                pinned = false;
                 hoverEdge = null;
                 ed.hoverEdge = null;
                 groups.forEach(g => g.classList.remove('is-hover'));
@@ -212,11 +215,17 @@
             if (g && !ed.dragging) showActions(g.dataset.edgeId);
         });
         bag.listen(layer, 'pointerout', (event) => {
+            if (pinned) return;
             if (!event.relatedTarget || !event.relatedTarget.closest || !event.relatedTarget.closest('.ed-wire-actions, .ed-edge')) hideActions(false);
         });
         bag.listen(actions, 'pointerenter', () => clearTimeout(hideTimer));
-        bag.listen(actions, 'pointerleave', () => hideActions(false));
+        bag.listen(actions, 'pointerleave', () => { if (!pinned) hideActions(false); });
         bag.listen(actions, 'pointerdown', event => event.stopPropagation());
+        // A press anywhere else on the canvas puts a pinned wire's actions away (a press on a wire
+        // pins it again when the tap ends).
+        bag.listen(canvas.el, 'pointerdown', (event) => {
+            if (pinned && !event.target.closest('.ed-wire-actions')) hideActions(true);
+        }, true);
         bag.listen(actions, 'click', (event) => {
             const btn = event.target.closest('[data-ed-wire]');
             if (!btn || !hoverEdge) return;
@@ -230,13 +239,26 @@
             ED.palette.requestInsert(ed, edgeId, btn);
             hideActions(true);
         });
+        function selectEdge(edgeId) {
+            ed.selectedEdge = edgeId;
+            ed.selection.clear();
+            ed.bus.emit('selection', ed.selection); // marks the wire through markSelected
+        }
+
+        // tapEdge is a finger's tap on a wire (easydrag-interact.js): the wire is selected and its actions stay
+        // open, so Insert and Delete can be tapped.
+        function tapEdge(edgeId) {
+            if (!ed.model.edge(edgeId)) return;
+            selectEdge(edgeId);
+            showActions(edgeId);
+            pinned = !actions.hidden;
+        }
+
         bag.listen(layer, 'click', (event) => {
             const g = event.target.closest('.ed-edge');
             if (!g) return;
             event.stopPropagation();
-            ed.selectedEdge = g.dataset.edgeId;
-            ed.selection.clear();
-            ed.bus.emit('selection', ed.selection); // marks the wire through markSelected
+            selectEdge(g.dataset.edgeId);
         });
 
         // markSelected moves the is-selected class to ed.selectedEdge without redrawing any wire.
@@ -298,7 +320,7 @@
         bag.add(ed.bus.on('view', () => { if (hoverEdge) placeActions(hoverEdge); }));
 
         return {
-            render, renderFor, highlight, preview, markDropTarget, ends,
+            render, renderFor, highlight, preview, markDropTarget, ends, tapEdge,
             hideActions: () => hideActions(true),
             dispose() { clearTimeout(hideTimer); bag.dispose(); actions.remove(); }
         };

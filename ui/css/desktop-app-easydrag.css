@@ -1408,6 +1408,16 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     .ed-app .ed-input, .ed-app .ed-title-input, .ed-app textarea, .ed-app select { font-size: 16px; }
     .ed-app .ed-error { font-size: 14px; line-height: 1.45; }
 }
+/* Wires under a finger: a 44 px stroke to hit and 44 px Insert and Delete buttons (the wire's 16 px
+   stroke and 24 px buttons stay for a mouse). */
+@media (pointer: coarse) {
+    .ed-app .ed-wire-hit { stroke-width: 44px; }
+    .ed-app .ed-wire-btn { width: 44px; height: 44px; }
+}
+@container (max-width: 760px) {
+    .ed-app .ed-wire-hit { stroke-width: 44px; }
+    .ed-app .ed-wire-btn { width: 44px; height: 44px; }
+}
 
 @media (prefers-reduced-motion: reduce) {
     .ed-app *, .ed-app *::before, .ed-app *::after {
