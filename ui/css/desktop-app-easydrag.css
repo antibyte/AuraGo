@@ -1555,7 +1555,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 /* palette: an item that needs setup and its own setup link side by side (U6) */
 .ed-palette-row { display: flex; align-items: center; gap: 4px; }
 .ed-palette-row > .ed-palette-item { flex: 1; min-width: 0; }
-.ed-palette-setup { margin-right: 6px; text-decoration: none; }
+.ed-palette-setup { margin-right: 6px; min-height: 24px; text-decoration: none; }
 
 /* why a connection is refused, beside the pointer (U14); visual only, the release announces it */
 .ed-connect-hint {
