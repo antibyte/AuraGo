@@ -21,51 +21,15 @@
         const commands = window.WriterCommands.create({tr, t: (key, params) => ctx.t?.(key, params) || key, readonly: !!ctx.readonly,
             editor: () => editor, lib: () => lib, loading: () => loading, act: id => act(id), notice, refresh: () => refresh()});
         const {can, run} = commands, colors = window.WriterCommands.colors;
-        // The shared icon atlases carry no keys for text alignment, underline, indent or
-        // colour controls, so Autor draws those few glyphs itself, in the toolbar's line style.
-        const glyphs = {
-            'align-left':'<path d="M4 6h16M4 12h9M4 18h16"/>',
-            'align-center':'<path d="M4 6h16M7.5 12h9M4 18h16"/>',
-            'align-right':'<path d="M4 6h16M11 12h9M4 18h16"/>',
-            'align-justify':'<path d="M4 6h16M4 12h16M4 18h16"/>',
-            'format-underline':'<path d="M7 4v8a5 5 0 0 0 10 0V4"/><path d="M6 20h12"/>',
-            'indent':'<path d="M4 5h16M4 12h8M4 19h16"/><path d="M12 8l4 4-4 4"/>',
-            'outdent':'<path d="M4 5h16M4 12h8M4 19h16"/><path d="M16 8l-4 4 4 4"/>',
-            'text-color':'<path d="M12 4L5.5 15M12 4l6.5 11"/><path d="M8.6 10.6h6.8"/><path d="M6 19.5h12" stroke-width="3"/>',
-            'highlight':'<path d="M14 4l6 6-9 9H5v-6z"/><path d="M11 7l6 6"/><path d="M6 20.5h12" stroke-width="3"/>'
-        };
-        const icon = (key, fallback) => {
-            const shape=glyphs[key];
-            if(shape)return '<svg class="writer-glyph" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'+shape+'</svg>';
-            return ctx.iconMarkup?.(key, fallback, 'writer-icon', 18, 'action') || esc(fallback);
-        };
-        // Action ids are not icon names; every slot names the shared key it draws.
-        const slotIcons = {
-            'history.undo':'undo','history.redo':'redo',
-            'text.bold':'format-bold','text.italic':'format-italic','text.underline':'format-underline','text.strike':'format-strike',
-            'alignment.left':'align-left','alignment.center':'align-center','alignment.right':'align-right','alignment.justify':'align-justify',
-            'list.bullet':'list','list.numbered':'format-numbered','list.outdent':'outdent','list.indent':'indent',
-            'text.color':'text-color','text.highlight':'highlight'
-        };
-        const toggleSlots = new Set(['text.bold','text.italic','text.underline','text.strike','alignment.left','alignment.center','alignment.right','alignment.justify','list.bullet','list.numbered']);
+        const icon = window.WriterToolbar.icons(ctx, esc);
         const button = id => '<button type="button" data-action="' + id + '" title="' + esc(commands.tooltip(id)) + '" aria-label="' + esc(commands.label(id)) + '">' + icon(commands.get(id).icon, commands.get(id).fallback) + '</button>';
-        const slotButton = (slot, label, symbol) => '<button type="button" data-slot="' + slot + '" title="' + esc(tr(label)) + '" aria-label="' + esc(tr(label)) + '">' + icon(slotIcons[slot] || label, symbol) + '</button>';
-        const colorField = (slot, label, value) => '<label class="writer-color" title="' + esc(tr(label)) + '">' + icon(slotIcons[slot], '') +
-            '<input type="color" data-slot="' + slot + '" value="' + value + '" aria-label="' + esc(tr(label)) + '"></label>';
         const menuId = 'writer-document-menu-' + String(windowId).replace(/[^\w-]/g,'-');
         host.innerHTML = '<div class="writer-app" data-writer="' + esc(windowId) + '">' +
             '<header class="writer-documentbar"><div class="writer-document"><button class="writer-document-name" data-action="document" aria-expanded="false" aria-controls="' + menuId + '"><span data-name></span><span aria-hidden="true">⌄</span></button><span data-save-state role="status" aria-live="polite">' + esc(tr('loading')) + '</span></div>' +
             '<nav class="writer-views" aria-label="' + esc(tr('panels')) + '">' + button('outline') + button('search') + '<span class="writer-divider"></span>' +
             button('format') + button('review') + button('assist') + '</nav></header>' +
             '<div class="writer-document-menu" id="' + menuId + '" data-document-menu hidden><strong data-location></strong><button data-action="rename">' + esc(tr('rename')) + '</button><button data-action="saveAs">' + esc(tr('save_as')) + '</button><button data-action="save">' + esc(tr('save')) + '</button></div>' +
-            '<div class="writer-toolbar" role="toolbar" aria-label="' + esc(tr('format_bar')) + '">' +
-            '<div class="writer-toolgroup">' + slotButton('history.undo','undo','↶') + slotButton('history.redo','redo','↷') + '</div>' +
-            '<div class="writer-toolgroup writer-fonts"><select data-slot="styles.style" aria-label="' + esc(tr('style')) + '"></select><select data-slot="font.family" aria-label="' + esc(tr('font')) + '"></select><input type="number" data-slot="font.size" required min="1" max="200" step=".5" value="11" aria-label="' + esc(tr('size')) + '"></div>' +
-            '<div class="writer-toolgroup">' + slotButton('text.bold','bold','B') + slotButton('text.italic','italic','I') + slotButton('text.underline','underline','U') + slotButton('text.strike','strike','S') + '</div>' +
-            '<div class="writer-toolgroup">' + slotButton('alignment.left','align_left','≡') + slotButton('alignment.center','align_center','≡') + slotButton('alignment.right','align_right','≡') + slotButton('alignment.justify','justify','≡') + '</div>' +
-            '<div class="writer-toolgroup">' + slotButton('list.bullet','bullets','•') + slotButton('list.numbered','numbering','1.') + slotButton('list.outdent','outdent','⇤') + slotButton('list.indent','indent','⇥') + '</div>' +
-            '<div class="writer-toolgroup writer-colors">' + colorField('text.color','color','#172033') + colorField('text.highlight','highlight','#ffff00') + '</div>' +
-            button('insert') + '</div>' +
+            '<div class="writer-toolbar-wrap" data-toolbar></div>' +
             '<div class="writer-notice" data-notice role="alert" hidden><span data-notice-text></span><button data-action="retry" hidden>' + esc(tr('retry')) + '</button><button data-action="saveAs" hidden>' + esc(tr('save_as')) + '</button><button data-action="reload" hidden>' + esc(tr('reopen')) + '</button><button data-action="dismiss" aria-label="' + esc(tr('close')) + '"><span aria-hidden="true">×</span></button></div>' +
             '<div class="writer-workspace"><aside class="writer-left" data-left hidden></aside><main class="writer-canvas"><div class="writer-ruler" aria-hidden="true"><span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10</span><span>12</span><span>14</span><span>16</span></div><div class="writer-viewport docx-editor__scroll-container" data-scroll><div class="writer-editor docx-editor" data-editor></div></div><div class="writer-loading" data-loading><div class="writer-load-message"><p data-load-status role="status">' + esc(tr('loading')) + '</p><div class="writer-load-actions" data-load-actions hidden><button data-action="new"' + (ctx.readonly?' disabled':'') + '>' + esc(tr('new')) + '</button><button data-action="open">' + esc(tr('open')) + '</button></div></div></div></main><aside class="writer-right" data-right hidden></aside></div>' +
             '<footer class="writer-statusbar"><button data-action="page" data-page></button><span data-count></span><span class="writer-status-spacer"></span><span data-language title="' + esc(tr('language_unknown')) + '"></span>' +
@@ -92,6 +56,7 @@
             get author(){return author;},set author(value){author=value;localStorage.setItem('aurago.writer.author',value);editor.setAuthor(value);}
         };
         const panels = window.WriterPanels.create(state);
+        const toolbar = window.WriterToolbar.create(state);
         const instance = {dispose:cleanup,get editor(){return editor;},get session(){return queue;},get path(){return path;},act,reloadIfChanged};
         instances.set(windowId,instance);
         window.AuraDesktopEmail?.attach(windowId, '.writer-documentbar', () => ({
@@ -240,7 +205,7 @@
                 find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;
                 find('[data-save-state]').textContent=tr(queue.dirty?'unsaved':'saved');
                 ctx.updateWindowContext?.(windowId,{path});
-                fillToolbar();setMenus();refresh();
+                toolbar.fill();setMenus();refresh();
                 const draft=await WriterSession.draft('get',draftKey()).catch(()=>null);
                 if(disposed || token!==generation)return;
                 const restore=draft?.bytes && !ctx.readonly && await ctx.confirmDialog(tr('recover'),tr('recover_detail'));
@@ -290,19 +255,6 @@
             }
             if(selection)target.exec({type:'setSelection',range:selection});
         }
-        const styleLabels = {normal:'style_normal',title:'style_title',subtitle:'style_subtitle',quote:'style_quote',caption:'style_caption',nospacing:'style_no_spacing',listparagraph:'style_list_paragraph'};
-        function styleLabel(style) {
-            const id=String(style.styleId||'').toLowerCase();
-            const heading=id.match(/^heading([1-9])$/);
-            if(heading)return tr('style_heading',{level:heading[1]});
-            return styleLabels[id]?tr(styleLabels[id]):style.name;
-        }
-        function fillToolbar() {
-            const option=(value,label)=>'<option value="'+esc(value)+'">'+esc(label)+'</option>';
-            find('[data-slot="styles.style"]').innerHTML=editor.getDocumentStyles().filter(x=>x.type==='paragraph').map(x=>option(x.styleId,styleLabel(x))).join('');
-            find('[data-slot="font.family"]').innerHTML=editor.getAvailableFonts().map(x=>option(x,x)).join('');
-        }
-        const valueCommand = control => commands.valueCommand(control.dataset.slot, control.dataset.slot === 'font.size' ? control.valueAsNumber : control.value);
         function refreshSoon(){clearTimeout(updateTimer);updateTimer=setTimeout(refresh,75);}
         const countWords = text => text.trim()?(Intl.Segmenter?[...new Intl.Segmenter(locale,{granularity:'word'}).segment(text)].filter(x=>x.isWordLike).length:text.trim().split(/\s+/).length):0;
         // The ruler mirrors the engine's own page box, so the zero mark sits on the text edge.
@@ -329,26 +281,8 @@
         }
         function refresh() {
             if(!editor || disposed || loading)return;
-            const snapshot=editor.snapshot(),fmt=snapshot.formatting || {};
-            for(const el of root.querySelectorAll('.writer-toolbar [data-slot]')) {
-                const slot=el.dataset.slot;
-                if(el.matches('button')) {
-                    const command=lib.commandForSlot(slot),allowed=command && can(command);
-                    el.disabled=!allowed?.ok;
-                    el.title=el.getAttribute('aria-label')+(!allowed?.ok?' · '+tr('command_unavailable')+(allowed?.reason?': '+allowed.reason:''):'');
-                    if(toggleSlots.has(slot))el.setAttribute('aria-pressed',String(!!command && editor.isActive(command)));
-                    else el.removeAttribute('aria-pressed');
-                } else if(slot==='text.color'||slot==='text.highlight') {
-                    const hex=slot==='text.color'?colors.hex(fmt.color):colors.highlightHex(fmt.highlight);
-                    if(hex && el!==document.activeElement)el.value=hex;
-                    const allowed=can(valueCommand(el));
-                    el.disabled=!allowed.ok;el.title=allowed.ok?'':tr('command_unavailable')+(allowed.reason?' · '+allowed.reason:'');
-                } else if(document.activeElement!==el) {
-                    el.value=slot==='styles.style'?fmt.styleId || 'Normal':slot==='font.family'?fmt.fontFamily || 'Calibri':fmt.fontSizePt || 11;
-                    const allowed=can(valueCommand(el));
-                    el.disabled=!allowed.ok;el.title=allowed.ok?'':tr('command_unavailable')+(allowed.reason?' · '+allowed.reason:'');
-                }
-            }
+            const snapshot=editor.snapshot();
+            toolbar.refresh();
             find('[data-page]').textContent=tr('page_count',{current:editor.getCurrentPage('viewport'),total:snapshot.page.total});
             if(statsRevision!==queue.revision) {
                 statsRevision=queue.revision;
@@ -613,17 +547,12 @@
                 {id:'view',label:tr('view'),items:[item('outline'),item('focus'),item('fit')]}
             ]);
         }
-        root.addEventListener('pointerdown',event=>{if(event.target.closest('.writer-toolbar,.writer-right,.writer-views'))pinSelection();},{signal:lifecycle.signal});
+        root.addEventListener('pointerdown',event=>{if(event.target.closest('.writer-toolbar-wrap,.writer-right,.writer-views'))pinSelection();},{signal:lifecycle.signal});
         root.addEventListener('click',event=>{
             const menu=find('[data-document-menu]');
             if(menu && !menu.hidden && !event.target.closest('.writer-document-menu,.writer-document-name'))closeDocumentMenu();
-            const control=event.target.closest('[data-action],[data-slot]');if(!control || control.disabled)return;
-            if(control.dataset.action)void act(control.dataset.action);else if(control.matches('button'))run(lib?.commandForSlot(control.dataset.slot));
-        },{signal:lifecycle.signal});
-        root.addEventListener('change',event=>{
-            const el=event.target;if(!el.dataset.slot)return;
-            if(!el.checkValidity()){el.reportValidity();return;}
-            run(valueCommand(el));
+            const control=event.target.closest('[data-action]');if(!control || control.disabled)return;
+            void act(control.dataset.action);
         },{signal:lifecycle.signal});
         find('[data-image]').addEventListener('change',event=>{const file=event.target.files[0];if(file)insertImage(file).catch(fail);event.target.value='';},{signal:lifecycle.signal});
         for(const type of ['paste','drop'])mount.addEventListener(type,event=>{
@@ -654,7 +583,7 @@
         function cleanup() {
             if(disposed)return;disposed=true;generation++;
             clearTimeout(updateTimer);clearTimeout(draftTimer);clearTimeout(draftDeadline);
-            lifecycle.abort();documentLife.abort();rulerResize.disconnect();panels.dispose();queue?.dispose();editor?.destroy();
+            lifecycle.abort();documentLife.abort();rulerResize.disconnect();toolbar.dispose();panels.dispose();queue?.dispose();editor?.destroy();
             ctx.setWindowBeforeClose?.(windowId,null);ctx.clearWindowMenus?.(windowId);instances.delete(windowId);
         }
         setMenus();void load(path,ctx.path?null:'blank');
