@@ -392,6 +392,22 @@ func main() {
 		}
 	}
 
+	// Data-directory lock: the install lock above only protects this installation, so a second
+	// installation pointed at the same data directory would still open the same databases.
+	if flowsDB := config.FlowsDBPath(cfg); flowsDB != "" {
+		if mkErr := os.MkdirAll(filepath.Dir(flowsDB), 0o755); mkErr != nil {
+			appLog.Error("Failed to create the data directory for its lock", "path", filepath.Dir(flowsDB), "error", mkErr)
+			os.Exit(1)
+		}
+		dataLock := flock.New(dataLockPath(flowsDB))
+		if dataLocked, dataErr := dataLock.TryLock(); dataErr != nil || !dataLocked {
+			appLog.Error("BLOCKIERT: AuraGo laeuft bereits auf diesem Datenverzeichnis!", "lock_path", dataLockPath(flowsDB))
+			os.Exit(1)
+		}
+		defer dataLock.Unlock()
+		appLog.Info("Data directory lock acquired", "path", dataLockPath(flowsDB))
+	}
+
 	// Configure the agent loop concurrency limit early, before any request can
 	// acquire a slot. A value of 0 falls back to the package default.
 	if cfg != nil {

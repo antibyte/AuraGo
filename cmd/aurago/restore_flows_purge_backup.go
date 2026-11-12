@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -25,6 +26,12 @@ func instanceLockPath(installDir string) string {
 	return path
 }
 
+// dataLockPath is the lock file of a data directory, next to flows.db. main and the restore flag take it, so
+// a second installation on the same data directory is refused too.
+func dataLockPath(dbPath string) string {
+	return filepath.Join(filepath.Dir(dbPath), "aurago-data.lock")
+}
+
 // runRestoreFlowsPurgeBackup implements --restore-flows-purge-backup and returns the exit code. It takes the
 // instance lock first, so it refuses while AuraGo runs on this installation; it keeps the current flows.db
 // as an encrypted .flows-pre-restore file, puts the decrypted backup in its place and exits.
@@ -45,6 +52,16 @@ func runRestoreFlowsPurgeBackup(lockPath, configFile, backupFile string, stdout,
 		fmt.Fprintln(stderr, "The flows database path is not configured (sqlite.game_maker_path).")
 		return 1
 	}
+	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
+		fmt.Fprintf(stderr, "RESTORE ERROR: %v\n", err)
+		return 1
+	}
+	dataLock := flock.New(dataLockPath(dbPath))
+	if locked, err := dataLock.TryLock(); err != nil || !locked {
+		fmt.Fprintln(stderr, "AuraGo is running on this data directory. Stop it first, then run the restore again.")
+		return 1
+	}
+	defer dataLock.Unlock()
 	key := strings.TrimSpace(cfg.Server.MasterKey)
 	if key == "" {
 		fmt.Fprintln(stderr, "The master key is not available: set AURAGO_MASTER_KEY or AURAGO_MASTER_KEY_FILE.")
