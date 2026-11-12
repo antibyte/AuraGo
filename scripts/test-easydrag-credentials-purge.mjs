@@ -22,7 +22,7 @@ export async function run() {
     assert.equal(purge.needsAttention(null), false);
     assert.equal(purge.needsAttention('x'), false);
     for (const change of [{ drafts: [{ flow_id: 'f' }] }, { live: [{ flow_id: 'f' }] }, { versions_purgeable: 1 }, { versions_pinned: 2 },
-        { runs: 1 }, { steps: 3 }, { test_rows: 1 }, { snapshots: [{ name: 's' }] }, { leftovers: [{ name: 'l' }] }]) {
+        { runs: 1 }, { steps: 3 }, { test_rows: 1 }, { snapshots: [{ name: 's' }] }, { leftovers: [{ name: 'l' }] }, { live_blocks: [{ block_id: 'flow_blk', revision: 1, parent_ids: ['flow_p'] }] }]) {
         assert.equal(purge.needsAttention(Object.assign({}, empty, change)), true, JSON.stringify(change));
     }
     const t = key => ({ 'easydrag.ui.cred_hint_title': 'Title <b>', 'easydrag.ui.cred_hint_text': 'Text', 'easydrag.ui.cred_hint_action': 'Clean' }[key] || key);
@@ -40,6 +40,10 @@ export async function run() {
     assert.ok(dialog.includes('cred_purge_move_first') && dialog.includes('cred_purge_republish') && dialog.includes('A &#60;i&#62;'), 'names are escaped');
     assert.ok(/data-ed-credentials-snapshot="\.flows-v7-backup-abc"/.test(dialog) && /checked/.test(dialog), 'snapshots are checked by default');
     assert.ok(dialog.includes('cred_purge_outside'));
+    assert.ok(!dialog.includes('cred_purge_live_block_advice'), 'no live block, no live block advice');
+    const withBlocks = purge.dialogMarkup(tt, Object.assign({}, empty, { live_blocks: [{ block_id: 'flow_b<k', revision: 3, parent_ids: ['flow_p1', 'flow_p2'] }] }));
+    assert.ok(withBlocks.includes('cred_purge_live_block_advice') && withBlocks.includes('cred_purge_live_block_line[flow_b&#60;k,3]'), 'the live block is listed with its id and revision, escaped');
+    assert.equal((withBlocks.match(/data-ed-credentials-flow="flow_p[12]"/g) || []).length, 2, 'each parent flow is a button');
     assert.ok(purge.stateMarkup(tt, { status: 'running', step: 'redact' }).includes('cred_purge_step'));
     assert.ok(purge.stateMarkup(tt, { status: 'done', clean: true }).includes('cred_purge_clean'));
     assert.ok(purge.stateMarkup(tt, { status: 'done', clean: false, remaining: [{ where: 'flows.db-wal', count: 1 }] }).includes('flows.db-wal'));

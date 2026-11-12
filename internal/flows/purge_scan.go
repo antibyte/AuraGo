@@ -30,6 +30,14 @@ type CredentialFlowRef struct {
 	Findings int    `json:"findings"`
 }
 
+// CredentialBlockRef is a block revision that holds a typed credential and that the live revision of
+// a parent flow still pins. The purge leaves it alone: marking it would stop the parent from starting.
+type CredentialBlockRef struct {
+	BlockID   string   `json:"block_id"`
+	Revision  int      `json:"revision"`
+	ParentIDs []string `json:"parent_ids"`
+}
+
 type SnapshotInfo struct {
 	Name    string    `json:"name"`
 	Bytes   int64     `json:"bytes"`
@@ -45,23 +53,24 @@ type BackupInfo struct {
 
 // CredentialReport says where typed credentials still sit. It never holds a credential value.
 type CredentialReport struct {
-	GeneratedAt       time.Time           `json:"generated_at"`
-	Drafts            []CredentialFlowRef `json:"drafts"`
-	Live              []CredentialFlowRef `json:"live"`
-	VersionsPurgeable int                 `json:"versions_purgeable"`
-	VersionsPinned    int                 `json:"versions_pinned"`
-	Runs              int                 `json:"runs"`
-	Steps             int                 `json:"steps"`
-	TestRows          int                 `json:"test_rows"`
-	Snapshots         []SnapshotInfo      `json:"snapshots"`
-	Leftovers         []SnapshotInfo      `json:"leftovers"`
-	Backups           []BackupInfo        `json:"backups"`
+	GeneratedAt       time.Time            `json:"generated_at"`
+	Drafts            []CredentialFlowRef  `json:"drafts"`
+	Live              []CredentialFlowRef  `json:"live"`
+	LiveBlocks        []CredentialBlockRef `json:"live_blocks"`
+	VersionsPurgeable int                  `json:"versions_purgeable"`
+	VersionsPinned    int                  `json:"versions_pinned"`
+	Runs              int                  `json:"runs"`
+	Steps             int                  `json:"steps"`
+	TestRows          int                  `json:"test_rows"`
+	Snapshots         []SnapshotInfo       `json:"snapshots"`
+	Leftovers         []SnapshotInfo       `json:"leftovers"`
+	Backups           []BackupInfo         `json:"backups"`
 }
 
 // NeedsAttention is true while plaintext remains anywhere the purge can reach. The encrypted backups
 // do not count: they are the purge's own safety net.
 func (r CredentialReport) NeedsAttention() bool {
-	return len(r.Drafts) > 0 || len(r.Live) > 0 || r.VersionsPurgeable > 0 || r.VersionsPinned > 0 ||
+	return len(r.Drafts) > 0 || len(r.Live) > 0 || len(r.LiveBlocks) > 0 || r.VersionsPurgeable > 0 || r.VersionsPinned > 0 ||
 		r.Runs > 0 || r.Steps > 0 || r.TestRows > 0 || len(r.Snapshots) > 0 || len(r.Leftovers) > 0
 }
 
@@ -71,6 +80,9 @@ func (r *CredentialReport) normalize() {
 	}
 	if r.Live == nil {
 		r.Live = []CredentialFlowRef{}
+	}
+	if r.LiveBlocks == nil {
+		r.LiveBlocks = []CredentialBlockRef{}
 	}
 	if r.Snapshots == nil {
 		r.Snapshots = []SnapshotInfo{}
@@ -264,6 +276,29 @@ func (s *Store) scanCredentials(ctx context.Context) (*credentialScan, error) {
 	}
 	_ = flowRows.Close()
 
+	// A block revision pinned by the live revision of a parent flow is in effect live: the run admission
+	// reads it, so marking it would stop the parent from starting.
+	held := map[blockRef][]string{}
+	pinRows, err := s.db.QueryContext(ctx, `SELECT p.block_flow_id, p.block_revision, p.parent_flow_id FROM flow_block_version_pins p
+		JOIN flows f ON f.id = p.parent_flow_id AND f.live_revision = p.parent_revision ORDER BY p.block_flow_id, p.block_revision, p.parent_flow_id`)
+	if err != nil {
+		return nil, err
+	}
+	for pinRows.Next() {
+		var ref blockRef
+		var parent string
+		if err := pinRows.Scan(&ref.FlowID, &ref.Revision, &parent); err != nil {
+			_ = pinRows.Close()
+			return nil, err
+		}
+		held[ref] = append(held[ref], parent)
+	}
+	if err := pinRows.Err(); err != nil {
+		_ = pinRows.Close()
+		return nil, err
+	}
+	_ = pinRows.Close()
+
 	versionRows, err := s.db.QueryContext(ctx, `SELECT v.flow_id, v.revision, v.json, f.live_revision, `+
 		versionPinnedSQL("v.flow_id", "v.revision")+` FROM flow_versions v JOIN flows f ON f.id = v.flow_id ORDER BY v.flow_id, v.revision`)
 	if err != nil {
@@ -277,7 +312,16 @@ func (s *Store) scanCredentials(ctx context.Context) (*credentialScan, error) {
 			_ = versionRows.Close()
 			return nil, err
 		}
-		if sc.addDoc(text, sc.versions) == 0 || revision == live { // the live version is the live document
+		if revision == live { // the live version is the live document
+			continue
+		}
+		if parents := held[blockRef{FlowID: flowID, Revision: revision}]; len(parents) > 0 {
+			if n := sc.addDoc(text, sc.draftLive); n > 0 { // kept like a live document
+				rep.LiveBlocks = append(rep.LiveBlocks, CredentialBlockRef{BlockID: flowID, Revision: revision, ParentIDs: parents})
+			}
+			continue
+		}
+		if sc.addDoc(text, sc.versions) == 0 {
 			continue
 		}
 		if pinned {

@@ -1531,6 +1531,8 @@
   "easydrag.ui.cred_purge_pinned": "{count} verzí stále používají běžící flow. Smažou se hned po skončení jejich běhu.",
   "easydrag.ui.cred_purge_move_first": "Nejdřív přesuň přístupový údaj do trezoru",
   "easydrag.ui.cred_purge_republish": "Publikovat znovu",
+  "easydrag.ui.cred_purge_live_block_line": "Blok {id}, revize {revision}, používá ho:",
+  "easydrag.ui.cred_purge_live_block_advice": "Tuto revizi bloku stále používá běžící flow, proto zůstává. Přesuňte token v bloku do trezoru, publikujte blok a poté znovu publikujte nadřazený flow.",
   "easydrag.ui.cred_purge_snapshots": "Staré migrační snímky",
   "easydrag.ui.cred_purge_snapshot_line": "{name} · {date} · {size} · obsahuje tehdejší čistý text",
   "easydrag.ui.cred_purge_outside": "AuraGo se nedostane ke starším úplným zálohám mimo datovou složku.",

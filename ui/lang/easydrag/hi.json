@@ -1531,6 +1531,8 @@
   "easydrag.ui.cred_purge_pinned": "{count} संस्करण अभी भी चल रहे फ़्लो उपयोग कर रहे हैं। उनका रन खत्म होते ही वे हटा दिए जाएँगे।",
   "easydrag.ui.cred_purge_move_first": "पहले क्रेडेंशियल को वॉल्ट में ले जाएँ",
   "easydrag.ui.cred_purge_republish": "फिर से प्रकाशित करें",
+  "easydrag.ui.cred_purge_live_block_line": "ब्लॉक {id}, संशोधन {revision}, इनके द्वारा उपयोग किया जाता है:",
+  "easydrag.ui.cred_purge_live_block_advice": "एक लाइव फ़्लो अभी भी इस ब्लॉक संशोधन का उपयोग करता है, इसलिए यह बना रहता है। ब्लॉक में मौजूद टोकन को वॉल्ट में ले जाएँ, ब्लॉक प्रकाशित करें, फिर मूल फ़्लो को दोबारा प्रकाशित करें।",
   "easydrag.ui.cred_purge_snapshots": "पुराने माइग्रेशन स्नैपशॉट",
   "easydrag.ui.cred_purge_snapshot_line": "{name} · {date} · {size} · उस समय का सादा पाठ मौजूद है",
   "easydrag.ui.cred_purge_outside": "डेटा फ़ोल्डर के बाहर रखे पुराने पूर्ण बैकअप तक AuraGo नहीं पहुँच सकता।",

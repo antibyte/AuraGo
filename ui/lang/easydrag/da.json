@@ -1531,6 +1531,8 @@
   "easydrag.ui.cred_purge_pinned": "{count} versioner bruges stadig af kørende flows. De slettes, så snart deres kørsel slutter.",
   "easydrag.ui.cred_purge_move_first": "Flyt først oplysningen til boksen",
   "easydrag.ui.cred_purge_republish": "Udgiv igen",
+  "easydrag.ui.cred_purge_live_block_line": "Blok {id}, revision {revision}, bruges af:",
+  "easydrag.ui.cred_purge_live_block_advice": "Et live flow bruger stadig denne blokrevision, så den bliver. Flyt tokenet i blokken til boksen, udgiv blokken, og udgiv derefter det overordnede flow igen.",
   "easydrag.ui.cred_purge_snapshots": "Gamle migreringsøjebliksbilleder",
   "easydrag.ui.cred_purge_snapshot_line": "{name} · {date} · {size} · indeholder datidens klartekst",
   "easydrag.ui.cred_purge_outside": "AuraGo kan ikke nå ældre fulde sikkerhedskopier uden for datamappen.",

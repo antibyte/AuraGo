@@ -1531,6 +1531,8 @@
   "easydrag.ui.cred_purge_pinned": "{count} versioni sono ancora usate da flow in esecuzione. Vengono eliminate non appena la loro esecuzione termina.",
   "easydrag.ui.cred_purge_move_first": "Sposta prima la credenziale nel vault",
   "easydrag.ui.cred_purge_republish": "Pubblica di nuovo",
+  "easydrag.ui.cred_purge_live_block_line": "Blocco {id}, revisione {revision}, usato da:",
+  "easydrag.ui.cred_purge_live_block_advice": "Un flusso attivo usa ancora questa revisione del blocco, quindi resta. Sposta il token del blocco nel vault, pubblica il blocco e poi pubblica di nuovo il flusso principale.",
   "easydrag.ui.cred_purge_snapshots": "Vecchi snapshot di migrazione",
   "easydrag.ui.cred_purge_snapshot_line": "{name} · {date} · {size} · contiene testo in chiaro di allora",
   "easydrag.ui.cred_purge_outside": "AuraGo non può raggiungere i backup completi più vecchi fuori dalla cartella dei dati.",

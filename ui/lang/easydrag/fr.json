@@ -1531,6 +1531,8 @@
   "easydrag.ui.cred_purge_pinned": "{count} versions sont encore utilisées par des flows en cours. Elles sont supprimées dès la fin de leur exécution.",
   "easydrag.ui.cred_purge_move_first": "Déplace d'abord l'identifiant dans le coffre",
   "easydrag.ui.cred_purge_republish": "Republier",
+  "easydrag.ui.cred_purge_live_block_line": "Bloc {id}, révision {revision}, utilisé par :",
+  "easydrag.ui.cred_purge_live_block_advice": "Un flux en production utilise encore cette révision du bloc, elle est donc conservée. Déplacez le jeton du bloc dans le coffre, publiez le bloc, puis republiez le flux parent.",
   "easydrag.ui.cred_purge_snapshots": "Anciens instantanés de migration",
   "easydrag.ui.cred_purge_snapshot_line": "{name} · {date} · {size} · contient du texte en clair de l'époque",
   "easydrag.ui.cred_purge_outside": "AuraGo ne peut pas atteindre les anciennes sauvegardes complètes situées hors du dossier de données.",

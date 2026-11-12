@@ -1531,6 +1531,8 @@
   "easydrag.ui.cred_purge_pinned": "{count} Versionen werden noch von laufenden Flows benutzt. Sie werden gelöscht, sobald ihr Lauf endet.",
   "easydrag.ui.cred_purge_move_first": "Zuerst in den Tresor verschieben",
   "easydrag.ui.cred_purge_republish": "Neu veröffentlichen",
+  "easydrag.ui.cred_purge_live_block_line": "Baustein {id}, Revision {revision}, benutzt von:",
+  "easydrag.ui.cred_purge_live_block_advice": "Ein live laufender Flow nutzt diese Baustein-Revision noch, deshalb bleibt sie. Verschiebe das Token im Baustein in den Tresor, veröffentliche den Baustein und veröffentliche danach den übergeordneten Flow neu.",
   "easydrag.ui.cred_purge_snapshots": "Alte Migrationssicherungen",
   "easydrag.ui.cred_purge_snapshot_line": "{name} · {date} · {size} · enthält Klartext von damals",
   "easydrag.ui.cred_purge_outside": "Ältere AuraGo-Gesamtsicherungen außerhalb des Datenordners kann AuraGo nicht erreichen.",

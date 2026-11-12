@@ -1531,6 +1531,8 @@
   "easydrag.ui.cred_purge_pinned": "{count} versioner används fortfarande av körande flöden. De raderas så snart körningen är klar.",
   "easydrag.ui.cred_purge_move_first": "Flytta först uppgiften till valvet",
   "easydrag.ui.cred_purge_republish": "Publicera igen",
+  "easydrag.ui.cred_purge_live_block_line": "Block {id}, revision {revision}, används av:",
+  "easydrag.ui.cred_purge_live_block_advice": "Ett live-flöde använder fortfarande den här blockrevisionen, så den blir kvar. Flytta token i blocket till valvet, publicera blocket och publicera sedan det överordnade flödet igen.",
   "easydrag.ui.cred_purge_snapshots": "Gamla migreringsögonblicksbilder",
   "easydrag.ui.cred_purge_snapshot_line": "{name} · {date} · {size} · innehåller klartext från den tiden",
   "easydrag.ui.cred_purge_outside": "AuraGo kan inte nå äldre fullständiga säkerhetskopior utanför datamappen.",

@@ -1531,6 +1531,8 @@
   "easydrag.ui.cred_purge_pinned": "{count} versões ainda são usadas por fluxos em execução. São eliminadas assim que a execução terminar.",
   "easydrag.ui.cred_purge_move_first": "Move primeiro a credencial para o cofre",
   "easydrag.ui.cred_purge_republish": "Publicar novamente",
+  "easydrag.ui.cred_purge_live_block_line": "Bloco {id}, revisão {revision}, usado por:",
+  "easydrag.ui.cred_purge_live_block_advice": "Um fluxo ativo ainda usa esta revisão do bloco, por isso ela permanece. Mova o token do bloco para o cofre, publique o bloco e depois publique o fluxo principal novamente.",
   "easydrag.ui.cred_purge_snapshots": "Instantâneos de migração antigos",
   "easydrag.ui.cred_purge_snapshot_line": "{name} · {date} · {size} · contém texto simples da época",
   "easydrag.ui.cred_purge_outside": "O AuraGo não consegue alcançar cópias de segurança completas mais antigas fora da pasta de dados.",

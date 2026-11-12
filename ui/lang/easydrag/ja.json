@@ -1531,6 +1531,8 @@
   "easydrag.ui.cred_purge_pinned": "{count} 件のバージョンは実行中のフローがまだ使用しています。実行が終わり次第削除されます。",
   "easydrag.ui.cred_purge_move_first": "先に認証情報を保管庫へ移してください",
   "easydrag.ui.cred_purge_republish": "再公開する",
+  "easydrag.ui.cred_purge_live_block_line": "ブロック {id}、リビジョン {revision}、使用元:",
+  "easydrag.ui.cred_purge_live_block_advice": "稼働中のフローがこのブロックのリビジョンをまだ使っているため、残されます。ブロック内のトークンを金庫に移し、ブロックを公開してから、親フローをもう一度公開してください。",
   "easydrag.ui.cred_purge_snapshots": "古い移行スナップショット",
   "easydrag.ui.cred_purge_snapshot_line": "{name} · {date} · {size} · 当時の平文を含みます",
   "easydrag.ui.cred_purge_outside": "データフォルダの外にある古い全体バックアップには AuraGo は触れられません。",

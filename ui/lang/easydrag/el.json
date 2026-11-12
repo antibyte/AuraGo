@@ -1531,6 +1531,8 @@
   "easydrag.ui.cred_purge_pinned": "{count} εκδόσεις χρησιμοποιούνται ακόμη από flows που εκτελούνται. Διαγράφονται μόλις τελειώσει η εκτέλεσή τους.",
   "easydrag.ui.cred_purge_move_first": "Μετακίνησε πρώτα το διαπιστευτήριο στο θησαυροφυλάκιο",
   "easydrag.ui.cred_purge_republish": "Δημοσίευση ξανά",
+  "easydrag.ui.cred_purge_live_block_line": "Μπλοκ {id}, αναθεώρηση {revision}, χρησιμοποιείται από:",
+  "easydrag.ui.cred_purge_live_block_advice": "Μια ενεργή ροή εξακολουθεί να χρησιμοποιεί αυτή την αναθεώρηση του μπλοκ, γι' αυτό παραμένει. Μετακινήστε το διακριτικό στο μπλοκ στο θησαυροφυλάκιο, δημοσιεύστε το μπλοκ και μετά δημοσιεύστε ξανά τη γονική ροή.",
   "easydrag.ui.cred_purge_snapshots": "Παλιά στιγμιότυπα μετάβασης",
   "easydrag.ui.cred_purge_snapshot_line": "{name} · {date} · {size} · περιέχει απλό κείμενο της εποχής",
   "easydrag.ui.cred_purge_outside": "Το AuraGo δεν μπορεί να φτάσει σε παλαιότερα πλήρη αντίγραφα ασφαλείας εκτός του φακέλου δεδομένων.",

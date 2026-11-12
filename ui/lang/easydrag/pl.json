@@ -1531,6 +1531,8 @@
   "easydrag.ui.cred_purge_pinned": "{count} wersji jest nadal używanych przez działające flow. Zostaną usunięte, gdy tylko ich uruchomienie się zakończy.",
   "easydrag.ui.cred_purge_move_first": "Najpierw przenieś dane do skarbca",
   "easydrag.ui.cred_purge_republish": "Opublikuj ponownie",
+  "easydrag.ui.cred_purge_live_block_line": "Blok {id}, rewizja {revision}, używany przez:",
+  "easydrag.ui.cred_purge_live_block_advice": "Działający flow nadal używa tej rewizji bloku, dlatego zostaje. Przenieś token w bloku do skarbca, opublikuj blok, a potem opublikuj ponownie nadrzędny flow.",
   "easydrag.ui.cred_purge_snapshots": "Stare migawki migracji",
   "easydrag.ui.cred_purge_snapshot_line": "{name} · {date} · {size} · zawiera ówczesny jawny tekst",
   "easydrag.ui.cred_purge_outside": "AuraGo nie ma dostępu do starszych pełnych kopii zapasowych poza folderem danych.",

@@ -1531,6 +1531,8 @@
   "easydrag.ui.cred_purge_pinned": "{count} 个版本仍被运行中的流程使用，其运行结束后会立即删除。",
   "easydrag.ui.cred_purge_move_first": "请先把凭据移入保险库",
   "easydrag.ui.cred_purge_republish": "重新发布",
+  "easydrag.ui.cred_purge_live_block_line": "区块 {id}，修订 {revision}，使用方：",
+  "easydrag.ui.cred_purge_live_block_advice": "有一个运行中的流程仍在使用此区块修订，因此会保留。请把区块中的令牌移入保险库，发布该区块，然后重新发布上级流程。",
   "easydrag.ui.cred_purge_snapshots": "旧的迁移快照",
   "easydrag.ui.cred_purge_snapshot_line": "{name} · {date} · {size} · 含有当时的明文",
   "easydrag.ui.cred_purge_outside": "AuraGo 无法处理数据文件夹之外的旧版完整备份。",

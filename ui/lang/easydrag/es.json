@@ -1531,6 +1531,8 @@
   "easydrag.ui.cred_purge_pinned": "{count} versiones aún las usan flujos en ejecución. Se eliminan en cuanto termina su ejecución.",
   "easydrag.ui.cred_purge_move_first": "Primero mueve la credencial a la caja fuerte",
   "easydrag.ui.cred_purge_republish": "Publicar de nuevo",
+  "easydrag.ui.cred_purge_live_block_line": "Bloque {id}, revisión {revision}, usado por:",
+  "easydrag.ui.cred_purge_live_block_advice": "Un flujo en vivo sigue usando esta revisión del bloque, por eso se conserva. Mueve el token del bloque a la bóveda, publica el bloque y después vuelve a publicar el flujo principal.",
   "easydrag.ui.cred_purge_snapshots": "Instantáneas de migración antiguas",
   "easydrag.ui.cred_purge_snapshot_line": "{name} · {date} · {size} · contiene texto sin cifrar de entonces",
   "easydrag.ui.cred_purge_outside": "AuraGo no puede acceder a copias de seguridad completas más antiguas fuera de la carpeta de datos.",

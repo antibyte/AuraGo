@@ -1531,6 +1531,8 @@
   "easydrag.ui.cred_purge_pinned": "{count} versjoner brukes fortsatt av kjørende flows. De slettes så snart kjøringen deres er ferdig.",
   "easydrag.ui.cred_purge_move_first": "Flytt legitimasjonen til hvelvet først",
   "easydrag.ui.cred_purge_republish": "Publiser på nytt",
+  "easydrag.ui.cred_purge_live_block_line": "Blokk {id}, revisjon {revision}, brukes av:",
+  "easydrag.ui.cred_purge_live_block_advice": "En live flyt bruker fortsatt denne blokkrevisjonen, så den blir stående. Flytt tokenet i blokken til hvelvet, publiser blokken, og publiser deretter den overordnede flyten på nytt.",
   "easydrag.ui.cred_purge_snapshots": "Gamle migreringsøyeblikksbilder",
   "easydrag.ui.cred_purge_snapshot_line": "{name} · {date} · {size} · inneholder klartekst fra den gangen",
   "easydrag.ui.cred_purge_outside": "AuraGo kan ikke nå eldre fullstendige sikkerhetskopier utenfor datamappen.",

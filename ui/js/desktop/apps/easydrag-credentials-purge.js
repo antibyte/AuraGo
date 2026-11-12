@@ -12,7 +12,7 @@
         if (!report || typeof report !== 'object') return false;
         const list = value => Array.isArray(value) && value.length > 0;
         const count = value => Number.isFinite(value) && value > 0;
-        return list(report.drafts) || list(report.live) || count(report.versions_purgeable) || count(report.versions_pinned) ||
+        return list(report.drafts) || list(report.live) || list(report.live_blocks) || count(report.versions_purgeable) || count(report.versions_pinned) ||
             count(report.runs) || count(report.steps) || count(report.test_rows) || list(report.snapshots) || list(report.leftovers);
     }
 
@@ -68,6 +68,13 @@
         if (report.versions_pinned > 0) html += '<p class="ed-hint">' + esc(t('easydrag.ui.cred_purge_pinned', { count: report.versions_pinned })) + '</p>';
         const stays = drafts.map(ref => flowItem(ref, 'easydrag.ui.cred_purge_move_first')).concat(live.map(ref => flowItem(ref, 'easydrag.ui.cred_purge_republish')));
         if (stays.length) html += '<ul>' + stays.join('') + '</ul>';
+        // A block revision a live parent still pins stays too: marking it would stop that parent from starting.
+        const blocks = report.live_blocks || [];
+        if (blocks.length) {
+            html += '<p class="ed-hint">' + esc(t('easydrag.ui.cred_purge_live_block_advice')) + '</p><ul data-ed-credentials-live-blocks>' + blocks.map(b =>
+                '<li>' + esc(t('easydrag.ui.cred_purge_live_block_line', { id: b.block_id, revision: b.revision })) + ' ' + (b.parent_ids || []).map(id =>
+                    '<button type="button" class="ed-btn" data-ed-credentials-flow="' + esc(id) + '">' + esc(id) + '</button>').join(' ') + '</li>').join('') + '</ul>';
+        }
         const snapshots = report.snapshots || [];
         if (snapshots.length) {
             html += '<h3>' + esc(t('easydrag.ui.cred_purge_snapshots')) + '</h3><ul>' + snapshots.map(s => '<li><label><input type="checkbox" checked data-ed-credentials-snapshot="' + esc(s.name) + '"> ' +
