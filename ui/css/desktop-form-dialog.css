@@ -1,7 +1,12 @@
 /* Shared form dialog (window.AuraFormDialog). Reuses the shell's modal input and button classes. */
 .vd-form-dialog{width:min(420px,calc(100vw - 32px));padding:var(--ds-space-5,20px);border:1px solid var(--vd-mat-card-border,var(--ds-color-border-default,var(--vd-border,#ffffff26)));border-radius:var(--vd-mat-card-radius,var(--ds-radius-xl,14px));background:var(--vd-mat-card,var(--ds-color-surface-3,var(--vd-theme-panel-bg,#1b202a)));color:var(--vd-text,#e4e8f0);box-shadow:var(--ds-elevation-5,0 18px 40px #0006);font:inherit}
 .vd-form-dialog::backdrop{background:rgba(8,12,22,.6)}
-.vd-form-dialog form{display:grid;gap:12px;margin:0}
+.vd-form-dialog form{display:grid;gap:12px;margin:0;max-height:calc(100vh - 96px);overflow:auto}
+.vd-form-dialog .vd-form-static{display:flex;justify-content:space-between;gap:24px;margin:0;color:var(--vd-muted,var(--vd-theme-muted,#a7b1c3))}
+.vd-form-dialog .vd-form-static strong{color:var(--vd-text,#e4e8f0);font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.vd-form-dialog .vd-form-grid{display:grid;grid-template-columns:repeat(var(--vd-form-grid-cols,10),18px);gap:3px;justify-content:start}
+.vd-form-dialog .vd-form-grid button{width:18px;height:18px;min-height:0;padding:0;border:1px solid var(--vd-mat-field-border,var(--ds-color-border-default,var(--vd-border,#ffffff26)));border-radius:3px;background:var(--vd-mat-field,transparent);cursor:pointer}
+.vd-form-dialog .vd-form-grid button[data-on]{background:var(--vd-accent,#9abfff);border-color:var(--vd-accent,#9abfff)}
 .vd-form-dialog h2{margin:0 0 2px;font-size:inherit;font-family:var(--vd-mat-heading-font,inherit);font-weight:var(--vd-mat-heading-weight,900);color:var(--vd-mat-heading-color,inherit)}
 .vd-form-dialog label{display:grid;gap:6px;color:var(--vd-muted,var(--vd-theme-muted,#a7b1c3))}
 .vd-form-dialog label.vd-form-check{display:flex;align-items:center;gap:8px}
