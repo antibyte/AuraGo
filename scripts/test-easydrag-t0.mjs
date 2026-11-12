@@ -7,7 +7,15 @@
 // GO_STEPS start together with them, one process each, because the slowest Go package (internal/flows,
 // about 35 s) would otherwise be added to the Node time. The first failure stops everything that is
 // still running and prints its output. The script sets no Go temporary directory: the caller's
-// environment, GOTMPDIR included, reaches every child unchanged.
+// environment, GOTMPDIR included, reaches every child unchanged. The one exception is
+// AURAGO_RUN_BROWSER_SMOKE=0 on the Go ui step: the EasyDrag browser tests run only when it is 1, so
+// T0 stays browser-free whatever the caller has set.
+//
+// Each job has a time limit: 180 s for a Node script, 12 minutes for a Go step. On expiry its process
+// tree is killed and the job fails with "timeout after N s". AURAGO_T0_NODE_TIMEOUT_S overrides the
+// Node limit (the test hook that checks the timeout). SIGINT and SIGTERM kill every running child and
+// exit with 130. A failure prints every FAIL or panic line of the failed job first, then its last
+// 60 lines.
 //
 // Several scripts (extra*.mjs, flagship, pack, ux-batch5, render-baseline, ...) only export a run()
 // that scripts/test-easydrag.mjs calls with its harness. Alone they check that the module imports and
@@ -26,20 +34,23 @@ export const GO_STEPS = [
     { label: 'go internal/flows', args: ['test', './internal/flows/...'], env: {} },
     { label: 'go internal/server (flow)', args: ['test', './internal/server', '-run', '(?i)flow'], env: {} },
     { label: 'go internal/tools (flow)', args: ['test', './internal/tools', '-run', '(?i)flow'], env: {} },
-    { label: 'go ui (easydrag)', args: ['test', './ui', '-run', '(?i)easydrag'], env: {} },
+    { label: 'go ui (easydrag)', args: ['test', './ui', '-run', '(?i)easydrag'], env: { AURAGO_RUN_BROWSER_SMOKE: '0' } },
 ];
 
 const TAIL_LINES = 60;
+const NODE_TIMEOUT_S = Number(process.env.AURAGO_T0_NODE_TIMEOUT_S) || 180;
+const GO_TIMEOUT_S = 12 * 60;
+const FAIL_LINE = /^(FAIL|--- FAIL|panic:)|\bFAIL\b/;
 
 function nodeJobs() {
     return readdirSync(path.join(ROOT, 'scripts'))
         .filter(name => /^test-easydrag.*\.mjs$/.test(name) && name !== SELF)
         .sort()
-        .map(name => ({ label: 'node scripts/' + name, cmd: process.execPath, args: ['scripts/' + name], env: {} }));
+        .map(name => ({ label: 'node scripts/' + name, cmd: process.execPath, args: ['scripts/' + name], env: {}, timeoutS: NODE_TIMEOUT_S }));
 }
 
 function goJobs() {
-    return GO_STEPS.map(step => ({ label: step.label, cmd: 'go', args: step.args, env: step.env || {} }));
+    return GO_STEPS.map(step => ({ label: step.label, cmd: 'go', args: step.args, env: step.env || {}, timeoutS: GO_TIMEOUT_S }));
 }
 
 function kill(child) {
@@ -62,6 +73,12 @@ export async function main(argv) {
     const running = new Set();
     let failed = null;
     let done = 0;
+    const onSignal = () => {
+        for (const child of running) kill(child);
+        process.exit(130);
+    };
+    process.once('SIGINT', onSignal);
+    process.once('SIGTERM', onSignal);
 
     const launch = job => new Promise(resolve => {
         const t0 = Date.now();
@@ -78,16 +95,24 @@ export async function main(argv) {
         child.on('error', err => { chunks.push(Buffer.from(String(err))); finish(-1); });
         child.on('close', code => finish(code));
         let over = false;
+        let timedOut = false;
+        const timer = setTimeout(() => {
+            timedOut = true;
+            chunks.push(Buffer.from('\ntimeout after ' + job.timeoutS + ' s\n'));
+            kill(child);
+            finish(-1);
+        }, job.timeoutS * 1000);
         function finish(code) {
             if (over) return;
             over = true;
+            clearTimeout(timer);
             running.delete(child);
             if (failed) return resolve();
             done++;
             if (code === 0) {
                 console.log('ok   ' + job.label + '  (' + seconds(Date.now() - t0) + ', ' + done + '/' + total + ')');
             } else {
-                failed = { job, code, output: Buffer.concat(chunks).toString('utf8') };
+                failed = { job, code, timedOut, output: Buffer.concat(chunks).toString('utf8') };
                 for (const other of running) kill(other);
             }
             resolve();
@@ -105,7 +130,9 @@ export async function main(argv) {
     const elapsed = seconds(Date.now() - started);
     if (failed) {
         const lines = failed.output.trimEnd().split('\n');
-        console.log('\nFAIL ' + failed.job.label + ' (exit ' + failed.code + ')');
+        console.log('\nFAIL ' + failed.job.label + (failed.timedOut ? ' (timeout after ' + failed.job.timeoutS + ' s)' : ' (exit ' + failed.code + ')'));
+        const marked = lines.filter(line => FAIL_LINE.test(line));
+        if (marked.length) console.log('-- FAIL and panic lines of the whole output --\n' + marked.join('\n') + '\n-- last ' + TAIL_LINES + ' lines --');
         console.log(lines.slice(-TAIL_LINES).join('\n'));
         console.log('\nT0 FAILED after ' + elapsed + ': ' + failed.job.label + ' (' + done + ' of ' + total + ' passed first)');
         return 1;

@@ -115,7 +115,7 @@ func launchSmokeBrowser(tweak func(*launcher.Launcher)) (*rod.Browser, func(), *
 		cancel()
 		return nil, nil, &smokeBrowserFailure{message: fmt.Sprintf("connect headless browser for UI smoke test: %v", err)}
 	}
-	return browser, func() { _ = browser.Close(); kill(); cancel() }, nil
+	return browser, func() { _ = browser.Timeout(10 * time.Second).Close(); kill(); cancel() }, nil
 }
 
 func browserExecutable() (string, bool) {

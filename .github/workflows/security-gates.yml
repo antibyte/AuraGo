@@ -52,6 +52,7 @@ jobs:
         run: npm run test:ui-regressions
 
       - name: Test EasyDrag scripts (T0, Node only)
+        timeout-minutes: 10
         run: node scripts/test-easydrag-t0.mjs --node-only
 
       - name: Install browser sidecar dependencies

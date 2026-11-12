@@ -16,7 +16,10 @@ import (
 // options (PrivateBrowser, Motion) cannot give.
 var easyDragDirectLaunchExceptions = map[string]string{}
 
-var easyDragDirectLaunch = regexp.MustCompile(`\blauncher\.New\b|\brod\.New\b|\bnewSmokeBrowser(?:With)?\b`)
+var easyDragDirectLaunch = regexp.MustCompile(`\blauncher\.(?:Must)?New\w*|\brod\.New\b|\bnewSmokeBrowser(?:With)?\b|\blaunchSmokeBrowser\b`)
+
+// easyDragLauncherImport finds an import of rod's launcher package.
+var easyDragLauncherImport = regexp.MustCompile(`"github.com/go-rod/rod/lib/launcher"`)
 
 // easyDragHelperSection is the part of desktop_easydrag_browser_test.go between the helper markers.
 var easyDragHelperSection = regexp.MustCompile(`(?s)// easydrag-helpers:begin.*?// easydrag-helpers:end`)
@@ -73,6 +76,9 @@ func TestEasyDragBrowserTestsUseTheSmokeHelper(t *testing.T) {
 		}
 		if _, listed := easyDragDirectLaunchExceptions[file]; listed {
 			continue
+		}
+		if file != helperFile && easyDragLauncherImport.MatchString(src) {
+			t.Errorf("%s imports the rod launcher package; launch through startEasyDragSmokeWith (PrivateBrowser: true for an own Chrome)", file)
 		}
 		for _, hit := range easyDragDirectLaunches(src) {
 			t.Errorf("%s launches a browser itself: %s; use startEasyDragSmokeWith (PrivateBrowser: true for an own Chrome)", file, hit)

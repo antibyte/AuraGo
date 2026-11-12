@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -355,9 +356,12 @@ type easyDragSmokeOptions struct {
 	Width, Height  int      // the viewport; 0 means 1440×900
 }
 
-// sharedEasyDragChrome is the one Chrome of the go test process. TestMain closes it.
+// sharedEasyDragChrome is the one Chrome of the go test process. TestMain closes it. mu guards
+// all fields. The first use starts it; a launch failure is kept, so a missing Chrome costs one
+// launch attempt and not one per test. resetSharedEasyDragBrowser drops a running Chrome.
 var sharedEasyDragChrome struct {
-	once    sync.Once
+	mu      sync.Mutex
+	started bool
 	browser *rod.Browser
 	stop    func()
 	failure *smokeBrowserFailure
@@ -368,22 +372,56 @@ var sharedEasyDragChrome struct {
 func sharedEasyDragBrowser(t *testing.T) *rod.Browser {
 	t.Helper()
 	c := &sharedEasyDragChrome
-	c.once.Do(func() { c.browser, c.stop, c.failure = launchSmokeBrowser(nil) })
-	if c.failure != nil {
-		if c.failure.unavailable {
-			browserSmokeUnavailable(t, "%s", c.failure.message)
-		}
-		t.Fatal(c.failure.message)
+	c.mu.Lock()
+	if !c.started {
+		c.started = true
+		c.browser, c.stop, c.failure = launchSmokeBrowser(nil)
 	}
-	return c.browser
+	browser, failure := c.browser, c.failure
+	c.mu.Unlock()
+	if failure != nil {
+		if failure.unavailable {
+			browserSmokeUnavailable(t, "%s", failure.message)
+		}
+		t.Fatal(failure.message)
+	}
+	return browser
+}
+
+// resetSharedEasyDragBrowser stops a running shared Chrome and forgets it, so the next test starts
+// a fresh one. A cached launch failure stays. A failed test calls it: its Chrome may have crashed
+// or hang, and a panic ends the process before TestMain could close it.
+func resetSharedEasyDragBrowser() {
+	c := &sharedEasyDragChrome
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.stop == nil {
+		return
+	}
+	c.stop()
+	c.browser, c.stop, c.started = nil, nil, false
+}
+
+// easyDragPanicking reports whether the calling goroutine is running a deferred call or cleanup
+// because of a panic.
+func easyDragPanicking() bool {
+	pcs := make([]uintptr, 64)
+	frames := runtime.CallersFrames(pcs[:runtime.Callers(2, pcs)])
+	for {
+		frame, more := frames.Next()
+		if frame.Function == "runtime.gopanic" {
+			return true
+		}
+		if !more {
+			return false
+		}
+	}
 }
 
 // closeSharedEasyDragBrowser is TestMain's end of sharedEasyDragBrowser; it does nothing when no
 // test started the browser.
 func closeSharedEasyDragBrowser() {
-	if sharedEasyDragChrome.stop != nil {
-		sharedEasyDragChrome.stop()
-	}
+	resetSharedEasyDragBrowser()
 }
 
 // setEasyDragReducedMotion makes the page report prefers-reduced-motion: reduce, so canvas
@@ -405,7 +443,16 @@ func newEasyDragPage(t *testing.T, opts easyDragSmokeOptions) *rod.Page {
 	if opts.PrivateBrowser {
 		browser = newSmokeBrowser(t)
 	} else {
-		incognito, err := sharedEasyDragBrowser(t).Incognito()
+		shared := sharedEasyDragBrowser(t)
+		// Registered first, so it runs last: a failed or panicking test drops the shared Chrome.
+		// A panic runs the cleanups before the testing package marks the test failed, so the
+		// panic is read from the stack instead.
+		t.Cleanup(func() {
+			if t.Failed() || easyDragPanicking() {
+				resetSharedEasyDragBrowser()
+			}
+		})
+		incognito, err := shared.Incognito()
 		if err != nil {
 			t.Fatalf("open an incognito context in the shared browser: %v", err)
 		}
