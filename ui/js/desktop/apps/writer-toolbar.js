@@ -61,11 +61,11 @@
             if (definition.control === 'color') return '<label class="writer-color" title="' + name + '">' + icon(definition.icon, '') + '<input type="color" ' + attrs(id) + ' value="' + definition.value + '" aria-label="' + name + '"></label>';
             return '<button type="button" ' + attrs(id) + ' title="' + esc(commands.tooltip(id)) + '" aria-label="' + name + '">' + icon(definition.icon, definition.fallback) + '</button>';
         }
-        const moreLabel = esc(tr('toolbar_more'));
+        const moreLabel = esc(tr('toolbar_more')), overflowId = 'writer-toolbar-overflow-' + String(root.dataset.writer).replace(/[^\w-]/g, '-');
         wrap.innerHTML = '<div class="writer-toolbar" role="toolbar" aria-label="' + esc(tr('format_bar')) + '">' +
             GROUPS.map(group => '<div class="writer-toolgroup' + (group.className ? ' ' + group.className : '') + '" data-group="' + group.id + '">' + group.items.map(control).join('') + '</div>').join('') +
-            '<button type="button" class="writer-toolbar-more" data-toolbar-more aria-haspopup="true" aria-expanded="false" title="' + moreLabel + '" aria-label="' + moreLabel + '" hidden>' + icon('more', '⋯') + '</button></div>' +
-            '<div class="writer-toolbar-overflow" data-toolbar-overflow role="group" aria-label="' + moreLabel + '" hidden></div>';
+            '<button type="button" class="writer-toolbar-more" data-toolbar-more aria-controls="' + overflowId + '" aria-expanded="false" title="' + moreLabel + '" aria-label="' + moreLabel + '" hidden>' + icon('more', '⋯') + '</button></div>' +
+            '<div class="writer-toolbar-overflow" id="' + overflowId + '" data-toolbar-overflow role="group" aria-label="' + moreLabel + '" hidden></div>';
         const bar = wrap.querySelector('.writer-toolbar'), more = wrap.querySelector('[data-toolbar-more]'), overflow = wrap.querySelector('[data-toolbar-overflow]');
         const nodes = GROUPS.map(group => ({id: group.id, priority: group.priority, node: wrap.querySelector('[data-group="' + group.id + '"]')}));
         const FIELDS = 'button,select,input';
@@ -83,7 +83,7 @@
         }
         // Put every group back, measure, then move what does not fit into the popover.
         function layout() {
-            if (!bar.clientWidth) return;   // hidden in focus mode: keep the last arrangement
+            if (!bar.clientWidth) { closeOverflow(); return; }   // hidden in focus mode: keep the arrangement, close the popover
             const focused = wrap.contains(document.activeElement) ? document.activeElement : null;
             more.hidden = false;
             for (const group of nodes) bar.insertBefore(group.node, more);
@@ -95,8 +95,10 @@
             more.hidden = !hidden.size;
             if (!hidden.size) closeOverflow();
             rove();
-            // Moving a node blurs it; give the focus back where it was.
-            if (focused && focused.isConnected && focused !== document.activeElement) focused.focus({preventScroll: true});
+            // Moving a node blurs it; give the focus back where it was, or to the More button
+            // when the control now sits in the closed popover.
+            const landing = focused && overflow.hidden && overflow.contains(focused) ? more : focused;
+            if (landing && landing.isConnected && landing !== document.activeElement) landing.focus({preventScroll: true});
         }
         let frame = 0;
         const observer = new ResizeObserver(() => { cancelAnimationFrame(frame); frame = requestAnimationFrame(layout); });
@@ -157,12 +159,25 @@
         }, {signal: life.signal});
         document.addEventListener('pointerdown', event => { if (!wrap.contains(event.target)) closeOverflow(); }, {signal: life.signal});
         bar.addEventListener('focusin', event => { if (event.target.matches(FIELDS)) rove(event.target); }, {signal: life.signal});
-        // Left and Right move through the bar. Up and Down stay with the select and the size field.
+        // Buttons: Left and Right (wrapping), Home and End move through the bar. Select and colour
+        // fields: Left and Right move, Up, Down, Home and End stay native. The size field keeps all
+        // four keys for its caret; there Tab and Shift+Tab step to the neighbouring control, without
+        // wrapping, so the roving tab stop never traps the keyboard.
         bar.addEventListener('keydown', event => {
-            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) || event.altKey || event.ctrlKey || event.metaKey) return;
+            if (event.altKey || event.ctrlKey || event.metaKey) return;
             const list = [...bar.querySelectorAll(FIELDS)].filter(el => !el.disabled && !el.hidden), index = list.indexOf(event.target);
+            if (index < 0) return;
+            if (event.target.matches('input[type="number"]')) {
+                const step = event.key === 'Tab' ? (event.shiftKey ? -1 : 1) : 0, neighbour = list[index + step];
+                if (!step || !neighbour) return;
+                event.preventDefault();
+                rove(neighbour);
+                neighbour.focus();
+                return;
+            }
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
             const edge = event.key === 'Home' || event.key === 'End';
-            if (index < 0 || (edge && !event.target.matches('button'))) return;
+            if (edge && !event.target.matches('button')) return;
             event.preventDefault();
             const next = event.key === 'Home' ? list[0] : event.key === 'End' ? list.at(-1) : list[(index + (event.key === 'ArrowRight' ? 1 : -1) + list.length) % list.length];
             rove(next);

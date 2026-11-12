@@ -87,24 +87,38 @@ func verifyWriterToolbarOverflow(t *testing.T, page *rod.Page) {
 	page.MustEval(`async()=>{
         const host=document.getElementById('host'),wait=()=>new Promise(r=>setTimeout(r,300));
         const bar=document.querySelector('.writer-toolbar'),more=document.querySelector('[data-toolbar-more]'),overflow=document.querySelector('[data-toolbar-overflow]');
-        await wait();
-        if(!more.hidden||overflow.children.length)throw Error('overflow in use although the bar fits');
-        if(bar.querySelectorAll('[tabindex="0"]').length!==1)throw Error('the bar needs exactly one tab stop');
-        host.style.width='520px';await wait();
-        if(bar.scrollWidth>bar.clientWidth+1)throw Error('narrow toolbar still overflows: '+bar.scrollWidth+'>'+bar.clientWidth);
-        if(more.hidden)throw Error('narrow toolbar has no overflow button');
-        if(!bar.querySelector('[data-slot="font.size"]'))throw Error('the font group left the bar');
-        if(!overflow.querySelector('[data-slot="text.color"]'))throw Error('the colour group did not move to the overflow');
-        more.click();
-        if(overflow.hidden||more.getAttribute('aria-expanded')!=='true')throw Error('overflow popover did not open');
-        bar.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
-        if(!overflow.hidden||document.activeElement!==more)throw Error('Escape did not close the overflow popover');
-        const first=bar.querySelector('[data-tool="undo"]'),second=bar.querySelector('[data-tool="redo"]');
-        for(const el of [first,second])el.disabled=false;
-        first.focus();first.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));
-        if(document.activeElement!==second||second.tabIndex!==0||first.tabIndex!==-1)throw Error('ArrowRight did not move the tab stop');
-        host.style.width='';await wait();
-        if(!more.hidden||overflow.children.length)throw Error('overflow not restored at full width');
+        const original=host.style.width;
+        try {
+            await wait();
+            if(!more.hidden||overflow.children.length)throw Error('overflow in use although the bar fits');
+            if(bar.querySelectorAll('[tabindex="0"]').length!==1)throw Error('the bar needs exactly one tab stop');
+            if(!more.getAttribute('aria-controls')||more.getAttribute('aria-controls')!==overflow.id)throw Error('the More button does not control the popover');
+            const key=(el,name,shiftKey)=>{const event=new KeyboardEvent('keydown',{key:name,shiftKey:!!shiftKey,bubbles:true,cancelable:true});el.dispatchEvent(event);return event;};
+            // The size field keeps the caret keys; Tab steps on to the next control.
+            const size=bar.querySelector('[data-slot="font.size"]'),bold=bar.querySelector('[data-slot="text.bold"]');
+            bold.disabled=false;size.focus();
+            if(key(size,'ArrowLeft').defaultPrevented||document.activeElement!==size)throw Error('ArrowLeft was taken from the size field');
+            if(!key(size,'Tab').defaultPrevented||document.activeElement!==bold)throw Error('Tab in the size field did not step to the next control');
+            if(key(bold,'Tab',true).defaultPrevented)throw Error('a button handled Shift+Tab itself');
+            // A focused control that moves into the closed popover hands the focus to the More button.
+            const bullets=bar.querySelector('[data-tool="bullets"]');
+            bullets.focus();host.style.width='520px';await wait();
+            if(!overflow.contains(bullets)||document.activeElement!==more)throw Error('focus was lost when its control moved into the popover');
+            if(bar.scrollWidth>bar.clientWidth+1)throw Error('narrow toolbar still overflows: '+bar.scrollWidth+'>'+bar.clientWidth);
+            if(more.hidden)throw Error('narrow toolbar has no overflow button');
+            if(!bar.querySelector('[data-slot="font.size"]'))throw Error('the font group left the bar');
+            if(!overflow.querySelector('[data-slot="text.color"]'))throw Error('the colour group did not move to the overflow');
+            more.click();
+            if(overflow.hidden||more.getAttribute('aria-expanded')!=='true')throw Error('overflow popover did not open');
+            bar.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+            if(!overflow.hidden||document.activeElement!==more)throw Error('Escape did not close the overflow popover');
+            const first=bar.querySelector('[data-tool="undo"]'),second=bar.querySelector('[data-tool="redo"]');
+            for(const el of [first,second])el.disabled=false;
+            first.focus();first.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));
+            if(document.activeElement!==second||second.tabIndex!==0||first.tabIndex!==-1)throw Error('ArrowRight did not move the tab stop');
+            host.style.width=original;await wait();
+            if(!more.hidden||overflow.children.length)throw Error('overflow not restored at full width');
+        } finally { host.style.width=original; }
     }`)
 }
 
@@ -132,9 +146,14 @@ func verifyWriterTableDialog(t *testing.T, page *rod.Page) {
             const notice=document.querySelector('[data-notice]');
             if(!notice.hidden&&notice.dataset.error==='true')throw Error(document.querySelector('[data-notice-text]').textContent);
             if(app.session.revision===before)throw Error('no table was inserted');
+            const fragments=document.querySelectorAll('.docx-table-fragment'),newest=fragments[fragments.length-1];
+            if(!newest||newest.querySelectorAll('.docx-table-row').length!==2||newest.querySelectorAll('.docx-table-cell').length!==8)throw Error('the inserted table is not 2 rows by 4 columns');
             document.querySelector('[data-panel-command="table_insert"]').click();await wait(150);
             document.querySelector('dialog.vd-form-dialog [data-form-cancel]').click();await wait(100);
             if(document.querySelector('dialog.vd-form-dialog')||answer!==null)throw Error('cancel did not close the dialog with null');
+            // Leave the document as it was for the checks and screenshots that follow.
+            app.editor.exec({type:'undo'});await wait(200);
+            if(document.querySelector('.docx-table-fragment'))throw Error('undo left the inserted table in the document');
         } finally { AuraFormDialog.open=open; }
     }`)
 }

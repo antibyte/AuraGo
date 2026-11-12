@@ -12,7 +12,7 @@ contains paragraph styles, fonts, numeric sizes, common formatting and lists.
 When the window is too narrow for the whole bar, groups move into a More tools
 popover instead of scrolling: lists first, then alignment, colours, insert,
 text marks and the font controls; undo and redo always stay. The bar is one
-tab stop; Left and Right move between its controls.
+tab stop; Left and Right move between its controls. In the size field they move the caret, and Tab steps to the next control.
 Format provides paragraph spacing, page setup, table and image controls.
 Page setup recognizes A4 and Letter in both orientations. Other sizes stay as
 they are until a listed size is chosen. Indent, color and image controls follow
