@@ -15,17 +15,18 @@
                 {id:'zoom',label:tr('zoom'),items:[item('fit'),item('zoomPage'),SEP,item('zoom50'),item('zoom75'),item('zoom100'),item('zoom125'),item('zoom150'),item('zoom200'),SEP,
                     item('zoomIn'),item('zoomOut')]},
                 item('focus')]},
-            {id:'insert',label:tr('insert'),items:[item('table'),item('image'),item('qr'),item('link'),SEP,
+            {id:'insert',label:tr('insert'),items:[item('table'),item('image'),item('qr'),item('link'),item('comment'),SEP,
                 item('pageBreak'),item('sectionNext'),item('sectionContinuous'),SEP,item('footnote'),item('endnote'),SEP,item('toc'),item('textBox'),SEP,
-                item('header'),item('footer'),item('pageNumber'),item('backDocument')]},
+                item('header'),item('footer'),item('pageNumber'),item('headerFirstPage'),item('headerOddEven'),item('backDocument')]},
             {id:'format',label:tr('format'),items:[
                 {id:'text',label:tr('text'),items:[item('bold'),item('italic'),item('underline'),item('strike'),SEP,item('superscript'),item('subscript')]},
                 {id:'paragraph',label:tr('paragraph'),items:[item('alignLeft'),item('alignCenter'),item('alignRight'),item('alignJustify'),SEP,
                     item('bullets'),item('numbering'),SEP,item('indent'),item('outdent')]},
-                {id:'spacing',label:tr('line_spacing'),items:[item('spacing100'),item('spacing115'),item('spacing150'),item('spacing200')]},SEP,
+                {id:'spacing',label:tr('line_spacing'),items:[item('spacing100'),item('spacing115'),item('spacing150'),item('spacing200')]},
+                {id:'image',label:tr('image'),items:[item('rotateLeft'),item('rotateRight'),SEP,item('deleteImage')]},SEP,
                 item('copyFormat'),item('pasteFormat'),item('clearFormat')]},
             {id:'table',label:tr('table'),items:[item('table'),SEP,item('rowAbove'),item('rowBelow'),item('columnLeft'),item('columnRight'),SEP,
-                item('deleteRow'),item('deleteColumn'),item('deleteTable'),SEP,item('mergeCells'),item('splitCell')]},
+                item('deleteRow'),item('deleteColumn'),item('deleteTable'),SEP,item('mergeCells'),item('splitCell'),SEP,item('borders'),item('noBorders')]},
             {id:'tools',label:tr('tools'),items:[item('wordCount'),SEP,item('tracking'),item('review'),item('previousChange'),item('nextChange'),SEP,item('shortcuts')]},
             {id:'agent',labelKey:'desktop.menu_agent',items:[item('assist')]}
         ];

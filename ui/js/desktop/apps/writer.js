@@ -613,7 +613,8 @@
             const s=editor && !loading?editor.snapshot():null;
             return JSON.stringify([!!s,!!ctx.readonly,s?.editingMode,s?.reviewDisplayMode,!!s?.showParagraphMarks,!!s?.canUndo,!!s?.canRedo,!!s?.selectionCollapsed,
                 !!s?.table,!!s?.image,s?.scope?.kind,s?.formatting?.lineSpacing?.value,leftPanel,rightPanel,root.classList.contains('writer-focus'),
-                ...(s?['mergeCells','splitCell','pasteFormat','previousChange','nextChange','backDocument'].map(id=>commands.state(id).enabled):[])]);
+                ...(s?['mergeCells','splitCell','pasteFormat','previousChange','nextChange','backDocument'].map(id=>commands.state(id).enabled):[]),
+                ...(s?.scope?.kind==='headerFooter'?[activeAction('headerFirstPage'),activeAction('headerOddEven')]:[])]);
         }
         root.addEventListener('pointerdown',event=>{if(event.target.closest('.writer-toolbar-wrap,.writer-contextbar,.writer-right,.writer-views'))pinSelection();},{signal:lifecycle.signal});
         root.addEventListener('click',event=>{

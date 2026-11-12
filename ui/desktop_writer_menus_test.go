@@ -157,11 +157,12 @@ func verifyWriterMenus(t *testing.T, page *rod.Page) {
         const item=id=>flat(window.menus.flatMap(menu=>menu.items)).find(entry=>entry.id===id);
         const titles=window.menus.map(menu=>menu.id).join();
         if(titles!=='file,edit,view,insert,format,table,tools,agent')throw Error('menus: '+titles);
-        for(const id of ['cut','copy','paste','pastePlain','selectAll','goToPage','marks','markupAll','zoomPage','zoom125','link','endnote','sectionNext','textBox','superscript','spacing150','copyFormat','rowAbove','deleteTable','wordCount','tracking','nextChange','shortcuts','assist','gog-import'])
+        for(const id of ['cut','copy','paste','pastePlain','selectAll','goToPage','marks','markupAll','zoomPage','zoom125','link','endnote','sectionNext','textBox','superscript','spacing150','copyFormat','rowAbove','deleteTable','wordCount','tracking','nextChange','shortcuts','assist','gog-import','comment','rotateLeft','deleteImage','borders','headerFirstPage'])
             if(!item(id))throw Error('menu lacks '+id);
         if(item('copy').shortcut||item('copy').shortcutHint!=='Ctrl+C')throw Error('copy must only show its shortcut');
         if(item('link').shortcut!=='Ctrl+K')throw Error('link shortcut: '+item('link').shortcut);
         if(!item('rowAbove').disabled)throw Error('row commands need a table');
+        if(!item('headerFirstPage').disabled||!item('rotateLeft').disabled)throw Error('header and image commands need their context');
         if(!item('markupAll').checked||item('marks').checked||item('tracking').checked)throw Error('initial view state is wrong');
         try {
             item('marks').action();await wait(250);
