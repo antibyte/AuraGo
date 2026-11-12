@@ -352,3 +352,40 @@ func TestEasyDragTouchMappingChip(t *testing.T) {
 		})
 	}
 }
+
+// easyDragTouchBoxSelectSkip is the ledger text of the finding this test records (spec S0c section 7).
+const easyDragTouchBoxSelectSkip = "Wave 1: a one-finger drag on empty canvas pans the view (easydrag-interact.js onPointerDown, pointerType touch and no card), so several cards cannot be selected by finger at 1024x768 or 390x844; Wave 1 adds a touch select mode that starts startBoxSelect, then this skip goes"
+
+// TestEasyDragTouchBoxSelect drags a finger from empty canvas over the first two cards: both are
+// selected, and the view has not moved.
+func TestEasyDragTouchBoxSelect(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	t.Skip(easyDragTouchBoxSelectSkip)
+	for _, vp := range easyDragTouchViewports {
+		vp := vp
+		t.Run(vp.name, func(t *testing.T) {
+			s := startEasyDragTouch(t, vp.w, vp.h)
+			page := s.page
+			box := page.MustEval(`()=>{
+				const c=document.querySelector('.ed-canvas').getBoundingClientRect();
+				const a=document.querySelector('.ed-node[data-node-id="n_zeitplan"]').getBoundingClientRect();
+				const b=document.querySelector('.ed-node[data-node-id="n_suche"]').getBoundingClientRect();
+				return [Math.max(c.left+6,a.left-20),Math.max(c.top+6,a.top-20),Math.min(c.right-6,b.left+40),a.bottom+20];
+			}`)
+			from := touchPoint{box.Get("0").Num(), box.Get("1").Num()}
+			to := touchPoint{box.Get("2").Num(), box.Get("3").Num()}
+			s.touchAssertHit(`.ed-canvas`, from)
+			if empty := page.MustEval(`(x,y)=>{const e=document.elementFromPoint(x,y);return !!e && !e.closest('.ed-node,.ed-edge,.ed-zoom,.ed-minimap,.ed-wire-actions')}`, from.x, from.y).Bool(); !empty {
+				t.Fatalf("the start of the box (%.0f, %.0f) is on a card or a control", from.x, from.y)
+			}
+			view := page.MustEval(`()=>JSON.stringify(edFixture.editor().view)`).Str()
+			s.touchDrag(from, to, 8)
+			s.shot("touch-box-select-" + vp.name)
+			s.wait(`()=>{const sel=edFixture.editor().selection;return sel.size===2 && sel.has('n_zeitplan') && sel.has('n_suche')}`)
+			if now := page.MustEval(`()=>JSON.stringify(edFixture.editor().view)`).Str(); now != view {
+				t.Fatalf("the view moved during the box select: %s -> %s", view, now)
+			}
+			s.failOnPageErrors("touch box select")
+		})
+	}
+}
