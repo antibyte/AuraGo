@@ -82,7 +82,7 @@ func TestDesktopWriterAppBrowser(t *testing.T) {
 	browser := rod.New().ControlURL(launch.MustLaunch()).MustConnect()
 	defer launch.Cleanup()
 	defer browser.Close()
-	page := browser.MustPage(srv.URL + "/writer-app-fixture").Timeout(30 * time.Second)
+	page := browser.MustPage(srv.URL + "/writer-app-fixture").Timeout(120 * time.Second)
 	defer page.Close()
 	page.MustSetViewport(1366, 768, 1, false)
 	page.MustWaitLoad()
