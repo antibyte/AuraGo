@@ -430,7 +430,7 @@
             if (isBlock) {
                 ctx.showContextMenu(r.left, r.bottom + 4, [
                     { icon: 'history', label: t('easydrag.ui.versions_title'), action: () => ED.blocks.versions(ed, app) },
-                    { icon: 'pencil', label: t('easydrag.ui.block_open_draft'), action: () => app.openBlock(ed.flow.id) },
+                    { icon: 'pencil', label: t('easydrag.ui.block_open_draft'), action: () => app.openBlock(ed.flow.id) }, ...(ED.delight ? ED.delight.menuItems(t) : []),
                     { icon: 'trash', label: t('easydrag.ui.block_delete'), disabled: !!ed.readonly, action: deleteFlow }
                 ]);
                 return;
@@ -454,7 +454,7 @@
                 { icon: 'download', label: t('easydrag.ui.pack_export'), disabled: restoring || (!!ed.readonly && ed.saver.isDirty()), action: exportLocalPack },
                 { icon: 'mail', label: t('desktop.email_export'), disabled: !!ed.readonly || !emailBinding, action: () => emailBinding && emailBinding.activate() },
                 { icon: 'list', label: t('easydrag.ui.home_mission_control'), action: () => ctx.openApp && ctx.openApp('mission-control') },
-                { separator: true },
+                ...(ED.delight ? ED.delight.menuItems(t) : []), { separator: true },
                 { icon: 'trash', label: t('easydrag.ui.home_delete'), disabled: !!ed.readonly, action: deleteFlow }
             ]));
         }
