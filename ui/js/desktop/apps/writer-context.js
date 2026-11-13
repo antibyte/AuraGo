@@ -17,7 +17,7 @@
         headerFooter: {items: ['pageNumber', 'headerFirstPage', 'headerOddEven', '|', 'backDocument'], text: ['pageNumber', 'headerFirstPage', 'headerOddEven', 'backDocument']}
     };
     // The right-click menu as sections. An entry is a registry id, '@name' for an item only the
-    // app can build, or {submenu, items}. target: {review, link, table, image, drawing, toc, scope}.
+    // app can build, or {submenu, items}. target: {review, link, table, image, toc, scope}.
     function sections(target) {
         return [
             target.review ? ['@accept', '@reject'] : [],
@@ -25,7 +25,7 @@
             target.link ? ['link', '@unlink'] : ['link'],
             ['comment'],
             target.table ? [{submenu: 'table', items: BARS.table.items}] : [],
-            target.image ? ['rotateLeft', 'rotateRight', 'deleteImage'] : target.drawing ? ['@deleteDrawing'] : [],
+            target.image ? ['rotateLeft', 'rotateRight', 'deleteImage'] : [],
             target.toc ? ['@updateToc'] : [],
             target.scope === 'headerFooter' ? ['backDocument'] : [],
             ['assist']
@@ -82,13 +82,12 @@
             event.stopPropagation();
         }, {capture: true, signal: life.signal});
         // What the right-click is about. The engine has already noted a table of contents under the pointer.
-        function target(event, point) {
-            const editor = app.editor, snapshot = editor.snapshot(), drawing = event.target.closest?.('.docx-drawing');
+        function target(point) {
+            const editor = app.editor, snapshot = editor.snapshot();
             const hit = point ? editor.getReviewItemsAt?.(point[0], point[1])[0]?.placement : null;
             return {
                 review: hit && hit.kind === 'revision' && !hit.readOnly && !app.readonly ? hit.key : '',
                 link: !!editor.query({type: 'hyperlinkAt'}), table: !!snapshot.table, image: !!snapshot.image,
-                drawing: !snapshot.image && drawing && !app.readonly ? drawing.dataset.drawingNodeId || '' : '',
                 toc: !app.readonly && snapshot.tocContext?.id || '', scope: snapshot.scope?.kind || 'body'
             };
         }
@@ -101,7 +100,6 @@
             '@accept': at => ({id: 'accept', label: tr('accept'), icon: 'check', action: () => review(at.review, true)}),
             '@reject': at => ({id: 'reject', label: tr('reject'), icon: 'undo', action: () => review(at.review, false)}),
             '@unlink': () => ({id: 'unlink', label: tr('link_remove'), icon: 'link', disabled: app.readonly, action: () => commands.run({type: 'removeHyperlink'})}),
-            '@deleteDrawing': at => ({id: 'deleteDrawing', label: tr('image_delete'), icon: 'trash', danger: true, action: () => commands.run({type: 'deleteImage', drawingNodeId: at.drawing})}),
             '@updateToc': at => ({id: 'updateToc', label: tr('toc_update'), icon: 'list', action: () => commands.run({type: 'refreshToc', tocId: at.toc})})
         };
         // A registry command as a context-menu item. The focus returns to the document after an engine command.
@@ -118,18 +116,36 @@
             made.action = () => { action(); app.editor?.focus(); };
             return made;
         }
+        // The engine acts on a selected image only, and a right-click does not select one. A left
+        // press at the same point is the engine's own way to select it.
+        function select(drawing, point) {
+            const at = {clientX: point[0], clientY: point[1], bubbles: true, cancelable: true, composed: true, button: 0, pointerId: 1, pointerType: 'mouse', isPrimary: true};
+            for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'])
+                drawing.dispatchEvent(new (type.startsWith('pointer') ? PointerEvent : MouseEvent)(type, Object.assign({buttons: type.endsWith('down') ? 1 : 0}, at)));
+        }
+        // The selection lands with the engine's next update; the menu waits for it, briefly.
+        function whenSelected(done, tries) {
+            if (!app.editor || app.editor.snapshot().image || !tries) return done();
+            setTimeout(() => whenSelected(done, tries - 1), 20);
+        }
         // Opens the menu for a contextmenu event inside the document; false when it is not Writer's to answer.
         function open(event) {
             if (!app.editor || !ctx.showContextMenu || !mount.contains(event.target)) return false;
             // Shift+F10 and the menu key arrive without a pointer position.
             const keyboard = event.button === -1 || (!event.clientX && !event.clientY), box = mount.getBoundingClientRect();
-            const point = keyboard ? null : [event.clientX, event.clientY], at = target(event, point), items = [];
-            for (const section of sections(at)) {
-                if (!section.length) continue;
-                if (items.length) items.push({separator: true});
-                items.push(...section.map(entry => item(entry, at)));
-            }
-            ctx.showContextMenu(point ? point[0] : box.left + Math.min(120, box.width / 2), point ? point[1] : box.top + 60, items);
+            const point = keyboard ? null : [event.clientX, event.clientY], drawing = point && event.target.closest?.('.docx-drawing');
+            const present = () => {
+                if (!app.editor) return;
+                const at = target(point), items = [];
+                for (const section of sections(at)) {
+                    if (!section.length) continue;
+                    if (items.length) items.push({separator: true});
+                    items.push(...section.map(entry => item(entry, at)));
+                }
+                ctx.showContextMenu(point ? point[0] : box.left + Math.min(120, box.width / 2), point ? point[1] : box.top + 60, items);
+            };
+            if (drawing && !app.editor.snapshot().image) { select(drawing, point); whenSelected(present, 10); }
+            else present();
             return true;
         }
         mount.addEventListener('contextmenu', event => {

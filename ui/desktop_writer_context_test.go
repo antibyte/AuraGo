@@ -114,9 +114,14 @@ func verifyWriterContext(t *testing.T, page *rod.Page) {
 	settle()
 	page.MustEval(script(`
         if(editor.snapshot().image||!bar.hidden)throw Error('the image bar stayed after a click into the text');
-        rightClick(document.querySelector('.docx-page .docx-drawing'));
-        if(!ids(window.contextMenu.items).includes('deleteDrawing'))throw Error('no image deletion in '+ids(window.contextMenu.items).join());
-        entry('deleteDrawing').action();await wait(400);
+        // A right-click on an image that is not selected selects it; the menu is then about the image.
+        rightClick(document.querySelector('.docx-page .docx-drawing'));await wait(400);
+        if(!editor.snapshot().image)throw Error('a right-click did not select the image');
+        if(!window.contextMenu)throw Error('no menu opened on an image');
+        const about=ids(window.contextMenu.items);
+        if(!about.includes('deleteImage')||!about.includes('rotateRight'))throw Error('no image commands in '+about.join());
+        if(bar.hidden||bar.querySelector('strong').textContent!=='Image')throw Error('the image bar did not follow the right-click');
+        entry('deleteImage').action();await wait(400);
         if(failed())throw Error('delete image: '+failed());
         if(document.querySelector('.docx-page .docx-drawing'))throw Error('the image was not deleted');
         rewind();

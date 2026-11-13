@@ -28,11 +28,11 @@ Roadmap: `docs/superpowers/specs/2026-11-12-writer-office-roadmap-design.md`, se
 - `{type:'setHeaderFooterOptions',titlePage:true}` and `{evenAndOddHeaders:true}` work. `editor.getHeaderFooterState()` returns `{editing:'header'|'footer', titlePage, evenAndOddHeaders, ...}` while a header or footer is open and `null` in the body.
 - `snapshot().table` is `{rows, columns, rowIndex, columnIndex}` or `null`; `snapshot().scope.kind` is `'body'`, `'headerFooter'`, `'note'` or `'frame'`.
 - After `transformImage`, a programmatic `setSelection` to a text caret leaves `snapshot().image` set; a real click into the text clears it.
+- A command with `drawingNodeId` on an image that is not selected is refused (`stale drawing selection`); the engine acts on the selected image only. A synthetic left press on the `.docx-drawing` element selects it.
 - `editor.can({type:'removeHyperlink'})` is `ok` everywhere, so "is the caret in a link" is asked with `editor.query({type:'hyperlinkAt'})`.
 
 **From the type definitions, not probed.** The browser check in Task 3 is their proof; if it fails there, stop and report the thrown message:
 
-- `{type:'deleteImage', drawingNodeId}` deletes an image that is not selected.
 - `editor.getReviewItemsAt(clientX, clientY)` returns `[{placement:{key, kind:'revision'|'comment', readOnly}, rect}]`, empty where there is nothing.
 - `snapshot().tocContext` is `{id}` after a right-click on a table of contents (the engine sets it in its own `contextmenu` listener, which runs before the app's), and `{type:'refreshToc', tocId}` updates it.
 - `insertHyperlink {href}` over a plain selection turns the selection into a link.
@@ -494,6 +494,8 @@ Create `ui/js/desktop/apps/writer-context.js`:
     window.WriterContext = {create, kind, bars: BARS, sections};
 })();
 ```
+
+During implementation the `@deleteDrawing` entry and the target's `drawing` field were dropped: a right-click on an image that is not selected now selects it with a synthetic left press and shows the commands of a selected image; see `ui/js/desktop/apps/writer-context.js`.
 
 - [ ] **Step 3: Run the tests**
 
