@@ -1086,6 +1086,18 @@ the contracts below describe the implemented behavior of each delivered slice.
 
 ## Credential purge backups
 
+- Purge admission and preflight register under the service lifecycle mutex.
+  Shutdown cancels the job and waits for every step before store close; a caller
+  with an exhausted shutdown budget must continue the drain before closing it.
+- A failed restore whose rollback also fails retains an owner-only recovery
+  directory with `RECOVERY_REQUIRED.json`. Sweeps preserve it and its encrypted
+  safety copy. Unmarked older directories containing `old.db`/WAL/SHM also remain
+  for manual recovery. Errors name both paths; stop AuraGo before inspecting or
+  restoring them. Remove the recovery directory only after verified recovery.
+  Unidentified legacy/corrupt recovery markers also pause encrypted-backup expiry.
+- Repeated Runner shutdowns wait for the same completed drain, including final
+  callbacks; `closed` alone never authorizes closing its store.
+
 The credential purge (B.9) first writes `.flows-purge-backup-<UTC>.enc` next to flows.db: AES-256-GCM in 64 KiB chunks, key = HKDF-SHA256(master key, file salt, label `aurago/easydrag/purge-backup/v1`). `security.EncryptFileWithMasterKey` and `DecryptFileWithMasterKey` are the only writers and readers. `Service.sweepPurgeBackups` deletes `.flows-purge-backup-*.enc` and `.flows-pre-restore-*.enc` after 7 days (at start, then daily). To restore, stop AuraGo and run `aurago --restore-flows-purge-backup <file>`: it takes the instance lock (`aurago.lock`), keeps the current flows.db as `.flows-pre-restore-<UTC>.enc`, verifies the decrypted backup, removes the stale `-wal` and `-shm`, swaps the file in and exits. There is no UI for it.
 
 The purge itself (`Service.StartCredentialPurge`, `purge_job.go`, `purge_steps.go`) runs the steps backup, versions, redact, compact, snapshots, verify under `Runner.HoldDispatch`: it refuses while a run is running, new runs queue until it ends, waiting runs do not block it. Versions that a live run, a block pin or a pending gate still needs are marked in `flow_version_purge` (schema 9) and deleted, with `secure_delete` and a WAL truncate, as soon as nothing pins them (`Store.PrunePurgedVersions`: when a run ends, in the hourly retention pass, and by the purge). The scan (`CredentialScan`) and the purge rewrite every plaintext JSON column listed in `credentialTextSources`; drafts and live documents are never touched. Rollback of a marked version answers `FLOW_VERSION_PURGED`; any new code that copies a version into a draft must read it with `Store.GetVersionForCopy`. `flow_runs.doc_hash` is a lookup key into `flow_test_docs` and is never recomputed, so rewriting a stored document leaves it valid. `TestCredentialHygieneAcceptance` (`internal/server`) runs the whole journey on a real data directory.
