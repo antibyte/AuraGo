@@ -87,7 +87,7 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 	page.MustEval(`()=>{const ed=edFixture.editor();const id=ed.model.doc.nodes.find(n=>!ed.model.info(n.type).trigger).id;window.__b5Count=ed.model.doc.nodes.length;ed.bus.emit('focus-node',id);document.querySelector('.ed-node[data-node-id="'+id+'"] [data-ed-node-tool="delete"]').click();}`)
 	s.wait(`()=>{const toast=document.querySelector('[data-ed-toast]');return !toast.hidden && toast.getBoundingClientRect().width>0 && edFixture.editor().model.doc.nodes.length===window.__b5Count-1}`)
 	s.shot("ux-batch5-toast")
-	page.MustElement(`[data-ed-toast-undo]`).MustClick()
+	page.MustElement(`[data-ed-toast-action]`).MustClick()
 	s.wait(`()=>document.querySelector('[data-ed-toast]').hidden && edFixture.editor().model.doc.nodes.length===window.__b5Count`)
 	page.MustEval(`()=>{const ed=edFixture.editor();window.__b5Label=ed.model.doc.nodes[0].label;ed.model.setLabel(ed.model.doc.nodes[0].id,'Batch 5')}`)
 	page.MustElement(`.ed-head [data-ed-history="undo"]`).MustClick()

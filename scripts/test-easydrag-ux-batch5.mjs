@@ -512,7 +512,7 @@ export async function run(env) {
         s.pick(B);
         s.key('Delete');
         const shown = [toast.hidden, toast.querySelector('[data-ed-toast-text]').textContent, !!s.ed.model.node(B)];
-        toast.querySelector('[data-ed-toast-undo]').fire('click');
+        toast.querySelector('[data-ed-toast-action]').fire('click');
         const back = [toast.hidden, !!s.ed.model.node(B)];
         s.pick(B);
         s.key('Delete');

@@ -1,5 +1,5 @@
 // EasyDrag undo affordances: the header's Undo and Redo buttons (touch has no Ctrl+Z) and the toast
-// that offers to take a deletion back ("Alpha deleted · Undo"). The editor hands over the header group
+// that offers to take a deletion back ("Alpha deleted · Undo") (ED.kit.toast). The editor hands over the header group
 // and the body; both parts follow the model shown through ed.bus (model, steps-deleted).
 (function () {
     'use strict';
@@ -22,13 +22,17 @@
             '<button type="button" class="ed-icon-btn" data-ed-history="redo" aria-label="' + esc(t('easydrag.ui.redo')) + '" title="' + esc(t('easydrag.ui.redo') + hint('Ctrl+Shift+Z')) + '">' + core.icon('redo') + '</button>';
         const undoBtn = host.querySelector('[data-ed-history="undo"]');
         const redoBtn = host.querySelector('[data-ed-history="redo"]');
-        const toast = core.el('<div class="ed-toast" data-ed-toast hidden><span class="ed-toast-text" data-ed-toast-text></span>' +
-            '<button type="button" class="ed-btn ed-btn--small" data-ed-toast-undo>' + core.icon('undo') + '<span>' + esc(t('easydrag.ui.undo')) + '</span></button>' +
-            '<button type="button" class="ed-icon-btn" data-ed-toast-close aria-label="' + esc(t('easydrag.ui.close')) + '" title="' + esc(t('easydrag.ui.close')) + '">' + core.icon('x') + '</button></div>');
-        toast.hidden = true;
-        opts.toastHost.appendChild(toast);
+        // toastVersion is the model version right after the deletion: the toast's Undo acts only on that one.
         let toastVersion = -1;
-        let toastTimer = 0;
+        const toast = ED.kit.toast({
+            status: 'ok', host: opts.toastHost, start: false, duration: TOAST_MS, closeLabel: t('easydrag.ui.close'),
+            action: { label: t('easydrag.ui.undo'), icon: 'undo', onClick: () => {
+                const current = toastVersion !== -1 && ed.model.version === toastVersion;
+                toastVersion = -1;
+                if (current) opts.undo();
+            } },
+            onHide: ({ hadFocus }) => { if (hadFocus) opts.focusCanvas(); }
+        });
 
         // Disabled buttons would drop the focus to the page: the buttons say aria-disabled instead,
         // and a click on them does nothing.
@@ -46,20 +50,7 @@
             setOff(redoBtn, ro || !ed.model.canRedo());
         }
 
-        function arm() {
-            clearTimeout(toastTimer);
-            toastTimer = setTimeout(hideToast, TOAST_MS);
-        }
-
-        function hideToast() {
-            clearTimeout(toastTimer);
-            toastTimer = 0;
-            toastVersion = -1;
-            if (toast.hidden) return;
-            const hadFocus = toast.contains(document.activeElement);
-            toast.hidden = true;
-            if (hadFocus) opts.focusCanvas();
-        }
+        function hideToast() { toast.hide(); toastVersion = -1; }
 
         // showDeleted offers to take back the deletion just made ({names}). The canvas live region has
         // said it already, so the toast is no live region. Its Undo acts only while the document is the
@@ -67,10 +58,8 @@
         function showDeleted(payload) {
             const names = (payload && payload.names) || [];
             if (!names.length || ed.readonly || ed.runView) return;
-            toast.querySelector('[data-ed-toast-text]').textContent = core.stepsText(t, 'easydrag.ui.announce_deleted_one', 'easydrag.ui.announce_deleted_many', names);
             toastVersion = ed.model.version;
-            toast.hidden = false;
-            arm();
+            toast.show(core.stepsText(t, 'easydrag.ui.announce_deleted_one', 'easydrag.ui.announce_deleted_many', names));
         }
 
         bag.listen(host, 'click', (event) => {
@@ -79,23 +68,12 @@
             if (b.dataset.edHistory === 'undo') opts.undo(); else opts.redo();
             sync();
         });
-        bag.listen(toast, 'click', (event) => {
-            if (event.target.closest('[data-ed-toast-close]')) { hideToast(); return; }
-            if (!event.target.closest('[data-ed-toast-undo]')) return;
-            const current = toastVersion !== -1 && ed.model.version === toastVersion;
-            hideToast();
-            if (current) opts.undo();
-        });
-        bag.listen(toast, 'focusin', () => clearTimeout(toastTimer));
-        bag.listen(toast, 'focusout', () => { if (!toast.hidden) arm(); });
-        bag.listen(toast, 'pointerenter', () => clearTimeout(toastTimer));
-        bag.listen(toast, 'pointerleave', () => { if (!toast.hidden) arm(); });
         bag.add(ed.bus.on('model', () => {
             sync();
-            if (!toast.hidden && ed.model.version !== toastVersion) hideToast();
+            if (toast.isShown() && ed.model.version !== toastVersion) hideToast();
         }));
         bag.add(ed.bus.on('steps-deleted', showDeleted));
-        bag.add(() => { clearTimeout(toastTimer); toast.remove(); });
+        bag.add(() => toast.dispose());
         sync();
 
         return { sync, hideToast, dispose() { bag.dispose(); } };
