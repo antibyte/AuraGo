@@ -418,7 +418,7 @@
             else if (avail === 'needs_setup') parts.push(t('easydrag.ui.badge_needs_setup'));
             else if (avail === 'blocked') parts.push(t('easydrag.ui.badge_blocked'));
             if (issues) parts.push(t('easydrag.ui.badge_incomplete'));
-            if (status) parts.push(ED.status.word(t, ED.status.ofStep({ status }, !!ed.run && ed.run.mode === 'simulation')));
+            if (status) parts.push(ED.status.word(t, ED.status.ofStep((ed.run && ed.run.steps && ed.run.steps.get(n.id)) || { status }, !!ed.run && ed.run.mode === 'simulation')));
             return parts.join(', ');
         }
 
@@ -433,7 +433,7 @@
             if (i && i.risky) badges.push('<span class="ed-badge ed-badge--risk" title="' + esc(t('easydrag.ui.badge_risky')) + '">' + core.icon('alert') + '</span>');
             if (issues) badges.push('<span class="ed-badge ed-badge--issue" title="' + esc(t('easydrag.ui.badge_incomplete')) + '"></span>');
             if (status) {
-                const value = ED.status.ofStep({ status }, !!ed.run && ed.run.mode === 'simulation');
+                const value = ED.status.ofStep(step || { status }, !!ed.run && ed.run.mode === 'simulation');
                 const dur = step && step.duration_ms ? ' · ' + core.fmt.duration(step.duration_ms) : '';
                 badges.push(ED.status.disc(value, 18, { t, title: ED.status.word(t, value) + dur }));
             }

@@ -56,6 +56,8 @@ assert.equal(S.ofStep({ status: 'success' }, true), 'simulated', 'a step that ra
 assert.equal(S.ofStep({ status: 'error' }, true), 'failed', 'a failed simulated step stays failed');
 assert.equal(S.ofStep({ status: 'success' }, false), 'ok');
 assert.equal(S.ofStep(null, false), 'uncertain');
+assert.equal(S.ofStep({ status: 'cancelled', effect_uncertain: true }, false), 'uncertain', 'an uncertain effect wins over the step status');
+assert.equal(S.ofStep({ status: 'success', effect_uncertain: true }, true), 'uncertain', 'and over the simulation rule');
 
 // disc(), word(), aria(), label() with the real en texts
 const en = words('en');

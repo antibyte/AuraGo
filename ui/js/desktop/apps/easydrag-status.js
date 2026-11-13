@@ -51,6 +51,7 @@
     }
     // ofStep is the value of a step record; a step that succeeded in a simulation is "simulated".
     function ofStep(step, simulation) {
+        if (step && step.effect_uncertain) return 'uncertain';
         const value = of(step && step.status, 'step');
         return simulation && value === 'ok' ? 'simulated' : value;
     }
