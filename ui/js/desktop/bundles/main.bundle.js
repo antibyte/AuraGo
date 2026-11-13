@@ -19224,7 +19224,8 @@ function updateTaskbarSystemButtonsForMobile() {
         }
         if (appId === 'editor') return renderEditor(id, context.path || 'Documents/untitled.txt', context.path ? context.content : '');
         if (appId === 'writer' && window.WriterApp && typeof window.WriterApp.render === 'function') {
-            return window.WriterApp.render(contentEl(id), id, officeAppContext(context));
+            // Writer lists its recent documents itself and records files it opens or saves from inside the window.
+            return window.WriterApp.render(contentEl(id), id, { ...officeAppContext(context), recentFiles: readRecentFiles, recordRecentFile, forgetRecentFile: removeRecentFilesAtPath });
         }
         if (appId === 'layerling') {
             return window.LayerlingApp.render(contentEl(id), id, Object.assign(officeAppContext(context), {

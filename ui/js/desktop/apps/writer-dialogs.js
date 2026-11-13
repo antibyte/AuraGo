@@ -65,7 +65,30 @@
             const result = editor.addComment(text, app.author);
             if (!result.ok) app.notice(result.reason || tr('select_text'), true);
         }
-        return {table, link, goToPage, wordCount, shortcuts, comment};
+        const draftLabel = entry => {
+            const parts = String(entry.path).split('/'), name = parts.pop();
+            const when = entry.updated ? new Date(entry.updated).toLocaleString(document.documentElement.lang || 'en', {dateStyle: 'medium', timeStyle: 'short'}) : '';
+            return [name, parts.join('/'), when].filter(Boolean).join(' · ');
+        };
+        // The drafts this browser kept because a save failed or the browser closed first. The list
+        // never loads the documents themselves; one draft at a time is restored or deleted.
+        async function drafts() {
+            let list;
+            try { list = (await window.WriterSession.drafts()).filter(entry => entry.path); }
+            catch (_) { app.notice(tr('draft_unavailable'), true); return; }
+            if (!list.length) { await tell(tr('drafts'), [[tr('drafts_none'), '']]); return; }
+            const answer = await ask(tr('drafts'), [{id: 'draft', type: 'select', label: tr('draft_pick'), size: Math.min(8, Math.max(2, list.length)),
+                value: list[0].key, options: list.map(entry => ({value: entry.key, label: draftLabel(entry)}))}],
+                {submitLabel: tr('draft_restore'), extraLabel: tr('delete')});
+            const picked = answer && list.find(entry => entry.key === answer.draft);
+            if (!picked) return;
+            if (!answer.extra) return app.restoreDraft(picked);
+            // deleteIf leaves a draft alone that was written again since the list was read.
+            await window.WriterSession.draft('deleteIf', picked.key, {id: picked.id}).catch(() => {});
+            app.notice(tr('draft_deleted'));
+            return drafts();
+        }
+        return {table, link, goToPage, wordCount, shortcuts, comment, drafts};
     }
     window.WriterDialogs = {create};
 })();
