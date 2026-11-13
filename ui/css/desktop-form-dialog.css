@@ -17,7 +17,7 @@
 .vd-form-dialog h2{margin:0 0 2px;font-size:inherit;font-family:var(--vd-mat-heading-font,inherit);font-weight:var(--vd-mat-heading-weight,900);color:var(--vd-mat-heading-color,inherit)}
 .vd-form-dialog label{display:grid;gap:6px;color:var(--vd-muted,var(--vd-theme-muted,#a7b1c3))}
 .vd-form-dialog label.vd-form-check{display:flex;align-items:center;gap:8px}
-.vd-form-dialog .vd-modal-input{margin:0}
+.vd-form-dialog .vd-modal-input{margin:0;box-sizing:border-box;width:100%;min-width:0}
 .vd-form-dialog select[size].vd-modal-input{height:auto;min-height:0;padding:4px;overflow-y:auto}
 .vd-form-dialog select[size] option{padding:5px 8px;border-radius:4px}
 .vd-form-dialog [role=alert]{margin:0;color:var(--ds-color-danger-fg,#f29a91)}
