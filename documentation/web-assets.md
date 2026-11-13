@@ -60,7 +60,7 @@ to pin its immutable GitHub release download URL. `scripts/make_release.bat` doe
 with its selected tag; `scripts/make_deploy.sh` uses `AURAGO_RELEASE_TAG` when provided.
 Local builds have no download URL. Never substitute a `latest` resource set.
 
-The compressed archive limit is 1 GiB; the expanded set remains limited to
+The compressed archive limit is 1.5 GiB; the expanded set remains limited to
 2 GiB and 20,000 files. The updater installs resources with the staged candidate
 binary, so it applies the matching version's limits before activation.
 The packer uses gzip's default compression level. An oversized archive reports

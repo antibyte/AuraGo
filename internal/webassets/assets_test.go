@@ -33,8 +33,9 @@ func TestArchiveSizeBudgetRejectsBeforeReading(t *testing.T) {
 		{"sticker-sized pack", (512 << 20) + 1, true},
 		{"galaxa expansion pack", (640 << 20) + 1, true},
 		{"above former archive limit", (768 << 20) + 1, true},
-		{"limit", MaxArchiveBytes, true},
-		{"over limit", MaxArchiveBytes + 1, false},
+		{"reported update archive", 1208838924, true},
+		{"limit", 1536 << 20, true},
+		{"over limit", (1536 << 20) + 1, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			pin.Bytes = tc.size

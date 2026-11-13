@@ -84,7 +84,7 @@ Failed optional loads retain the sector scenery and expose a localized Retry.
 
 Each planet uses three four-frame sheets, avoiding one large twelve-frame
 texture. The original PNGs increase download and decoded-image memory. The
-resource archive limit is 768 MiB; expanded resources remain limited to 1 GiB
+resource archive limit is 1.5 GiB; expanded resources remain limited to 2 GiB
 and 20,000 files. See [external web resources](web-assets.md) for the versioned
 package and installation contract. No library, HTTP API or database is added.
 
