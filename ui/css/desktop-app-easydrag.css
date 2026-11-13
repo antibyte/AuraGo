@@ -70,12 +70,42 @@
     --ed-accent-deep: color-mix(in srgb, var(--ed-accent) 55%, black);
     /* focus rings and the keyboard-selected option: the accent drawn as a 2px line must reach 3:1 on every surface, the raw accent does not */
     --ed-focus: color-mix(in srgb, var(--ed-accent) 50%, var(--ed-text));
+    /* W1a tokens. Type scale 24/18/16/14/12/11 (owner decision: card names stay at least 13.8px and parameter lines at least 12px at fit zoom 0.86). Part B moves every font-size onto these six. */
+    --ed-font-title: 24px;
+    --ed-font-head: 18px;
+    --ed-font-card: 16px;
+    --ed-font-body: 14px;
+    --ed-font-meta: 12px;
+    --ed-font-label: 11px;
+    /* radius: --ed-radius (10px, theme-scaled) and --ed-radius-lg (14px, theme-scaled) keep their values. The fixed 12px step is -xl because -lg is taken. */
     --ed-radius: var(--ds-radius-md);
     --ed-radius-lg: var(--ds-radius-lg);
-    --ed-ease: var(--ds-motion-ease-standard);
+    --ed-radius-sm: 4px;
+    --ed-radius-md: 8px;
+    --ed-radius-xl: 12px;
+    --ed-radius-pill: 999px;
+    --ed-space-1: 4px;
+    --ed-space-2: 8px;
+    --ed-space-3: 12px;
+    --ed-space-4: 16px;
+    --ed-space-5: 24px;
+    --ed-space-6: 32px;
+    /* motion: the durations follow the desktop's (Amiga sets them to 0), the old names are aliases */
+    --ed-motion-fast: var(--ds-motion-duration-fast, 120ms);
+    --ed-motion-base: var(--ds-motion-duration-base, 200ms);
+    --ed-motion-slow: calc(var(--ed-motion-base) * 1.6);
+    --ed-ease-out: var(--ds-motion-ease-standard, cubic-bezier(0.2, 0, 0, 1));
+    --ed-ease: var(--ed-ease-out);
     --ed-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-    --ed-fast: var(--ds-motion-duration-fast);
-    --ed-base: var(--ds-motion-duration-base);
+    --ed-fast: var(--ed-motion-fast);
+    --ed-base: var(--ed-motion-base);
+    /* status disc (W1a A). Set by EasyDrag, never by a theme. The grey is a fixed mix of the text and the panel colour; 60% is the
+       smallest step that reaches 3:1 on the canvas, card and well in all 16 contexts. The ring keeps a coloured disc visible where the
+       status colour is too light for the surface. The glyph ink is dark on the four coloured discs and the panel colour on the grey one. */
+    --ed-status-neutral: color-mix(in srgb, var(--ed-text) 60%, var(--ed-panel-strong));
+    --ed-status-neutral-ink: var(--ed-panel-strong);
+    --ed-status-edge: var(--ed-status-neutral);
+    --ed-status-ink: #0b1220;
     --ed-shadow: var(--ds-elevation-2);
     --ed-shadow-lg: var(--ds-elevation-4);
     --ed-glass: color-mix(in srgb, var(--ed-panel-strong) 82%, transparent);
@@ -140,6 +170,7 @@
 /* category tiles, light band (Lollipop, Minimal light): their status colours are dark, so the tiles are light */
 .desktop-body[data-theme="lollipop"] .ed-app,
 .desktop-body[data-theme="minimal"]:not([data-scheme="dark"]) .ed-app {
+    --ed-status-ink: #ffffff;
     --ed-cat-trigger: #ddd9ff;
     --ed-cat-trigger-ink: #3e316d;
     --ed-cat-ai: #f0d1ff;
@@ -717,6 +748,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-status--error::after { content: "!"; position: absolute; inset: 0; display: grid; place-items: center; color: white; font: 800 12px/1 sans-serif; }
 .ed-status--running, .ed-status--queued { background: var(--ed-info); animation: ed-pulse 1s ease-in-out infinite; }
 .ed-status--skipped { background: var(--ed-control); box-shadow: 0 0 0 2px var(--ed-panel-strong), inset 0 0 0 1px var(--ed-border-strong); }
+.ed-status-disc { box-shadow: 0 0 0 1px var(--ed-status-edge); }
 .ed-node.status-running { border-color: var(--ed-info); animation: ed-glow 1.4s ease-in-out infinite; }
 .ed-node.status-success { border-color: color-mix(in srgb, var(--ed-ok) 60%, var(--ed-border)); }
 .ed-node.status-error { border-color: var(--ed-danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ed-danger) 25%, transparent); }
