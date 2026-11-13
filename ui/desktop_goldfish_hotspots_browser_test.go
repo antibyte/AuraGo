@@ -185,8 +185,19 @@ func goldfishWriteEvidence(t *testing.T, path string, value any) {
 }
 
 func goldfishPointerMove(page *rod.Page, point [2]float64) {
-	page.MustElement(".agfish-stage").MustScrollIntoView()
-	position := page.MustEval(`point => { const r = document.querySelector('.agfish-canvas').getBoundingClientRect(); return [r.x + point[0] * r.width, r.y + point[1] * r.height]; }`, point).Arr()
+	position := page.MustEval(`point => {
+        const stage=document.querySelector('.agfish-stage'), canvas=document.querySelector('.agfish-canvas');
+        if(!stage||!canvas) throw new Error('Goldfish stage is missing');
+        let r=canvas.getBoundingClientRect(), x=r.x+point[0]*r.width, y=r.y+point[1]*r.height;
+        if(x<0||y<0||x>=innerWidth||y>=innerHeight){
+            stage.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'});
+            r=canvas.getBoundingClientRect(); x=r.x+point[0]*r.width; y=r.y+point[1]*r.height;
+        }
+        const hit=document.elementFromPoint(x,y);
+        if(r.width<=0||r.height<=0||x<0||y<0||x>=innerWidth||y>=innerHeight||hit?.closest('.agfish-stage')!==stage)
+            throw new Error('Goldfish pointer point is not visible: '+JSON.stringify({x,y,width:r.width,height:r.height,hit:hit?.className||hit?.tagName||''}));
+        return [x,y];
+    }`, point).Arr()
 	page.Mouse.MustMoveTo(position[0].Num(), position[1].Num())
 }
 
@@ -319,8 +330,8 @@ var goldfishHotspotProfiles = []goldfishHotspotProfile{
 
 func goldfishHotspotFixture(t *testing.T) *rod.Page {
 	t.Helper()
-	// Replace the shared fixture's three-minute deadline for the complete action matrix.
-	page := auraDriftFixture(t).CancelTimeout().Timeout(15 * time.Minute)
+	// Give the full action matrix the same 30-minute budget as its Go test.
+	page := auraDriftFixture(t).CancelTimeout().Timeout(30 * time.Minute)
 	t.Cleanup(func() { page.Close() })
 	goldfishManualReading(page)
 	page.MustEval(`async () => { await fixtureOpen('goldfish-adventure'); }`)

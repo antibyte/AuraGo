@@ -119,6 +119,12 @@ approved content and acceptance scope lives in
 - `TestGoldfishAdventureOpeningBrowser` hovers artwork coordinates in R02 and
   solves its document/stamp puzzle with pointer clicks through the exit to R03;
   selector-only clicks cannot verify hotspot placement.
+- `TestGoldfishAdventureHotspotActionsBrowser/r05_check_invoice` opens a
+  reducer-reached R05 save with `customs_clear`, clicks the independently reviewed
+  invoice point with the real pointer, and checks persisted `r07_invoice` and
+  `read_head` effects. Give its shared browser page a 30-minute deadline and run
+  it with `go test -timeout=30m`; failure screenshots and UI diagnostics are
+  best effort so they preserve the original test failure.
 - The hotspot suite covers all 16 rooms, four viewport/window/DPR/theme profiles,
   reachable actor/layer/exit/route/ending variants, all actions, and completion
   and skipping of all 14 cinematics. It belongs to the existing General CI shard.
