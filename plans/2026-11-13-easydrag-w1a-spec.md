@@ -1,6 +1,6 @@
 # EasyDrag W1a "Foundations": design spec
 
-- **Status:** design spec, 2026-11-13. The owner approved the design in the brainstorming session on 2026-11-12/13. Implementation plan: `plans/2026-11-13-easydrag-w1a/` (to follow).
+- **Status:** design spec, 2026-11-13. The owner approved the design in the brainstorming session on 2026-11-12/13. Implementation plan: [`plans/2026-11-13-easydrag-w1a/README.md`](2026-11-13-easydrag-w1a/README.md). Its "Amendments found while planning" take precedence until they are copied in here.
 - **Roadmap:** `plans/2026-11-09-easydrag-next-roadmap.md`:
   - §6, Wave 1 "Readable and honest" (lines 1412-1434);
   - E2 "One visual language" (lines 350-416);
@@ -135,8 +135,10 @@ The plan re-runs the survey grep first and adds any surface it missed.
 ### 3.4 Tokens
 
 New token families at the top of `ui/css/desktop-app-easydrag.css`:
-- **Type:** `--ed-font-title` 24px, `--ed-font-head` 18px, `--ed-font-card` 15px, `--ed-font-body` 13px, `--ed-font-meta` 12px, `--ed-font-label` 11px. Part B moves every declaration onto them (§4.1).
-- **Radius:** `--ed-radius-sm` 4px, `--ed-radius-md` 8px, `--ed-radius-lg` 12px, `--ed-radius-pill` 999px. Today's `--ed-radius` and `--ed-radius-lg` become aliases, so nothing changes visually in Part A.
+- **Type:** `--ed-font-title` 24px, `--ed-font-head` 18px, `--ed-font-card` 16px, `--ed-font-body` 14px, `--ed-font-meta` 12px, `--ed-font-label` 11px. Part B moves every declaration onto them (§4.1). The owner first approved 15 and 13 for card and body. Planning found that principle 1 needs card names at 13.8px or more and parameter lines at 12px or more at fit zoom 0.86, so the owner chose 16 and 14 on 2026-11-13.
+- **Radius:** `--ed-radius-sm` 4px, `--ed-radius-md` 8px, `--ed-radius-xl` 12px, `--ed-radius-pill` 999px.
+  - Today's `--ed-radius` (10px) and `--ed-radius-lg` (14px, 16px in Fruity) keep their values, so nothing changes visually in Part A.
+  - The 12px token is therefore named `-xl` (found while planning).
 - **Space:** `--ed-space-1` to `--ed-space-6`: 4, 8, 12, 16, 24 and 32px. New code uses them; old declarations are not migrated in W1a.
 - **Motion:** `--ed-motion-fast` 120ms, `--ed-motion-base` 200ms, `--ed-motion-slow` 320ms, `--ed-ease-out`. Today's `--ed-fast`, `--ed-base` and `--ed-ease` become aliases.
 - **Status:** `--ed-status-neutral` (§3.1).
@@ -168,12 +170,13 @@ Themes set none of these (E2 guardrail: themes set materials only).
 - Mapping:
   - 10 and 11px go to label (11). A label that sits on the canvas goes to meta (12), because of principle 1;
   - 12 goes to meta;
-  - 12.5, 13 and body-text 14 go to body (13);
-  - heading 14, 15 and 16 go to card (15);
+  - 12.5, 13 and 14 go to body (14), and so do summaries and parameter lines;
+  - card names and canvas titles, heading 14, 15 and 16 go to card (16), and so do the 16px touch input rules, so iOS does not zoom into a field;
   - 17 and 20 go to head (18);
   - 24 goes to title.
 - The plan decides each declaration by its use and records the ones that move by more than 1px.
 - **Text on the canvas is never below 12px at 100% zoom** (principle 1).
+- **At fit zoom 0.86, card names stay at 13.76px or more and summaries at 12.04px or more**, so the thresholds of `TestDesktopEasyDragLegibilityBrowser` stay unchanged.
 - Layout shifts are expected. The render baseline and the browser layout tests are updated where only the font size changed.
 
 ### 4.2 Radius and colour ratchets
