@@ -717,7 +717,8 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 }
 .ed-node:hover { border-color: var(--ed-border-strong); box-shadow: var(--vd-mat-card-shadow, 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 10px 26px rgba(0, 0, 0, 0.24)); }
 .ed-node.is-trigger { border-radius: 30px 14px 14px 30px; }
-.ed-node.is-disabled { opacity: 0.55; background-image: repeating-linear-gradient(135deg, transparent 0 8px, color-mix(in srgb, var(--ed-text) 6%, transparent) 8px 10px); }
+.ed-node.is-disabled { border-style: dashed; background-image: repeating-linear-gradient(135deg, transparent 0 8px, color-mix(in srgb, var(--ed-text) 6%, transparent) 8px 10px); }
+.ed-node.is-disabled > :not(.ed-node-badges) { opacity: 0.55; }
 .ed-node.is-disabled .ed-node-label { text-decoration: line-through; text-decoration-color: var(--ed-muted); }
 .ed-node.is-unavailable .ed-node-tile { filter: grayscale(0.8); }
 .ed-node.is-new { animation: ed-pop 360ms var(--ed-ease-spring) both; }
@@ -747,11 +748,16 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-status-label { display: inline-flex; align-items: center; gap: var(--ed-space-2); vertical-align: middle; }
 .ed-status-word { color: var(--ed-text); }
 .ed-node-badges .ed-status-disc { box-shadow: 0 0 0 2px var(--ed-panel-strong), 0 0 0 3px var(--ed-status-edge); }
+/* a step that ran in a simulation is grey on its disc, so its card ring is neutral too (selection and hover keep their own border) */
+.ed-node.status-success:not(.is-selected):not(:hover):has(.ed-status-disc[data-status="simulated"]) { border-color: var(--ed-border); }
+/* end status map */
 .ed-last-mark { display: inline-flex; }
 .ed-node.status-running { border-color: var(--ed-info); animation: ed-glow 1.4s ease-in-out infinite; }
 .ed-node.status-success { border-color: color-mix(in srgb, var(--ed-ok) 60%, var(--ed-border)); }
 .ed-node.status-error { border-color: var(--ed-danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ed-danger) 25%, transparent); }
-.ed-node.status-skipped { opacity: 0.55; }
+.ed-node.status-skipped { border-style: dashed; }
+/* fade the content, not the badges: the status disc sits half over the card edge and must keep its contrast */
+.ed-node.status-skipped > :not(.ed-node-badges) { opacity: 0.55; }
 /* selection comes after the status rules, so a selected step that ran still shows it. --ed-focus reaches 3:1 on light and
    dark cards; the raw accent does not on light ones, and its 30% ring alone was faint there. */
 .ed-node.is-selected {
@@ -1580,9 +1586,11 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     .ed-flow-preview .ed-mini-empty { stroke: GrayText; }
 
     /* status discs are told apart by glyph, fill and ring, not by hue */
+    /* status map (W1a A, forced colours) */
     .ed-status-disc { background-color: Canvas; color: CanvasText; outline: 2px solid CanvasText; outline-offset: -2px; box-shadow: none; }
     .ed-status-disc[data-status="running"], .ed-status-disc[data-status="waiting"] { color: Highlight; outline-color: Highlight; }
     .ed-status-disc[data-status="skipped"], .ed-status-disc[data-status="paused"], .ed-status-disc[data-status="simulated"], .ed-status-disc[data-status="not_run"], .ed-status-disc[data-status="cancelled"] { color: GrayText; outline-color: GrayText; }
+    /* end status map */
 
     /* switch: the track fills with Highlight when on, the knob also moves */
     .ed-switch { outline: 2px solid ButtonText; outline-offset: -2px; background-color: ButtonFace; }
