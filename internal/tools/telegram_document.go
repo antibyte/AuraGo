@@ -104,15 +104,16 @@ func SendTelegramFile(ctx context.Context, cfg *config.Config, logger *slog.Logg
 		return encode(map[string]any{"status": "error", "message": err.Error(),
 			"results": []map[string]string{{"channel": "telegram", "status": "error", "detail": err.Error()}}})
 	}
-	finish, skipped, err := beginMailNotification(nativeHTTPContext(ctx), "telegram", "normal")
+	ctx = nativeHTTPContext(ctx)
+	skipped, reason, err := checkMailNotification(ctx, "telegram", "normal")
 	if err != nil {
 		return fail(err)
 	}
 	if skipped {
-		return encode(map[string]any{"status": "success", "results": []map[string]string{{"channel": "telegram", "status": "skipped", "detail": "mail attachments require explicit relay instructions"}}})
+		return encode(map[string]any{"status": "success", "results": []map[string]string{{"channel": "telegram", "status": "skipped", "detail": reason}}})
 	}
-	if finish != nil {
-		defer finish(false)
+	if cfg != nil && cfg.Telegram.ReadOnly {
+		return fail(errors.New("telegram is in read-only mode"))
 	}
 	if _, _, err := telegramDocumentTarget(cfg); err != nil {
 		return fail(err)
@@ -125,15 +126,27 @@ func SendTelegramFile(ctx context.Context, cfg *config.Config, logger *slog.Logg
 	if _, err := telegramDocumentSize(f); err != nil {
 		return fail(err)
 	}
+	finish, skipped, err := beginMailNotification(ctx, "telegram", "normal")
+	if err != nil {
+		return fail(err)
+	}
+	if skipped {
+		return encode(map[string]any{"status": "success", "results": []map[string]string{{"channel": "telegram", "status": "skipped", "detail": "mail notification already delivered on this channel"}}})
+	}
+	if finish != nil {
+		defer finish(false)
+	}
+	ctx = observeMailNotification(ctx, "telegram")
 	name := telegramDocumentName(filepath.Base(path))
 	caption := strings.TrimSpace(strings.TrimSpace(title) + "\n" + strings.TrimSpace(message))
 	if utf16Units(caption) > telegramMaxCaptionUnits {
 		if err := ctx.Err(); err != nil {
 			return fail(err)
 		}
-		if err := sendTelegramFileText(cfg, logger, title, message); err != nil {
+		if err := sendTelegramFileText(cfg, logger, title, message, ctx); err != nil {
 			return fail(err)
 		}
+		markMailNotificationAccepted(ctx)
 		caption, textSent = "", true
 	}
 	if err := sendTelegramDocumentFile(ctx, cfg, f, name, caption); err != nil {
@@ -235,7 +248,12 @@ func sendTelegramDocumentFile(ctx context.Context, cfg *config.Config, f *os.Fil
 		return telegramRequestError(err, token)
 	}
 	defer resp.Body.Close()
-	return checkTelegramReply(resp, token, "document")
+	err = checkTelegramReply(resp, token, "document")
+	var statusErr *telegramStatusError
+	if errors.As(err, &statusErr) && statusErr.status >= 400 && statusErr.status < 500 && statusErr.status != http.StatusRequestTimeout {
+		markMailNotificationRejected(ctx)
+	}
+	return err
 }
 
 // writeTelegramDocumentForm writes the sendDocument form with exactly size bytes of content.
@@ -365,7 +383,7 @@ func telegramReplyError(prefix, detail, token string) error {
 // the heading, the line break and the text that sendTelegramNotification joins, but not its
 // escapes or bold markers. A heading over a caption's length is cut to it, and the text is
 // cut to what is left, so a long text cannot keep the document from being sent.
-func sendTelegramFileText(cfg *config.Config, logger *slog.Logger, title, message string) error {
+func sendTelegramFileText(cfg *config.Config, logger *slog.Logger, title, message string, contexts ...context.Context) error {
 	if strings.TrimSpace(message) == "" {
 		title, message = "", title
 	}
@@ -374,31 +392,7 @@ func sendTelegramFileText(cfg *config.Config, logger *slog.Logger, title, messag
 	}
 	title = truncateUTF16Units(title, telegramMaxCaptionUnits)
 	message = truncateUTF16Units(message, telegramMaxMessageUnits-utf16Units(title)-1)
-	out := SendNotification(cfg, logger, string(ChannelTelegram), title, message, "normal", nil)
-	var res struct {
-		Status  string `json:"status"`
-		Message string `json:"message"`
-		Results []struct {
-			Status string `json:"status"`
-			Detail string `json:"detail"`
-		} `json:"results"`
-	}
-	if err := json.Unmarshal([]byte(out), &res); err != nil {
-		return errors.New("the text message could not be sent")
-	}
-	detail := res.Message
-	for _, r := range res.Results {
-		if res.Status == "success" && r.Status == "sent" {
-			return nil
-		}
-		if detail == "" {
-			detail = r.Detail
-		}
-	}
-	if strings.TrimSpace(detail) == "" {
-		return errors.New("the text message could not be sent")
-	}
-	return fmt.Errorf("the text message could not be sent: %s", telegramErrorText(detail, cfg.Telegram.BotToken))
+	return sendTelegramNotification(cfg, title, message, nativeHTTPContext(contexts...))
 }
 
 // telegramDocumentName is the base name a document is uploaded under. Control characters

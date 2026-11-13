@@ -178,6 +178,9 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 
 ## Shared runtime contracts
 
+- Web Push `Manager.SendPush` calls its optional before-send observers only after local credential/database checks, immediately before each provider attempt. The mail receipt observer must not classify a local preparation failure as a possible send; ordinary callers retain their existing API. Notification receipt ownership and operator recovery: `internal/tools/AGENTS.md` and `documentation/mail-notification-receipts.md`.
+
+
 - Shutdown signals and the egg master's stop command use one idempotent request. Notify server cancellation before blocking cleanup; drain the server and agent side effects before killing remaining processes or closing shared LLM/site-monitor resources. Signal handlers never close cron/background stores.
 - `internal/agent/agent_loop.go`: receive → LLM native function calling → tool dispatch/execution → SSE response → recovery/retry.
 - One HTTP server, SSE, REST `/api/`; verified external full UI, embedded recovery/login. Fresh installs use local self-signed HTTPS: native 443 or 8443, Docker 8443; upgrades preserve HTTP/TLS. See `internal/server/AGENTS.md`, `documentation/https.md`.

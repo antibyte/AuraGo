@@ -314,6 +314,9 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, runCfg RunConfig, stream bool, broker FeedbackBroker) (response openai.ChatCompletionResponse, retErr error) {
 	ctx = budget.WithTracking(ctx, runCfg.BudgetTracker, "agent")
 	defer recoverAgentRuntime(ctx, runCfg.Logger, &retErr)
+	if tools.IsMailNotificationContext(ctx) {
+		defer ResetInnerVoiceSession(runCfg.SessionID)
+	}
 	if runCfg.ShortTermMem != nil {
 		var release func()
 		var err error

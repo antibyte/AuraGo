@@ -1325,3 +1325,7 @@ None.
   Verify `TestHomepageLedgerReconcilerRetainsUnavailableAndRemoteOnlySites`.
 - Site detail includes provenance, pinned local locations and events. The sites/{id}/events endpoint provides bounded incremental reads without changing existing envelopes.
 - Targets retain account/environment identity and active/inactive/unknown state. Closing temporary publication ends its target; development and Caddy lifecycles remain separate.
+
+### Mail receipt administration
+
+- `/api/mail-notifications/receipts` and its `/{id}/resolve` route require administrator authority and central bearer-path classification. Browser mutations require the existing strict same-origin CSRF check. GET returns only metadata, a maximum of 50 entries, channel occupancy/filter and an opaque cursor, with `no-store`. POST accepts only revision and sent/not_sent; active or stale revisions conflict. Never return database errors, messages, recipients or provider failures. Resolution never sends; clients reconcile lost responses by reading. Verify `TestMailReceiptsAdminAPI`; storage owns atomic state in `../tools`.
