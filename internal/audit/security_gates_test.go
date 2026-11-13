@@ -77,3 +77,33 @@ func TestGoSecurityChecksRunIndependently(t *testing.T) {
 		seen[id] = true
 	}
 }
+
+func TestReviewGatesCheckoutExactHead(t *testing.T) {
+	for _, name := range []string{"security-gates.yml", "web-assets.yml", "training-dataset.yml", "cyd-builder.yml", "rtl-sdr.yml"} {
+		var workflow struct {
+			Jobs map[string]struct {
+				Steps []struct {
+					Uses string            `yaml:"uses"`
+					With map[string]string `yaml:"with"`
+				} `yaml:"steps"`
+			} `yaml:"jobs"`
+		}
+		if err := yaml.Unmarshal([]byte(readRepoFile(t, ".github/workflows/"+name)), &workflow); err != nil {
+			t.Fatal(err)
+		}
+		checkouts := 0
+		for _, job := range workflow.Jobs {
+			for _, step := range job.Steps {
+				if strings.HasPrefix(step.Uses, "actions/checkout@") && step.With["repository"] == "" {
+					checkouts++
+					if step.With["ref"] != "${{ github.event.pull_request.head.sha || github.sha }}" {
+						t.Errorf("%s checks out a merge ref instead of the reviewed head", name)
+					}
+				}
+			}
+		}
+		if checkouts == 0 {
+			t.Errorf("%s has no reviewed source checkout", name)
+		}
+	}
+}
