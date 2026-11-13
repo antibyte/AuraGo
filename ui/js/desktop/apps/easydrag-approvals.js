@@ -124,7 +124,7 @@
             const list = op.dialog.body.querySelector('[data-ed-approval-list]');
             list.innerHTML = op.items.map((item, index) => '<article class="ed-approval-card">' +
                 '<div class="ed-approval-card__top"><strong>' + esc(item.flow_name) + '</strong><span class="ed-approval-state ed-approval-state--' + esc(item.state) + '">' + esc(t(stateKey(item.state))) + '</span></div>' +
-                '<dl class="ed-approval-meta"><dt>' + esc(t('easydrag.ui.approval_revision')) + '</dt><dd>' + esc(String(item.revision)) + '</dd>' +
+                '<dl class="ed-approval-meta"><dt>' + esc(t('easydrag.ui.approval_revision')) + '</dt><dd>' + esc('v' + item.revision) + '</dd>' +
                 '<dt>' + esc(t('easydrag.ui.approval_node')) + '</dt><dd>' + esc(item.node_label || item.node_key) + '</dd>' +
                 '<dt>' + esc(t('easydrag.ui.approval_created')) + '</dt><dd>' + esc(dateLabel(t, item.created_at)) + '</dd>' +
                 '<dt>' + esc(t('easydrag.ui.approval_expires')) + '</dt><dd>' + esc(dateLabel(t, item.expires_at)) + '</dd></dl>' +
@@ -266,7 +266,7 @@
         if (item) {
             const stateLabel = t(stateKey(item.state));
             markup += '<section class="ed-approval-summary"><div class="ed-approval-card__top"><h3>' + esc(item.flow_name) + '</h3><span class="ed-approval-state ed-approval-state--' + esc(item.state) + '">' + esc(stateLabel) + '</span></div>' +
-                '<dl class="ed-approval-meta"><dt>' + esc(t('easydrag.ui.approval_revision')) + '</dt><dd>' + esc(String(item.revision)) + '</dd>' +
+                '<dl class="ed-approval-meta"><dt>' + esc(t('easydrag.ui.approval_revision')) + '</dt><dd>' + esc('v' + item.revision) + '</dd>' +
                 '<dt>' + esc(t('easydrag.ui.approval_node')) + '</dt><dd>' + esc(item.node_label || item.node_key) + '</dd>' +
                 '<dt>' + esc(t('easydrag.ui.approval_created')) + '</dt><dd>' + esc(dateLabel(t, item.created_at)) + '</dd>' +
                 '<dt>' + esc(t('easydrag.ui.approval_expires')) + '</dt><dd>' + esc(dateLabel(t, item.expires_at)) + '</dd></dl></section>';
