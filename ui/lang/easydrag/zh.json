@@ -954,6 +954,7 @@
   "easydrag.ui.versions_stats_one": "1 个步骤 · {edges} 条连接",
   "easydrag.ui.versions_stats_edge_one": "{nodes} 个步骤 · 1 条连接",
   "easydrag.ui.versions_title": "版本历史",
+  "easydrag.ui.versions_connections": "{count} 条连接",
   "easydrag.ui.versions_unsaved": "草稿未能保存，因此暂时无法恢复任何版本。请修复草稿中的问题，或等待 AuraGo 重新连上后再试。",
   "easydrag.ui.view_json": "JSON",
   "easydrag.ui.view_table": "表格",

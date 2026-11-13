@@ -30,14 +30,8 @@ assert.equal(F.locale(), 'en', 'without a language the locale is en');
 const KEY = 'easydrag.ui.group_member_count';
 const render = (lang, n) => { win.SYSTEM_LANG = lang; return F.plural(hostT(lang), KEY, n); };
 assert.deepEqual([1, 2, 5, 22].map(n => render('de', n)), ['1 Schritt', '2 Schritte', '5 Schritte', '22 Schritte'], 'de');
-// cs and pl through stub dictionaries here; C.3a replaces them by the real locale files
-const stubT = dict => (key, vars) => { let s = dict[key] || key; if (vars) Object.entries(vars).forEach(([a, b]) => { s = s.replaceAll('{' + a + '}', () => b); }); return s; };
-win.SYSTEM_LANG = 'cs';
-const csT = stubT({ k: '{count} kroků', k_one: '1 krok', k_few: '{count} kroky' });
-assert.deepEqual([1, 2, 5, 22].map(n => F.plural(csT, 'k', n)), ['1 krok', '2 kroky', '5 kroků', '22 kroků'], 'cs: one, few, other');
-win.SYSTEM_LANG = 'pl';
-const plT = stubT({ k: '{count} kroku', k_one: '1 krok', k_few: '{count} kroki', k_many: '{count} kroków' });
-assert.deepEqual([1, 2, 5, 22].map(n => F.plural(plT, 'k', n)), ['1 krok', '2 kroki', '5 kroków', '22 kroki'], 'pl: one, few, many, few');
+assert.deepEqual([1, 2, 5, 22].map(n => render('cs', n)), ['1 krok', '2 kroky', '5 kroků', '22 kroků'], 'cs: one, few, other');
+assert.deepEqual([1, 2, 5, 22].map(n => render('pl', n)), ['1 krok', '2 kroki', '5 kroków', '22 kroki'], 'pl: one, few, many, few');
 assert.deepEqual([1, 2, 5].map(n => render('en', n)), ['1 step', '2 steps', '5 steps'], 'en');
 assert.equal(render('ja', 1), '1 ステップ', 'ja has one form');
 

@@ -954,6 +954,7 @@
   "easydrag.ui.versions_stats_one": "1 ステップ · {edges} 接続",
   "easydrag.ui.versions_stats_edge_one": "{nodes} ステップ · 1 接続",
   "easydrag.ui.versions_title": "バージョン履歴",
+  "easydrag.ui.versions_connections": "{count} 接続",
   "easydrag.ui.versions_unsaved": "下書きを保存できなかったため、まだバージョンを復元できません。下書きの問題を修正するか、AuraGo に再び接続できるまでお待ちください。",
   "easydrag.ui.view_json": "JSON",
   "easydrag.ui.view_table": "表",
