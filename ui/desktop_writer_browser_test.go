@@ -595,7 +595,7 @@ func TestDesktopWriterAppBrowserFileOps(t *testing.T) {
 <link rel="stylesheet" href="/js/vendor/writer/engine.css"><link rel="stylesheet" href="/css/desktop-app-writer.css">
 <style>html,body{margin:0;height:100%;font-family:system-ui}#host{height:100%}</style></head><body class="desktop-body"><div id="host"></div>
 <script src="/js/vendor/purify.min.js"></script><script src="/js/vendor/marked.min.js"></script><script src="/js/desktop/apps/writer-session.js"></script><script src="/js/desktop/apps/writer-commands.js"></script><script src="/js/desktop/shared/form-dialog.js"></script><script src="/js/desktop/apps/writer-toolbar.js"></script><script src="/js/desktop/apps/writer-dialogs.js"></script><script src="/js/desktop/apps/writer-menus.js"></script><script src="/js/desktop/apps/writer-context.js"></script><script src="/js/desktop/apps/writer-panels.js"></script><script src="/js/desktop/apps/writer.js"></script>
-<script>window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/en.json')).json();window.writerContext={t:(key,params)=>String(labels[key]||key).replace(/\{\{(\w+)\}\}/g,(_,x)=>params?.[x]??''),promptDialog:async(title,value)=>window.promptAnswer??value,confirmDialog:async()=>window.confirmAnswer!==false,setWindowBeforeClose:()=>{},setWindowMenus:()=>{},saveFileDialog:async()=>({path:window.saveTarget}),openFileDialog:async()=>({path:'Documents/other.docx'})};WriterApp.render(document.getElementById('host'),'test',writerContext);})();</script></body></html>`)
+<script>window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/en.json')).json();window.writerContext={t:(key,params)=>String(labels[key]||key).replace(/\{\{(\w+)\}\}/g,(_,x)=>params?.[x]??''),promptDialog:async(title,value)=>window.promptAnswer??value,confirmDialog:async()=>window.confirmAnswer!==false,setWindowBeforeClose:()=>{},setWindowMenus:(id,menus)=>window.menus=menus,recentFiles:()=>window.recent||[],recordRecentFile:(path,appId)=>{window.recent=[{path,appId},...(window.recent||[]).filter(entry=>entry.path!==path)];},forgetRecentFile:path=>{window.recent=(window.recent||[]).filter(entry=>entry.path!==path);},saveFileDialog:async()=>({path:window.saveTarget}),openFileDialog:async()=>({path:'Documents/other.docx'})};WriterApp.render(document.getElementById('host'),'test',writerContext);})();</script></body></html>`)
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -683,4 +683,5 @@ func TestDesktopWriterAppBrowserFileOps(t *testing.T) {
         if(!notice().hidden && (notice().dataset.kind==='conflict' || notice().dataset.kind==='save'))throw Error('success left '+notice().dataset.kind);
         if(app.path===original)throw Error('file ops stayed on the generated path');
     }`)
+	verifyWriterRecent(t, page)
 }
