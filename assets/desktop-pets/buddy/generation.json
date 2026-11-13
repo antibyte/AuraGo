@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "character": "Buddy",
+  "date": "2026-11-13",
+  "original_pet_id": "aurago-puppy",
+  "pet_id": "aurago-puppy-3d",
+  "reference_generator": "Built-in ImageGen",
+  "reference_sha256": "c45d21ca417433657d97a2c2ae9a1890ea21353d151c14363322ad136bd9387f",
+  "original_sprite_sha256": "70e9aec1c6359e1b0f147fbb8ffd8a5f6cbbb8540da8fad7f99fcf57fda1bf9c",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "0e74bfbdf2112c9afcc7ed34058eee7c1bf10fbde57fb21ca7d490309dea0e0b",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "quadruped",
+  "category": "mascot",
+  "retained_sources": {
+    "varco-rigged.glb": {
+      "bytes": 20939336,
+      "sha256": "e640db10e477a5053568fbd4d0ae88798ea80b2127eb3f3d57feb3e66acafcbe"
+    },
+    "source.blend": {
+      "bytes": 20930250,
+      "sha256": "912116cf1025fc0b18577b51f50197becda81d5955f9d5a7603f6ff723f6d19e"
+    },
+    "rig.json": {
+      "bytes": 8943,
+      "sha256": "7938688e0d3cde6b207148a696cc3b05afd742f845b5e677cae46ffbb9ced1c1"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b3de79a2-5345-40fe-8a81-1f29b30f3561",
+    "model_node_id": "f2638a1c-8e20-45a7-88ed-bfd846320089",
+    "rig_node_id": "aed6859e-39f9-4cb9-b22b-164c9b976595",
+    "mesh_task_id": "c52aaa43-f5b2-41d8-b481-08fbaa31ed49",
+    "rig_task_id": "73443da0-ebd8-4d51-96b4-bb453c967d43",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "quadruped"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Native VARCO quadruped weights preserved in Blender",
+  "runtime": {
+    "pet_id": "aurago-puppy-3d",
+    "folder": "ui/3d/pets/buddy",
+    "triangles": 50000,
+    "joints": 29,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Original anatomical procedural gestures (GPL-3.0-only)",
+    "model_sha256": "3ed2b4e1d53603fda82f63cea499d934222bc79fedec3c477f1cc765951e892f",
+    "motions_sha256": "2206b2a709e66167d7943782678ffc43dfdc03e6cdcc4bd0669b6ee5b0ef1b58"
+  }
+}

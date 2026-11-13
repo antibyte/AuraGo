@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "character": "Manager",
+  "date": "2026-11-13",
+  "original_pet_id": "aurago-professional",
+  "pet_id": "aurago-professional-3d",
+  "reference_generator": "Built-in ImageGen",
+  "reference_sha256": "47111ab1fcc17db761068718023650a328ce066807c45372716f299c882d469d",
+  "original_sprite_sha256": "515e9505d621417e942ed04bc2faa8d706f10d51ca6b8b1b75ad70a0ab706e38",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "13a88d383cc1051a4a62321f9eaff56de7d35278abcfd1e2f43441f6d4df4b99",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "humanoid",
+  "category": "persona",
+  "retained_sources": {
+    "varco-rigged.glb": {
+      "bytes": 19115468,
+      "sha256": "30fae5023aae8e356c6d844739e5b19ff35d14f69c83b5ec082f9d83bdf5df63"
+    },
+    "source.blend": {
+      "bytes": 18637774,
+      "sha256": "a736c23a2ef96242726d83b017cf0d6de1312ae857cdb9540ac7fce9de2e29fb"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b98833b3-f6fd-483a-84c3-588c1d487149",
+    "model_node_id": "9968acfb-9b0d-4dd9-ba36-042abefdabca",
+    "rig_node_id": "f259da8c-444d-4b59-954f-456999982c36",
+    "mesh_task_id": "e9261ce7-4f33-49a2-8d9a-e93119eeffc8",
+    "rig_task_id": "82ecdbe8-5b8d-4338-99eb-95094406647f",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "humanoid-fingers"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Blender T-bind with retained VARCO finger weights",
+  "runtime": {
+    "pet_id": "aurago-professional-3d",
+    "folder": "ui/3d/pets/manager",
+    "triangles": 50000,
+    "joints": 53,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Pinned Mesh2Motion movements (CC0)",
+    "model_sha256": "515417f838cf386fa4a97cf6f167b4c0c25cc250730f31bf78f03172bdc5414f",
+    "motions_sha256": "186cffe7fe995e8bce1bb2e34df989b13189ca240335f842a2fbaecfcd7601ee"
+  }
+}

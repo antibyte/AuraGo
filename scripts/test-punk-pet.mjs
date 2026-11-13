@@ -21,7 +21,17 @@ doc.nodes.forEach((n,i)=>(n.children||[]).forEach(c=>parents.set(c,i)));
 assert.equal([...jointSet].filter(i=>!jointSet.has(parents.get(i))).length,1,'All limbs and fingers must share the body root');
 const indexByName=new Map(doc.nodes.map((n,i)=>[n.name,i]));
 if(humanoid)assert.equal(parents.get(indexByName.get('DEF-thumb.01.L')),indexByName.get('DEF-hand.L'));
-else assert.ok(indexByName.has(kind==='dinosaur'?'Tail.04':'TentacleTip'),'Creature must retain its anatomical tip');
+else {
+    const required=['DEF-spine','DEF-spine.003','DEF-spine.006'];
+    if(kind==='dinosaur')required.push('Tail.04');
+    if(['tentacle','blob'].includes(kind))required.push('TentacleTip');
+    if(['bird','bird-tail'].includes(kind))required.push('Tail.03','DEF-foot.L','DEF-foot.R');
+    if(kind==='bird-tail')for(let i=1;i<=7;i++)required.push('Fan.'+String(i).padStart(2,'0'));
+    if(kind==='tracked')required.push('Tread.L','Tread.R');
+    if(kind==='quadruped')required.push('DEF-root','DEF-hand.L','DEF-hand.R','DEF-foot.L','DEF-foot.R','Tail.03');
+    if(kind==='spider')for(const side of ['L','R'])for(let i=2;i<=4;i++)required.push('Leg.'+String(i).padStart(2,'0')+'.tip.'+side);
+    for(const name of required)assert.ok(indexByName.has(name),'Missing anatomical joint '+name);
+}
 const binary=model.subarray(28+length);
 if(pet==='punk'){
 const eyes=doc.nodes[indexByName.get('PunkPersona_Eyes')];
@@ -40,16 +50,33 @@ function eyeWidth(material,side){
 for(const side of [-1,1]){const ratio=eyeWidth('Eye iris',side)/eyeWidth('Eye sclera',side);assert.ok(ratio>.58&&ratio<.68,'Reference-sized irises must leave restrained sclera');}
 }
 for(const node of doc.nodes.filter(n=>n.skin!==undefined))for(const primitive of doc.meshes[node.mesh].primitives){const a=doc.accessors[primitive.attributes.WEIGHTS_0],v=doc.bufferViews[a.bufferView];assert.equal(a.type,'VEC4');assert.equal(a.componentType,5126);for(let i=0;i<a.count;i++){const offset=(v.byteOffset||0)+(a.byteOffset||0)+i*(v.byteStride||16);let sum=0;for(let j=0;j<4;j++)sum+=binary.readFloatLE(offset+j*4);assert.ok(Math.abs(sum-1)<.0001);}}
-if(pet==='zombert'){
-    const primitive=doc.meshes[0].primitives[0],head=doc.skins[0].joints.indexOf(indexByName.get('DEF-spine.006'));
+if(['zombert','snoopy','hana'].includes(pet)||['bird','bird-tail','clip','spider','blob','tracked'].includes(kind)){
+    const head=doc.skins[0].joints.indexOf(indexByName.get('DEF-spine.006'));
+    const modelHeight=Math.max(...doc.meshes[0].primitives.map(p=>doc.accessors[p.attributes.POSITION].max[1]));
+    for(const primitive of doc.meshes[0].primitives){
     const position=doc.accessors[primitive.attributes.POSITION],joints=doc.accessors[primitive.attributes.JOINTS_0],weights=doc.accessors[primitive.attributes.WEIGHTS_0];
     const offset=(a,i,size)=>(doc.bufferViews[a.bufferView].byteOffset||0)+(a.byteOffset||0)+i*(doc.bufferViews[a.bufferView].byteStride||size);
     assert.equal(joints.componentType,5121);
-    for(let i=0;i<position.count;i++)if(Math.abs(binary.readFloatLE(offset(position,i,12)))>.6)for(let j=0;j<4;j++){
-        assert.ok(binary.readUInt8(offset(joints,i,4)+j)!==head||binary.readFloatLE(offset(weights,i,16)+j*4)<.00001,'Raised fingertips must not be bound to the skull');
+    for(let i=0;i<position.count;i++){
+        const x=binary.readFloatLE(offset(position,i,12)),y=binary.readFloatLE(offset(position,i,12)+4);
+        let headWeight=0;
+        for(let j=0;j<4;j++)if(binary.readUInt8(offset(joints,i,4)+j)===head)headWeight+=binary.readFloatLE(offset(weights,i,16)+j*4);
+        const depth=binary.readFloatLE(offset(position,i,12)+8);
+        if(['zombert','snoopy'].includes(pet)&&Math.abs(x)>.6&&(pet==='zombert'||(y>.82&&y<1&&Math.abs(depth)<.06)))assert.ok(headWeight<.00001,'Raised fingertips must not be bound to the skull');
+        if(pet==='snoopy'&&y>1.2)assert.ok(headWeight>.999,'The upper skull and long ears must not follow the arms');
+        if(pet==='hana'&&Math.abs(x)>.65&&y>.8&&y<1.2)assert.ok(headWeight<.00001,'The hair repair must not capture raised hands');
+        if(pet==='hana'&&y>1.4)assert.ok(headWeight>.999,'Hair and its supporting skull must follow the head');
+        if(pet==='hana'&&y>.75&&y<.9&&Math.abs(x)<.2&&depth>.05)assert.ok(headWeight<.001,'The cyan skirt must remain independent of the hair');
+        if(pet==='hana'&&y>.9&&y<1.1&&Math.abs(x)<.2&&depth>.05)assert.ok(headWeight<.1,'The cardigan must remain independent of the hair');
+        if(['bird','clip'].includes(kind)&&y>position.max[1]*.62)assert.ok(headWeight>.999,'Eyes and their supporting head surface must move rigidly together');
+        if(['bird-tail','spider'].includes(kind)&&y>position.max[1]*.62&&depth>(position.max[2]-position.min[2])*.1)assert.ok(headWeight>.999,'The face must stay rigid while the rear anatomy moves');
+        if(kind==='blob'&&y>position.max[1]*.4&&y<position.max[1]*.75&&Math.abs(x)<(position.max[0]-position.min[0])*.25&&depth>0)assert.ok(headWeight>.999,'The slime face must remain together while the base wobbles');
+        if(kind==='tracked'&&y>modelHeight*.8)assert.ok(headWeight>.999,'Camera lenses and their supporting housing must remain rigid');
+    }
     }
 }
-for(const image of doc.images){const view=doc.bufferViews[image.bufferView],bytes=binary.subarray(view.byteOffset,view.byteOffset+view.byteLength);assert.equal(bytes.toString('ascii',1,4),'PNG');assert.ok(bytes.readUInt32BE(16)<=1024&&bytes.readUInt32BE(20)<=1024,'Runtime textures must actually be resized');}
+if(pet==='wall-e')assert.ok(doc.meshes[0].primitives[0].attributes.COLOR_0!==undefined,'The mechanical reconstruction must retain its vertex colors');
+for(const image of doc.images||[]){const view=doc.bufferViews[image.bufferView],bytes=binary.subarray(view.byteOffset,view.byteOffset+view.byteLength);assert.equal(bytes.toString('ascii',1,4),'PNG');assert.ok(bytes.readUInt32BE(16)<=1024&&bytes.readUInt32BE(20)<=1024,'Runtime textures must actually be resized');}
 const pack=JSON.parse(readFileSync(resolve(ui,'3d/pets',pet,'motions.json'),'utf8'));
 assert.equal(pack.clips.length,30);
 assert.equal(pack.model_sha256,createHash('sha256').update(model).digest('hex'));
@@ -65,6 +92,34 @@ for(const {clip} of pack.clips){
 }
 const browser=[process.env.CHROME_BIN,process.env.PROGRAMFILES&&resolve(process.env.PROGRAMFILES,'Google/Chrome/Application/chrome.exe'),process.env['PROGRAMFILES(X86)']&&resolve(process.env['PROGRAMFILES(X86)'],'Microsoft/Edge/Application/msedge.exe'),'/usr/bin/google-chrome','/usr/bin/chromium'].filter(Boolean).find(existsSync);
 assert.ok(browser,'Chrome/Edge is required for the real WebGL pet test');
+if(pet==='hana'){
+    const THREE=await import('three');const {loadSkeleton,reset}=await import('./pet-skeleton.mjs');
+    const target=await loadSkeleton(resolve(ui,'3d/pets',pet,'model.glb'));let surface;
+    target.gltf.scene.traverse(o=>{if(o.isSkinnedMesh)surface=o;});
+    const head=target.skeleton.bones.find(b=>b.name.replace(/[^a-z0-9]/gi,'').toLowerCase()==='defspine006');
+    const geometry=surface.geometry,index=geometry.index,point=new THREE.Vector3();
+    const skin=()=>{target.gltf.scene.updateMatrixWorld(true);surface.skeleton.update();const positions=new Float32Array(geometry.attributes.position.count*3);for(let i=0;i<geometry.attributes.position.count;i++){point.fromBufferAttribute(geometry.attributes.position,i);surface.applyBoneTransform(i,point).applyMatrix4(surface.matrixWorld);point.toArray(positions,i*3);}return positions;};
+    reset(target);const rest=skin(),edgeChecks=[];
+    const distance=(positions,a,b)=>Math.hypot(positions[a*3]-positions[b*3],positions[a*3+1]-positions[b*3+1],positions[a*3+2]-positions[b*3+2]);
+    for(const id of pack.clips.map(item=>item.id))for(const fraction of [.25,.6,.9]){
+        reset(target);const clip=THREE.AnimationClip.parse(pack.clips.find(item=>item.id===id).clip),mixer=new THREE.AnimationMixer(target.gltf.scene);
+        mixer.clipAction(clip).play();mixer.setTime(clip.duration*fraction);
+        if(!['sleeping','freefall'].includes(id))head.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),.38));
+        const positions=skin(),examples=[],badTriangles=new Set();let spikes=0,maxStretch=0;
+        for(let i=0;i<index.count;i+=3)for(const [a,b] of [[index.getX(i),index.getX(i+1)],[index.getX(i+1),index.getX(i+2)],[index.getX(i+2),index.getX(i)]]){
+            const before=distance(rest,a,b),after=distance(positions,a,b);
+            if(before<.025&&after>.12&&after>before*12){
+                spikes++;maxStretch=Math.max(maxStretch,after);
+                badTriangles.add(i/3);
+                if(examples.length<3)examples.push([a,b].map(vertex=>({position:Array.from(rest.subarray(vertex*3,vertex*3+3)),influences:['getX','getY','getZ','getW'].map(method=>({bone:surface.skeleton.bones[geometry.attributes.skinIndex[method](vertex)].name,weight:geometry.attributes.skinWeight[method](vertex)}))})));
+            }
+        }
+        edgeChecks.push({id,fraction,spikes,maxStretch,badTriangles:[...badTriangles],examples});
+        mixer.stopAllAction();mixer.uncacheRoot(target.gltf.scene);
+    }
+    writeFileSync(resolve(scratch,'hair-edge-check.json'),JSON.stringify({model_sha256:pack.model_sha256,samples:edgeChecks},null,2)+'\n');
+    assert.ok(edgeChecks.every(check=>check.spikes===0),'Short surface edges must not turn into hair/clothing spikes; see hair-edge-check.json');
+}
 const labels=JSON.parse(readFileSync(resolve(ui,'lang/desktop/de.json'),'utf8'));
 const html=`<!doctype html><html lang="de"><head><meta charset="utf-8"><link rel="stylesheet" href="/css/desktop-shell.bundle.css"><style>body{margin:0;background:#252331;color:white;font:16px system-ui}.vd-taskbar{position:fixed;bottom:0;width:100%;height:48px;background:#131219}#title{padding:20px}button{margin:8px}#test-window{position:absolute;inset:0;background:#252331;pointer-events:auto}</style></head><body class="desktop-body" data-animations="true" data-theme="standard" data-scheme="dark"><main class="vd-shell"><section class="vd-workspace" id="vd-workspace"><div class="vd-window-layer" id="test-window-layer"><div id="test-window"></div></div></section></main><div id="title">AuraGo - ${name} 3D</div><div class="vd-taskbar"></div><script>
 window.I18N=${JSON.stringify(labels)};window.BUILD_VERSION='pet-test';
@@ -117,15 +172,19 @@ try{
     await checkLayering();
     await shot('idle');
     await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:10,y:150});
-    await new Promise(r=>setTimeout(r,450));const left=await evaluate('PetRuntime.inspect3D().gaze[0]');
+    await evaluate(`until(()=>PetRuntime.inspect3D().gaze[0]<-.2,'left pointer gaze')`);const left=await evaluate('PetRuntime.inspect3D().gaze[0]');
     await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:1250,y:150});
-    await new Promise(r=>setTimeout(r,450));const right=await evaluate('PetRuntime.inspect3D().gaze[0]');assert.ok(right-left>.3,'Head must follow live pointer position');
+    await evaluate(`until(()=>PetRuntime.inspect3D().gaze[0]>.2,'right pointer gaze')`);const right=await evaluate('PetRuntime.inspect3D().gaze[0]');assert.ok(right-left>.3,'Head must follow live pointer position');
     for(const [reaction,file] of [['waving','wave'],['thinking','thinking'],['celebrating','celebrate'],['editing','working']]){
         await evaluate(`PetRuntime.setReaction(${JSON.stringify(reaction)})`);await new Promise(r=>setTimeout(r,750));const pose=await evaluate('PetRuntime.inspect3D()');assert.ok(pose.gazeAngle<.5,'Additive gaze must never accumulate on constant motion tracks');await shot(file);
     }
     await evaluate(`document.querySelector('.vd-pet-layer').dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:500,clientY:300}));menuItems.find(x=>x.label==='Tanzen').action();`);
     assert.equal(await evaluate('PetRuntime.inspect3D().state'),'dancing');await new Promise(r=>setTimeout(r,700));await shot('dance');
-    await evaluate(`menuItems.find(x=>x.label==='Hinsetzen').action()`);await new Promise(r=>setTimeout(r,700));const seated=await evaluate('PetRuntime.inspect3D()');assert.ok(seated.headWorld[1]>seated.pelvisWorld[1]+.3&&seated.gazeAngle<.5&&(humanoid?seated.skinTip[1]>seated.headWorld[1]+.15:seated.skinTip[1]>seated.pelvisWorld[1]+.5),'Seated figure must keep an upright body and bounded head tracking');await shot('sit');
+    await evaluate(`menuItems.find(x=>x.label==='Hinsetzen').action()`);await new Promise(r=>setTimeout(r,700));const seated=await evaluate('PetRuntime.inspect3D()');
+    assert.ok(seated.gazeAngle<.5&&[...seated.headWorld,...seated.pelvisWorld,...seated.skinTip].every(Number.isFinite),'Rest pose must keep bounded head tracking and finite skinning');
+    if(humanoid)assert.ok(seated.headWorld[1]>seated.pelvisWorld[1]+.3&&seated.skinTip[1]>seated.headWorld[1]+.15,'Seated humanoid must keep an upright body');
+    else assert.ok(Math.hypot(...seated.headWorld.map((v,i)=>v-seated.pelvisWorld[i]))>.1&&seated.skinTip[1]>.5,'Creature rest pose must retain its body volume');
+    await shot('sit');
     await evaluate(`menuItems.find(x=>x.label==='Aufstehen').action();PetRuntime.say('Hallo! Ich bin Dein neues 3D-Pet.','info')`);
     assert.equal(await evaluate(`document.querySelector('.vd-pet-bubble').hidden`),false);
     const rect=await evaluate(`(()=>{const r=document.querySelector('.vd-pet-sprite').getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height*.55,left:document.querySelector('.vd-pet-layer').offsetLeft,top:document.querySelector('.vd-pet-layer').offsetTop};})()`);
@@ -163,7 +222,7 @@ try{
         await evaluate(`until(()=>PetRuntime.inspect3D().state==='idle','cancelled drag settles')`);
     }
     await evaluate(`document.querySelector('.vd-pet-layer').style.top='40px';PetRuntime.syncBootstrap({settings:{'pet.gravity':'true','pet.position_y':'0'}});PetRuntime.load()`);
-    await evaluate(`until(()=>Math.abs(document.querySelector('.vd-pet-layer').offsetTop-(document.querySelector('.vd-taskbar').getBoundingClientRect().top-416))<1,'dock landing')`);
+    await evaluate(`until(()=>Math.abs(document.querySelector('.vd-pet-layer').offsetTop-(document.querySelector('.vd-taskbar').getBoundingClientRect().top-416))<1&&PetRuntime.inspect3D().state==='landing','dock landing')`);
     assert.equal(await evaluate('PetRuntime.inspect3D().state'),'landing','A real fall must still play its landing animation');
     await evaluate(`until(()=>PetRuntime.inspect3D().state==='idle','landing finishes')`);
     const refreshed=await evaluate(`(async()=>{const states=[];for(let i=0;i<5;i++){PetRuntime.load();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));states.push(PetRuntime.inspect3D().state);}document.querySelector('.vd-taskbar').style.width='95%';await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));states.push(PetRuntime.inspect3D().state);return states;})()`);

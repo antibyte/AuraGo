@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "character": "Zorbit",
+  "date": "2026-11-13",
+  "original_pet_id": "aurago-alien",
+  "pet_id": "aurago-alien-3d",
+  "reference_generator": "Built-in ImageGen",
+  "reference_sha256": "af17a164cc1a9debaa847329df6a0dbbaf8bcc3793f4858e9e56a95503ff3027",
+  "original_sprite_sha256": "244dc9adcc486de88a6d2255906259d0a91e4a4ca8ffe2b9a6feeaf6f97e150e",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "4850ce90efde87188de664ed3636ae07c693e786dc3168e377e5ac4cda3b4620",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "humanoid",
+  "category": "mascot",
+  "retained_sources": {
+    "varco-rigged.glb": {
+      "bytes": 15361360,
+      "sha256": "b23892e3fe0cb9beacc6136ab9a9a72bea9d98af563f77c284f7b80dc2201f6b"
+    },
+    "source.blend": {
+      "bytes": 15938614,
+      "sha256": "4e7f990e97fac466614ecf8e9076e438c9d19aa6d2579e64c7f720bdaf88bdfb"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b3de79a2-5345-40fe-8a81-1f29b30f3561",
+    "model_node_id": "c126db6e-2179-4223-8b0e-b31141812b9d",
+    "rig_node_id": "edab9510-80f1-4146-93d8-f18553e2db80",
+    "mesh_task_id": "010d2e14-42d9-40af-8a48-6e8ff5ccbe8a",
+    "rig_task_id": "2af42d66-b886-49a4-94a4-c3c14f7803b5",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "humanoid-fingers"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Blender T-bind with retained VARCO finger weights",
+  "runtime": {
+    "pet_id": "aurago-alien-3d",
+    "folder": "ui/3d/pets/zorbit",
+    "triangles": 49999,
+    "joints": 53,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Pinned Mesh2Motion movements (CC0)",
+    "model_sha256": "4735db3e63fb9953abe3ea33d5fdb7b54a5ed3b5176b137f4f1227b5af379790",
+    "motions_sha256": "f85745d87c700f92d9bb7d4acf22bbd8154eb5c075e045443cf1040e10fae5a1"
+  }
+}

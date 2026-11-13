@@ -63,7 +63,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
   No external service, backend route or capability switch is required.
 <!-- pinball:end -->
 
-- The eight optional model pets lazily load `js/desktop/core/pet-3d.js` and the local
+- The 31 optional model pets lazily load `js/desktop/core/pet-3d.js` and the local
   Aura Drift Three.js bundle. `PetRuntime.modelAssetFolder(id)` shares the fixed
   ID/folder allowlist with the picker; authoring IDs are in `assets/desktop-pets/catalog.json`.
   Their fixed model/motion URLs are under `3d/pets/<folder>/`;

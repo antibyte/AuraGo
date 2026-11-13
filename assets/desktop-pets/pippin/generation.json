@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "character": "Pippin",
+  "date": "2026-11-13",
+  "original_pet_id": "aurago-chick",
+  "pet_id": "aurago-chick-3d",
+  "reference_generator": "Built-in ImageGen",
+  "reference_sha256": "c9d99f5bdd4ff55c79820cf155effde043ce35cbaf18e06c1ff1273b33642fd2",
+  "original_sprite_sha256": "6bf70e306594a2c244278a1b19203254fe9aed58e8dfa092fc8e991924e827f3",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "bcc71dd99bebd3d18c4c8c9bb8bcc4c0b503c3cf749313fb5072122ac9d8b55c",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "bird",
+  "category": "mascot",
+  "retained_sources": {
+    "varco-source.glb": {
+      "bytes": 15602756,
+      "sha256": "380b8c399e180dc16849f8978473d2fb652fa83c3dfad9aa3db69d2ab1e3399a"
+    },
+    "source.blend": {
+      "bytes": 18419911,
+      "sha256": "fc98db0221e3bde86cb2ba589602f8a75230dc0dc3e66d318a2ad0f2bbc660b0"
+    },
+    "rig.json": {
+      "bytes": 6530,
+      "sha256": "55c1bfd34caebbcfde413baa20842e201e623d7d040de2e0da413ffcf925395f"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b3de79a2-5345-40fe-8a81-1f29b30f3561",
+    "model_node_id": "2ea79f85-14d6-41ec-9f6f-541de91856b0",
+    "mesh_task_id": "04acdbf8-6d5f-4c22-8ba1-0927edadebc7",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "local"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Local anatomical Blender rig; retained landmarks in rig.json",
+  "runtime": {
+    "pet_id": "aurago-chick-3d",
+    "folder": "ui/3d/pets/pippin",
+    "triangles": 50000,
+    "joints": 22,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Original anatomical procedural gestures (GPL-3.0-only)",
+    "model_sha256": "8ae5a37ecf21ed9b5a27338247acc09c6251cd0256f0bed1b8a0220c8fa502c1",
+    "motions_sha256": "f51488b37d0cc1c30a62c5aa5531a095ee1308ac227b73f19cb2f3961840dc16"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "character": "Butler",
+  "date": "2026-11-13",
+  "original_pet_id": "aurago-servant",
+  "pet_id": "aurago-servant-3d",
+  "reference_generator": "Built-in ImageGen",
+  "reference_sha256": "fabdf07cb0a4ed6de963e49df861946d9dbb8e299877496369d6b721ef6bb9fd",
+  "original_sprite_sha256": "b0e22f7084c65b7d85f329fca65eba6024ed4f7412509ec85684954e79887e5f",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "e874586c5f64b8a79ed47e0397145e5752dbcf83cfcab4137fb1de9bcae9688a",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "humanoid",
+  "category": "persona",
+  "retained_sources": {
+    "varco-rigged.glb": {
+      "bytes": 18874980,
+      "sha256": "db079d8e79458dd75c2dd82f23d451dc812f0eb17c0736d8de8bb38fd678ab29"
+    },
+    "source.blend": {
+      "bytes": 18455489,
+      "sha256": "1a45945c0cdc61b1e358c5b9c6a9bf38478936517e630f89f19ceb40d77cea61"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b98833b3-f6fd-483a-84c3-588c1d487149",
+    "model_node_id": "2f463b85-8b95-4d0c-b55b-58888a11f266",
+    "rig_node_id": "358def6a-cd6f-49aa-ad4e-353bc0eeed21",
+    "mesh_task_id": "39955583-db76-47f7-bb24-3dd61c9376e1",
+    "rig_task_id": "b78cdf02-4de5-4713-8c2a-3794081f4d75",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "humanoid-fingers"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Blender T-bind with retained VARCO finger weights",
+  "runtime": {
+    "pet_id": "aurago-servant-3d",
+    "folder": "ui/3d/pets/butler",
+    "triangles": 50000,
+    "joints": 53,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Pinned Mesh2Motion movements (CC0)",
+    "model_sha256": "cac263b7d55f0a1dccd0f6d504629a03d9fa0386884f7c633e08aca1236e8022",
+    "motions_sha256": "4b581622fbcace8891d0533922c9fdd3376e0ce351b92be3e97286cd8f34a97e"
+  }
+}

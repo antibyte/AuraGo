@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "character": "Wall-E",
+  "date": "2026-11-13",
+  "original_pet_id": "wall-e",
+  "pet_id": "wall-e-3d",
+  "reference_generator": "Existing sprite frame",
+  "reference_sha256": "d3b222f679cfdeb29fbf09981837c2e8a2aeefc036afabfefe2bd5f2f4454fd0",
+  "original_sprite_sha256": "3d7d0928f750e45355237a6af14e69139e2d0579d77b57f5654489c3d089afe5",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "d3b222f679cfdeb29fbf09981837c2e8a2aeefc036afabfefe2bd5f2f4454fd0",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "tracked",
+  "category": "mascot",
+  "retained_sources": {
+    "varco-source.glb": {
+      "bytes": 16529992,
+      "sha256": "781aa95f54cdb03221631fa7ea955f9e31039c7f27b6f0023e2bd183c7429070"
+    },
+    "source.blend": {
+      "bytes": 14316240,
+      "sha256": "225c2660ad24de97f502c0ec47bf63a67f86cdc31e406152f13db1d805ddc647"
+    },
+    "rig.json": {
+      "bytes": 4389,
+      "sha256": "2cd486cde09633b3c92527921b9f3291bfa98950de8ac97049312dee89e591f3"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b3de79a2-5345-40fe-8a81-1f29b30f3561",
+    "model_node_id": "05e6efa4-f2ef-4d6d-b374-5ae108b1650c",
+    "mesh_task_id": "e72d0968-e5e4-4aab-bf62-142209b1af99",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "local"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Local anatomical Blender rig; retained landmarks in rig.json",
+  "surface_authoring": "Blender mechanical reconstruction after pixel-derived VARCO output: rigid panels, camera housings/lenses, clamps, wheels and tracks; original cloud source retained",
+  "runtime": {
+    "pet_id": "wall-e-3d",
+    "folder": "ui/3d/pets/wall-e",
+    "triangles": 50000,
+    "joints": 14,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Original anatomical procedural gestures (GPL-3.0-only)",
+    "model_sha256": "c9655f483784aa29a835aa891ff891c9d3331196ab719322b767c20696f2c025",
+    "motions_sha256": "b70456ef79956feaa96facca1f4d20e2c58cb5ff8cfa6868dfd14d2b37a14453"
+  }
+}

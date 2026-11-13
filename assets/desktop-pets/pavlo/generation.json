@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "character": "Pavlo",
+  "date": "2026-11-13",
+  "original_pet_id": "aurago-peacock",
+  "pet_id": "aurago-peacock-3d",
+  "reference_generator": "Built-in ImageGen",
+  "reference_sha256": "12e812a205d2a339687f0ba219488a2648567989549b376621689f77768d94b9",
+  "original_sprite_sha256": "e96a177ca85d444e1642818e0a4b1170917d2a9dc087724072a282d6c22451c2",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "f5c44766db2f3aeaf56e2d28f0d1b9faafe0a5ba4f45d7c21d78ef0ece8dc555",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "bird-tail",
+  "category": "mascot",
+  "retained_sources": {
+    "varco-source.glb": {
+      "bytes": 15942192,
+      "sha256": "7ca134e9239b3dc9e3f6ce33f8b0c55be6b1038f157c3101851c2f5d8272c8a8"
+    },
+    "source.blend": {
+      "bytes": 19059330,
+      "sha256": "55442ea07dfe7ae5135785c9700d71fd3ec713eabcde8f076c86857d9830d82f"
+    },
+    "rig.json": {
+      "bytes": 8409,
+      "sha256": "498c08214a59ad5a6effca596aed4de9f6dd9bd3f85bb138a61e761b51ed3b98"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b3de79a2-5345-40fe-8a81-1f29b30f3561",
+    "model_node_id": "33c011ec-309e-4485-aecc-cea537285cea",
+    "mesh_task_id": "17266e3c-8db6-4098-8e80-a0ceda6f3ebb",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "local"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Local anatomical Blender rig; retained landmarks in rig.json",
+  "runtime": {
+    "pet_id": "aurago-peacock-3d",
+    "folder": "ui/3d/pets/pavlo",
+    "triangles": 50000,
+    "joints": 29,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Original anatomical procedural gestures (GPL-3.0-only)",
+    "model_sha256": "992d12045708c6bed255d36aedd1b6e9d798b32d42b575ca535441f0aac564d9",
+    "motions_sha256": "67adf66db7b189eaf243491a6959b7b575ba822fe2fd1884ebbb1ba002d14cde"
+  }
+}

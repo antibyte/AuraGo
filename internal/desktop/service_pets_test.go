@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-var expectedBundledDefaultPetIDs = []string{"openpets-default", "snoopy", "clippit", "tux", "wall-e", "dobby", "aurago-neutral", "aurago-servant", "aurago-professional", "aurago-mistress", "aurago-thinker", "aurago-evil", "aurago-secretary", "aurago-psycho", "aurago-punk", "aurago-friend", "aurago-mcp", "aurago-terminator", "aurago-slime", "aurago-spider", "aurago-alien", "aurago-tentacle", "aurago-indiana-jones", "aurago-manga-girl", "aurago-zombie", "aurago-zombie-3d", "aurago-chick", "aurago-peacock", "aurago-trex", "aurago-puppy", "aurago-cat", "aurago-crocodile", "aurago-punk-3d", "aurago-psycho-3d", "aurago-friend-3d", "aurago-thinker-3d", "aurago-neutral-3d", "aurago-trex-3d", "aurago-tentacle-3d"}
+var expectedBundledDefaultPetIDs = []string{"openpets-default", "snoopy", "clippit", "tux", "wall-e", "dobby", "aurago-neutral", "aurago-servant", "aurago-professional", "aurago-mistress", "aurago-thinker", "aurago-evil", "aurago-secretary", "aurago-psycho", "aurago-punk", "aurago-friend", "aurago-mcp", "aurago-terminator", "aurago-slime", "aurago-spider", "aurago-alien", "aurago-tentacle", "aurago-indiana-jones", "aurago-manga-girl", "aurago-zombie", "aurago-zombie-3d", "aurago-chick", "aurago-peacock", "aurago-trex", "aurago-puppy", "aurago-cat", "aurago-crocodile", "aurago-punk-3d", "aurago-psycho-3d", "aurago-friend-3d", "aurago-thinker-3d", "aurago-neutral-3d", "aurago-trex-3d", "aurago-tentacle-3d", "openpets-default-3d", "snoopy-3d", "clippit-3d", "tux-3d", "wall-e-3d", "dobby-3d", "aurago-servant-3d", "aurago-professional-3d", "aurago-mistress-3d", "aurago-evil-3d", "aurago-secretary-3d", "aurago-mcp-3d", "aurago-terminator-3d", "aurago-slime-3d", "aurago-spider-3d", "aurago-alien-3d", "aurago-indiana-jones-3d", "aurago-manga-girl-3d", "aurago-chick-3d", "aurago-peacock-3d", "aurago-puppy-3d", "aurago-cat-3d", "aurago-crocodile-3d"}
 
 func TestInstallAndListPets(t *testing.T) {
 	svc := testService(t)
@@ -773,6 +773,9 @@ func TestBundledPetIDsMatchPetIDPattern(t *testing.T) {
 	for _, pet := range bundledDefaultPets() {
 		if !petIDPattern.MatchString(pet.Manifest.ID) {
 			t.Fatalf("bundled pet id %q does not match the pet id pattern", pet.Manifest.ID)
+		}
+		if strings.HasSuffix(pet.Manifest.ID, "-3d") && pet.Manifest.Subcategory != "3d" {
+			t.Fatalf("3D pet %s must be discoverable in the 3D filter", pet.Manifest.ID)
 		}
 	}
 }

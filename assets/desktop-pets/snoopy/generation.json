@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "character": "Snoopy",
+  "date": "2026-11-13",
+  "original_pet_id": "snoopy",
+  "pet_id": "snoopy-3d",
+  "reference_generator": "Built-in ImageGen",
+  "reference_sha256": "c83afc968927d7aa9accdf3ed693f292e0019976655a8e2ad22cd35b96557f88",
+  "original_sprite_sha256": "463f23a7e50b74773b4f7dd5c6528636e2d851d3ff196b2bf80b5e84bbe77245",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "3bf976a80f329c23b22e33fdab7e728a638f1e0660431b8a58188d6c0d4e96a9",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "humanoid",
+  "category": "mascot",
+  "retained_sources": {
+    "varco-rigged.glb": {
+      "bytes": 14490724,
+      "sha256": "2549f7963be05f2773085e39be162ac536a01e8e9ec4b5ae484c377be5315da2"
+    },
+    "source.blend": {
+      "bytes": 14465873,
+      "sha256": "6e178fea5909c2db5b9a031eb7027c0d45e2b10a7010437bd489c762b6c76a47"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b98833b3-f6fd-483a-84c3-588c1d487149",
+    "model_node_id": "8d2163d7-1512-4fd1-8159-cc9194b20afd",
+    "rig_node_id": "37b8a2f3-5d85-4fc9-927c-742428415f9f",
+    "mesh_task_id": "02a1fefd-1287-4f16-855f-92375e7ef7c0",
+    "rig_task_id": "fa760406-c33d-440d-bf2e-0236d42352c5",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "humanoid-fingers"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Blender T-bind with retained VARCO finger weights",
+  "runtime": {
+    "pet_id": "snoopy-3d",
+    "folder": "ui/3d/pets/snoopy",
+    "triangles": 50000,
+    "joints": 53,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Pinned Mesh2Motion movements (CC0)",
+    "model_sha256": "96b0100e6202fbc6c085a9e2ea65fa552fd2ac60bf27628f4e1114cd81faab99",
+    "motions_sha256": "592c492a95b184324bad265ad98c61802c061432ce534d0d7ac90f0e06ff41d8"
+  }
+}

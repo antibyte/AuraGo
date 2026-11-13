@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "character": "Indiana Jones",
+  "date": "2026-11-13",
+  "original_pet_id": "aurago-indiana-jones",
+  "pet_id": "aurago-indiana-jones-3d",
+  "reference_generator": "Built-in ImageGen",
+  "reference_sha256": "1d30c1f7ecb0358962d9578ecd2c3e0522a24bae1352763acd86e5a89f671a9b",
+  "original_sprite_sha256": "6e78b8ed662e708871a55c30cfc1b252b10be431aa7888f208f282cfa2f52cb8",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "1d82876c464f5662524daf3d2d1aa7d0a0def207627b61a6c94db9686dd89704",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "humanoid",
+  "category": "mascot",
+  "retained_sources": {
+    "varco-rigged.glb": {
+      "bytes": 18212220,
+      "sha256": "285249c9c0e26c7cb49eedee0b2416e8396a5fb59ec745ea2ff1fcdf37a88709"
+    },
+    "source.blend": {
+      "bytes": 18471582,
+      "sha256": "50ea9691436a82b2861d869ae0dc7221bd1dd159be4f48f6ea8247bfe1d1c213"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b3de79a2-5345-40fe-8a81-1f29b30f3561",
+    "model_node_id": "c204a8f3-d04f-46ee-aa55-6b0790c451a4",
+    "rig_node_id": "81931709-917c-45b7-b5e9-a8fa92975549",
+    "mesh_task_id": "b57d1f61-681e-4969-9a0c-c507206a2385",
+    "rig_task_id": "545630fc-d141-4fb2-a549-f51a00acf5a3",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "humanoid-fingers"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Blender T-bind with retained VARCO finger weights",
+  "runtime": {
+    "pet_id": "aurago-indiana-jones-3d",
+    "folder": "ui/3d/pets/indiana-jones",
+    "triangles": 49999,
+    "joints": 53,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Pinned Mesh2Motion movements (CC0)",
+    "model_sha256": "3805af5a42c01adc2a007ed57b47f377e23842229c1ceb2d94fd12d1a188b9a1",
+    "motions_sha256": "7c8c2c4e925591888390ae61b2f83cbec777e54a5f8333f32f20bb54f0702aff"
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "character": "Glibbi",
+  "date": "2026-11-13",
+  "original_pet_id": "aurago-slime",
+  "pet_id": "aurago-slime-3d",
+  "reference_generator": "Built-in ImageGen",
+  "reference_sha256": "7c40329b34ba9c597f12de405597963e3becc5833f33f38cde443ecfa86702b1",
+  "original_sprite_sha256": "abe5f1e207de342a0833dbab4cceb6d8aa95eea0517967dd9306802c80268ada",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "3d041acf1a92d33a0cecd0ed9c510867caf7f6500a4386d18ff534b6032fe518",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "blob",
+  "category": "mascot",
+  "retained_sources": {
+    "varco-source.glb": {
+      "bytes": 10478220,
+      "sha256": "db2c6c04e38c65a936a8a280e2350f6916d698f663b801d456f0353010b4db24"
+    },
+    "source.blend": {
+      "bytes": 12694043,
+      "sha256": "ae4db24b1f41d1607940d2e5144a5d949a6b6203f932cbd023ec11cc16f5aa2d"
+    },
+    "rig.json": {
+      "bytes": 3495,
+      "sha256": "a68fdef267243358b9670be171215cfc836e3c84f7a285ebcebc1b7867934102"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b3de79a2-5345-40fe-8a81-1f29b30f3561",
+    "model_node_id": "0fcda973-dedb-4d36-b794-5559e36b99ad",
+    "mesh_task_id": "dc6aec2f-d03f-466e-83f3-89c11a33dfb4",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "local"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Local anatomical Blender rig; retained landmarks in rig.json",
+  "runtime": {
+    "pet_id": "aurago-slime-3d",
+    "folder": "ui/3d/pets/glibbi",
+    "triangles": 49999,
+    "joints": 11,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Original anatomical procedural gestures (GPL-3.0-only)",
+    "model_sha256": "97436b5dc2a76dbb2f2809bc17f3cb8b72e31e45be743066ea316f96a436cdc9",
+    "motions_sha256": "6898825cca5cd57e0ec0e4f867456bd5e153dc228944fa731493ce06d53ce713"
+  }
+}

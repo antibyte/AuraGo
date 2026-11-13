@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "character": "Kroko",
+  "date": "2026-11-13",
+  "original_pet_id": "aurago-crocodile",
+  "pet_id": "aurago-crocodile-3d",
+  "reference_generator": "Built-in ImageGen",
+  "reference_sha256": "96cb4db421e1166816ef692a65a9103dfed4583b2371ab57ff1e20ff2cca2244",
+  "original_sprite_sha256": "7ce4cb330cc8366f5476766ee3454132e58b25c1adce15b5e452d87fa1a5af33",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "7412ff6fc3fb58136f0db8a73f8775632039b954a6cc40e16f5cf236b2a065f3",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "quadruped",
+  "category": "mascot",
+  "retained_sources": {
+    "varco-rigged.glb": {
+      "bytes": 16903356,
+      "sha256": "e290166e91d2ee92edc5fb7f7de49e5197160317c840ec5f5f20a6a495f4e3ea"
+    },
+    "source.blend": {
+      "bytes": 17724192,
+      "sha256": "0a6338855aeb59ad4d4868a099d2a4021213af601abcae1a71a39b4bee87dbc6"
+    },
+    "rig.json": {
+      "bytes": 8899,
+      "sha256": "35616dc55a7a9655c0b45e0700a4a0aebfa3d3edbdc8e464d5f84f08eb65c401"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b3de79a2-5345-40fe-8a81-1f29b30f3561",
+    "model_node_id": "ba3dfb4c-8940-4335-b857-c2104d5eff9e",
+    "rig_node_id": "95760cd7-0ba2-4306-9bbf-a0fd4f72366e",
+    "mesh_task_id": "db248d66-49e8-42de-bb13-b9bd7dac3e52",
+    "rig_task_id": "c734b26b-3e31-4f7d-942b-94ea61cbfc39",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "quadruped"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Native VARCO quadruped weights preserved in Blender",
+  "runtime": {
+    "pet_id": "aurago-crocodile-3d",
+    "folder": "ui/3d/pets/kroko",
+    "triangles": 49999,
+    "joints": 29,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Original anatomical procedural gestures (GPL-3.0-only)",
+    "model_sha256": "6f63836e394a73e97756392b07aa828b62b63e915f1806db5888b59bfe86eaf8",
+    "motions_sha256": "e6df5e05fdbbe95ccf7a9efa1cb004d90f0fbaf99f1c8988e454a6391ee80e12"
+  }
+}

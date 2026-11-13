@@ -1,0 +1,9 @@
+{
+  "source_sha256": "380b8c399e180dc16849f8978473d2fb652fa83c3dfad9aa3db69d2ab1e3399a",
+  "triangles": 50000,
+  "vertices": 48879,
+  "deform_joints": 22,
+  "texture_max_size": 1024,
+  "model_sha256": "8ae5a37ecf21ed9b5a27338247acc09c6251cd0256f0bed1b8a0220c8fa502c1",
+  "kind": "bird"
+}

@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "character": "Vampir",
+  "date": "2026-11-13",
+  "original_pet_id": "aurago-evil",
+  "pet_id": "aurago-evil-3d",
+  "reference_generator": "Built-in ImageGen",
+  "reference_sha256": "9da588e2558f74004878504ff5ecb65905d44a4e94c7a843987dc13a381c1ed1",
+  "original_sprite_sha256": "3404bfd619250e1092e9d9715422bc11b976f6c23209cdcb3786a7ef15e98869",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "a609bbc823e19f442aac9a459be1461acb03bf8f23b317de882a10bbd81b2a98",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "humanoid",
+  "category": "persona",
+  "retained_sources": {
+    "varco-rigged.glb": {
+      "bytes": 18755664,
+      "sha256": "95b69944ec075648304f9a9203de3a6a7a23832bb423b91f83650dddcdf53475"
+    },
+    "source.blend": {
+      "bytes": 18660978,
+      "sha256": "93fc7b050400a99589484fdee34b2602e5e7cde5341a4f8bbf6e5fc5dde057ea"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b3de79a2-5345-40fe-8a81-1f29b30f3561",
+    "model_node_id": "31fa7356-9498-4d69-b337-6a59c9223588",
+    "rig_node_id": "5e9fa542-9367-4018-a159-6049ee61b34b",
+    "mesh_task_id": "e6466766-035a-4a4f-944b-cf6940a62346",
+    "rig_task_id": "c4d701f0-ab34-4a01-8397-b3f23b21323b",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "humanoid-fingers"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Blender T-bind with retained VARCO finger weights",
+  "runtime": {
+    "pet_id": "aurago-evil-3d",
+    "folder": "ui/3d/pets/vampire",
+    "triangles": 50000,
+    "joints": 53,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Pinned Mesh2Motion movements (CC0)",
+    "model_sha256": "7a6caf09cae5e6e0f3939065e81e19f57f049f45a041cef5dfb9290597b3eec2",
+    "motions_sha256": "550f3dbea8e341f3148553904f9bfd772579b505d6a1cacd8c2e079d2ac39306"
+  }
+}

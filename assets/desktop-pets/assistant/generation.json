@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "character": "Assistentin",
+  "date": "2026-11-13",
+  "original_pet_id": "aurago-secretary",
+  "pet_id": "aurago-secretary-3d",
+  "reference_generator": "Built-in ImageGen",
+  "reference_sha256": "b608669ef5a5ed8595b3dada43a9154d9a6f8b314b4fce26f82f96d23a4688ac",
+  "original_sprite_sha256": "0ecc24820e73edfe483f8a959f274951f04e515b0c54cca7cd86f02db54aa54f",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "b8aca49576c8197696622ae2fbbf49c027d77964d44035fd1d0080c83045c9ef",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "humanoid",
+  "category": "persona",
+  "retained_sources": {
+    "varco-rigged.glb": {
+      "bytes": 19264024,
+      "sha256": "c6d69e7e21aea517b1e5ac933d9ab8af6cb032af21ac2689326a76569715c9da"
+    },
+    "source.blend": {
+      "bytes": 18912876,
+      "sha256": "f379726a6602d17c380a6948ab1fc714c679c79344b80e42a437d117a8542e86"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b3de79a2-5345-40fe-8a81-1f29b30f3561",
+    "model_node_id": "1e960a5a-9f7a-4262-9822-be646479c051",
+    "rig_node_id": "f157f175-2f47-4389-80d1-7afbf0d94cf7",
+    "mesh_task_id": "4cf8bcda-dd93-415e-9774-6d03f3717d64",
+    "rig_task_id": "c4ff99db-892f-44eb-8621-6f7a4fd126a8",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "humanoid-fingers"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Blender T-bind with retained VARCO finger weights",
+  "runtime": {
+    "pet_id": "aurago-secretary-3d",
+    "folder": "ui/3d/pets/assistant",
+    "triangles": 50000,
+    "joints": 53,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Pinned Mesh2Motion movements (CC0)",
+    "model_sha256": "5d830e729a5a68f85fcdb66598ab2700c6042b4fb72a6ff75e149dee05e19fa8",
+    "motions_sha256": "9c7b545d02af4f2816d876d0795cf1a608bf6c6076207ba76d0ce8f672cd35e6"
+  }
+}

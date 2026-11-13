@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "character": "OpenPets Default",
+  "date": "2026-11-13",
+  "original_pet_id": "openpets-default",
+  "pet_id": "openpets-default-3d",
+  "reference_generator": "Built-in ImageGen",
+  "reference_sha256": "13a114340e51bfdbe36e9962a4ec6218ad2467f67956fec0615de408a2675f35",
+  "original_sprite_sha256": "7c5e45b9a892d4fdb72ca313e0c99c889e5b3021f831a41735a097e155cd44cd",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "5de6a6a912839987d6a345f58cc696b293f5af41967e31e62d68ca8ea1fd32fc",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "bird",
+  "category": "mascot",
+  "retained_sources": {
+    "varco-source.glb": {
+      "bytes": 18054388,
+      "sha256": "49f3beb9c113f718d4f51e204b04fec2c62ce0caa4d5e763b7327f5fdacb18b3"
+    },
+    "source.blend": {
+      "bytes": 20702477,
+      "sha256": "732c679a8f6b4e7e59bea56f2cf9a648652a94ee60dd3a850915cfb50bb78a38"
+    },
+    "rig.json": {
+      "bytes": 6542,
+      "sha256": "361acdbf5d835c49a432237c47333c23dc3f0879fb1e1bdf70ba220ff4622dfd"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b98833b3-f6fd-483a-84c3-588c1d487149",
+    "model_node_id": "072d6548-6661-46ac-848e-5605a09f6c31",
+    "mesh_task_id": "e7c70598-c979-4d1a-9bbb-92872542f235",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "local"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Local anatomical Blender rig; retained landmarks in rig.json",
+  "runtime": {
+    "pet_id": "openpets-default-3d",
+    "folder": "ui/3d/pets/openpets-default",
+    "triangles": 50000,
+    "joints": 22,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Original anatomical procedural gestures (GPL-3.0-only)",
+    "model_sha256": "8e238d32dcb078bddb338c0260c623d45ef1414960dec86ea0e3f9b1a4f86a8f",
+    "motions_sha256": "9c920d9c0be9d63e2c6b52652d1e35004da1b22aac8a009c19b0d293bd728b07"
+  }
+}

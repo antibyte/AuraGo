@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "character": "Terminator",
+  "date": "2026-11-13",
+  "original_pet_id": "aurago-terminator",
+  "pet_id": "aurago-terminator-3d",
+  "reference_generator": "Built-in ImageGen",
+  "reference_sha256": "3b967ffe988a8ec46b4056c0cc48155aeafd61a32e68d91668c74ea00273a0b7",
+  "original_sprite_sha256": "654985a9af0b3da85ee839d4704db1683ce3e5f45de8b304fc6661dc05935358",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "6d49fb6067f2f57074dd325768e2b671be7102b9ce541e4dd9edba2e7ef21371",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "humanoid",
+  "category": "persona",
+  "retained_sources": {
+    "varco-rigged.glb": {
+      "bytes": 22370256,
+      "sha256": "0dddc550469716fc229647b2fe11c673881640bc5c48704fe67b82489f05f562"
+    },
+    "source.blend": {
+      "bytes": 21958046,
+      "sha256": "e6e04705685e887501ddddc11636ca0f4468766f2c9564308f6c4f94d063d98e"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b3de79a2-5345-40fe-8a81-1f29b30f3561",
+    "model_node_id": "0bcc9e45-79fc-4384-a07d-fab84e739aa8",
+    "rig_node_id": "256125d2-d93b-40e2-b47e-44da6f46daff",
+    "mesh_task_id": "8ab26b86-2b97-40b6-ab6d-7e3e4cc224b6",
+    "rig_task_id": "5699f724-c7d5-4ea7-a0d9-76f73a4a79e5",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "humanoid-fingers"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Blender T-bind with retained VARCO finger weights",
+  "runtime": {
+    "pet_id": "aurago-terminator-3d",
+    "folder": "ui/3d/pets/terminator",
+    "triangles": 50000,
+    "joints": 53,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Pinned Mesh2Motion movements (CC0)",
+    "model_sha256": "a12323a55e4b7a79947ac6031437193a5a78dbb9db515b5754c7c69174a0f693",
+    "motions_sha256": "e024cba6a1a7185635828b8086bd21783dcb3b6be04e6aa0e6f39c9e1d95cb6c"
+  }
+}

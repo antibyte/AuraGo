@@ -1,0 +1,9 @@
+{
+  "source_sha256": "7ca134e9239b3dc9e3f6ce33f8b0c55be6b1038f157c3101851c2f5d8272c8a8",
+  "triangles": 50000,
+  "vertices": 48117,
+  "deform_joints": 29,
+  "texture_max_size": 1024,
+  "model_sha256": "992d12045708c6bed255d36aedd1b6e9d798b32d42b575ca535441f0aac564d9",
+  "kind": "bird-tail"
+}

@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "character": "MCP",
+  "date": "2026-11-13",
+  "original_pet_id": "aurago-mcp",
+  "pet_id": "aurago-mcp-3d",
+  "reference_generator": "Built-in ImageGen",
+  "reference_sha256": "793697025dbf7725804916d8fbb1b5a05c768155ddf77b41fe13248b4c517851",
+  "original_sprite_sha256": "94275c2c7907ec3befced48fa4a706afa90c1f0cf9ac75522ab4d4dc96f50e8c",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "19e643e5f5ffc96124dbb9e96f5f8324e126e68904a1a2be8138fb2e59b83aab",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "humanoid",
+  "category": "persona",
+  "retained_sources": {
+    "varco-rigged.glb": {
+      "bytes": 18624496,
+      "sha256": "86e005872903a589afb49b7fd8894268f5b48253d6024fd162ea6b388617e99c"
+    },
+    "source.blend": {
+      "bytes": 18821165,
+      "sha256": "2ea920e45fe4043258d6694498efdecc03bfda959a4b40f73a7703eda7f1173b"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b3de79a2-5345-40fe-8a81-1f29b30f3561",
+    "model_node_id": "5f7ff370-e8b7-45d8-a6ca-87429f28577b",
+    "rig_node_id": "2529c889-cdad-4cf5-86b0-ab4b625d4d2c",
+    "mesh_task_id": "539c8d7d-939c-4990-bfa7-e33f25548108",
+    "rig_task_id": "7cbd151b-e721-4b74-8638-4bfdc9c90387",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "humanoid-fingers"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Blender T-bind with retained VARCO finger weights",
+  "runtime": {
+    "pet_id": "aurago-mcp-3d",
+    "folder": "ui/3d/pets/mcp",
+    "triangles": 50000,
+    "joints": 53,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Pinned Mesh2Motion movements (CC0)",
+    "model_sha256": "f0679dea0a65b4afff0a6922e64b6d506477e110f1812ca50301352e68862989",
+    "motions_sha256": "fad557fd77dcc50a0d3fb4778da8ffd2f744766f339d6d5c12007afb787eb905"
+  }
+}

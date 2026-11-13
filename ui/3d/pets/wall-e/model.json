@@ -1,0 +1,9 @@
+{
+  "source_sha256": "781aa95f54cdb03221631fa7ea955f9e31039c7f27b6f0023e2bd183c7429070",
+  "triangles": 50000,
+  "vertices": 25406,
+  "deform_joints": 14,
+  "texture_max_size": 1024,
+  "model_sha256": "c9655f483784aa29a835aa891ff891c9d3331196ab719322b767c20696f2c025",
+  "kind": "tracked"
+}

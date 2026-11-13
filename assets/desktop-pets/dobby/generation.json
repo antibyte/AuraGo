@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "character": "Dobby",
+  "date": "2026-11-13",
+  "original_pet_id": "dobby",
+  "pet_id": "dobby-3d",
+  "reference_generator": "Built-in ImageGen",
+  "reference_sha256": "e66eda7afb2883abe6954fb962bd16b818da0642bd1580f2be14d4fef24fbde4",
+  "original_sprite_sha256": "c5fa053d3a94afc1fe3e380fb472c68e2d679d1ff584f5a6dfb6ff895b8b3afc",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "0a67dc1c2eb388809cca2f380e19940c4d2fe3e095b6051c1559e54e66f6bcc4",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "humanoid",
+  "category": "mascot",
+  "retained_sources": {
+    "varco-rigged.glb": {
+      "bytes": 19054644,
+      "sha256": "994e720cef43a4ba98d1bdeb6ed24b86ad4cc6f332747949a7343523cf7c0d21"
+    },
+    "source.blend": {
+      "bytes": 18966114,
+      "sha256": "c15f94647b441a4239c0eef3fec60937e9f1631ef5f4834f05c302c51750a1ca"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b98833b3-f6fd-483a-84c3-588c1d487149",
+    "model_node_id": "9fbc138b-5ca5-493a-9566-b561db82bc21",
+    "rig_node_id": "65c4b22c-8a89-4e7e-9553-220235cd2f63",
+    "mesh_task_id": "935a05e1-1cc6-4803-996d-16877786793a",
+    "rig_task_id": "eb4582bf-5ec7-4d7e-8800-09c70e6dd903",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "humanoid-fingers"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Blender T-bind with retained VARCO finger weights",
+  "runtime": {
+    "pet_id": "dobby-3d",
+    "folder": "ui/3d/pets/dobby",
+    "triangles": 50000,
+    "joints": 53,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Pinned Mesh2Motion movements (CC0)",
+    "model_sha256": "a584f1e0e3c5c4504ed8f3d1c917982e28e56b94139ec57e8fcd7c88868bf65e",
+    "motions_sha256": "b8ec6ccaf6323de785b8c754a17af74cac7ecf2bb5747a14b734ad3d17c0dceb"
+  }
+}

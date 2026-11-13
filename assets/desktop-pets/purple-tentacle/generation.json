@@ -48,7 +48,7 @@
     "animations": 30,
     "animation_source": "Original anatomical procedural gestures (GPL-3.0-only)",
     "model_sha256": "5049b3f0a24ce5faac437e0ae6190a1fe693ac5afd518ee6e8772a9597cd4255",
-    "motions_sha256": "c31f74df683a221ebfcced1cacd4ef7bd04f4b041a603523f53a9efaa8da9577"
+    "motions_sha256": "b6f127fe71721191e73a181056d0726960c9c6849ae771f16646b31568377461"
   },
   "rig_authoring": "Local anatomical Blender rig; retained landmarks in rig.json"
 }

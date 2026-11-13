@@ -1,0 +1,9 @@
+{
+  "source_sha256": "e640db10e477a5053568fbd4d0ae88798ea80b2127eb3f3d57feb3e66acafcbe",
+  "triangles": 50000,
+  "vertices": 55887,
+  "deform_joints": 29,
+  "texture_max_size": 1024,
+  "model_sha256": "3ed2b4e1d53603fda82f63cea499d934222bc79fedec3c477f1cc765951e892f",
+  "kind": "quadruped"
+}

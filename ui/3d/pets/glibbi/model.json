@@ -1,0 +1,9 @@
+{
+  "source_sha256": "db2c6c04e38c65a936a8a280e2350f6916d698f663b801d456f0353010b4db24",
+  "triangles": 49999,
+  "vertices": 32427,
+  "deform_joints": 11,
+  "texture_max_size": 1024,
+  "model_sha256": "97436b5dc2a76dbb2f2809bc17f3cb8b72e31e45be743066ea316f96a436cdc9",
+  "kind": "blob"
+}

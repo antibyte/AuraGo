@@ -1,10 +1,219 @@
 {
-  "punk": {"id":"aurago-punk-3d","sprite_id":"aurago-punk","name":"Punk","kind":"humanoid","joints":71},
-  "zombert": {"id":"aurago-zombie-3d","sprite_id":"aurago-zombie","name":"Zombert","kind":"humanoid","joints":53},
-  "green": {"id":"aurago-psycho-3d","sprite_id":"aurago-psycho","name":"Green","kind":"humanoid","joints":53},
-  "hoodie": {"id":"aurago-friend-3d","sprite_id":"aurago-friend","name":"Hoodie","kind":"humanoid","joints":53},
-  "professor": {"id":"aurago-thinker-3d","sprite_id":"aurago-thinker","name":"Professor","kind":"humanoid","joints":53},
-  "silver": {"id":"aurago-neutral-3d","sprite_id":"aurago-neutral","name":"Silver","kind":"humanoid","joints":53},
-  "rexi": {"id":"aurago-trex-3d","sprite_id":"aurago-trex","name":"Rexi","kind":"dinosaur","joints":21},
-  "purple-tentacle": {"id":"aurago-tentacle-3d","sprite_id":"aurago-tentacle","name":"Purple Tentacle","kind":"tentacle","joints":13}
+  "punk": {
+    "id": "aurago-punk-3d",
+    "sprite_id": "aurago-punk",
+    "name": "Punk",
+    "kind": "humanoid",
+    "joints": 71
+  },
+  "zombert": {
+    "id": "aurago-zombie-3d",
+    "sprite_id": "aurago-zombie",
+    "name": "Zombert",
+    "kind": "humanoid",
+    "joints": 53
+  },
+  "green": {
+    "id": "aurago-psycho-3d",
+    "sprite_id": "aurago-psycho",
+    "name": "Green",
+    "kind": "humanoid",
+    "joints": 53
+  },
+  "hoodie": {
+    "id": "aurago-friend-3d",
+    "sprite_id": "aurago-friend",
+    "name": "Hoodie",
+    "kind": "humanoid",
+    "joints": 53
+  },
+  "professor": {
+    "id": "aurago-thinker-3d",
+    "sprite_id": "aurago-thinker",
+    "name": "Professor",
+    "kind": "humanoid",
+    "joints": 53
+  },
+  "silver": {
+    "id": "aurago-neutral-3d",
+    "sprite_id": "aurago-neutral",
+    "name": "Silver",
+    "kind": "humanoid",
+    "joints": 53
+  },
+  "rexi": {
+    "id": "aurago-trex-3d",
+    "sprite_id": "aurago-trex",
+    "name": "Rexi",
+    "kind": "dinosaur",
+    "joints": 21
+  },
+  "purple-tentacle": {
+    "id": "aurago-tentacle-3d",
+    "sprite_id": "aurago-tentacle",
+    "name": "Purple Tentacle",
+    "kind": "tentacle",
+    "joints": 13
+  },
+  "openpets-default": {
+    "id": "openpets-default-3d",
+    "sprite_id": "openpets-default",
+    "name": "OpenPets Default",
+    "kind": "bird",
+    "joints": 22
+  },
+  "snoopy": {
+    "id": "snoopy-3d",
+    "sprite_id": "snoopy",
+    "name": "Snoopy",
+    "kind": "humanoid",
+    "joints": 53
+  },
+  "clippit": {
+    "id": "clippit-3d",
+    "sprite_id": "clippit",
+    "name": "Clippy",
+    "kind": "clip",
+    "joints": 6
+  },
+  "tux": {
+    "id": "tux-3d",
+    "sprite_id": "tux",
+    "name": "Tux",
+    "kind": "bird",
+    "joints": 22
+  },
+  "wall-e": {
+    "id": "wall-e-3d",
+    "sprite_id": "wall-e",
+    "name": "Wall-E",
+    "kind": "tracked",
+    "joints": 14
+  },
+  "dobby": {
+    "id": "dobby-3d",
+    "sprite_id": "dobby",
+    "name": "Dobby",
+    "kind": "humanoid",
+    "joints": 53
+  },
+  "butler": {
+    "id": "aurago-servant-3d",
+    "sprite_id": "aurago-servant",
+    "name": "Butler",
+    "kind": "humanoid",
+    "joints": 53
+  },
+  "manager": {
+    "id": "aurago-professional-3d",
+    "sprite_id": "aurago-professional",
+    "name": "Manager",
+    "kind": "humanoid",
+    "joints": 53
+  },
+  "commander": {
+    "id": "aurago-mistress-3d",
+    "sprite_id": "aurago-mistress",
+    "name": "Kommandantin",
+    "kind": "humanoid",
+    "joints": 53
+  },
+  "vampire": {
+    "id": "aurago-evil-3d",
+    "sprite_id": "aurago-evil",
+    "name": "Vampir",
+    "kind": "humanoid",
+    "joints": 53
+  },
+  "assistant": {
+    "id": "aurago-secretary-3d",
+    "sprite_id": "aurago-secretary",
+    "name": "Assistentin",
+    "kind": "humanoid",
+    "joints": 53
+  },
+  "mcp": {
+    "id": "aurago-mcp-3d",
+    "sprite_id": "aurago-mcp",
+    "name": "MCP",
+    "kind": "humanoid",
+    "joints": 53
+  },
+  "terminator": {
+    "id": "aurago-terminator-3d",
+    "sprite_id": "aurago-terminator",
+    "name": "Terminator",
+    "kind": "humanoid",
+    "joints": 53
+  },
+  "glibbi": {
+    "id": "aurago-slime-3d",
+    "sprite_id": "aurago-slime",
+    "name": "Glibbi",
+    "kind": "blob",
+    "joints": 11
+  },
+  "webbi": {
+    "id": "aurago-spider-3d",
+    "sprite_id": "aurago-spider",
+    "name": "Webbi",
+    "kind": "spider",
+    "joints": 30
+  },
+  "zorbit": {
+    "id": "aurago-alien-3d",
+    "sprite_id": "aurago-alien",
+    "name": "Zorbit",
+    "kind": "humanoid",
+    "joints": 53
+  },
+  "indiana-jones": {
+    "id": "aurago-indiana-jones-3d",
+    "sprite_id": "aurago-indiana-jones",
+    "name": "Indiana Jones",
+    "kind": "humanoid",
+    "joints": 53
+  },
+  "hana": {
+    "id": "aurago-manga-girl-3d",
+    "sprite_id": "aurago-manga-girl",
+    "name": "Hana",
+    "kind": "humanoid",
+    "joints": 53
+  },
+  "pippin": {
+    "id": "aurago-chick-3d",
+    "sprite_id": "aurago-chick",
+    "name": "Pippin",
+    "kind": "bird",
+    "joints": 22
+  },
+  "pavlo": {
+    "id": "aurago-peacock-3d",
+    "sprite_id": "aurago-peacock",
+    "name": "Pavlo",
+    "kind": "bird-tail",
+    "joints": 29
+  },
+  "buddy": {
+    "id": "aurago-puppy-3d",
+    "sprite_id": "aurago-puppy",
+    "name": "Buddy",
+    "kind": "quadruped",
+    "joints": 29
+  },
+  "minka": {
+    "id": "aurago-cat-3d",
+    "sprite_id": "aurago-cat",
+    "name": "Minka",
+    "kind": "quadruped",
+    "joints": 29
+  },
+  "kroko": {
+    "id": "aurago-crocodile-3d",
+    "sprite_id": "aurago-crocodile",
+    "name": "Kroko",
+    "kind": "quadruped",
+    "joints": 29
+  }
 }

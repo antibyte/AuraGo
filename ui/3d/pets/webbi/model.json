@@ -1,0 +1,9 @@
+{
+  "source_sha256": "b4719f981e18c7dfbbc77075625732515090ee48eae6426cb043d57e9190ae3e",
+  "triangles": 50000,
+  "vertices": 67735,
+  "deform_joints": 30,
+  "texture_max_size": 1024,
+  "model_sha256": "1632098fea3fb078119765debaf5af578085140c96bf97fccacbcea4630e5d62",
+  "kind": "spider"
+}

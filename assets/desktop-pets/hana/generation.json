@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "character": "Hana",
+  "date": "2026-11-13",
+  "original_pet_id": "aurago-manga-girl",
+  "pet_id": "aurago-manga-girl-3d",
+  "reference_generator": "Built-in ImageGen",
+  "reference_sha256": "e7ddfe12d8f5fe88e07d1c19de03dca8d5f72b0024bbeb12f689cefafee448a8",
+  "original_sprite_sha256": "b1405cc4d37358fd6aa2a1b984e7bdc5102d2e9954470dd6c6270c412ea2faa9",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "bd1b3ddfb6994a3939bcac83508dd3d145e9629e83bbeb3c19b48b3d14f38567",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "humanoid",
+  "category": "mascot",
+  "retained_sources": {
+    "varco-rigged.glb": {
+      "bytes": 20242936,
+      "sha256": "7eeaf7281313da9c959394c65fa5b4555492ae7bc5040851953924a1da835d9f"
+    },
+    "source.blend": {
+      "bytes": 18760571,
+      "sha256": "8214fec11557214b03dfafb73e11544a1679b8ebe558cdefd7fe3d326899a189"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b3de79a2-5345-40fe-8a81-1f29b30f3561",
+    "model_node_id": "858fe2ac-fbcb-4a8a-b4ff-b962eae6096c",
+    "rig_node_id": "3bbe5246-4d62-45fd-9eac-3cf22f7f41a7",
+    "mesh_task_id": "7659c26e-688b-4d6a-850b-1bbad92a7996",
+    "rig_task_id": "9d6abd29-19ae-4143-b535-5a8fecdcc70a",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "humanoid-fingers"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Blender T-bind with retained VARCO finger weights",
+  "rig_weight_repair": "UV seams welded; connected head/hair regions assigned to the skull and hair/sleeve bridges removed before the T-bind bake; body and finger weights retained; isolated stretched LOD faces pruned from the motion check",
+  "runtime": {
+    "pet_id": "aurago-manga-girl-3d",
+    "folder": "ui/3d/pets/hana",
+    "triangles": 47925,
+    "joints": 53,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Pinned Mesh2Motion movements (CC0)",
+    "model_sha256": "5c7c39bf24d63b54acf40ffa1f48bafd0895a90fbc60754f73fed3b2bfe6f3c8",
+    "motions_sha256": "d47998a7dd8a2cc72899a7639ec8de46d43596609a9ff211fb639bfd66fd405b",
+    "skin_cleanup": {
+      "source_model_sha256": "2f5287909b88954a4ac3de68e955e400325324e0f2f0291167cd58e0d878e7b2",
+      "input_model_sha256": "2f5287909b88954a4ac3de68e955e400325324e0f2f0291167cd58e0d878e7b2",
+      "removed_triangles": 2075,
+      "removed_island_triangles": 2066,
+      "sampled_poses": 90,
+      "method": "Remove stretched LOD faces and small detached body fragments; preserve rigid facial details"
+    }
+  }
+}

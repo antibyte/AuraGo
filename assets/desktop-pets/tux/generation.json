@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "character": "Tux",
+  "date": "2026-11-13",
+  "original_pet_id": "tux",
+  "pet_id": "tux-3d",
+  "reference_generator": "Built-in ImageGen",
+  "reference_sha256": "af4e8e23ecf498e717a759c724a37c9814d4325ea6ebefe16e1cb726149dd774",
+  "original_sprite_sha256": "289290fcacf782ec4cd606b6882bd0bddb02116d436ec67f53519e4a83ff75a3",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "938db2354d8976ffad72772a8d2d9bdad14d7a010a41060a356b9bb770b20651",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "bird",
+  "category": "mascot",
+  "retained_sources": {
+    "varco-source.glb": {
+      "bytes": 12645756,
+      "sha256": "8ce07a6469004394686f6fb6ea95471ceb3075f090a3c7d1fd6e2690e880a4db"
+    },
+    "source.blend": {
+      "bytes": 15335723,
+      "sha256": "fa03dd0fdea22a30c9271ea8d1d092ffb76fdcc143aeae0dda646796dda45dc7"
+    },
+    "rig.json": {
+      "bytes": 6553,
+      "sha256": "141a2c52270498a0f013131d433e23fddd82d7387cc295cf39c8c7c8c27cb248"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b98833b3-f6fd-483a-84c3-588c1d487149",
+    "model_node_id": "9d0a7dc6-4775-470d-9e1e-0c23bfa4b8f5",
+    "mesh_task_id": "17c30bb8-957f-4217-a325-3b0aca236ad9",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "local"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Local anatomical Blender rig; retained landmarks in rig.json",
+  "runtime": {
+    "pet_id": "tux-3d",
+    "folder": "ui/3d/pets/tux",
+    "triangles": 50000,
+    "joints": 22,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Original anatomical procedural gestures (GPL-3.0-only)",
+    "model_sha256": "f221d6f733df36a81a6e3c1761c786bb2dbdbeee4709e9a23f74c60198805a78",
+    "motions_sha256": "69590fceb654f504ca3c8c3ade5a13a55a66bcf3388fd1adf07a32013076b9ed"
+  }
+}

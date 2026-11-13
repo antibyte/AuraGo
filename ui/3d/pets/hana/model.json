@@ -1,0 +1,17 @@
+{
+  "source_sha256": "7eeaf7281313da9c959394c65fa5b4555492ae7bc5040851953924a1da835d9f",
+  "triangles": 47925,
+  "vertices": 27622,
+  "deform_joints": 53,
+  "texture_max_size": 1024,
+  "model_sha256": "5c7c39bf24d63b54acf40ffa1f48bafd0895a90fbc60754f73fed3b2bfe6f3c8",
+  "kind": "humanoid",
+  "skin_cleanup": {
+    "source_model_sha256": "2f5287909b88954a4ac3de68e955e400325324e0f2f0291167cd58e0d878e7b2",
+    "input_model_sha256": "2f5287909b88954a4ac3de68e955e400325324e0f2f0291167cd58e0d878e7b2",
+    "removed_triangles": 2075,
+    "removed_island_triangles": 2066,
+    "sampled_poses": 90,
+    "method": "Remove stretched LOD faces and small detached body fragments; preserve rigid facial details"
+  }
+}

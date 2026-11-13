@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "character": "Minka",
+  "date": "2026-11-13",
+  "original_pet_id": "aurago-cat",
+  "pet_id": "aurago-cat-3d",
+  "reference_generator": "Built-in ImageGen",
+  "reference_sha256": "c8f624a1dfb43966914876deec789c75aee17f172ab0742f7b32d56771c75fb7",
+  "original_sprite_sha256": "f7ed8f0881b813f29ddb0a7220038467309ef519e048389907e26c696879886f",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "f9deb3d298f63a650857ee8dd72b58e760e80e0ad15e34c1fdb45c9a188dac8a",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "quadruped",
+  "category": "mascot",
+  "retained_sources": {
+    "varco-rigged.glb": {
+      "bytes": 16870996,
+      "sha256": "55014866efc6e45f2b0dd55fbea267559145563d3e8e19c0428784ed97f86dac"
+    },
+    "source.blend": {
+      "bytes": 17485640,
+      "sha256": "ac27e74c59bdd7b8da056eb2d44acc1e3e7b7f339613dfc3e8f385ae9a4d7540"
+    },
+    "rig.json": {
+      "bytes": 8919,
+      "sha256": "52f511dbf4e2980c72781fc61370bdf0a984523e4d1657e989ed2b40655c8e0a"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b3de79a2-5345-40fe-8a81-1f29b30f3561",
+    "model_node_id": "8bcb4025-8f3d-45b3-9ef3-c175ff4b1866",
+    "rig_node_id": "0defbded-3c54-48a9-bf0a-dceeb324d28f",
+    "mesh_task_id": "517b8432-7d46-45e2-ad21-642bc493c5a6",
+    "rig_task_id": "1b144215-5f33-427d-9e98-0744f94e8d86",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "quadruped"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Native VARCO quadruped weights preserved in Blender",
+  "runtime": {
+    "pet_id": "aurago-cat-3d",
+    "folder": "ui/3d/pets/minka",
+    "triangles": 49999,
+    "joints": 29,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Original anatomical procedural gestures (GPL-3.0-only)",
+    "model_sha256": "5be881a1ac198af458ef586d944ad2adf6110170bc5045f0f46adf00e732e49c",
+    "motions_sha256": "b280db855f989fe7ffcbbbf73535438f867763d7614d3267b7dcaab4804cee3f"
+  }
+}

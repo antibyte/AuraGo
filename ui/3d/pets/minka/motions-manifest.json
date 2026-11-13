@@ -1,0 +1,189 @@
+{
+  "procedural": true,
+  "source_sha256": "b91052a19718e5cd130bfa470f30ddb928f7da4a2e7542bea1865fc7841c3292",
+  "license": "GPL-3.0-only",
+  "clips": [
+    {
+      "id": "idle-a",
+      "name": "Idle_A",
+      "loop": true,
+      "duration": 3.0833
+    },
+    {
+      "id": "idle-subtle",
+      "name": "Idle_Subtle",
+      "loop": true,
+      "duration": 2.5417
+    },
+    {
+      "id": "idle-listening",
+      "name": "Idle Listening",
+      "loop": true,
+      "duration": 1.625
+    },
+    {
+      "id": "idle-foldarms",
+      "name": "Idle_FoldArms",
+      "loop": true,
+      "duration": 2.4583
+    },
+    {
+      "id": "idle-talking",
+      "name": "Idle_Talking",
+      "loop": true,
+      "duration": 3.625
+    },
+    {
+      "id": "walk-female",
+      "name": "Walk_Female",
+      "loop": false,
+      "duration": 1.3333
+    },
+    {
+      "id": "walk-happy",
+      "name": "Walk_Happy",
+      "loop": true,
+      "duration": 1.2
+    },
+    {
+      "id": "jog",
+      "name": "Jog",
+      "loop": true,
+      "duration": 1.2
+    },
+    {
+      "id": "run-female",
+      "name": "Run_Female",
+      "loop": false,
+      "duration": 1.2
+    },
+    {
+      "id": "greeting",
+      "name": "Greeting",
+      "loop": false,
+      "duration": 4
+    },
+    {
+      "id": "head-nod",
+      "name": "Head Nod",
+      "loop": false,
+      "duration": 1.2
+    },
+    {
+      "id": "yes",
+      "name": "Yes",
+      "loop": false,
+      "duration": 2.4583
+    },
+    {
+      "id": "confused",
+      "name": "Confused",
+      "loop": true,
+      "duration": 2.8333
+    },
+    {
+      "id": "reject",
+      "name": "Reject",
+      "loop": false,
+      "duration": 3.7083
+    },
+    {
+      "id": "clapping",
+      "name": "Clapping",
+      "loop": true,
+      "duration": 1.4583
+    },
+    {
+      "id": "victory-fist-pump",
+      "name": "Victory Fist Pump",
+      "loop": false,
+      "duration": 2.4583
+    },
+    {
+      "id": "dance-simple",
+      "name": "Dance_Simple",
+      "loop": true,
+      "duration": 1.2083
+    },
+    {
+      "id": "dance-arm-pump",
+      "name": "Dance_Arm_Pump",
+      "loop": true,
+      "duration": 1.9583
+    },
+    {
+      "id": "sit-ground-idle",
+      "name": "Sit_Ground_Idle",
+      "loop": true,
+      "duration": 2.9583
+    },
+    {
+      "id": "sleeping",
+      "name": "Sleeping",
+      "loop": true,
+      "duration": 1.5833
+    },
+    {
+      "id": "shiver",
+      "name": "Shivering",
+      "loop": false,
+      "duration": 1.2
+    },
+    {
+      "id": "jump-2",
+      "name": "Jump_2",
+      "loop": false,
+      "duration": 1.6667
+    },
+    {
+      "id": "jump-land",
+      "name": "Jump_Land",
+      "loop": false,
+      "duration": 1.5833
+    },
+    {
+      "id": "freefall",
+      "name": "Freefall",
+      "loop": true,
+      "duration": 1.4583
+    },
+    {
+      "id": "ledge-hang",
+      "name": "Ledge Hang",
+      "loop": true,
+      "duration": 1.8333
+    },
+    {
+      "id": "guitar-playing",
+      "name": "Guitar_Playing",
+      "loop": true,
+      "duration": 3.9583
+    },
+    {
+      "id": "dab",
+      "name": "Dab",
+      "loop": false,
+      "duration": 1.9167
+    },
+    {
+      "id": "tired-hunched",
+      "name": "Tired Hunched",
+      "loop": false,
+      "duration": 1.2
+    },
+    {
+      "id": "interact",
+      "name": "Interact",
+      "loop": false,
+      "duration": 2.4583
+    },
+    {
+      "id": "fixing-kneeling",
+      "name": "Fixing_Kneeling",
+      "loop": true,
+      "duration": 4
+    }
+  ],
+  "bytes": 633920,
+  "sha256": "b280db855f989fe7ffcbbbf73535438f867763d7614d3267b7dcaab4804cee3f"
+}

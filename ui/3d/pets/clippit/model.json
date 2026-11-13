@@ -1,0 +1,9 @@
+{
+  "source_sha256": "6ff76c70179e8572100444078febbc518062abccc50a2b23f2d2fcf0bc92237b",
+  "triangles": 50000,
+  "vertices": 33616,
+  "deform_joints": 6,
+  "texture_max_size": 1024,
+  "model_sha256": "125cb7d3ade51f87e0a42cfdc8b11ff682dd0d4a44de50bfd235e72351a69023",
+  "kind": "clip"
+}

@@ -1,0 +1,9 @@
+{
+  "source_sha256": "30fae5023aae8e356c6d844739e5b19ff35d14f69c83b5ec082f9d83bdf5df63",
+  "triangles": 50000,
+  "vertices": 52561,
+  "deform_joints": 53,
+  "texture_max_size": 1024,
+  "model_sha256": "515417f838cf386fa4a97cf6f167b4c0c25cc250730f31bf78f03172bdc5414f",
+  "kind": "humanoid"
+}

@@ -1,4 +1,4 @@
-"""Author anatomical skinning for the retained Rexi and Purple Tentacle meshes."""
+"""Author anatomical skinning for retained non-humanoid desktop pet meshes."""
 import argparse
 import bpy
 import hashlib
@@ -10,8 +10,10 @@ from mathutils import Vector
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'assets/desktop-pets'))
 from model_export import export_model, render_thumbnail
+from shape_rigs import build_profile
+catalog=json.loads((ROOT/'assets/desktop-pets/catalog.json').read_text(encoding='utf-8'))
 parser=argparse.ArgumentParser()
-parser.add_argument('--pet',required=True,choices=['rexi','purple-tentacle'])
+parser.add_argument('--pet',required=True,choices=[key for key,value in catalog.items() if value['kind'] not in ('humanoid','quadruped')])
 args=parser.parse_args(sys.argv[sys.argv.index('--')+1:])
 PET=args.pet
 SOURCE=ROOT/f'assets/desktop-pets/{PET}/varco-source.glb'
@@ -19,7 +21,13 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=str(SOURCE))
 mesh=next(o for o in bpy.context.scene.objects if o.type=='MESH')
 assert mesh.matrix_world.is_identity
+if PET=='wall-e':
+    from tracked_surface import build_surface
+    bpy.data.objects.remove(mesh,do_unlink=True)
+    mesh=build_surface()
 specs=[]
+shape_weights=None
+normalization=None
 def add(name,head,tail,parent=None):
     assert (Vector(tail)-Vector(head)).length>.001,name
     specs.append((name,Vector(head),Vector(tail),parent))
@@ -40,7 +48,7 @@ if PET=='rexi':
         arm=[(.13*sign,-.18,.43),(.17*sign,-.28,.38),(.15*sign,-.36,.34)]
         add(f'DEF-upper_arm.{side}',arm[0],arm[1],'DEF-spine.003')
         add(f'DEF-forearm.{side}',arm[1],arm[2],f'DEF-upper_arm.{side}')
-else:
+elif PET=='purple-tentacle':
     centers=[(0,0,.06),(0,0,.18),(0,0,.40),(0,0,.62),(.015,0,.79),(.05,0,.90)]
     names=['DEF-spine','DEF-spine.001','DEF-spine.002','DEF-spine.003','DEF-spine.004','DEF-spine.006']
     for i,name in enumerate(names):
@@ -50,6 +58,8 @@ else:
         arm=[(.19*sign,-.02,.48),(.31*sign,-.03,.39),(.35*sign,-.05,.29),(.28*sign,-.12,.27)]
         for i,part in enumerate(['upper_arm','forearm','hand']):
             add(f'DEF-{part}.{side}',arm[i],arm[i+1],f'DEF-{["upper_arm","forearm"][i-1]}.{side}' if i else 'DEF-spine.002')
+else:
+    specs,shape_weights,normalization=build_profile(mesh,catalog[PET]['kind'],PET)
 
 armature=bpy.data.armatures.new(PET+'_Skeleton')
 rig=bpy.data.objects.new(PET+'_Rig',armature);bpy.context.scene.collection.objects.link(rig)
@@ -60,7 +70,7 @@ for name,head,tail,parent in specs:
     if parent:
         bone.parent=armature.edit_bones[parent]
 bpy.ops.object.mode_set(mode='OBJECT')
-groups={name:mesh.vertex_groups.new(name=name) for name,_,_,_ in specs}
+groups={name:mesh.vertex_groups.get(name) or mesh.vertex_groups.new(name=name) for name,_,_,_ in specs}
 segments={name:(head,tail) for name,head,tail,_ in specs}
 def smooth(a,b,value):
     t=max(0,min(1,(value-a)/(b-a)))
@@ -91,7 +101,8 @@ def body_weights(z):
 for vertex in mesh.data.vertices:
     point=vertex.co;x,y,z=point
     side='L' if x>=0 else 'R'
-    weights=body_weights(z)
+    weights=({mesh.vertex_groups[g.group].name:g.weight for g in vertex.groups} if PET=='wall-e'
+             else shape_weights(point) if shape_weights else body_weights(z))
     if PET=='rexi':
         if y>.08:
             weights=blend(weights,closest(point,[f'Tail.{i:02}' for i in range(1,5)]),smooth(.08,.20,y))
@@ -106,7 +117,7 @@ for vertex in mesh.data.vertices:
             arm_distance=min(distance(point,*segments[name]) for name in arm_names)
             arm=(1-smooth(.055,.10,arm_distance))*smooth(.28,.34,z)*(1-smooth(.46,.50,z))*smooth(.12,.22,-y)
             weights=blend(weights,closest(point,arm_names),arm)
-    else:
+    elif PET=='purple-tentacle':
         # Keep the cups and their surrounding trunk together when the base bends.
         weights=blend({'DEF-spine.001':1},{'DEF-spine.002':1},smooth(.08,.24,z))
         weights=blend(weights,{'DEF-spine.006':1},smooth(.80,.93,z))
@@ -133,6 +144,8 @@ bpy.ops.object.mode_set(mode='OBJECT')
 mesh.parent=rig;mesh.name=PET+'_Surface'
 mesh.modifiers.new('Armature','ARMATURE').object=rig
 rig_report={'source_sha256':hashlib.sha256(SOURCE.read_bytes()).hexdigest(),'scale':factor,'source_bounds':[list(low),list(high)],'bones':[{'name':name,'head':list(head),'tail':list(tail),'parent':parent} for name,head,tail,parent in specs]}
+if normalization:
+    rig_report['source_normalization']=normalization
 (ROOT/f'assets/desktop-pets/{PET}/rig.json').write_text(json.dumps(rig_report,indent=2)+'\n',encoding='utf-8',newline='\n')
 textures=export_model(ROOT,PET,SOURCE,rig,mesh)
 render_thumbnail(ROOT,PET,mesh,textures)

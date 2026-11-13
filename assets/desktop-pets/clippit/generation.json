@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "character": "Clippy",
+  "date": "2026-11-13",
+  "original_pet_id": "clippit",
+  "pet_id": "clippit-3d",
+  "reference_generator": "Built-in ImageGen",
+  "reference_sha256": "ef393be4fb6f52f7c0c095d075410eaf9d8da72c78fb782f99a7389783c400f0",
+  "original_sprite_sha256": "a1429ff127d109282f0d8d9e053a602073314699da0d6ebd3fefaa83695b4411",
+  "imagegen_input": "First 192x208 sprite frame, upscaled 4x with nearest-neighbor sampling",
+  "imagegen_input_sha256": "fb06e8cf50c8f7a2b3ffed2e50fd4aebd1d80579b46053b974f6a79881b2239d",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "kind": "clip",
+  "category": "mascot",
+  "retained_sources": {
+    "varco-source.glb": {
+      "bytes": 10301384,
+      "sha256": "6ff76c70179e8572100444078febbc518062abccc50a2b23f2d2fcf0bc92237b"
+    },
+    "source.blend": {
+      "bytes": 12346112,
+      "sha256": "feecbf565e22eb568a38b26777710d9d6999cb4bb7d4c54fae5c51661d8578f2"
+    },
+    "rig.json": {
+      "bytes": 2025,
+      "sha256": "198d8ba4c56daa422f62b03e49d01189e59e59d333c7d460d973afb164c83746"
+    }
+  },
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "b98833b3-f6fd-483a-84c3-588c1d487149",
+    "model_node_id": "b95677a3-ed7c-46ad-b146-e78184e6cb0d",
+    "mesh_task_id": "5b48cd82-f051-4938-8c30-3f2fddfa4699",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "local"
+  },
+  "deployment": "local_checkout_only",
+  "rig_authoring": "Local anatomical Blender rig; retained landmarks in rig.json",
+  "runtime": {
+    "pet_id": "clippit-3d",
+    "folder": "ui/3d/pets/clippit",
+    "triangles": 50000,
+    "joints": 6,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Original anatomical procedural gestures (GPL-3.0-only)",
+    "model_sha256": "125cb7d3ade51f87e0a42cfdc8b11ff682dd0d4a44de50bfd235e72351a69023",
+    "motions_sha256": "5c8710f274194f51154a3c070560d8607093663ce83afd6f3129c8b1ae916df5"
+  }
+}

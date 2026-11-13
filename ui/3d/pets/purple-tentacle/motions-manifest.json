@@ -1,6 +1,6 @@
 {
   "procedural": true,
-  "source_sha256": "15d0faa701b08b45e0b2cadd54f286f7fed650ed8c045f7f23860c0f0c5cb03e",
+  "source_sha256": "5b05dbd84951563e83c123e9fc53c5bdd1a97e63cef810b4764780e2564ab103",
   "license": "GPL-3.0-only",
   "clips": [
     {
@@ -185,5 +185,5 @@
     }
   ],
   "bytes": 469056,
-  "sha256": "c31f74df683a221ebfcced1cacd4ef7bd04f4b041a603523f53a9efaa8da9577"
+  "sha256": "b6f127fe71721191e73a181056d0726960c9c6849ae771f16646b31568377461"
 }

@@ -58,9 +58,9 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 - Read actual decoded bytes within budgets. Check ZIP close, file sync and close, and publish each file atomically with Windows replacement retries. Validation failures preserve destinations; unrelated I/O failure does not imply a multi-file rollback.
 - Conditional writes, copies and moves check destination versions under `desktopMutationMu` and publish through rooted atomic operations. HTTP edits require observed strong ETags; creation uses `If-None-Match: *`. Existing destination symlinks are conflicts, including dangling links; moving the link entry itself to a new name remains supported. Copies stage the whole tree with count, depth and byte budgets; cancellation preserves the previous destination.
 - Pet lookups validate ids against `petIDPattern` and resolve manifest paths (`spritesheetPath`) only as relative, slash-separated paths without `..`, `:` or `\`, through an `os.Root` at `Pets` with every component Lstat-checked (real directories, regular final file, no links). Bundled-pet repair reinstalls only missing files (created with `O_EXCL`) and replaces a manifest only when it cannot be parsed, so customised bundled pets survive; it never writes through a link, and a pet refused for another reason (link, special file, missing custom spritesheet) is logged and skipped. Lookup, listing and repair errors name the pet id or "pets directory", never a host path (the OS error is logged server-side); user `InstallPet`/`DeletePet` errors still wrap OS errors.
-- Eight additional bundled pets have subcategory `3d` and ordinary OpenPets
-  fallbacks: Punk, Zombert, Green, Hoodie, Professor, Silver, Rexi and Purple
-  Tentacle. Their IDs/joint counts are listed in `assets/desktop-pets/catalog.json`.
+- All 31 sprite pets also have separate bundled entries with subcategory `3d`
+  and ordinary OpenPets fallbacks. Their IDs, anatomical kinds and joint counts
+  are listed in `assets/desktop-pets/catalog.json`.
   The browser maps only the reviewed id/subcategory pairs
   to fixed version-bound 3D assets; this adds no manifest-supplied model URL or
   server-side execution. Preserve the sprite pets and the current active pet.
