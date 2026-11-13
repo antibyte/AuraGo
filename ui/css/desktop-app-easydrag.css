@@ -1430,6 +1430,15 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 }
 @keyframes ed-flash { 0% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ed-accent) 60%, transparent); } 100% { box-shadow: 0 0 0 0 transparent; } }
 
+/* Lebendigkeit: one gate for all motion. ED.delight sets data-motion="normal" on .ed-app when nothing asks
+   for calm. Under any other value (Ruhig, reduced motion, desktop animations off, or no value yet) no
+   animation runs: a running step keeps its static blue border and disc, a spinner stays a static ring or
+   icon, flowing wires keep their dashes. Transitions are not affected; they end by themselves. */
+.ed-app:not([data-motion="normal"]) *, .ed-app:not([data-motion="normal"]) *::before, .ed-app:not([data-motion="normal"]) *::after {
+    animation: none !important;
+}
+.ed-app:not([data-motion="normal"]) .ed-edge.is-flowing .ed-wire { stroke-dasharray: none; }
+
 @media (pointer: coarse) {
     .ed-app .ed-btn, .ed-app .ed-icon-btn, .ed-app .ed-node-tool, .ed-app .ed-switch-btn,
     .ed-app .ed-subtabs button, .ed-app button.ed-foot-item, .ed-app .ed-port-add { min-width: 44px; min-height: 44px; }
