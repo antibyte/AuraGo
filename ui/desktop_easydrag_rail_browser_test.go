@@ -49,6 +49,47 @@ func TestEasyDragRailCaptionsBrowser(t *testing.T) {
 		}
 		s.shot("rail-captions-" + vp.name)
 	}
+
+	// At 900 and 390 px the palette and the outline float over the canvas. They start right of the
+	// rail, and the end of every caption still receives the click.
+	const open = `(which)=>{
+		const ed=edFixture.editor();
+		if(which==='palette'){const b=document.querySelector('.ed-rail [data-ed-cmd="palette"]');if(b.getAttribute('aria-pressed')!=='true')b.click();return 'ok';}
+		const label=ed.t('easydrag.ui.node_list');
+		const b=[...document.querySelectorAll('.ed-rail button')].find(x=>x.title===label);
+		if(!b)return 'no outline button';
+		if(b.getAttribute('aria-pressed')!=='true')b.click();
+		return 'ok';
+	}`
+	const check = `(sel)=>{
+		const panel=document.querySelector(sel), rail=document.querySelector('.ed-rail');
+		if(!panel||panel.getBoundingClientRect().width===0)return sel+' is not shown';
+		const pr=panel.getBoundingClientRect(), rr=rail.getBoundingClientRect(), out=[];
+		if(pr.left<rr.right-0.5)out.push(sel+' left '+pr.left+' < rail right '+rr.right);
+		rail.querySelectorAll('button').forEach(b=>{
+			const cap=b.querySelector('.ed-rail-caption').getBoundingClientRect();
+			const hit=document.elementFromPoint(cap.right-1,(cap.top+cap.bottom)/2);
+			if(!hit||!b.contains(hit))out.push((b.title||b.dataset.edCmd)+': caption end is covered by '+(hit?hit.className||hit.tagName:'nothing'));
+		});
+		return out.join('; ');
+	}`
+	for _, vp := range []struct {
+		name          string
+		width, height int
+		mobile        bool
+	}{{"900", 900, 700, false}, {"390", 390, 844, true}} {
+		p.MustSetViewport(vp.width, vp.height, 1, vp.mobile)
+		p.MustEval(`()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(r,250))))`)
+		for _, panel := range []struct{ which, sel string }{{"palette", ".ed-palette"}, {"outline", ".ed-node-region.is-outline"}} {
+			if got := p.MustEval(open, panel.which).Str(); got != "ok" {
+				t.Fatalf("%s at %s px: %s", panel.which, vp.name, got)
+			}
+			p.MustEval(`()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(r,300))))`)
+			if got := p.MustEval(check, panel.sel).Str(); got != "" {
+				t.Fatalf("%s at %s px: %s", panel.which, vp.name, got)
+			}
+		}
+	}
 	s.noRawKeys("rail")
 	s.failOnPageErrors("rail")
 }

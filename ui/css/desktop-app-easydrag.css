@@ -107,6 +107,7 @@
     --ed-status-edge: var(--ed-status-neutral);
     --ed-status-ink: #0b1220;
     --ed-shadow: var(--ds-elevation-2);
+    --ed-rail-w: 64px;
     --ed-shadow-lg: var(--ds-elevation-4);
     --ed-glass: color-mix(in srgb, var(--ed-panel-strong) 82%, transparent);
     /* category identity (UI-03): a solid tile and its icon colour per category. Category colour marks identity, never
@@ -596,7 +597,7 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-head-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; flex: 1 1 100%; justify-content: flex-start; min-width: 0; }
 .ed-head-actions .ed-btn { white-space: normal; }
 .ed-body { position: relative; flex: 1; display: flex; min-height: 0; }
-.ed-rail { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 64px; flex: none; padding: 8px 0; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; background: var(--ed-side); box-shadow: var(--ed-side-edge); border-right: 1px solid var(--ed-border); z-index: 3; }
+.ed-rail { display: flex; flex-direction: column; align-items: center; gap: 4px; width: var(--ed-rail-w); flex: none; padding: 8px 0; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; background: var(--ed-side); box-shadow: var(--ed-side-edge); border-right: 1px solid var(--ed-border); z-index: 3; }
 .ed-rail-spacer { flex: 1; }
 .ed-rail .ed-icon-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; flex: none; width: 56px; height: auto; min-height: 48px; padding: 6px 2px; border-radius: var(--vd-mat-btn-radius, 10px); }
 .ed-rail .ed-icon { width: 18px; height: 18px; }
@@ -909,8 +910,8 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-detail-back { display: none; }
 .ed-editor.is-inspector > .ed-body > .ed-canvas { display: none; }
 .ed-editor.is-inspector > .ed-body > .ed-palette {
-    position: absolute; top: 0; bottom: 0; left: 48px; z-index: 6;
-    width: min(280px, calc(100% - 48px)); box-shadow: var(--ed-shadow-lg);
+    position: absolute; top: 0; bottom: 0; left: var(--ed-rail-w); z-index: 6;
+    width: min(280px, calc(100% - var(--ed-rail-w))); box-shadow: var(--ed-shadow-lg);
 }
 .ed-editor.is-inspector > .ed-body > .ed-detail-backdrop { flex: 1 1 auto; width: auto; max-width: none; }
 .ed-editor.is-inspector .ed-detail-back { display: inline-grid; width: 44px; height: 44px; }
@@ -1356,17 +1357,17 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     .ed-head-actions .ed-btn[data-ed-cmd="run-now"] > span { display: inline; white-space: normal; }
     .ed-head-actions .ed-btn, .ed-head-actions .ed-icon-btn, .ed-head-actions .ed-switch-btn { min-height: 44px; min-width: 44px; }
     .ed-head-actions .ed-btn { padding: 6px 10px; }
-    .ed-palette { position: absolute; top: 0; bottom: 0; left: 48px; z-index: 4; box-shadow: var(--ed-shadow-lg); }
+    .ed-palette { position: absolute; top: 0; bottom: 0; left: var(--ed-rail-w); z-index: 4; box-shadow: var(--ed-shadow-lg); }
     .ed-minimap { display: none; }
     .ed-drawer { width: min(340px, 100%); }
-    .ed-node-region.is-outline { position: absolute; top: 0; bottom: 0; left: 48px; z-index: 5; width: min(280px, calc(100% - 48px)); box-shadow: var(--ed-shadow-lg); }
+    .ed-node-region.is-outline { position: absolute; top: 0; bottom: 0; left: var(--ed-rail-w); z-index: 5; width: min(280px, calc(100% - var(--ed-rail-w))); box-shadow: var(--ed-shadow-lg); }
 }
 @container (max-width: 759px) { .ed-panel-resize, .ed-panel-width-btn { display: none; } }
 /* Inspector open under 1180: palette floats, so it does not eat the graph. isOverlay reads this absolute. */
 @container (max-width: 1179px) {
     .ed-body:has(.ed-detail-backdrop) > .ed-palette {
-        position: absolute; top: 0; bottom: 0; left: 48px; z-index: 5;
-        width: min(280px, calc(100% - 48px)); box-shadow: var(--ed-shadow-lg);
+        position: absolute; top: 0; bottom: 0; left: var(--ed-rail-w); z-index: 5;
+        width: min(280px, calc(100% - var(--ed-rail-w))); box-shadow: var(--ed-shadow-lg);
     }
 }
 @container (min-width: 888px) {

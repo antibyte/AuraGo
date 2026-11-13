@@ -116,7 +116,7 @@
             const width = ed.root.getBoundingClientRect().width;
             if (!width) return;
             layoutChosen = true;
-            if (box && box.w * 0.8 + 96 > width - prefs.palette - 48) { palette.setOpen(false, true); canvas.fit({ readable: true }); }
+            if (box && box.w * 0.8 + 96 > width - prefs.palette - (rail.getBoundingClientRect().width || 64)) { palette.setOpen(false, true); canvas.fit({ readable: true }); }
         }
         chooseLayout();
         if (prefs.outline) { palette.setOpen(false); canvas.setOutline(true); }
