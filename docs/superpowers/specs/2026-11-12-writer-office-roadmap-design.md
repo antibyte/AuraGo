@@ -151,7 +151,7 @@ Wave 1 is planned in three parts, each shippable on its own (user, 2026-11-12):
 
 - **1a** — registry extension, complete menus, clipboard commands, dialogs, zoom, toolbar additions, shortcuts. Plan: `docs/superpowers/plans/2026-11-12-writer-wave1a-commands-menus.md`.
 - **1b** — right-click menu and contextual bar. Plan: `docs/superpowers/plans/2026-11-13-writer-wave1b-context.md`. The bar sits under the toolbar and covers the ruler, so the document does not move (user, 2026-11-13). A right-click keeps a selection and moves a plain caret, because the engine does not expose where a selection is painted. Image wrap stays in the Format panel: the engine refuses a wrap change for images Writer inserted.
-- **1c** — start state and recent documents. Planned after 1b.
+- **1c** — recent documents and unsaved drafts. Plan: `docs/superpowers/plans/2026-11-13-writer-wave1c-recent-drafts.md`. The user kept the blank document as the start state (2026-11-13), so there is no start page and the templates stay in the Insert panel. Recent documents are a File submenu fed by the shell's list. The drafts dialog makes kept drafts reachable when their document no longer opens by itself.
 
 Decided while planning 1a: superscript and subscript are menu items, not toolbar buttons; the format painter is "Copy formatting" and "Paste formatting" in the Format menu, because the engine does not expose the one-click painter's arming; "simple markup" is not offered, because the review module declares three display modes; "whole page" zoom is computed by Writer, because the engine fits the page width only.
 

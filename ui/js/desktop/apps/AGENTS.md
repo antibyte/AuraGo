@@ -3891,6 +3891,17 @@ buttons and menu popovers remain excluded from those gestures.
   `writer-dialogs.js` holds the dialogs (table size, link, go to page, word count,
   shortcut overview), all through `shared/form-dialog.js`;
   `writer-context.js` owns the two context surfaces: the bar over the ruler (`kind(snapshot)` picks image, header/footer or table; `bars` lists its commands) and the right-click menu (`sections(target)`), both built from the registry. The engine moves its caret on a right-click, so the module keeps a right-button press from the engine while there is a selection or a selected image, and lets a plain caret follow the click. A right-click on an image that is not selected selects it first with a synthetic left press, because the engine acts on the selected image only. Items only the app can build (accept or reject the change under the pointer, unlink, update a table of contents) are the `@` entries; every context-menu item names an icon the shell has, because the shell draws an unknown key as text;
+  Recent documents come from the shell's list: the shell hands Writer `recentFiles`,
+  `recordRecentFile` and `forgetRecentFile` in its context. `remember()` in `writer.js` records a
+  file that was loaded, renamed or saved under a new name, and a new document once a save finds
+  text in it, so an empty new document never enters the list; a file that answers 404 is
+  forgotten. `WriterMenus.recent` picks Writer's own entries without the open document for
+  File > Recent documents, and the list is part of the menu signature.
+  `OfficeSession.drafts()` lists kept drafts without their bytes. File > Unsaved drafts
+  (`drafts()` in `writer-dialogs.js`) restores one through `load(path, null, true)`, which skips
+  the recovery question and starts a new document at the draft's path when the file is gone, or
+  deletes it with `deleteIf`. In the form dialog a `select` with `size` is a list, and the extra
+  button answers with the field values;
   `writer-session.js` owns revision-bound autosave and IndexedDB recovery;
   `writer-panels.js` owns formatting, search, review, AI and snapshot printing.
   A new command is one entry in `DEFINITIONS`: a `slot`, a `command` (an engine

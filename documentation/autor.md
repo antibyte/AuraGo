@@ -87,10 +87,22 @@ writes it with that file's ETag. Renaming only creates the new name
 (`If-None-Match: *`) and then uses the ETag returned for that file. An existing
 name stays unchanged.
 
-A local IndexedDB draft supports explicit recovery after failures. Closing or
-opening another document first attempts to save. If saving fails, the user may
-keep a local recovery draft and close; unavailable recovery storage prevents
-discarding the only unsaved copy.
+Writer keeps a local draft in the browser while a document has unsaved changes
+and removes it after a successful save. Opening a document that still has a
+draft asks whether to restore it. Closing or opening another document first
+attempts to save. If saving fails, the user may keep the draft and close;
+unavailable recovery storage prevents discarding the only unsaved copy.
+**File > Unsaved drafts** lists the drafts this browser still holds, with name,
+folder and time. One draft at a time can be restored into its document or
+deleted. A draft whose document no longer exists is restored as a new document
+at the same path.
+
+**File > Recent documents** lists up to eight documents last opened in Writer,
+newest first, without the open one. Files opened, renamed or saved under a new
+name inside Writer are recorded; a new document is recorded once it has been
+saved with text. The list is the desktop's shared recent list, twelve entries
+across all apps, kept in this browser, so the start menu shows the same files.
+A document that no longer exists leaves the list when it is picked.
 
 DOCX opens and saves directly, including package parts the editor cannot edit.
 Unknown authored fonts keep their names and receive a named local substitute.
