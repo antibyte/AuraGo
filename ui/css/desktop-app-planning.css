@@ -8,7 +8,7 @@
 
 .vd-todo {
     display: grid;
-    grid-template-columns: 150px minmax(260px, 1fr) minmax(280px, 0.9fr);
+    grid-template-columns: 172px minmax(240px, 1fr) minmax(280px, 0.9fr);
     height: 100%;
     min-height: 0;
 }
@@ -70,7 +70,6 @@
 .vd-todo-sidebar button {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 8px;
     width: 100%;
     min-height: 34px;
@@ -83,6 +82,29 @@
     font-size: 13px;
     text-align: left;
     cursor: pointer;
+    transition: background-color .12s ease, color .12s ease;
+}
+
+/* The glyph of a filter says what the filter is before the word is read. */
+.vd-todo-filter-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+    color: var(--todo-muted);
+}
+
+.vd-todo-sidebar button.active .vd-todo-filter-icon {
+    color: inherit;
+}
+
+.vd-todo-filter-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .vd-todo-sidebar button:hover {
@@ -98,6 +120,7 @@
 
 .vd-todo-filter-count {
     min-width: 22px;
+    margin-left: auto;
     padding: 1px 6px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--vd-text) 10%, transparent);
@@ -149,9 +172,9 @@
 .vd-todo-notice {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 9px;
     margin-bottom: 12px;
-    padding: 9px 8px 9px 12px;
+    padding: 9px 8px 9px 11px;
     border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border));
     border-left-width: 3px;
     border-radius: var(--todo-radius);
@@ -163,10 +186,26 @@
     display: none;
 }
 
+/* The glyph carries the tone, so the coloured edge does not have to carry it alone. */
+.vd-todo-notice-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    color: var(--todo-muted);
+}
+
 .vd-todo-notice[data-tone="ok"] { border-left-color: var(--todo-ok); }
 .vd-todo-notice[data-tone="info"] { border-left-color: var(--todo-busy); }
 .vd-todo-notice[data-tone="warn"] { border-left-color: var(--todo-warn); }
 .vd-todo-notice[data-tone="bad"] { border-left-color: var(--todo-bad); }
+
+.vd-todo-notice[data-tone="ok"] .vd-todo-notice-icon { color: var(--todo-ok); }
+.vd-todo-notice[data-tone="info"] .vd-todo-notice-icon { color: var(--todo-busy); }
+.vd-todo-notice[data-tone="warn"] .vd-todo-notice-icon { color: var(--todo-warn); }
+.vd-todo-notice[data-tone="bad"] .vd-todo-notice-icon { color: var(--todo-bad); }
 
 .vd-todo-notice-text {
     flex: 1 1 auto;
@@ -218,6 +257,39 @@
 
 .vd-todo .vd-todo-search input.vd-todo-search-input {
     padding-left: 30px;
+    padding-right: 32px;
+}
+
+/* The engine brings its own clear button, which sits askew in the field. The app draws its own. */
+.vd-todo-search-input::-webkit-search-cancel-button,
+.vd-todo-search-input::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.vd-todo-search-clear {
+    position: absolute;
+    right: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--todo-muted);
+    cursor: pointer;
+}
+
+.vd-todo-search-clear[hidden] {
+    display: none;
+}
+
+.vd-todo-search-clear:hover {
+    background: color-mix(in srgb, var(--vd-text) 12%, transparent);
+    color: var(--todo-ink);
 }
 
 .vd-todo-list-count {
@@ -237,13 +309,15 @@
 }
 
 .vd-todo-card {
-    padding: 10px 12px;
+    position: relative;
+    padding: 11px 12px;
     border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border));
     border-radius: var(--vd-mat-card-radius, 7px);
     background: var(--vd-mat-card, var(--vd-theme-panel-bg));
     cursor: pointer;
 
     box-shadow: var(--vd-mat-card-shadow, none);
+    transition: border-color .12s ease, background-color .12s ease, box-shadow .12s ease;
 }
 
 .vd-todo-card-grid {
@@ -277,10 +351,19 @@
     border: 0;
     background: none;
     font: inherit;
+    font-size: 14px;
     font-weight: 600;
+    line-height: 1.4;
     color: inherit;
     text-align: left;
     cursor: pointer;
+}
+
+/* A finished task reads as finished: the word is quiet and struck through. */
+.vd-todo-card.done .vd-todo-card-title {
+    color: var(--todo-muted);
+    text-decoration: line-through;
+    text-decoration-color: color-mix(in srgb, var(--vd-text) 60%, transparent);
 }
 
 .vd-todo-card-chips {
@@ -295,13 +378,22 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 1px 7px;
+    padding: 2px 7px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--vd-text) 9%, transparent);
     color: var(--todo-muted);
     font-size: 11px;
     line-height: 1.5;
     white-space: nowrap;
+}
+
+/* The dot carries the tone of a chip, so the word does not have to shout it. */
+.vd-todo-dot {
+    width: 6px;
+    height: 6px;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: currentColor;
 }
 
 .vd-todo-chip[data-tone="ok"] { background: color-mix(in srgb, var(--todo-ok) 18%, transparent); color: var(--todo-ok); }
@@ -334,22 +426,43 @@
     color: var(--vd-mat-selected-text, var(--vd-muted));
 }
 
+/* An overdue task carries a red edge, not a red card. */
 .vd-todo-card.overdue {
-    border-color: color-mix(in srgb, var(--todo-bad) 55%, var(--vd-mat-divider, var(--vd-theme-border)));
+    border-color: color-mix(in srgb, var(--todo-bad) 38%, var(--vd-mat-divider, var(--vd-theme-border)));
 }
 
+.vd-todo-card.overdue::before {
+    content: "";
+    position: absolute;
+    inset: -1px auto -1px -1px;
+    width: 3px;
+    border-radius: var(--vd-mat-card-radius, 7px) 0 0 var(--vd-mat-card-radius, 7px);
+    background: var(--todo-bad);
+}
+
+/* The priority is a fact, not an alarm: a coloured dot carries it, the word stays quiet. */
 .vd-todo-priority {
-    align-self: start;
-    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     padding: 2px 7px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--vd-text) 9%, transparent);
+    color: var(--todo-muted);
     font-size: 11px;
-    text-transform: uppercase;
+    line-height: 1.5;
     white-space: nowrap;
 }
 
-.vd-todo-priority.high { background: color-mix(in srgb, var(--todo-bad) 18%, transparent); color: var(--todo-bad); }
-.vd-todo-priority.medium { background: color-mix(in srgb, var(--todo-warn) 20%, transparent); color: var(--todo-warn); }
-.vd-todo-priority.low { background: color-mix(in srgb, var(--vd-accent) 16%, transparent); color: color-mix(in srgb, var(--vd-accent) 72%, var(--vd-text)); }
+.vd-todo-priority .vd-todo-dot {
+    width: 7px;
+    height: 7px;
+    background: var(--todo-muted);
+}
+
+.vd-todo-priority.high .vd-todo-dot { background: var(--todo-bad); }
+.vd-todo-priority.medium .vd-todo-dot { background: var(--todo-warn); }
+.vd-todo-priority.low .vd-todo-dot { background: color-mix(in srgb, var(--vd-text) 40%, transparent); }
 
 /* An empty view says why it is empty and offers the way out of it. */
 .vd-todo-empty {
@@ -381,9 +494,17 @@
     opacity: .75;
 }
 
+/* The progress reads as a thin measure beside its number, not as a coloured block. */
+.vd-todo-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
 .vd-todo-progress {
-    height: 5px;
-    margin-top: 9px;
+    flex: 1 1 auto;
+    height: 3px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--vd-text) 12%, transparent);
     overflow: hidden;
@@ -392,7 +513,19 @@
 .vd-todo-progress span {
     display: block;
     height: 100%;
-    background: var(--vd-accent);
+    border-radius: inherit;
+    background: var(--todo-busy);
+}
+
+.vd-todo-card.done .vd-todo-progress span {
+    background: var(--todo-ok);
+}
+
+.vd-todo-progress-value {
+    flex: 0 0 auto;
+    color: var(--todo-muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
 }
 
 .vd-todo-detail textarea {
@@ -405,16 +538,18 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 8px;
-    margin-bottom: 12px;
-    padding-bottom: 10px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
     border-bottom: 1px solid var(--todo-line);
 }
 
 .vd-todo-detail-title {
     margin: 0;
     min-width: 0;
-    font-size: 15px;
+    flex: 1 1 200px;
+    font-size: 16px;
     font-weight: 600;
+    line-height: 1.35;
     overflow-wrap: anywhere;
 }
 
@@ -464,14 +599,30 @@
     font-size: 12.5px;
 }
 
+/* Save leads, completing is quiet and deleting waits on the far side of the row. */
+.vd-todo-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+    padding-top: 12px;
+    border-top: 1px solid var(--todo-line);
+}
+
 /* Save is the primary action, completing is quiet and deleting is the one that takes something away. */
 .vd-todo-button-danger {
-    border-color: color-mix(in srgb, var(--todo-bad) 45%, transparent);
-    color: var(--todo-bad);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    border-color: var(--vd-mat-card-border, var(--vd-theme-border));
+    color: var(--todo-muted);
 }
 
 .vd-todo-button-danger:hover:not(:disabled) {
     background: color-mix(in srgb, var(--todo-bad) 16%, transparent);
+    border-color: color-mix(in srgb, var(--todo-bad) 45%, transparent);
     color: var(--todo-bad);
 }
 
@@ -489,6 +640,16 @@
     padding: 8px;
     border-radius: 8px;
     background: var(--vd-mat-card-color, var(--vd-theme-control-bg));
+    transition: background-color .12s ease;
+}
+
+.vd-todo-item:hover {
+    background: var(--vd-mat-hover, var(--vd-theme-control-hover));
+}
+
+/* A finished point stays readable but steps back. */
+.vd-todo-item-done .vd-todo-item-title {
+    color: var(--todo-muted);
 }
 
 .vd-todo-item-title {
@@ -511,6 +672,20 @@
     color: var(--vd-muted);
     cursor: pointer;
     flex-shrink: 0;
+    opacity: 0;
+    transition: opacity .12s ease, background-color .12s ease, color .12s ease;
+}
+
+/* The button belongs to the point it removes, so it waits for the pointer or the keyboard. */
+.vd-todo-item:hover .vd-todo-item-delete,
+.vd-todo-item-delete:focus-visible {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .vd-todo-item-delete {
+        opacity: 1;
+    }
 }
 
 .vd-todo-item-delete:hover {

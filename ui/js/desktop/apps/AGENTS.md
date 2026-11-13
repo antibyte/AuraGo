@@ -6010,6 +6010,16 @@ registration lives in `internal/desktop/types.go`.
   stay readable on the light and on the dark surface of every theme. Keep all
   `desktop.todo_*` keys in every `ui/lang/desktop/*.json`. Verify
   `go test ./ui -run TestDesktopTodo -count=1`.
+- The todo window reads calm: every filter carries a glyph, every chip and the
+  priority carry a dot, the priority sits with the other facts of the task
+  instead of in the corner, the progress is a thin measure beside its number
+  and an overdue task carries a red edge rather than a red card. A finished task
+  is struck through. The search field clears itself through a button of the app
+  and through Escape, and the reading position of the list and of the open task
+  survives the rebuild that every load causes. The dangerous action waits on the
+  far side of the action row and only colours itself when the pointer aims at
+  it. Verify `TestDesktopTodoBrowser` and
+  `TestDesktopTodoPolishCarriesGlyphsAndKeepsTheReadingPosition`.
 - `quickconnect-launchpad-chat.js` - Quick Connect (`renderQuickConnect`
   device list and session chrome), store/launchpad and generated-app
   host. The synthetic AuraGo host card uses `desktop.qc_aurago_host` and

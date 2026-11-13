@@ -55,6 +55,10 @@
     const TODO_FILTERS = ['all', 'open', 'in_progress', 'done'];
     const TODO_STATUS_TONES = { open: 'info', in_progress: 'busy', done: 'ok' };
     const TODO_PRIORITY_TONES = { high: 'bad', medium: 'warn', low: 'muted' };
+    // Every filter carries its own glyph, so the row of filters reads before the words are read.
+    const TODO_FILTER_ICONS = { all: 'list', open: 'todo', in_progress: 'run', done: 'check-square' };
+    // The notice tells what happened through one glyph per tone.
+    const TODO_NOTICE_ICONS = { ok: 'check-square', info: 'info', warn: 'info', bad: 'x' };
 
     function todoStatusTone(status) {
         return TODO_STATUS_TONES[status] || 'muted';
@@ -132,6 +136,10 @@
             return;
         }
         notice.dataset.tone = tone || 'info';
+        const glyph = host.querySelector('.vd-todo-notice-icon');
+        if (glyph) {
+            glyph.innerHTML = iconMarkup(TODO_NOTICE_ICONS[notice.dataset.tone] || 'info', 'i', 'vd-todo-action-icon', 14);
+        }
         if (text) text.textContent = message;
         notice.hidden = false;
     }
@@ -215,8 +223,8 @@
         host.dataset.todoFilter = host.dataset.todoFilter || 'all';
         const todoAddDisabled = todoReadonly ? ' disabled' : '';
         host.innerHTML = `<div class="vd-todo-frame"><div class="vd-todo"><aside class="vd-todo-sidebar">
-            ${TODO_FILTERS.map(status => `<button type="button" data-filter="${status}" class="${host.dataset.todoFilter === status ? 'active' : ''}" aria-pressed="${host.dataset.todoFilter === status ? 'true' : 'false'}"><span class="vd-todo-filter-label">${esc(t('desktop.todo_' + status))}</span><span class="vd-todo-filter-count" aria-hidden="true">0</span></button>`).join('')}
-        </aside><main class="vd-todo-main"><div class="vd-todo-notice" data-tone="info" role="status" hidden><span class="vd-todo-notice-text"></span><button type="button" class="vd-todo-notice-close" aria-label="${esc(t('desktop.todo_dismiss'))}">${iconMarkup('x', 'X', 'vd-todo-action-icon', 12)}</button></div><form class="vd-todo-add"><input placeholder="${esc(t('desktop.todo_title_placeholder'))}" aria-label="${esc(t('desktop.todo_add'))}"${todoAddDisabled}><select${todoAddDisabled} aria-label="${esc(t('desktop.todo_priority'))}"><option value="low">${esc(t('desktop.todo_priority_low'))}</option><option value="medium" selected>${esc(t('desktop.todo_priority_medium'))}</option><option value="high">${esc(t('desktop.todo_priority_high'))}</option></select><button class="vd-button vd-button-primary"${todoAddDisabled}>${esc(t('desktop.todo_add'))}</button></form><div class="vd-todo-toolbar"><div class="vd-todo-search"><span class="vd-todo-search-icon" aria-hidden="true">${iconMarkup('search', 'S', 'vd-todo-action-icon', 14)}</span><input type="search" class="vd-todo-search-input" placeholder="${esc(t('desktop.todo_search_placeholder'))}" aria-label="${esc(t('desktop.todo_search_placeholder'))}"></div><span class="vd-todo-list-count"></span></div><div class="vd-todo-list">${esc(t('desktop.loading'))}</div></main><section class="vd-todo-detail">${todoEmptyState(t('desktop.todo_select_task'), t('desktop.todo_select_hint'), 'todo')}</section></div></div>`;
+            ${TODO_FILTERS.map(status => `<button type="button" data-filter="${status}" class="${host.dataset.todoFilter === status ? 'active' : ''}" aria-pressed="${host.dataset.todoFilter === status ? 'true' : 'false'}"><span class="vd-todo-filter-icon" aria-hidden="true">${iconMarkup(TODO_FILTER_ICONS[status] || 'list', '', 'vd-todo-filter-glyph', 14)}</span><span class="vd-todo-filter-label">${esc(t('desktop.todo_' + status))}</span><span class="vd-todo-filter-count" aria-hidden="true">0</span></button>`).join('')}
+        </aside><main class="vd-todo-main"><div class="vd-todo-notice" data-tone="info" role="status" hidden><span class="vd-todo-notice-icon" aria-hidden="true"></span><span class="vd-todo-notice-text"></span><button type="button" class="vd-todo-notice-close" aria-label="${esc(t('desktop.todo_dismiss'))}">${iconMarkup('x', 'X', 'vd-todo-action-icon', 12)}</button></div><form class="vd-todo-add"><input placeholder="${esc(t('desktop.todo_title_placeholder'))}" aria-label="${esc(t('desktop.todo_add'))}"${todoAddDisabled}><select${todoAddDisabled} aria-label="${esc(t('desktop.todo_priority'))}"><option value="low">${esc(t('desktop.todo_priority_low'))}</option><option value="medium" selected>${esc(t('desktop.todo_priority_medium'))}</option><option value="high">${esc(t('desktop.todo_priority_high'))}</option></select><button class="vd-button vd-button-primary"${todoAddDisabled}>${esc(t('desktop.todo_add'))}</button></form><div class="vd-todo-toolbar"><div class="vd-todo-search"><span class="vd-todo-search-icon" aria-hidden="true">${iconMarkup('search', 'S', 'vd-todo-action-icon', 14)}</span><input type="search" class="vd-todo-search-input" placeholder="${esc(t('desktop.todo_search_placeholder'))}" aria-label="${esc(t('desktop.todo_search_placeholder'))}"><button type="button" class="vd-todo-search-clear" data-todo-search-clear hidden aria-label="${esc(t('desktop.todo_clear_search'))}">${iconMarkup('x', 'X', 'vd-todo-action-icon', 12)}</button></div><span class="vd-todo-list-count" aria-live="polite"></span></div><div class="vd-todo-list">${esc(t('desktop.loading'))}</div></main><section class="vd-todo-detail">${todoEmptyState(t('desktop.todo_select_task'), t('desktop.todo_select_hint'), 'todo')}</section></div></div>`;
         registerWindowCleanup(id, window.AuraGogDesktop?.attachSources(host, 'tasks', { t }) || (() => {}));
         if (host._todoTimer) clearInterval(host._todoTimer);
         const noticeClose = host.querySelector('.vd-todo-notice-close');
@@ -274,13 +282,17 @@
             updateTodoListMeta(host, filtered.length);
             const list = host.querySelector('.vd-todo-list');
             const listFocus = captureTodoFocus(list);
+            // The list is rebuilt on every load, so the reading position travels with the user.
+            const listScroll = list ? list.scrollTop : 0;
             list.innerHTML = renderTodoList(todos, filtered, selectedID, todoReadonly, searchTerm);
             restoreTodoFocus(list, listFocus);
+            if (list) list.scrollTop = listScroll;
             const clearSearch = list.querySelector('[data-todo-clear-search]');
             if (clearSearch) {
                 clearSearch.addEventListener('click', () => {
                     const field = host.querySelector('.vd-todo-search-input');
                     if (field) field.value = '';
+                    syncSearchClear();
                     load(host.dataset.todoSelected);
                 });
             }
@@ -340,13 +352,34 @@
             load(host.dataset.todoSelected);
         }));
         const searchField = host.querySelector('.vd-todo-search-input');
+        const searchClear = host.querySelector('[data-todo-search-clear]');
+        // The field clears itself through a button of the app, so the search never hides behind a keyboard shortcut.
+        function syncSearchClear() {
+            const clear = host.querySelector('[data-todo-search-clear]');
+            if (!clear) return;
+            const field = host.querySelector('.vd-todo-search-input');
+            clear.hidden = !field || !String(field.value || '');
+        }
+        if (searchClear) {
+            searchClear.addEventListener('click', () => {
+                const field = host.querySelector('.vd-todo-search-input');
+                if (field) {
+                    field.value = '';
+                    field.focus({ preventScroll: true });
+                }
+                syncSearchClear();
+                load(host.dataset.todoSelected);
+            });
+        }
         if (searchField) {
             let searchTimer = null;
             searchField.addEventListener('input', () => {
+                syncSearchClear();
                 if (searchTimer) clearTimeout(searchTimer);
                 searchTimer = setTimeout(() => load(host.dataset.todoSelected), 180);
             });
         }
+        syncSearchClear();
         const listElement = host.querySelector('.vd-todo-list');
         if (listElement) {
             // The arrow keys walk the task list, so the list is reachable without a pointer.
@@ -381,6 +414,7 @@
                 if (field.value) {
                     event.preventDefault();
                     field.value = '';
+                    syncSearchClear();
                     load(host.dataset.todoSelected);
                 }
                 return;
@@ -453,7 +487,9 @@
         const dueLabel = todo.due_date ? todoDueLabel(todo.due_date) : '';
         const cardDoneDisabled = todoReadonly ? ' disabled' : '';
         const percent = Math.max(0, Math.min(100, Math.round(Number(todo.progress_percent) || 0)));
-        const chips = [`<span class="vd-todo-chip" data-tone="${todoStatusTone(todo.status)}">${esc(t('desktop.todo_' + todo.status))}</span>`];
+        const chips = [`<span class="vd-todo-chip" data-tone="${todoStatusTone(todo.status)}"><span class="vd-todo-dot" aria-hidden="true"></span>${esc(t('desktop.todo_' + todo.status))}</span>`];
+        // The priority belongs with the other facts of the task, so the title gets the whole width of the card.
+        chips.push(`<span class="vd-todo-priority ${esc(todo.priority)}" data-tone="${todoPriorityTone(todo.priority)}"><span class="vd-todo-dot" aria-hidden="true"></span>${esc(t('desktop.todo_priority_' + todo.priority))}</span>`);
         if (todo.remind_daily) {
             chips.push(`<span class="vd-todo-chip" data-tone="muted">${iconMarkup('bell', 'B', 'vd-todo-action-icon', 12)}<span>${esc(t('desktop.todo_remind_daily'))}</span></span>`);
         }
@@ -464,16 +500,15 @@
             chips.push(`<span class="vd-todo-chip" data-tone="bad">${esc(t('desktop.todo_overdue'))}</span>`);
         }
         const progress = percent
-            ? `<div class="vd-todo-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}" aria-label="${esc(t('desktop.todo_progress_aria', { percent: String(percent) }))}"><span style="width:${percent}%"></span></div>`
+            ? `<div class="vd-todo-progress-row"><div class="vd-todo-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}" aria-label="${esc(t('desktop.todo_progress_aria', { percent: String(percent) }))}"><span style="width:${percent}%"></span></div><span class="vd-todo-progress-value" aria-hidden="true">${percent}%</span></div>`
             : '';
-        return `<article class="vd-todo-card ${todo.id === selectedID ? 'active' : ''} ${overdue ? 'overdue' : ''}" data-todo-id="${esc(todo.id)}">
+        return `<article class="vd-todo-card ${todo.id === selectedID ? 'active' : ''} ${overdue ? 'overdue' : ''} ${todo.status === 'done' ? 'done' : ''}" data-todo-id="${esc(todo.id)}">
             <div class="vd-todo-card-grid">
                 <input class="vd-todo-card-done" type="checkbox" data-todo-status-toggle="${esc(todo.id)}" ${todo.status === 'done' ? 'checked' : ''}${cardDoneDisabled} aria-label="${esc(t('desktop.todo_complete'))}">
                 <div class="vd-todo-card-copy">
                     <button type="button" class="vd-todo-card-title" data-todo-open="${esc(todo.id)}">${esc(todo.title)}</button>
                     <div class="vd-todo-card-chips">${chips.join('')}</div>
                 </div>
-                <span class="vd-todo-priority ${esc(todo.priority)}" data-tone="${todoPriorityTone(todo.priority)}">${esc(t('desktop.todo_priority_' + todo.priority))}</span>
             </div>
             ${progress}
         </article>`;
@@ -519,9 +554,13 @@
         const todoDetailDisabled = todoReadonly ? ' disabled' : '';
         const readonlyHint = todoReadonly ? `<p class="vd-hint">${esc(t('desktop.todo_readonly'))}</p>` : '';
         const focus = captureTodoFocus(pane);
+        // The pane keeps the reading position of the task it shows; a new task starts at the top.
+        const paneScroll = pane.scrollTop;
+        const sameTask = !!(host._todoShown && host._todoShown.id === todo.id);
         const pendingTitles = todoPendingItemTitles(host, todo.id);
-        pane.innerHTML = `${readonlyHint}<header class="vd-todo-detail-head"><h2 class="vd-todo-detail-title">${esc(todo.title)}</h2><span class="vd-todo-chip" data-tone="${todoStatusTone(todo.status)}">${esc(t('desktop.todo_' + todo.status))}</span><span class="vd-todo-dirty" hidden>${esc(t('desktop.todo_unsaved_changes'))}</span></header><form class="vd-todo-form"><label class="vd-todo-field"><span class="vd-todo-label">${esc(t('desktop.todo_title_label'))}</span><input name="title" value="${esc(todo.title)}"${todoDetailDisabled}></label><label class="vd-todo-field"><span class="vd-todo-label">${esc(t('desktop.todo_description'))}</span><textarea name="description"${todoDetailDisabled}>${esc(todo.description || '')}</textarea></label><div class="vd-todo-form-row"><label class="vd-todo-field"><span class="vd-todo-label">${esc(t('desktop.todo_priority'))}</span><select name="priority"${todoDetailDisabled}>${['low','medium','high'].map(p => `<option value="${p}" ${todo.priority === p ? 'selected' : ''}>${esc(t('desktop.todo_priority_' + p))}</option>`).join('')}</select></label><label class="vd-todo-field"><span class="vd-todo-label">${esc(t('desktop.cal_status'))}</span><select name="status"${todoDetailDisabled}>${['open','in_progress','done'].map(s => `<option value="${s}" ${todo.status === s ? 'selected' : ''}>${esc(t('desktop.todo_' + s))}</option>`).join('')}</select></label><label class="vd-todo-field"><span class="vd-todo-label">${esc(t('desktop.todo_due_date'))}</span><input type="date" name="due_date" value="${esc(todoDueCivilDate(todo.due_date))}"${todoDetailDisabled}></label></div><label class="vd-check"><input type="checkbox" name="remind_daily" ${todo.remind_daily ? 'checked' : ''}${todoDetailDisabled}>${esc(t('desktop.todo_remind_daily'))}</label><div class="vd-todo-actions"><button class="vd-button vd-button-primary" data-action="save"${todoDetailDisabled}>${esc(t('desktop.save'))}</button><button type="button" class="vd-button" data-action="complete"${todoDetailDisabled}>${esc(t('desktop.todo_complete'))}</button><button type="button" class="vd-button vd-todo-button-danger" data-action="delete"${todoDetailDisabled}>${esc(t('desktop.delete'))}</button></div></form><h3 class="vd-todo-subhead">${esc(t('desktop.todo_items'))}</h3><form class="vd-todo-item-add"><input placeholder="${esc(t('desktop.todo_add_item'))}"${todoDetailDisabled}><button class="vd-button"${todoDetailDisabled}>${esc(t('desktop.todo_add_item'))}</button></form><div class="vd-todo-items">${items.length ? items.map(item => `<div class="vd-todo-item" data-item-id="${esc(item.id)}"><input class="vd-todo-item-check" type="checkbox" data-item-toggle="${esc(item.id)}" ${item.is_done ? 'checked' : ''}${todoDetailDisabled} aria-label="${esc(t('desktop.todo_complete'))}"><input class="vd-todo-item-title" data-item-title="${esc(item.id)}" value="${esc(pendingTitles[item.id] !== undefined ? pendingTitles[item.id] : item.title)}" aria-label="${esc(t('desktop.todo_add_item'))}" spellcheck="true"${todoDetailDisabled}><button type="button" class="vd-todo-item-delete" data-item-delete="${esc(item.id)}" title="${esc(t('desktop.delete'))}"${todoDetailDisabled}>${iconMarkup('x', 'X', 'vd-todo-action-icon', 13)}</button></div>`).join('') : `<p class="vd-todo-items-empty">${esc(t('desktop.todo_checklist_empty'))}</p>`}</div>`;
+        pane.innerHTML = `${readonlyHint}<header class="vd-todo-detail-head"><h2 class="vd-todo-detail-title">${esc(todo.title)}</h2><span class="vd-todo-chip" data-tone="${todoStatusTone(todo.status)}"><span class="vd-todo-dot" aria-hidden="true"></span>${esc(t('desktop.todo_' + todo.status))}</span><span class="vd-todo-dirty" hidden>${esc(t('desktop.todo_unsaved_changes'))}</span></header><form class="vd-todo-form"><label class="vd-todo-field"><span class="vd-todo-label">${esc(t('desktop.todo_title_label'))}</span><input name="title" value="${esc(todo.title)}"${todoDetailDisabled}></label><label class="vd-todo-field"><span class="vd-todo-label">${esc(t('desktop.todo_description'))}</span><textarea name="description"${todoDetailDisabled}>${esc(todo.description || '')}</textarea></label><div class="vd-todo-form-row"><label class="vd-todo-field"><span class="vd-todo-label">${esc(t('desktop.todo_priority'))}</span><select name="priority"${todoDetailDisabled}>${['low','medium','high'].map(p => `<option value="${p}" ${todo.priority === p ? 'selected' : ''}>${esc(t('desktop.todo_priority_' + p))}</option>`).join('')}</select></label><label class="vd-todo-field"><span class="vd-todo-label">${esc(t('desktop.cal_status'))}</span><select name="status"${todoDetailDisabled}>${['open','in_progress','done'].map(s => `<option value="${s}" ${todo.status === s ? 'selected' : ''}>${esc(t('desktop.todo_' + s))}</option>`).join('')}</select></label><label class="vd-todo-field"><span class="vd-todo-label">${esc(t('desktop.todo_due_date'))}</span><input type="date" name="due_date" value="${esc(todoDueCivilDate(todo.due_date))}"${todoDetailDisabled}></label></div><label class="vd-check"><input type="checkbox" name="remind_daily" ${todo.remind_daily ? 'checked' : ''}${todoDetailDisabled}>${esc(t('desktop.todo_remind_daily'))}</label><div class="vd-todo-actions"><button class="vd-button vd-button-primary" data-action="save"${todoDetailDisabled}>${esc(t('desktop.save'))}</button><button type="button" class="vd-button" data-action="complete"${todoDetailDisabled}>${esc(t('desktop.todo_complete'))}</button><button type="button" class="vd-button vd-todo-button-danger" data-action="delete"${todoDetailDisabled}>${iconMarkup('trash', 'D', 'vd-todo-action-icon', 13)}<span>${esc(t('desktop.delete'))}</span></button></div></form><h3 class="vd-todo-subhead">${esc(t('desktop.todo_items'))}</h3><form class="vd-todo-item-add"><input placeholder="${esc(t('desktop.todo_add_item'))}"${todoDetailDisabled}><button class="vd-button"${todoDetailDisabled}>${esc(t('desktop.todo_add_item'))}</button></form><div class="vd-todo-items">${items.length ? items.map(item => `<div class="vd-todo-item ${item.is_done ? 'vd-todo-item-done' : ''}" data-item-id="${esc(item.id)}"><input class="vd-todo-item-check" type="checkbox" data-item-toggle="${esc(item.id)}" ${item.is_done ? 'checked' : ''}${todoDetailDisabled} aria-label="${esc(t('desktop.todo_complete'))}"><input class="vd-todo-item-title" data-item-title="${esc(item.id)}" value="${esc(pendingTitles[item.id] !== undefined ? pendingTitles[item.id] : item.title)}" aria-label="${esc(t('desktop.todo_add_item'))}" spellcheck="true"${todoDetailDisabled}><button type="button" class="vd-todo-item-delete" data-item-delete="${esc(item.id)}" title="${esc(t('desktop.delete'))}"${todoDetailDisabled}>${iconMarkup('x', 'X', 'vd-todo-action-icon', 13)}</button></div>`).join('') : `<p class="vd-todo-items-empty">${esc(t('desktop.todo_checklist_empty'))}</p>`}</div>`;
         restoreTodoFocus(pane, focus);
+        if (sameTask) pane.scrollTop = paneScroll;
         syncTodoDirtyState(host, todo);
         pane.querySelector('.vd-todo-form').addEventListener('submit', async event => {
             event.preventDefault();
@@ -578,6 +617,7 @@
         });
         pane.querySelectorAll('[data-item-delete]').forEach(btn => btn.addEventListener('click', async () => { if (todoReadonly) return; delete pendingTitles[btn.dataset.itemDelete]; await runTodoAction(async () => { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(btn.dataset.itemDelete), { method: 'DELETE' }); await reload(todo.id, { preserveEdits: true }); }); }));
         host._todoShown = {
+            id: todo.id,
             title: todo.title,
             description: todo.description || '',
             priority: todo.priority,

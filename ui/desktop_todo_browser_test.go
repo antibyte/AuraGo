@@ -126,6 +126,11 @@ func TestDesktopTodoBrowser(t *testing.T) {
 	if got := page.MustEval(`()=>document.querySelectorAll('.vd-todo-card').length`).Int(); got != 4 {
 		t.Fatalf("rendered %d task cards, want 4", got)
 	}
+	// Every filter label fits into the sidebar, so "In Arbeit" is not cut off.
+	clipped := page.MustEval(`()=>[...document.querySelectorAll('.vd-todo-filter-label')].filter(label=>label.scrollWidth>label.clientWidth+1).map(label=>label.textContent)`).Arr()
+	if len(clipped) > 0 {
+		t.Fatalf("the filter labels are clipped: %v", clipped)
+	}
 	if got := page.MustEval(`()=>document.querySelectorAll('.vd-todo-card .vd-todo-chip').length`).Int(); got < 4 {
 		t.Fatalf("rendered %d state chips, want at least 4", got)
 	}
@@ -133,6 +138,16 @@ func TestDesktopTodoBrowser(t *testing.T) {
 	overdue := page.MustEval(`()=>[...document.querySelectorAll('.vd-todo-card')].some(card=>card.classList.contains('overdue')&&[...card.querySelectorAll('.vd-todo-chip')].some(chip=>chip.dataset.tone==='bad'))`).Bool()
 	if !overdue {
 		t.Fatal("the overdue task lost its overdue chip")
+	}
+
+	// A finished task says so in the card itself: the title steps back and is struck through.
+	doneDecoration := page.MustEval(`()=>{
+        const card=[...document.querySelectorAll('.vd-todo-card')].find(entry=>entry.classList.contains('done'));
+        if(!card)return 'no-card';
+        return getComputedStyle(card.querySelector('.vd-todo-card-title')).textDecorationLine;
+    }`).Str()
+	if doneDecoration != "line-through" {
+		t.Fatalf("the finished task title is decorated with %q, want line-through", doneDecoration)
 	}
 
 	// The search narrows the list, and Escape clears it again.
@@ -150,6 +165,21 @@ func TestDesktopTodoBrowser(t *testing.T) {
 	}
 	if got := page.MustEval(`()=>document.querySelectorAll('.vd-todo-card').length`).Int(); got != 4 {
 		t.Fatalf("clearing the search left %d cards, want 4", got)
+	}
+
+	// The field offers a clear button of its own, and the button empties the field.
+	page.MustElement(".vd-todo-search-input").MustInput("backlog")
+	page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,400))`)
+	if hidden := page.MustEval(`()=>document.querySelector('[data-todo-search-clear]').hidden`).Bool(); hidden {
+		t.Fatal("the clear button stays hidden while the field holds a term")
+	}
+	page.MustElement("[data-todo-search-clear]").MustClick()
+	page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,400))`)
+	if got := page.MustEval(`()=>document.querySelector('.vd-todo-search-input').value`).Str(); got != "" {
+		t.Fatalf("the clear button left the search at %q, want it empty", got)
+	}
+	if got := page.MustEval(`()=>document.querySelectorAll('.vd-todo-card').length`).Int(); got != 4 {
+		t.Fatalf("the clear button left %d cards, want 4", got)
 	}
 
 	// A task that matches nothing explains itself and offers the way out.

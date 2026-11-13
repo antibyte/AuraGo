@@ -237,6 +237,53 @@ func TestDesktopTodoPolishKeepsTheReadingPosition(t *testing.T) {
 
 // The polish adds eighteen user-visible strings. Every locale carries them, the placeholders survive the
 // translation, and a locale that copies the English text is a fallback rather than a translation.
+// The polish gives every filter a glyph, every chip a dot and the field a clear button of its own. The reading
+// position of the list and of the open task survives the rebuild that every load causes.
+func TestDesktopTodoPolishCarriesGlyphsAndKeepsTheReadingPosition(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/planning-gallery-music.js")
+	for _, marker := range []string{
+		"const TODO_FILTER_ICONS =",
+		"const TODO_NOTICE_ICONS =",
+		"vd-todo-filter-icon",
+		"vd-todo-notice-icon",
+		"vd-todo-dot",
+		"vd-todo-progress-row",
+		"vd-todo-progress-value",
+		"data-todo-search-clear",
+		"function syncSearchClear()",
+		"vd-todo-item-done",
+		"list.scrollTop = listScroll",
+		"sameTask",
+		"pane.scrollTop = paneScroll",
+		"id: todo.id,",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("todo polish marker missing %q", marker)
+		}
+	}
+
+	css := readDesktopAssetText(t, "css/desktop-app-planning.css")
+	for _, marker := range []string{
+		".vd-todo-filter-icon",
+		".vd-todo-filter-label",
+		".vd-todo-notice-icon",
+		".vd-todo-dot",
+		".vd-todo-progress-row",
+		".vd-todo-progress-value",
+		".vd-todo-search-clear",
+		".vd-todo-actions",
+		".vd-todo-item-done",
+		"grid-template-columns: 172px minmax(240px, 1fr) minmax(280px, 0.9fr);",
+		"@media (hover: none)",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("todo polish style marker missing %q", marker)
+		}
+	}
+}
+
 func TestDesktopTodoTranslations(t *testing.T) {
 	t.Parallel()
 
