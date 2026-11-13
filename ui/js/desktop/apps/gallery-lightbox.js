@@ -296,7 +296,8 @@
         function fittedSize() {
             const node = media();
             if (!node || !(node instanceof HTMLImageElement)) return null;
-            return { width: node.clientWidth, height: node.clientHeight };
+            const style = getComputedStyle(node);
+            return { width: parseFloat(style.width) || node.clientWidth, height: parseFloat(style.height) || node.clientHeight };
         }
 
         function rotationDegrees() {
@@ -340,7 +341,9 @@
         function zoomTo(scale, clientX, clientY) {
             const node = media();
             if (!node || !(node instanceof HTMLImageElement)) return;
-            const next = clamp(scale, MIN_SCALE, MAX_SCALE);
+            const fitted = fittedSize();
+            const maxScale = Math.max(MAX_SCALE, lb.natural.width / (fitted.width || 1));
+            const next = clamp(scale, MIN_SCALE, maxScale);
             if (next === lb.zoom.scale) return;
             const stage = el.stage.getBoundingClientRect();
             const cx = (typeof clientX === 'number' ? clientX : stage.left + stage.width / 2) - (stage.left + stage.width / 2);
@@ -356,7 +359,7 @@
 
         function zoomActual() {
             const fitted = fittedSize();
-            if (!fitted || !lb.natural.width) return;
+            if (!fitted || !fitted.width || !lb.natural.width) return;
             zoomTo(lb.natural.width / fitted.width);
         }
 

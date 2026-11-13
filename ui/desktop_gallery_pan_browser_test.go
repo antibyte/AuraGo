@@ -44,12 +44,14 @@ func TestDesktopGalleryPanUsesLayoutSizeBrowser(t *testing.T) {
 					t.Fatal("resize did not reclamp pan to the new stage")
 				}
 				page.MustSetViewport(1300, 900, 1, false)
-				page.MustEval(`()=>{const root=document.querySelector('.vd-lightbox'),img=root.querySelector('img.vd-lightbox-image');img.style.width='450px';img.style.height='150px';root.querySelector('[data-lb-zoom-actual]').click();}`)
-				if !page.MustEval(`(rotation,flip)=>{
+				for _, width := range []float64{433.125, 75.375} {
+					page.MustEval(`width=>{const root=document.querySelector('.vd-lightbox'),img=root.querySelector('img.vd-lightbox-image');img.style.width=width+'px';img.style.height=(width/3)+'px';root.querySelector('[data-lb-zoom-actual]').click();}`, width)
+					if !page.MustEval(`(rotation,flip)=>{
  const root=document.querySelector('.vd-lightbox'),img=root.querySelector('img.vd-lightbox-image'),rect=img.getBoundingClientRect(),m=new DOMMatrix(getComputedStyle(img).transform),sideways=rotation===90||rotation===270;
- return Math.abs(rect.width-(sideways?img.naturalHeight:img.naturalWidth))<1&&Math.abs(rect.height-(sideways?img.naturalWidth:img.naturalHeight))<1&&root.querySelector('[data-lb-zoom-reset]').textContent==='100%'&&((m.a*m.d-m.b*m.c)<0)===flip;
+ return Math.abs(rect.width-(sideways?img.naturalHeight:img.naturalWidth))<0.01&&Math.abs(rect.height-(sideways?img.naturalWidth:img.naturalHeight))<0.01&&root.querySelector('[data-lb-zoom-reset]').textContent==='100%'&&((m.a*m.d-m.b*m.c)<0)===flip;
 }`, rotation, flip).Bool() {
-					t.Fatal("1:1 zoom after resize did not match natural dimensions, label or flip")
+						t.Fatalf("1:1 zoom at fitted width %g did not match natural dimensions, label or flip", width)
+					}
 				}
 				page.MustSetViewport(1400, 960, 1, false)
 			})

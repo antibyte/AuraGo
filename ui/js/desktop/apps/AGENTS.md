@@ -2793,9 +2793,10 @@ buttons and menu popovers remain excluded from those gestures.
   Pixel for images; the header keeps the prominent Edit in Pixel action.
   Chrome auto-hides via `is-idle`, and backdrop clicks within 450 ms of
   opening are ignored (tile double-click).
-- Lightbox zoom, 1:1 and pan use untransformed image layout dimensions; swap axes
+- Lightbox zoom, 1:1 and pan use untransformed fractional image layout dimensions; swap axes
   exactly once for 90°/270° rotation. Flipping preserves screen-axis dragging;
-  resize reclamps pan. Verify `TestDesktopGalleryPanUsesLayoutSizeBrowser`.
+  resize reclamps pan. The zoom limit permits at least native size even beyond 8×
+  fit; preserve exact 1:1 at fractional layout sizes. Verify `TestDesktopGalleryPanUsesLayoutSizeBrowser`.
 - Readonly omits rename/delete controls and shows the readonly hint instead of
   rendering disabled buttons. There is no upload because media mounts are
   server-side read-only.
