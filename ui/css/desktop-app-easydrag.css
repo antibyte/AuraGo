@@ -154,6 +154,8 @@
     --ed-change: var(--ed-accent);
     --ed-change-ink: color-mix(in srgb, var(--ed-change) 30%, var(--ed-text));
     --ed-on-accent: #ffffff;
+    --ed-kit-ink: var(--ed-status-ink);
+    --ed-kit-neutral: var(--ed-status-neutral);
     position: relative;
     display: flex;
     flex-direction: column;
@@ -427,22 +429,51 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-chip--warn { background: color-mix(in srgb, var(--ed-warn) 18%, transparent); color: var(--ed-warn-ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ed-warn) 45%, transparent); }
 .ed-palette-setup:focus-visible { outline: 2px solid var(--ed-focus); outline-offset: 2px; }
 .ed-chip--risk { background: color-mix(in srgb, var(--ed-danger) 16%, transparent); color: var(--ed-danger-ink); }
+.ed-chip--neutral { min-height: 24px; padding: var(--ed-space-1) 10px; background: color-mix(in srgb, var(--ed-text) 10%, var(--ed-panel-strong)); color: var(--ed-text); font-weight: 600; }
 
+/* callout (kit): a tinted surface with a status disc in front and no border, so it is never taken for a field.
+   The tint is the status colour mixed into the panel; the text stays in normal ink. The hue comes from data-ed-hue
+   (set by ED.kit.callout from the status value). The older bare and --warn/--error markup takes the same look
+   until it moves to ED.kit.callout. */
 .ed-callout {
-    display: flex; gap: 10px; align-items: flex-start; margin: 10px 0; padding: 10px 12px;
-    border-radius: var(--ed-radius); border: 1px solid; line-height: 1.45;
+    --ed-callout-hue: var(--ed-info);
+    display: flex; gap: var(--ed-space-3); align-items: flex-start; margin: var(--ed-space-3) 0; padding: var(--ed-space-2) var(--ed-space-3);
+    border: 0; border-radius: var(--ed-radius-xl); line-height: 1.45; color: var(--ed-text);
+    background: color-mix(in srgb, var(--ed-callout-hue) 14%, var(--ed-panel-strong));
 }
-.ed-callout > .ed-icon { margin-top: 2px; }
+.ed-callout > .ed-icon { margin-top: 2px; color: var(--ed-callout-hue); }
 .ed-callout p { margin: 4px 0 0; }
-.ed-callout--error { border-color: color-mix(in srgb, var(--ed-danger) 40%, transparent); background: color-mix(in srgb, var(--ed-danger) 9%, transparent); color: var(--ed-text); }
-.ed-callout--error > .ed-icon { color: var(--ed-danger); }
-.ed-callout--warn { border-color: color-mix(in srgb, var(--ed-warn) 40%, transparent); background: color-mix(in srgb, var(--ed-warn) 9%, transparent); }
-.ed-callout--warn > .ed-icon { color: var(--ed-warn); }
+.ed-callout--warn, .ed-callout[data-ed-hue="warn"] { --ed-callout-hue: var(--ed-warn); }
+.ed-callout--error, .ed-callout[data-ed-hue="danger"] { --ed-callout-hue: var(--ed-danger); }
+.ed-callout[data-ed-hue="ok"] { --ed-callout-hue: var(--ed-ok); }
+.ed-callout[data-ed-hue="info"] { --ed-callout-hue: var(--ed-info); }
+.ed-callout[data-ed-hue="neutral"] { --ed-callout-hue: var(--ed-kit-neutral); }
+.ed-callout > [role="img"], .ed-callout > .ed-callout-disc { flex: none; margin-top: 1px; }
+.ed-callout-disc { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: var(--ed-radius-pill); background: var(--ed-info); color: var(--ed-kit-ink); }
+.ed-callout-disc svg { width: 12px; height: 12px; }
+.ed-callout-action { flex: none; min-height: 32px; padding: 0 var(--ed-space-2); border: 0; border-radius: var(--ed-radius-md); background: transparent; color: var(--ed-info-ink); font: inherit; font-weight: 600; cursor: pointer; }
+.ed-callout-action:focus-visible { outline: 2px solid var(--ed-focus); outline-offset: 2px; }
 
 .ed-check { display: flex; align-items: center; gap: 8px; margin-top: 10px; cursor: pointer; }
 .ed-check input { accent-color: var(--ed-accent); width: 16px; height: 16px; }
 .ed-section-title { margin: 14px 0 6px; font-family: var(--ed-label-font); font-size: 11px; font-weight: 700; letter-spacing: var(--ed-label-tracking); text-transform: var(--ed-label-transform); color: var(--ed-label-color); }
-.ed-details summary { cursor: pointer; color: var(--ed-muted); font-weight: 600; margin-top: 10px; }
+/* disclosure (kit): the head is a button, so Enter and Space work; the chevron is drawn with two borders */
+.ed-disclosure { margin-top: var(--ed-space-2); }
+.ed-disclosure-head {
+    display: flex; align-items: center; gap: var(--ed-space-2); width: 100%; min-height: 32px; padding: var(--ed-space-1) var(--ed-space-2);
+    border: 0; border-radius: var(--ed-radius-md); background: transparent; color: var(--ed-text); font: inherit; font-size: var(--ed-font-body); text-align: left; cursor: pointer;
+}
+.ed-disclosure-head:hover { background: var(--ed-control-hover); }
+.ed-disclosure-head:focus-visible { outline: 2px solid var(--ed-focus); outline-offset: 2px; }
+.ed-disclosure-chev { flex: none; width: 7px; height: 7px; margin: 0 var(--ed-space-1) 0 2px; border-right: 2px solid var(--ed-muted); border-bottom: 2px solid var(--ed-muted); transform: rotate(-45deg); transition: transform var(--ed-motion-fast) var(--ed-ease-out); }
+.ed-disclosure-head[aria-expanded="true"] .ed-disclosure-chev { transform: rotate(45deg); }
+.ed-disclosure-title { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+.ed-disclosure-count { flex: none; color: var(--ed-muted); font-size: var(--ed-font-meta); font-variant-numeric: tabular-nums; }
+.ed-disclosure-body { padding: var(--ed-space-1) var(--ed-space-2) var(--ed-space-2) calc(var(--ed-space-2) + 14px); }
+.ed-disclosure-body[hidden] { display: none; }
+/* toolbar (kit) */
+.ed-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ed-space-2); }
+.ed-toolbar-item { min-height: 32px; }
 .ed-spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--ed-border-strong); border-top-color: var(--ed-accent); animation: ed-spin 0.8s linear infinite; }
 .ed-tile { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; flex: none; color: var(--ed-cat-ink); background: var(--ed-cat); }
 
@@ -1614,14 +1645,19 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 /* header Undo / Redo (easydrag-history.js); aria-disabled keeps the focus on the button */
 .ed-head-history { display: flex; align-items: center; gap: 4px; flex: none; }
 .ed-head-history .ed-icon-btn[aria-disabled="true"] { opacity: 0.45; cursor: default; }
-/* "deleted – Undo" toast: above the canvas, below popovers (26) and dialogs (40); no animation */
+/* toast (kit, easydrag-kit.js): above the canvas, below popovers (26) and dialogs (40); no animation */
 .ed-toast {
-    position: absolute; left: 50%; bottom: 16px; z-index: 20; transform: translateX(-50%);
-    display: flex; align-items: center; gap: 10px; max-width: calc(100% - 32px); padding: 8px 8px 8px 14px;
-    border-radius: var(--vd-mat-card-radius, 12px); background: var(--ed-panel-strong); color: var(--ed-text);
+    position: absolute; left: 50%; bottom: var(--ed-space-4); z-index: 20; transform: translateX(-50%);
+    display: flex; align-items: center; gap: var(--ed-space-3); max-width: calc(100% - 32px); padding: var(--ed-space-2) var(--ed-space-2) var(--ed-space-2) var(--ed-space-3);
+    border-radius: var(--vd-mat-card-radius, var(--ed-radius-xl)); background: var(--ed-panel-strong); color: var(--ed-text);
     border: 1px solid var(--ed-border-strong); box-shadow: var(--ed-shadow-lg);
 }
+.ed-toast > [role="img"] { flex: none; }
 .ed-toast-text { min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+.ed-toast-action { display: inline-flex; align-items: center; gap: var(--ed-space-1); flex: none; min-height: 32px; padding: 0 var(--ed-space-2); border: 0; border-radius: var(--ed-radius-md); background: transparent; color: var(--ed-info-ink); font: inherit; font-weight: 600; cursor: pointer; }
+.ed-toast-action .ed-icon { width: 14px; height: 14px; }
+.ed-toast-action:hover { background: var(--ed-control-hover); }
+.ed-toast-action:focus-visible { outline: 2px solid var(--ed-focus); outline-offset: 2px; }
 
 /* palette: an item that needs setup and its own setup link side by side (U6) */
 .ed-palette-row { display: flex; align-items: center; gap: 4px; }

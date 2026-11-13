@@ -1140,6 +1140,8 @@ await (await import('./test-easydrag-kv-editor.mjs')).run({ apps, types, t, mini
 // ── b5: fix batch 5, editor UX, accessibility and i18n (test-easydrag-ux-batch5.mjs, on the c1d07 sandbox) ──
 await (await import('./test-easydrag-flagship.mjs')).run({ sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor, eq, guardAsync, settle });
 await (await import('./test-easydrag-pack.mjs')).run({ pack: editorHarness.sandbox().ED.pack, eq });
+// ── W1a B: the kit (test-easydrag-kit.mjs) ──
+await (await import('./test-easydrag-kit.mjs')).run({ apps, miniDom, eq });
 await (await import('./test-easydrag-ux-batch5.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor, saverHarness });
 // ── S0.0: render counters on seeded S/M/XL flows (test-easydrag-render-baseline.mjs, on the c1d07 sandbox) ──
 await (await import('./test-easydrag-render-baseline.mjs')).run({ eq, check, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor });

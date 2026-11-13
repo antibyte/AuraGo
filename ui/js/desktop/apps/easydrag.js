@@ -220,6 +220,7 @@
         const ctx = context || {};
         const core = ED.core;
         const root = core.el('<div class="ed-app"></div>');
+        if (ED.kit) ED.kit.attach(root);
         container.innerHTML = '';
         container.appendChild(root); if (ED.delight) ED.delight.bind(root);
         const inst = { windowId, ctx, root, t: ED.format.wrapT(ctx.t), esc: ctx.esc || core.esc, api: core.createApi(ctx.api), catalog: null, catalogAt: 0, screen: null, nav: 0, lastRoute: {} };

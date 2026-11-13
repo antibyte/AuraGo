@@ -286,6 +286,7 @@
                 '/js/desktop/apps/easydrag-core.js',
                 '/js/desktop/apps/easydrag-format.js',
                 '/js/desktop/apps/easydrag-status.js',
+                '/js/desktop/apps/easydrag-kit.js',
                 '/js/desktop/apps/easydrag-icons.js',
                 '/js/desktop/apps/easydrag-delight.js',
                 '/js/desktop/apps/easydrag-durable.js',
