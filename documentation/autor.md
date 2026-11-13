@@ -28,6 +28,23 @@ changes or removes a link; Ctrl+G goes to a page. Paste from the menu needs the
 browser's clipboard permission; Ctrl+V always works.
 The zoom button in the status bar offers fit to width, whole page and fixed
 steps; Ctrl with the mouse wheel zooms as well.
+A right-click in the document opens a menu for what was clicked: cut, copy,
+paste and paste without formatting, the link under the caret (change or remove
+it), a comment on the selection, the table commands inside a table, rotate and
+delete for an image, accept or reject for a tracked change under the pointer,
+and the AI assistant. A right-click on an image that is not selected selects
+it first. A selection stays as it is when you right-click; without a selection
+the caret moves to the click first. Shift+F10 opens the same menu from the
+keyboard.
+
+While the caret is in a table, an image is selected, or a header or footer is
+open, a bar with the matching commands covers the ruler. Only one bar shows at
+a time: an image first, then a header or footer, then a table. The table bar
+has insert and delete for rows and columns, delete table, merge, split, and
+borders on and off; the image bar has rotate left, rotate right, delete and the
+Format panel; the header or footer bar has page numbers, the first-page option,
+the odd-and-even option and the way back to the document. The document does not
+move when the bar appears.
 Format provides paragraph spacing, page setup, table and image controls.
 Page setup recognizes A4 and Letter in both orientations. Other sizes stay as
 they are until a listed size is chosen. Indent, color and image controls follow

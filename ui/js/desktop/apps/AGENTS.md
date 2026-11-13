@@ -3890,13 +3890,14 @@ buttons and menu popovers remain excluded from those gestures.
   `disabled` and `checked` when menus are set and setting them closes an open menu;
   `writer-dialogs.js` holds the dialogs (table size, link, go to page, word count,
   shortcut overview), all through `shared/form-dialog.js`;
+  `writer-context.js` owns the two context surfaces: the bar over the ruler (`kind(snapshot)` picks image, header/footer or table; `bars` lists its commands) and the right-click menu (`sections(target)`), both built from the registry. The engine moves its caret on a right-click, so the module keeps a right-button press from the engine while there is a selection or a selected image, and lets a plain caret follow the click. A right-click on an image that is not selected selects it first with a synthetic left press, because the engine acts on the selected image only. Items only the app can build (accept or reject the change under the pointer, unlink, update a table of contents) are the `@` entries; every context-menu item names an icon the shell has, because the shell draws an unknown key as text;
   `writer-session.js` owns revision-bound autosave and IndexedDB recovery;
   `writer-panels.js` owns formatting, search, review, AI and snapshot printing.
   A new command is one entry in `DEFINITIONS`: a `slot`, a `command` (an engine
   command without a slot), or neither for an app action, which also needs its
   `case` in `act` in `writer.js` (panel and zoom-preset actions are matched in
   `act` without a `case`). A window menu lists it in `build` in
-  `writer-menus.js`; a toolbar control is its id in a `GROUPS` entry;
+  `writer-menus.js`; a toolbar control is its id in a `GROUPS` entry; a contextual-bar control is its id in `bars` in `writer-context.js`; `scope` limits an app action to one editing scope;
   `scripts/test-writer-menus.mjs` fails for a command that no menu lists and that
   is not one of its toolbar-only ids. `icon` is a shared key for menus and the
   toolbar, `glyph` is drawn by `writer-toolbar.js` only. Clipboard and
