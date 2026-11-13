@@ -161,7 +161,7 @@ jobs:
           ffprobe -version
 
       - name: Run Go tests
-        run: go test ./... -p 1
+        run: go test ./... -p 1 -timeout=30m
 
       - name: Run complete Go vet analysis
         run: go vet ./...
@@ -195,9 +195,12 @@ jobs:
           - name: Config layout
             run: '^TestConfigRefreshRealSectionsBrowser$'
             skip: '^$'
-          - name: Aura Drift
-            run: '^Test(Desktop)?AuraDrift'
+          - name: Aura Drift quality and controls
+            run: '^TestDesktopAuraDrift(QualityMatrixBrowser|SteeringBrowser|SteeringFrameBrowser|GTAOShadowReuseBrowser)$'
             skip: '^$'
+          - name: Aura Drift other flows
+            run: '^Test(Desktop)?AuraDrift'
+            skip: '^TestDesktopAuraDrift(QualityMatrixBrowser|SteeringBrowser|SteeringFrameBrowser|GTAOShadowReuseBrowser)$'
           - name: Leafy
             run: '^TestDesktopLeafy'
             skip: '^$'
@@ -258,13 +261,65 @@ jobs:
         run: go test ./ui -v -p 1 -count=1 -timeout=30m -run '${{ matrix.run }}' -skip '${{ matrix.skip }}'
 
   go-race:
-    name: Go race tests (${{ matrix.package }})
+    name: Go race tests (${{ matrix.name }})
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        package: [llm, server, memory, tools, telegram, whatsapp, agent, flows, invasion, security, discord, dbutil]
+        include:
+          - name: llm
+            package: llm
+            run: '.'
+            skip: '^$'
+          - name: server
+            package: server
+            run: '.'
+            skip: '^$'
+          - name: memory
+            package: memory
+            run: '.'
+            skip: '^$'
+          - name: tools
+            package: tools
+            run: '.'
+            skip: '^$'
+          - name: telegram
+            package: telegram
+            run: '.'
+            skip: '^$'
+          - name: whatsapp
+            package: whatsapp
+            run: '.'
+            skip: '^$'
+          - name: flows
+            package: flows
+            run: '.'
+            skip: '^$'
+          - name: invasion
+            package: invasion
+            run: '.'
+            skip: '^$'
+          - name: security
+            package: security
+            run: '.'
+            skip: '^$'
+          - name: discord
+            package: discord
+            run: '.'
+            skip: '^$'
+          - name: dbutil
+            package: dbutil
+            run: '.'
+            skip: '^$'
+          - name: agent A-M
+            package: agent
+            run: '^Test[A-M]'
+            skip: '^$'
+          - name: agent remaining
+            package: agent
+            run: '.'
+            skip: '^Test[A-M]'
     permissions:
       contents: read
 
@@ -281,7 +336,7 @@ jobs:
           cache: true
 
       - name: Run targeted race tests
-        run: go test -race ./internal/${{ matrix.package }} -p 1 -timeout=30m
+        run: go test -race ./internal/${{ matrix.package }} -p 1 -timeout=30m -run '${{ matrix.run }}' -skip '${{ matrix.skip }}'
 
   windows-runtime:
     name: Windows focused runtime contracts

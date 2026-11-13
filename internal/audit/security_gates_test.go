@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -17,7 +18,7 @@ func TestGoSecurityChecksRunIndependently(t *testing.T) {
 			Strategy struct {
 				FailFast *bool `yaml:"fail-fast"`
 				Matrix   struct {
-					Package []string `yaml:"package"`
+					Include []struct{ Name, Package, Run, Skip string } `yaml:"include"`
 				} `yaml:"matrix"`
 			} `yaml:"strategy"`
 			Steps []struct {
@@ -52,15 +53,46 @@ func TestGoSecurityChecksRunIndependently(t *testing.T) {
 					if job.Timeout != 60 || job.Strategy.FailFast == nil || *job.Strategy.FailFast || !strings.Contains(step.Run, "-timeout=30m") || !strings.Contains(step.Run, "./internal/${{ matrix.package }}") {
 						t.Error("race packages must run independently with 30-minute tests and 60-minute jobs")
 					}
-					packages := map[string]bool{}
-					for _, pkg := range job.Strategy.Matrix.Package {
-						if packages[pkg] {
-							t.Errorf("duplicate race package %s", pkg)
+					if !strings.Contains(step.Run, "-run '${{ matrix.run }}'") || !strings.Contains(step.Run, "-skip '${{ matrix.skip }}'") {
+						t.Error("race command omits shard selectors")
+					}
+					packages := map[string]int{}
+					for _, shard := range job.Strategy.Matrix.Include {
+						packages[shard.Package]++
+					}
+					for pkg, count := range packages {
+						want := 1
+						if pkg == "agent" {
+							want = 2
 						}
-						packages[pkg] = true
+						if count != want {
+							t.Errorf("race package %s has %d shards, want %d", pkg, count, want)
+						}
+					}
+					for _, name := range topLevelGoTestNames(t, "internal/agent") {
+						matches := 0
+						for _, shard := range job.Strategy.Matrix.Include {
+							if shard.Package != "agent" {
+								continue
+							}
+							run, err := regexp.Compile(shard.Run)
+							if err != nil {
+								t.Fatal(err)
+							}
+							skip, err := regexp.Compile(shard.Skip)
+							if err != nil {
+								t.Fatal(err)
+							}
+							if run.MatchString(name) && !skip.MatchString(name) {
+								matches++
+							}
+						}
+						if matches != 1 {
+							t.Errorf("%s belongs to %d agent race shards, want exactly one", name, matches)
+						}
 					}
 					for _, pkg := range []string{"llm", "server", "memory", "tools", "telegram", "whatsapp", "agent", "flows", "invasion", "security", "discord", "dbutil"} {
-						if !packages[pkg] {
+						if packages[pkg] == 0 {
 							t.Errorf("race check omits %s", pkg)
 						}
 					}
