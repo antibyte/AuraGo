@@ -30,6 +30,7 @@ const easyDragTargetScan = `()=>{
 			if(seen.has(el))return;
 			seen.add(el);
 			if(el.matches('input[type="hidden"]'))return;
+			if(el.closest('.ed-sr-only'))return; // the screen-reader-only node list (the outline drops the class when it opens)
 			const cs=getComputedStyle(el),r=el.getBoundingClientRect();
 			if(cs.display==='none'||cs.visibility==='hidden'||cs.pointerEvents==='none'||(r.width===0&&r.height===0))return;
 			if(el.matches('a[href]')&&cs.display==='inline'){
