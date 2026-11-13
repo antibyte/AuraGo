@@ -139,10 +139,10 @@
     // without a canvas stays silent.
     function say(ed, text) { if (ed && typeof ed.announce === 'function' && text) ed.announce(text); }
 
-    // stepsText tells what an action did to steps: the name for one, the count for several. The two
-    // texts are separate keys because languages count differently (keyOne takes {name}, keyMany {count}).
+    // stepsText tells what an action did to steps: the name for one, the count for several. keyOne takes
+    // {name}; keyMany is a count text with {count} and the plural forms of ED.format.plural.
     function stepsText(t, keyOne, keyMany, names) {
-        return names.length === 1 ? t(keyOne, { name: names[0] }) : t(keyMany, { count: names.length });
+        return names.length === 1 ? t(keyOne, { name: names[0] }) : ED.format.plural(t, keyMany, names.length);
     }
 
     // pluralKey picks the key of a count text: base + suffix when the count is exactly one, else
@@ -235,46 +235,18 @@
         return out;
     }
 
-    function lang() {
-        return String(window.SYSTEM_LANG || document.documentElement.lang || 'en').toLowerCase().split('-')[0];
-    }
+    // lang and fmt keep the names the older call sites use; the language, numbers, dates and durations
+    // are ED.format's (easydrag-format.js, loaded right after this file).
+    function lang() { return ED.format.locale(); }
 
     const fmt = {
-        number(value) {
-            try { return new Intl.NumberFormat(lang()).format(value); } catch (err) { return String(value); }
-        },
+        number(value) { return ED.format.number(value); },
         // decimal formats a number with one decimal in the desktop language ("2,5" in German).
-        decimal(value) {
-            try { return new Intl.NumberFormat(lang(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value); } catch (err) { return Number(value).toFixed(1); }
-        },
-        duration(ms) {
-            const n = Number(ms) || 0;
-            if (n < 1000) return Math.round(n) + ' ms';
-            if (n < 10000) return fmt.decimal(n / 1000) + ' s';
-            // Whole seconds first, then minutes: 119 999 ms reads 2:00 min, not 1:60 min.
-            const total = Math.round(n / 1000);
-            if (total < 60) return total + ' s';
-            return Math.floor(total / 60) + ':' + String(total % 60).padStart(2, '0') + ' min';
-        },
+        decimal(value) { return ED.format.number(value, { minimumFractionDigits: 1, maximumFractionDigits: 1 }); },
+        duration(ms) { return ED.format.duration(ms); },
         // dateTime formats a date and time; seconds adds them (to tell runs of one minute apart).
-        dateTime(iso, seconds) {
-            const date = iso instanceof Date ? iso : new Date(iso);
-            if (isNaN(date.getTime())) return '';
-            try { return date.toLocaleString(lang(), { dateStyle: 'medium', timeStyle: seconds ? 'medium' : 'short' }); } catch (err) { return date.toISOString(); }
-        },
-        relative(iso) {
-            const date = iso instanceof Date ? iso : new Date(iso);
-            if (isNaN(date.getTime())) return '';
-            const diff = (date.getTime() - Date.now()) / 1000;
-            const abs = Math.abs(diff);
-            const units = [['year', 31536000], ['month', 2592000], ['week', 604800], ['day', 86400], ['hour', 3600], ['minute', 60], ['second', 1]];
-            for (const [unit, seconds] of units) {
-                if (abs >= seconds || unit === 'second') {
-                    try { return new Intl.RelativeTimeFormat(lang(), { numeric: 'auto' }).format(Math.round(diff / seconds), unit); } catch (err) { return fmt.dateTime(date); }
-                }
-            }
-            return '';
-        },
+        dateTime(iso, seconds) { return ED.format.date(iso, seconds ? 'seconds' : 'medium'); },
+        relative(iso) { return ED.format.relative(iso); },
         bytes(n) {
             const value = Number(n) || 0;
             if (value < 1024) return value + ' B';

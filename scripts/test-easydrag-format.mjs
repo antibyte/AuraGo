@@ -80,4 +80,15 @@ for (const lang of LOCALES) {
     seen.delete('other');
     assert.deepEqual((fromGo[lang] || []).slice().sort(), Array.from(seen).sort(), 'the Go plural table for ' + lang);
 }
+// core.fmt and stepsText are thin wrappers: load core after format and compare
+const coreBox = vm.createContext({ window: { SYSTEM_LANG: 'de' }, console, Intl, Date, Set, Map, navigator: { platform: 'Linux' }, localStorage: { getItem: () => null, setItem() {}, removeItem() {}, get length() { return 0; }, key: () => null }, setTimeout: () => 1, clearTimeout() {} });
+for (const file of ['easydrag-format.js', 'easydrag-core.js']) vm.runInContext(fs.readFileSync(new URL('ui/js/desktop/apps/' + file, root), 'utf8'), coreBox, { filename: file });
+const core = coreBox.window.EasyDrag.core, CF = coreBox.window.EasyDrag.format;
+assert.equal(core.lang(), 'de');
+assert.deepEqual([core.fmt.duration(2500), core.fmt.decimal(2.5), core.fmt.bytes(1536), core.fmt.number(1234.5)], ['2,5 s', '2,5', '1,5 KB', '1.234,5']);
+assert.equal(core.fmt.dateTime('2026-11-13T12:00:00Z'), CF.date('2026-11-13T12:00:00Z', 'medium'));
+assert.equal(core.fmt.dateTime('2026-11-13T12:00:00Z', true), CF.date('2026-11-13T12:00:00Z', 'seconds'));
+const steps = (key, vars) => (key + ':' + Object.values(vars || {}).join(','));
+assert.equal(core.stepsText(steps, 'one', 'many', ['A']), 'one:A');
+assert.equal(core.stepsText(steps, 'one', 'many', ['A', 'B', 'C']), 'many:3');
 console.log('easydrag format: ok');

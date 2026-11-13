@@ -404,7 +404,7 @@
         const options = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' };
         if (tz) options.timeZone = tz;
         const parts = {};
-        new Intl.DateTimeFormat('en-GB', options).formatToParts(date).forEach(p => { parts[p.type] = p.value; });
+        new Intl.DateTimeFormat('en-GB', options).formatToParts(date).forEach(p => { parts[p.type] = p.value; }); // en-GB on purpose: fixed field order and Latin digits, this is the template filter and not UI text
         return parts;
     }
 

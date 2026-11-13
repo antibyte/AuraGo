@@ -57,7 +57,7 @@
         const n = Number(bytes) || 0;
         return n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : (n / 1048576).toFixed(1) + ' MB';
     }
-    function dateText(value) { const d = new Date(value); return Number.isFinite(d.getTime()) ? d.toLocaleDateString() : ''; }
+    function dateText(value) { return ED.format.date(value, 'day'); }
 
     // dialogMarkup says in plain words what will be deleted, blacked out, and what stays and why.
     function dialogMarkup(t, report) {

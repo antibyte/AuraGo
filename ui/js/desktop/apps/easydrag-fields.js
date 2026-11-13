@@ -494,19 +494,12 @@
         ]);
     }
 
-    // namesText lists names in the page's language: up to three as a list with "and" (Intl.ListFormat),
+    // namesText lists names in the page's language: up to three as a list with "and" (ED.format.list),
     // more as three names and "and N more". The three are joined with the language's own list
-    // separator (", ", "、"); without Intl.ListFormat with ", ".
+    // separator (", ", "、").
     function namesText(t, names) {
-        let list = null;
-        try { list = new Intl.ListFormat(core().lang(), { style: 'long', type: 'conjunction' }); } catch (err) { list = null; }
-        if (names.length <= 3) return list ? list.format(names) : names.join(', ');
-        let sep = ', ';
-        if (list) {
-            const literal = list.formatToParts(['a', 'b', 'c']).find(p => p.type === 'literal');
-            if (literal) sep = literal.value;
-        }
-        return t('easydrag.ui.names_more', { names: names.slice(0, 3).join(sep), count: names.length - 3 });
+        if (names.length <= 3) return ED.format.list(names);
+        return t('easydrag.ui.names_more', { names: names.slice(0, 3).join(ED.format.listSeparator()), count: names.length - 3 });
     }
 
     // secretRef picks a flow secret (vault entry easydrag_<name>), creates a new one or deletes the

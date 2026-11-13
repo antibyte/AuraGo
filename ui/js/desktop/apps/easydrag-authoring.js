@@ -9,9 +9,8 @@
     // code points, at most 4,000) and formats "count / max" in the UI language.
     function goalCounter(value, t, locale) {
         const count = Array.from(String(value || '').trim()).length;
-        let nf;
-        try { nf = new Intl.NumberFormat(locale || undefined); } catch (err) { nf = new Intl.NumberFormat(); }
-        return { count, over: count > GOAL_MAX, text: t('easydrag.ui.goal_counter', { count: nf.format(count), max: nf.format(GOAL_MAX) }) };
+        const opts = locale ? { locale } : undefined;
+        return { count, over: count > GOAL_MAX, text: t('easydrag.ui.goal_counter', { count: ED.format.number(count, opts), max: ED.format.number(GOAL_MAX, opts) }) };
     }
 
     function applyProposal(model, doc, expectedVersion, label) {
