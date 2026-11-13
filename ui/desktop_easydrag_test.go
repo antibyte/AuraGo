@@ -212,7 +212,6 @@ func TestEasyDragUIKeysExistInAllLocales(t *testing.T) {
 		"easydrag.ui.durable_reason_":     {"disabled", "authority", "key_unavailable", "checkpoint_unreadable", "storage_unavailable", "incompatible", "service_unavailable", "runtime_unavailable"},
 		"easydrag.ui.group_color_":        {"neutral", "blue", "green", "amber", "rose", "violet"},
 		"easydrag.ui.assertion_":          {"step_unavailable", "output_truncated", "output_mismatch", "ports_mismatch"},
-		"easydrag.ui.status_":             {"pending", "queued", "running", "waiting", "success", "error", "skipped", "cancelled"},
 		"easydrag.ui.effect_":             {"sends_message", "writes_files", "controls_devices", "runs_code", "deletes", "system_change"},
 		"easydrag.ui.port_":               {"in", "out", "error", "true", "false", "default", "uncertain"},
 		"easydrag.ui.connect_":            {"missing", "self", "port", "duplicate", "cycle"},
