@@ -108,7 +108,7 @@ func SendNotificationContext(ctx context.Context, cfg *config.Config, logger *sl
 			results = append(results, result{Channel: string(c), Status: "error", Detail: err.Error()})
 			return
 		}
-		finish, skipped, err := beginMailNotification(ctx, string(c), priority)
+		finish, sendCtx, skipped, err := beginMailNotification(ctx, string(c), priority)
 		if err != nil {
 			results = append(results, result{Channel: string(c), Status: "error", Detail: err.Error()})
 			return
@@ -120,7 +120,6 @@ func SendNotificationContext(ctx context.Context, cfg *config.Config, logger *sl
 		if finish != nil {
 			defer finish(false)
 		}
-		sendCtx := observeMailNotification(ctx, string(c))
 		switch c {
 		case ChannelNtfy:
 			err = sendNtfy(cfg, title, message, priority, sendCtx)

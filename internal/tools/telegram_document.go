@@ -126,7 +126,7 @@ func SendTelegramFile(ctx context.Context, cfg *config.Config, logger *slog.Logg
 	if _, err := telegramDocumentSize(f); err != nil {
 		return fail(err)
 	}
-	finish, skipped, err := beginMailNotification(ctx, "telegram", "normal")
+	finish, sendCtx, skipped, err := beginMailNotification(ctx, "telegram", "normal")
 	if err != nil {
 		return fail(err)
 	}
@@ -136,7 +136,7 @@ func SendTelegramFile(ctx context.Context, cfg *config.Config, logger *slog.Logg
 	if finish != nil {
 		defer finish(false)
 	}
-	ctx = observeMailNotification(ctx, "telegram")
+	ctx = sendCtx
 	name := telegramDocumentName(filepath.Base(path))
 	caption := strings.TrimSpace(strings.TrimSpace(title) + "\n" + strings.TrimSpace(message))
 	if utf16Units(caption) > telegramMaxCaptionUnits {
@@ -392,7 +392,10 @@ func sendTelegramFileText(cfg *config.Config, logger *slog.Logger, title, messag
 	}
 	title = truncateUTF16Units(title, telegramMaxCaptionUnits)
 	message = truncateUTF16Units(message, telegramMaxMessageUnits-utf16Units(title)-1)
-	return sendTelegramNotification(cfg, title, message, nativeHTTPContext(contexts...))
+	if err := sendTelegramNotification(cfg, title, message, nativeHTTPContext(contexts...)); err != nil {
+		return fmt.Errorf("the text message could not be sent: %w", err)
+	}
+	return nil
 }
 
 // telegramDocumentName is the base name a document is uploaded under. Control characters

@@ -10,8 +10,12 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httptrace"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -89,10 +93,50 @@ type mailReceiptRoundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f mailReceiptRoundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
+func TestMailNotificationAttemptKeepsTrackingWithoutStorageLookup(t *testing.T) {
+	dir := t.TempDir()
+	var parentConnections atomic.Int32
+	ctx := httptrace.WithClientTrace(WithMailNotificationPolicy(context.Background(), dir, "bound-attempt", true), &httptrace.ClientTrace{GotConn: func(httptrace.GotConnInfo) { parentConnections.Add(1) }})
+	finish, sendCtx, skipped, err := beginMailNotification(ctx, "ntfy", "high")
+	if err != nil || skipped {
+		t.Fatal("could not reserve", err)
+	}
+	defer finish(false)
+	// A later storage location cannot be reopened. The already claimed sender
+	// must retain its own attempt identity, not rediscover it through that path.
+	blocked := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(blocked, []byte("fixture"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	sendCtx = WithMailNotificationPolicy(sendCtx, blocked, "bound-attempt", true)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		connection, _, err := w.(http.Hijacker).Hijack()
+		if err == nil {
+			_ = connection.Close()
+		}
+	}))
+	defer server.Close()
+	cfg := &config.Config{}
+	cfg.Notifications.Ntfy.Enabled = true
+	cfg.Notifications.Ntfy.URL = server.URL
+	cfg.Notifications.Ntfy.Topic = "fixture"
+	if err := sendNtfy(cfg, "fixture", "fixture", "high", sendCtx); err == nil {
+		t.Fatal("lost acknowledgement unexpectedly succeeded")
+	}
+	if err := finish(false); err != nil {
+		t.Fatal(err)
+	}
+	page := receiptPage(t, dir)
+	if len(page.Receipts) != 1 || page.Receipts[0].Status != "unknown" || parentConnections.Load() == 0 {
+		t.Fatalf("lost attempt or parent trace after storage became unavailable: %+v", page.Receipts)
+	}
+}
+
 func TestMailNotificationSafeFailureAndExplicitResolution(t *testing.T) {
 	dir := t.TempDir()
 	ctx := WithMailNotificationPolicy(context.Background(), dir, "independent-event", true)
-	finish, skipped, err := beginMailNotification(ctx, "discord", "high")
+	finish, deliveryCtx, skipped, err := beginMailNotification(ctx, "discord", "high")
 	if err != nil || skipped {
 		t.Fatalf("reserve: %v, %v", skipped, err)
 	}
@@ -103,11 +147,10 @@ func TestMailNotificationSafeFailureAndExplicitResolution(t *testing.T) {
 	if err := finish(false); err != nil || len(receiptPage(t, dir).Receipts) != 0 {
 		t.Fatalf("safe non-send must release capacity: %v", err)
 	}
-	finish, _, err = beginMailNotification(ctx, "discord", "high")
+	finish, deliveryCtx, _, err = beginMailNotification(ctx, "discord", "high")
 	if err != nil {
 		t.Fatal(err)
 	}
-	deliveryCtx := observeMailNotification(ctx, "discord")
 	markMailNotificationPossible(deliveryCtx)
 	if err := finish(false); err != nil {
 		t.Fatal(err)
@@ -116,7 +159,7 @@ func TestMailNotificationSafeFailureAndExplicitResolution(t *testing.T) {
 	if unknown.Status != "unknown" || unknown.Revision == active.Revision {
 		t.Fatalf("ambiguous attempt = %+v", unknown)
 	}
-	if _, _, err := beginMailNotification(ctx, "discord", "high"); err == nil {
+	if _, _, _, err := beginMailNotification(ctx, "discord", "high"); err == nil {
 		t.Fatal("ambiguous attempt was replayed")
 	}
 	if !errors.Is(ResolveMailReceipt(ctx, dir, unknown.ID, active.Revision, "sent"), ErrMailReceiptConflict) {
@@ -129,13 +172,13 @@ func TestMailNotificationSafeFailureAndExplicitResolution(t *testing.T) {
 	if sent.Status != "sent" || sent.ExpiresAt == nil || sent.ExpiresAt.Before(time.Now().Add(29*24*time.Hour)) {
 		t.Fatalf("confirmed metadata = %+v", sent)
 	}
-	if _, skipped, err := beginMailNotification(ctx, "discord", "high"); err != nil || !skipped {
+	if _, _, skipped, err := beginMailNotification(ctx, "discord", "high"); err != nil || !skipped {
 		t.Fatal("confirmation lost its duplicate fence", err)
 	}
 	if err := ResolveMailReceipt(ctx, dir, sent.ID, sent.Revision, "not_sent"); err != nil {
 		t.Fatal(err)
 	}
-	finish, _, err = beginMailNotification(ctx, "discord", "high")
+	finish, deliveryCtx, _, err = beginMailNotification(ctx, "discord", "high")
 	if err != nil {
 		t.Fatal("explicit non-send must permit a later attempt", err)
 	}
@@ -179,10 +222,10 @@ func TestMailNotificationChannelQuotaPagingAndLegacy(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := WithMailNotificationPolicy(context.Background(), dir, "new-event", true)
-	if _, _, err := beginMailNotification(ctx, "ntfy", "high"); err == nil || !strings.Contains(err.Error(), "capacity") {
+	if _, _, _, err := beginMailNotification(ctx, "ntfy", "high"); err == nil || !strings.Contains(err.Error(), "capacity") {
 		t.Fatalf("full channel admitted: %v", err)
 	}
-	finish, _, err := beginMailNotification(ctx, "telegram", "high")
+	finish, _, _, err := beginMailNotification(ctx, "telegram", "high")
 	if err != nil {
 		t.Fatal("one full channel must not block another", err)
 	}
@@ -232,7 +275,7 @@ func TestMailNotificationChannelQuotaPagingAndLegacy(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			claimCtx := WithMailNotificationPolicy(context.Background(), dir, fmt.Sprintf("quota-race-%d", i), true)
-			finish, _, err := beginMailNotification(claimCtx, "ntfy", "high")
+			finish, _, _, err := beginMailNotification(claimCtx, "ntfy", "high")
 			if err != nil {
 				if !strings.Contains(err.Error(), "capacity") {
 					t.Error(err)

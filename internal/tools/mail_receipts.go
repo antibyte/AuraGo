@@ -165,18 +165,18 @@ func checkMailNotification(ctx context.Context, channel, priority string) (bool,
 	return false, "", errors.New("mail notification outcome unknown or attempt active; review the receipt before another attempt")
 }
 
-func beginMailNotification(ctx context.Context, channel, priority string) (func(bool) error, bool, error) {
+func beginMailNotification(ctx context.Context, channel, priority string) (func(bool) error, context.Context, bool, error) {
 	skipped, _, err := checkMailNotification(ctx, channel, priority)
 	if err != nil || skipped {
-		return nil, skipped, err
+		return nil, ctx, skipped, err
 	}
 	policy, scoped := ctx.Value(mailNotificationKey{}).(mailNotificationPolicy)
 	if !scoped {
-		return nil, false, nil
+		return nil, ctx, false, nil
 	}
 	store, err := openMailReceiptStore(policy.dataDir)
 	if err != nil {
-		return nil, false, err
+		return nil, ctx, false, err
 	}
 	namespace, now := mailReceiptNamespace(policy, channel), time.Now().UTC()
 	record := mailReceiptRecord{Version: 1, Channel: channel, Status: "active", AttemptedAt: now, Token: newMailReceiptToken()}
@@ -199,18 +199,20 @@ func beginMailNotification(ctx context.Context, channel, priority string) (func(
 	if err != nil || changed != 1 {
 		_ = store.release()
 		if err != nil {
-			return nil, false, fmt.Errorf("claim mail notification: %w", err)
+			return nil, ctx, false, fmt.Errorf("claim mail notification: %w", err)
 		}
 		// Distinguish a competing claim from an independently full channel.
 		skipped, _, err := checkMailNotification(ctx, channel, priority)
 		if err != nil || skipped {
-			return nil, skipped, err
+			return nil, ctx, skipped, err
 		}
-		return nil, false, errors.New("mail notification receipt capacity reached for this channel")
+		return nil, ctx, false, errors.New("mail notification receipt capacity reached for this channel")
 	}
+	sendCtx := context.WithValue(ctx, mailReceiptAttemptKey{}, attempt)
+	sendCtx = httptrace.WithClientTrace(sendCtx, &httptrace.ClientTrace{GotConn: func(httptrace.GotConnInfo) { attempt.possible.Store(true) }})
 	var once sync.Once
 	var finishErr error
-	return func(sent bool) error {
+	finish := func(sent bool) error {
 		once.Do(func() {
 			defer store.release()
 			finishCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
@@ -230,27 +232,8 @@ func beginMailNotification(ctx context.Context, channel, priority string) (func(
 			_, finishErr = store.db.ExecContext(finishCtx, "UPDATE system_tasks SET payload_json = ?,updated_at = ? WHERE namespace = ? AND payload_json = ?", string(updated), time.Now().UTC().Format(time.RFC3339Nano), namespace, string(payload))
 		})
 		return finishErr
-	}, false, nil
-}
-
-func observeMailNotification(ctx context.Context, channel string) context.Context {
-	policy, scoped := ctx.Value(mailNotificationKey{}).(mailNotificationPolicy)
-	if !scoped {
-		return ctx
 	}
-	store, err := openMailReceiptStore(policy.dataDir)
-	if err != nil {
-		return ctx // The reservation already holds its store; no new send is granted here.
-	}
-	mailReceipts.Lock()
-	attempt := mailReceipts.active[mailReceiptKey(store, mailReceiptNamespace(policy, channel))]
-	mailReceipts.Unlock()
-	_ = store.release()
-	if attempt == nil {
-		return ctx
-	}
-	ctx = context.WithValue(ctx, mailReceiptAttemptKey{}, attempt)
-	return httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{GotConn: func(httptrace.GotConnInfo) { attempt.possible.Store(true) }})
+	return finish, sendCtx, false, nil
 }
 
 func markMailNotificationPossible(ctx context.Context) {
