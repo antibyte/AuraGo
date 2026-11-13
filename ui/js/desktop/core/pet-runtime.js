@@ -38,7 +38,7 @@
     };
     const ambientStates = ['waving', 'jumping', 'running', 'running'];
 
-    // OpenPets-compatible reaction â†’ animation state mapping.
+    // OpenPets-compatible reaction → animation state mapping.
     const reactionToState = {
         idle: 'idle',
         thinking: 'review',
@@ -717,7 +717,7 @@
     function classifyAgentResponseReaction(text) {
         const message = String(text || '').toLowerCase();
         if (!message) return 'idle';
-        if (/[?ï¼Ÿ]$/.test(message.trim())) return 'waving';
+        if (/[?？]$/.test(message.trim())) return 'waving';
         if (message.includes('error') || message.includes('failed') || message.includes('fehler') || message.includes('problem')) return 'error';
         if (message.includes('done') || message.includes('fixed') || message.includes('fertig') || message.includes('erledigt') || message.includes('success')) return 'celebrating';
         return 'success';
