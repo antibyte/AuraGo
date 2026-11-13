@@ -31,7 +31,7 @@
         function countText(item) {
             let errors = 0, running = 0, success = 0, disabled = 0;
             item.members.forEach(id => { const node = ed.model.node(id), status = ed.run?.steps?.get(id)?.status; if (status === 'error' || issueNodes.has(id)) errors++; if (['running', 'queued'].includes(status)) running++; if (status === 'success') success++; if (node?.settings.disabled) disabled++; });
-            return [ed.t(core.pluralKey('easydrag.ui.group_member_count', item.members.length), { count: item.members.length }), ed.t(core.pluralKey('easydrag.ui.group_edges_count', boundaryCounts.get(item.id) || 0), { count: boundaryCounts.get(item.id) || 0 }), errors ? ed.t(core.pluralKey('easydrag.ui.group_errors', errors), { count: errors }) : '', running ? ed.t('easydrag.ui.group_running', { count: running }) : '', success ? ed.t('easydrag.ui.group_success', { count: success }) : '', disabled ? ed.t('easydrag.ui.group_disabled', { count: disabled }) : ''].filter(Boolean).join(' · ');
+            return [ED.format.plural(ed.t, 'easydrag.ui.group_member_count', item.members.length), ED.format.plural(ed.t, 'easydrag.ui.group_edges_count', boundaryCounts.get(item.id) || 0), errors ? ED.format.plural(ed.t, 'easydrag.ui.group_errors', errors) : '', running ? ED.format.plural(ed.t, 'easydrag.ui.group_running', running) : '', success ? ED.format.plural(ed.t, 'easydrag.ui.group_success', success) : '', disabled ? ED.format.plural(ed.t, 'easydrag.ui.group_disabled', disabled) : ''].filter(Boolean).join(' · ');
         }
         function paintCounts(item) {
             const row = rows.get(item.id); if (!row) return;

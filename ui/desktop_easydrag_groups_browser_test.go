@@ -159,7 +159,7 @@ func TestDesktopEasyDragGroupsBrowser(t *testing.T) {
 		s.wait(`()=>!document.querySelector('.ed-node-region.is-outline')`)
 	}
 	p.MustEval(`()=>{const ed=edFixture.editor(),nodes=ed.model.doc.nodes,ids=nodes.map(n=>n.id);nodes[3].settings.disabled=true;const id=ed.model.createGroup(ids,'Statusgruppe','green','Ein längerer Hinweis erklärt die Gruppe und erstreckt sich absichtlich über mehrere Zeilen.');if(!id)throw Error('status group');ed.run={id:'run_group_bounds',status:'running',mode:'test',steps:new Map([[ids[0],{node_id:ids[0],status:'error'}],[ids[1],{node_id:ids[1],status:'running'}],[ids[2],{node_id:ids[2],status:'success'}]]),changes:ids.slice(0,3),edges:new Map(),record:null,error:''};ed.bus.emit('run');window.__statusGroup=id;}`)
-	s.wait(`()=>{const ed=edFixture.editor(),s=document.querySelector('.ed-group-counts')?.textContent||'';return ['group_errors','group_running','group_success','group_disabled'].every(k=>s.includes(ed.t('easydrag.ui.'+k,{count:1})));}`)
+	s.wait(`()=>{const ed=edFixture.editor(),s=document.querySelector('.ed-group-counts')?.textContent||'';return ['group_errors','group_running','group_success','group_disabled'].every(k=>s.includes(EasyDrag.format.plural(ed.t,'easydrag.ui.'+k,1)));}`)
 	for _, width := range []int{320, 390, 1440} {
 		p.MustSetViewport(width, 900, 1, width < 760)
 		p.MustElement(`[data-ed-zoom="reset"]`).MustClick()

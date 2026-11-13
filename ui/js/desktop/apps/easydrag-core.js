@@ -145,11 +145,9 @@
         return names.length === 1 ? t(keyOne, { name: names[0] }) : ED.format.plural(t, keyMany, names.length);
     }
 
-    // pluralKey picks the key of a count text: base + suffix when the count is exactly one, else
-    // base. It is the choice stepsText makes (one or several), for texts that keep their {count}.
-    function pluralKey(base, count, suffix) {
-        return count === 1 ? base + (suffix || '_one') : base;
-    }
+    // pluralKey is the key of a count text for the UI language (base_<category>, base for "other"); a
+    // thin wrapper over ED.format.key. Texts are rendered with ED.format.plural, which also falls back.
+    function pluralKey(base, count) { return ED.format.key(base, count); }
 
     // removeConnection deletes one connection on the user's behalf (the wire's button, Delete, the
     // inspector) and says which two steps it joined.

@@ -285,7 +285,7 @@
                         '<div class="ed-version-meta"><strong>v' + esc(v.revision) + '</strong>' +
                         (isLive ? ' <span class="ed-chip ed-chip--live">' + esc(t('easydrag.ui.versions_live')) + '</span>' : '') +
                         '<span class="ed-muted">' + esc(core.fmt.dateTime(v.published_at)) + ' · ' +
-                        esc(t(Number(v.node_count) === 1 ? core.pluralKey('easydrag.ui.versions_stats', 1) : core.pluralKey('easydrag.ui.versions_stats', Number(v.edge_count), '_edge_one'), { nodes: v.node_count || 0, edges: v.edge_count || 0 })) + '</span></div>' +
+                        esc(ED.format.plural(t, 'easydrag.ui.group_member_count', Number(v.node_count) || 0) + ' · ' + ED.format.plural(t, 'easydrag.ui.versions_connections', Number(v.edge_count) || 0)) + '</span></div>' +
                         (ED.metadata ? ED.metadata.noteMarkup(ed, v) : '') + (!ro ? '<button type="button" class="ed-btn ed-btn--small" data-ed-restore-rev="' + esc(v.revision) + '">' +
                             core.icon('history') + '<span>' + esc(t('easydrag.ui.versions_restore')) + '</span></button>' : '') +
                         '</div>';

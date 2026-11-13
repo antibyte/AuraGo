@@ -37,7 +37,7 @@ export async function run() {
         drafts: [{ flow_id: 'flow_a', name: 'A <i>' }], live: [{ flow_id: 'flow_a', name: 'A <i>' }, { flow_id: 'flow_b', name: 'B' }],
         snapshots: [{ name: '.flows-v7-backup-abc', bytes: 2048, mod_time: '2026-11-01T10:00:00Z' }] });
     const dialog = purge.dialogMarkup(tt, full);
-    assert.ok(dialog.includes('cred_purge_versions[2]') && dialog.includes('cred_purge_rows[3,9]') && dialog.includes('cred_purge_pinned[1]'));
+    assert.ok(dialog.includes('cred_purge_versions[2]') && dialog.includes('cred_purge_rows[3,9]') && dialog.includes('cred_purge_pinned_one[1]'));
     assert.equal((dialog.match(/data-ed-credentials-flow=/g) || []).length, 2, 'a flow with a draft finding is listed once, as move first');
     assert.ok(dialog.includes('cred_purge_move_first') && dialog.includes('cred_purge_republish') && dialog.includes('A &#60;i&#62;'), 'names are escaped');
     assert.ok(/data-ed-credentials-snapshot="\.flows-v7-backup-abc"/.test(dialog) && /checked/.test(dialog), 'snapshots are checked by default');

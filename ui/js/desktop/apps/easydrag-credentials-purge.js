@@ -64,9 +64,9 @@
         const esc = ED.core.esc;
         const flowItem = (ref, key) => '<li><button type="button" class="ed-btn" data-ed-credentials-flow="' + esc(ref.flow_id) + '">' + esc(ref.name) + '</button> ' + esc(t(key)) + '</li>';
         const drafts = report.drafts || [], live = (report.live || []).filter(ref => !drafts.some(d => d.flow_id === ref.flow_id));
-        let html = '<p>' + esc(t('easydrag.ui.cred_purge_versions', { count: report.versions_purgeable || 0 })) + '</p>' +
+        let html = '<p>' + esc(ED.format.plural(t, 'easydrag.ui.cred_purge_versions', report.versions_purgeable || 0)) + '</p>' +
             '<p>' + esc(t('easydrag.ui.cred_purge_rows', { runs: report.runs || 0, rows: (report.steps || 0) + (report.test_rows || 0) })) + '</p>';
-        if (report.versions_pinned > 0) html += '<p class="ed-hint">' + esc(t('easydrag.ui.cred_purge_pinned', { count: report.versions_pinned })) + '</p>';
+        if (report.versions_pinned > 0) html += '<p class="ed-hint">' + esc(ED.format.plural(t, 'easydrag.ui.cred_purge_pinned', report.versions_pinned)) + '</p>';
         const stays = drafts.map(ref => flowItem(ref, 'easydrag.ui.cred_purge_move_first')).concat(live.map(ref => flowItem(ref, 'easydrag.ui.cred_purge_republish')));
         if (stays.length) html += '<ul>' + stays.join('') + '</ul>';
         // A block revision a live parent still pins stays too: marking it would stop that parent from starting.
