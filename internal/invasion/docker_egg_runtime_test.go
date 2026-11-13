@@ -53,7 +53,8 @@ func TestDockerEggRuntimeBootstrapAndReconfigure(t *testing.T) {
 	logVolume := "aurago-egg-" + suffix[:8] + "-log"
 	for _, path := range []string{"/containers/" + name + "/json", "/volumes/" + logVolume} {
 		status, err := docker.DoJSON(ctx, http.MethodGet, path, nil, nil)
-		if err != nil || status != http.StatusNotFound {
+		// DoJSON returns an error for non-2xx responses; only 404 proves absence.
+		if status != http.StatusNotFound {
 			t.Fatalf("refusing occupied smoke resource %s: HTTP %d (%v)", path, status, err)
 		}
 	}
