@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "character": "Rexi",
+  "date": "2026-11-13",
+  "original_pet_id": "aurago-trex",
+  "pet_id": "aurago-trex-3d",
+  "reference_generator": "Built-in imagegen",
+  "reference_sha256": "72db0caa8ccb3c95c833b11d67c54684b86ec415f5839f008dd015ed8151642a",
+  "sprite_sha256": "9b8d86f7b970a0377f65c59873d834c9225fe925cd989dbb085c2a34ff2c6ea3",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "66073ded-a244-4d95-bf9f-8852025f02ff",
+    "model_node_id": "15c308d6-2d97-430a-94e4-2ff43fa2928e",
+    "rig_node_id": null,
+    "mesh_task_id": "d091f5b6-0e16-4117-888a-e76484488ae2",
+    "rig_task_id": null,
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "local anatomical rig"
+  },
+  "retained_sources": {
+    "varco-source.glb": {
+      "bytes": 13586800,
+      "sha256": "841f1e355b99a410f6d650861224275ae45188e4e8c35443ec3d934ada6ca1e3"
+    },
+    "rig.json": {
+      "bytes": 6132,
+      "sha256": "0b7e0cd35ac89c721f98f744fadac8b7f020c133703b992a45cf931ecbfa85ae"
+    },
+    "source.blend": {
+      "bytes": 16459547,
+      "sha256": "dec72c6211fcc23fb2d6fc8ff36e2a635b03f33c1eb81a801a1df18ec7b4e62a"
+    }
+  },
+  "deployment": "local_checkout_only",
+  "runtime": {
+    "pet_id": "aurago-trex-3d",
+    "folder": "ui/3d/pets/rexi",
+    "triangles": 50000,
+    "joints": 21,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Original anatomical procedural gestures (GPL-3.0-only)",
+    "model_sha256": "d869ae1e155cbef6b4da7a0024aab2eda4da62ca2dae36bc6f8c02411992eccf",
+    "motions_sha256": "61cf70f7acd61fa44998320be678db36f42a65cc45785c0c3334c495278b4fd8"
+  },
+  "rig_authoring": "Local anatomical Blender rig; retained landmarks in rig.json"
+}

@@ -31,3 +31,23 @@ has 50,000 triangles, 53 connected joints and 1024-pixel packed textures. The
 neither provider credentials nor a cloud connection are needed during playback.
 Body and fingers animate; facial expressions, lip-sync and cloth simulation are
 not part of this rig.
+
+## Green, Hoodie, Professor, Silver, Rexi and Purple Tentacle
+
+Each has a separate **3D** entry in the pet picker. Their original sprite pets
+remain selectable and serve as WebGL-failure fallbacks. All six use the same
+click, drag, context-menu, agent-reaction and motion-preference controls above.
+
+Green, Hoodie, Professor and Silver have 53-joint body/finger rigs and thirty
+retargeted Mesh2Motion movements each. Rexi has a 21-joint anatomical rig with
+hind legs, forelimbs, jaw and flexible tail; Purple Tentacle has a 13-joint rig
+with a flexible base/tip and curled arms. The creatures use thirty original
+procedural gesture variants matched to their anatomy, including walking,
+greeting, rest and pickup poses. They do not use human finger or facial rigs.
+
+The six references were generated with built-in ImageGen from the original pet
+art, then converted to textured models through VARCO. Runtime models have about
+50,000 triangles and packed 1024-pixel textures. References, exact prompts,
+original cloud outputs, editable Blender sources, rig landmarks and generation
+metadata are retained under `assets/desktop-pets/<folder>/`. Creature animation
+code/data is GPL-3.0-only; the CC0 movement license applies to Mesh2Motion clips.

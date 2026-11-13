@@ -1,0 +1,10 @@
+{
+  "punk": {"id":"aurago-punk-3d","sprite_id":"aurago-punk","name":"Punk","kind":"humanoid","joints":71},
+  "zombert": {"id":"aurago-zombie-3d","sprite_id":"aurago-zombie","name":"Zombert","kind":"humanoid","joints":53},
+  "green": {"id":"aurago-psycho-3d","sprite_id":"aurago-psycho","name":"Green","kind":"humanoid","joints":53},
+  "hoodie": {"id":"aurago-friend-3d","sprite_id":"aurago-friend","name":"Hoodie","kind":"humanoid","joints":53},
+  "professor": {"id":"aurago-thinker-3d","sprite_id":"aurago-thinker","name":"Professor","kind":"humanoid","joints":53},
+  "silver": {"id":"aurago-neutral-3d","sprite_id":"aurago-neutral","name":"Silver","kind":"humanoid","joints":53},
+  "rexi": {"id":"aurago-trex-3d","sprite_id":"aurago-trex","name":"Rexi","kind":"dinosaur","joints":21},
+  "purple-tentacle": {"id":"aurago-tentacle-3d","sprite_id":"aurago-tentacle","name":"Purple Tentacle","kind":"tentacle","joints":13}
+}

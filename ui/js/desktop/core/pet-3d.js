@@ -37,7 +37,7 @@
     async function create(host, options) {
         const T = window.AuraDriftThree;
         const { signal, versionedURL, onFailure, scale } = options;
-        const folder = options.petId === 'aurago-punk-3d' ? 'punk' : options.petId === 'aurago-zombie-3d' ? 'zombert' : null;
+        const folder = window.PetRuntime?.modelAssetFolder?.(options.petId);
         if (!folder) throw new Error('Unknown bundled 3D pet');
         const read = async (name, maxBytes) => {
             const response = await fetch(versionedURL('/3d/pets/' + folder + '/' + name), { signal, credentials: 'same-origin' });

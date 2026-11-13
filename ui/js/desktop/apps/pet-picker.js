@@ -103,7 +103,7 @@
                 return;
             }
             grid.innerHTML = pets.map(pet => {
-                const model = pet.subcategory === '3d' && (pet.id === 'aurago-punk-3d' ? 'punk' : pet.id === 'aurago-zombie-3d' ? 'zombert' : null);
+                const model = pet.subcategory === '3d' && window.PetRuntime?.modelAssetFolder?.(pet.id);
                 return `
                 <div class="vd-pet-picker-card${pet.id === activeId ? ' is-active' : ''}" data-id="${esc(pet.id)}">
                     <div class="vd-pet-picker-thumb${model ? ' is-model' : ''}" style="background-image:url('${model ? '/3d/pets/' + model + '/thumbnail.png?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev') : petAssetURL(pet.id, pet.spritesheet)}')"></div>

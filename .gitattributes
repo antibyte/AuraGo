@@ -44,6 +44,9 @@ licences/linked-go-modules.tsv text eol=lf
 # System World authoring sources are hashed into the kit manifests, so they stay LF.
 assets/system-world/*.py text eol=lf
 
+# Procedural pet motions record this script's exact bytes in their provenance.
+scripts/build-creature-pet-motions.mjs text eol=lf
+
 # Preserve generated template literals and upstream license text byte-for-byte.
 licences/storymaker-colord-LICENSE.txt text eol=lf -whitespace
 ui/fonts/qr/OFL-*.txt text eol=lf -whitespace

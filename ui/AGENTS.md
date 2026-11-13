@@ -63,14 +63,16 @@ New app-scoped prefixes must contain no `ad` substring; verify
   No external service, backend route or capability switch is required.
 <!-- pinball:end -->
 
-- The optional `aurago-punk-3d` and `aurago-zombie-3d` pets lazily load `js/desktop/core/pet-3d.js` and the local
-  Aura Drift Three.js bundle. Their fixed model/motion URLs are under `3d/pets/punk/` and `3d/pets/zombert/`;
+- The eight optional model pets lazily load `js/desktop/core/pet-3d.js` and the local
+  Aura Drift Three.js bundle. `PetRuntime.modelAssetFolder(id)` shares the fixed
+  ID/folder allowlist with the picker; authoring IDs are in `assets/desktop-pets/catalog.json`.
+  Their fixed model/motion URLs are under `3d/pets/<folder>/`;
   no imported pet can choose model URLs. Keep gaze, animation crossfades, drag,
   reduced motion, hidden-tab suspension, stale-load cancellation and GPU disposal.
   Hide the sprite and disable its pointer input while 3D loads; loading/WebGL
   failure restores its OpenPets fallback. Source and licensing
   ownership: `../assets/desktop-pets/AGENTS.md`. Verify `node scripts/test-punk-pet.mjs`
-  (also `--pet=zombert`) and existing `go test ./ui -run 'DesktopPet|DesktopChat.*Pet'` checks.
+  with `--pet=<folder>` for each changed pet and existing `go test ./ui -run 'DesktopPet|DesktopChat.*Pet'` checks.
 
 - Sprite and 3D pets share the workspace stacking context with windows. With
   `pet.always_on_top=false` (default), the pet sits below the window layer;

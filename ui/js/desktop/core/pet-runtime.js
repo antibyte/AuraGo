@@ -38,7 +38,7 @@
     };
     const ambientStates = ['waving', 'jumping', 'running', 'running'];
 
-    // OpenPets-compatible reaction → animation state mapping.
+    // OpenPets-compatible reaction â†’ animation state mapping.
     const reactionToState = {
         idle: 'idle',
         thinking: 'review',
@@ -89,9 +89,19 @@
     let modelEpoch = 0;
     let modelState = 'idle';
     const modelAmbientStates = ['waving', 'jumping', 'running', 'running', 'dancing', 'sitting', 'sleeping', 'nodding', 'playing', 'clapping'];
+    const modelFolders = {
+        'aurago-punk-3d': 'punk', 'aurago-zombie-3d': 'zombert',
+        'aurago-psycho-3d': 'green', 'aurago-friend-3d': 'hoodie',
+        'aurago-thinker-3d': 'professor', 'aurago-neutral-3d': 'silver',
+        'aurago-trex-3d': 'rexi', 'aurago-tentacle-3d': 'purple-tentacle'
+    };
+
+    function modelAssetFolder(id) {
+        return Object.hasOwn(modelFolders, id) ? modelFolders[id] : '';
+    }
 
     function isModelPet(pet) {
-        return pet && ['aurago-punk-3d', 'aurago-zombie-3d'].includes(pet.id) && pet.subcategory === '3d';
+        return pet && pet.subcategory === '3d' && !!modelAssetFolder(pet.id);
     }
 
     function releaseModelPet() {
@@ -707,7 +717,7 @@
     function classifyAgentResponseReaction(text) {
         const message = String(text || '').toLowerCase();
         if (!message) return 'idle';
-        if (/[?？]$/.test(message.trim())) return 'waving';
+        if (/[?ï¼Ÿ]$/.test(message.trim())) return 'waving';
         if (message.includes('error') || message.includes('failed') || message.includes('fehler') || message.includes('problem')) return 'error';
         if (message.includes('done') || message.includes('fixed') || message.includes('fertig') || message.includes('erledigt') || message.includes('success')) return 'celebrating';
         return 'success';
@@ -1069,6 +1079,7 @@
         handleEvent: handlePetEvent,
         syncBootstrap: syncPetBootstrap,
         inspect3D: () => modelPet ? modelPet.inspect() : null,
+        modelAssetFolder,
         saveSetting
     };
     initPetRuntime();

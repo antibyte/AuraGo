@@ -5708,8 +5708,9 @@ registration lives in `internal/desktop/types.go`.
   Public table merge/split operations live in `scripts/writer-table-ops.js`.
   Exposes `window.WriterApp`. No child DOX file needed.
 - `pet-picker.js` - Pet catalog, scale/enabled/always-on-top settings, and
-  ZIP import. The separate `aurago-punk-3d` and `aurago-zombie-3d` / `3d` entries use their version-bound
-  model posters; 3D source/runtime ownership is `../../../../assets/desktop-pets/AGENTS.md`.
+  ZIP import. Eight separate model pets with subcategory `3d` use version-bound
+  posters through `PetRuntime.modelAssetFolder(id)`; unknown IDs keep sprite
+  previews. 3D source/runtime ownership is `../../../../assets/desktop-pets/AGENTS.md`.
   Scale text uses `desktop.pet_scale_value`. Load,
   activate, settings, and import notifies use
   `desktop.request_failed`. Invalid ZIP names stay on

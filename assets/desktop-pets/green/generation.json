@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "character": "Green",
+  "date": "2026-11-13",
+  "original_pet_id": "aurago-psycho",
+  "pet_id": "aurago-psycho-3d",
+  "reference_generator": "Built-in imagegen",
+  "reference_sha256": "00bacd9fbd25f6b1c2a7cb4552fe49543210154104fe06e793ab08970ef8cddf",
+  "sprite_sha256": "1218bc730d6211221690ff25e4e9e511a8ece449d2cdac52ec1905d3bb025b68",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "66073ded-a244-4d95-bf9f-8852025f02ff",
+    "model_node_id": "3cfed750-40b4-444c-9a79-575a133d2c79",
+    "rig_node_id": "bd5ea87c-b97e-41f8-ab1f-e636ae53a8d2",
+    "mesh_task_id": "14590c62-df32-44b1-a4f3-32aba4f96a96",
+    "rig_task_id": "2fb95d47-94f0-41b7-8514-03886e7a940b",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "humanoid-fingers"
+  },
+  "retained_sources": {
+    "varco-rigged.glb": {
+      "bytes": 18979024,
+      "sha256": "fd3af19927a057cc90d67b21727a7b0474320267c8d4e2a9fdcbc0ef1971a552"
+    },
+    "source.blend": {
+      "bytes": 18818414,
+      "sha256": "1783f261b3be98e119808f7caf11fe2a37a15030d7fa86bd0f5215340c49badb"
+    }
+  },
+  "deployment": "local_checkout_only",
+  "runtime": {
+    "pet_id": "aurago-psycho-3d",
+    "folder": "ui/3d/pets/green",
+    "triangles": 50000,
+    "joints": 53,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Pinned Mesh2Motion CC0 clips",
+    "model_sha256": "839307356ca3eb7289bcebf213d02f3ca756862f273f8cf3aded294284dd7664",
+    "motions_sha256": "147682de4a832630e6efec680a763fddac4504060e6672fb28ca2beae992e29d"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "source_sha256": "96544882ab6912f32f1110bfdd51d5aca587de9377ac0b7d1254e491d88916ab",
+  "triangles": 49999,
+  "vertices": 37122,
+  "deform_joints": 13,
+  "texture_max_size": 1024,
+  "model_sha256": "5049b3f0a24ce5faac437e0ae6190a1fe693ac5afd518ee6e8772a9597cd4255",
+  "kind": "tentacle"
+}

@@ -39,12 +39,16 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
   catalogs and their files, shared mini aliases/SVG symbols, and EasyDrag's
   literal app-local icon calls. `TestDesktopAllAppIconsBrowser` verifies every
   built-in app identity and the shared action supplements in light and dark.
-- 3D pets: Blender runs `assets/desktop-pets/build_model.py` (Punk) or
-  `assets/desktop-pets/build_zombert.py` (Zombert), then
-  `node scripts/build-punk-pet-motions.mjs` retargets the pinned Mesh2Motion clips.
+- 3D pets: Blender runs `assets/desktop-pets/build_model.py` (Punk),
+  `build_zombert.py -- --pet=<folder>` (five VARCO humanoids), or
+  `build_creature_pet.py -- --pet=<folder>` (Rexi/Purple Tentacle).
+  `node scripts/build-punk-pet-motions.mjs --pet=<folder>` retargets pinned
+  Mesh2Motion clips; `build-creature-pet-motions.mjs --pet=<folder>` generates
+  original anatomical creature movements. Both use `pet-skeleton.mjs` offline.
   `node scripts/test-punk-pet.mjs` checks encoded texture sizes, skin/motion
   provenance and real Chrome/Edge WebGL interaction/failure/disposal behavior.
-  Both Node commands accept `--pet=zombert`; the default remains Punk.
+  The test accepts all eight catalog folders with `--pet=<folder>`; its default
+  and the humanoid motion builder's default remain Punk.
 
 - Aura Drift: `node scripts/test-aura-drift-audio.mjs --fast` checks the pack and
   requested-music queue priority; the full run also decodes assets with FFmpeg.

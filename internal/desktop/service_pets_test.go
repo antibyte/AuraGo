@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-var expectedBundledDefaultPetIDs = []string{"openpets-default", "snoopy", "clippit", "tux", "wall-e", "dobby", "aurago-neutral", "aurago-servant", "aurago-professional", "aurago-mistress", "aurago-thinker", "aurago-evil", "aurago-secretary", "aurago-psycho", "aurago-punk", "aurago-friend", "aurago-mcp", "aurago-terminator", "aurago-slime", "aurago-spider", "aurago-alien", "aurago-tentacle", "aurago-indiana-jones", "aurago-manga-girl", "aurago-zombie", "aurago-zombie-3d", "aurago-chick", "aurago-peacock", "aurago-trex", "aurago-puppy", "aurago-cat", "aurago-crocodile"}
+var expectedBundledDefaultPetIDs = []string{"openpets-default", "snoopy", "clippit", "tux", "wall-e", "dobby", "aurago-neutral", "aurago-servant", "aurago-professional", "aurago-mistress", "aurago-thinker", "aurago-evil", "aurago-secretary", "aurago-psycho", "aurago-punk", "aurago-friend", "aurago-mcp", "aurago-terminator", "aurago-slime", "aurago-spider", "aurago-alien", "aurago-tentacle", "aurago-indiana-jones", "aurago-manga-girl", "aurago-zombie", "aurago-zombie-3d", "aurago-chick", "aurago-peacock", "aurago-trex", "aurago-puppy", "aurago-cat", "aurago-crocodile", "aurago-punk-3d", "aurago-psycho-3d", "aurago-friend-3d", "aurago-thinker-3d", "aurago-neutral-3d", "aurago-trex-3d", "aurago-tentacle-3d"}
 
 func TestInstallAndListPets(t *testing.T) {
 	svc := testService(t)

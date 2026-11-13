@@ -1,0 +1,9 @@
+{
+  "source_sha256": "841f1e355b99a410f6d650861224275ae45188e4e8c35443ec3d934ada6ca1e3",
+  "triangles": 50000,
+  "vertices": 38350,
+  "deform_joints": 21,
+  "texture_max_size": 1024,
+  "model_sha256": "d869ae1e155cbef6b4da7a0024aab2eda4da62ca2dae36bc6f8c02411992eccf",
+  "kind": "dinosaur"
+}

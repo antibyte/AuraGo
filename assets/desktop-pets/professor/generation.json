@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "character": "Professor",
+  "date": "2026-11-13",
+  "original_pet_id": "aurago-thinker",
+  "pet_id": "aurago-thinker-3d",
+  "reference_generator": "Built-in imagegen",
+  "reference_sha256": "b84e6a6b3024dd2db7873af2b34b746b398aa874d6c75504cc66ba42f5e3ed42",
+  "sprite_sha256": "3aabbf23ed8af3385cbac2b1d20ff8ef4d573aebe37af8d006c9e44ff346a7c2",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "66073ded-a244-4d95-bf9f-8852025f02ff",
+    "model_node_id": "663b3444-db79-48ea-a335-8a35c3a8c583",
+    "rig_node_id": "5ead6978-8322-4fba-9f8a-851b1663f42a",
+    "mesh_task_id": "b65c58dd-8bb2-4fe5-91fe-c03606dade76",
+    "rig_task_id": "957aca64-b22a-4af3-9275-8e80b6c567bc",
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "humanoid-fingers"
+  },
+  "retained_sources": {
+    "varco-rigged.glb": {
+      "bytes": 21210028,
+      "sha256": "fe11ffd86614a69b8d008b761224fec4f5d9e8455d904c4754876885934ce3ff"
+    },
+    "source.blend": {
+      "bytes": 21081593,
+      "sha256": "2a4c586875fa534c871d4a320860e59b79c87933752e651e0e706ab836a05a67"
+    }
+  },
+  "deployment": "local_checkout_only",
+  "runtime": {
+    "pet_id": "aurago-thinker-3d",
+    "folder": "ui/3d/pets/professor",
+    "triangles": 50000,
+    "joints": 53,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Pinned Mesh2Motion CC0 clips",
+    "model_sha256": "34854e98bbe91f082ccc07adcb708c680b91c3de2cda9258aabd9587cf7a28d6",
+    "motions_sha256": "5ae19205fcfc5a3f60658312335432080cf073b686dcb6d1800f8635be4355e6"
+  }
+}

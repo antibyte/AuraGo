@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "character": "Purple Tentacle",
+  "date": "2026-11-13",
+  "original_pet_id": "aurago-tentacle",
+  "pet_id": "aurago-tentacle-3d",
+  "reference_generator": "Built-in imagegen",
+  "reference_sha256": "dd1adec06219aa706972185ccec045ecfaa4acfb37d6503291a5623e60892ce4",
+  "sprite_sha256": "35a93be05a53d9546af96871c5d06603850724e8fbb4e049b189434ae7c8193a",
+  "model_created": true,
+  "rig_created": true,
+  "desktop_integrated": true,
+  "varco": {
+    "flow_id": "6cc0097b-0373-4a90-9078-f52942bc5941",
+    "execution_id": "66073ded-a244-4d95-bf9f-8852025f02ff",
+    "model_node_id": "4e0b6e31-6c63-4e46-8c63-57045f3773a6",
+    "rig_node_id": null,
+    "mesh_task_id": "5127dd6b-8fd0-4ffe-ad79-aa52dea8fca1",
+    "rig_task_id": null,
+    "status": "success",
+    "points": 200,
+    "license": "PRIVATE",
+    "polygon_count": 180000,
+    "texture_size": 2048,
+    "rigging_mode": "local anatomical rig"
+  },
+  "retained_sources": {
+    "varco-source.glb": {
+      "bytes": 12270660,
+      "sha256": "96544882ab6912f32f1110bfdd51d5aca587de9377ac0b7d1254e491d88916ab"
+    },
+    "rig.json": {
+      "bytes": 3856,
+      "sha256": "23590e4c9cff269163e73b719b23e003d00c97ece69b0a7d7e5a3bbcea2e3713"
+    },
+    "source.blend": {
+      "bytes": 14588656,
+      "sha256": "7a413d417dd1a423062d1f3b00a53803881868e345b5bf1d70702d3d7d318600"
+    }
+  },
+  "deployment": "local_checkout_only",
+  "runtime": {
+    "pet_id": "aurago-tentacle-3d",
+    "folder": "ui/3d/pets/purple-tentacle",
+    "triangles": 49999,
+    "joints": 13,
+    "texture_max_size": 1024,
+    "animations": 30,
+    "animation_source": "Original anatomical procedural gestures (GPL-3.0-only)",
+    "model_sha256": "5049b3f0a24ce5faac437e0ae6190a1fe693ac5afd518ee6e8772a9597cd4255",
+    "motions_sha256": "c31f74df683a221ebfcced1cacd4ef7bd04f4b041a603523f53a9efaa8da9577"
+  },
+  "rig_authoring": "Local anatomical Blender rig; retained landmarks in rig.json"
+}

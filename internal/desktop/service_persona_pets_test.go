@@ -21,11 +21,14 @@ func TestBundledPersonaSprites(t *testing.T) {
 		}
 		wantCategory := "persona"
 		switch pet.Manifest.ID {
-		case "aurago-slime", "aurago-spider", "aurago-alien", "aurago-tentacle", "aurago-indiana-jones", "aurago-manga-girl", "aurago-zombie", "aurago-zombie-3d", "aurago-chick", "aurago-peacock", "aurago-trex", "aurago-puppy", "aurago-cat", "aurago-crocodile":
+		case "aurago-slime", "aurago-spider", "aurago-alien", "aurago-tentacle", "aurago-tentacle-3d", "aurago-indiana-jones", "aurago-manga-girl", "aurago-zombie", "aurago-zombie-3d", "aurago-chick", "aurago-peacock", "aurago-trex", "aurago-trex-3d", "aurago-puppy", "aurago-cat", "aurago-crocodile":
 			wantCategory = "mascot"
 		}
 		if pet.Manifest.Category != wantCategory {
 			t.Fatalf("category for %s = %q, want %q", pet.Manifest.ID, pet.Manifest.Category, wantCategory)
+		}
+		if strings.HasSuffix(pet.Manifest.ID, "-3d") && pet.Manifest.Subcategory != "3d" {
+			t.Fatalf("3D pet %s must be discoverable in the 3D filter", pet.Manifest.ID)
 		}
 		if wantCategory == "mascot" {
 			mascots++
@@ -73,10 +76,10 @@ func TestBundledPersonaSprites(t *testing.T) {
 			}
 		})
 	}
-	if personas != 13 {
-		t.Fatalf("got %d persona pets, want 13", personas)
+	if personas != 17 {
+		t.Fatalf("got %d persona pets, want 17", personas)
 	}
-	if mascots != 14 {
-		t.Fatalf("got %d mascot pets, want 14", mascots)
+	if mascots != 16 {
+		t.Fatalf("got %d mascot pets, want 16", mascots)
 	}
 }

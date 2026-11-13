@@ -3564,9 +3564,19 @@
     let modelEpoch = 0;
     let modelState = 'idle';
     const modelAmbientStates = ['waving', 'jumping', 'running', 'running', 'dancing', 'sitting', 'sleeping', 'nodding', 'playing', 'clapping'];
+    const modelFolders = {
+        'aurago-punk-3d': 'punk', 'aurago-zombie-3d': 'zombert',
+        'aurago-psycho-3d': 'green', 'aurago-friend-3d': 'hoodie',
+        'aurago-thinker-3d': 'professor', 'aurago-neutral-3d': 'silver',
+        'aurago-trex-3d': 'rexi', 'aurago-tentacle-3d': 'purple-tentacle'
+    };
+
+    function modelAssetFolder(id) {
+        return Object.hasOwn(modelFolders, id) ? modelFolders[id] : '';
+    }
 
     function isModelPet(pet) {
-        return pet && ['aurago-punk-3d', 'aurago-zombie-3d'].includes(pet.id) && pet.subcategory === '3d';
+        return pet && pet.subcategory === '3d' && !!modelAssetFolder(pet.id);
     }
 
     function releaseModelPet() {
@@ -4544,6 +4554,7 @@
         handleEvent: handlePetEvent,
         syncBootstrap: syncPetBootstrap,
         inspect3D: () => modelPet ? modelPet.inspect() : null,
+        modelAssetFolder,
         saveSetting
     };
     initPetRuntime();
