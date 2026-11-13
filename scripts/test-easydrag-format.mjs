@@ -85,4 +85,23 @@ assert.equal(core.fmt.dateTime('2026-11-13T12:00:00Z', true), CF.date('2026-11-1
 const steps = (key, vars) => (key + ':' + Object.values(vars || {}).join(','));
 assert.equal(core.stepsText(steps, 'one', 'many', ['A']), 'one:A');
 assert.equal(core.stepsText(steps, 'one', 'many', ['A', 'B', 'C']), 'many:3');
+// the pseudo-locale wrapper
+const pseudo = F.pseudoText('Delete {count} steps in {{name}} <b>now</b> &amp; save');
+assert.ok(pseudo.startsWith('[') && pseudo.endsWith(']'), 'bracketed');
+assert.ok(pseudo.includes('{count}') && pseudo.includes('{{name}}') && pseudo.includes('<b>') && pseudo.includes('</b>') && pseudo.includes('&amp;'), 'placeholders, tags and entities stay intact');
+assert.equal(/[A-Za-z]/.test(pseudo.replace(/\{\{[^}]*\}\}|\{[^}]*\}|<[^>]*>|&[#a-z0-9]+;/gi, '')), false, 'every letter outside the kept parts is accented');
+const plain = 'Save changes';
+assert.ok(F.pseudoText(plain).length - 2 >= Math.round(plain.length * 1.35), 'about 35% longer: ' + F.pseudoText(plain));
+assert.equal(F.pseudoText(''), '[]');
+store.clear(); win.SYSTEM_LANG = 'en';
+const base = (key, vars) => { let s = { 'a.b': 'Hello {name}', 'a.c': 'Plain' }[key] || key; if (vars) Object.entries(vars).forEach(([x, y]) => { s = s.replaceAll('{' + x + '}', () => y); }); return s; };
+assert.equal(F.wrapT(base), base, 'without the switch t is returned as it is');
+store.set('aurago.easydrag.pseudo', '1');
+const wrapped = F.wrapT(base);
+assert.notEqual(wrapped, base);
+assert.ok(wrapped('a.b', { name: 'Ada' }).includes('Ada') && wrapped('a.b', { name: 'Ada' }).startsWith('['), 'the value is not accented, the text is');
+assert.equal(wrapped('a.b').includes('{name}'), true, 'without values the placeholder stays');
+assert.equal(wrapped('no.such.key'), 'no.such.key', 'a missing key stays visible as the key');
+store.set('aurago.easydrag.pseudo', '0');
+assert.equal(F.wrapT(base), base, 'only "1" switches it on');
 console.log('easydrag format: ok');

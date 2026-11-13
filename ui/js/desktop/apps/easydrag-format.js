@@ -123,5 +123,52 @@
         } catch (err) { return ', '; }
     }
 
-    ED.format = { locale, category, key, number, plural, duration, date, relative, list, listSeparator };
+    // ── pseudo-locale (development only): localStorage['aurago.easydrag.pseudo'] === '1' ──
+    // t returns accented, about 35% longer, bracketed texts, so hard-coded strings and clipping show at
+    // once. It is not a language: it is in no language list, and a Go test guards that.
+    const PSEUDO_KEY = 'aurago.easydrag.pseudo';
+    const FROM = 'abcdefghijklmnopqrstuvwxyz';
+    const TO = 'åƀçðéƒĝĥîĵķļɱñöþǫŕšţûṽŵẋýž';
+    const FROM_UP = FROM.toUpperCase();
+    const TO_UP = 'ÅƁÇÐÉƑĜĤÎĴĶĻṀÑÖÞǪŔŠŢÛṼŴẊÝŽ';
+    const ACCENT = {};
+    for (let i = 0; i < FROM.length; i++) { ACCENT[FROM[i]] = TO[i]; ACCENT[FROM_UP[i]] = TO_UP[i]; }
+    const KEEP = /\{\{[^}]*\}\}|\{[^}]*\}|<[^>]*>|&[#a-z0-9]+;/gi;
+
+    // pseudoText accents the letters of text, keeps placeholders ({x}, {{x}}), tags and entities, pads by
+    // 35% of the visible length with "~" and brackets the result.
+    function pseudoText(text) {
+        const source = String(text);
+        const accent = part => part.replace(/[a-z]/gi, ch => ACCENT[ch]);
+        let out = '', at = 0, visible = 0;
+        for (const m of source.matchAll(KEEP)) {
+            const part = source.slice(at, m.index);
+            out += accent(part) + m[0];
+            visible += part.length;
+            at = m.index + m[0].length;
+        }
+        const tail = source.slice(at);
+        out += accent(tail);
+        visible += tail.length;
+        return '[' + out + '~'.repeat(Math.ceil(visible * 0.35)) + ']';
+    }
+
+    function pseudoOn() {
+        try { return localStorage.getItem(PSEUDO_KEY) === '1'; } catch (err) { return false; }
+    }
+
+    // wrapT returns t itself unless the switch is on. With it, a translated text is pseudo-localised
+    // before the values are filled in (so a flow name stays readable); a missing key stays the key.
+    function wrapT(t) {
+        if (!pseudoOn()) return t;
+        return function (key, vars) {
+            const raw = t(key);
+            if (typeof raw !== 'string' || raw === key) return t(key, vars);
+            let text = pseudoText(raw);
+            if (vars) Object.entries(vars).forEach(([name, value]) => { text = text.replaceAll('{{' + name + '}}', () => value).replaceAll('{' + name + '}', () => value); });
+            return text;
+        };
+    }
+
+    ED.format = { locale, category, key, number, plural, duration, date, relative, list, listSeparator, pseudoText, pseudoOn, wrapT, PSEUDO_KEY };
 })();

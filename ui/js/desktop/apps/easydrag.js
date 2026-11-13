@@ -222,7 +222,7 @@
         const root = core.el('<div class="ed-app"></div>');
         container.innerHTML = '';
         container.appendChild(root);
-        const inst = { windowId, ctx, root, t: ctx.t, esc: ctx.esc || core.esc, api: core.createApi(ctx.api), catalog: null, catalogAt: 0, screen: null, nav: 0, lastRoute: {} };
+        const inst = { windowId, ctx, root, t: ED.format.wrapT(ctx.t), esc: ctx.esc || core.esc, api: core.createApi(ctx.api), catalog: null, catalogAt: 0, screen: null, nav: 0, lastRoute: {} };
         inst.blockApi = ED.blocks && ED.blocks.api(ctx.api);
         inst.app = {
             ctx, t: inst.t, esc: inst.esc, api: inst.api, blockApi: inst.blockApi, windowId, readonly: !!ctx.readonly,
