@@ -1254,6 +1254,15 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-modal-foot { display: flex; flex: none; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 12px 18px 16px; border-top: 1px solid var(--ed-border); background: color-mix(in srgb, var(--ed-chrome) 60%, transparent); }
 .ed-app .ed-modal-foot > .ed-btn { min-width: 0; max-width: 100%; white-space: normal; }
 .ed-app .ed-modal-foot > .ed-btn > span { overflow-wrap: anywhere; }
+/* bottom sheet (easydrag-core.js modal() below 600 px of window width): full width at the bottom, a grab bar on top */
+.ed-sheet-grab { display: none; }
+.ed-modal-backdrop:has(> .ed-modal.ed-sheet) { place-items: end stretch; padding: 0; }
+.ed-app .ed-modal.ed-sheet {
+    width: 100%; max-width: none; max-height: 92%; border-radius: var(--ed-radius-xl) var(--ed-radius-xl) 0 0; border-bottom: 0;
+    transform: translateY(var(--ed-space-5)); transition: transform var(--ed-motion-base) var(--ed-ease-out);
+}
+.ed-app .ed-modal-backdrop.is-open .ed-modal.ed-sheet { transform: none; }
+.ed-modal.ed-sheet > .ed-sheet-grab { display: block; flex: none; width: 36px; height: 4px; margin: var(--ed-space-2) auto 0; border-radius: var(--ed-radius-pill); background: var(--ed-border-strong); }
 .ed-app .ed-extraction-selection { max-height: 8rem; overflow: auto; padding-inline-start: 1.6rem; }
 .ed-app .ed-extraction-selection li { overflow-wrap: anywhere; }
 .ed-app .ed-extraction-selection code { color: var(--ed-muted); font-size: 12px; }

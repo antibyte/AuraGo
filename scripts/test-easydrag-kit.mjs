@@ -91,4 +91,17 @@ export async function run({ apps, miniDom, eq }) {
     let note = null;
     const none = kit.toast({ status: 'failed', text: 'Failed', notify: n => { note = n; } });
     eq('kit toast without a host wraps notify', [none, note], [null, { title: 'EasyDrag', message: 'Failed', type: 'error' }]);
+
+    // modal(): the sheet class below 600 px of window width, with a grab bar in every dialog
+    const open = width => {
+        const win = new dom.El('div', { class: 'ed-app' });
+        win.clientWidth = width;
+        const dialog = ED.core.modal(win, { title: 'T', closeLabel: 'Close', body: '<p>b</p>', actions: [{ id: 'ok', label: 'OK', primary: true }] });
+        return dialog;
+    };
+    const flags = [390, 599, 600, 1280].map(w => open(w).el.classList.contains('ed-sheet'));
+    eq('kit modal() is a sheet below 600 px and a dialog from 600 px', flags, [true, true, false, false]);
+    eq('kit modal() has a grab bar', !!open(390).el.querySelector('.ed-sheet-grab'), true);
+    const noWidth = new dom.El('div', {});
+    eq('kit modal() with an unmeasured host stays a dialog', ED.core.modal(noWidth, { title: 'T', body: '' }).el.classList.contains('ed-sheet'), false);
 }

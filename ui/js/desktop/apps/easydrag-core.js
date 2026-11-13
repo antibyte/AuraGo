@@ -401,6 +401,8 @@
         return step.error_message ? code.replace(/[.。।]\s*$/, '') + ': ' + step.error_message : code;
     }
 
+    // SHEET_BELOW is the window width under which a dialog opens as a bottom sheet (class ed-sheet).
+    const SHEET_BELOW = 600;
     let modalCount = 0;
 
     // modal opens a dialog inside host. actions: [{id, label, primary, danger}].
@@ -417,7 +419,7 @@
         const actions = (opts.actions || []).map(a =>
             '<button type="button" class="ed-btn' + (a.primary ? ' ed-btn--primary' : '') + (a.danger ? ' ed-btn--danger' : '') +
             '" data-ed-action="' + esc(a.id) + '">' + (a.icon ? icon(a.icon) : '') + '<span>' + esc(a.label) + '</span></button>').join('');
-        overlay.innerHTML = '<div class="ed-modal ' + esc(opts.className || '') + '" role="dialog" aria-modal="true" aria-labelledby="' + titleId + '">' +
+        overlay.innerHTML = '<div class="ed-modal ' + esc(opts.className || '') + '" role="dialog" aria-modal="true" aria-labelledby="' + titleId + '"><span class="ed-sheet-grab" aria-hidden="true"></span>' +
             '<header class="ed-modal-head"><h2 class="ed-modal-title" id="' + titleId + '">' + esc(opts.title || '') + '</h2>' +
             (dismissible ? '<button type="button" class="ed-icon-btn" data-ed-action="close" aria-label="' + esc(opts.closeLabel || '') + '">' + icon('x') + '</button>' : '') + '</header>' +
             '<div class="ed-modal-body">' + (opts.body || '') + '</div>' +
@@ -432,6 +434,7 @@
             close(result) {
                 if (closed) return;
                 closed = true;
+                if (watch) watch.disconnect();
                 overlay.classList.add('is-closing');
                 setTimeout(() => overlay.remove(), 140);
                 if (previous && typeof previous.focus === 'function') previous.focus();
@@ -441,6 +444,12 @@
             setBusy(busy) { overlay.querySelectorAll('[data-ed-action]').forEach(b => { if (b.dataset.edAction !== 'close') b.disabled = !!busy; }); }
         };
         const dismiss = () => { if (dismissible) dialog.close(cancelId); };
+        // The sheet follows the window: below SHEET_BELOW px the dialog is a bottom sheet. An unmeasured host
+        // (width 0) keeps the dialog layout.
+        const syncSheet = () => { const width = host.clientWidth; dialog.el.classList.toggle('ed-sheet', width > 0 && width < SHEET_BELOW); };
+        syncSheet();
+        const watch = typeof ResizeObserver === 'function' ? new ResizeObserver(syncSheet) : null;
+        if (watch) watch.observe(host);
         const focusFirst = () => {
             const focus = dialog.el.querySelector('[autofocus], .ed-modal-body input, .ed-modal-body textarea, .ed-btn--primary') || dialog.el.querySelector('button');
             if (focus) focus.focus({ preventScroll: true });
