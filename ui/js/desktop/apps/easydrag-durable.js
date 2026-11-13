@@ -32,8 +32,10 @@
     // value is the status value of a run (ED.status): a legacy checkpoint cannot override a finished run, and an open approval is "blocked".
     function value(run) {
         const r = record(run), s = info(run);
-        if (r && !TERMINAL_STATES.has(r.status) && s && s.state !== 'running') return ED.status.of(s.state === 'running' ? 'running' : s.state === 'waiting' ? 'waiting' : 'blocked', 'run');
-        return ED.status.of(r && r.status, 'run');
+        // A live run's own terminal status wins over a stale nested record.
+        const raw = run && TERMINAL_STATES.has(run.status) ? run.status : r && r.status;
+        if (r && !TERMINAL_STATES.has(raw) && s && s.state !== 'running') return ED.status.of(s.state === 'waiting' ? 'waiting' : 'blocked', 'run');
+        return ED.status.of(raw, 'run');
     }
     function label(t, run) {
         const r = record(run), s = info(run);

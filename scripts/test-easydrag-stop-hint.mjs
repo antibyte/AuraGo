@@ -85,6 +85,8 @@ console.log('easydrag start failure results: ok');
     assert.equal(T.statusOf({ model }, { id: 'r4', status: 'success', steps: new Map(), record: { id: 'r4', status: 'success' } }), 'ok');
     assert.equal(D.value({ id: 'r5', status: 'running', record: { id: 'r5', status: 'running' } }), 'running');
     assert.equal(D.value({ id: 'r6', status: 'queued', record: { id: 'r6', status: 'queued' } }), 'waiting');
+    assert.equal(D.value({ status: 'error', record: { status: 'running' } }), 'failed', 'a finished live run beats a stale record');
+    assert.equal(D.value({ status: 'success', record: { status: 'running' } }), 'ok');
     assert.equal(T.statusLabel(key => key, { model }, stopRunFull), 'stopped', 'the word of a stopped run (the harness t returns the key)');
 }
 console.log('easydrag stopped status: ok');
