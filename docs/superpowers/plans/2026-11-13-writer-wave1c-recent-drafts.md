@@ -848,7 +848,9 @@ func verifyWriterRecent(t *testing.T, page *rod.Page) {
         await app.act('new');
         await until(()=>app.path.includes('untitled-')&&shown(app.path),'the new document did not open');
         const fresh=app.path;
-        if(app.session.dirty)await app.session.save();
+        // Saving it empty writes the file and still leaves it out of the list.
+        await app.act('save');
+        if(app.session.dirty)throw Error('the empty new document was not saved');
         if(paths().includes(fresh))throw Error('an empty new document was recorded');
         app.editor.exec({type:'paste',text:'First words'});
         await app.session.save();
