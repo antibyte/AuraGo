@@ -46,6 +46,14 @@ assert.equal(F.key('k', 1), 'k_one'); assert.equal(F.key('k', 7), 'k', 'cs 7 is 
 win.SYSTEM_LANG = 'de';
 assert.equal(F.plural(hostT('de'), 'easydrag.ui.group_edges_count', 1234), '1.234 äußere Verbindungen', 'the count is formatted for the language');
 
+// Intl puts 0 in "one" for fr, pt and hi: the _one form says {count}, so 0 reads 0
+win.SYSTEM_LANG = 'fr';
+assert.equal(F.plural(hostT('fr'), 'easydrag.ui.group_edges_count', 0), '0 connexion externe', 'fr: 0 is one, and the text says 0');
+assert.equal(F.plural(hostT('fr'), 'easydrag.ui.group_edges_count', 1), '1 connexion externe', 'fr: 1');
+win.SYSTEM_LANG = 'pt';
+assert.equal(F.plural(hostT('pt'), 'easydrag.ui.group_errors', 0), '0 erro', 'pt: 0 is one, and the text says 0');
+win.SYSTEM_LANG = 'de';
+
 // number, duration, date, relative, list follow the language
 const at = lang => { win.SYSTEM_LANG = lang; };
 at('de'); assert.equal(F.number(1234.5), '1.234,5'); assert.equal(F.number(2.5, { minimumFractionDigits: 1, maximumFractionDigits: 1 }), '2,5');

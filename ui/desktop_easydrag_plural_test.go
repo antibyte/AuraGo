@@ -95,6 +95,10 @@ func TestEasyDragCountKeysHaveThePluralFormsOfEveryLocale(t *testing.T) {
 					t.Errorf("%s needs %s_%s", lang, key, cat)
 					continue
 				}
+				// fr, pt and hi put 0 in "one": a literal number there would read "1" for a count of 0
+				if !strings.Contains(form, "{count}") {
+					t.Errorf("%s %s_%s has no {count}: a literal number is wrong where Intl puts 0 or other counts in this form", lang, key, cat)
+				}
 				for _, p := range easyDragPlaceholder.FindAllString(form, -1) {
 					if !strings.Contains(bare, p) {
 						t.Errorf("%s %s_%s uses %s, which the bare form does not", lang, key, cat, p)
