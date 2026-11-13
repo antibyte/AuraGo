@@ -124,6 +124,10 @@ func TestDesktopSessionRestoreSettingsAndRuntime(t *testing.T) {
 			t.Fatalf("spaces overview runtime missing %q", want)
 		}
 	}
+	// The card embeds cloned window HTML that contains buttons; a button card would break the parse.
+	if strings.Contains(overview, `<button type="button" class="vd-space-window-card`) || !strings.Contains(overview, `role="button" tabindex="0"`) {
+		t.Fatal("spaces overview window card must be a role=button div, not a nested-button-prone <button>")
+	}
 
 	interactions := readDesktopAssetText(t, "js/desktop/core/window-interactions-runtime.js")
 	if !strings.Contains(interactions, "function toggleShowDesktop(") {

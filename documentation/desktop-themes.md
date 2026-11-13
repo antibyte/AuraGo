@@ -357,6 +357,7 @@ Round 5 themed the secondary shell surfaces, which until then only took the them
 - Chrome ignores `::-webkit-scrollbar` rules on an element that sets `scrollbar-color`. `.vd-scroll` sets it, so skins colour those scrollbars with `scrollbar-color`.
 - Sticky notes keep their paper look in most themes; only Voxel World and Minimal restyle them.
 - The closed widget drawer is parked at the right screen edge with `translateX(100%)`. A rule at the end of `desktop-polish.css` removes its `box-shadow` while it is closed in every skinned theme, so a skin's drawer shadow or glow cannot show as a strip along the screen edge. Standard and Fruity keep the base shadow.
+- A window card in the spaces overview is a `div` with `role="button"`, not a `<button>`. The card embeds a scaled copy of the window's own HTML, which contains buttons, and a button inside a button makes the HTML parser break the card apart. The copied content is marked `inert` and `aria-hidden`.
 
 **Per theme.**
 

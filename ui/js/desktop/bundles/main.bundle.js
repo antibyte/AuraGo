@@ -8128,7 +8128,7 @@
         if (hasIframe || !content) {
             return `<div class="${fallbackClass}">${iconMarkup(iconForApp(app), iconGlyph(app), fallbackIconClass, options.fallbackIconSize || 42)}<span>${esc(t('desktop.taskbar_thumb_live'))}</span></div>`;
         }
-        return `<div class="${viewportClass}" style="width:${viewW}px;height:${viewH}px"><div class="${scaleClass}" style="width:${sourceW}px;height:${sourceH}px;transform:scale(${scale})">${content.innerHTML}</div></div>`;
+        return `<div class="${viewportClass}" style="width:${viewW}px;height:${viewH}px"><div class="${scaleClass}" inert aria-hidden="true" style="width:${sourceW}px;height:${sourceH}px;transform:scale(${scale})">${content.innerHTML}</div></div>`;
     }
 
     function windowPreviewMarkup(win, options) {
@@ -10917,7 +10917,7 @@ function wireWindow(win, id) {
             fallbackClass: 'vd-overview-card-fallback',
             fallbackIconClass: 'vd-overview-card-fallback-icon'
         });
-        return `<button type="button" class="vd-space-window-card${minimized ? ' minimized' : ''}" data-window-id="${esc(win.id)}" draggable="true">${preview}</button>`;
+        return `<div class="vd-space-window-card${minimized ? ' minimized' : ''}" role="button" tabindex="0" aria-label="${esc(win.title)}" data-window-id="${esc(win.id)}" draggable="true">${preview}</div>`;
     }
 
     function wireSpacesOverviewEvents(overlay) {
@@ -10932,13 +10932,20 @@ function wireWindow(win, id) {
             });
         });
         overlay.querySelectorAll('[data-window-id]').forEach(btn => {
-            btn.addEventListener('click', () => {
+            const activateCard = () => {
                 const win = state.windows.get(btn.dataset.windowId);
                 if (!win) return;
                 const targetSpace = windowSpaceId(win);
                 if (targetSpace !== normalizeSpaceId(state.activeSpaceId)) switchSpace(targetSpace);
                 focusWindow(win.id);
                 closeSpacesOverview();
+            };
+            btn.addEventListener('click', activateCard);
+            btn.addEventListener('keydown', event => {
+                if (event.target !== btn) return;
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                if (event.key === ' ') event.preventDefault();
+                activateCard();
             });
             btn.addEventListener('dragstart', event => {
                 event.dataTransfer.setData('text/plain', btn.dataset.windowId);

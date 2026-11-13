@@ -121,7 +121,7 @@
         if (hasIframe || !content) {
             return `<div class="${fallbackClass}">${iconMarkup(iconForApp(app), iconGlyph(app), fallbackIconClass, options.fallbackIconSize || 42)}<span>${esc(t('desktop.taskbar_thumb_live'))}</span></div>`;
         }
-        return `<div class="${viewportClass}" style="width:${viewW}px;height:${viewH}px"><div class="${scaleClass}" style="width:${sourceW}px;height:${sourceH}px;transform:scale(${scale})">${content.innerHTML}</div></div>`;
+        return `<div class="${viewportClass}" style="width:${viewW}px;height:${viewH}px"><div class="${scaleClass}" inert aria-hidden="true" style="width:${sourceW}px;height:${sourceH}px;transform:scale(${scale})">${content.innerHTML}</div></div>`;
     }
 
     function windowPreviewMarkup(win, options) {
