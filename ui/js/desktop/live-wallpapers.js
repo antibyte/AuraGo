@@ -271,7 +271,11 @@ void main() {
     float aspect = u_res.x / u_res.y;
     vec2 p = (gl_FragCoord.xy - 0.5 * u_res) / u_res.y;
     float t = u_time;
-    float kick = exp(-fract(t * 96.0 / 60.0) * 4.0);
+    // Beat pulse that peaks on the beat and fades back out before the next one. A stepped
+    // envelope jumped at every wrap, which read as a twitch.
+    float beat = fract(t * 96.0 / 60.0);
+    float pulse = cos(TAU * 0.5 * beat);
+    float kick = pulse * pulse;
     vec2 drift = (u_pointer - 0.5) * vec2(aspect, 1.0) * 0.22;
     p -= drift;
     vec2 pulseP = (u_pulseAt - 0.5) * vec2(aspect, 1.0) - drift;
@@ -283,7 +287,9 @@ void main() {
     a = abs(mod(a, seg) - seg * 0.5);
     vec2 uv = vec2(cos(a), sin(a)) * r;
     vec2 uv0 = uv;
-    float zoom = 1.45 + 0.2 * sin(t * 0.11) + 0.03 * kick;
+    // The zoom breathes on its own: driving it with the beat snapped every filament of the
+    // pattern once per pulse.
+    float zoom = 1.45 + 0.2 * sin(t * 0.11);
     vec3 col = vec3(0.0);
     for (int i = 0; i < 4; i++) {
         uv = fract(uv * zoom) - 0.5;
