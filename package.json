@@ -21,7 +21,7 @@
     "check:tresor-vendor": "node scripts/build-tresor-vendor.js --check",
     "test:tresor-crypto": "node scripts/test-tresor-crypto.mjs",
     "build:writer-vendor": "node scripts/build-writer-vendor.js",
-    "test:writer": "node scripts/test-writer-session.mjs && node scripts/test-writer-commands.mjs && node scripts/test-writer-toolbar.mjs && node scripts/test-writer-menus.mjs && node scripts/test-writer-context.mjs",
+    "test:writer": "node scripts/test-writer-session.mjs && node scripts/test-writer-commands.mjs && node scripts/test-writer-toolbar.mjs && node scripts/test-writer-menus.mjs && node scripts/test-writer-context.mjs && node scripts/test-writer-layout.mjs",
     "build:sheets-vendor": "node scripts/build-sheets-vendor.js",
     "test:sheets": "node scripts/test-sheets-data.mjs",
     "test:easydrag": "node scripts/test-easydrag.mjs",
