@@ -115,7 +115,11 @@
             const button = element('button', 'galaxy-suggestion');
             button.type = 'button';
             button.style.setProperty('--galaxy-chip-index', String(index));
-            button.append(icon(symbol), element('span', '', translate('chat.galaxy_' + key)));
+            button.append(
+                icon(symbol),
+                element('span', 'galaxy-suggestion-text', translate('chat.galaxy_' + key)),
+                element('span', 'galaxy-suggestion-arrow', '→')
+            );
             button.addEventListener('click', () => {
                 const input = byId('user-input');
                 if (!input || input.disabled) return;
@@ -171,7 +175,7 @@
 
         const logo = document.querySelector('.app-header .logo');
         logo.style.setProperty('--galaxy-mark', 'url("' + asset('orbit-mark.png') + '")');
-        own(element('small', 'galaxy-brand-tag', 'YOUR AI AGENT\nFOR A BRIGHTER TOMORROW'), logo);
+        own(element('small', 'galaxy-brand-tag', translate('chat.galaxy_eyebrow')), logo);
         // Left rail: navigation with icon + caption. The two drawer toggles keep their handlers.
         const nav = own(element('nav', 'galaxy-nav'), document.body);
         navRail = nav;

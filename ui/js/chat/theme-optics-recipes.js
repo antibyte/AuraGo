@@ -92,10 +92,10 @@
             blend: 'screen'
         },
         'galaxy': {
-            optics: 'plasma',
-            palette: { primary: '#060a1e', secondary: '#6a5cff', accent: '#ffd166' },
-            intensity: 0.44,
-            speed: 0.4,
+            optics: 'motes',
+            palette: { primary: '#050816', secondary: '#5b7cfa', accent: '#f6c87a' },
+            intensity: 0.16,
+            speed: 0.28,
             blend: 'screen'
         },
         'black-matrix': {

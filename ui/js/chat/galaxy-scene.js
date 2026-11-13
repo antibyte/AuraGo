@@ -224,6 +224,7 @@
                             col += (vec3(0.55, 0.8, 1.0) * ion * 0.42 + vec3(0.95, 0.97, 1.0) * headGlow) * env;
                         }
                     }
+                    col = pow(max(col, vec3(0.0)), vec3(1.05)) * 0.94;
                     gl_FragColor = vec4(col, 1.0);
                 }
             `
