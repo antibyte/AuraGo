@@ -42,3 +42,27 @@ assert.equal(paperSize(16838,11906),'a4');
 assert.equal(paperSize(11925,16838),'a4');
 assert.equal(paperSize(9000,9000),'');
 console.log('Writer paper sizes: Letter and A4 match both orientations');
+// The draft list leaves the document bytes out and puts the newest first.
+const stored = [{key: 'o:Documents/a.docx', id: '1', path: 'Documents/a.docx', updated: 10, bytes: new Uint8Array(3)},
+    {key: 'o:Documents/b.docx', id: '2', path: 'Documents/b.docx', updated: 20, bytes: new Uint8Array(5)}];
+context.indexedDB = {open() {
+    const request = {};
+    const store = {openCursor() {
+        const walk = {};
+        let index = 0;
+        const step = () => {
+            walk.result = index < stored.length ? {value: stored[index], continue() { index++; Promise.resolve().then(step); }} : null;
+            walk.onsuccess();
+        };
+        Promise.resolve().then(step);
+        return walk;
+    }};
+    Promise.resolve().then(() => { request.result = {transaction: () => ({objectStore: () => store})}; request.onsuccess(); });
+    return request;
+}};
+const listed = await context.window.WriterSession.drafts();
+assert.equal(listed.map(entry => entry.path).join(), 'Documents/b.docx,Documents/a.docx');
+assert.equal(listed[0].size, 5);
+assert.equal(listed[0].id, '2');
+assert.equal('bytes' in listed[0], false);
+console.log('Writer drafts: the list leaves the bytes out and is newest first');
