@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   js-security:
-    name: JS audits and sidecar checks
+    name: JS audits and UI regressions
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -51,10 +51,29 @@ jobs:
       - name: Test UI delivery regressions
         run: npm run test:ui-regressions
 
+  easydrag-t0:
+    name: EasyDrag T0 contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - run: npm ci
       - name: Test EasyDrag scripts (T0, Node only)
         timeout-minutes: 10
         run: node scripts/test-easydrag-t0.mjs --node-only
 
+  browser-sidecar:
+    name: Browser sidecar audit and auth
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
       - name: Install browser sidecar dependencies
         working-directory: browser_automation_sidecar
         run: npm ci
@@ -144,24 +163,48 @@ jobs:
         include:
           - name: General
             run: '.'
-            skip: '^TestConfigRefresh(Populated|RealSections)Browser$|^TestDesktop'
+            skip: '^TestConfigRefresh(Populated|RealSections)Browser$|^TestDesktop|^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^TestGoldfish'
           - name: Desktop A-D
             run: '^TestDesktop[A-D]'
-            skip: '^$'
+            skip: '^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^TestGoldfish'
           - name: Desktop E-G
             run: '^TestDesktop[E-G]'
-            skip: '^$'
+            skip: '^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^TestGoldfish'
           - name: Desktop H-R
             run: '^TestDesktop[H-R]'
-            skip: '^$'
+            skip: '^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^TestGoldfish'
           - name: Desktop S-Z
             run: '^TestDesktop[S-Z]'
-            skip: '^$'
+            skip: '^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^TestGoldfish'
           - name: Populated config
             run: '^TestConfigRefreshPopulatedBrowser$'
             skip: '^$'
           - name: Config layout
             run: '^TestConfigRefreshRealSectionsBrowser$'
+            skip: '^$'
+          - name: Aura Drift
+            run: '^Test(Desktop)?AuraDrift'
+            skip: '^$'
+          - name: Leafy
+            run: '^TestDesktopLeafy'
+            skip: '^$'
+          - name: Minigolf
+            run: '^TestDesktopMinigolf'
+            skip: '^$'
+          - name: Pinball
+            run: '^Test(Desktop)?Pinball'
+            skip: '^$'
+          - name: Orbit
+            run: '^TestDesktopOrbit'
+            skip: '^$'
+          - name: Goldfish core
+            run: '^TestGoldfish'
+            skip: '^TestGoldfishAdventureHotspot(Actions|CinematicRecovery)Browser$'
+          - name: Goldfish actions
+            run: '^TestGoldfishAdventureHotspotActionsBrowser$'
+            skip: '^$'
+          - name: Goldfish cinematics
+            run: '^TestGoldfishAdventureHotspotCinematicRecoveryBrowser$'
             skip: '^$'
     permissions:
       contents: read
@@ -200,8 +243,13 @@ jobs:
         run: go test ./ui -v -p 1 -count=1 -timeout=30m -run '${{ matrix.run }}' -skip '${{ matrix.skip }}'
 
   go-race:
-    name: Go race tests
+    name: Go race tests (${{ matrix.package }})
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [llm, server, memory, tools, telegram, whatsapp, agent, flows, invasion, security, discord, dbutil]
     permissions:
       contents: read
 
@@ -216,7 +264,7 @@ jobs:
           cache: true
 
       - name: Run targeted race tests
-        run: go test -race ./internal/llm ./internal/server ./internal/memory ./internal/tools ./internal/telegram ./internal/whatsapp ./internal/agent -p 1 -timeout=30m
+        run: go test -race ./internal/${{ matrix.package }} -p 1 -timeout=30m
 
   windows-runtime:
     name: Windows focused runtime contracts

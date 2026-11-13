@@ -13,7 +13,14 @@ func TestGoSecurityChecksRunIndependently(t *testing.T) {
 			Needs    any    `yaml:"needs"`
 			If       string `yaml:"if"`
 			Continue bool   `yaml:"continue-on-error"`
-			Steps    []struct {
+			Timeout  int    `yaml:"timeout-minutes"`
+			Strategy struct {
+				FailFast *bool `yaml:"fail-fast"`
+				Matrix   struct {
+					Package []string `yaml:"package"`
+				} `yaml:"matrix"`
+			} `yaml:"strategy"`
+			Steps []struct {
 				Run      string `yaml:"run"`
 				If       string `yaml:"if"`
 				Continue bool   `yaml:"continue-on-error"`
@@ -42,8 +49,18 @@ func TestGoSecurityChecksRunIndependently(t *testing.T) {
 					t.Errorf("%s must serialize packages within runner resources", check)
 				}
 				if check == "race" {
-					for _, pkg := range []string{"llm", "server", "memory", "tools", "telegram", "whatsapp", "agent"} {
-						if !strings.Contains(step.Run, "./internal/"+pkg) {
+					if job.Timeout != 60 || job.Strategy.FailFast == nil || *job.Strategy.FailFast || !strings.Contains(step.Run, "-timeout=30m") || !strings.Contains(step.Run, "./internal/${{ matrix.package }}") {
+						t.Error("race packages must run independently with 30-minute tests and 60-minute jobs")
+					}
+					packages := map[string]bool{}
+					for _, pkg := range job.Strategy.Matrix.Package {
+						if packages[pkg] {
+							t.Errorf("duplicate race package %s", pkg)
+						}
+						packages[pkg] = true
+					}
+					for _, pkg := range []string{"llm", "server", "memory", "tools", "telegram", "whatsapp", "agent", "flows", "invasion", "security", "discord", "dbutil"} {
+						if !packages[pkg] {
 							t.Errorf("race check omits %s", pkg)
 						}
 					}

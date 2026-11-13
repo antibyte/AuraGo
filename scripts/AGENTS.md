@@ -59,6 +59,9 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
   requested-music queue priority; the full run also decodes assets with FFmpeg.
   `node scripts/test-aura-drift-fx-resources.mjs` checks ordered FX initialization
   and the optional fallback when a stale loader omits its resource module.
+- Chat regression fixtures load the shared `shouldShowAgentToolStatus` policy before
+  the Desktop chat module, matching production order. Camera preference assertions
+  allow only the non-secret viewing fields and the optional `sound` flag (default false).
 - Camera creative controls: `node scripts/test-camera-creative.mjs` (also
   `npm run test:camera`, chained into `test:ui-regressions`) checks the
   cover-aware crop maths, zoom/ratio masks, look availability, panel lifecycle

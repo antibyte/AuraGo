@@ -52,6 +52,7 @@ func TestBrowserSmokeAvailability(t *testing.T) {
 		fail                        bool
 	}{
 		{"optional_missing", "", filepath.Join(t.TempDir(), "missing"), "--- SKIP:", false},
+		{"optional_available", "", self, "--- SKIP:", false},
 		{"required_missing", "1", filepath.Join(t.TempDir(), "missing"), "requires Chrome or Edge", true},
 		{"required_launch_failure", "1", self, "browser launch failed", true},
 	} {

@@ -79,6 +79,9 @@ type smokeBrowserFailure struct {
 // stop function (close the browser, kill the process, cancel the launch context). It ties nothing
 // to a *testing.T, so the shared EasyDrag browser can outlive the test that started it.
 func launchSmokeBrowser(tweak func(*launcher.Launcher)) (*rod.Browser, func(), *smokeBrowserFailure) {
+	if os.Getenv("AURAGO_RUN_BROWSER_SMOKE") != "1" {
+		return nil, nil, &smokeBrowserFailure{message: "set AURAGO_RUN_BROWSER_SMOKE=1 to run the headless browser smoke test", unavailable: true}
+	}
 	bin, ok := browserExecutable()
 	if !ok {
 		return nil, nil, &smokeBrowserFailure{message: "headless browser smoke test requires Chrome or Edge (set CHROME_BIN)", unavailable: true}

@@ -127,7 +127,8 @@ approved content and acceptance scope lives in
   best effort so they preserve the original test failure.
 - The hotspot suite covers all 16 rooms, four viewport/window/DPR/theme profiles,
   reachable actor/layer/exit/route/ending variants, all actions, and completion
-  and skipping of all 14 cinematics. It belongs to the existing General CI shard.
+  and skipping of all 14 cinematics. Core/targets/scenes run in Goldfish core; all actions run in Goldfish actions,
+  and cinematic recovery runs in Goldfish cinematics.
   `AURAGO_BROWSER_ARTIFACT_DIR` writes screenshots, expected/observed reactions
   and the reachability matrix. R05's two `ship_ready` exits cannot be reached
   locked: entering the ship already needs the action granting that flag.
