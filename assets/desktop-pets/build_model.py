@@ -5,6 +5,7 @@ import json
 import math
 from pathlib import Path
 from mathutils import Quaternion
+from model_export import write_notices
 
 ROOT=Path(__file__).resolve().parents[2]
 SOURCE=ROOT/'assets/desktop-pets/punk/source.blend'
@@ -144,3 +145,5 @@ bpy.ops.render.render(write_still=True)
 for texture_file in texture_files:
     texture_file.unlink(missing_ok=True)
 print('PET_MODEL_READY='+json.dumps(report),flush=True)
+
+write_notices(ROOT, "punk")

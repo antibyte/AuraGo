@@ -64,6 +64,10 @@ Authoring sources and reproducible animation assets for optional real-time deskt
   rig has one root: hips/pelvis under `DEF-spine`, shoulders under the chest,
   upper arms under shoulders, palms/first finger segments under hands. Do not
   copy Rigify's disconnected control/MCH parents into the portable skin.
+- `model_export.write_notices` publishes scoped `NOTICE.txt` for every model and
+  verbatim Mesh2Motion license texts for humanoids. The shared export and Punk
+  builder call it; notices may be refreshed without model regeneration. Verify
+  with `python scripts/test-pet-notices.py`.
 - Keep upstream source revision, hashes, motion names and license notices with the generated outputs. Mesh2Motion art is CC0; its retargeting code is MIT. These licenses do not relabel AuraGo's character source artwork.
 - The thirteen non-humanoids use thirty original procedural movements, generated
   by `scripts/build-creature-pet-motions.mjs`, rather than a human motion retarget.

@@ -39,6 +39,8 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
   catalogs and their files, shared mini aliases/SVG symbols, and EasyDrag's
   literal app-local icon calls. `TestDesktopAllAppIconsBrowser` verifies every
   built-in app identity and the shared action supplements in light and dark.
+- `python scripts/test-pet-notices.py` reproduces the eight scoped model notices
+  and verbatim humanoid license copies without Blender or touching model bytes.
 - 3D pets: Blender runs `assets/desktop-pets/build_model.py` (Punk),
   `build_zombert.py -- --pet=<folder>` (seventeen VARCO humanoids),
   `build_quadruped_pet.py -- --pet=<folder>` (three native quadruped rigs), or

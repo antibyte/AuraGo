@@ -48,6 +48,9 @@ jobs:
       - name: Check Aura Drift FX resource loading
         run: node scripts/test-aura-drift-fx-resources.mjs
 
+      - name: Verify scoped pet notices without rebuilding models
+        run: python scripts/test-pet-notices.py
+
       - name: Test UI delivery regressions
         run: npm run test:ui-regressions
 

@@ -1,0 +1,7 @@
+Geometry, textures and character rigs: original AuraGo character assets, not Mesh2Motion artwork.
+Retained provenance: assets/desktop-pets/punk/. The Mesh2Motion licenses do not license or relicense these assets.
+
+Animations: retargeted Mesh2Motion human motion data (CC0-1.0). LICENSE-CC0.txt applies only to the Mesh2Motion animation inputs.
+Upstream repository, revision and input hashes are retained in motions.json and motions-manifest.json.
+
+Retargeting code: Mesh2Motion offline retargeting software (MIT). LICENSE-MIT.txt applies only to that software, not to the character geometry or motion data.
