@@ -487,6 +487,8 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   group that holds the container (`Groups.reveal`), the open drawer's row is pinned (listed after the first 200 of its group or section, left out of
   the hidden count), closing a group that holds the drawer's row closes the drawer, and closing the drawer focuses the row, or its group row or the
   show-more control when the row is not on the page. `Groups.layout` is the list of sections of the last paint that these lookups read.
+- Container grouping memo keys use the listing array, excluding loading/error metadata.
+  Detail paints and failed refreshes reuse the existing sorted groups.
 - A failed container list keeps the last containers of that host and shows a banner with the reason code
   (`dns`, `refused`, `timeout`, `tls`, `auth`, `ssh_host_key`, `socket_missing`, `api_too_old`, `unknown`, texts
   `docker_manager.reason_*`); the browser giving up after 35 s counts as `host_unreachable` with reason `timeout`. A host
@@ -3738,6 +3740,7 @@ buttons and menu popovers remain excluded from those gestures.
   full disposal of listeners, RAF, AudioContext, WebGL resources, caches and observers. Visible
   strings use `aura_drift.*` plus `desktop.app_aura_drift` in all sixteen `ui/lang/desktop/*.json`
   files; English is the reference, and every value needs a non-empty translation with no U+FFFD.
+- The post pipeline restores the render target, clear settings and scene override in `finally`; a failed normals pass also restores every renderable's visibility before fallback.
 - The GTAO normals pass reuses the beauty pass's shadow maps; suppress shadow-map
   auto-update only during GTAO and restore it in `finally`, including render failures.
   Debug fast-forward advances the camera and result-delay clock on every simulation

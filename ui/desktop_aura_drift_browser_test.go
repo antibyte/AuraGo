@@ -523,17 +523,22 @@ func TestDesktopAuraDriftGTAOShadowReuseBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	page := auraDriftFixture(t)
 	requireWebGL2(t, page)
-	auraDriftReopen(page, map[string]interface{}{"quality": "ultra"}, "")
+	auraDriftReopen(page, map[string]interface{}{"quality": "high"}, "")
 	page.MustEval(`()=>{
         window.__gtaoShadowUpdates=[];
         const p=AuraDriftThree.GTAOPass.prototype, render=p.render;
         p.render=function(renderer,...args){
             window.__gtaoShadowMap=renderer.shadowMap;
             window.__gtaoShadowUpdates.push(renderer.shadowMap.autoUpdate);
-            if(window.__gtaoFail)throw new Error('injected GTAO failure');
-            return render.call(this,renderer,...args);
+            if(!window.__gtaoFail)return render.call(this,renderer,...args);
+            window.__gtaoScene=this.scene;window.__gtaoRenderer=renderer;
+            window.__gtaoClear=[renderer.autoClear,renderer.getClearAlpha(),renderer.getClearColor(new AuraDriftThree.Color()).getHex()];
+            const draw=renderer.render;
+            renderer.render=()=>{throw new Error('injected GTAO normals failure');};
+            try{return render.call(this,renderer,...args);}finally{renderer.render=draw;}
         };
     }`)
+	page.MustEval(`()=>{const select=[...document.querySelectorAll('.agdrift-root select')].find(s=>[...s.options].some(o=>o.value==='ultra'));if(!select)throw Error('quality control missing');select.value='ultra';select.dispatchEvent(new Event('change',{bubbles:true}));}`)
 	page.MustEval(`async()=>{await AuraDriftApp.debug.start({mode:'time_trial',trackId:'alpenpass',laps:1});}`)
 	auraDriftSkipCountdown(t, page)
 	auraDriftDrive(page, 0.1)
@@ -542,8 +547,8 @@ func TestDesktopAuraDriftGTAOShadowReuseBrowser(t *testing.T) {
 	}
 	page.MustEval(`()=>{window.__gtaoFail=true;}`)
 	auraDriftDrive(page, 0.1)
-	if !page.MustEval(`()=>__gtaoShadowMap.autoUpdate===true&&!AuraDriftApp.stats()[0].post.enabled`).Bool() {
-		t.Fatal("GTAO failure must restore shadow updates before the direct-render fallback")
+	if !page.MustEval(`()=>__gtaoShadowMap.autoUpdate===true&&!AuraDriftApp.stats()[0].post.enabled&&__gtaoScene.overrideMaterial===null&&__gtaoRenderer.getRenderTarget()===null&&JSON.stringify([__gtaoRenderer.autoClear,__gtaoRenderer.getClearAlpha(),__gtaoRenderer.getClearColor(new AuraDriftThree.Color()).getHex()])===JSON.stringify(__gtaoClear)`).Bool() {
+		t.Fatal("GTAO normals failure must restore shadows, target, clear state and material before fallback")
 	}
 	auraDriftNoErrors(t, page)
 }
