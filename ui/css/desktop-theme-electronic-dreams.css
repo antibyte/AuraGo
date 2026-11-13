@@ -198,8 +198,8 @@
 .desktop-body[data-theme="electronic_dreams"] .vd-button-primary { border-color: #d39338; background: #e6a83a; color: #20170b; }
 .desktop-body[data-theme="electronic_dreams"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar { width: 12px; height: 12px; }
 .desktop-body[data-theme="electronic_dreams"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-track { background: #101c19; border: 1px solid #2e433a; }
-.desktop-body[data-theme="electronic_dreams"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-thumb { border: 2px solid #101c19; border-radius: 5px; background: #536c5c; }
-.desktop-body[data-theme="electronic_dreams"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-thumb:hover { background: #bd8442; }
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-thumb { border: 2px solid #101c19; border-radius: 5px; background: #a06a3a; }
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-thumb:hover { background: #e6a83a; }
 .desktop-body[data-theme="electronic_dreams"] :is(.vd-taskbar, .vd-start-menu, .vd-window, .vd-modal, .vd-file-dialog, .vd-context-menu, .vd-toast) :is(button, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid #f1b84f; outline-offset: 2px; }
 .desktop-body[data-theme="electronic_dreams"] ::selection { background: #d99338; color: #1d160d; }
 .desktop-body[data-theme="electronic_dreams"]:not([data-animations="false"]) .vd-window-titlebar::after { animation: vd-theme-electronic-dreams-signal 8s ease-in-out infinite; }
@@ -208,9 +208,9 @@
     78%, 88% { opacity: 1; }
 }
 /* === Polish: PCB language for the whole shell === */
-.desktop-body[data-theme="electronic_dreams"] :is(.vd-modal, .vd-file-dialog) { position: relative; } /* anchors the pad pseudo-elements (both are static in the base) */
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-modal, .vd-file-dialog, .vd-spotlight, .vd-shortcuts-panel) { position: relative; } /* anchors the pad pseudo-elements (static in the base) */
 /* Panels: a copper trace along the top edge that ends in a pad (::before), solder pads in the four corners (::after). */
-.desktop-body[data-theme="electronic_dreams"] :is(.vd-start-menu, .vd-context-menu, .vd-window-menu-popover, .vd-notification-center, .vd-clock-popup, .vd-modal, .vd-file-dialog)::before {
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-start-menu, .vd-context-menu, .vd-window-menu-popover, .vd-notification-center, .vd-clock-popup, .vd-modal, .vd-file-dialog, .vd-spotlight, .vd-shortcuts-panel, .vd-widget:not(.vd-sticky-note))::before {
     content: "";
     position: absolute;
     left: 12px;
@@ -223,7 +223,7 @@
         linear-gradient(90deg, rgba(177, 116, 61, 0), #b1743d 22%, #d1954e) 0 1px / 100% 1px no-repeat,
         radial-gradient(circle, #e6a83a 0 1.6px, transparent 2.3px) right top / 5px 5px no-repeat;
 }
-.desktop-body[data-theme="electronic_dreams"] :is(.vd-start-menu, .vd-context-menu, .vd-window-menu-popover, .vd-notification-center, .vd-clock-popup, .vd-modal, .vd-file-dialog)::after {
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-start-menu, .vd-context-menu, .vd-window-menu-popover, .vd-notification-center, .vd-clock-popup, .vd-modal, .vd-file-dialog, .vd-spotlight, .vd-shortcuts-panel, .vd-widget:not(.vd-sticky-note))::after {
     content: "";
     position: absolute;
     inset: 0;
@@ -237,8 +237,8 @@
 }
 
 /* Menu rows: a copper trace grows along the row's lower edge and ends in a pad. */
-.desktop-body[data-theme="electronic_dreams"] :is(.vd-context-item, .vd-window-menu-item, .vd-start-item) { position: relative; }
-.desktop-body[data-theme="electronic_dreams"] :is(.vd-context-item, .vd-window-menu-item, .vd-start-item)::before {
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-context-item, .vd-window-menu-item, .vd-start-item, .vd-spotlight-item, .vd-file-dialog-row, .vd-file-dialog-sidebar-item) { position: relative; }
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-context-item, .vd-window-menu-item, .vd-start-item, .vd-spotlight-item, .vd-file-dialog-row, .vd-file-dialog-sidebar-item)::before {
     content: "";
     position: absolute;
     left: 8px;
@@ -253,7 +253,8 @@
     transform-origin: left center;
     transition: transform 120ms ease-out;
 }
-.desktop-body[data-theme="electronic_dreams"] :is(.vd-context-item, .vd-window-menu-item, .vd-start-item):is(:hover, :focus-visible):not(:disabled)::before { transform: scaleX(1); }
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-context-item, .vd-window-menu-item, .vd-start-item, .vd-spotlight-item, .vd-file-dialog-row, .vd-file-dialog-sidebar-item):is(:hover, :focus-visible):not(:disabled)::before,
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-spotlight-item.active, .vd-file-dialog-row.selected, .vd-file-dialog-sidebar-item.active)::before { transform: scaleX(1); }
 .desktop-body[data-theme="electronic_dreams"] :is(.vd-window-menu-item, .vd-context-item, .vd-start-item):is(:hover, :focus-visible) { color: #fff6e2; }
 
 /* Task buttons: a status LED in the corner, dim green while open, lit amber while focused; pressed = contact closed. */
@@ -383,6 +384,84 @@
     from { opacity: 1; transform: scaleY(1); }
     to { opacity: .4; transform: scaleY(.96); }
 }
+/* === Round 5: secondary surfaces === */
+/* Window switcher: IC packages seated on the board (copper pins along both long edges), a status LED, the active one lit. */
+.desktop-body[data-theme="electronic_dreams"] .vd-switcher-item { position: relative; isolation: isolate; border: 1px solid #506459; border-radius: 3px; background: #101d19; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 4px 10px rgba(0, 0, 0, .4); }
+.desktop-body[data-theme="electronic_dreams"] .vd-switcher-item::before {
+    content: "";
+    position: absolute;
+    inset: -3px 7px;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        repeating-linear-gradient(90deg, #8f5f35 0 3px, transparent 3px 8px) left top / 100% 3px no-repeat,
+        repeating-linear-gradient(90deg, #8f5f35 0 3px, transparent 3px 8px) left bottom / 100% 3px no-repeat;
+}
+.desktop-body[data-theme="electronic_dreams"] .vd-switcher-item::after { content: ""; position: absolute; right: 6px; top: 6px; width: 5px; height: 5px; border-radius: 50%; background: #2f5a49; box-shadow: 0 0 0 1px rgba(8, 18, 14, .7); pointer-events: none; transition: background-color 140ms ease, box-shadow 140ms ease; }
+.desktop-body[data-theme="electronic_dreams"] .vd-switcher-item.active { border-color: #d79743; background: #1b2c27; box-shadow: 0 0 0 1px rgba(230, 168, 58, .3), 0 0 14px rgba(230, 168, 58, .18), 0 4px 10px rgba(0, 0, 0, .4); transform: none; }
+.desktop-body[data-theme="electronic_dreams"] .vd-switcher-item.active::before { background-image: repeating-linear-gradient(90deg, #d1954e 0 3px, transparent 3px 8px), repeating-linear-gradient(90deg, #d1954e 0 3px, transparent 3px 8px); }
+.desktop-body[data-theme="electronic_dreams"] .vd-switcher-item.active::after { background: #ffbf4d; box-shadow: 0 0 0 1px rgba(8, 18, 14, .7), 0 0 7px 1px rgba(230, 168, 58, .8); }
+.desktop-body[data-theme="electronic_dreams"] .vd-switcher-label { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; }
+.desktop-body[data-theme="electronic_dreams"] .vd-switcher-item.active .vd-switcher-label { color: #fff2d6; }
+
+/* Snap preview: a silkscreen footprint, white dashed outline with copper pads in the corners. */
+.desktop-body[data-theme="electronic_dreams"] .vd-snap-overlay { border: 2px dashed rgba(237, 244, 238, .6); border-radius: 4px; background: rgba(230, 168, 58, .06); box-shadow: inset 0 0 0 1px rgba(8, 18, 14, .4); }
+.desktop-body[data-theme="electronic_dreams"] .vd-snap-overlay::before {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    pointer-events: none;
+    background:
+        radial-gradient(circle, #14211f 0 .8px, #b8793f 1px 2.4px, transparent 2.9px) left top / 7px 7px no-repeat,
+        radial-gradient(circle, #14211f 0 .8px, #b8793f 1px 2.4px, transparent 2.9px) right top / 7px 7px no-repeat,
+        radial-gradient(circle, #14211f 0 .8px, #b8793f 1px 2.4px, transparent 2.9px) left bottom / 7px 7px no-repeat,
+        radial-gradient(circle, #14211f 0 .8px, #b8793f 1px 2.4px, transparent 2.9px) right bottom / 7px 7px no-repeat;
+}
+
+/* Selection: a copper dashed outline; selected icons sit on a copper pad with solder dots in the corners. */
+.desktop-body[data-theme="electronic_dreams"] .vd-desktop-selection-marquee { border: 1px dashed #d1954e; border-radius: 2px; background: rgba(177, 116, 61, .13); box-shadow: none; }
+.desktop-body[data-theme="electronic_dreams"] .vd-icon.selected { border-color: #d1954e; background: rgba(177, 116, 61, .2); box-shadow: 0 0 0 1px rgba(8, 18, 14, .5) inset; }
+.desktop-body[data-theme="electronic_dreams"] .vd-icon.selected::before {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    pointer-events: none;
+    background:
+        radial-gradient(circle, #e6a83a 0 1.3px, transparent 1.9px) left top / 5px 5px no-repeat, radial-gradient(circle, #e6a83a 0 1.3px, transparent 1.9px) right top / 5px 5px no-repeat,
+        radial-gradient(circle, #e6a83a 0 1.3px, transparent 1.9px) left bottom / 5px 5px no-repeat, radial-gradient(circle, #e6a83a 0 1.3px, transparent 1.9px) right bottom / 5px 5px no-repeat;
+}
+
+/* Spotlight: a probe input that lights up on focus; shortcut keys as SMD tact switches with pads at both ends. */
+.desktop-body[data-theme="electronic_dreams"] .vd-spotlight-label, .desktop-body[data-theme="electronic_dreams"] .vd-shortcuts-heading { font-size: .8rem; letter-spacing: .09em; text-transform: uppercase; }
+.desktop-body[data-theme="electronic_dreams"] .vd-spotlight-input { background: #101d19; border-color: #506459; }
+.desktop-body[data-theme="electronic_dreams"] .vd-spotlight-input:focus { border-color: #e6a83a; box-shadow: 0 0 0 1px rgba(230, 168, 58, .4), 0 0 10px rgba(230, 168, 58, .18); }
+.desktop-body[data-theme="electronic_dreams"] .vd-spotlight-item:is(.active, :hover) { background: #293d33; color: #fff6e2; }
+.desktop-body[data-theme="electronic_dreams"] .vd-shortcuts-list kbd {
+    padding: 2px 10px;
+    border: 1px solid #6d8274;
+    border-bottom: 3px solid #33463d;
+    border-radius: 3px;
+    background:
+        radial-gradient(circle, #c68545 0 1.4px, transparent 1.9px) left 2px center / 5px 5px no-repeat,
+        radial-gradient(circle, #c68545 0 1.4px, transparent 1.9px) right 2px center / 5px 5px no-repeat,
+        #0e1815;
+    color: #f3f6ee;
+}
+.desktop-body[data-theme="electronic_dreams"] .vd-file-dialog-row:is(:hover, .selected), .desktop-body[data-theme="electronic_dreams"] .vd-file-dialog-sidebar-item:is(:hover, .active) { background: #293d33; color: #fff6e2; }
+
+/* Widgets: board modules with a copper trace and solder pads (shared with the panels above), silkscreen titles. Sticky notes stay paper. */
+.desktop-body[data-theme="electronic_dreams"] .vd-widget:not(.vd-sticky-note) { border: 1px solid #496158; border-radius: 6px; background: #14221f; box-shadow: 0 10px 26px rgba(0, 0, 0, .42), inset 0 1px 0 rgba(255, 255, 255, .05); }
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-widget-drawer-title, .vd-wm-title) { color: #f1ead6; letter-spacing: .09em; text-transform: uppercase; }
+
+/* Widget drawer: a parts tray, each widget in its own dashed compartment; copper scrollbars for the scrolling shell panels. */
+.desktop-body[data-theme="electronic_dreams"] .vd-widget-drawer { border-left: 1px solid #b1743d; background: #14211f; box-shadow: -12px 0 30px rgba(0, 0, 0, .5); }
+.desktop-body[data-theme="electronic_dreams"] .vd-widget-drawer-header { padding-bottom: 9px; background: linear-gradient(90deg, #b1743d, #d1954e 45%, transparent) left bottom / 100% 1px no-repeat; }
+.desktop-body[data-theme="electronic_dreams"] .vd-widget-drawer-card { border: 1px dashed #506459; border-radius: 4px; background: #101d19; }
+.desktop-body[data-theme="electronic_dreams"] .vd-widget-drawer-card:hover { border-color: #d1954e; background: #182a24; }
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-spotlight-results, .vd-widget-drawer, .vd-notification-center, .vd-file-dialog-list)::-webkit-scrollbar { width: 10px; }
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-spotlight-results, .vd-widget-drawer, .vd-notification-center, .vd-file-dialog-list)::-webkit-scrollbar-track { background: #101c19; }
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-spotlight-results, .vd-widget-drawer, .vd-notification-center, .vd-file-dialog-list)::-webkit-scrollbar-thumb { border: 2px solid #101c19; border-radius: 5px; background: #a06a3a; }
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-spotlight-results, .vd-widget-drawer, .vd-notification-center, .vd-file-dialog-list)::-webkit-scrollbar-thumb:hover { background: #e6a83a; }
 @media (pointer: coarse) {
     .desktop-body[data-theme="electronic_dreams"] .vd-start-button { min-height: 44px; }
     .desktop-body[data-theme="electronic_dreams"] .vd-taskbar-system :is(button, .vd-space-pager button) { min-width: 44px; min-height: 44px; }

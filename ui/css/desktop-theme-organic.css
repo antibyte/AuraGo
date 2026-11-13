@@ -587,9 +587,9 @@
 }
 
 /* Menu rows: a brass inlay line grows in from the left under the hovered row */
-.desktop-body[data-theme="organic"] :is(.vd-start-item, .vd-context-item, .vd-window-menu-item) { position: relative; }
-.desktop-body[data-theme="organic"] :is(.vd-start-item, .vd-context-item, .vd-window-menu-item)::before { content: ""; position: absolute; left: 14px; right: 14px; bottom: 2px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, #F3D993, rgba(212, 168, 79, 0)); transform: scaleX(0); transform-origin: left center; transition: transform 200ms cubic-bezier(0.22, 0.84, 0.24, 1); pointer-events: none; }
-.desktop-body[data-theme="organic"] :is(.vd-start-item:is(:hover, :focus-visible), :is(.vd-context-item, .vd-window-menu-item):is(:hover, :focus-visible):not(:disabled))::before { transform: scaleX(1); }
+.desktop-body[data-theme="organic"] :is(.vd-start-item, .vd-context-item, .vd-window-menu-item, .vd-spotlight-item) { position: relative; }
+.desktop-body[data-theme="organic"] :is(.vd-start-item, .vd-context-item, .vd-window-menu-item, .vd-spotlight-item)::before { content: ""; position: absolute; left: 14px; right: 14px; bottom: 2px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, #F3D993, rgba(212, 168, 79, 0)); transform: scaleX(0); transform-origin: left center; transition: transform 200ms cubic-bezier(0.22, 0.84, 0.24, 1); pointer-events: none; }
+.desktop-body[data-theme="organic"] :is(.vd-start-item:is(:hover, :focus-visible), .vd-spotlight-item:is(:hover, .active), :is(.vd-context-item, .vd-window-menu-item):is(:hover, :focus-visible):not(:disabled))::before { transform: scaleX(1); }
 
 .desktop-body[data-theme="organic"] .vd-start-category[aria-selected="true"]:hover {
     background-color: transparent;
@@ -820,6 +820,39 @@
 .desktop-body[data-theme="organic"]:not([data-animations="false"]) .vd-start-menu-closing {
     animation: vd-theme-organic-sink 150ms cubic-bezier(0.4, 0, 1, 1) both;
 }
+
+/* ---- Polish round 5: switcher, snap, marquee, spotlight, F1 keys, widget drawer, scrollbars ---- */
+/* Window switcher: brass-framed wooden tiles on a dark tray; the active tile gets a brass inlay and an amber glow */
+.desktop-body[data-theme="organic"] .vd-window-switcher { background: radial-gradient(ellipse 60% 30% at 50% 50%, rgba(212, 168, 79, 0.1), transparent), var(--vd-theme-overlay-bg); }
+.desktop-body[data-theme="organic"] .vd-switcher-item { border: 1px solid rgba(212, 168, 79, 0.4); border-radius: 18px; background-color: var(--vd-theme-panel-bg); background-image: var(--vd-organic-wood-panel); box-shadow: var(--vd-organic-brass-rim), 0 10px 24px rgba(6, 3, 1, 0.6); transition: transform 180ms cubic-bezier(0.22, 0.84, 0.24, 1), border-color 160ms ease, box-shadow 160ms ease; }
+.desktop-body[data-theme="organic"] .vd-switcher-item:hover { border-color: rgba(232, 192, 104, 0.6); }
+.desktop-body[data-theme="organic"] .vd-switcher-item.active { border-color: rgba(243, 217, 147, 0.85); box-shadow: inset 0 0 0 2px rgba(20, 12, 6, 0.9), inset 0 0 0 3px rgba(212, 168, 79, 0.7), 0 0 22px rgba(240, 168, 72, 0.4), 0 12px 28px rgba(6, 3, 1, 0.7); }
+.desktop-body[data-theme="organic"] .vd-switcher-item.active .vd-switcher-label { color: #FAEAD2; font-weight: 600; }
+.desktop-body[data-theme="organic"] .vd-switcher-icon { filter: drop-shadow(0 3px 5px rgba(8, 4, 2, 0.6)); }
+/* Snap preview: translucent amber sheet inside a brass inlay frame */
+.desktop-body[data-theme="organic"] .vd-snap-overlay { border: 2px solid rgba(232, 192, 104, 0.8); border-radius: 22px; background: linear-gradient(180deg, rgba(240, 168, 72, 0.2), rgba(212, 168, 79, 0.1)); box-shadow: inset 0 0 0 4px rgba(20, 12, 6, 0.35), inset 0 0 0 5px rgba(243, 217, 147, 0.4), 0 0 30px rgba(212, 168, 79, 0.25); }
+/* Selection marquee: brass hairline, faint warm fill */
+.desktop-body[data-theme="organic"] .vd-desktop-selection-marquee { border: 1px solid rgba(243, 217, 147, 0.85); border-radius: 10px; background: rgba(240, 168, 72, 0.12); box-shadow: inset 0 0 0 1px rgba(20, 12, 6, 0.3), 0 0 14px rgba(212, 168, 79, 0.2); }
+.desktop-body[data-theme="organic"] .vd-icon:focus-visible { outline: 2px solid rgba(243, 217, 147, 0.85); outline-offset: 1px; }
+/* Spotlight: brass search plate; F1 key caps are round brass typewriter keys */
+.desktop-body[data-theme="organic"] .vd-spotlight-input { border-color: rgba(232, 192, 104, 0.55); border-radius: 999px; padding-left: 16px; box-shadow: inset 0 2px 5px rgba(6, 3, 1, 0.65), 0 0 0 3px rgba(212, 168, 79, 0.14); }
+.desktop-body[data-theme="organic"] .vd-spotlight-input:focus { border-color: var(--vd-accent); outline: 0; box-shadow: inset 0 2px 5px rgba(6, 3, 1, 0.65), 0 0 0 3px rgba(212, 168, 79, 0.32); }
+.desktop-body[data-theme="organic"] .vd-spotlight-results { border-top-color: rgba(212, 168, 79, 0.34); }
+.desktop-body[data-theme="organic"] :is(.vd-spotlight-label, .vd-shortcuts-heading) { color: #F3D993; letter-spacing: 0.04em; }
+.desktop-body[data-theme="organic"] .vd-shortcuts-list kbd { min-width: 22px; padding: 3px 10px; border: 1px solid rgba(255, 238, 194, 0.55); border-radius: 999px; background: var(--vd-organic-brass-fill); color: var(--vd-accent-contrast); font-weight: 600; text-align: center; box-shadow: inset 0 1px 0 rgba(255, 250, 232, 0.7), inset 0 -2px 2px rgba(74, 48, 10, 0.5), 0 2px 4px rgba(6, 3, 1, 0.6); }
+/* Widget drawer: a wooden side board with brass edge; cards are recessed plates */
+.desktop-body[data-theme="organic"] .vd-widget-drawer { border-width: 0 0 0 2px; border-left-color: rgba(232, 192, 104, 0.6); border-radius: 26px 0 0 26px; box-shadow: -12px 0 36px rgba(6, 3, 1, 0.6), inset 2px 0 0 rgba(20, 12, 6, 0.6); }
+.desktop-body[data-theme="organic"] .vd-widget-drawer-title { color: #F3D993; }
+.desktop-body[data-theme="organic"] .vd-widget-drawer-card { border: 1px solid rgba(212, 168, 79, 0.3); border-radius: 16px; background-color: #160E09; background-image: var(--vd-organic-wood-recess); box-shadow: inset 0 1px 0 rgba(255, 232, 190, 0.1); transition: transform 180ms cubic-bezier(0.22, 0.84, 0.24, 1), border-color 160ms ease, box-shadow 160ms ease; }
+.desktop-body[data-theme="organic"] .vd-widget-drawer-card:hover { border-color: rgba(232, 192, 104, 0.6); box-shadow: inset 3px 0 0 var(--vd-accent), 0 4px 12px rgba(6, 3, 1, 0.5); transform: translateX(-2px); }
+.desktop-body[data-theme="organic"] .vd-widget-drawer-card-title { color: #FAEAD2; }
+.desktop-body[data-theme="organic"] .vd-widget-drawer-close:hover { border-color: rgba(232, 192, 104, 0.5); border-radius: 50%; background: rgba(212, 168, 79, 0.2); }
+/* Brass scrollbar thumbs on the shell panels that scroll themselves */
+.desktop-body[data-theme="organic"] :is(.vd-spotlight-results, .vd-widget-drawer, .vd-widget-drawer-content, .vd-wm-cards, .vd-notification-list, .vd-start-rail)::-webkit-scrollbar-track { border-radius: 999px; background: rgba(14, 8, 5, 0.45); }
+.desktop-body[data-theme="organic"] :is(.vd-spotlight-results, .vd-widget-drawer, .vd-widget-drawer-content, .vd-wm-cards, .vd-notification-list, .vd-start-rail)::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(212, 168, 79, 0.4); background-clip: padding-box; }
+.desktop-body[data-theme="organic"] :is(.vd-spotlight-results, .vd-widget-drawer, .vd-widget-drawer-content, .vd-wm-cards, .vd-notification-list, .vd-start-rail)::-webkit-scrollbar-thumb:hover { background: var(--vd-accent); background-clip: padding-box; }
+.desktop-body[data-theme="organic"]:not([data-animations="false"]) :is(.vd-spotlight, .vd-shortcuts-panel, .vd-widget-manager) { animation: vd-theme-organic-rise 220ms cubic-bezier(0.22, 0.84, 0.24, 1) both; }
+.desktop-body[data-theme="organic"]:not([data-animations="false"]) .vd-switcher-item { animation: vd-theme-organic-rise 220ms cubic-bezier(0.22, 0.84, 0.24, 1) both; }
 
 /* ---- Wide viewports: centred window titles and balanced taskbar layout ---- */
 @media (min-width: 821px) {

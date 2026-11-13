@@ -650,3 +650,210 @@
 .desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-button:active {
     transform: scale(0.88);
 }
+
+/* ==========================================================================
+ * Polish round 5: Standard and Fruity, secondary surfaces.
+ * Neutral tints are mixed from --vd-text so one rule serves Fruity light and dark.
+ * ========================================================================== */
+
+/* ---- Window switcher: big icons, accent ring and lift on the active card, short drop-in ---- */
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) .vd-switcher-item {
+    min-width: 132px;
+    padding: 16px 12px 12px;
+    transition: transform 160ms var(--ds-motion-ease-standard, ease), box-shadow 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) .vd-switcher-icon {
+    transform: scale(1.35);
+    margin: 6px 0 4px;
+}
+
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) .vd-switcher-item.active {
+    transform: translateY(-4px) scale(1.04);
+    background: color-mix(in srgb, var(--vd-accent) 16%, var(--vd-theme-control-bg, var(--ds-color-surface-2)));
+    box-shadow: 0 0 0 1px rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.5), 0 10px 26px rgba(0, 0, 0, 0.28);
+}
+
+.desktop-body[data-theme="standard"] .vd-switcher-item.active .vd-switcher-label {
+    color: var(--vd-text);
+    font-weight: 600;
+}
+
+.desktop-body[data-theme="fruity"] .vd-switcher-item {
+    border-radius: 22px;
+    background: color-mix(in srgb, var(--vd-theme-panel-bg-strong, var(--ds-color-bg-modal)) 78%, transparent);
+    backdrop-filter: blur(18px) saturate(1.4);
+}
+
+.desktop-body[data-theme="fruity"] .vd-switcher-item.active {
+    transition-timing-function: cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+.desktop-body[data-theme="standard"]:not([data-animations="false"]) .vd-switcher-item {
+    animation: vd-theme-standard-drop-in 180ms var(--ds-motion-ease-emphasized, ease-out) both;
+}
+
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-switcher-item {
+    animation: vd-theme-fruity-pop-in 300ms cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+
+@keyframes vd-theme-standard-drop-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes vd-theme-fruity-pop-in {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* ---- Desktop selection: accent plate, readable label, hairline marquee and snap sheet ---- */
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) .vd-icon.selected {
+    background: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.26);
+    border-color: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.62);
+}
+
+.desktop-body[data-theme="standard"] .vd-icon.selected .vd-icon-label {
+    background: color-mix(in srgb, var(--vd-accent) 55%, rgba(8, 10, 14, 0.82));
+    color: #ffffff;
+}
+
+.desktop-body[data-theme="fruity"] .vd-icon.selected .vd-icon-label {
+    background: color-mix(in srgb, var(--vd-accent) 72%, #000000);
+    color: #ffffff;
+}
+
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) .vd-desktop-selection-marquee {
+    border: 1px solid rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.85);
+    background: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.12);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) .vd-snap-overlay {
+    border: 1px solid rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.8);
+    background: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 0 40px rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.1);
+}
+
+.desktop-body[data-theme="fruity"] .vd-snap-overlay {
+    border-radius: 20px;
+    border-width: 2px;
+}
+
+/* ---- Spotlight: calm input, accent bar on the active row, drop-in ---- */
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) .vd-spotlight-input {
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) .vd-spotlight-input:focus {
+    outline: none;
+    border-color: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.6);
+    box-shadow: 0 0 0 3px rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.18);
+}
+
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) .vd-spotlight-item {
+    position: relative;
+    padding-left: 18px;
+    transition: background-color 120ms ease;
+}
+
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) .vd-spotlight-item::before {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 9px;
+    bottom: 9px;
+    width: 3px;
+    border-radius: 999px;
+    background: var(--vd-accent);
+    opacity: 0;
+    transform: scaleY(0.3);
+    pointer-events: none;
+    transition: transform 180ms cubic-bezier(0.32, 0.72, 0, 1), opacity 120ms ease;
+}
+
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) .vd-spotlight-item:is(.active, :hover)::before {
+    opacity: 1;
+    transform: scaleY(1);
+}
+
+.desktop-body[data-theme="fruity"] .vd-spotlight {
+    border-radius: 22px;
+}
+
+.desktop-body[data-theme="fruity"] .vd-spotlight-input {
+    border-radius: 14px;
+    font-size: 1.05rem;
+    padding: 12px 14px;
+}
+
+.desktop-body[data-theme="fruity"] .vd-spotlight-item:is(.active, :hover) {
+    background: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.18);
+}
+
+.desktop-body[data-theme="standard"]:not([data-animations="false"]) .vd-spotlight {
+    animation: vd-theme-standard-drop-in 180ms var(--ds-motion-ease-emphasized, ease-out) both;
+}
+
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-spotlight {
+    animation: vd-theme-fruity-pop-in 280ms cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+
+/* ---- Widgets and drawer: one card material, hover feedback ---- */
+.desktop-body[data-theme="fruity"] .vd-widget {
+    border-radius: 22px;
+}
+
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) .vd-widget-drawer-card {
+    transition: transform 160ms var(--ds-motion-ease-standard, ease), border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) .vd-widget-drawer-card:hover {
+    border-color: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.45);
+    background: color-mix(in srgb, var(--vd-accent) 8%, var(--ds-color-control-bg));
+}
+
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]):not([data-animations="false"]) .vd-widget-drawer-card:hover {
+    transform: translateX(-2px);
+}
+
+.desktop-body[data-theme="fruity"] .vd-widget-drawer-card {
+    border-radius: 16px;
+}
+
+.desktop-body[data-theme="fruity"] .vd-widget-drawer {
+    border-radius: 22px 0 0 22px;
+}
+
+/* ---- File dialog rows and sidebar: accent bar like the context menu rows ---- */
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) :is(.vd-file-dialog-row, .vd-file-dialog-sidebar-item) {
+    transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) :is(.vd-file-dialog-row.selected, .vd-file-dialog-sidebar-item.active) {
+    box-shadow: inset 3px 0 0 var(--vd-accent);
+}
+
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) .vd-file-dialog-row:hover:not(.selected) {
+    background: color-mix(in srgb, var(--vd-text) 7%, transparent);
+}
+
+/* ---- Shell scrollbars and selection ---- */
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) :is(.vd-notification-center, .vd-spotlight-results, .vd-file-dialog-list, .vd-widget-drawer, .vd-widget-drawer-content) {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--vd-text) 24%, transparent) transparent;
+}
+
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) :is(.vd-notification-center, .vd-spotlight-results, .vd-file-dialog-list, .vd-widget-drawer, .vd-widget-drawer-content):hover {
+    scrollbar-color: color-mix(in srgb, var(--vd-accent) 70%, transparent) transparent;
+}
+
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) :is(.vd-spotlight-input, .vd-file-dialog-search, .vd-file-dialog-name input)::selection {
+    background: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.45);
+    color: inherit;
+}
+
+/* ---- Closed widget drawer: its skin shadows would bleed into the viewport from the parked position ---- */
+.desktop-body[data-theme]:not([data-theme="standard"]):not([data-theme="fruity"]) .vd-widget-drawer:not(.open) {
+    box-shadow: none;
+}

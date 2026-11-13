@@ -680,6 +680,70 @@
     80% { opacity: .5; }
 }
 
+/* ---- Polish round 5: secondary surfaces as Workbench requesters, outlines and gadgets ---- */
+/* Window switcher: bevelled requester entries; the active gadget is selected blue and sunken. */
+.desktop-body[data-theme="amiga"] .vd-window-switcher { background: rgba(0, 0, 0, .3); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.desktop-body[data-theme="amiga"] .vd-switcher-item { border: 0; border-radius: 0; background: #aaaaaa; color: #000000; box-shadow: var(--vd-theme-amiga-raised), 2px 2px 0 #000000; transform: none; transition: none; }
+.desktop-body[data-theme="amiga"] .vd-switcher-item:hover { background: #bbbbbb; }
+.desktop-body[data-theme="amiga"] .vd-switcher-item.active { background: #6688bb; box-shadow: var(--vd-theme-amiga-sunken), 2px 2px 0 #000000; transform: none; }
+.desktop-body[data-theme="amiga"] .vd-switcher-label { font: 16px var(--vd-theme-amiga-vga); -webkit-font-smoothing: none; }
+
+/* Snap preview: a bare 2 px outline, no fill, like a dragged Workbench window frame. */
+.desktop-body[data-theme="amiga"] .vd-snap-overlay { border: 2px solid #ffffff; border-radius: 0; background: transparent; box-shadow: 0 0 0 1px #000000, inset 0 0 0 1px #000000; transition: none; }
+
+/* Spotlight and shortcuts: grey requesters, blue title strip, recessed string gadget, raised key gadgets. */
+.desktop-body[data-theme="amiga"] :is(.vd-spotlight, .vd-shortcuts-panel) { border: 1px solid #000000; border-radius: 0; background: #aaaaaa; box-shadow: var(--vd-theme-amiga-raised); }
+.desktop-body[data-theme="amiga"] :is(.vd-spotlight-label, .vd-shortcuts-heading) { display: flex; align-items: center; min-height: var(--vd-theme-amiga-bar); padding: 0 8px; border-bottom: 1px solid #000000; background: #6688bb; color: #000000; font: 16px var(--vd-theme-amiga-vga); box-shadow: inset 1px 1px 0 #ffffff; -webkit-font-smoothing: none; }
+.desktop-body[data-theme="amiga"] .vd-spotlight-input { height: 26px; border: 0; border-radius: 0; background: #aaaaaa; color: #000000; font: 16px var(--vd-theme-amiga-vga); box-shadow: var(--vd-theme-amiga-sunken); caret-color: #000000; caret-shape: block; -webkit-font-smoothing: none; }
+.desktop-body[data-theme="amiga"] .vd-spotlight-results { border-top: 1px solid #000000; background: #aaaaaa; }
+.desktop-body[data-theme="amiga"] .vd-spotlight-item { border-bottom: 1px dotted #000000; color: #000000; font: 16px var(--vd-theme-amiga-vga); -webkit-font-smoothing: none; }
+.desktop-body[data-theme="amiga"] .vd-spotlight-item:is(.active, :hover) { background: #6688bb; }
+.desktop-body[data-theme="amiga"] .vd-spotlight-item-sub { color: #333333; font: 16px var(--vd-theme-amiga-vga); }
+.desktop-body[data-theme="amiga"] .vd-spotlight-item:is(.active, :hover) .vd-spotlight-item-sub { color: #000000; }
+.desktop-body[data-theme="amiga"] .vd-shortcuts-list li { border-bottom: 1px dotted #000000; font-family: var(--vd-theme-amiga-vga); font-size: 16px; }
+.desktop-body[data-theme="amiga"] .vd-shortcuts-list kbd { border: 0; border-radius: 0; background: #aaaaaa; color: #000000; font: 16px var(--vd-theme-amiga-vga); box-shadow: var(--vd-theme-amiga-raised); -webkit-font-smoothing: none; }
+.desktop-body[data-theme="amiga"] .vd-shortcuts-close { font: 16px var(--vd-theme-amiga-vga); -webkit-font-smoothing: none; }
+
+/* Widgets and the widget manager: small Workbench windows with a blue title strip and a bevel frame; drawer gadgets. */
+.desktop-body[data-theme="amiga"] .vd-widget:not(.vd-sticky-note) { border: 1px solid #000000; border-radius: 0; background: #aaaaaa; box-shadow: var(--vd-theme-amiga-raised); transition: none; }
+.desktop-body[data-theme="amiga"] .vd-widget:not(.vd-sticky-note)::before { content: ""; position: absolute; inset: 0 0 auto; height: 6px; border-bottom: 1px solid #000000; background: #6688bb; box-shadow: inset 1px 1px 0 #ffffff; pointer-events: none; }
+.desktop-body[data-theme="amiga"] :is(.vd-widget-manager, .vd-widget-drawer) { border: 1px solid #000000; border-radius: 0; background: #aaaaaa; box-shadow: var(--vd-theme-amiga-raised); }
+.desktop-body[data-theme="amiga"] :is(.vd-wm-header, .vd-widget-drawer-header) { min-height: var(--vd-theme-amiga-bar); border-bottom: 1px solid #000000; background: #6688bb; color: #000000; box-shadow: inset 1px 1px 0 #ffffff; }
+.desktop-body[data-theme="amiga"] .vd-widget-drawer-header { margin: -14px -14px 12px; padding: 0 4px 0 8px; }
+.desktop-body[data-theme="amiga"] :is(.vd-wm-title, .vd-widget-drawer-title) { margin: 0; color: #000000; font: 16px var(--vd-theme-amiga-vga); -webkit-font-smoothing: none; }
+.desktop-body[data-theme="amiga"] :is(.vd-widget-drawer-close, .vd-widget-drawer-card-btn) { border: 0; border-radius: 0; background: #aaaaaa; color: #000000; box-shadow: var(--vd-theme-amiga-raised); transition: none; }
+.desktop-body[data-theme="amiga"] :is(.vd-widget-drawer-close, .vd-widget-drawer-card-btn):hover { background: #bbbbbb; color: #000000; }
+.desktop-body[data-theme="amiga"] :is(.vd-widget-drawer-close, .vd-widget-drawer-card-btn):active { background: #999999; box-shadow: var(--vd-theme-amiga-sunken); }
+.desktop-body[data-theme="amiga"] .vd-widget-drawer-card { border: 0; border-radius: 0; background: #aaaaaa; box-shadow: var(--vd-theme-amiga-sunken); transition: none; }
+.desktop-body[data-theme="amiga"] .vd-widget-drawer-card:hover { box-shadow: var(--vd-theme-amiga-sunken); }
+.desktop-body[data-theme="amiga"] :is(.vd-widget-drawer-card-title, .vd-widget-drawer-card-meta) { color: #000000; }
+.desktop-body[data-theme="amiga"] .vd-widget-drawer-backdrop { background: rgba(0, 0, 0, .3); transition: none; }
+.desktop-body[data-theme="amiga"] .vd-widget-drawer { transition: none; }
+
+/* Taskbar preview and file dialog: grey bevel plates, gadget sidebar, blue selection rows. */
+.desktop-body[data-theme="amiga"] .vd-taskbar-thumbnail { border: 1px solid #000000; border-radius: 0; background: #aaaaaa; color: #000000; box-shadow: var(--vd-theme-amiga-raised), 2px 2px 0 #000000; }
+.desktop-body[data-theme="amiga"] .vd-file-dialog-header { min-height: var(--vd-theme-amiga-bar); padding: 0 4px 0 8px; border-bottom: 1px solid #000000; background: #6688bb; box-shadow: inset 1px 1px 0 #ffffff; }
+.desktop-body[data-theme="amiga"] .vd-file-dialog-title { color: #000000; }
+.desktop-body[data-theme="amiga"] .vd-file-dialog-footer { border-top: 1px solid #000000; background: #aaaaaa; }
+.desktop-body[data-theme="amiga"] .vd-file-dialog-sidebar { border-right: 1px solid #000000; background: #aaaaaa; }
+.desktop-body[data-theme="amiga"] .vd-file-dialog-sidebar-item { border-radius: 0; color: #000000; }
+.desktop-body[data-theme="amiga"] .vd-file-dialog-sidebar-item:hover { background: #bbbbbb; box-shadow: var(--vd-theme-amiga-raised); }
+.desktop-body[data-theme="amiga"] .vd-file-dialog-sidebar-item.active { background: #6688bb; box-shadow: var(--vd-theme-amiga-sunken); }
+.desktop-body[data-theme="amiga"] .vd-file-dialog-main { border: 0; border-radius: 0; background: #aaaaaa; box-shadow: var(--vd-theme-amiga-sunken); }
+.desktop-body[data-theme="amiga"] .vd-file-dialog-row { border-radius: 0; border-bottom: 1px dotted #000000; }
+.desktop-body[data-theme="amiga"] .vd-file-dialog-row:is(:hover, .selected) { background: #6688bb; color: #000000; }
+.desktop-body[data-theme="amiga"] .vd-file-dialog-row:is(:hover, .selected) :is(.vd-file-dialog-entry-icon, .vd-file-dialog-entry-type, .vd-file-dialog-entry-size) { color: #000000; }
+
+/* Submenus: the parent entry stays inverse while its submenu is open. */
+.desktop-body[data-theme="amiga"] .vd-context-submenu:is(:hover, :focus-within) > .vd-context-item { background: #000000; color: #ffffff; }
+
+/* Prop-gadget scrollbars on the shell panels that scroll themselves. */
+.desktop-body[data-theme="amiga"] :is(.vd-spotlight-results, .vd-widget-drawer, .vd-widget-drawer-content, .vd-file-dialog-sidebar, .vd-notification-center, .vd-scroll) { scrollbar-width: auto; scrollbar-color: auto; }
+.desktop-body[data-theme="amiga"] :is(.vd-spotlight-results, .vd-widget-drawer, .vd-widget-drawer-content, .vd-file-dialog-sidebar, .vd-notification-center, .vd-scroll)::-webkit-scrollbar { width: 16px; height: 16px; background: #aaaaaa; }
+.desktop-body[data-theme="amiga"] :is(.vd-spotlight-results, .vd-widget-drawer, .vd-widget-drawer-content, .vd-file-dialog-sidebar, .vd-notification-center, .vd-scroll)::-webkit-scrollbar-track { background: #aaaaaa; box-shadow: var(--vd-theme-amiga-sunken); }
+.desktop-body[data-theme="amiga"] :is(.vd-spotlight-results, .vd-widget-drawer, .vd-widget-drawer-content, .vd-file-dialog-sidebar, .vd-notification-center, .vd-scroll)::-webkit-scrollbar-thumb { border: 0; border-radius: 0; background: #6688bb; box-shadow: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #000000, inset 0 0 0 2px #6688bb, inset 0 0 0 3px #000000; }
+.desktop-body[data-theme="amiga"] :is(.vd-spotlight-results, .vd-widget-drawer, .vd-widget-drawer-content, .vd-file-dialog-sidebar, .vd-notification-center, .vd-scroll)::-webkit-scrollbar-thumb:hover { background: #7799cc; }
+
 /* ---- Compact layout (global bar off): the tray lives in the window list ---- */
 @media (max-width: 820px) {
     .desktop-body[data-theme="amiga"] { --vd-maximized-window-reserve: var(--vd-taskbar-height); }

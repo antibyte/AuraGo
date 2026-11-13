@@ -501,9 +501,9 @@
 .desktop-body[data-theme="cyberpunk"] .vd-taskbar .vd-start-button:focus-visible { outline: 2px solid #00F0FF !important; outline-offset: 3px; }
 
 /* === Polish: HUD brackets, scan sweep, row markers, toast rails, cursor, start tab glitch, icon brackets === */
-.desktop-body[data-theme="cyberpunk"] :is(.vd-modal, .vd-file-dialog) { position: relative; } /* anchors the bracket pseudo-element (both are static in the base) */
+.desktop-body[data-theme="cyberpunk"] :is(.vd-modal, .vd-file-dialog, .vd-spotlight, .vd-shortcuts-panel) { position: relative; } /* anchors the bracket pseudo-element (static in the base) */
 /* Panels: cyan corner brackets at top right and bottom left (the start menu already carries its yellow tab top left). */
-.desktop-body[data-theme="cyberpunk"] :is(.vd-start-menu, .vd-context-menu, .vd-window-menu-popover, .vd-notification-center, .vd-clock-popup, .vd-modal, .vd-file-dialog)::after {
+.desktop-body[data-theme="cyberpunk"] :is(.vd-start-menu, .vd-context-menu, .vd-window-menu-popover, .vd-notification-center, .vd-clock-popup, .vd-modal, .vd-file-dialog, .vd-spotlight, .vd-shortcuts-panel)::after {
     content: "";
     position: absolute;
     inset: 0;
@@ -610,6 +610,108 @@
 
 /* Window buttons fill hard, without easing. */
 .desktop-body[data-theme="cyberpunk"] .vd-window-button { transition: none; }
+
+/* === Round 5: secondary surfaces === */
+/* Window switcher: angular HUD chips, cyan corner ticks, yellow marker bar and ticks on the active one. */
+.desktop-body[data-theme="cyberpunk"] .vd-switcher-item { position: relative; border: 1px solid rgba(0, 240, 255, 0.3); border-radius: 0; background: #060A16 var(--vd-cyber-scan); box-shadow: none; }
+.desktop-body[data-theme="cyberpunk"] .vd-switcher-item::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    pointer-events: none;
+    --vd-tick: #00F0FF;
+    background:
+        linear-gradient(var(--vd-tick), var(--vd-tick)) left top / 8px 2px no-repeat, linear-gradient(var(--vd-tick), var(--vd-tick)) left top / 2px 8px no-repeat,
+        linear-gradient(var(--vd-tick), var(--vd-tick)) right bottom / 8px 2px no-repeat, linear-gradient(var(--vd-tick), var(--vd-tick)) right bottom / 2px 8px no-repeat;
+}
+.desktop-body[data-theme="cyberpunk"] .vd-switcher-item::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--vd-accent); transform: scaleX(0); transform-origin: left center; pointer-events: none; }
+.desktop-body[data-theme="cyberpunk"] .vd-switcher-item.active { border-color: var(--vd-accent); background-color: #0D1428; box-shadow: 0 0 16px rgba(243, 230, 0, 0.18); transform: none; }
+.desktop-body[data-theme="cyberpunk"] .vd-switcher-item.active::before { --vd-tick: var(--vd-accent); }
+.desktop-body[data-theme="cyberpunk"] .vd-switcher-item.active::after { transform: scaleX(1); }
+.desktop-body[data-theme="cyberpunk"] .vd-switcher-label { color: var(--vd-muted); font: 400 12px/1.3 var(--vd-cyber-mono); letter-spacing: 0.1em; text-transform: uppercase; }
+.desktop-body[data-theme="cyberpunk"] .vd-switcher-item.active .vd-switcher-label { color: var(--vd-accent); }
+
+/* Snap preview: a docking frame, yellow corner brackets, a faint cyan fill and one scan hairline sweeping down. */
+.desktop-body[data-theme="cyberpunk"] .vd-snap-overlay { overflow: hidden; border: 1px solid rgba(0, 240, 255, 0.7); border-radius: 0; background: rgba(0, 240, 255, 0.07); box-shadow: 0 0 18px rgba(0, 240, 255, 0.2), inset 0 0 28px rgba(0, 240, 255, 0.08); }
+.desktop-body[data-theme="cyberpunk"] .vd-snap-overlay::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(var(--vd-accent), var(--vd-accent)) left top / 18px 3px no-repeat, linear-gradient(var(--vd-accent), var(--vd-accent)) left top / 3px 18px no-repeat,
+        linear-gradient(var(--vd-accent), var(--vd-accent)) right top / 18px 3px no-repeat, linear-gradient(var(--vd-accent), var(--vd-accent)) right top / 3px 18px no-repeat,
+        linear-gradient(var(--vd-accent), var(--vd-accent)) left bottom / 18px 3px no-repeat, linear-gradient(var(--vd-accent), var(--vd-accent)) left bottom / 3px 18px no-repeat,
+        linear-gradient(var(--vd-accent), var(--vd-accent)) right bottom / 18px 3px no-repeat, linear-gradient(var(--vd-accent), var(--vd-accent)) right bottom / 3px 18px no-repeat;
+}
+.desktop-body[data-theme="cyberpunk"] .vd-snap-overlay::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(0, 240, 255, 0.85) 0 1px, transparent 1px); will-change: transform; }
+
+/* Selection: a targeting box with yellow corner ticks; selected icons get their bracket frame and a cyan plate. */
+.desktop-body[data-theme="cyberpunk"] .vd-desktop-selection-marquee {
+    border-color: rgba(0, 240, 255, 0.85);
+    background:
+        linear-gradient(var(--vd-accent), var(--vd-accent)) left top / 9px 2px no-repeat, linear-gradient(var(--vd-accent), var(--vd-accent)) left top / 2px 9px no-repeat,
+        linear-gradient(var(--vd-accent), var(--vd-accent)) right top / 9px 2px no-repeat, linear-gradient(var(--vd-accent), var(--vd-accent)) right top / 2px 9px no-repeat,
+        linear-gradient(var(--vd-accent), var(--vd-accent)) left bottom / 9px 2px no-repeat, linear-gradient(var(--vd-accent), var(--vd-accent)) left bottom / 2px 9px no-repeat,
+        linear-gradient(var(--vd-accent), var(--vd-accent)) right bottom / 9px 2px no-repeat, linear-gradient(var(--vd-accent), var(--vd-accent)) right bottom / 2px 9px no-repeat,
+        rgba(0, 240, 255, 0.09);
+}
+.desktop-body[data-theme="cyberpunk"] .vd-icon.selected::before { opacity: 1; transform: none; }
+.desktop-body[data-theme="cyberpunk"] .vd-icon.selected { background: rgba(0, 240, 255, 0.18); }
+
+/* Spotlight: a command line with a prompt glyph, shortcut keys as yellow-on-black key caps. */
+.desktop-body[data-theme="cyberpunk"] .vd-spotlight-label::before { content: ">"; margin-right: 8px; color: var(--vd-accent); font-family: var(--vd-cyber-mono); }
+.desktop-body[data-theme="cyberpunk"] .vd-spotlight-input { background: #02050F; font-family: var(--vd-cyber-mono); letter-spacing: 0.04em; }
+.desktop-body[data-theme="cyberpunk"] .vd-spotlight-item-sub { font-family: var(--vd-cyber-mono); letter-spacing: 0.06em; text-transform: uppercase; }
+.desktop-body[data-theme="cyberpunk"] .vd-shortcuts-list kbd { padding: 2px 7px; border: 1px solid rgba(243, 230, 0, 0.55); background: #000; color: var(--vd-accent); text-transform: uppercase; box-shadow: 0 2px 0 rgba(243, 230, 0, 0.3); }
+
+/* Widgets: HUD instrument panels (square cyan frame, bracket corners, yellow tab, mono uppercase header); sticky notes stay paper. */
+.desktop-body[data-theme="cyberpunk"] .vd-widget:not(.vd-sticky-note) { border: 1px solid var(--vd-theme-border-strong); border-radius: 0; background-color: var(--vd-theme-panel-bg); background-image: var(--vd-cyber-scan); box-shadow: var(--vd-theme-shadow-panel); }
+.desktop-body[data-theme="cyberpunk"] .vd-widget:not(.vd-sticky-note)::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(#00F0FF, #00F0FF) right top / 9px 2px no-repeat, linear-gradient(#00F0FF, #00F0FF) right top / 2px 9px no-repeat,
+        linear-gradient(#00F0FF, #00F0FF) left bottom / 9px 2px no-repeat, linear-gradient(#00F0FF, #00F0FF) left bottom / 2px 9px no-repeat,
+        linear-gradient(var(--vd-accent), var(--vd-accent)) left top / 44px 2px no-repeat;
+}
+.desktop-body[data-theme="cyberpunk"] :is(.vd-widget-drawer-title, .vd-wm-title) { color: #00F0FF; font: 600 12px/1.2 var(--vd-cyber-display); letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* Widget drawer: the same frame as a side console; cards are square with the yellow marker bar on hover. */
+.desktop-body[data-theme="cyberpunk"] .vd-widget-drawer { border-left: 1px solid var(--vd-theme-border-strong); background-color: var(--vd-theme-panel-bg); background-image: var(--vd-cyber-scan); box-shadow: -10px 0 32px rgba(0, 0, 0, 0.55), -1px 0 14px rgba(0, 240, 255, 0.18); }
+.desktop-body[data-theme="cyberpunk"] .vd-widget-drawer-header { padding-bottom: 8px; border-bottom: 1px solid rgba(0, 240, 255, 0.28); }
+.desktop-body[data-theme="cyberpunk"] .vd-widget-drawer-card { border-radius: 0; border-color: rgba(0, 240, 255, 0.28); background: rgba(0, 240, 255, 0.04); }
+.desktop-body[data-theme="cyberpunk"] .vd-widget-drawer-card:hover { border-color: rgba(0, 240, 255, 0.6); background: rgba(243, 230, 0, 0.06); box-shadow: inset 3px 0 0 var(--vd-accent); }
+.desktop-body[data-theme="cyberpunk"] :is(.vd-widget-drawer-close, .vd-widget-drawer-card-btn) { border-radius: 0; }
+.desktop-body[data-theme="cyberpunk"] .vd-widget-drawer-card-meta { font-family: var(--vd-cyber-mono); letter-spacing: 0.04em; }
+
+/* File dialog: square list, rows and sidebar entries take the yellow marker bar. */
+.desktop-body[data-theme="cyberpunk"] :is(.vd-file-dialog-list, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input, .vd-file-dialog-row, .vd-file-dialog-sidebar-item, .vd-file-dialog-breadcrumbs button) { border-radius: 0; }
+.desktop-body[data-theme="cyberpunk"] :is(.vd-file-dialog-row, .vd-file-dialog-sidebar-item):is(:hover, .selected, .active) { background: rgba(243, 230, 0, 0.07); box-shadow: inset 3px 0 0 var(--vd-accent); }
+.desktop-body[data-theme="cyberpunk"] :is(.vd-file-dialog-row, .vd-file-dialog-sidebar-item):is(:hover, .selected, .active) .vd-file-dialog-entry-name,
+.desktop-body[data-theme="cyberpunk"] .vd-file-dialog-sidebar-item:is(:hover, .active) { color: var(--vd-accent); }
+.desktop-body[data-theme="cyberpunk"] .vd-file-dialog-sidebar-item { font-family: var(--vd-cyber-display); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
+.desktop-body[data-theme="cyberpunk"] .vd-file-dialog-entry-type, .desktop-body[data-theme="cyberpunk"] .vd-file-dialog-entry-size { font-family: var(--vd-cyber-mono); }
+
+/* Scrollbars of the scrolling shell panels (the earlier rule covers window content and the start menu) and text selection. */
+.desktop-body[data-theme="cyberpunk"] :is(.vd-spotlight-results, .vd-widget-drawer, .vd-notification-center, .vd-file-dialog-list)::-webkit-scrollbar,
+.desktop-body[data-theme="cyberpunk"] :is(.vd-widget-drawer, .vd-notification-center, .vd-file-dialog) ::-webkit-scrollbar { width: 8px; height: 8px; }
+.desktop-body[data-theme="cyberpunk"] :is(.vd-spotlight-results, .vd-widget-drawer, .vd-notification-center, .vd-file-dialog-list)::-webkit-scrollbar-track,
+.desktop-body[data-theme="cyberpunk"] :is(.vd-widget-drawer, .vd-notification-center, .vd-file-dialog) ::-webkit-scrollbar-track { border-radius: 0; background: rgba(0, 240, 255, 0.05); }
+.desktop-body[data-theme="cyberpunk"] :is(.vd-spotlight-results, .vd-widget-drawer, .vd-notification-center, .vd-file-dialog-list)::-webkit-scrollbar-thumb,
+.desktop-body[data-theme="cyberpunk"] :is(.vd-widget-drawer, .vd-notification-center, .vd-file-dialog) ::-webkit-scrollbar-thumb { border-radius: 0; background: rgba(0, 240, 255, 0.4); }
+.desktop-body[data-theme="cyberpunk"] :is(.vd-spotlight-results, .vd-widget-drawer, .vd-notification-center, .vd-file-dialog-list)::-webkit-scrollbar-thumb:hover,
+.desktop-body[data-theme="cyberpunk"] :is(.vd-widget-drawer, .vd-notification-center, .vd-file-dialog) ::-webkit-scrollbar-thumb:hover { background: var(--vd-accent); }
+.desktop-body[data-theme="cyberpunk"] :is(.vd-taskbar, .vd-start-menu, .vd-spotlight, .vd-shortcuts-panel, .vd-modal, .vd-file-dialog, .vd-notification-center, .vd-widget-drawer, .vd-widget:not(.vd-sticky-note), .vd-context-menu) ::selection { background: var(--vd-accent); color: #000; }
+
+/* The scan hairline of the snap preview: the one new infinite animation of this round (one 1 px line, only while the overlay is shown). */
+.desktop-body[data-theme="cyberpunk"]:not([data-animations="false"]) .vd-snap-overlay::after { animation: vd-theme-cyberpunk-snap-scan 2.2s linear infinite; }
+@keyframes vd-theme-cyberpunk-snap-scan {
+    from { transform: translateY(-100%); opacity: 0.9; }
+    to { transform: translateY(100%); opacity: 0.2; }
+}
 
 /* === Motion: glitch-in and glitch-out, every duration 20 ms below the JS fallback of the registry === */
 .desktop-body[data-theme="cyberpunk"]:not([data-animations="false"]) .vd-window-opening { animation: vd-theme-cyberpunk-open 180ms linear both; }

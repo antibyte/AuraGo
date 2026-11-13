@@ -498,6 +498,40 @@
 .desktop-body[data-theme="voxel_world"]:not([data-animations="false"]) :is(.vd-clock-popup, .vd-notification-center, .vd-taskbar-thumbnail) { animation-timing-function: steps(3, end); }
 .desktop-body[data-theme="voxel_world"]:not([data-animations="false"]) .vd-notification-item.unread::before { animation: vd-theme-voxel-world-blink 600ms steps(1, end) 150ms 1 both; }
 
+/* ---- Polish round 5: secondary surfaces (block selection, slots, item frames, sign paper) ---- */
+/* Snap preview: the block-selection outline, hard dark frame with a pale inner line, no easing. */
+.desktop-body[data-theme="voxel_world"] .vd-snap-overlay { border: 3px solid #1e1e1e; border-radius: 0; background: rgba(255, 255, 255, .16); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .55); transition: none; }
+/* Selection: a pixel-dashed rubber band; a selected icon is a pressed inventory slot, brighter than a hovered one. */
+.desktop-body[data-theme="voxel_world"] .vd-desktop-selection-marquee { border: 2px dashed #ffffff; background: rgba(255, 255, 255, .12); }
+.desktop-body[data-theme="voxel_world"] .vd-icon.selected { background: rgba(139, 139, 139, .45); box-shadow: 0 0 0 2px #000000, inset 2px 2px 0 rgba(0, 0, 0, .45), inset -2px -2px 0 rgba(255, 255, 255, .35); }
+/* Widgets are item frames; the drawer is an inventory with slot cards. */
+.desktop-body[data-theme="voxel_world"] .vd-widget:not(.vd-sticky-note) { border: 2px solid #1e1e1e; border-radius: 0; background: #c6c6c6; box-shadow: inset 2px 2px 0 #fdfdfd, inset -2px -2px 0 #555555, 3px 3px 0 rgba(0, 0, 0, .3); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.desktop-body[data-theme="voxel_world"] .vd-widget-drawer { border: 2px solid #1e1e1e; border-radius: 0; background: #c6c6c6; box-shadow: var(--vd-theme-voxel-panel); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.desktop-body[data-theme="voxel_world"] .vd-widget-drawer-header { border-bottom: 2px solid #8b8b8b; }
+.desktop-body[data-theme="voxel_world"] .vd-widget-drawer-card { border: 2px solid #1e1e1e; border-radius: 0; background: #b4b4b4; box-shadow: var(--vd-theme-voxel-raised); transition: none; }
+.desktop-body[data-theme="voxel_world"] .vd-widget-drawer-card:hover { background: #dadada; box-shadow: inset 0 0 0 2px #476b3c; transform: none; }
+.desktop-body[data-theme="voxel_world"] .vd-widget-drawer-close { border-radius: 0; }
+/* Sticky notes: sign paper with a hard pixel edge and no gloss, tape or folds. */
+.desktop-body[data-theme="voxel_world"] .vd-sticky-paper { border-radius: 0; background-image: none; box-shadow: inset 0 0 0 2px rgba(60, 40, 10, .45), 4px 4px 0 rgba(0, 0, 0, .3); }
+.desktop-body[data-theme="voxel_world"] .vd-sticky-paper::before,
+.desktop-body[data-theme="voxel_world"] .vd-sticky-paper::after { display: none; }
+.desktop-body[data-theme="voxel_world"] .vd-sticky-menu { border-radius: 0; }
+/* Shortcuts: pixel key caps with a hard lower edge, rows with a green marker. */
+.desktop-body[data-theme="voxel_world"] .vd-shortcuts-list kbd { padding: 2px 7px; background: #b4b4b4; box-shadow: inset 2px 2px 0 #e6e6e6, inset -2px -2px 0 #555555, 0 2px 0 #1e1e1e; }
+.desktop-body[data-theme="voxel_world"] .vd-shortcuts-list li { border-left: 4px solid #476b3c; }
+/* Spotlight, switcher and file dialog: slot-style details. */
+.desktop-body[data-theme="voxel_world"] .vd-spotlight-results { border: 2px solid #1e1e1e; background: #e8e8e8; box-shadow: var(--vd-theme-voxel-sunken); }
+.desktop-body[data-theme="voxel_world"] .vd-spotlight-item-sub { color: #3d3d3d; opacity: 1; }
+.desktop-body[data-theme="voxel_world"] .vd-spotlight-label { color: #1b1b1b; font-weight: 900; }
+.desktop-body[data-theme="voxel_world"] .vd-switcher-icon { filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, .35)); }
+.desktop-body[data-theme="voxel_world"] .vd-file-dialog-sidebar-item.active { box-shadow: inset 4px 0 0 #476b3c, inset 0 0 0 2px #476b3c; }
+@keyframes vd-theme-voxel-world-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+.desktop-body[data-theme="voxel_world"]:not([data-animations="false"]) :is(.vd-spotlight, .vd-shortcuts-panel) { animation: vd-theme-voxel-world-place 140ms steps(3, end) both; }
+.desktop-body[data-theme="voxel_world"]:not([data-animations="false"]) .vd-snap-overlay { animation: vd-theme-voxel-world-fade 120ms steps(2, end) both; }
+
 /* ---- Touch: slots, buttons and the start block keep 44 px targets ---- */
 @media (pointer: coarse) {
     .desktop-body[data-theme="voxel_world"] .vd-start-button { min-width: 44px; min-height: 44px; }

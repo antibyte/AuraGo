@@ -526,6 +526,43 @@
 /* ---- Desktop ---- */
 .desktop-body[data-theme="black_gloss"] .vd-icon > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter) { filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.6)); }
 
+/* ---- Secondary surfaces: glass slabs with a top specular lip and one accent hairline ---- */
+.desktop-body[data-theme="black_gloss"] .vd-icon.selected { background: var(--vd-bgloss-band) top / 100% 100% no-repeat, rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.2); box-shadow: var(--vd-bgloss-edge), 0 6px 18px rgba(0, 0, 0, 0.5); }
+.desktop-body[data-theme="black_gloss"] .vd-desktop-selection-marquee { border-radius: 3px; border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.85); background: var(--vd-bgloss-band) top / 100% 100% no-repeat, rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.07); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2); }
+
+.desktop-body[data-theme="black_gloss"] .vd-snap-overlay { border: 1px solid rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.75); border-radius: 12px; background: var(--vd-bgloss-band) top / 100% 100% no-repeat, rgba(16, 16, 18, 0.16); box-shadow: var(--vd-bgloss-edge), 0 0 28px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.12); }
+
+/* Switcher: glass tiles; the active one gets a hairline under it and a soft floor glow. */
+.desktop-body[data-theme="black_gloss"] .vd-window-switcher { background: radial-gradient(ellipse at 50% 55%, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.8)); }
+.desktop-body[data-theme="black_gloss"] .vd-switcher-item { position: relative; border: 1px solid rgba(255, 255, 255, 0.1); background: var(--vd-bgloss-band) top / 100% 100% no-repeat, #121214; box-shadow: var(--vd-bgloss-edge), 0 10px 26px rgba(0, 0, 0, 0.55); transition: border-color 140ms ease, transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.desktop-body[data-theme="black_gloss"] .vd-switcher-item:hover { border-color: rgba(255, 255, 255, 0.24); }
+.desktop-body[data-theme="black_gloss"] .vd-switcher-item.active { border-color: rgba(255, 255, 255, 0.26); background: var(--vd-bgloss-band) top / 100% 100% no-repeat, #1a1a1d; box-shadow: var(--vd-bgloss-edge), 0 10px 26px rgba(0, 0, 0, 0.55), 0 12px 22px -8px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.45); }
+.desktop-body[data-theme="black_gloss"] .vd-switcher-item.active::after { content: ""; position: absolute; left: 18%; right: 18%; bottom: -1px; height: 2px; border-radius: 2px; background: var(--vd-accent); box-shadow: 0 0 10px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.7); pointer-events: none; }
+
+/* Spotlight and shortcuts: a glass bar and glossy keys. The sweep lives on a pseudo that the panel clips (overflow: hidden). */
+.desktop-body[data-theme="black_gloss"] :is(.vd-spotlight, .vd-shortcuts-panel) { position: relative; border-color: rgba(255, 255, 255, 0.14); background: var(--vd-bgloss-band) top / 100% 64px no-repeat, var(--vd-theme-panel-bg); box-shadow: var(--vd-theme-shadow-modal); }
+.desktop-body[data-theme="black_gloss"] .vd-spotlight::before { content: ""; position: absolute; inset: 0 auto auto 0; width: 45%; height: 64px; background: linear-gradient(105deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.16) 50%, rgba(255, 255, 255, 0)); opacity: 0; transform: translateX(-130%); pointer-events: none; }
+.desktop-body[data-theme="black_gloss"] .vd-spotlight-input { border-color: rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.4); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6); transition: border-color 160ms ease, box-shadow 160ms ease; }
+.desktop-body[data-theme="black_gloss"] .vd-spotlight-input:focus { border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.85); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.26); }
+.desktop-body[data-theme="black_gloss"] :is(.vd-spotlight-label, .vd-shortcuts-heading) { color: var(--vd-muted); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.desktop-body[data-theme="black_gloss"] .vd-spotlight-item { transition: background-color 120ms ease; }
+.desktop-body[data-theme="black_gloss"] :is(.vd-spotlight-item.active, .vd-spotlight-item:hover) { background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03)), #19191c; box-shadow: inset 2px 0 0 var(--vd-accent), inset 0 1px 0 rgba(255, 255, 255, 0.08); }
+.desktop-body[data-theme="black_gloss"] .vd-shortcuts-list kbd { min-width: 22px; padding: 2px 7px 3px; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; background: var(--vd-bgloss-band) top / 100% 100% no-repeat, #0a0a0b; box-shadow: var(--vd-bgloss-edge), 0 2px 0 rgba(0, 0, 0, 0.9); text-align: center; }
+.desktop-body[data-theme="black_gloss"] .vd-shortcuts-list li { border-bottom-color: rgba(255, 255, 255, 0.06); }
+.desktop-body[data-theme="black_gloss"] .vd-shortcuts-close { border-color: rgba(255, 255, 255, 0.14); background: var(--vd-bgloss-band) top / 100% 100% no-repeat, #141416; box-shadow: var(--vd-bgloss-edge); }
+
+/* Widgets and drawer: slabs with the lip; the drawer cards take the hairline hover. */
+.desktop-body[data-theme="black_gloss"] .vd-widget { border-color: rgba(255, 255, 255, 0.1); background: var(--vd-bgloss-band) top / 100% 70px no-repeat, rgba(14, 14, 16, 0.82); box-shadow: var(--vd-bgloss-edge), 0 14px 34px rgba(0, 0, 0, 0.5); }
+.desktop-body[data-theme="black_gloss"] .vd-widget-drawer { border-left-color: rgba(255, 255, 255, 0.14); background: var(--vd-bgloss-band) top / 100% 80px no-repeat, #0c0c0e; box-shadow: var(--vd-bgloss-edge), -18px 0 48px rgba(0, 0, 0, 0.55); }
+.desktop-body[data-theme="black_gloss"] .vd-widget-drawer-card { position: relative; border-color: rgba(255, 255, 255, 0.08); background: var(--vd-bgloss-band) top / 100% 100% no-repeat, #121214; box-shadow: var(--vd-bgloss-edge); transition: border-color 140ms ease, background-color 140ms ease; }
+.desktop-body[data-theme="black_gloss"] .vd-widget-drawer-card:hover { border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.5); box-shadow: var(--vd-bgloss-edge), 0 0 14px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.12); }
+.desktop-body[data-theme="black_gloss"]  .vd-widget-manager { border-color: rgba(255, 255, 255, 0.14); }
+.desktop-body[data-theme="black_gloss"] .vd-wm-header { background: var(--vd-bgloss-band) top / 100% 100% no-repeat, var(--vd-theme-chrome-bg); box-shadow: var(--vd-bgloss-edge); }
+
+/* Scrollbars (shell panels; Chrome honours scrollbar-color over ::-webkit-scrollbar) and selection in the accent. */
+.desktop-body[data-theme="black_gloss"] :is(.vd-scroll, .vd-start-apps, .vd-notification-list) { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.3) transparent; }
+.desktop-body[data-theme="black_gloss"] :is(.vd-taskbar, .vd-start-menu, .vd-context-menu, .vd-spotlight, .vd-shortcuts-panel, .vd-modal, .vd-file-dialog, .vd-notification-center, .vd-widget, .vd-widget-drawer) ::selection { background: var(--vd-accent); color: var(--vd-accent-contrast); }
+
 /* ---- Motion: every animation is gated; durations sit 20 ms under the registry's fallback timers ---- */
 @keyframes vd-theme-black-gloss-rise {
     from { opacity: 0; transform: translateY(6px) scale(0.98); }
@@ -569,12 +606,20 @@
     50% { opacity: 0.45; }
 }
 
+@keyframes vd-theme-black-gloss-slab {
+    from { opacity: 0; transform: translateY(8px) scale(0.97); }
+    to { opacity: 1; transform: none; }
+}
+
 /* One-shot states: the titlebar sweep and the task line trigger when .active is applied; the toast sweep on arrival.
  * They run on pseudo-elements of their own elements, never on a window state class. */
 .desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) .vd-window.active > .vd-window-titlebar::before { animation: vd-theme-black-gloss-glide 700ms cubic-bezier(0.3, 0.6, 0.2, 1) both; will-change: transform, opacity; }
 .desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) .vd-task-button.active::before { animation: vd-theme-black-gloss-draw 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) .vd-task-button.active::after { animation: vd-theme-black-gloss-breathe 5.2s ease-in-out infinite; }
 .desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) .vd-toast::before { animation: vd-theme-black-gloss-sweep 900ms cubic-bezier(0.3, 0.6, 0.2, 1) 120ms both; }
+
+.desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) .vd-spotlight { animation: vd-theme-black-gloss-slab 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) .vd-spotlight::before { animation: vd-theme-black-gloss-sweep 800ms cubic-bezier(0.3, 0.6, 0.2, 1) 120ms both; }
 
 .desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) :is(.vd-window-opening, .vd-context-menu-opening) { animation: vd-theme-black-gloss-rise 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .desktop-body[data-theme="black_gloss"]:not([data-animations="false"]) .vd-context-menu-opening { animation-duration: 130ms; }

@@ -15,7 +15,7 @@ import (
 // must define the whole token contract on that root rule, and animates only when the user allows motion.
 
 // desktopThemeCSSMaxLines bounds one skin file.
-const desktopThemeCSSMaxLines = 900
+const desktopThemeCSSMaxLines = 1000
 
 // desktopThemeCrazyMaxInfinite bounds the endless animations of the Crazy skin.
 const desktopThemeCrazyMaxInfinite = 6

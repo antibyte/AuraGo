@@ -264,6 +264,7 @@
 
 .vd-spotlight-label,
 .vd-shortcuts-heading {
+    display: block;
     padding: 12px 14px 0;
     font-weight: 600;
 }
@@ -676,6 +677,11 @@
     text-align: left;
     cursor: grab;
     color: inherit;
+}
+
+.vd-space-window-card:focus-visible {
+    outline: 2px solid var(--vd-accent);
+    outline-offset: 2px;
 }
 
 .vd-space-window-card.minimized {

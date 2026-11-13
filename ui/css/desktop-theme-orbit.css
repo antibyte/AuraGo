@@ -777,6 +777,52 @@
     100% { opacity: .5; }
 }
 
+/* === Secondary surfaces: docking frame, scan box and holo cards share one reticle (::before, four corner ticks) === */
+.desktop-body[data-theme="orbit"] :is(.vd-snap-overlay, .vd-desktop-selection-marquee, .vd-switcher-item.active, .vd-widget)::before {
+    --vd-orbit-c: 12px;
+    content: "";
+    position: absolute;
+    inset: var(--vd-orbit-in, 5px);
+    background: linear-gradient(#5ce1ff, #5ce1ff) 0 0 / var(--vd-orbit-c) 1px, linear-gradient(#5ce1ff, #5ce1ff) 0 0 / 1px var(--vd-orbit-c), linear-gradient(#5ce1ff, #5ce1ff) 100% 0 / var(--vd-orbit-c) 1px, linear-gradient(#5ce1ff, #5ce1ff) 100% 0 / 1px var(--vd-orbit-c), linear-gradient(#5ce1ff, #5ce1ff) 0 100% / var(--vd-orbit-c) 1px, linear-gradient(#5ce1ff, #5ce1ff) 0 100% / 1px var(--vd-orbit-c), linear-gradient(#5ce1ff, #5ce1ff) 100% 100% / var(--vd-orbit-c) 1px, linear-gradient(#5ce1ff, #5ce1ff) 100% 100% / 1px var(--vd-orbit-c);
+    background-repeat: no-repeat;
+    pointer-events: none;
+}
+
+.desktop-body[data-theme="orbit"] .vd-snap-overlay { --vd-orbit-in: 8px; border: 1px solid rgba(92, 225, 255, .55); border-radius: 12px; background: repeating-linear-gradient(0deg, rgba(92, 225, 255, .05) 0 1px, transparent 1px 4px), rgba(92, 225, 255, .08); box-shadow: inset 0 0 40px rgba(92, 225, 255, .1), 0 0 24px rgba(92, 225, 255, .2); }
+.desktop-body[data-theme="orbit"] .vd-desktop-selection-marquee { --vd-orbit-in: -1px; border: 1px solid rgba(92, 225, 255, .45); border-radius: 2px; background: repeating-linear-gradient(0deg, rgba(92, 225, 255, .06) 0 1px, transparent 1px 4px), rgba(92, 225, 255, .07); }
+.desktop-body[data-theme="orbit"] .vd-desktop-selection-marquee::before { --vd-orbit-c: 9px; }
+.desktop-body[data-theme="orbit"] .vd-icon.selected::before { filter: drop-shadow(0 0 3px #5ce1ff); }
+
+.desktop-body[data-theme="orbit"] .vd-window-switcher { background: radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(0, 0, 8, .55) 100%), rgba(2, 4, 14, .5); }
+.desktop-body[data-theme="orbit"] .vd-switcher-item { position: relative; border: 1px solid rgba(140, 200, 255, .18); border-radius: 12px; background: rgba(10, 16, 36, .78); box-shadow: inset 0 1px 0 rgba(210, 235, 255, .08), 0 14px 34px -10px rgba(0, 0, 8, .8); transition: border-color 140ms ease, background-color 140ms ease; }
+.desktop-body[data-theme="orbit"] .vd-switcher-item:hover { border-color: rgba(92, 225, 255, .45); }
+.desktop-body[data-theme="orbit"] .vd-switcher-item.active { --vd-orbit-in: 4px; border-color: rgba(92, 225, 255, .6); background: rgba(92, 225, 255, .1); box-shadow: inset 0 1px 0 rgba(210, 235, 255, .12), 0 0 22px rgba(92, 225, 255, .22), 0 14px 34px -10px rgba(0, 0, 8, .8); }
+.desktop-body[data-theme="orbit"] .vd-switcher-item.active::before { --vd-orbit-c: 8px; }
+.desktop-body[data-theme="orbit"] .vd-switcher-item.active::after { content: ""; position: absolute; left: 50%; bottom: -3px; width: 5px; height: 5px; margin-left: -2.5px; background: #ffb547; box-shadow: 0 0 8px #ffb547; transform: rotate(45deg); pointer-events: none; }
+.desktop-body[data-theme="orbit"] .vd-switcher-label { font: 600 .9rem/1.2 var(--vd-orbit-display); letter-spacing: .08em; text-transform: uppercase; }
+
+/* Spotlight console and shortcuts: cyan label, a bar on the active row, holo key caps. */
+.desktop-body[data-theme="orbit"] :is(.vd-spotlight-label, .vd-shortcuts-heading) { color: #5ce1ff; font-size: .8rem; }
+.desktop-body[data-theme="orbit"] .vd-spotlight-results { border-top-color: rgba(140, 200, 255, .16); }
+.desktop-body[data-theme="orbit"] .vd-spotlight-item { border-bottom-color: rgba(140, 200, 255, .08); border-radius: 0; transition: background-color 120ms ease; }
+.desktop-body[data-theme="orbit"] .vd-spotlight-item.active { background: rgba(92, 225, 255, .12); color: #fff; box-shadow: inset 2px 0 0 #5ce1ff, inset 0 0 24px rgba(92, 225, 255, .06); }
+.desktop-body[data-theme="orbit"] .vd-spotlight-item-sub { font-family: var(--vd-orbit-display); font-size: .76rem; letter-spacing: .1em; text-transform: uppercase; }
+.desktop-body[data-theme="orbit"] .vd-spotlight-item.active .vd-spotlight-item-sub { color: #8fdcf5; }
+.desktop-body[data-theme="orbit"] .vd-shortcuts-list li { border-bottom-color: rgba(140, 200, 255, .1); }
+.desktop-body[data-theme="orbit"] .vd-shortcuts-list kbd { padding: 2px 7px; border: 1px solid rgba(92, 225, 255, .4); border-radius: 4px; background: rgba(92, 225, 255, .08); box-shadow: inset 0 -2px 0 rgba(92, 225, 255, .22); color: #cfe9ff; }
+
+/* Widgets are HUD instruments (reticle from above, hairline header); the drawer is a HUD side panel. */
+.desktop-body[data-theme="orbit"] .vd-widget { --vd-orbit-in: 4px; --vd-orbit-c: 8px; border-color: rgba(140, 200, 255, .2); background: rgba(10, 16, 36, .72); box-shadow: 0 16px 40px -14px rgba(0, 0, 8, .8), inset 0 1px 0 rgba(210, 235, 255, .08); }
+.desktop-body[data-theme="orbit"] .vd-widget::before { opacity: .55; }
+.desktop-body[data-theme="orbit"] :is(.vd-widget-drawer-title, .vd-wm-title) { font-family: var(--vd-orbit-display); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.desktop-body[data-theme="orbit"] :is(.vd-widget-drawer-title, .vd-wm-title) { color: #5ce1ff; }
+.desktop-body[data-theme="orbit"] .vd-widget-drawer { border-left: 1px solid rgba(92, 225, 255, .35); background: linear-gradient(90deg, rgba(92, 225, 255, .06), transparent 40px), rgba(8, 12, 28, .94); box-shadow: -20px 0 50px -16px rgba(0, 0, 8, .8), -1px 0 14px rgba(92, 225, 255, .14); }
+.desktop-body[data-theme="orbit"] .vd-widget-drawer-header { padding-bottom: 8px; border-bottom: 1px solid rgba(92, 225, 255, .22); }
+.desktop-body[data-theme="orbit"] .vd-widget-drawer-card { border-color: rgba(140, 200, 255, .14); background: rgba(92, 225, 255, .04); transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease; }
+.desktop-body[data-theme="orbit"] .vd-widget-drawer-card:hover { border-color: rgba(92, 225, 255, .45); background: rgba(92, 225, 255, .1); box-shadow: inset 2px 0 0 #5ce1ff; }
+.desktop-body[data-theme="orbit"] .vd-widget-manager { border-color: rgba(140, 200, 255, .22); background: rgba(12, 18, 40, .94); }
+.desktop-body[data-theme="orbit"] .vd-scroll { scrollbar-width: thin; scrollbar-color: rgba(92, 225, 255, .4) transparent; }
+
 /* HUD details: reticle snap, toast sweep, radar ping (twice), and one slow beacon on the focused task button's dot. */
 @keyframes vd-theme-orbit-tick-in {
     from { opacity: 0; transform: scale(1.3); }
@@ -804,6 +850,9 @@
 .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-toast::before { animation: vd-theme-orbit-sweep 700ms cubic-bezier(.45, 0, .25, 1) 80ms both; }
 .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-notification-item.unread::after { animation: vd-theme-orbit-ping 900ms ease-out 120ms 2 forwards; }
 .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-task-button.active::after { animation: vd-theme-orbit-beacon 3.6s ease-in-out infinite; }
+
+.desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-spotlight { transform-origin: 50% 0; animation: vd-theme-orbit-unfold 220ms cubic-bezier(.2, .9, .25, 1) both; }
+.desktop-body[data-theme="orbit"]:not([data-animations="false"]) :is(.vd-snap-overlay, .vd-desktop-selection-marquee)::before { animation: vd-theme-orbit-tick-in 180ms cubic-bezier(.2, .9, .25, 1) both; }
 
 /* Reduced transparency: the glass turns into solid panels without the backdrop blur. */
 @media (prefers-reduced-transparency: reduce) {

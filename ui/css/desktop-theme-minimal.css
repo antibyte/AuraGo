@@ -717,6 +717,32 @@
 .desktop-body[data-theme="minimal"] .vd-switch input:checked + span::before { background: var(--vd-mat-primary-text, var(--vd-accent-contrast)); transform: translateX(18px); }
 .desktop-body[data-theme="minimal"] .vd-switch input:focus-visible + span { outline: 2px solid var(--vd-accent); outline-offset: 2px; }
 
+/* ---- Polish round 5: secondary surfaces, hairlines only ---- */
+.desktop-body[data-theme="minimal"] :is(.vd-spotlight, .vd-shortcuts-panel, .vd-widget-drawer) { border: 1px solid var(--vd-border); border-radius: 10px; background: var(--vd-theme-panel-bg); box-shadow: var(--ds-elevation-4); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.desktop-body[data-theme="minimal"] .vd-spotlight-input { border-width: 0 0 1px; border-radius: 0; padding-left: 2px; }
+.desktop-body[data-theme="minimal"] .vd-spotlight-input:focus { box-shadow: none; }
+.desktop-body[data-theme="minimal"] .vd-spotlight-label { color: var(--vd-theme-muted); font-weight: 500; letter-spacing: var(--vd-minimal-caps); text-transform: uppercase; }
+.desktop-body[data-theme="minimal"] .vd-spotlight-item { border-radius: 4px; }
+.desktop-body[data-theme="minimal"] .vd-spotlight-item:hover { background: var(--vd-theme-control-hover); }
+.desktop-body[data-theme="minimal"] .vd-spotlight-item.active { background: transparent; box-shadow: inset 2px 0 0 var(--vd-accent); }
+.desktop-body[data-theme="minimal"] .vd-spotlight-item-sub { color: var(--vd-theme-muted); opacity: 1; }
+.desktop-body[data-theme="minimal"] .vd-shortcuts-list kbd { padding: 1px 7px; border: 1px solid var(--vd-theme-border-strong); border-radius: 4px; background: transparent; color: var(--vd-text); font-size: 11px; }
+.desktop-body[data-theme="minimal"] .vd-shortcuts-list li { background: transparent; border-bottom: 1px solid var(--vd-border); border-radius: 0; }
+.desktop-body[data-theme="minimal"] .vd-widget:not(.vd-sticky-note) { border: 1px solid var(--vd-border); border-radius: 8px; background: var(--vd-theme-panel-bg); box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.desktop-body[data-theme="minimal"] .vd-widget-drawer-header { border-bottom: 1px solid var(--vd-border); }
+.desktop-body[data-theme="minimal"] .vd-widget-drawer-card { border: 1px solid var(--vd-border); border-radius: 6px; background: transparent; box-shadow: none; transition: border-color 160ms ease; }
+.desktop-body[data-theme="minimal"] .vd-widget-drawer-card:hover { border-color: var(--vd-theme-border-strong); background: transparent; transform: none; }
+/* Sticky notes: quiet paper with a hairline instead of the bright yellow. */
+.desktop-body[data-theme="minimal"] .vd-widget.vd-sticky-note { color: var(--vd-text); }
+.desktop-body[data-theme="minimal"] .vd-sticky-paper { border: 1px solid var(--vd-theme-border-strong); border-radius: 2px; background: var(--vd-theme-panel-bg-strong); box-shadow: none; }
+.desktop-body[data-theme="minimal"] .vd-sticky-paper::before,
+.desktop-body[data-theme="minimal"] .vd-sticky-paper::after { display: none; }
+.desktop-body[data-theme="minimal"] .vd-file-dialog-sidebar-item { border-radius: 4px; }
+.desktop-body[data-theme="minimal"] .vd-file-dialog-sidebar-item.active { background: transparent; box-shadow: inset 2px 0 0 var(--vd-accent); color: var(--vd-text); }
+.desktop-body[data-theme="minimal"] .vd-switcher-item { border: 1px solid var(--vd-border); border-radius: 6px; background: var(--vd-theme-panel-bg); box-shadow: none; }
+.desktop-body[data-theme="minimal"] .vd-switcher-item.active { border-color: var(--vd-accent); transform: none; }
+.desktop-body[data-theme="minimal"] .vd-icon.selected .vd-icon-label { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+
 /* A letter stands in for a missing icon: plain ink instead of the shared accent-to-amber gradient. */
 .desktop-body[data-theme="minimal"] .vd-icon-letter { border-radius: 6px; background: var(--vd-text); box-shadow: none; color: var(--vd-bg); }
 
@@ -813,6 +839,9 @@
 .desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-task-button { animation: vd-theme-minimal-fade-in 160ms ease-out both; }
 .desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-task-button.active::after { transform-origin: left center; animation: vd-theme-minimal-hairline 140ms ease-out both; }
 .desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-icon { animation-name: vd-theme-minimal-fade-in; animation-duration: 220ms; animation-timing-function: ease-out; }
+
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-spotlight { animation: vd-theme-minimal-menu-in 140ms ease-out both; }
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-snap-overlay { animation: vd-theme-minimal-fade-in 120ms linear both; }
 
 /* The compact touch layout opens the start menu as a sheet with its own slide; only the popover fades in. */
 @media (min-width: 821px), (hover: hover) and (pointer: fine) {
