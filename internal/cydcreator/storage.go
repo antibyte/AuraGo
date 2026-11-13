@@ -14,10 +14,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	_ "modernc.org/sqlite"
 
 	"aurago/internal/dbutil"
-
-	_ "modernc.org/sqlite"
 )
 
 // timeLayout is the fixed-width RFC 3339 UTC form of every stored time, so
@@ -82,8 +81,7 @@ func migrateStore(db *sql.DB, path string) error {
 	}
 	if version >= 1 && version < target && path != "" && path != ":memory:" {
 		backup := fmt.Sprintf("%s.v%d.bak", path, version)
-		_ = os.Remove(backup)
-		if _, err := db.Exec(`VACUUM INTO ?`, backup); err != nil {
+		if _, err := dbutil.BackupSQLite(context.Background(), db, backup); err != nil {
 			return fmt.Errorf("back up cyd creator database before migration: %w", err)
 		}
 	}

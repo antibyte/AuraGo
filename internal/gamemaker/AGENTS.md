@@ -36,6 +36,8 @@ revision publication and standalone export for Phaser and Three.js games.
 - `source_diagnostics.go`, `validation_reuse.go`: private source mapping and
   exact-build validation reuse; explicit tool validation always runs afresh.
 
+- Migration backups use `dbutil.BackupSQLite`: owner-only staging and file permissions/Windows ACL, WAL-inclusive copy, sync and atomic publication. Backup failure aborts migration. Keep existing copies; collisions insert a unique suffix before the extension. Restore guidance: `documentation/migration-backups.md`.
+
 ## Local Contracts
 
 - Every bundled file import passes `secureJoin` before compatibility loaders or

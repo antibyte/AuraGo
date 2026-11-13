@@ -10,10 +10,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	_ "modernc.org/sqlite"
 
 	"aurago/internal/dbutil"
-
-	_ "modernc.org/sqlite"
 )
 
 type Ledger struct {
@@ -231,13 +230,7 @@ func (l *Ledger) backupBeforeV4(ctx context.Context) error {
 		return err
 	}
 	backupPath := l.path + ".v3.bak"
-	if _, err := os.Stat(backupPath); err == nil {
-		return nil
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("inspect virtual computers v3 migration backup: %w", err)
-	}
-	escaped := strings.ReplaceAll(backupPath, "'", "''")
-	if _, err := l.db.ExecContext(ctx, "VACUUM INTO '"+escaped+"'"); err != nil {
+	if _, err := dbutil.BackupSQLite(ctx, l.db, backupPath); err != nil {
 		return fmt.Errorf("backup virtual computers database before v4 migration: %w", err)
 	}
 	return nil
@@ -514,13 +507,7 @@ func (l *Ledger) backupV1(ctx context.Context) error {
 		return nil
 	}
 	backupPath := l.path + ".v1.bak"
-	if _, err := os.Stat(backupPath); err == nil {
-		return nil
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("inspect virtual computers migration backup: %w", err)
-	}
-	escaped := strings.ReplaceAll(backupPath, "'", "''")
-	if _, err := l.db.ExecContext(ctx, "VACUUM INTO '"+escaped+"'"); err != nil {
+	if _, err := dbutil.BackupSQLite(ctx, l.db, backupPath); err != nil {
 		return fmt.Errorf("backup virtual computers database before migration: %w", err)
 	}
 	return nil

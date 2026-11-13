@@ -6,11 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"aurago/internal/dbutil"
 )
 
 const (
@@ -406,11 +406,7 @@ func (ps *LooperPresetStore) backupBeforeV2(ctx context.Context) error {
 		return nil
 	}
 	dest := ps.dbPath + ".looper-v2.bak"
-	if _, err := os.Stat(dest); err == nil {
-		return nil
-	}
-	escaped := strings.ReplaceAll(filepath.ToSlash(dest), "'", "''")
-	if _, err := ps.db.ExecContext(ctx, `VACUUM INTO '`+escaped+`'`); err != nil {
+	if _, err := dbutil.BackupSQLite(ctx, ps.db, dest); err != nil {
 		return fmt.Errorf("vacuum into %s: %w", dest, err)
 	}
 	return nil

@@ -16,12 +16,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+	_ "modernc.org/sqlite"
 
 	"aurago/internal/dbutil"
 	"aurago/internal/desktop"
 	"aurago/internal/security"
-
-	_ "modernc.org/sqlite"
 )
 
 const storeSource = "desktop-store"
@@ -275,13 +274,12 @@ const storeMigrationBackupSuffix = ".before-install-journal.bak"
 
 // storeMigrationBackup writes the backup; tests replace it to simulate a
 // failure.
-var storeMigrationBackup = func(ctx context.Context, db *sql.DB, path string) error {
-	_, err := db.ExecContext(ctx, `VACUUM INTO ?`, path)
-	return err
-}
+var storeMigrationBackup = dbutil.BackupSQLite
 
 func (s *Service) migrateLocked(ctx context.Context) error {
-	s.backupBeforeMigrationLocked(ctx)
+	if err := s.backupBeforeMigrationLocked(ctx); err != nil {
+		return err
+	}
 	stmts := []string{
 		`CREATE TABLE IF NOT EXISTS desktop_store_apps (
 			app_id TEXT PRIMARY KEY,
@@ -348,38 +346,23 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 	return nil
 }
 
-// backupBeforeMigrationLocked copies an existing Store database before a
-// migration step changes its schema. A fresh database, an up-to-date one and
-// an existing backup are left alone; a failed backup is logged and the
-// migration goes on.
-func (s *Service) backupBeforeMigrationLocked(ctx context.Context) {
+// backupBeforeMigrationLocked aborts before schema changes unless the required
+// private snapshot is published. Fresh/current databases need no migration copy.
+func (s *Service) backupBeforeMigrationLocked(ctx context.Context) error {
 	pending, err := s.pendingMigrationStepsLocked(ctx)
 	if err != nil {
-		s.logger().Warn("Desktop store could not check its schema before migrating; no backup taken", "error", err)
-		return
+		return fmt.Errorf("inspect Store migration: %w", err)
 	}
 	if len(pending) == 0 {
-		return
+		return nil
 	}
 	backup := s.cfg.DBPath + storeMigrationBackupSuffix
-	if _, err := os.Lstat(backup); err == nil {
-		s.logger().Info("Desktop store migration keeps the existing backup", "backup", backup, "steps", pending)
-		return
-	} else if !os.IsNotExist(err) {
-		s.logger().Warn("Desktop store could not check its migration backup; migrating without a new one", "backup", backup, "error", err)
-		return
+	actual, err := storeMigrationBackup(ctx, s.db, backup)
+	if err != nil {
+		return fmt.Errorf("back up Store before migration: %w", err)
 	}
-	if err := storeMigrationBackup(ctx, s.db, backup); err != nil {
-		// The file did not exist before this call, so anything there now is a
-		// partial copy; it must never count as an existing backup.
-		if removeErr := os.Remove(backup); removeErr != nil && !os.IsNotExist(removeErr) {
-			s.logger().Warn("Desktop store could not remove a partial migration backup", "backup", backup, "error", removeErr)
-		}
-		s.logger().Warn("Desktop store migration backup failed; migrating anyway", "backup", backup, "steps", pending, "error", err)
-		return
-	}
-	_ = os.Chmod(backup, 0o600)
-	s.logger().Info("Desktop store backed up before migrating", "backup", backup, "steps", pending)
+	s.logger().Info("Desktop store backed up before migrating", "backup", actual, "steps", pending)
+	return nil
 }
 
 // pendingMigrationStepsLocked lists the schema steps migrateLocked will run on

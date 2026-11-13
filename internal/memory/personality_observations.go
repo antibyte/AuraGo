@@ -1,15 +1,17 @@
 package memory
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 	"time"
+
+	"aurago/internal/dbutil"
 )
 
 var ErrStalePersonalityObservation = errors.New("personality observation was superseded")
@@ -117,11 +119,8 @@ func (s *SQLiteMemory) backupPersonalityMigration() error {
 		return nil
 	} // in-memory stores have no previous deployment
 	backup := path + ".personality-dynamics-v1-" + rand.Text() + ".bak"
-	if _, err = s.db.Exec(`VACUUM main INTO ?`, backup); err != nil {
+	if _, err = dbutil.BackupSQLite(context.Background(), s.db, backup); err != nil {
 		return fmt.Errorf("back up personality database before migration: %w", err)
-	}
-	if err = os.Chmod(backup, 0600); err != nil {
-		return fmt.Errorf("protect personality migration backup: %w", err)
 	}
 	return nil
 }
