@@ -50,31 +50,31 @@
 
         const el = core.el('<div class="ed-editor">' +
             '<header class="ed-head">' +
-            '<button type="button" class="ed-icon-btn ed-back" data-ed-cmd="home" title="' + esc(t('easydrag.ui.back_home')) + '" aria-label="' + esc(t('easydrag.ui.back_home')) + '">' + core.icon('arrow-left') + '</button>' +
+            '<button type="button" class="ed-icon-btn ed-back" data-ed-cmd="home" title="' + esc(t('easydrag.ui.back_home')) + '" aria-label="' + esc(t('easydrag.ui.back_home')) + '">' + ED.icons.of('back') + '</button>' +
             '<div class="ed-title"><input class="ed-title-input" data-ed-name maxlength="120" spellcheck="false" aria-label="' + esc(t('easydrag.ui.flow_name')) + '"><span class="ed-state" data-ed-state></span><span class="ed-revision" data-ed-revision data-ed-revisions></span><span class="ed-foot-item ed-save" data-ed-save aria-live="polite"></span></div>' +
             '<div class="ed-head-history" role="group" data-ed-history-host></div>' +
             '<div class="ed-head-actions">' +
-            '<button type="button" class="ed-btn ed-btn--ghost" data-ed-cmd="runs" aria-pressed="false">' + core.icon('history') + '<span>' + esc(t('easydrag.ui.runs_title')) + '</span></button>' +
-            '<button type="button" class="ed-btn" data-ed-cmd="test" title="' + esc(t('easydrag.ui.test_draft') + ' (' + core.shortcut('Ctrl+Enter') + ')') + '">' + core.icon('flask') + '<span>' + esc(t('easydrag.ui.test_draft')) + '</span></button>' +
+            '<button type="button" class="ed-btn ed-btn--ghost" data-ed-cmd="runs" aria-pressed="false">' + ED.icons.of('runs') + '<span>' + esc(t('easydrag.ui.runs_title')) + '</span></button>' +
+            '<button type="button" class="ed-btn" data-ed-cmd="test" title="' + esc(t('easydrag.ui.test_draft') + ' (' + core.shortcut('Ctrl+Enter') + ')') + '">' + ED.icons.of('test') + '<span>' + esc(t('easydrag.ui.test_draft')) + '</span></button>' +
             // Below 900 px the text of Stop and of the Active switch (below) is hidden: the name and the tooltip say the same words.
-            '<button type="button" class="ed-btn ed-btn--danger" data-ed-cmd="cancel" title="' + esc(t('easydrag.ui.run_cancel')) + '" aria-label="' + esc(t('easydrag.ui.run_cancel')) + '" hidden>' + core.icon('player-stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button>' +
-            '<button type="button" class="ed-btn ed-btn--primary" data-ed-cmd="publish">' + core.icon('rocket') + '<span>' + esc(t('easydrag.ui.publish')) + '</span></button>' +
-            '<button type="button" class="ed-btn" data-ed-cmd="run-now" hidden>' + core.icon('play') + '<span>' + esc(t('easydrag.ui.run_now')) + '</span></button>' +
+            '<button type="button" class="ed-btn ed-btn--danger" data-ed-cmd="cancel" title="' + esc(t('easydrag.ui.run_cancel')) + '" aria-label="' + esc(t('easydrag.ui.run_cancel')) + '" hidden>' + ED.icons.of('stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button>' +
+            '<button type="button" class="ed-btn ed-btn--primary" data-ed-cmd="publish">' + ED.icons.of('publish') + '<span>' + esc(t('easydrag.ui.publish')) + '</span></button>' +
+            '<button type="button" class="ed-btn" data-ed-cmd="run-now" hidden>' + ED.icons.of('run') + '<span>' + esc(t('easydrag.ui.run_now')) + '</span></button>' +
             '<button type="button" class="ed-switch-btn" role="switch" aria-checked="false" data-ed-cmd="active" title="' + esc(t('easydrag.ui.active')) + '" aria-label="' + esc(t('easydrag.ui.active')) + '"><span class="ed-switch" aria-hidden="true"><span></span></span><span>' + esc(t('easydrag.ui.active')) + '</span></button>' +
-            '<button type="button" class="ed-icon-btn" data-ed-cmd="more" aria-label="' + esc(t('easydrag.ui.more')) + '" title="' + esc(t('easydrag.ui.more')) + '">' + core.icon('dots') + '</button>' +
+            '<button type="button" class="ed-icon-btn" data-ed-cmd="more" aria-label="' + esc(t('easydrag.ui.more')) + '" title="' + esc(t('easydrag.ui.more')) + '">' + ED.icons.of('more') + '</button>' +
             '</div></header>' +
-            '<div class="ed-runview-banner" role="status" hidden>' + core.icon('history') + '<span data-ed-runview-text></span>' +
-            '<button type="button" class="ed-btn ed-btn--small" data-ed-cmd="approval-review" hidden>' + core.icon('check') + '<span>' + esc(t('easydrag.ui.approval_review')) + '</span></button>' +
-            '<button type="button" class="ed-btn ed-btn--small ed-btn--danger" data-ed-cmd="stop-viewed" hidden>' + core.icon('player-stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button>' +
-            '<button type="button" class="ed-btn ed-btn--small" data-ed-cmd="rerun-viewed" hidden>' + core.icon('flask') + '<span>' + esc(t('easydrag.ui.run_rerun_test')) + '</span></button>' +
-            '<button type="button" class="ed-btn ed-btn--small" data-ed-cmd="exit-run-view">' + core.icon('arrow-left') + '<span>' + esc(t('easydrag.ui.run_view_exit')) + '</span></button></div>' +
+            '<div class="ed-runview-banner" role="status" hidden>' + ED.icons.of('runs') + '<span data-ed-runview-text></span>' +
+            '<button type="button" class="ed-btn ed-btn--small" data-ed-cmd="approval-review" hidden>' + ED.icons.of('approve') + '<span>' + esc(t('easydrag.ui.approval_review')) + '</span></button>' +
+            '<button type="button" class="ed-btn ed-btn--small ed-btn--danger" data-ed-cmd="stop-viewed" hidden>' + ED.icons.of('stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button>' +
+            '<button type="button" class="ed-btn ed-btn--small" data-ed-cmd="rerun-viewed" hidden>' + ED.icons.of('test') + '<span>' + esc(t('easydrag.ui.run_rerun_test')) + '</span></button>' +
+            '<button type="button" class="ed-btn ed-btn--small" data-ed-cmd="exit-run-view">' + ED.icons.of('back') + '<span>' + esc(t('easydrag.ui.run_view_exit')) + '</span></button></div>' +
             '<div class="ed-body"><nav class="ed-rail" aria-label="' + esc(t('easydrag.ui.rail_label')) + '">' +
-            '<button type="button" class="ed-icon-btn" data-ed-cmd="palette" aria-pressed="true" title="' + esc(t('easydrag.ui.palette_title')) + ' (' + core.shortcut('Ctrl+K') + ')" aria-label="' + esc(t('easydrag.ui.palette_title')) + '">' + core.icon('plus') + '</button>' +
-            '<button type="button" class="ed-icon-btn" data-ed-cmd="home" title="' + esc(t('easydrag.ui.back_home')) + '" aria-label="' + esc(t('easydrag.ui.back_home')) + '">' + core.icon('grid') + '</button>' +
-            '<button type="button" class="ed-icon-btn" data-ed-cmd="templates" title="' + esc(t('easydrag.ui.home_templates')) + '" aria-label="' + esc(t('easydrag.ui.home_templates')) + '">' + core.icon('sparkles') + '</button>' +
-            '<button type="button" class="ed-icon-btn" data-ed-cmd="groups" title="' + esc(t('easydrag.ui.groups')) + '" aria-label="' + esc(t('easydrag.ui.groups')) + '">' + core.icon('grid') + '</button>' +
+            '<button type="button" class="ed-icon-btn" data-ed-cmd="palette" aria-pressed="true" title="' + esc(t('easydrag.ui.palette_title')) + ' (' + core.shortcut('Ctrl+K') + ')" aria-label="' + esc(t('easydrag.ui.palette_title')) + '">' + ED.icons.of('palette') + '</button>' +
+            '<button type="button" class="ed-icon-btn" data-ed-cmd="home" title="' + esc(t('easydrag.ui.back_home')) + '" aria-label="' + esc(t('easydrag.ui.back_home')) + '">' + ED.icons.of('home') + '</button>' +
+            '<button type="button" class="ed-icon-btn" data-ed-cmd="templates" title="' + esc(t('easydrag.ui.home_templates')) + '" aria-label="' + esc(t('easydrag.ui.home_templates')) + '">' + ED.icons.of('templates') + '</button>' +
+            '<button type="button" class="ed-icon-btn" data-ed-cmd="groups" title="' + esc(t('easydrag.ui.groups')) + '" aria-label="' + esc(t('easydrag.ui.groups')) + '">' + ED.icons.of('groups') + '</button>' +
             '<span class="ed-rail-spacer"></span>' +
-            '<button type="button" class="ed-icon-btn" data-ed-cmd="keys" title="' + esc(t('easydrag.ui.keys_title')) + ' (?)" aria-label="' + esc(t('easydrag.ui.keys_title')) + '">' + core.icon('keyboard') + '</button>' +
+            '<button type="button" class="ed-icon-btn" data-ed-cmd="keys" title="' + esc(t('easydrag.ui.keys_title')) + ' (?)" aria-label="' + esc(t('easydrag.ui.keys_title')) + '">' + ED.icons.of('keys') + '</button>' +
             '</nav></div>' +
             '<footer class="ed-foot">' +
             '<button type="button" class="ed-foot-item" data-ed-cmd="last-run"><span class="ed-last-mark" data-ed-last-dot></span><span data-ed-last-run></span></button>' +
