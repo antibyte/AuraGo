@@ -75,6 +75,31 @@ proposal without tools, file access or general chat history. Review the original
 and proposed text before applying. Application is undoable and respects tracking;
 any intervening document edit invalidates the proposal.
 
+## Page and paragraph
+
+**Format > Page setup…** (also in the File menu and behind "More…" in the Format
+panel) sets the paper (A3, A4, A5, B5, Letter, Legal or a custom size), the
+orientation and the margins, with presets for normal, narrow and wide margins.
+"Apply to" changes the whole document or only the section the caret is in.
+Page setup is not available while changes are tracked.
+
+**Format > Paragraph…** (also in the right-click menu and behind "More…" in the
+Format panel) sets alignment, left and right indent, a first-line or hanging
+indent, spacing before and after, the line spacing (single, 1.15, 1.5, double,
+at least, exactly or multiple) and the options keep with next, keep lines
+together, widow and orphan control and page break before. The dialog is one
+undo step and changes only what was edited; a field the selection disagrees on
+stays empty and is left alone. An emptied indent or spacing goes back to what
+the paragraph style says. Tab stops are not part of the dialog.
+
+Lengths are shown in centimetres, or in inches when the interface is English and
+the browser's language is US English; a comma or a point is accepted. Font
+sizes and spacing stay in points. The ruler keeps its centimetre scale.
+
+While a header or footer is open, its bar and **Insert > Fields** insert the
+page number, "page X of Y", the number of pages and the pages of the section.
+**Date** inserts today's date as text; it does not update itself.
+
 ## Files and recovery
 
 Autosave starts after 800 ms of inactivity, or after five seconds of continuous

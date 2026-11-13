@@ -3911,6 +3911,18 @@ buttons and menu popovers remain excluded from those gestures.
   the recovery question and starts a new document at the draft's path when the file is gone, or
   deletes it with `deleteIf`. In the form dialog a `select` with `size` is a list, and the extra
   button answers with the field values;
+  `writer-layout.js` is the pure layout model: `units(locale, region)` gives centimetres, or
+  inches for an English interface in a US browser, with comma or point on input; `papers` and
+  `margins` are the catalogue; `pageFields`/`pageInput`/`pageCommand` and
+  `paragraphFields`/`paragraphInput`/`paragraphCommand` turn the engine's state into the texts a
+  dialog shows, keep dependent fields in step and build ONE command that carries only what the
+  user changed, so an untouched dialog sends nothing and a mixed value is left alone. A length
+  that shows like a paper edge or a preset margin is that exact value. `page()` and `paragraph()`
+  in `writer-dialogs.js` build the dialogs from it; the Format panel reads and writes its lengths
+  through the same unit and names it in the label. Tab stops and header/footer distance are not
+  offered. In the form dialog `heading`, `half`, `suffix`, a `mixed` checkbox and
+  `onInput(changed, values, set)` exist for these dialogs. Browser checks never hold a length as
+  a literal text: the fixtures run in inches;
   `writer-session.js` owns revision-bound autosave and IndexedDB recovery;
   `writer-panels.js` owns formatting, search, review, AI and snapshot printing.
   A new command is one entry in `DEFINITIONS`: a `slot`, a `command` (an engine

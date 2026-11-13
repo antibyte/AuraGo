@@ -171,6 +171,12 @@ Decided while planning 1a: superscript and subscript are menu items, not toolbar
 | Repeat header row and table alignment | S if the engine accepts the commands, M with a model-level workaround. Runtime test first. |
 | Server-side PDF (same HTML rendered by rod, saved into the workspace, offered only when a Chromium is present) | M, optional |
 
+Wave 2 is planned in three parts, each shippable on its own (user, 2026-11-13):
+
+- **2a** — page setup dialog, paragraph dialog, page fields and date, one length unit. Plan: `docs/superpowers/plans/2026-11-14-writer-wave2a-page-paragraph.md`. Tab stops move to the interactive ruler in Wave 3 (user, 2026-11-13). Header and footer distance is left out: the engine exposes it only while a header or footer is open. The ruler keeps centimetres until Wave 3.
+- **2b** — PDF through the print path, templates as real `.docx` files, "save as template".
+- **2c** — table border style, image size, crop, replace and position, styles gallery, repeat header row and table alignment.
+
 Dropped from the first draft: a print preview dialog (the browser print dialog already has preview and page range) and a document-properties dialog (the bundle has no command for it).
 
 ### Wave 3 — Depth (own specs)
