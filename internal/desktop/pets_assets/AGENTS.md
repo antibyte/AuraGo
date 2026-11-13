@@ -8,10 +8,13 @@ OpenPets-compatible sprite artwork shipped in AuraGo's external resource set.
 
 - `service_pets.go:bundledDefaultPets` owns the selectable catalog.
 - Twelve classic sheets (six originals and six model fallbacks) and fifty
-  `aurago-*` sheets (24 persona entries and 26 mascots) live here. The 31 3D
+  `aurago-*` sheets (24 persona entries and 26 mascots) live here. Twenty-seven active 3D
   entries use their sprite
   counterparts as failure fallbacks and remain separate selectable entries. The
   browser hides this sheet while its 3D model is loading.
+- The four retired MCP, Snoopy, WALL·E and Webbi 3D fallback copies remain on
+  disk but are no longer installed or listed. The active catalog has 58 entries;
+  preserve the 31 original sprites and any existing workspace files.
 - Pet generation sources, prompts, export script and importable packages
   live in the sibling `personas/openpets/` project, outside runtime resources.
 
@@ -30,7 +33,7 @@ OpenPets-compatible sprite artwork shipped in AuraGo's external resource set.
   never add Go embeds or a production source-directory fallback.
 - The original OpenPets provenance in README applies to its six original
   sheets, not to the newly generated AuraGo artwork.
-- The 31 additional model entries have subcategory `3d`; their fixed local 3D resources
+- The 27 active model entries have subcategory `3d`; their fixed local 3D resources
   and Mesh2Motion inputs are owned by `../../../assets/desktop-pets/AGENTS.md`.
 
 ## Work Guidance

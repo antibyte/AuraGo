@@ -11,7 +11,7 @@
   "imagegen_input_sha256": "3bf976a80f329c23b22e33fdab7e728a638f1e0660431b8a58188d6c0d4e96a9",
   "model_created": true,
   "rig_created": true,
-  "desktop_integrated": true,
+  "desktop_integrated": false,
   "kind": "humanoid",
   "category": "mascot",
   "retained_sources": {
@@ -50,5 +50,10 @@
     "animation_source": "Pinned Mesh2Motion movements (CC0)",
     "model_sha256": "96b0100e6202fbc6c085a9e2ea65fa552fd2ac60bf27628f4e1114cd81faab99",
     "motions_sha256": "592c492a95b184324bad265ad98c61802c061432ce534d0d7ac90f0e06ff41d8"
+  },
+  "retired": {
+    "reason": "Removed from selectable 3D pets after user review",
+    "replacement_pet_id": "snoopy",
+    "source_and_runtime_files_retained": true
   }
 }

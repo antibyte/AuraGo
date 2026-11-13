@@ -40,18 +40,20 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
   literal app-local icon calls. `TestDesktopAllAppIconsBrowser` verifies every
   built-in app identity and the shared action supplements in light and dark.
 - 3D pets: Blender runs `assets/desktop-pets/build_model.py` (Punk),
-  `build_zombert.py -- --pet=<folder>` (seventeen VARCO humanoids),
+  `build_zombert.py -- --pet=<folder>` (fifteen active VARCO humanoids),
   `build_quadruped_pet.py -- --pet=<folder>` (three native quadruped rigs), or
-  `build_creature_pet.py -- --pet=<folder>` (ten anatomical creatures).
+  `build_creature_pet.py -- --pet=<folder>` (eight active anatomical creatures).
   `node scripts/build-punk-pet-motions.mjs --pet=<folder>` retargets pinned
   Mesh2Motion clips; `build-creature-pet-motions.mjs --pet=<folder>` generates
   original anatomical creature movements. Both use `pet-skeleton.mjs` offline.
   `node scripts/test-punk-pet.mjs` checks encoded texture sizes, skin/motion
   provenance and real Chrome/Edge WebGL interaction/failure/disposal behavior.
-  Rebuild all thirteen creature packs after their generator changes. The test
-  accepts all 31 catalog folders with `--pet=<folder>`; its default
+  Rebuild all eleven active creature packs after their generator changes. The test
+  accepts all 27 catalog folders with `--pet=<folder>`; its default
   and the humanoid motion builder's default remain Punk.
-  Hana additionally checks edge deformation across ninety sampled poses.
+  Hana and Vampir additionally check edge deformation across ninety sampled poses.
+  `vampire-pet-motions.mjs` adds the original, hash-bound tentacle layer to the
+  vampire's CC0 body clips; its 69-joint model is authored by `vampire_rig.py`.
   `repair-hana-pet.mjs` applies its current hash-bound report to isolated LOD
   faces (never more than 5%); rebuild Hana's motions and repeat the test afterward.
 

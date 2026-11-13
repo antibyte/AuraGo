@@ -20,8 +20,12 @@
       "sha256": "95b69944ec075648304f9a9203de3a6a7a23832bb423b91f83650dddcdf53475"
     },
     "source.blend": {
-      "bytes": 18660978,
-      "sha256": "93fc7b050400a99589484fdee34b2602e5e7cde5341a4f8bbf6e5fc5dde057ea"
+      "bytes": 18353089,
+      "sha256": "c61c74094146e27565a092adffe4257541f34168e6c09437466753e98925b5be"
+    },
+    "rig.json": {
+      "bytes": 835,
+      "sha256": "6bd248860d21132afd9ac10e031d373726a0d80db9ec427982b83b731b29185f"
     }
   },
   "varco": {
@@ -39,16 +43,26 @@
     "rigging_mode": "humanoid-fingers"
   },
   "deployment": "local_checkout_only",
-  "rig_authoring": "Blender T-bind with retained VARCO finger weights",
+  "rig_authoring": "Blender: retained VARCO body rig, two eight-segment tentacle chains, geometric arc-length skin weights and continuous neck blend",
   "runtime": {
     "pet_id": "aurago-evil-3d",
     "folder": "ui/3d/pets/vampire",
     "triangles": 50000,
-    "joints": 53,
+    "joints": 69,
     "texture_max_size": 1024,
     "animations": 30,
-    "animation_source": "Pinned Mesh2Motion movements (CC0)",
-    "model_sha256": "7a6caf09cae5e6e0f3939065e81e19f57f049f45a041cef5dfb9290597b3eec2",
-    "motions_sha256": "550f3dbea8e341f3148553904f9bfd772579b505d6a1cacd8c2e079d2ac39306"
+    "animation_source": "CC0 Mesh2Motion body clips with original GPL-3.0-only tentacle layer",
+    "model_sha256": "6be173e7197805489910212a74cacf4a4efa2555b5db4f670d335b91252ec5d7",
+    "motions_sha256": "bffaebcd4a5f7416b57c06a711a3bf127f2cdb9e19518a02dea320d731370f6b"
+  },
+  "authoring_inputs": {
+    "assets/desktop-pets/vampire_rig.py": {
+      "bytes": 5170,
+      "sha256": "342a4a647c5bdfd79d3c2f4da6ff38c16977fc4870f0a12cd7196b83e68bfdf2"
+    },
+    "scripts/vampire-pet-motions.mjs": {
+      "bytes": 1774,
+      "sha256": "c01db95568c7cfe8286c6d3d228bdf58e8f48b5d8d44f6cb2a9ad3cd09afc5b0"
+    }
   }
 }

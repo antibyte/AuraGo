@@ -62,13 +62,6 @@
     "kind": "bird",
     "joints": 22
   },
-  "snoopy": {
-    "id": "snoopy-3d",
-    "sprite_id": "snoopy",
-    "name": "Snoopy",
-    "kind": "humanoid",
-    "joints": 53
-  },
   "clippit": {
     "id": "clippit-3d",
     "sprite_id": "clippit",
@@ -82,13 +75,6 @@
     "name": "Tux",
     "kind": "bird",
     "joints": 22
-  },
-  "wall-e": {
-    "id": "wall-e-3d",
-    "sprite_id": "wall-e",
-    "name": "Wall-E",
-    "kind": "tracked",
-    "joints": 14
   },
   "dobby": {
     "id": "dobby-3d",
@@ -123,19 +109,12 @@
     "sprite_id": "aurago-evil",
     "name": "Vampir",
     "kind": "humanoid",
-    "joints": 53
+    "joints": 69
   },
   "assistant": {
     "id": "aurago-secretary-3d",
     "sprite_id": "aurago-secretary",
     "name": "Assistentin",
-    "kind": "humanoid",
-    "joints": 53
-  },
-  "mcp": {
-    "id": "aurago-mcp-3d",
-    "sprite_id": "aurago-mcp",
-    "name": "MCP",
     "kind": "humanoid",
     "joints": 53
   },
@@ -152,13 +131,6 @@
     "name": "Glibbi",
     "kind": "blob",
     "joints": 11
-  },
-  "webbi": {
-    "id": "aurago-spider-3d",
-    "sprite_id": "aurago-spider",
-    "name": "Webbi",
-    "kind": "spider",
-    "joints": 30
   },
   "zorbit": {
     "id": "aurago-alien-3d",

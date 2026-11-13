@@ -11,7 +11,7 @@
   "imagegen_input_sha256": "e344dff8ac3c9e2db0156f6efd616854c83edc79e9ac58fd3d795341c76fb141",
   "model_created": true,
   "rig_created": true,
-  "desktop_integrated": true,
+  "desktop_integrated": false,
   "kind": "spider",
   "category": "mascot",
   "retained_sources": {
@@ -52,5 +52,10 @@
     "animation_source": "Original anatomical procedural gestures (GPL-3.0-only)",
     "model_sha256": "1632098fea3fb078119765debaf5af578085140c96bf97fccacbcea4630e5d62",
     "motions_sha256": "7ced59c8b9079cefd5801904098e6d8290e21697a532cca5e7df2de4d2c9be5e"
+  },
+  "retired": {
+    "reason": "Removed from selectable 3D pets after user review",
+    "replacement_pet_id": "aurago-spider",
+    "source_and_runtime_files_retained": true
   }
 }

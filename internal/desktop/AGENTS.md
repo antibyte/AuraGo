@@ -58,12 +58,15 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 - Read actual decoded bytes within budgets. Check ZIP close, file sync and close, and publish each file atomically with Windows replacement retries. Validation failures preserve destinations; unrelated I/O failure does not imply a multi-file rollback.
 - Conditional writes, copies and moves check destination versions under `desktopMutationMu` and publish through rooted atomic operations. HTTP edits require observed strong ETags; creation uses `If-None-Match: *`. Existing destination symlinks are conflicts, including dangling links; moving the link entry itself to a new name remains supported. Copies stage the whole tree with count, depth and byte budgets; cancellation preserves the previous destination.
 - Pet lookups validate ids against `petIDPattern` and resolve manifest paths (`spritesheetPath`) only as relative, slash-separated paths without `..`, `:` or `\`, through an `os.Root` at `Pets` with every component Lstat-checked (real directories, regular final file, no links). Bundled-pet repair reinstalls only missing files (created with `O_EXCL`) and replaces a manifest only when it cannot be parsed, so customised bundled pets survive; it never writes through a link, and a pet refused for another reason (link, special file, missing custom spritesheet) is logged and skipped. Lookup, listing and repair errors name the pet id or "pets directory", never a host path (the OS error is logged server-side); user `InstallPet`/`DeletePet` errors still wrap OS errors.
-- All 31 sprite pets also have separate bundled entries with subcategory `3d`
+- Twenty-seven of the 31 sprite pets have separate bundled entries with subcategory `3d`
   and ordinary OpenPets fallbacks. Their IDs, anatomical kinds and joint counts
   are listed in `assets/desktop-pets/catalog.json`.
   The browser maps only the reviewed id/subcategory pairs
   to fixed version-bound 3D assets; this adds no manifest-supplied model URL or
   server-side execution. Preserve the sprite pets and the current active pet.
+  Retired MCP, Snoopy, WALL·E and Webbi model IDs stay out of listings even in
+  existing workspaces. Bootstrap and active-pet reads resolve those IDs to their
+  original sprites without deleting or rewriting workspace files.
 - When the server reuses a Desktop service, compare canonical configurations from `NormalizeConfig`; raw paths may be relative and omitted storage paths receive defaults in `NewService`, otherwise later requests can close a healthy live service.
 - `TrashPaths` preflights the whole selection before moving any entry. Notes use `Trash/Notes/<uuid>/<original Notes subpath>` and restore that subpath. Reject root/ancestor and overlapping selections. Generic HTTP moves cannot bypass Notes trash transitions; older ordinary Trash entries keep their existing interpretation.
 - SFTP paths are relative to the remote home: `normalizeSFTPRemotePath` rejects traversal, `~`, sensitive POSIX roots, Windows drive prefixes (`C:`) and UNC hosts (`//server`, `\\server`); a bare `/` or `\\` is the home.

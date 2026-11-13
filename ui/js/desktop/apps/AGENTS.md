@@ -5720,7 +5720,7 @@ registration lives in `internal/desktop/types.go`.
   Public table merge/split operations live in `scripts/writer-table-ops.js`.
   Exposes `window.WriterApp`. No child DOX file needed.
 - `pet-picker.js` - Pet catalog, scale/enabled/always-on-top settings, and
-  ZIP import. All 31 separate model pets with subcategory `3d` use version-bound
+  ZIP import. All 27 separate model pets with subcategory `3d` use version-bound
   posters through `PetRuntime.modelAssetFolder(id)`; unknown IDs keep sprite
   previews. 3D source/runtime ownership is `../../../../assets/desktop-pets/AGENTS.md`.
   Scale text uses `desktop.pet_scale_value`. Load,

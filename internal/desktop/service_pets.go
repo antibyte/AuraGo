@@ -25,6 +25,16 @@ const petsDirName = "Pets"
 
 var petIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,63}$`)
 
+// Retired bundled models resolve to their retained sprite without deleting workspace files.
+func retiredModelSpriteID(id string) string {
+	switch id {
+	case "aurago-mcp-3d", "snoopy-3d", "wall-e-3d", "aurago-spider-3d":
+		return strings.TrimSuffix(id, "-3d")
+	default:
+		return ""
+	}
+}
+
 // PetJSON is the on-disk metadata format compatible with OpenPets.
 type PetJSON struct {
 	ID              string `json:"id"`
@@ -75,7 +85,11 @@ func (s *Service) GetActivePetID(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return settings["pet.active_id"], nil
+	id := settings["pet.active_id"]
+	if spriteID := retiredModelSpriteID(id); spriteID != "" {
+		id = spriteID
+	}
+	return id, nil
 }
 
 // InstallPet writes a pet package into the workspace Pets directory.
@@ -185,7 +199,7 @@ func listPetsInDir(workspaceDir string) ([]PetManifest, error) {
 	}
 	var pets []PetManifest
 	for _, entry := range entries {
-		if !entry.IsDir() {
+		if !entry.IsDir() || retiredModelSpriteID(entry.Name()) != "" {
 			continue
 		}
 		pet, err := getPetInDir(workspaceDir, entry.Name())
@@ -467,20 +481,16 @@ func bundledDefaultPets() []bundledPet {
 		{Manifest: PetJSON{ID: "aurago-cat", DisplayName: "Minka", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
 		{Manifest: PetJSON{ID: "aurago-crocodile", DisplayName: "Kroko", SpritesheetPath: "spritesheet.webp", Category: "mascot"}},
 		{Manifest: PetJSON{ID: "openpets-default-3d", DisplayName: "OpenPets Default 3D", SpritesheetPath: "spritesheet.webp", Category: "mascot", Subcategory: "3d"}},
-		{Manifest: PetJSON{ID: "snoopy-3d", DisplayName: "Snoopy 3D", SpritesheetPath: "spritesheet.webp", Category: "mascot", Subcategory: "3d"}},
 		{Manifest: PetJSON{ID: "clippit-3d", DisplayName: "Clippy 3D", SpritesheetPath: "spritesheet.webp", Category: "mascot", Subcategory: "3d"}},
 		{Manifest: PetJSON{ID: "tux-3d", DisplayName: "Tux 3D", SpritesheetPath: "spritesheet.webp", Category: "mascot", Subcategory: "3d"}},
-		{Manifest: PetJSON{ID: "wall-e-3d", DisplayName: "Wall-E 3D", SpritesheetPath: "spritesheet.webp", Category: "mascot", Subcategory: "3d"}},
 		{Manifest: PetJSON{ID: "dobby-3d", DisplayName: "Dobby 3D", SpritesheetPath: "spritesheet.webp", Category: "mascot", Subcategory: "3d"}},
 		{Manifest: PetJSON{ID: "aurago-servant-3d", DisplayName: "Butler 3D", SpritesheetPath: "spritesheet.webp", Category: "persona", Subcategory: "3d"}},
 		{Manifest: PetJSON{ID: "aurago-professional-3d", DisplayName: "Manager 3D", SpritesheetPath: "spritesheet.webp", Category: "persona", Subcategory: "3d"}},
 		{Manifest: PetJSON{ID: "aurago-mistress-3d", DisplayName: "Kommandantin 3D", SpritesheetPath: "spritesheet.webp", Category: "persona", Subcategory: "3d"}},
 		{Manifest: PetJSON{ID: "aurago-evil-3d", DisplayName: "Vampir 3D", SpritesheetPath: "spritesheet.webp", Category: "persona", Subcategory: "3d"}},
 		{Manifest: PetJSON{ID: "aurago-secretary-3d", DisplayName: "Assistentin 3D", SpritesheetPath: "spritesheet.webp", Category: "persona", Subcategory: "3d"}},
-		{Manifest: PetJSON{ID: "aurago-mcp-3d", DisplayName: "MCP 3D", SpritesheetPath: "spritesheet.webp", Category: "persona", Subcategory: "3d"}},
 		{Manifest: PetJSON{ID: "aurago-terminator-3d", DisplayName: "Terminator 3D", SpritesheetPath: "spritesheet.webp", Category: "persona", Subcategory: "3d"}},
 		{Manifest: PetJSON{ID: "aurago-slime-3d", DisplayName: "Glibbi 3D", SpritesheetPath: "spritesheet.webp", Category: "mascot", Subcategory: "3d"}},
-		{Manifest: PetJSON{ID: "aurago-spider-3d", DisplayName: "Webbi 3D", SpritesheetPath: "spritesheet.webp", Category: "mascot", Subcategory: "3d"}},
 		{Manifest: PetJSON{ID: "aurago-alien-3d", DisplayName: "Zorbit 3D", SpritesheetPath: "spritesheet.webp", Category: "mascot", Subcategory: "3d"}},
 		{Manifest: PetJSON{ID: "aurago-indiana-jones-3d", DisplayName: "Indiana Jones 3D", SpritesheetPath: "spritesheet.webp", Category: "mascot", Subcategory: "3d"}},
 		{Manifest: PetJSON{ID: "aurago-manga-girl-3d", DisplayName: "Hana 3D", SpritesheetPath: "spritesheet.webp", Category: "mascot", Subcategory: "3d"}},

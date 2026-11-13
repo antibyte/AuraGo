@@ -760,6 +760,9 @@ func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
 	}
 	payload.Pets = pets
 	payload.ActivePetID = s.cacheSettings["pet.active_id"]
+	if spriteID := retiredModelSpriteID(payload.ActivePetID); spriteID != "" {
+		payload.ActivePetID = spriteID
+	}
 
 	// Include Desktop directory entries so the shell can render icons without
 	// a second HTTP round-trip. Listing is cheap; failures are non-fatal.

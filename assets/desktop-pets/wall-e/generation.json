@@ -11,7 +11,7 @@
   "imagegen_input_sha256": "d3b222f679cfdeb29fbf09981837c2e8a2aeefc036afabfefe2bd5f2f4454fd0",
   "model_created": true,
   "rig_created": true,
-  "desktop_integrated": true,
+  "desktop_integrated": false,
   "kind": "tracked",
   "category": "mascot",
   "retained_sources": {
@@ -53,5 +53,10 @@
     "animation_source": "Original anatomical procedural gestures (GPL-3.0-only)",
     "model_sha256": "c9655f483784aa29a835aa891ff891c9d3331196ab719322b767c20696f2c025",
     "motions_sha256": "b70456ef79956feaa96facca1f4d20e2c58cb5ff8cfa6868dfd14d2b37a14453"
+  },
+  "retired": {
+    "reason": "Removed from selectable 3D pets after user review",
+    "replacement_pet_id": "wall-e",
+    "source_and_runtime_files_retained": true
   }
 }

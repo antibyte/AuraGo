@@ -106,6 +106,10 @@ if PET == 'hana':
     print('HANA_REMOVED_HAIR_CLOTH_BRIDGES='+str(len(bridges)),flush=True)
     print('HANA_RIGID_HAIR_VERTICES='+str(len(selected)),flush=True)
 
+if PET == 'vampire':
+    from vampire_rig import rig_tentacles
+    rig_tentacles(ROOT, rig, mesh)
+
 # Bake the slightly lowered arms into the T-bind expected by Mesh2Motion.
 for side, sign in [('Left', 1), ('Right', -1)]:
     for part, child in [('Arm', 'ForeArm'), ('ForeArm', 'Hand')]:
@@ -170,4 +174,7 @@ for side, sign in [('L', 1), ('R', -1)]:
     bone = rig.pose.bones['DEF-upper_arm.' + side]
     rest = bone.bone.matrix_local.to_quaternion()
     bone.rotation_quaternion = rest.inverted() @ Quaternion((0, 1, 0), sign * 1.25) @ rest
+if PET == 'vampire':
+    from vampire_rig import pose_tentacles
+    pose_tentacles(rig)
 render_thumbnail(ROOT, PET, mesh, textures)
