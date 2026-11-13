@@ -6,7 +6,7 @@ import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 
 const box = vm.createContext({ window: {}, crypto: webcrypto, AbortController, setTimeout, console, Intl, Date, Map, Set, JSON });
-for (const name of ['easydrag-template.js', 'easydrag-model.js', 'easydrag-authoring.js']) {
+for (const name of ['easydrag-template.js', 'easydrag-format.js', 'easydrag-model.js', 'easydrag-authoring.js']) {
     const file = new URL('../ui/js/desktop/apps/' + name, import.meta.url);
     vm.runInContext(fs.readFileSync(file, 'utf8'), box, { filename: file.pathname });
 }

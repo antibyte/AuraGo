@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 
-const MODULES = ['easydrag-core.js', 'easydrag-durable.js', 'easydrag-template.js', 'easydrag-credentials.js', 'easydrag-model.js', 'easydrag-canvas.js', 'easydrag-template-field.js', 'easydrag-fields-conditions.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-blocks.js', 'easydrag-batches.js', 'easydrag-block-fields.js', 'easydrag-transform.js', 'easydrag-mapping.js',
+const MODULES = ['easydrag-core.js', 'easydrag-format.js', 'easydrag-durable.js', 'easydrag-template.js', 'easydrag-credentials.js', 'easydrag-model.js', 'easydrag-canvas.js', 'easydrag-template-field.js', 'easydrag-fields-conditions.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-blocks.js', 'easydrag-batches.js', 'easydrag-block-fields.js', 'easydrag-transform.js', 'easydrag-mapping.js',
     'easydrag-detail.js', 'easydrag-scenarios.js', 'easydrag-testing.js', 'easydrag-child-history.js', 'easydrag-compare.js', 'easydrag-run-stream.js', 'easydrag-run-start.js', 'easydrag-run-stop.js', 'easydrag-run-drawer.js', 'easydrag-runs.js', 'easydrag-metadata.js', 'easydrag-publish.js', 'easydrag-credentials-move.js'];
 const T1 = 'n_tttttttt';
 const T2 = 'n_uuuuuuuu';

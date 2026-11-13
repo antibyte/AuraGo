@@ -15,6 +15,7 @@ const box = vm.createContext({
     setTimeout: () => 1, clearTimeout: () => {}
 });
 vm.runInContext(fs.readFileSync(new URL('easydrag-core.js', apps), 'utf8'), box, { filename: 'easydrag-core.js' });
+vm.runInContext(fs.readFileSync(new URL('easydrag-format.js', apps), 'utf8'), box, { filename: 'easydrag-format.js' });
 const core = box.window.EasyDrag.core;
 
 assert.equal(core.pluralKey('k', 1), 'k_one', 'one is singular');

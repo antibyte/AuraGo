@@ -486,7 +486,7 @@ function saverHarness(responses, opts = {}) {
         setTimeout: (fn, ms) => { const id = nextTimer++; timers.set(id, { fn, ms }); return id; },
         clearTimeout: id => { timers.delete(id); }
     });
-    for (const file of ['easydrag-core.js', 'easydrag-template.js', 'easydrag-credentials.js', 'easydrag-saver.js']) {
+    for (const file of ['easydrag-core.js', 'easydrag-format.js', 'easydrag-template.js', 'easydrag-credentials.js', 'easydrag-saver.js']) {
         const full = path.join(apps, file);
         vm.runInContext(fs.readFileSync(full, 'utf8'), box, { filename: full });
     }
@@ -999,6 +999,7 @@ function modalHarness() {
         setTimeout: () => 0, clearTimeout() {}
     });
     vm.runInContext(fs.readFileSync(path.join(apps, 'easydrag-core.js'), 'utf8'), box, { filename: 'easydrag-core.js' });
+    vm.runInContext(fs.readFileSync(path.join(apps, 'easydrag-format.js'), 'utf8'), box, { filename: 'easydrag-format.js' });
     const host = new dom.El('div', { class: 'ed-editor' });
     const opener = host.appendChild(new dom.El('button', {}));
     opener.focus();

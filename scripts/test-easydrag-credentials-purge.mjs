@@ -10,7 +10,9 @@ function load() {
     const source = path.join(here, '..', 'ui', 'js', 'desktop', 'apps', 'easydrag-credentials-purge.js');
     const esc = value => String(value).replace(/[&<>"']/g, c => '&#' + c.charCodeAt(0) + ';');
     const tr = (t, key, fallback) => { const value = t(key); return value && value !== key ? value : fallback; };
-    const sandbox = vm.createContext({ window: { EasyDrag: { core: { esc, tr } } } });
+    const sandbox = vm.createContext({ window: { EasyDrag: { core: { esc, tr } } }, Intl, Date, Map });
+    const format = path.join(here, '..', 'ui', 'js', 'desktop', 'apps', 'easydrag-format.js');
+    vm.runInContext(fs.readFileSync(format, 'utf8'), sandbox, { filename: format });
     vm.runInContext(fs.readFileSync(source, 'utf8'), sandbox, { filename: source });
     return sandbox.window.EasyDrag.credentialsPurge;
 }

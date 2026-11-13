@@ -12,7 +12,7 @@ const box = vm.createContext({
     localStorage: { get length() { return store.size; }, key: i => Array.from(store.keys())[i] ?? null, getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => { store.set(k, String(v)); }, removeItem: k => { store.delete(k); } },
     setTimeout: () => 1, clearTimeout: () => {}
 });
-for (const name of ['easydrag-core.js', 'easydrag-template.js', 'easydrag-credentials.js', 'easydrag-saver.js']) {
+for (const name of ['easydrag-core.js', 'easydrag-format.js', 'easydrag-template.js', 'easydrag-credentials.js', 'easydrag-saver.js']) {
     const file = new URL(name, apps);
     vm.runInContext(fs.readFileSync(file, 'utf8'), box, { filename: file.pathname });
 }
