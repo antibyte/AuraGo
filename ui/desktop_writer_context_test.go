@@ -17,6 +17,7 @@ const writerContextPrelude = `
             editor.exec({type:'setSelection',range:{anchor:{...s,offset:from},head:{...s,offset:to===undefined?from:to}}});};
         const rightClick=el=>{const b=el.getBoundingClientRect();window.contextMenu=null;
             const e=new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2,clientX:b.left+b.width/2,clientY:b.top+b.height/2});el.dispatchEvent(e);return e;};
+        const toTop=async()=>{document.querySelector('[data-scroll]').scrollTop=0;await wait(120);};
         const run=text=>[...document.querySelectorAll('.docx-page .layout-run-text')].find(x=>x.textContent.includes(text));
 `
 
@@ -36,8 +37,10 @@ func verifyWriterContext(t *testing.T, page *rod.Page) {
 	}
 	point := page.MustEval(script(`
         editor.exec({type:'paste',text:'Alpha beta gamma delta epsilon'});await wait(200);
-        caret(0,10);window.contextMenu=null;
+        caret(0,10);window.contextMenu=null;await toTop();
         const b=run('gamma').getBoundingClientRect();
+        const view=document.querySelector('[data-scroll]').getBoundingClientRect();
+        if(!(b.top>view.top+4&&b.bottom<view.bottom-4))throw Error('the click target is not inside the viewport: '+JSON.stringify([b.top,b.bottom,view.top,view.bottom]));
         return {x:b.left+b.width*0.8,y:b.top+b.height/2};
     `))
 	x, y := point.Get("x").Num(), point.Get("y").Num()
@@ -48,7 +51,7 @@ func verifyWriterContext(t *testing.T, page *rod.Page) {
         const got=ids(window.contextMenu.items).join();
         if(got!=='cut,copy,paste,pastePlain,link,comment,assist')throw Error('menu for a text selection: '+got);
         if(entry('copy').disabled||entry('cut').disabled)throw Error('copy and cut must be enabled for a selection');
-        caret(0);window.contextMenu=null;
+        caret(0);window.contextMenu=null;await toTop();
     `))
 	rightClickAt(x, y)
 	page.MustEval(script(`
@@ -97,7 +100,7 @@ func verifyWriterContext(t *testing.T, page *rod.Page) {
     `))
 	page.Timeout(10 * time.Second).MustWait(`()=>[...WriterApp.instances.get('test').editor.surface.session.currentPackage().partBytes.keys()].some(x=>x.includes('/media/'))`)
 	settle()
-	drawing := page.MustEval(`()=>{const b=document.querySelector('.docx-page .docx-drawing').getBoundingClientRect();return {x:b.left+b.width/2,y:b.top+b.height/2};}`)
+	drawing := page.MustEval(`async()=>{document.querySelector('[data-scroll]').scrollTop=0;await new Promise(r=>setTimeout(r,150));const b=document.querySelector('.docx-page .docx-drawing').getBoundingClientRect();return {x:b.left+b.width/2,y:b.top+b.height/2};}`)
 	page.Mouse.MustMoveTo(drawing.Get("x").Num(), drawing.Get("y").Num())
 	page.Mouse.MustClick(proto.InputMouseButtonLeft)
 	settle()
@@ -108,7 +111,7 @@ func verifyWriterContext(t *testing.T, page *rod.Page) {
         if(editor.snapshot().image?.rotationDegrees!==90)throw Error('rotate right gave '+JSON.stringify(editor.snapshot().image?.rotationDegrees));
     `))
 	// A user leaves an image with a click; a programmatic caret keeps the engine's image selection.
-	text := page.MustEval(`()=>{const b=[...document.querySelectorAll('.docx-page .layout-run-text')].find(x=>x.textContent.includes('beta')).getBoundingClientRect();return {x:b.left+b.width/2,y:b.top+b.height/2};}`)
+	text := page.MustEval(`async()=>{document.querySelector('[data-scroll]').scrollTop=0;await new Promise(r=>setTimeout(r,150));const b=[...document.querySelectorAll('.docx-page .layout-run-text')].find(x=>x.textContent.includes('beta')).getBoundingClientRect();return {x:b.left+b.width/2,y:b.top+b.height/2};}`)
 	page.Mouse.MustMoveTo(text.Get("x").Num(), text.Get("y").Num())
 	page.Mouse.MustClick(proto.InputMouseButtonLeft)
 	settle()
