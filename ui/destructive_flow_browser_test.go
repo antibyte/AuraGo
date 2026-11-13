@@ -76,7 +76,7 @@ type smokeBrowserFailure struct {
 }
 
 // launchSmokeBrowser starts a headless Chrome the way every smoke test does and returns it with a
-// stop function (close the browser, kill the process, cancel the launch context). It ties nothing
+// stop function (close, kill and reap the browser, then remove its profile). It ties nothing
 // to a *testing.T, so the shared EasyDrag browser can outlive the test that started it.
 func launchSmokeBrowser(tweak func(*launcher.Launcher)) (*rod.Browser, func(), *smokeBrowserFailure) {
 	if os.Getenv("AURAGO_RUN_BROWSER_SMOKE") != "1" {
@@ -94,11 +94,10 @@ func launchSmokeBrowser(tweak func(*launcher.Launcher)) (*rod.Browser, func(), *
 		NoSandbox(true).
 		Set("disable-gpu").
 		Set("disable-dev-shm-usage")
-	kill := func() {}
+	kill := l.Kill
 	if runtime.GOOS == "windows" {
 		// Rod's leakless helper can hang before publishing the child PID on Windows.
 		l.Leakless(false)
-		kill = l.Kill
 	}
 	if os.Getenv("AURAGO_BROWSER_MUTE_AUDIO") == "1" {
 		l.Set("mute-audio")
@@ -116,9 +115,10 @@ func launchSmokeBrowser(tweak func(*launcher.Launcher)) (*rod.Browser, func(), *
 	if err := browser.Connect(); err != nil {
 		kill()
 		cancel()
+		l.Cleanup()
 		return nil, nil, &smokeBrowserFailure{message: fmt.Sprintf("connect headless browser for UI smoke test: %v", err)}
 	}
-	return browser, func() { _ = browser.Timeout(10 * time.Second).Close(); kill(); cancel() }, nil
+	return browser, func() { _ = browser.Timeout(10 * time.Second).Close(); kill(); cancel(); l.Cleanup() }, nil
 }
 
 func browserExecutable() (string, bool) {

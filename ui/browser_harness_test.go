@@ -9,7 +9,22 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/go-rod/rod/lib/launcher"
 )
+
+func TestBrowserSmokeCleanup(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	profile := t.TempDir()
+	t.Cleanup(func() {
+		if _, err := os.Stat(profile); !os.IsNotExist(err) {
+			t.Fatalf("browser shutdown must drain the process and remove its profile: %v", err)
+		}
+	})
+	browser := newSmokeBrowserWith(t, func(l *launcher.Launcher) { l.UserDataDir(profile) })
+	page := browser.MustPage("about:blank")
+	page.MustClose()
+}
 
 func TestBrowserExecutable(t *testing.T) {
 	dir := t.TempDir()

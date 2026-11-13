@@ -287,6 +287,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 ## Local Contracts
 
+- Shared browser smoke cleanup closes, kills and reaps its launched browser before removing the profile or returning to test-owned directory cleanup. Preserve central browser opt-in and verify `TestBrowserSmokeCleanup` with opt-in enabled.
+
 - Desktop file drops belong to the workspace background and `#vd-icons` only.
   Events bubbling from app windows, widgets, dialogs or already handled drop
   targets must never create or move Desktop files. Preserve deliberate host,
