@@ -634,6 +634,17 @@ func (s *Service) StartAppOperation(ctx context.Context, appID, opType string, r
 }
 
 func (s *Service) createOperation(ctx context.Context, opType, appID string, request any) (Operation, error) {
+	if appID == DeepTutorAppID && opType != OperationStop && opType != OperationUninstall {
+		if admission, ok := s.cfg.LLMRelay.(interface {
+			AdmitDeepTutor(context.Context) (func(), error)
+		}); ok {
+			release, err := admission.AdmitDeepTutor(ctx)
+			if err != nil {
+				return Operation{}, err
+			}
+			defer release()
+		}
+	}
 	if err := s.ensureReady(ctx); err != nil {
 		return Operation{}, err
 	}
@@ -732,35 +743,40 @@ func (s *Service) RunOperation(ctx context.Context, operationID string) error {
 		return err
 	}
 	var runErr error
-	switch op.Type {
-	case OperationInstall:
-		var req InstallRequest
-		if err := json.Unmarshal([]byte(op.RequestJSON), &req); err != nil {
-			runErr = fmt.Errorf("parse install request: %w", err)
-		} else {
-			runErr = s.install(ctx, op, req)
+	if op.AppID == DeepTutorAppID && op.Type != OperationStop && op.Type != OperationUninstall {
+		runErr = s.prepareDeepTutorInstall(ctx)
+	}
+	if runErr == nil {
+		switch op.Type {
+		case OperationInstall:
+			var req InstallRequest
+			if err := json.Unmarshal([]byte(op.RequestJSON), &req); err != nil {
+				runErr = fmt.Errorf("parse install request: %w", err)
+			} else {
+				runErr = s.install(ctx, op, req)
+			}
+		case OperationUpdate, OperationConfigure:
+			if op.AppID == PrintGuardAppID && op.Type == OperationConfigure {
+				runErr = s.configurePrintGuardRuntime(ctx, op)
+			} else {
+				runErr = s.update(ctx, op)
+			}
+		case OperationStart:
+			runErr = s.start(ctx, op)
+		case OperationStop:
+			runErr = s.stop(ctx, op)
+		case OperationRestart:
+			runErr = s.restart(ctx, op)
+		case OperationUninstall:
+			var req OperationRequest
+			if err := json.Unmarshal([]byte(op.RequestJSON), &req); err != nil {
+				runErr = fmt.Errorf("parse uninstall request: %w", err)
+			} else {
+				runErr = s.uninstall(ctx, op, req.DeleteData)
+			}
+		default:
+			runErr = fmt.Errorf("unsupported operation %q", op.Type)
 		}
-	case OperationUpdate, OperationConfigure:
-		if op.AppID == PrintGuardAppID && op.Type == OperationConfigure {
-			runErr = s.configurePrintGuardRuntime(ctx, op)
-		} else {
-			runErr = s.update(ctx, op)
-		}
-	case OperationStart:
-		runErr = s.start(ctx, op)
-	case OperationStop:
-		runErr = s.stop(ctx, op)
-	case OperationRestart:
-		runErr = s.restart(ctx, op)
-	case OperationUninstall:
-		var req OperationRequest
-		if err := json.Unmarshal([]byte(op.RequestJSON), &req); err != nil {
-			runErr = fmt.Errorf("parse uninstall request: %w", err)
-		} else {
-			runErr = s.uninstall(ctx, op, req.DeleteData)
-		}
-	default:
-		runErr = fmt.Errorf("unsupported operation %q", op.Type)
 	}
 	if runErr != nil {
 		errorCode, errorParams := operationErrorDetails(runErr)
