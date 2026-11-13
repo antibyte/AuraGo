@@ -80,8 +80,8 @@
         }
 
         resizeControl(palette.el, 'palette');
-        const outlineButton = core.el('<button type="button" class="ed-icon-btn" aria-pressed="false" title="' + ed.esc(ed.t('easydrag.ui.node_list')) + '" aria-label="' + ed.esc(ed.t('easydrag.ui.node_list')) + '">' + ED.icons.of('outline') + ED.icons.caption(ed.t, 'outline') + '</button>');
-        const focusButton = core.el('<button type="button" class="ed-icon-btn" title="' + ed.esc(ed.t('easydrag.ui.focus_selection')) + '" aria-label="' + ed.esc(ed.t('easydrag.ui.focus_selection')) + '">' + ED.icons.of('focus') + ED.icons.caption(ed.t, 'focus') + '</button>');
+        const outlineButton = core.el('<button type="button" class="ed-icon-btn" aria-pressed="false" title="' + ed.esc(ed.t('easydrag.ui.node_list')) + '">' + ED.icons.of('outline') + ED.icons.caption(ed.t, 'outline') + '</button>');
+        const focusButton = core.el('<button type="button" class="ed-icon-btn" title="' + ed.esc(ed.t('easydrag.ui.focus_selection')) + '">' + ED.icons.of('focus') + ED.icons.caption(ed.t, 'focus') + '</button>');
         const rail = ed.root.querySelector('.ed-rail');
         rail.insertBefore(outlineButton, rail.querySelector('.ed-rail-spacer'));
         rail.insertBefore(focusButton, rail.querySelector('.ed-rail-spacer'));

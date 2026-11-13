@@ -24,6 +24,14 @@ assert.deepEqual([...ids].sort(), Object.keys(icons.RAIL).sort(), 'the rail butt
 assert.equal(new Set(ids).size, ids.length, 'no rail button is built twice');
 assert.equal(ids.length, 7);
 
+// The caption is the accessible name (WCAG 2.5.3): a button that builds a caption carries no aria-label
+// of its own, so a screen reader reads the words that are drawn.
+for (const file of ['easydrag-editor.js', 'easydrag-workspace.js']) {
+    for (const line of read(file).split(/\r?\n/)) {
+        if (line.includes('ED.icons.caption(')) assert.ok(!line.includes('aria-label'), file + ': a rail button overrides its caption with aria-label: ' + line.trim().slice(0, 90));
+    }
+}
+
 const LOCALES = ['cs', 'da', 'de', 'el', 'en', 'es', 'fr', 'hi', 'it', 'ja', 'nl', 'no', 'pl', 'pt', 'sv', 'zh'];
 for (const id of ids) {
     assert.ok(Object.prototype.hasOwnProperty.call(icons.MEANINGS, id), id + ' has no icon-map entry');
@@ -37,7 +45,7 @@ for (const id of ids) {
     }
 }
 
-// caption() escapes the text and hides it from screen readers (the button keeps its aria-label).
+// caption() escapes the text and leaves it visible to screen readers: it is the button's accessible name.
 const html = icons.caption(key => (key === 'easydrag.ui.rail_home' ? '<b>"x"</b>' : key), 'home');
-assert.equal(html, '<span class="ed-rail-caption" aria-hidden="true">&lt;b&gt;&quot;x&quot;&lt;/b&gt;</span>');
+assert.equal(html, '<span class="ed-rail-caption">&lt;b&gt;&quot;x&quot;&lt;/b&gt;</span>');
 console.log('PASS rail captions: ' + ids.length + ' buttons, ' + LOCALES.length + ' locales');

@@ -69,12 +69,12 @@
             '<button type="button" class="ed-btn ed-btn--small" data-ed-cmd="rerun-viewed" hidden>' + ED.icons.of('test') + '<span>' + esc(t('easydrag.ui.run_rerun_test')) + '</span></button>' +
             '<button type="button" class="ed-btn ed-btn--small" data-ed-cmd="exit-run-view">' + ED.icons.of('back') + '<span>' + esc(t('easydrag.ui.run_view_exit')) + '</span></button></div>' +
             '<div class="ed-body"><nav class="ed-rail" aria-label="' + esc(t('easydrag.ui.rail_label')) + '">' +
-            '<button type="button" class="ed-icon-btn" data-ed-cmd="palette" aria-pressed="true" title="' + esc(t('easydrag.ui.palette_title')) + ' (' + core.shortcut('Ctrl+K') + ')" aria-label="' + esc(t('easydrag.ui.palette_title')) + '">' + ED.icons.of('palette') + ED.icons.caption(t, 'palette') + '</button>' +
-            '<button type="button" class="ed-icon-btn" data-ed-cmd="home" title="' + esc(t('easydrag.ui.back_home')) + '" aria-label="' + esc(t('easydrag.ui.back_home')) + '">' + ED.icons.of('home') + ED.icons.caption(t, 'home') + '</button>' +
-            '<button type="button" class="ed-icon-btn" data-ed-cmd="templates" title="' + esc(t('easydrag.ui.home_templates')) + '" aria-label="' + esc(t('easydrag.ui.home_templates')) + '">' + ED.icons.of('templates') + ED.icons.caption(t, 'templates') + '</button>' +
-            '<button type="button" class="ed-icon-btn" data-ed-cmd="groups" title="' + esc(t('easydrag.ui.groups')) + '" aria-label="' + esc(t('easydrag.ui.groups')) + '">' + ED.icons.of('groups') + ED.icons.caption(t, 'groups') + '</button>' +
+            '<button type="button" class="ed-icon-btn" data-ed-cmd="palette" aria-pressed="true" title="' + esc(t('easydrag.ui.palette_title')) + ' (' + core.shortcut('Ctrl+K') + ')">' + ED.icons.of('palette') + ED.icons.caption(t, 'palette') + '</button>' +
+            '<button type="button" class="ed-icon-btn" data-ed-cmd="home" title="' + esc(t('easydrag.ui.back_home')) + '">' + ED.icons.of('home') + ED.icons.caption(t, 'home') + '</button>' +
+            '<button type="button" class="ed-icon-btn" data-ed-cmd="templates" title="' + esc(t('easydrag.ui.home_templates')) + '">' + ED.icons.of('templates') + ED.icons.caption(t, 'templates') + '</button>' +
+            '<button type="button" class="ed-icon-btn" data-ed-cmd="groups" title="' + esc(t('easydrag.ui.groups')) + '">' + ED.icons.of('groups') + ED.icons.caption(t, 'groups') + '</button>' +
             '<span class="ed-rail-spacer"></span>' +
-            '<button type="button" class="ed-icon-btn" data-ed-cmd="keys" title="' + esc(t('easydrag.ui.keys_title')) + ' (?)" aria-label="' + esc(t('easydrag.ui.keys_title')) + '">' + ED.icons.of('keys') + ED.icons.caption(t, 'keys') + '</button>' +
+            '<button type="button" class="ed-icon-btn" data-ed-cmd="keys" title="' + esc(t('easydrag.ui.keys_title')) + ' (?)">' + ED.icons.of('keys') + ED.icons.caption(t, 'keys') + '</button>' +
             '</nav></div>' +
             '<footer class="ed-foot">' +
             '<button type="button" class="ed-foot-item" data-ed-cmd="last-run"><span class="ed-last-mark" data-ed-last-dot></span><span data-ed-last-run></span></button>' +

@@ -47,10 +47,10 @@
         return core.icon(glyph, cls);
     }
 
-    // caption returns the short text under a rail icon. The button keeps its long name in aria-label and
-    // title, so the caption is hidden from screen readers (it would read the name twice).
+    // caption returns the short text under a rail icon. The caption is the button's accessible name (WCAG
+    // 2.5.3, label in name); the long name and the shortcut stay in the button's title.
     function caption(t, id) {
-        return '<span class="ed-rail-caption" aria-hidden="true">' + core.esc(t(RAIL[id])) + '</span>';
+        return '<span class="ed-rail-caption">' + core.esc(t(RAIL[id])) + '</span>';
     }
 
     ED.icons = { MEANINGS, RAIL, of, caption };

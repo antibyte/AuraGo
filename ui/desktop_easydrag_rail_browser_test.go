@@ -50,6 +50,15 @@ func TestEasyDragRailCaptionsBrowser(t *testing.T) {
 		s.shot("rail-captions-" + vp.name)
 	}
 
+	// Each rail button is named by its visible caption (WCAG 2.5.3): no aria-label, a caption that
+	// screen readers see, and no other text in the button.
+	if got := p.MustEval(`()=>JSON.stringify([...document.querySelectorAll('.ed-rail button')].filter(b=>{
+		const cap=b.querySelector('.ed-rail-caption');
+		return b.hasAttribute('aria-label')||b.hasAttribute('aria-labelledby')||!cap||cap.closest('[aria-hidden="true"]')||b.textContent.trim()!==cap.textContent.trim()||!b.title;
+	}).map(b=>b.dataset.edCmd||b.title))`).Str(); got != "[]" {
+		t.Fatalf("rail buttons whose accessible name is not their caption: %s", got)
+	}
+
 	// At 900 and 390 px the palette and the outline float over the canvas. They start right of the
 	// rail, and the end of every caption still receives the click.
 	const open = `(which)=>{

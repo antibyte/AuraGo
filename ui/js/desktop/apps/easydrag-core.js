@@ -74,7 +74,7 @@
         'bolt': '<path d="M13 3v7h6l-8 11v-7H5l8-11"/>',
         'arrow-left': '<path d="M5 12h14M5 12l6 6M5 12l6-6"/>',
         'grid': '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/>',
-        'group-frame': '<rect x="3.75" y="5.25" width="16.5" height="13.5" rx="3" stroke-dasharray="3.3 2.4"/><rect x="7.5" y="9" width="4.5" height="3.75" rx=".9"/>',
+        'group-frame': '<rect x="3.75" y="5.25" width="16.5" height="13.5" rx="3" stroke-dasharray="2.6 3.2"/><rect x="7.5" y="9" width="4.5" height="3.75" rx=".9"/>',
         'external': '<path d="M12 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6M11 13l9-9M15 4h5v5"/>',
         'refresh': '<path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/>',
         'info': '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/>',

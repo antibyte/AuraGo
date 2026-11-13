@@ -103,7 +103,7 @@ func TestDesktopEasyDragGroupsBrowser(t *testing.T) {
 		}
 	}
 	p.MustSetViewport(1440, 900, 1, false)
-	p.MustEval(`()=>{const ed=edFixture.editor(),label=ed.t('easydrag.ui.node_list');[...document.querySelectorAll('.ed-rail button')].find(b=>b.getAttribute('aria-label')===label).click();}`)
+	p.MustEval(`()=>{const ed=edFixture.editor(),label=ed.t('easydrag.ui.node_list');[...document.querySelectorAll('.ed-rail button')].find(b=>b.title===label).click();}`)
 	s.wait(`()=>!!document.querySelector('[data-ed-outline-group="` + groupID + `"]')`)
 	for _, width := range []int{320, 390} {
 		p.MustSetViewport(width, 900, 1, true)
