@@ -110,6 +110,10 @@ Each amendment is applied in the named part. The coordinator copies them into th
 7. **One word for uncertain (A.6).** `easydrag.ui.port_uncertain` takes the same word as `easydrag.status.uncertain`, and a test checks that they match in every locale.
 8. **Extra API (A.2–A.4).** `ED.status.ofStep`, `table`, `bind(t)`, `disc(…, { t, title, hidden })` and `label(…, wordOverride)`; `ED.durable.value`; `ED.testing.statusOf` and `statusLabel`.
 9. **No pulse on the running disc.** `@keyframes ed-pulse` stays; Part D owns animation rules.
+9a. **Where "blocked" shows (correction from review A).**
+   - "Blockiert" appears in the test panel, the header pill and the run-view banner.
+   - Run rows in the drawer and on the home grid still read "Wartet" for an open approval: the run list records carry no durable state. This was also true before W1a.
+   - Showing "blocked" in rows needs a durable state in the list response. That belongs to W1c.
 
 **Part B, kit and type scale**
 

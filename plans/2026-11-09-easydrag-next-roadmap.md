@@ -1410,6 +1410,19 @@ The ten waves sum to 22.5 relative units instead of 20.5, for two reasons. The p
 - *Decisions due:* 1, 3 and 4.
 
 **Wave 1: Readable and honest** (relative duration 2.5).
+- *Status 2026-11-13:* Wave 1 is split into six sub-projects:
+  - W1a Foundations;
+  - W1b Voice and actions;
+  - W1c Header and one Stop;
+  - W1d Test loop;
+  - W1e Canvas;
+  - W1f Entry and demo 3.1.
+  - **Where W1a is.** Spec `plans/2026-11-13-easydrag-w1a-spec.md`, plan `plans/2026-11-13-easydrag-w1a/`. Parts A, C and D have landed on main and are not pushed:
+    - A, the status map and tokens: 453799f0d to 75d9db914;
+    - C, plurals, formatting, vN and the pseudo-locale: 3144a0b90 to 8fc76ebdc;
+    - D, the icon map, the labelled rail and the motion gate with Lebendigkeit: 98d90e8c5 to 799d48c64.
+  - Parts B (kit and type scale, 11/12/14/16/18/24) and E (the lab) are next.
+  - S0c ledger rows 23 (plurals) and 24 (status-map "stopped") are closed by W1a C and A.
 - *Includes:*
   - E2: FD-08 with the status map, UI-17, FD-09, FD-11, CS-01, UI-15, JY-01, the action registry, UX-18 and CS-20, the first FD-14 scenes, and the CS-17 ledger and control budgets;
   - E4: UI-14 with the primary-action states and the one Stop, plus the read-only F.2 next-fire accessor;

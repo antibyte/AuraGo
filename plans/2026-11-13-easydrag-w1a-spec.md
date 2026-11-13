@@ -1,6 +1,11 @@
 # EasyDrag W1a "Foundations": design spec
 
 - **Status:** design spec, 2026-11-13. The owner approved the design in the brainstorming session on 2026-11-12/13. Implementation plan: [`plans/2026-11-13-easydrag-w1a/README.md`](2026-11-13-easydrag-w1a/README.md). Its "Amendments found while planning" take precedence until they are copied in here.
+- **Landed 2026-11-13 on main, not pushed or deployed:**
+  - Part C: 3144a0b90 to 8fc76ebdc (8 commits).
+  - Part A: 453799f0d to 75d9db914 (11 commits).
+  - Part D: 98d90e8c5 to 799d48c64 (8 commits).
+  - Parts B (kit and type scale) and E (lab) are still open. §12 lists what review changed.
 - **Roadmap:** `plans/2026-11-09-easydrag-next-roadmap.md`:
   - §6, Wave 1 "Readable and honest" (lines 1412-1434);
   - E2 "One visual language" (lines 350-416);
@@ -425,3 +430,27 @@ Every new Node script matches `scripts/test-easydrag*.mjs` and every new Go test
 - **Three parts edit the locale files.** The key-file rule (§9) makes a conflict a re-run instead of a hand merge.
 - **The lab is slow or flaky.** 84 renders on a shared Chrome. Every check reports its measured value, a flaky check is re-run alone before it counts, and the time budget in §7 applies.
 - **Removing an idle animation removes a cue someone relies on**, for example a pulsing "unsaved" dot. Each removed animation is listed in Part D's report, and a cue that matters becomes a static mark.
+
+## 12. Changes from implementation and review (Parts A, C, D)
+
+The plan README's amendments 1-33 and 9a apply. Review added these:
+
+- **Part C**
+  - The key-parity tests now accept a locale key `X_(zero|one|two|few|many)` when en has the bare key `X`: `TestCatalogTranslationsAreComplete` gets the rule, and `TestTranslations_AllKeysPresentInAllLanguages` checks missing keys only.
+  - ja and zh carry `_one` forms.
+  - Every plural form contains `{count}`. In fr, pt and hi a count of 0 falls in `one`, so a literal "1" would read wrong.
+- **Part A**
+  - A terminal `run.status` wins over a stale nested record, so the test panel never shows a finished run as running.
+  - A step with `effect_uncertain` shows `uncertain`.
+  - A simulated step's card ring is neutral.
+  - Skipped and disabled cards fade their content and keep their disc at full contrast.
+  - The status lint depends on position: the status CSS block sits between markers. It catches dynamic class building and checks itself with a probe test. The minimap tint (`rect[data-status=`) is on its allow-list.
+  - Run rows still read "Wartet" for an open approval (README amendment 9a). Showing "blocked" there needs a durable state in the run list, which belongs to W1c.
+- **Part D**
+  - Floating panels start at `--ed-rail-w` (64px).
+  - The visible rail caption is each button's accessible name; the long name and the shortcut stay in `title`.
+  - "Ruhig" also stops canvas glides and smooth scrolling through `ED.delight.allow('view'|'scroll')`.
+  - The target-size scan skips the screen-reader-only node list.
+- **Open follow-ups**
+  - **Duplicate "unclear" wording:** on a step with an uncertain effect, the detail chip at `easydrag-detail.js:619` repeats the status label's word. W1d decides whether to keep only the chip's tooltip.
+  - **Native-speaker check:** the rail captions and the cs, pl, el and hi plural texts, in the Wave 1 sessions.
