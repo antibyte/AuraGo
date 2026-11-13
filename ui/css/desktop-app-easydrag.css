@@ -748,7 +748,17 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-status--error::after { content: "!"; position: absolute; inset: 0; display: grid; place-items: center; color: white; font: 800 12px/1 sans-serif; }
 .ed-status--running, .ed-status--queued { background: var(--ed-info); animation: ed-pulse 1s ease-in-out infinite; }
 .ed-status--skipped { background: var(--ed-control); box-shadow: 0 0 0 2px var(--ed-panel-strong), inset 0 0 0 1px var(--ed-border-strong); }
-.ed-status-disc { box-shadow: 0 0 0 1px var(--ed-status-edge); }
+/* status map (W1a A): ED.status draws one disc per value; the word beside it is plain text. Colour never stands alone: every value has its own glyph. */
+.ed-status-disc { display: inline-grid; place-items: center; flex: none; box-sizing: border-box; width: var(--ed-disc, 18px); height: var(--ed-disc, 18px); border-radius: 50%; vertical-align: middle; background: var(--ed-status-neutral); color: var(--ed-status-neutral-ink); box-shadow: 0 0 0 1px var(--ed-status-edge); }
+.ed-status-disc svg { display: block; width: 72%; height: 72%; }
+.ed-status-disc[data-status="ok"], .ed-status-disc[data-status="stopped"] { background: var(--ed-ok); color: var(--ed-status-ink); }
+.ed-status-disc[data-status="failed"] { background: var(--ed-danger); color: var(--ed-status-ink); }
+.ed-status-disc[data-status="running"], .ed-status-disc[data-status="waiting"] { background: var(--ed-info); color: var(--ed-status-ink); }
+.ed-status-disc[data-status="uncertain"], .ed-status-disc[data-status="blocked"] { background: var(--ed-warn); color: var(--ed-status-ink); }
+.ed-status-label { display: inline-flex; align-items: center; gap: var(--ed-space-2); vertical-align: middle; }
+.ed-status-word { color: var(--ed-text); }
+.ed-node-badges .ed-status-disc { box-shadow: 0 0 0 2px var(--ed-panel-strong), 0 0 0 3px var(--ed-status-edge); }
+.ed-last-mark { display: inline-flex; }
 .ed-node.status-running { border-color: var(--ed-info); animation: ed-glow 1.4s ease-in-out infinite; }
 .ed-node.status-success { border-color: color-mix(in srgb, var(--ed-ok) 60%, var(--ed-border)); }
 .ed-node.status-error { border-color: var(--ed-danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ed-danger) 25%, transparent); }
@@ -1592,6 +1602,10 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     .ed-run-dot--cancelled { border-color: GrayText; }
     .ed-status { outline: 2px solid CanvasText; outline-offset: -2px; }
     .ed-status--running, .ed-status--queued { outline-color: Highlight; }
+    /* status discs are told apart by glyph, fill and ring, not by hue */
+    .ed-status-disc { background-color: Canvas; color: CanvasText; outline: 2px solid CanvasText; outline-offset: -2px; box-shadow: none; }
+    .ed-status-disc[data-status="running"], .ed-status-disc[data-status="waiting"] { color: Highlight; outline-color: Highlight; }
+    .ed-status-disc[data-status="skipped"], .ed-status-disc[data-status="paused"], .ed-status-disc[data-status="simulated"], .ed-status-disc[data-status="not_run"], .ed-status-disc[data-status="cancelled"] { color: GrayText; outline-color: GrayText; }
 
     /* switch: the track fills with Highlight when on, the knob also moves */
     .ed-switch { outline: 2px solid ButtonText; outline-offset: -2px; background-color: ButtonFace; }
