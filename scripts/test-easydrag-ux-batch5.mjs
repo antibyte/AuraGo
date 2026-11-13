@@ -662,7 +662,7 @@ export async function run(env) {
         eq('b5 U7 a card says turned off, problems and its run state; a flow card its state; a switch names its flow',
             [rows, ['f1', 'f2', 'f3'].map(cardName), [sw('f1').getAttribute('aria-label'), sw('f2').getAttribute('aria-label'), sw('f3')]], [
                 ['Alpha', 'Alpha, card_state_off', 'Alpha, card_state_off, badge_incomplete', 'Alpha, card_state_off, badge_incomplete, failed'],
-                ['Alpha, state_published', 'Beta, state_published, state_inactive, status_error', 'Gamma, state_draft'],
+                ['Alpha, state_published', 'Beta, state_published, state_inactive, failed', 'Gamma, state_draft'],
                 ['home_active_named:Alpha', 'home_active_named:Beta', null]
             ]);
         eq('b5 U7 the words exist in all 16 locales', missingKeys(apps, ['easydrag.ui.card_state_off', 'easydrag.ui.home_active_named']), []);

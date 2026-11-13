@@ -26,8 +26,8 @@
         }
 
         function runRow(r) {
-            const row = '<button type="button" class="ed-run-row" data-ed-run="' + esc(r.id) + '"><span class="ed-run-dot ed-run-dot--' + esc(r.status) + '"></span>' +
-                '<span class="ed-run-main"><span>' + esc(ED.durable ? ED.durable.label(t, r) : core.tr(t, 'easydrag.ui.status_' + r.status, r.status)) + ' · ' + esc(triggerLabel(r)) + '</span>' +
+            const row = '<button type="button" class="ed-run-row" data-ed-run="' + esc(r.id) + '">' +
+                '<span class="ed-run-main"><span>' + ED.status.label(t, ED.durable.value(r), ED.durable.label(t, r)) + ' · ' + esc(triggerLabel(r)) + '</span>' +
                 '<span class="ed-muted">' + esc(core.fmt.dateTime(r.started_at)) + (r.duration_ms ? ' · ' + esc(core.fmt.duration(r.duration_ms)) : '') + '</span></span>' +
                 '<span class="ed-chip' + (r.mode === 'test' ? ' ed-chip--muted' : '') + '">' + (r.durable ? core.icon('repeat') + '<span class="ed-sr-only">' + esc(t('easydrag.ui.durable_title')) + ' · </span>' : '') + esc(r.mode === 'test' ? t('easydrag.ui.run_mode_test') : t('easydrag.ui.run_mode_live')) + '</span></button>';
             // A run that has not ended can be stopped from its row, also on a read-only desktop.
@@ -37,7 +37,7 @@
         }
 
         function matchingRuns() {
-            return Array.from(rc.listedRuns.values()).filter(r => !rc.runsQuery || [r.id, r.status, core.tr(t, 'easydrag.ui.status_' + r.status, r.status), triggerLabel(r), core.fmt.dateTime(r.started_at), r.revision].join(' ').toLocaleLowerCase().includes(rc.runsQuery));
+            return Array.from(rc.listedRuns.values()).filter(r => !rc.runsQuery || [r.id, r.status, ED.durable.label(t, r), triggerLabel(r), core.fmt.dateTime(r.started_at), r.revision].join(' ').toLocaleLowerCase().includes(rc.runsQuery));
         }
 
         function drawRuns() {
@@ -190,9 +190,9 @@
             shown.finished = true;
             if (ed.runView) {
                 ed.runView.data = runData(detail.run, detail.steps || []);
-                // The hint of a run a stop step ended (S0c A2); renderBanner appends it to the banner text.
+                // A run a stop step ended shows "stopped" (S0c A2, W1a A); renderBanner reads it for the status word and the tooltip.
                 const stopped = ED.testing && ED.testing.stoppedBy(detail, ed.model);
-                ed.runView.stopHint = stopped ? t('easydrag.ui.run_stopped_by', { step: stopped.label }) : '';
+                ed.runView.stopped = stopped ? { label: stopped.label } : null;
             }
             setRun(shown);
         }

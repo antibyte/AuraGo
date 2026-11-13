@@ -29,13 +29,19 @@
     function record(run) { return run && (run.record || run); }
     function info(run) { const r = record(run); return status(r, run && run.durableStatus); }
     function has(run) { return !!(record(run)?.durable === true || run?.durableKnown || info(run)); }
+    // value is the status value of a run (ED.status): a legacy checkpoint cannot override a finished run, and an open approval is "blocked".
+    function value(run) {
+        const r = record(run), s = info(run);
+        if (r && !TERMINAL_STATES.has(r.status) && s && s.state !== 'running') return ED.status.of(s.state === 'running' ? 'running' : s.state === 'waiting' ? 'waiting' : 'blocked', 'run');
+        return ED.status.of(r && r.status, 'run');
+    }
     function label(t, run) {
         const r = record(run), s = info(run);
         if (!r) return '';
         if (run.durableStopping && !['success', 'error', 'cancelled'].includes(r.status)) return t('easydrag.ui.run_stopping');
         // A legacy checkpoint can outlive a terminal run. Keep that run's actual result.
-        if (!['success', 'error', 'cancelled'].includes(r.status) && s && s.state !== 'running') return t(s.state === 'approval_pending' ? 'easydrag.ui.approval_state_pending' : s.state === 'blocked' ? 'easydrag.ui.durable_blocked' : 'easydrag.ui.durable_waiting');
-        return ED.core.tr(t, 'easydrag.ui.status_' + r.status, r.status);
+        if (!['success', 'error', 'cancelled'].includes(r.status) && s && s.state !== 'running') return ED.status.word(t, value(run));
+        return ED.status.word(t, value(run));
     }
     function reason(t, code) { return REASONS.has(code) ? t('easydrag.ui.durable_reason_' + code) : t('easydrag.ui.durable_unknown'); }
     function markup(env, run) {
@@ -143,5 +149,5 @@
         render();
         return { el, refresh, get value() { return value; }, dispose() { disposed = true; sequence++; clearTimeout(timer); if (request) request.controller.abort(); request = null; bag.dispose(); el.remove(); } };
     }
-    ED.durable = { TYPE, REASONS, capability, status, record, info, has, label, reason, markup, supported, requires, observeRun, observe };
+    ED.durable = { TYPE, REASONS, capability, status, record, info, has, label, value, reason, markup, supported, requires, observeRun, observe };
 })();

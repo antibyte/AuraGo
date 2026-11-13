@@ -281,23 +281,22 @@
             el.hidden = false;
             const simulation = run.mode === 'simulation';
             el.open = simulation || run.status === 'error';
-            el.querySelector('summary').textContent = (simulation ? t('easydrag.ui.simulation_result') : t('easydrag.ui.run_diagnosis')) + ' · ' + core.tr(t, 'easydrag.ui.status_' + run.status, run.status);
+            el.querySelector('summary').textContent = (simulation ? t('easydrag.ui.simulation_result') : t('easydrag.ui.run_diagnosis')) + ' · ' + statusLabel(t, ed, run);
             const failed = steps.find(step => step.status === 'error');
-            const stopped = stoppedBy({ run, steps }, ed.model);
+            const stopped = stoppedBy({ run, steps }, ed.model); el.querySelector('summary').title = stopped ? t('easydrag.ui.run_stopped_by', { step: stopped.label }) : '';
             const complete = steps.filter(step => step.status === 'success');
             const preview = ed.isBlock && run.outputs ? null : contentResult(ed, complete);
             const label = step => { const n = ed.model.node(step.node_id); return n ? n.label || (ed.model.info(n.type) || {}).label || n.type : step.node_key || step.node_id; };
             el.querySelector('.ed-run-results-body').innerHTML =
                 (durable ? ED.durable.markup(ed, run) : '') +
                 (simulation ? '<p class="ed-hint">' + esc(t(ed.isBlock ? 'easydrag.ui.block_simulation_hint' : 'easydrag.ui.simulation_hint')) + '</p>' : '') +
-                (stopped ? '<p class="ed-hint" data-ed-stopped-by>' + esc(t('easydrag.ui.run_stopped_by', { step: stopped.label })) + '</p>' : '') +
                 (simulation && ed.isBlock && run.status === 'success' ? ED.blocks.outputMarkup(ed, run.outputs) : '') +
                 (ED.batches ? complete.filter(step => ed.model.node(step.node_id)?.type === 'component.each').map(step => ED.batches.resultMarkup(ed, step, true)).join('') : '') +
                 (failed ? '<section class="ed-run-diagnosis"><h3>' + esc(label(failed)) + '</h3><p>' + esc(core.stepErrorText(t, failed)) + '</p><p>' + esc(t('easydrag.ui.run_next_action')) + '</p>' + (!simulation ? '<h4>' + esc(t('easydrag.ui.run_completed_effects')) + '</h4><p>' + esc(complete.map(label).join(' · ') || '—') + '</p>' : '') + '</section>' : '') +
                 (!failed && run.record && run.record.error_code ? '<p class="ed-hint">' + esc(core.stepErrorText(t, run.record)) + '</p>' : '') +
                 (preview ? '<section class="ed-result-preview"><h4>' + esc(t('easydrag.ui.output_preview') + ' · ' + preview.label) + '</h4><p>' + esc(preview.text.slice(0, 1500)) + '</p></section>' : '') +
                 (simulation && run.record && run.record.assertions && run.record.assertions.length ? '<h4>' + esc(t('easydrag.ui.scenario_assertions')) + '</h4><ul class="ed-assertion-results">' + run.record.assertions.map(assertion => '<li><strong>' + esc(label(assertion)) + ' · ' + esc(t(assertion.passed ? 'easydrag.ui.scenario_assertion_passed' : 'easydrag.ui.scenario_assertion_failed')) + '</strong>' + (assertion.code ? '<p>' + esc(core.tr(t, 'easydrag.ui.assertion_' + assertion.code, assertion.code)) + '</p>' : '') + '</li>').join('') + '</ul>' : '') +
-                '<h4>' + esc(t('easydrag.ui.run_timeline')) + '</h4><ol class="ed-run-timeline">' + steps.map(step => '<li><button type="button" data-ed-result-node="' + esc(step.node_id) + '"><span class="ed-run-dot ed-run-dot--' + esc(step.status) + '"></span><span>' + esc(label(step)) + '</span><span class="ed-muted">' + esc(core.tr(t, 'easydrag.ui.status_' + step.status, step.status)) + (step.duration_ms ? ' · ' + esc(core.fmt.duration(step.duration_ms)) : '') + (step.effect_uncertain ? ' · ' + esc(t('easydrag.ui.step_effect_uncertain')) : '') + '</span></button></li>').join('') + '</ol>';
+                '<h4>' + esc(t('easydrag.ui.run_timeline')) + '</h4><ol class="ed-run-timeline">' + steps.map(step => '<li><button type="button" data-ed-result-node="' + esc(step.node_id) + '">' + ED.status.disc(ED.status.ofStep(step, simulation), 14, { t, hidden: true }) + '<span>' + esc(label(step)) + '</span><span class="ed-muted">' + esc(ED.status.word(t, ED.status.ofStep(step, simulation))) + (step.duration_ms ? ' · ' + esc(core.fmt.duration(step.duration_ms)) : '') + (step.effect_uncertain ? ' · ' + esc(ED.status.word(t, 'uncertain')) : '') + '</span></button></li>').join('') + '</ol>';
         }
         bag.listen(el, 'pointerdown', event => event.stopPropagation());
         bag.listen(el, 'wheel', event => event.stopPropagation());
@@ -332,5 +331,18 @@
         }
         return null;
     }
-    ED.testing = { decorate, createResults, parseSample, contentResult, triggers, realEffects, effects, unknownEffects, simulationDefault, localSample, stoppedBy };
+    // statusOf is the status value of a run (ED.status): the durable and plain run statuses, and "stopped" for a successful run a
+    // logic.stop ended (S0c A2, W1a A). The status replaces S0c's separate hint text.
+    function statusOf(ed, run) {
+        const base = ED.durable ? ED.durable.value(run) : ED.status.of(run && (run.record || run).status, 'run');
+        if (base !== 'ok' || !run) return base;
+        const record = run.record || run;
+        const steps = run.steps && typeof run.steps.values === 'function' ? Array.from(run.steps.values()) : [];
+        return stoppedBy({ run: { status: record.status }, steps }, ed.model) ? 'stopped' : base;
+    }
+    // statusLabel is the word for statusOf; "stopping" and the durable wording stay with ED.durable.label.
+    function statusLabel(t, ed, run) {
+        return statusOf(ed, run) === 'stopped' ? ED.status.word(t, 'stopped') : ED.durable ? ED.durable.label(t, run) : ED.status.word(t, ED.status.of(run && (run.record || run).status, 'run'));
+    }
+    ED.testing = { decorate, createResults, parseSample, contentResult, triggers, realEffects, effects, unknownEffects, simulationDefault, localSample, stoppedBy, statusOf, statusLabel };
 })();

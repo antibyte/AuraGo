@@ -223,6 +223,7 @@
         container.innerHTML = '';
         container.appendChild(root);
         const inst = { windowId, ctx, root, t: ED.format.wrapT(ctx.t), esc: ctx.esc || core.esc, api: core.createApi(ctx.api), catalog: null, catalogAt: 0, screen: null, nav: 0, lastRoute: {} };
+        if (ED.status) ED.status.bind(inst.t);
         inst.blockApi = ED.blocks && ED.blocks.api(ctx.api);
         inst.app = {
             ctx, t: inst.t, esc: inst.esc, api: inst.api, blockApi: inst.blockApi, windowId, readonly: !!ctx.readonly,

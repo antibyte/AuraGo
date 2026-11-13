@@ -77,7 +77,7 @@
             '<button type="button" class="ed-icon-btn" data-ed-cmd="keys" title="' + esc(t('easydrag.ui.keys_title')) + ' (?)" aria-label="' + esc(t('easydrag.ui.keys_title')) + '">' + core.icon('keyboard') + '</button>' +
             '</nav></div>' +
             '<footer class="ed-foot">' +
-            '<button type="button" class="ed-foot-item" data-ed-cmd="last-run"><span class="ed-run-dot" data-ed-last-dot></span><span data-ed-last-run></span></button>' +
+            '<button type="button" class="ed-foot-item" data-ed-cmd="last-run"><span class="ed-last-mark" data-ed-last-dot></span><span data-ed-last-run></span></button>' +
             '<span class="ed-foot-spacer"></span>' +
             '<button type="button" class="ed-foot-item" data-ed-cmd="issues" aria-haspopup="dialog"><span data-ed-issues></span></button>' +
             '</footer></div>');
@@ -152,12 +152,12 @@
             banner.hidden = !run;
             if (!run) return;
             const text = t('easydrag.ui.run_view_banner', {
-                status: ED.durable ? ED.durable.label(t, ed.run || run) : core.tr(t, 'easydrag.ui.status_' + run.status, run.status),
+                status: ed.runView.stopped ? ED.status.word(t, 'stopped') : ED.durable.label(t, ed.run || run),
                 time: core.fmt.dateTime(run.started_at),
                 revision: run.revision
             });
             const node = banner.querySelector('[data-ed-runview-text]');
-            const shown = text + (ed.runView.stopHint ? ' · ' + ed.runView.stopHint : ''); if (node.textContent !== shown) node.textContent = shown;
+            const shown = text; if (node.textContent !== shown) node.textContent = shown; node.title = ed.runView.stopped ? t('easydrag.ui.run_stopped_by', { step: ed.runView.stopped.label }) : '';
             const stop = banner.querySelector('[data-ed-cmd="stop-viewed"]');
             const approval = banner.querySelector('[data-ed-cmd="approval-review"]');
             const durableStatus = ED.durable && ED.durable.info(ed.run);

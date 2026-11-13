@@ -572,11 +572,6 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-template-grid.is-disabled .ed-template-card:hover { transform: none; box-shadow: var(--vd-mat-card-shadow, none); border-color: var(--ed-card-border); }
 .ed-template-use { display: inline-flex; align-items: center; gap: 2px; margin-top: 4px; color: var(--ed-accent-ink); font-weight: 700; font-size: 12px; }
 
-.ed-run-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--ed-border-strong); }
-.ed-run-dot--success { background: var(--ed-ok); }
-.ed-run-dot--error { background: var(--ed-danger); }
-.ed-run-dot--running, .ed-run-dot--queued { background: var(--ed-info); animation: ed-pulse 1.2s ease-in-out infinite; }
-.ed-run-dot--cancelled { background: var(--ed-muted); }
 
 /* ── editor layout ──────────────────────────────────────────────────────────── */
 .ed-editor { position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0; }
@@ -618,6 +613,7 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 button.ed-foot-item { cursor: pointer; }
 button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed-text); }
 .ed-foot-item .ed-icon { width: 14px; height: 14px; }
+.ed-last-mark { display: inline-flex; flex: none; }
 .ed-foot-item.has-errors { color: var(--ed-danger-ink); }
 .ed-foot-item.has-warnings { color: var(--ed-warn-ink); }
 .ed-foot-item.is-clean .ed-icon { color: var(--ed-ok); }
@@ -1583,12 +1579,6 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     .ed-flow-preview .ed-mini-wires path { stroke: CanvasText; opacity: 1; }
     .ed-flow-preview .ed-mini-empty { stroke: GrayText; }
 
-    /* state dots and badges are told apart by fill, shape and ring, not by hue */
-    .ed-run-dot { border: 2px solid CanvasText; background-color: Canvas; }
-    .ed-run-dot--success { background-color: CanvasText; }
-    .ed-run-dot--error { background-color: CanvasText; border-radius: 1px; transform: rotate(45deg); }
-    .ed-run-dot--running, .ed-run-dot--queued { border-color: Highlight; }
-    .ed-run-dot--cancelled { border-color: GrayText; }
     /* status discs are told apart by glyph, fill and ring, not by hue */
     .ed-status-disc { background-color: Canvas; color: CanvasText; outline: 2px solid CanvasText; outline-offset: -2px; box-shadow: none; }
     .ed-status-disc[data-status="running"], .ed-status-disc[data-status="waiting"] { color: Highlight; outline-color: Highlight; }

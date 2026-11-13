@@ -204,10 +204,10 @@
             const r = ed.run && ed.run.record ? ed.run.record : (ed.run ? { status: ed.run.status, started_at: null } : host.lastRecord());
             const dot = el.querySelector('[data-ed-last-dot]');
             const text = el.querySelector('[data-ed-last-run]');
-            dot.className = 'ed-run-dot' + (r ? ' ed-run-dot--' + r.status : '');
+            const mark = r ? ED.status.disc(ED.testing.statusOf(ed, ed.run || r), 14, { t, hidden: true }) : ''; if (dot.dataset.mark !== mark) { dot.dataset.mark = mark; dot.innerHTML = mark; }
             const failed = r && r.status === 'error' && ed.run && ed.run.steps ? Array.from(ed.run.steps.values()).find(s => s.status === 'error') : null;
             const failedNode = failed && ed.model.node(failed.node_id);
-            const head = failedNode ? t('easydrag.ui.run_failed_at', { node: failedNode.label || failedNode.type }) : r ? ED.durable ? ED.durable.label(t, ed.run || r) : core.tr(t, 'easydrag.ui.status_' + r.status, r.status) : '';
+            const head = failedNode ? t('easydrag.ui.run_failed_at', { node: failedNode.label || failedNode.type }) : r ? ED.testing.statusLabel(t, ed, ed.run || r) : '';
             text.textContent = r
                 ? head + (r.started_at ? ' · ' + core.fmt.relative(r.started_at) : '') + (r.duration_ms ? ' · ' + core.fmt.duration(r.duration_ms) : '')
                 : t(isBlock ? 'easydrag.ui.block_not_simulated' : 'easydrag.ui.home_never_ran');

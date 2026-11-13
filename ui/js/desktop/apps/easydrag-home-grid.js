@@ -47,7 +47,7 @@
         function lastRun(f) {
             const r = f.last_run;
             if (!r) return '<span class="ed-muted">' + esc(t('easydrag.ui.home_never_ran')) + '</span>';
-            return '<span class="ed-run-dot ed-run-dot--' + esc(r.status) + '"></span><span>' + esc(ED.durable ? ED.durable.label(t, r) : core.tr(t, 'easydrag.ui.status_' + r.status, r.status)) + ' · ' + esc(core.fmt.relative(r.started_at)) + (r.durable ? ' · ' + esc(t('easydrag.ui.durable_title')) : '') + '</span>';
+            return ED.status.label(t, ED.durable.value(r), ED.durable.label(t, r)) + '<span> · ' + esc(core.fmt.relative(r.started_at)) + (r.durable ? ' · ' + esc(t('easydrag.ui.durable_title')) : '') + '</span>';
         }
 
         function visibleFlows() {
@@ -135,7 +135,7 @@
         function cardName(f) {
             const parts = [f.name, !f.published ? t('easydrag.ui.state_draft') : f.has_unpublished_changes ? t('easydrag.ui.state_changes') : t('easydrag.ui.state_published')];
             if (f.published && !f.enabled) parts.push(t('easydrag.ui.state_inactive'));
-            if (f.last_run && f.last_run.status === 'error') parts.push(t('easydrag.ui.status_error'));
+            if (f.last_run && f.last_run.status === 'error') parts.push(ED.status.word(t, 'failed'));
             return parts.join(', ');
         }
 

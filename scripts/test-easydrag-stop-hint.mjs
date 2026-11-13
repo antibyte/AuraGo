@@ -3,13 +3,16 @@
 // The stop step itself is "success" for both stop choices (engine_state.go), so the run's own
 // status decides: a stop with status "error" and a failure inside the stop's grace end the run
 // as "error" and get no hint.
+// W1a A: the run shows the status "stopped" instead of a hint line; statusOf is checked at the end.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
 const box = vm.createContext({ window: {}, console });
-const file = new URL('../ui/js/desktop/apps/easydrag-testing.js', import.meta.url);
-vm.runInContext(fs.readFileSync(file, 'utf8'), box, { filename: file.pathname });
+for (const name of ['easydrag-status.js', 'easydrag-durable.js', 'easydrag-testing.js']) {
+    const file = new URL('../ui/js/desktop/apps/' + name, import.meta.url);
+    vm.runInContext(fs.readFileSync(file, 'utf8'), box, { filename: file.pathname });
+}
 const { stoppedBy } = box.window.EasyDrag.testing;
 
 const TRIGGER = 'n_trigger1', WORK = 'n_workwork', STOP = 'n_stopstop';
@@ -71,3 +74,17 @@ console.log('easydrag stop hint: ok');
     assert.ok(!paint({ id: 'r2', status: 'error' }).includes('ERR '), 'no error_code, no hint');
 }
 console.log('easydrag start failure results: ok');
+
+// 6. (W1a A) statusOf and statusLabel: a run a stop step ended is "stopped".
+{
+    const T = box.window.EasyDrag.testing, D = box.window.EasyDrag.durable;
+    const stopRunFull = { id: 'r1', status: 'success', steps: new Map([[STOP, step(STOP, 'success')]]), record: { id: 'r1', status: 'success' } };
+    assert.equal(T.statusOf({ model }, stopRunFull), 'stopped', 'a successful run a stop step ended is "stopped"');
+    assert.equal(T.statusOf({ model }, { id: 'r2', status: 'error', steps: new Map([[STOP, step(STOP, 'success')]]), record: { id: 'r2', status: 'error' } }), 'failed', 'an error run is not "stopped"');
+    assert.equal(T.statusOf({ model }, { id: 'r3', status: 'cancelled', steps: new Map(), record: { id: 'r3', status: 'cancelled' } }), 'cancelled');
+    assert.equal(T.statusOf({ model }, { id: 'r4', status: 'success', steps: new Map(), record: { id: 'r4', status: 'success' } }), 'ok');
+    assert.equal(D.value({ id: 'r5', status: 'running', record: { id: 'r5', status: 'running' } }), 'running');
+    assert.equal(D.value({ id: 'r6', status: 'queued', record: { id: 'r6', status: 'queued' } }), 'waiting');
+    assert.equal(T.statusLabel(key => key, { model }, stopRunFull), 'stopped', 'the word of a stopped run (the harness t returns the key)');
+}
+console.log('easydrag stopped status: ok');

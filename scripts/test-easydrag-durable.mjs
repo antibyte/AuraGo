@@ -64,7 +64,7 @@ export async function run({ sandbox, openEditor, eq, guardAsync, settle }) {
         eq('durable waiting is active and keeps its explicit window run identity', [f.editor.ed.run.status, f.h.contexts.at(-1).run_id, !!f.editor.el.querySelector('[data-ed-durable-run]')], ['waiting', RID, true]);
         f.state.phase = phase('blocked'); await f.view();
         const body = f.editor.el.querySelector('.ed-run-results-body');
-        eq('durable reversible block is distinct from a final error and exposes fixed reason times', [f.editor.ed.run.status, f.editor.el.querySelector('.ed-run-results summary').textContent.includes('durable_blocked'), body.html.includes('durable_reason_disabled'), body.html.includes('durable_deadline')], ['waiting', true, true, true]);
+        eq('durable reversible block is distinct from a final error and exposes fixed reason times', [f.editor.ed.run.status, f.editor.el.querySelector('.ed-run-results summary').textContent.includes('· blocked'), body.html.includes('durable_reason_disabled'), body.html.includes('durable_deadline')], ['waiting', true, true, true]);
         eq('durable body keeps the one visible title in its summary', body.html.includes('<strong>durable_title'), false);
         eq('durable opening a stored waiting run starts no replacement run', mutations(f).filter(req => req.url.endsWith('/run')).length, 1);
         f.editor.dispose();

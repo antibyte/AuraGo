@@ -732,7 +732,7 @@ func (s *easyDragSmoke) stopWaitingRuns() {
 	page.MustElement(`.ed-runview-banner [data-ed-cmd="stop-viewed"]`).MustClick()
 	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-action="stop"]')`)
 	page.MustElement(`.ed-modal [data-ed-action="stop"]`).MustClick()
-	s.wait(fmt.Sprintf(`()=>{const b=document.querySelector('.ed-runview-banner');return edFixture.state.runs.get('%s').run.status==='cancelled' && b.querySelector('[data-ed-cmd="stop-viewed"]').hidden && b.textContent.includes(edFixture.editor().t('easydrag.ui.status_cancelled')) && document.activeElement===b.querySelector('[data-ed-cmd="exit-run-view"]')}`, second))
+	s.wait(fmt.Sprintf(`()=>{const b=document.querySelector('.ed-runview-banner');return edFixture.state.runs.get('%s').run.status==='cancelled' && b.querySelector('[data-ed-cmd="stop-viewed"]').hidden && b.textContent.includes(edFixture.editor().t('easydrag.status.cancelled')) && document.activeElement===b.querySelector('[data-ed-cmd="exit-run-view"]')}`, second))
 	s.shot("run-view-stopped")
 	s.noRawKeys("run view stopped")
 	// "Back to draft" (focused) ends the run view; the focus goes to the draft's canvas.
@@ -844,7 +844,7 @@ func (s *easyDragSmoke) failedRunView() {
 	page := s.page
 	page.MustElement(`[data-ed-cmd="runs"]`).MustClick()
 	s.wait(`()=>document.querySelectorAll('.ed-run-row').length===2`)
-	page.MustElement(`.ed-run-row .ed-run-dot--error`).MustClick()
+	page.MustElement(`.ed-run-row .ed-status-disc[data-status="failed"]`).MustClick()
 	s.wait(`()=>!document.querySelector('.ed-runview-banner').hidden && document.querySelectorAll('.ed-node.status-error').length===1`)
 	s.settle()
 	s.wait(`()=>{const canvas=document.querySelector('.ed-canvas').getBoundingClientRect();const drawer=document.querySelector('.ed-drawer');const free=canvas.width-drawer.offsetWidth;const card=document.querySelector('.ed-node.status-error').getBoundingClientRect();const mid=card.left+card.width/2-canvas.left;return Math.abs(mid-free/2)<=2 && edFixture.editor().view.zoom>=0.8}`)
