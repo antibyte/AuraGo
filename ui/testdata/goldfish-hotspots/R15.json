@@ -1,0 +1,130 @@
+{
+  "room": "R15",
+  "targets": [
+    {
+      "id": "services",
+      "landmark": "The independent service breaker and power switches",
+      "points": [
+        [
+          0.67,
+          0.19
+        ],
+        [
+          0.69,
+          0.2
+        ],
+        [
+          0.705,
+          0.19
+        ]
+      ]
+    },
+    {
+      "id": "relay",
+      "landmark": "The central copper cancellation relay and connected line",
+      "points": [
+        [
+          0.47,
+          0.28
+        ],
+        [
+          0.48,
+          0.32
+        ],
+        [
+          0.51,
+          0.3
+        ]
+      ]
+    },
+    {
+      "id": "keys",
+      "landmark": "The three individual key carriers on the left rack",
+      "points": [
+        [
+          0.16,
+          0.49
+        ],
+        [
+          0.22,
+          0.49
+        ],
+        [
+          0.28,
+          0.49
+        ]
+      ]
+    },
+    {
+      "id": "custody",
+      "landmark": "The central custody console with its clear seal compartment",
+      "points": [
+        [
+          0.42,
+          0.52
+        ],
+        [
+          0.52,
+          0.53
+        ],
+        [
+          0.62,
+          0.54
+        ]
+      ]
+    },
+    {
+      "id": "purge",
+      "landmark": "The guarded purge lever at the right station",
+      "points": [
+        [
+          0.78,
+          0.43
+        ],
+        [
+          0.82,
+          0.52
+        ],
+        [
+          0.85,
+          0.62
+        ]
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "R15_R14",
+      "points": [
+        [
+          0.028,
+          0.925
+        ]
+      ]
+    },
+    {
+      "id": "R15_R16",
+      "points": [
+        [
+          0.972,
+          0.925
+        ]
+      ]
+    }
+  ],
+  "backgroundPoints": [
+    [
+      0.06,
+      0.78
+    ],
+    [
+      0.52,
+      0.92
+    ],
+    [
+      0.96,
+      0.78
+    ]
+  ],
+  "visualSignature": "d7fff2d7ebeeb94e76d7238bb5354193c1cfbf32a8c0b6673a0dc83f43483911"
+}

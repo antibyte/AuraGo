@@ -38,6 +38,17 @@
             1
           ],
           "src": "/img/goldfish-adventure/scenes/R01-open.png"
+        },
+        {
+          "id": "repair-chair",
+          "src": "/img/goldfish-adventure/items/repair-chair.png",
+          "rect": [
+            0.73,
+            0.68,
+            0.08,
+            0.142222
+          ],
+          "z": 825
         }
       ]
     },
@@ -92,7 +103,20 @@
           "id": "cafe"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/song-r03.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r03.ogg",
+      "layers": [
+        {
+          "id": "menu-notes",
+          "src": "/img/goldfish-adventure/items/menu-notes.png",
+          "rect": [
+            0.32,
+            0.47,
+            0.08,
+            0.142222
+          ],
+          "z": 650
+        }
+      ]
     },
     "R04": {
       "background": "/img/goldfish-adventure/scenes/R04.png",
@@ -179,7 +203,31 @@
           "id": "fracht"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/song-r05.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r05.ogg",
+      "layers": [
+        {
+          "id": "wobbly-stool",
+          "src": "/img/goldfish-adventure/items/wobbly-stool.png",
+          "rect": [
+            0.64,
+            0.68,
+            0.085,
+            0.151111
+          ],
+          "z": 830
+        },
+        {
+          "id": "own_record",
+          "src": "/img/goldfish-adventure/items/own_record.png",
+          "rect": [
+            0.025,
+            0.48,
+            0.09,
+            0.16
+          ],
+          "z": 650
+        }
+      ]
     },
     "R06": {
       "background": "/img/goldfish-adventure/scenes/R06.png",
@@ -326,7 +374,20 @@
           "id": "aquarium"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/song-r09.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r09.ogg",
+      "layers": [
+        {
+          "id": "weather-ledger",
+          "src": "/img/goldfish-adventure/items/weather-ledger.png",
+          "rect": [
+            0.855,
+            0.41,
+            0.07,
+            0.124444
+          ],
+          "z": 650
+        }
+      ]
     },
     "R10": {
       "background": "/img/goldfish-adventure/scenes/R10.png",
@@ -357,7 +418,20 @@
           "id": "aquarium"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/song-r10.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r10.ogg",
+      "layers": [
+        {
+          "id": "condensation-plan",
+          "src": "/img/goldfish-adventure/items/condensation-plan.png",
+          "rect": [
+            0.655,
+            0.565,
+            0.07,
+            0.124444
+          ],
+          "z": 650
+        }
+      ]
     },
     "R11": {
       "background": "/img/goldfish-adventure/scenes/R11.png",
@@ -467,7 +541,20 @@
           "id": "allgut"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/song-r13.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r13.ogg",
+      "layers": [
+        {
+          "id": "choice-buttons",
+          "src": "/img/goldfish-adventure/items/choice-buttons.png",
+          "rect": [
+            0.59,
+            0.295,
+            0.15,
+            0.266667
+          ],
+          "z": 600
+        }
+      ]
     },
     "R14": {
       "background": "/img/goldfish-adventure/scenes/R14.png",
@@ -507,7 +594,20 @@
           "id": "allgut"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/song-r14.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r14.ogg",
+      "layers": [
+        {
+          "id": "consent-sample",
+          "src": "/img/goldfish-adventure/items/consent-sample.png",
+          "rect": [
+            0.45,
+            0.4,
+            0.12,
+            0.213333
+          ],
+          "z": 600
+        }
+      ]
     },
     "R15": {
       "background": "/img/goldfish-adventure/scenes/R15.png",
@@ -1697,7 +1797,7 @@
         {
           "pivot": [
             0.580078,
-            1.0
+            1
           ],
           "src": "/img/goldfish-adventure/characters/bruno-acting.png",
           "rect": [
@@ -1710,7 +1810,7 @@
         {
           "pivot": [
             0.564453,
-            1.0
+            1
           ],
           "src": "/img/goldfish-adventure/characters/bruno-acting.png",
           "rect": [
@@ -1723,7 +1823,7 @@
         {
           "pivot": [
             0.533203,
-            1.0
+            1
           ],
           "src": "/img/goldfish-adventure/characters/bruno-acting.png",
           "rect": [
@@ -1736,7 +1836,7 @@
         {
           "pivot": [
             0.457031,
-            1.0
+            1
           ],
           "src": "/img/goldfish-adventure/characters/bruno-acting.png",
           "rect": [

@@ -91,6 +91,14 @@
       "width": 1672,
       "runtime": "scenes/R01-open.png",
       "sha256": "9a6672a61c0a7b7e0139b196ae49470a2f874217ffb55d63b54945cb7aaf7422"
+    },
+    {
+      "source": "masters/props/audit-props.png",
+      "height": 887,
+      "width": 1774,
+      "sha256": "dc7ca90ba7688a4ff036c1532e239cd6a0048f87a399e68dc7e9ec7922b3d385",
+      "columns": 4,
+      "rows": 2
     }
   ],
   "tool": "built-in image_gen",

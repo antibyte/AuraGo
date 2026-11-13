@@ -26,6 +26,10 @@ approved content and acceptance scope lives in
 - Art masters/prompts belong to `assets/goldfish-adventure/AGENTS.md`; runtime
   payloads live in `ui/img/goldfish-adventure/`. Story and interface strings use
   separate `ui/lang/goldfish/` and `ui/lang/goldfish-interface/` locale sections.
+- `ui/desktop_goldfish_hotspots_browser_test.go` and
+  `ui/desktop_goldfish_hotspot_actions_browser_test.go` own real pointer coverage;
+  `ui/testdata/goldfish-hotspot-fixture.js` creates validated reachable saves.
+  Independent visual references belong to `ui/testdata/goldfish-hotspots/AGENTS.md`.
 
 ## Local Contracts
 
@@ -64,6 +68,10 @@ approved content and acceptance scope lives in
 - Match hotspot rectangles to the visible props and staged actors in the 16:9
   scene. Moving an actor in `art-layout.json` also requires checking its hotspot;
   adjacent objects must remain independently reachable.
+- A compound hotspot may supply `regions`, a complete list of normalized
+  rectangles with `rect` equal to its first region. Only the first region is a
+  focusable button; additional spans share its pointer actions and stay hidden
+  from the accessibility tree. Keep visible gaps and neighboring targets clear.
 - Exits stay discoverable without pixel hunting: every exit hotspot carries a
   permanent direction sign on the frame edge (gold while open, grey and dashed
   while locked), and its label stays in the bar sentence on hover.
@@ -93,7 +101,8 @@ approved content and acceptance scope lives in
 ## Work Guidance
 
 - Keep modules below the existing 1100-line limit; split by responsibility.
-- Implementation uses Sol 6.1 at Max; Terra 6.1 owns review/support work.
+- Subagents use Luna (`gpt-6-luna`) at Extra High. A different test agent reviews
+  corrected artwork and reference points before their signatures are accepted.
 - Workers own disjoint files and preserve unrelated work. Shared registrations,
   locale integration, guide updates and commits belong to the coordinator.
 - Prove the final-quality opening before treating the complete game's playtime,
@@ -110,9 +119,16 @@ approved content and acceptance scope lives in
 - `TestGoldfishAdventureOpeningBrowser` hovers artwork coordinates in R02 and
   solves its document/stamp puzzle with pointer clicks through the exit to R03;
   selector-only clicks cannot verify hotspot placement.
+- The hotspot suite covers all 16 rooms, four viewport/window/DPR/theme profiles,
+  reachable actor/layer/exit/route/ending variants, all actions, and completion
+  and skipping of all 14 cinematics. It belongs to the existing General CI shard.
+  `AURAGO_BROWSER_ARTIFACT_DIR` writes screenshots, expected/observed reactions
+  and the reachability matrix. R05's two `ship_ready` exits cannot be reached
+  locked: entering the ship already needs the action granting that flag.
 - Validate asset paths/hashes/alpha/atlas bounds and complete localization keys.
 - Rebuild and check Desktop bundles after shared shell registration changes.
 
 ## Child DOX Index
 
-None.
+- `../../../../testdata/goldfish-hotspots/AGENTS.md` — Art-picked target points,
+  staging signatures and independent visual acceptance.

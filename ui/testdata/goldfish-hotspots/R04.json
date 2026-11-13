@@ -1,0 +1,138 @@
+{
+  "room": "R04",
+  "targets": [
+    {
+      "id": "fuel",
+      "landmark": "The round fuel gauge, tall sight glass, and visible fluid column",
+      "points": [
+        [
+          0.23,
+          0.36
+        ],
+        [
+          0.29,
+          0.31
+        ],
+        [
+          0.29,
+          0.39
+        ]
+      ]
+    },
+    {
+      "id": "panel",
+      "landmark": "The red isolation wheel, brass regulator wheel, and control-box face",
+      "points": [
+        [
+          0.24,
+          0.5
+        ],
+        [
+          0.43,
+          0.4
+        ],
+        [
+          0.34,
+          0.56
+        ]
+      ]
+    },
+    {
+      "id": "habitat",
+      "landmark": "The secured aquarium glass, fish, and trolley connection",
+      "points": [
+        [
+          0.44,
+          0.61
+        ],
+        [
+          0.48,
+          0.63
+        ],
+        [
+          0.46,
+          0.7
+        ]
+      ]
+    },
+    {
+      "id": "bruno",
+      "landmark": "Bruno's face, horticulture bag, and body",
+      "points": [
+        [
+          0.77,
+          0.55
+        ],
+        [
+          0.75,
+          0.64
+        ],
+        [
+          0.77,
+          0.69
+        ],
+        [
+          0.77,
+          0.78
+        ]
+      ]
+    },
+    {
+      "id": "boarding",
+      "landmark": "The face terminal and the upper and lower ferry-ramp planks",
+      "points": [
+        [
+          0.86,
+          0.42
+        ],
+        [
+          0.9,
+          0.53
+        ],
+        [
+          0.92,
+          0.63
+        ],
+        [
+          0.92,
+          0.67
+        ]
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "R04_R03",
+      "points": [
+        [
+          0.028,
+          0.926
+        ]
+      ]
+    },
+    {
+      "id": "R04_R05",
+      "points": [
+        [
+          0.971,
+          0.926
+        ]
+      ]
+    }
+  ],
+  "backgroundPoints": [
+    [
+      0.56,
+      0.88
+    ],
+    [
+      0.64,
+      0.88
+    ],
+    [
+      0.58,
+      0.84
+    ]
+  ],
+  "visualSignature": "dd18259a67d9061c70fe8f972829334a61405c80c9ade5d3b01c5ed8d2ea2cda"
+}

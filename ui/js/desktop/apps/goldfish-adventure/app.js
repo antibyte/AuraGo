@@ -333,17 +333,21 @@
             panel?.setSentence('');
             for (const hotspot of room().hotspots) {
                 if (!window.GoldfishState.conditions(state, hotspot)) continue;
-                const pick = element('button', 'agfish-hotspot', t(hotspot.label));
-                pick.type = 'button';
-                pick.dataset.agfishHotspot = hotspot.id;
-                const [x, y, width, height] = hotspot.rect;
-                Object.assign(pick.style, { left: x * 100 + '%', top: y * 100 + '%', width: width * 100 + '%', height: height * 100 + '%' });
-                panel.bind(pick, {
-                    click: () => clickHotspot(hotspot), look: () => lookAt(hotspot),
-                    hover: () => { if (started && !userPaused) panel.setSentence(sentenceFor(hotspot)); },
-                    leave: () => panel.setSentence('')
+                const regions = hotspot.regions || [hotspot.rect];
+                regions.forEach(([x, y, width, height], index) => {
+                    // One keyboard target; additional visible parts share its pointer interaction.
+                    const pick = element(index ? 'span' : 'button', 'agfish-hotspot', t(hotspot.label));
+                    if (index) pick.setAttribute('aria-hidden', 'true');
+                    else pick.type = 'button';
+                    pick.dataset.agfishHotspot = hotspot.id;
+                    Object.assign(pick.style, { left: x * 100 + '%', top: y * 100 + '%', width: width * 100 + '%', height: height * 100 + '%' });
+                    panel.bind(pick, {
+                        click: () => clickHotspot(hotspot), look: () => lookAt(hotspot),
+                        hover: () => { if (started && !userPaused) panel.setSentence(sentenceFor(hotspot)); },
+                        leave: () => panel.setSentence('')
+                    });
+                    refs.hotspots.append(pick);
                 });
-                refs.hotspots.append(pick);
             }
             for (const exit of room().exits) {
                 const pick = element('button', 'agfish-exit', t(exit.label));

@@ -1,0 +1,133 @@
+{
+  "room": "R01",
+  "targets": [
+    {
+      "id": "conveyor",
+      "landmark": "The roller belt, emergency stop button, and adjacent control display",
+      "points": [
+        [
+          0.16,
+          0.46
+        ],
+        [
+          0.21,
+          0.53
+        ],
+        [
+          0.28,
+          0.52
+        ],
+        [
+          0.36,
+          0.54
+        ]
+      ]
+    },
+    {
+      "id": "grabber",
+      "landmark": "The maintenance diagram and open toolbox on the right workbench",
+      "points": [
+        [
+          0.78,
+          0.36
+        ],
+        [
+          0.83,
+          0.39
+        ],
+        [
+          0.71,
+          0.47
+        ],
+        [
+          0.77,
+          0.48
+        ]
+      ]
+    },
+    {
+      "id": "magnet",
+      "landmark": "The suspended magnetic claw, metal body, and two jaws",
+      "points": [
+        [
+          0.3,
+          0.27
+        ],
+        [
+          0.28,
+          0.33
+        ],
+        [
+          0.33,
+          0.35
+        ]
+      ]
+    },
+    {
+      "id": "gate",
+      "landmark": "The center safety gate, mesh panel, and round latch",
+      "points": [
+        [
+          0.56,
+          0.47
+        ],
+        [
+          0.6,
+          0.51
+        ],
+        [
+          0.58,
+          0.56
+        ]
+      ]
+    },
+    {
+      "id": "scrap",
+      "landmark": "The visible wooden repair chair beside the green retired sorting robot and its drawer-like lower body",
+      "points": [
+        [
+          0.85,
+          0.61
+        ],
+        [
+          0.85,
+          0.71
+        ],
+        [
+          0.86,
+          0.8
+        ],
+        [
+          0.77,
+          0.72
+        ]
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "R01_R02",
+      "points": [
+        [
+          0.97,
+          0.926
+        ]
+      ]
+    }
+  ],
+  "backgroundPoints": [
+    [
+      0.5,
+      0.84
+    ],
+    [
+      0.66,
+      0.87
+    ],
+    [
+      0.52,
+      0.71
+    ]
+  ],
+  "visualSignature": "0d9e64aac60771947a15c6f897b9fdcaf966cc143c3ecdd99604501d5b3904d7"
+}

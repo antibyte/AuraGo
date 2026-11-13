@@ -1,0 +1,162 @@
+{
+  "room": "R03",
+  "targets": [
+    {
+      "id": "aquarium",
+      "landmark": "The aquarium glass, visible goldfish, and wheeled trolley beneath it",
+      "points": [
+        [
+          0.42,
+          0.5
+        ],
+        [
+          0.47,
+          0.55
+        ],
+        [
+          0.49,
+          0.52
+        ],
+        [
+          0.44,
+          0.61
+        ],
+        [
+          0.48,
+          0.67
+        ]
+      ]
+    },
+    {
+      "id": "filter",
+      "landmark": "The brass filter canister, copper bypass pipes, and hand valve beside the aquarium",
+      "points": [
+        [
+          0.53,
+          0.49
+        ],
+        [
+          0.56,
+          0.55
+        ],
+        [
+          0.56,
+          0.6
+        ]
+      ]
+    },
+    {
+      "id": "player",
+      "landmark": "The twin-reel tape recorder and its colored edit buttons",
+      "points": [
+        [
+          0.64,
+          0.42
+        ],
+        [
+          0.68,
+          0.47
+        ],
+        [
+          0.65,
+          0.44
+        ]
+      ]
+    },
+    {
+      "id": "travel",
+      "landmark": "The blue travel door and cafe owner standing beside it",
+      "points": [
+        [
+          0.9,
+          0.27
+        ],
+        [
+          0.92,
+          0.39
+        ],
+        [
+          0.77,
+          0.61
+        ],
+        [
+          0.79,
+          0.69
+        ],
+        [
+          0.77,
+          0.72
+        ],
+        [
+          0.77,
+          0.78
+        ]
+      ]
+    },
+    {
+      "id": "menu",
+      "landmark": "The espresso counter and visible menu/receipted IOU card beside the aquarium",
+      "points": [
+        [
+          0.22,
+          0.44
+        ],
+        [
+          0.16,
+          0.49
+        ],
+        [
+          0.29,
+          0.46
+        ],
+        [
+          0.34,
+          0.49
+        ],
+        [
+          0.35,
+          0.52
+        ],
+        [
+          0.34,
+          0.55
+        ]
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "R03_R02",
+      "points": [
+        [
+          0.028,
+          0.926
+        ]
+      ]
+    },
+    {
+      "id": "R03_R04",
+      "points": [
+        [
+          0.971,
+          0.926
+        ]
+      ]
+    }
+  ],
+  "backgroundPoints": [
+    [
+      0.56,
+      0.87
+    ],
+    [
+      0.63,
+      0.87
+    ],
+    [
+      0.38,
+      0.89
+    ]
+  ],
+  "visualSignature": "5c0f1d0b454224166739120bd1edbc4ad263240f002374009585bf2e4e9c197e"
+}

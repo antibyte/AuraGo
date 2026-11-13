@@ -1,0 +1,134 @@
+{
+  "room": "R13",
+  "targets": [
+    {
+      "id": "choice",
+      "landmark": "The three colored choice buttons on the new control panel",
+      "points": [
+        [
+          0.631,
+          0.43
+        ],
+        [
+          0.665,
+          0.43
+        ],
+        [
+          0.704,
+          0.43
+        ]
+      ]
+    },
+    {
+      "id": "maintenance",
+      "landmark": "The exposed lower-counter maintenance hatch",
+      "points": [
+        [
+          0.49,
+          0.64
+        ],
+        [
+          0.52,
+          0.65
+        ],
+        [
+          0.5,
+          0.68
+        ]
+      ]
+    },
+    {
+      "id": "bruno",
+      "landmark": "Bruno standing by the cancellation desk",
+      "points": [
+        [
+          0.76,
+          0.63
+        ],
+        [
+          0.79,
+          0.7
+        ],
+        [
+          0.77,
+          0.77
+        ]
+      ]
+    },
+    {
+      "id": "return",
+      "landmark": "The unplugged copper return lead and connector at the counter base",
+      "points": [
+        [
+          0.55,
+          0.68
+        ],
+        [
+          0.56,
+          0.68
+        ],
+        [
+          0.55,
+          0.69
+        ]
+      ]
+    },
+    {
+      "id": "allgut",
+      "landmark": "ALLGUT's smiling monitor on the reception counter",
+      "points": [
+        [
+          0.25,
+          0.47
+        ],
+        [
+          0.29,
+          0.47
+        ],
+        [
+          0.32,
+          0.51
+        ]
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "R13_R12",
+      "points": [
+        [
+          0.028,
+          0.925
+        ]
+      ]
+    },
+    {
+      "id": "R13_R14",
+      "points": [
+        [
+          0.972,
+          0.925
+        ]
+      ]
+    }
+  ],
+  "backgroundPoints": [
+    [
+      0.05,
+      0.79
+    ],
+    [
+      0.55,
+      0.91
+    ],
+    [
+      0.64,
+      0.7
+    ],
+    [
+      0.96,
+      0.8
+    ]
+  ],
+  "visualSignature": "ce84f4a42f9371a9090319eed822625fbb3df4a318d47d978d2cef90b3fe2a5b"
+}

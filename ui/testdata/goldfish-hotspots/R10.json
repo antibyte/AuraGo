@@ -1,0 +1,134 @@
+{
+  "room": "R10",
+  "targets": [
+    {
+      "id": "sensor",
+      "landmark": "Low-voltage rain sensor on its stand",
+      "points": [
+        [
+          0.62,
+          0.41
+        ],
+        [
+          0.62,
+          0.46
+        ],
+        [
+          0.63,
+          0.49
+        ]
+      ]
+    },
+    {
+      "id": "diagram",
+      "landmark": "Condensation plan clipboard on the console beneath the red wheel",
+      "points": [
+        [
+          0.68,
+          0.57
+        ],
+        [
+          0.7,
+          0.58
+        ],
+        [
+          0.69,
+          0.6
+        ]
+      ]
+    },
+    {
+      "id": "tools",
+      "landmark": "Closed umbrella, watering can and removable spout",
+      "points": [
+        [
+          0.34,
+          0.59
+        ],
+        [
+          0.35,
+          0.7
+        ],
+        [
+          0.42,
+          0.64
+        ],
+        [
+          0.44,
+          0.62
+        ]
+      ]
+    },
+    {
+      "id": "float",
+      "landmark": "Condensation vessel, float and level tube",
+      "points": [
+        [
+          0.79,
+          0.3
+        ],
+        [
+          0.8,
+          0.41
+        ],
+        [
+          0.8,
+          0.45
+        ]
+      ]
+    },
+    {
+      "id": "latch",
+      "landmark": "Shutter wheel, latch arm and nearby fern",
+      "points": [
+        [
+          0.7,
+          0.42
+        ],
+        [
+          0.72,
+          0.39
+        ],
+        [
+          0.66,
+          0.54
+        ]
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "R10_R09",
+      "points": [
+        [
+          0.03,
+          0.925
+        ]
+      ]
+    },
+    {
+      "id": "R10_R11",
+      "points": [
+        [
+          0.97,
+          0.925
+        ]
+      ]
+    }
+  ],
+  "backgroundPoints": [
+    [
+      0.5,
+      0.11
+    ],
+    [
+      0.5,
+      0.89
+    ],
+    [
+      0.94,
+      0.61
+    ]
+  ],
+  "visualSignature": "b565681a9dcdda51212b49c0d7cca29d61ad4717cc22e89bfa826988b2d0fc65"
+}

@@ -1,0 +1,138 @@
+{
+  "room": "R14",
+  "targets": [
+    {
+      "id": "evidence",
+      "landmark": "The separate document holders on the left evidence table",
+      "points": [
+        [
+          0.15,
+          0.54
+        ],
+        [
+          0.23,
+          0.55
+        ],
+        [
+          0.31,
+          0.54
+        ]
+      ]
+    },
+    {
+      "id": "rights",
+      "landmark": "The four inset panels on the left rights board",
+      "points": [
+        [
+          0.15,
+          0.3
+        ],
+        [
+          0.22,
+          0.31
+        ],
+        [
+          0.27,
+          0.43
+        ]
+      ]
+    },
+    {
+      "id": "sample",
+      "landmark": "The transparent sample chamber, test toggles, and physical lock lever",
+      "points": [
+        [
+          0.51,
+          0.46
+        ],
+        [
+          0.48,
+          0.54
+        ],
+        [
+          0.55,
+          0.54
+        ]
+      ]
+    },
+    {
+      "id": "protocols",
+      "landmark": "The key board, clear custody compartment, and guarded purge handle",
+      "points": [
+        [
+          0.72,
+          0.5
+        ],
+        [
+          0.81,
+          0.51
+        ],
+        [
+          0.9,
+          0.52
+        ]
+      ]
+    },
+    {
+      "id": "party",
+      "landmark": "The aquarium glass rim and fish, plus Bruno standing at the right",
+      "points": [
+        [
+          0.46,
+          0.6
+        ],
+        [
+          0.46,
+          0.66
+        ],
+        [
+          0.5,
+          0.72
+        ],
+        [
+          0.77,
+          0.75
+        ]
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "R14_R13",
+      "points": [
+        [
+          0.028,
+          0.925
+        ]
+      ]
+    },
+    {
+      "id": "R14_R15",
+      "points": [
+        [
+          0.972,
+          0.925
+        ]
+      ]
+    }
+  ],
+  "backgroundPoints": [
+    [
+      0.05,
+      0.78
+    ],
+    [
+      0.41,
+      0.56
+    ],
+    [
+      0.51,
+      0.91
+    ],
+    [
+      0.96,
+      0.78
+    ]
+  ],
+  "visualSignature": "287e5f85c4c38c876605f68eeb0f2c14bf472a3a76523541440a78541f7445d1"
+}

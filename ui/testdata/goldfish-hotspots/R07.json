@@ -1,0 +1,125 @@
+{
+  "room": "R07",
+  "targets": [
+    {
+      "id": "clerk",
+      "landmark": "Customs robot",
+      "points": [
+        [
+          0.25,
+          0.58
+        ],
+        [
+          0.25,
+          0.67
+        ],
+        [
+          0.25,
+          0.77
+        ]
+      ]
+    },
+    {
+      "id": "scale",
+      "landmark": "Public inspection scale: dial, pointer and base",
+      "points": [
+        [
+          0.28,
+          0.33
+        ],
+        [
+          0.29,
+          0.43
+        ],
+        [
+          0.32,
+          0.5
+        ]
+      ]
+    },
+    {
+      "id": "ballast",
+      "landmark": "Official metal test weights",
+      "points": [
+        [
+          0.18,
+          0.52
+        ],
+        [
+          0.2,
+          0.54
+        ],
+        [
+          0.17,
+          0.57
+        ]
+      ]
+    },
+    {
+      "id": "pressure",
+      "landmark": "Three maintenance pressure gauges",
+      "points": [
+        [
+          0.64,
+          0.36
+        ],
+        [
+          0.71,
+          0.34
+        ],
+        [
+          0.77,
+          0.37
+        ]
+      ]
+    },
+    {
+      "id": "interlocks",
+      "landmark": "Red and blue docking levers and their bases",
+      "points": [
+        [
+          0.68,
+          0.46
+        ],
+        [
+          0.75,
+          0.46
+        ],
+        [
+          0.72,
+          0.51
+        ]
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "R07_R05",
+      "points": [
+        [
+          0.97,
+          0.925
+        ]
+      ]
+    }
+  ],
+  "backgroundPoints": [
+    [
+      0.5,
+      0.13
+    ],
+    [
+      0.51,
+      0.89
+    ],
+    [
+      0.93,
+      0.15
+    ],
+    [
+      0.62,
+      0.46
+    ]
+  ],
+  "visualSignature": "e565a5e7d05b71dc2b02f0b0a2cd1f8f8a0dff73f50311ad579a5d1fc69057c6"
+}

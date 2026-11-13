@@ -10,6 +10,9 @@ scope lives in `../../plans/2026-11-06-goldfish-adventure.md`; runtime ownership
 
 - `concepts/` retains the approved scene and character identity references.
 - `masters/`, the prompt records and source manifests own ImageGen outputs.
+- `hotspot-props-prompts.md` records the R06 coffee edit and transparent
+  `masters/props/audit-props.png` atlas. `art-layout.json` places its native cells;
+  the unused return-circuit cell remains an alternative, not a second R13 plug.
 - `art-layout.json` owns grid layouts, frame clips, actor placement, conditions,
   foreground/state layers, room audio and authored cinematic beats.
 - `build-assets.ps1` exports unscaled PNG copies/cells and frame pivots into
@@ -39,6 +42,10 @@ scope lives in `../../plans/2026-11-06-goldfish-adventure.md`; runtime ownership
   state plates and props must align with the authored hotspot coordinates.
   Keep actor feet on the visible floor and check nearby prop hitboxes after
   staging changes; R02 pointer coverage lives in `TestGoldfishAdventureOpeningBrowser`.
+- Any scene/prop/actor/pivot change invalidates the corresponding visual
+  signature in `ui/testdata/goldfish-hotspots/`. Review the complete app render
+  and every target in that room before refreshing it; isolated scene captures
+  may have different actor poses and cannot establish gameplay coordinates.
 - Cinematic beats are visual consequences of already committed state. They
   cannot award/consume items. Every sequence pauses, skips and disposes safely;
   reduced motion retains key poses without movement.

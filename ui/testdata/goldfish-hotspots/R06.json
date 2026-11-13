@@ -1,0 +1,141 @@
+{
+  "room": "R06",
+  "targets": [
+    {
+      "id": "engine",
+      "landmark": "Engine fan, belt housing and disconnected copper coupling",
+      "points": [
+        [
+          0.19,
+          0.51
+        ],
+        [
+          0.3,
+          0.54
+        ],
+        [
+          0.37,
+          0.48
+        ]
+      ]
+    },
+    {
+      "id": "labels",
+      "landmark": "Three freight label boxes on the lower shelf",
+      "points": [
+        [
+          0.56,
+          0.57
+        ],
+        [
+          0.63,
+          0.57
+        ],
+        [
+          0.7,
+          0.57
+        ]
+      ]
+    },
+    {
+      "id": "reader",
+      "landmark": "Glowing read-only socket, articulated read head and stand",
+      "points": [
+        [
+          0.8,
+          0.41
+        ],
+        [
+          0.82,
+          0.47
+        ],
+        [
+          0.82,
+          0.51
+        ]
+      ]
+    },
+    {
+      "id": "samples",
+      "landmark": "All eight translucent sample canisters across both rows",
+      "points": [
+        [
+          0.57,
+          0.32
+        ],
+        [
+          0.63,
+          0.32
+        ],
+        [
+          0.69,
+          0.32
+        ],
+        [
+          0.74,
+          0.32
+        ],
+        [
+          0.56,
+          0.47
+        ],
+        [
+          0.62,
+          0.47
+        ],
+        [
+          0.69,
+          0.47
+        ],
+        [
+          0.74,
+          0.47
+        ]
+      ]
+    },
+    {
+      "id": "coffee",
+      "landmark": "Emergency coffee machine with top pot, three controls and lower body",
+      "points": [
+        [
+          0.93,
+          0.47
+        ],
+        [
+          0.96,
+          0.51
+        ],
+        [
+          0.94,
+          0.53
+        ]
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "R06_R05",
+      "points": [
+        [
+          0.97,
+          0.925
+        ]
+      ]
+    }
+  ],
+  "backgroundPoints": [
+    [
+      0.5,
+      0.87
+    ],
+    [
+      0.51,
+      0.15
+    ],
+    [
+      0.07,
+      0.4
+    ]
+  ],
+  "visualSignature": "63aea1495bcb39dd85cdce060e79c9dd55ba83b4d9eacdf73f1faa35c8ddf310"
+}

@@ -1,0 +1,133 @@
+{
+  "room": "R08",
+  "targets": [
+    {
+      "id": "trader",
+      "landmark": "Trader robot behind the left stall",
+      "points": [
+        [
+          0.19,
+          0.62
+        ],
+        [
+          0.2,
+          0.7
+        ],
+        [
+          0.2,
+          0.78
+        ]
+      ]
+    },
+    {
+      "id": "robot",
+      "landmark": "Small turquoise stand robot",
+      "points": [
+        [
+          0.6,
+          0.66
+        ],
+        [
+          0.6,
+          0.73
+        ],
+        [
+          0.61,
+          0.79
+        ]
+      ]
+    },
+    {
+      "id": "hatch",
+      "landmark": "Crooked market hatch, ring handle and hinge",
+      "points": [
+        [
+          0.78,
+          0.35
+        ],
+        [
+          0.81,
+          0.44
+        ],
+        [
+          0.85,
+          0.53
+        ]
+      ]
+    },
+    {
+      "id": "bench",
+      "landmark": "Loan receipt board, visible spare hinge and right counter edge",
+      "points": [
+        [
+          0.2,
+          0.48
+        ],
+        [
+          0.24,
+          0.52
+        ],
+        [
+          0.26,
+          0.47
+        ],
+        [
+          0.28,
+          0.55
+        ]
+      ]
+    },
+    {
+      "id": "promise",
+      "landmark": "Four blank hanging promise sheets",
+      "points": [
+        [
+          0.45,
+          0.29
+        ],
+        [
+          0.5,
+          0.29
+        ],
+        [
+          0.55,
+          0.29
+        ],
+        [
+          0.6,
+          0.29
+        ]
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "R08_R05",
+      "points": [
+        [
+          0.97,
+          0.925
+        ]
+      ]
+    }
+  ],
+  "backgroundPoints": [
+    [
+      0.52,
+      0.09
+    ],
+    [
+      0.48,
+      0.9
+    ],
+    [
+      0.96,
+      0.5
+    ],
+    [
+      0.32,
+      0.55
+    ]
+  ],
+  "visualSignature": "652b0f74dee3072b15109a919e1be264fc711aa076dbc55d7a656dad1349f3c5"
+}

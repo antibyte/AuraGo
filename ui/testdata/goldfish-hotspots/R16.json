@@ -1,0 +1,159 @@
+{
+  "room": "R16",
+  "targets": [
+    {
+      "id": "sky",
+      "landmark": "The open star field, distant world, and blue nebula",
+      "points": [
+        [
+          0.48,
+          0.18
+        ],
+        [
+          0.66,
+          0.25
+        ],
+        [
+          0.82,
+          0.12
+        ]
+      ]
+    },
+    {
+      "id": "archive",
+      "landmark": "The ending-specific object on the small center table",
+      "points": [
+        [
+          0.52,
+          0.53
+        ],
+        [
+          0.54,
+          0.55
+        ],
+        [
+          0.56,
+          0.58
+        ]
+      ],
+      "variants": {
+        "keys": [
+          [
+            0.525,
+            0.55
+          ],
+          [
+            0.54,
+            0.55
+          ],
+          [
+            0.55,
+            0.57
+          ]
+        ],
+        "custody": [
+          [
+            0.515,
+            0.52
+          ],
+          [
+            0.535,
+            0.54
+          ],
+          [
+            0.555,
+            0.57
+          ]
+        ],
+        "purge": [
+          [
+            0.51,
+            0.52
+          ],
+          [
+            0.535,
+            0.54
+          ],
+          [
+            0.56,
+            0.56
+          ]
+        ]
+      }
+    },
+    {
+      "id": "bruno",
+      "landmark": "Bruno seated on the bench with his hands and coat visible",
+      "points": [
+        [
+          0.25,
+          0.56
+        ],
+        [
+          0.29,
+          0.61
+        ],
+        [
+          0.34,
+          0.58
+        ]
+      ]
+    },
+    {
+      "id": "fish",
+      "landmark": "Karla, Kiesel, and Kuno inside the safe aquarium",
+      "points": [
+        [
+          0.456,
+          0.66
+        ],
+        [
+          0.485,
+          0.683
+        ],
+        [
+          0.448,
+          0.721
+        ]
+      ]
+    },
+    {
+      "id": "routes",
+      "landmark": "The brass telescope tube, mount, and tripod",
+      "points": [
+        [
+          0.75,
+          0.41
+        ],
+        [
+          0.74,
+          0.5
+        ],
+        [
+          0.75,
+          0.63
+        ]
+      ]
+    }
+  ],
+  "exits": [],
+  "backgroundPoints": [
+    [
+      0.08,
+      0.82
+    ],
+    [
+      0.65,
+      0.44
+    ],
+    [
+      0.64,
+      0.91
+    ],
+    [
+      0.95,
+      0.8
+    ]
+  ],
+  "visualSignature": "0a5616cfa10de822ee588a196e0fd827be9d494d274c822595c4cb4b43a62841"
+}

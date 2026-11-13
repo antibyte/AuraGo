@@ -1,0 +1,142 @@
+{
+  "room": "R09",
+  "targets": [
+    {
+      "id": "bruno",
+      "landmark": "Seated Bruno, hands and feet",
+      "points": [
+        [
+          0.77,
+          0.56
+        ],
+        [
+          0.78,
+          0.68
+        ],
+        [
+          0.77,
+          0.8
+        ]
+      ]
+    },
+    {
+      "id": "walkway",
+      "landmark": "Surviving planks across the broken upper walkway",
+      "points": [
+        [
+          0.16,
+          0.26
+        ],
+        [
+          0.28,
+          0.24
+        ],
+        [
+          0.42,
+          0.26
+        ]
+      ]
+    },
+    {
+      "id": "lift",
+      "landmark": "Counterweight pulley, shaft and lower seed-lift gate",
+      "points": [
+        [
+          0.71,
+          0.09
+        ],
+        [
+          0.72,
+          0.32
+        ],
+        [
+          0.68,
+          0.47
+        ]
+      ]
+    },
+    {
+      "id": "tree",
+      "landmark": "Tree trunk, communal planting bed and chair",
+      "points": [
+        [
+          0.12,
+          0.42
+        ],
+        [
+          0.25,
+          0.57
+        ],
+        [
+          0.32,
+          0.65
+        ]
+      ]
+    },
+    {
+      "id": "seed",
+      "landmark": "Weather ledger, upper greenhouse storage shelves and lower lift tray",
+      "points": [
+        [
+          0.88,
+          0.45
+        ],
+        [
+          0.9,
+          0.46
+        ],
+        [
+          0.89,
+          0.49
+        ],
+        [
+          0.82,
+          0.47
+        ],
+        [
+          0.87,
+          0.55
+        ],
+        [
+          0.66,
+          0.62
+        ]
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "R09_R05",
+      "points": [
+        [
+          0.03,
+          0.925
+        ]
+      ]
+    },
+    {
+      "id": "R09_R10",
+      "points": [
+        [
+          0.97,
+          0.925
+        ]
+      ]
+    }
+  ],
+  "backgroundPoints": [
+    [
+      0.96,
+      0.68
+    ],
+    [
+      0.52,
+      0.9
+    ],
+    [
+      0.06,
+      0.68
+    ]
+  ],
+  "visualSignature": "50e157edf02d8f6f3b1c197285090715cac2f0a20ad8e84f3fc3ef3192ba9df6"
+}

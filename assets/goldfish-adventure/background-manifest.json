@@ -285,12 +285,12 @@
       "status": "visually_reviewed",
       "width": 1672,
       "height": 941,
-      "bytes": 3099891,
-      "sha256": "ce35698bb9ad1173dccbfd86cacd1aed9cfd93b4e7c849ea849bf1e61a863f01",
+      "bytes": 2842673,
+      "sha256": "61d77d4bc8edfe110b0b7cd755fe4e3ffe89179804169fe2cd1ec2d1b3332186",
       "master": "assets/goldfish-adventure/masters/scenes/R06.png",
       "runtime": "ui/img/goldfish-adventure/scenes/R06.png",
       "source": "exec-3e980d40-8186-4b49-98e3-072e72c9870b.png",
-      "visual_review": "No actors, tank, fish or face; distinct helm/freight/public displays or practical freight clusters; clear lower floor.",
+      "visual_review": "Targeted coffee-machine addition on right end of workbench; original camera, empty walk floor, reader, records and canister positions retained.",
       "landmarks_normalized": {
         "engine": [
           0.14,
@@ -327,6 +327,12 @@
           0.14,
           0.15,
           0.64
+        ],
+        "coffee": [
+          0.905,
+          0.425,
+          0.085,
+          0.16
         ]
       },
       "landmark_format": "x,y,width,height as fractions of image; approximate visual estimates for hotspot reconciliation",
@@ -335,6 +341,14 @@
         0.79,
         1,
         0.21
+      ],
+      "edits": [
+        {
+          "tool": "built-in image_gen",
+          "source": "exec-b7e96dcd-ee2c-44cb-88a9-9e586e0ffe61.png",
+          "reference_sha256": "ce35698bb9ad1173dccbfd86cacd1aed9cfd93b4e7c849ea849bf1e61a863f01",
+          "prompt_record": "assets/goldfish-adventure/hotspot-props-prompts.md#r06-emergency-coffee-machine"
+        }
       ]
     },
     {

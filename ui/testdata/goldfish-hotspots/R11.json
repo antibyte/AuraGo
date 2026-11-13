@@ -1,0 +1,130 @@
+{
+  "room": "R11",
+  "targets": [
+    {
+      "id": "register",
+      "landmark": "The brass register panel with three sliders",
+      "points": [
+        [
+          0.72,
+          0.48
+        ],
+        [
+          0.77,
+          0.48
+        ],
+        [
+          0.82,
+          0.48
+        ]
+      ]
+    },
+    {
+      "id": "replay",
+      "landmark": "The bulky records reader on the left desk",
+      "points": [
+        [
+          0.24,
+          0.45
+        ],
+        [
+          0.29,
+          0.43
+        ],
+        [
+          0.3,
+          0.48
+        ]
+      ]
+    },
+    {
+      "id": "ledger",
+      "landmark": "The transcript tray below the register",
+      "points": [
+        [
+          0.72,
+          0.59
+        ],
+        [
+          0.78,
+          0.6
+        ],
+        [
+          0.83,
+          0.59
+        ]
+      ]
+    },
+    {
+      "id": "robots",
+      "landmark": "The archive shelves visible behind the large glass windows",
+      "points": [
+        [
+          0.29,
+          0.3
+        ],
+        [
+          0.53,
+          0.31
+        ],
+        [
+          0.76,
+          0.29
+        ]
+      ]
+    },
+    {
+      "id": "access",
+      "landmark": "The three separate document slots on the records desk",
+      "points": [
+        [
+          0.38,
+          0.48
+        ],
+        [
+          0.44,
+          0.48
+        ],
+        [
+          0.47,
+          0.48
+        ]
+      ]
+    }
+  ],
+  "exits": [
+    {
+      "id": "R11_R10",
+      "points": [
+        [
+          0.028,
+          0.925
+        ]
+      ]
+    },
+    {
+      "id": "R11_R12",
+      "points": [
+        [
+          0.972,
+          0.925
+        ]
+      ]
+    }
+  ],
+  "backgroundPoints": [
+    [
+      0.05,
+      0.78
+    ],
+    [
+      0.52,
+      0.91
+    ],
+    [
+      0.95,
+      0.78
+    ]
+  ],
+  "visualSignature": "9a77eb6d26061a348698b549f69db05c62333b74ff65a099269ffd266d86f022"
+}
