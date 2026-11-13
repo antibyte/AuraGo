@@ -131,6 +131,8 @@ type sshDeployStep struct{ cmd, input, remotePath string }
 
 func sshDeployStepName(s sshDeployStep) string {
 	switch {
+	case s.cmd == "bash -s" && strings.Contains(s.input, "Existing Egg .env") && !strings.Contains(s.input, "AURAGO_DEPLOY_DATA"):
+		return "key-preflight"
 	case strings.HasSuffix(s.remotePath, "/aurago"):
 		return "binary"
 	case strings.HasSuffix(s.remotePath, "/resources.dat"):
@@ -204,12 +206,12 @@ func sshDeployTestPayload() EggDeployPayload {
 	}
 }
 
-func TestSSHConnectorDeployStepOrderIsUnchanged(t *testing.T) {
+func TestSSHConnectorPreflightsBeforeStopAndBacksUpAfterStop(t *testing.T) {
 	steps := fakeSSHDeploy(t, func(string) bool { return false })
 	if err := (&SSHConnector{}).Deploy(context.Background(), sshDeployTestNest(), []byte("secret"), sshDeployTestPayload()); err != nil {
 		t.Fatalf("Deploy: %v", err)
 	}
-	want := "backup,mkdir,service-stop,process-stop,binary,chmod,config,resources,unpack,bootstrap,env,marker,start"
+	want := "key-preflight,mkdir,service-stop,process-stop,backup,binary,chmod,config,resources,unpack,bootstrap,env,marker,start"
 	if got := strings.Join(*steps, ","); got != want {
 		t.Fatalf("steps = %s, want %s", got, want)
 	}
@@ -220,7 +222,8 @@ func TestSSHConnectorDeployMarksOnlyFailuresBeforeTheConfigWrite(t *testing.T) {
 		step, wantErr string
 		marked        bool
 	}{
-		{"backup", "failed to backup existing deployment", true},
+		{"key-preflight", "Egg key/Vault preflight failed before stop", true},
+		{"backup", "previous Egg stopped; backup failed", true},
 		{"mkdir", "failed to create directories", true},
 		{"binary", "failed to transfer binary", true},
 		{"chmod", "failed to chmod binary", true},

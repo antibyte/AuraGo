@@ -49,7 +49,7 @@
   "invasion.deploy_method": "Método de Deploy",
   "invasion.deploy_ssh": "SSH",
   "invasion.description": "Descrição",
-  "invasion.docker_local_hint": "Em implantações Docker locais, o URL mestre é resolvido automaticamente para host.docker.internal — sem configuração manual do host.",
+  "invasion.docker_local_hint": "O URL do master usa automaticamente host.docker.internal. Os segredos exigem um socket Unix local, um pipe Windows ou TCP de loopback; TCP remoto exige TLS/mTLS ou SSH. Após uma possível transferência da configuração, os erros mantêm as chaves atuais. Verifica o Egg e volta a implementá-lo com o master atual.",
   "invasion.docker_remote_plaintext_hint": "A configuração privada Egg exige Docker com TLS, mTLS ou SSH. HTTP sem encriptação é recusado.",
   "invasion.docker_ssh_hint": "Executa o contêiner do egg no Docker Engine do destino por meio de uma conexão SSH criptografada (socket /var/run/docker.sock). Usa o host, a porta, o usuário e o segredo deste nest; o usuário SSH precisa de acesso ao socket do Docker e a chave do host deve estar em known_hosts.",
   "invasion.docker_tls": "TLS do Docker",

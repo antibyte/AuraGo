@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"strings"
 )
 
@@ -53,10 +55,30 @@ type NestConnector interface {
 }
 
 func requirePrivateDockerBootstrap(nest NestRecord) error {
-	if nest.DeployMethod != "docker_local" && nest.DeployMethod != "docker_ssh" && nest.DockerTLS == "" {
-		return fmt.Errorf("secret-bearing Egg deployment requires Docker TLS, mTLS or SSH")
+	if nest.DeployMethod == "docker_ssh" || nest.DeployMethod == "docker_remote" && (nest.DockerTLS == "tls" || nest.DockerTLS == "mtls") {
+		return nil
 	}
-	return nil
+	if nest.DeployMethod == "docker_local" {
+		u, err := url.Parse(dockerLocalHost())
+		if err == nil && u.User == nil && u.RawQuery == "" && u.Fragment == "" {
+			switch u.Scheme {
+			case "unix":
+				if u.Host == "" && strings.HasPrefix(u.Path, "/") {
+					return nil
+				}
+			case "npipe":
+				if (u.Host == "" && strings.HasPrefix(u.Path, "//./pipe/")) || (u.Host == "." && strings.HasPrefix(u.Path, "/pipe/")) {
+					return nil
+				}
+			case "tcp":
+				ip := net.ParseIP(u.Hostname())
+				if (ip != nil && ip.IsLoopback() || strings.EqualFold(u.Hostname(), "localhost")) && u.Port() != "" && (u.Path == "" || u.Path == "/") {
+					return nil
+				}
+			}
+		}
+	}
+	return fmt.Errorf("secret-bearing Egg deployment requires a local Unix socket, local Windows pipe, loopback TCP, or configured Docker TLS/mTLS/SSH")
 }
 
 // eggIDPrefix returns the first eight characters of a nest ID. Egg service
@@ -86,6 +108,10 @@ func eggIDPrefix(nestID string) (string, error) {
 // the egg that ran before the hatch still has its own configuration. Test it
 // with errors.Is; a marked error keeps its text and chain.
 var ErrEggConfigNotDelivered = errors.New("egg configuration not delivered")
+
+// ErrEggPredecessorRestored reports a failed hatch whose verified predecessor
+// was restored before any possible new configuration delivery.
+var ErrEggPredecessorRestored = errors.New("previous secure Egg deployment restored")
 
 // configNotDeliveredError adds ErrEggConfigNotDelivered to an error's chain
 // without changing its text.

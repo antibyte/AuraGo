@@ -1329,3 +1329,7 @@ None.
 ### Mail receipt administration
 
 - `/api/mail-notifications/receipts` and its `/{id}/resolve` route require administrator authority and central bearer-path classification. Browser mutations require the existing strict same-origin CSRF check. GET returns only metadata, a maximum of 50 entries, channel occupancy/filter and an opaque cursor, with `no-store`. POST accepts only revision and sent/not_sent; active or stale revisions conflict. Never return database errors, messages, recipients or provider failures. Resolution never sends; clients reconcile lost responses by reading. Verify `TestMailReceiptsAdminAPI`; storage owns atomic state in `../tools`.
+
+### Invasion deployment failure
+
+- Preserve the old shared key only when the connector proves configuration was not delivered. Mark rolled_back only after a connector confirms a fresh secure predecessor was restored. After possible transfer or a failed post-deploy health check, retain the current key and failed status with operator inspection/re-hatch guidance; never automatically roll back an old binary. Verify connector delivery/recovery fixtures and Invasion shared-key tests.

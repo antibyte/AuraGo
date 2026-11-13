@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // SSHConnector deploys eggs to remote hosts via SSH/SFTP.
@@ -61,7 +63,7 @@ func (c *SSHConnector) Validate(ctx context.Context, nest NestRecord, secret []b
 	return nil
 }
 
-func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byte, payload EggDeployPayload) error {
+func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byte, payload EggDeployPayload) (retErr error) {
 	if key, err := hex.DecodeString(payload.MasterKey); err != nil || len(key) != 32 {
 		return configNotDelivered(fmt.Errorf("deployment requires a 32-byte hexadecimal master key"))
 	}
@@ -70,12 +72,25 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 		return configNotDelivered(err)
 	}
 	backupDir := baseDir + ".bak"
-
-	// 0. Backup existing deployment (if any)
-	backupCmd := fmt.Sprintf("if [ -d %s ]; then rm -rf %s; cp -a %s %s; fi", shellPath(baseDir), shellPath(backupDir), shellPath(baseDir), shellPath(backupDir))
-	if _, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, backupCmd); err != nil {
-		return configNotDelivered(fmt.Errorf("failed to backup existing deployment: %w", err))
+	preflight, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, "bash -s", strings.NewReader(sshEggPreflightScript(baseDir)))
+	if err != nil {
+		return configNotDelivered(fmt.Errorf("Egg key/Vault preflight failed before stop: %w", err))
 	}
+	backedUp := false
+	defer func() {
+		if retErr != nil && backedUp && strings.TrimSpace(preflight) == "unverified" && errors.Is(retErr, ErrEggConfigNotDelivered) {
+			retErr = fmt.Errorf("%w; automatic restore of the unverified previous Egg is blocked; retain %s for authenticated operator recovery", retErr, backupDir)
+		}
+		if retErr != nil && backedUp && strings.TrimSpace(preflight) == "recoverable" && errors.Is(retErr, ErrEggConfigNotDelivered) {
+			recoveryCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+			defer cancel()
+			if err := c.Rollback(recoveryCtx, nest, secret); err != nil {
+				retErr = fmt.Errorf("%w; previous Egg recovery failed; retain %s for operator recovery: %v", retErr, backupDir, err)
+			} else {
+				retErr = fmt.Errorf("%w; %w", retErr, ErrEggPredecessorRestored)
+			}
+		}
+	}()
 
 	// 1. Create target directory
 	mkdirCmd := fmt.Sprintf("mkdir -p %s %s %s", shellPath(baseDir+"/data"), shellPath(baseDir+"/log"), shellPath(baseDir+"/prompts"))
@@ -87,6 +102,12 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 	if err := c.Stop(ctx, nest, secret); err != nil {
 		return configNotDelivered(fmt.Errorf("failed to stop Egg before deployment: %w", err))
 	}
+	// Copy only after shutdown so SQLite/WAL state is no longer changing.
+	backupCmd := fmt.Sprintf("if [ -d %s ]; then rm -rf %s; cp -a %s %s; fi", shellPath(baseDir), shellPath(backupDir), shellPath(baseDir), shellPath(backupDir))
+	if _, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, backupCmd); err != nil {
+		return configNotDelivered(fmt.Errorf("previous Egg stopped; backup failed; retain original directory %s for recovery: %w", baseDir, err))
+	}
+	backedUp = true
 	remoteBinary := baseDir + "/aurago"
 	if err := sshTransferFile(ctx, nest.Host, nest.Port, nest.Username, secret, payload.BinaryPath, sftpPath(remoteBinary), "upload"); err != nil {
 		return configNotDelivered(fmt.Errorf("failed to transfer binary: %w", err))
@@ -150,7 +171,11 @@ func sshDeployFileScript(path string, data []byte, ifAbsent ...bool) string {
 	if len(ifAbsent) > 0 && ifAbsent[0] {
 		publish = "if [ ! -f \"$target\" ]; then test ! -f \"$(dirname \"$target\")/data/vault.bin\"; ln -- \"$tmp\" \"$target\" || test -f \"$target\"; fi\nchmod 600 -- \"$target\"\nrm -f -- \"$tmp\"\n"
 	}
-	return "set -eu\numask 077\n" +
+	preflight := ""
+	if len(ifAbsent) > 0 && ifAbsent[0] {
+		preflight = sshEggPreflightScript(strings.TrimSuffix(path, "/.env"))
+	}
+	return preflight + "set -eu\numask 077\n" +
 		"target=" + shellPath(path) + "\n" +
 		"tmp=$(mktemp \"${target}.tmp.XXXXXXXX\")\n" +
 		"trap 'rm -f -- \"$tmp\"' EXIT HUP INT TERM\n" +
@@ -181,9 +206,10 @@ func (c *SSHConnector) Stop(ctx context.Context, nest NestRecord, secret []byte)
 	}
 
 	// Also stop a process-mode egg (SIGTERM, then SIGKILL after 10 s)
-	killCmd := sshEggStopRunningScript(baseDir) + "true"
-	_, _ = sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, killCmd)
-
+	killCmd := sshEggStopRunningScript(baseDir) + sshEggFindProcessesScript(baseDir) + `[ -z "$pids" ]`
+	if _, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, killCmd); err != nil {
+		return fmt.Errorf("failed to stop Egg process: %w", err)
+	}
 	return nil
 }
 
@@ -348,6 +374,9 @@ func (c *SSHConnector) Reconfigure(ctx context.Context, nest NestRecord, secret 
 		return err
 	}
 	remoteConfig := baseDir + "/config.yaml"
+	if _, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, "bash -s", strings.NewReader(sshEggPreflightScript(baseDir))); err != nil {
+		return configNotDelivered(fmt.Errorf("Egg key/Vault preflight failed before reconfigure stop: %w", err))
+	}
 
 	// 1. Stop the running egg
 	if err := c.Stop(ctx, nest, secret); err != nil {
@@ -400,7 +429,9 @@ func (c *SSHConnector) Rollback(ctx context.Context, nest NestRecord, secret []b
 	}
 
 	// Stop current egg
-	_ = c.Stop(ctx, nest, secret)
+	if err := c.Stop(ctx, nest, secret); err != nil {
+		return fmt.Errorf("failed to stop Egg before rollback; backup retained: %w", err)
+	}
 
 	// Replace current with backup
 	restoreCmd := fmt.Sprintf("rm -rf %s && mv %s %s", shellPath(baseDir), shellPath(backupDir), shellPath(baseDir))

@@ -40,3 +40,30 @@ rollback cannot start unmarked legacy backups. Existing remote machines are not
 automatically reconfigured; disconnected Eggs remain unavailable until upgraded
 and safely re-hatched. This cutover requires acceptance on real Docker and SSH
 Eggs; local protocol fixtures do not prove target-host operation.
+
+## Deployment paths and recovery
+
+Docker reads `/app/data/config.yaml`. Its `directories.data_dir: ./data` resolves
+to `/app/data/data`; the private bootstrap is placed in that directory. Custom
+paths must remain beneath `/app/data`. Existing Vaults and databases stay at
+their configured paths. The master-key file remains `/app/data/.env`.
+The entrypoint asks the same backend configuration loader for the data directory
+before deciding whether key generation is safe. It never creates a replacement
+key for an existing Vault without its original key.
+
+For secret delivery, `docker_local` accepts only a local Unix socket, a local
+Windows pipe or loopback TCP. This also applies to `DOCKER_HOST`; a remote socket
+proxy over plain TCP is not a local secret transport. Configure a TLS/mTLS remote
+Docker nest or Docker over SSH instead. The Compose BUILD default stays disabled.
+SSH checks the existing `.env` and Vault/key availability before stopping, keeps
+that key and copies the predecessor only after shutdown.
+
+Before any possible configuration transfer, a failed hatch can restore a freshly
+acknowledged, security-marked predecessor and its previous shared key. Failure
+status distinguishes that completed recovery from a failed/blocked recovery.
+Unmarked legacy backups remain blocked. After a request could have delivered the
+new configuration, including failed health checks or lost responses, the current
+shared key is retained and no automatic binary rollback occurs. Inspect the Egg
+and the failed deployment, preserve its existing Vault/master key, then re-hatch
+with the current master. Never guess a replacement key or start an old unmarked
+backup to clear the failure.

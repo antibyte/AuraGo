@@ -362,6 +362,21 @@ jobs:
           'test -s /app/LICENSE && test -s /app/THIRD_PARTY_NOTICES.md &&
           test -s /app/licences/texts/GPL-3.0-only.txt && test -s /app/licences/linked-go-modules.tsv'
 
+      - name: Set up Go for the isolated Egg runtime contract
+        if: matrix.id == 'aurago'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.4'
+
+      - name: Verify Egg bootstrap and reconfiguration in the current image
+        if: matrix.id == 'aurago'
+        timeout-minutes: 15
+        env:
+          AURAGO_RUN_DOCKER_EGG_SMOKE: '1'
+          AURAGO_EGG_SMOKE_IMAGE: aurago-ci-aurago:test
+          DOCKER_HOST: unix:///var/run/docker.sock
+        run: go test -p 1 ./internal/invasion -run '^TestDockerEggRuntimeBootstrapAndReconfigure$' -count=1 -timeout=10m
+
       - name: Verify God's Eye View on both architectures
         if: matrix.id == 'gods-eye-view'
         run: >-

@@ -50,6 +50,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
   passive capability metadata, even with routing disabled. Keep the common
   label in all sixteen locales; verify `TestLLMCapabilityNoticeBrowser`.
 
+- Invasion nest help explains local secret transports and key-preserving recovery after possible configuration delivery in all sixteen locales.
 - Invasion's Egg editor stores explicit file/network/unsandboxed grants. The
   reconfiguration dialog loads the applied permission snapshot and submits false
   and [] revocations. History failures keep editing safe and retryable. Empty

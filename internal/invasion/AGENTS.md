@@ -94,10 +94,11 @@ the Egg runtime in `cmd/aurago`.
   `TestInvasionRotateKey*`, `TestEggPrevKeyFreshBoundaries`,
   `TestInvasionSendSecretRefusesReservedNames` (server).
 - Generated YAML contains provider bindings and no master/HMAC/API keys.
-  Docker and SSH deliver mode-0600 egg-bootstrap.json before startup. Import
+  Docker and SSH deliver mode-0600 egg-bootstrap.json inside the config-resolved data directory before startup. Docker archive members are POSIX paths beneath /app/data, validated before any stop; no existing Vault/database is moved. Import
   selected exports and explicit secret updates with Vault.WriteSecrets, retaining
   the local Vault key and unrelated entries. An atomic receipt prevents leftover
   inputs from overwriting later rotations. Failed import or removal blocks startup.
+- SSH preflight validates an existing .env and Vault/key availability before stopping; recheck before publishing a missing .env. Back up only after the old process has stopped so its SQLite/WAL files are stable. Propagate stop errors.
 - Preserve existing .env keys. A Vault without its actual key requires authenticated
   operator recovery; never overwrite it with a newly generated key.
 - Empty tool lists grant neither shell nor Python. Only the documented shell/Python
@@ -108,7 +109,7 @@ the Egg runtime in `cmd/aurago`.
   cannot be restored. Reconfiguration of legacy/uncertain state requires review.
 - SSH transmits private content over encrypted stdin with a fixed command and
   atomically publishes mode-0600 files. Stop the old process before replacement.
-- Remote Docker secret bootstrap requires TLS, mTLS or SSH. Plain HTTP is refused.
+- Remote Docker secret bootstrap requires explicit TLS/mTLS or SSH. docker_local accepts only local Unix sockets, local Windows pipes and loopback TCP for secrets, including DOCKER_HOST overrides. Plain remote TCP is refused.
   Stop the previous container before writing its shared data volume. Only backups
   marked with the current Egg security version may be started by binary rollback.
 - `docker_remote` nests with an empty `docker_tls` keep plain HTTP (default port
@@ -124,7 +125,7 @@ the Egg runtime in `cmd/aurago`.
   to the SSH binary deploy. Its version probe allows 20 s (the 10 s SSH dial
   budget plus the socket open and `/version`); other transports keep the default probe.
 - The Docker TLS configuration (`dockerTLSClientConfig`, with `DockerTLSMaterial` as a type alias) and the SSH Engine dialer (`dialDockerEngineOverSSH`) are thin wrappers over `internal/dockerhost/transport`, which the Docker Manager shares. Change TLS or tunnel behaviour there; the invasion names, the `dockerSSHSocketOpenTimeout` test hook (passed in as the socket-open budget) and every error text stay as they are.
-- A hatch stores the new `egg_shared_<id>` before Deploy and puts the previous key back (vault compare-and-swap) only when Deploy returns `ErrEggConfigNotDelivered`: Docker before `copyConfigToContainer`, SSH before the config write. Never after a possible delivery or a rollback; marked errors keep their text.
+- A hatch stores the new `egg_shared_<id>` before Deploy and restores the previous key by Vault CAS only with `ErrEggConfigNotDelivered`. Before possible delivery, automatic recovery needs a freshly acknowledged predecessor backup and its current security marker; a missing/failed rename never authorizes a stale Docker backup. `ErrEggPredecessorRestored` records rolled_back only after actual recovery. After possible transfer, including failed health checks, keep the current key, mark failure and require operator inspection/re-hatch; never automatically start an old binary or reset keys.
 - SSH eggs live in `~/.aurago-egg-<prefix>`: shell steps write `$HOME` (shellPath), SFTP gets the home-relative path (`sftpPath`, SFTP never expands `~`), the user unit uses `%h`. Every process lookup (deploy start, Stop, Status, HealthCheck) matches the user's `aurago` processes by executable (`<base dir>/aurago` or "(deleted)", also via the `pwd -P` path when `$HOME` is a symlink), never by command line (`pgrep -f`/`pkill -f` also match the remote shell, and a process-mode egg runs as `./aurago`). A hatch stops a running egg (SIGTERM, exe re-checked while waiting up to 10 s, then SIGKILL) before it starts the new one, also before `systemctl --user restart` of a permanent egg. Only `nohup` runs in the background, with stdin from /dev/null, so start commands return.
 - `export_nest_secret` decides whether `include_vault` copies the nest secret (`nest_<id>`) into the egg vault. Rows from before the column migrate to 1, new nests start at 0, and updates without the field keep it. `InitDB` copies a pre-existing database to `<db>.pre-export-nest-secret.bak` (VACUUM INTO, never overwritten) before adding the column; a failed copy aborts migration. New Egg grant/snapshot columns also require a private, consistent pre-migration backup.
 
@@ -134,7 +135,7 @@ The coordinated cutover and operator recovery path are documented in
 `../../documentation/invasion-security.md`.
 
 Run bridge and invasion tests, server Invasion/MissionRemote regressions, and
-Linux CGO race tests for concurrent heartbeat, result and rekey traffic. Exercise
+Linux CGO race tests for concurrent heartbeat, result and rekey traffic. The existing Docker image-contract job runs TestDockerEggRuntimeBootstrapAndReconfigure against its freshly built image with an isolated test Vault/master; ordinary Go runs skip it unless explicitly opted in. Exercise
 replayed authentication on a fresh socket and old-connection replacement cleanup.
 
 ## Child DOX index
