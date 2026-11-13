@@ -18,6 +18,12 @@ func TestExecutionWrappersCannotHideBlockedCommands(t *testing.T) {
 			"nice -n", "stdbuf --output=unknown rm -rf ./classification-only", "time --unknown printf safe",
 			"nice timeout 1 git -c core.gitProxy=classification-only status", "git config core.gitProxy classification-only",
 			"git --config-env=core.gitProxy=TEST_PROXY status", "env GIT_PROXY_COMMAND=classification-only git status",
+			"git --config-env core.fsmonitor=TEST_MONITOR status", "git -c core.fsmonitor=classification-only status",
+			"git config gpg.program classification-only", "git config gpg.ssh.program classification-only",
+			"git config diff.fixture.textconv classification-only", "git config include.path classification-only",
+			"git config includeIf.gitdir:fixture.path classification-only", "git -c protocol.ext.allow=always fetch",
+			"env GIT_ASKPASS=classification-only git fetch", "GIT_EXEC_PATH=classification-only git status",
+			"setx GIT_ASKPASS classification-only", "setx.exe /M SSH_ASKPASS classification-only",
 			"git config core.pager classification-only", "git config core.pager get", "git config --global core.editor list", "git -C . config set core.editor classification-only", "git config --edit", "vim -ncclassification-only",
 			"xargs rm", "xargs -I{} {}", "command xargs cat", "xargs --help && \"sudo\" id",
 			"vi -c ':!id'", "vim --cmd=classification-only", "nvim +classification-only", "ex classification-only",
@@ -27,6 +33,13 @@ func TestExecutionWrappersCannotHideBlockedCommands(t *testing.T) {
 		} {
 			if err := ValidateCommandWithEscape(command, escape); err == nil {
 				t.Errorf("escape %q admitted %q", escape, command)
+			}
+		}
+		if escape == '^' {
+			for _, command := range []string{"setx GIT_ASKPASS classification-only", "setx.exe /M SSH_ASKPASS classification-only", "setx GIT_EXEC_PATH classification-only"} {
+				if err := ValidateCommandWithEscape(command, escape); err == nil {
+					t.Errorf("Cmd admitted %q", command)
+				}
 			}
 		}
 		escaped := "no" + string(escape) + "hup r" + string(escape) + "m -rf ./classification-only"

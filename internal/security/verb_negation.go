@@ -14,6 +14,7 @@ func MaskNegatedVerbs(text string, isVerb func(string) bool) string {
 		text       string
 		start, end int
 		boundary   bool
+		filler     bool
 	}
 	var words []word
 	start, previousEnd := -1, 0
@@ -22,7 +23,7 @@ func MaskNegatedVerbs(text string, isVerb func(string) bool) string {
 			return
 		}
 		w := strings.ToLower(strings.ReplaceAll(text[start:end], "’", "'"))
-		words = append(words, word{w, start, end, strings.ContainsAny(text[previousEnd:start], ",.;:!?\n\r")})
+		words = append(words, word{text: w, start: start, end: end, boundary: strings.ContainsAny(text[previousEnd:start], ",.;:!?\n\r")})
 		previousEnd, start = end, -1
 	}
 	for i, r := range text {
@@ -35,6 +36,15 @@ func MaskNegatedVerbs(text string, isVerb func(string) bool) string {
 		}
 	}
 	flush(len(text))
+	for i := 0; i+1 < len(words); i++ {
+		if words[i+1].boundary {
+			continue
+		}
+		phrase := words[i].text + " " + words[i+1].text
+		if phrase == "kein witz" || phrase == "keine ahnung" || phrase == "keinen scherz" || phrase == "kein scherz" {
+			words[i].filler, words[i+1].filler = true, true
+		}
+	}
 	isBarrier := func(w string) bool {
 		switch w {
 		case "and", "but", "then", "while", "yet", "und", "aber", "dann", "sondern",
@@ -65,14 +75,17 @@ func MaskNegatedVerbs(text string, isVerb func(string) bool) string {
 				if words[gap].boundary || isBarrier(words[j].text) || isVerb(words[j].text) {
 					break
 				}
+				if words[j].filler {
+					continue
+				}
 				if isNegative(words[j].text, direction < 0) {
-					if j+1 < len(words) && !words[j+1].boundary && words[j].text == "kein" && words[j+1].text == "witz" {
-						return false
-					}
 					if direction > 0 {
 						if strings.HasPrefix(words[j].text, "kein") {
 							// A determiner after an existing object does not negate its disclosure.
 							for k := i + 1; k < j; k++ {
+								if words[k].filler {
+									continue
+								}
 								switch words[k].text {
 								case "mir", "dir", "uns", "euch", "ihm", "ihr", "ihnen", "bitte", "jetzt", "künftig", "fortan":
 									continue

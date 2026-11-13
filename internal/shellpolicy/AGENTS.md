@@ -17,10 +17,13 @@ retain execution grants, platform escape rules and OS isolation.
   executable Git configuration/environment. Help and version queries remain reads.
 - Preserve quotes, escaped separators, comments and benign literal arguments.
 - Reject executable environment writes through POSIX export/declaration builtins
-  (including append assignments), Cmd set (including compact arithmetic/input)
+  (including append assignments), Cmd set/setx (including compact arithmetic/input)
   and PowerShell environment assignments or Set-Item/New-Item. Read-only queries
   and unrelated variables remain allowed.
 - This heuristic supplements isolation; it cannot sandbox arbitrary programs.
+- Executable Git settings include proxies, hooks, fsmonitor, signing programs,
+  diff/text conversion, imported configuration and external protocols; environment
+  checks include SSH/askpass helpers and GIT_EXEC_PATH. Ordinary config reads stay allowed.
 
 ## Work Guidance
 

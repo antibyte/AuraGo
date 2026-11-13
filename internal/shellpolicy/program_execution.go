@@ -79,7 +79,7 @@ func programExecutionReason(command string, escape byte) string {
 			}
 			for i, arg := range args {
 				value := ""
-				if arg == "-c" && i+1 < len(args) {
+				if (arg == "-c" || arg == "--config-env") && i+1 < len(args) {
 					value = args[i+1]
 				} else if strings.HasPrefix(arg, "-c") {
 					value = arg[2:]
@@ -130,18 +130,20 @@ func programExecutionReason(command string, escape byte) string {
 
 func executableGitSetting(key string) bool {
 	switch key {
-	case "core.pager", "core.editor", "sequence.editor", "core.sshcommand", "core.gitproxy", "core.hookspath", "diff.external":
+	case "core.pager", "core.editor", "sequence.editor", "core.sshcommand", "core.gitproxy", "core.hookspath", "core.fsmonitor", "diff.external", "gpg.program", "include.path", "protocol.ext.allow":
 		return true
 	}
 	return strings.HasPrefix(key, "pager.") || strings.HasPrefix(key, "alias.") ||
 		strings.HasPrefix(key, "filter.") || strings.HasPrefix(key, "credential.") ||
-		strings.HasPrefix(key, "diff.") && strings.HasSuffix(key, ".command")
+		strings.HasPrefix(key, "diff.") && (strings.HasSuffix(key, ".command") || strings.HasSuffix(key, ".textconv")) ||
+		strings.HasPrefix(key, "gpg.") && strings.HasSuffix(key, ".program") ||
+		strings.HasPrefix(key, "includeif.") && strings.HasSuffix(key, ".path")
 }
 
 func executableEnvironment(word string) bool {
 	key := strings.ToUpper(strings.SplitN(word, "=", 2)[0])
 	switch key {
-	case "PAGER", "GIT_PAGER", "EDITOR", "VISUAL", "GIT_EDITOR", "GIT_SEQUENCE_EDITOR", "GIT_SSH_COMMAND", "GIT_PROXY_COMMAND", "GIT_SSH":
+	case "PAGER", "GIT_PAGER", "EDITOR", "VISUAL", "GIT_EDITOR", "GIT_SEQUENCE_EDITOR", "GIT_SSH_COMMAND", "GIT_PROXY_COMMAND", "GIT_SSH", "GIT_ASKPASS", "SSH_ASKPASS", "GIT_EXEC_PATH":
 		return true
 	}
 	return strings.HasPrefix(key, "GIT_CONFIG_")
@@ -150,6 +152,18 @@ func executableEnvironment(word string) bool {
 func executableEnvironmentMutation(words []string, escape byte) bool {
 	head := strings.ToLower(words[0])
 	args := words[1:]
+	if strings.TrimSuffix(strings.TrimLeft(head[strings.LastIndexAny(head, "/\\")+1:], "@"), ".exe") == "setx" {
+		for i := 0; i < len(args); i++ {
+			if strings.HasPrefix(args[i], "/") {
+				switch strings.ToLower(args[i]) {
+				case "/s", "/u", "/p":
+					i++
+				}
+				continue
+			}
+			return i+1 < len(args) && executableEnvironment(args[i])
+		}
+	}
 	switch escape {
 	case '\\':
 		assignment := strings.Replace(words[0], "+=", "=", 1)
@@ -167,6 +181,7 @@ func executableEnvironmentMutation(words []string, escape byte) bool {
 		}
 	case '^':
 		head = strings.TrimLeft(head, "@")
+
 		assignment := strings.TrimSpace(strings.Join(args, " "))
 		if strings.HasPrefix(head, "set/") {
 			assignment, head = head[3:]+" "+assignment, "set"
