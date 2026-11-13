@@ -3894,7 +3894,7 @@ buttons and menu popovers remain excluded from those gestures.
   Recent documents come from the shell's list: the shell hands Writer `recentFiles`,
   `recordRecentFile` and `forgetRecentFile` in its context. `remember()` in `writer.js` records a
   file that was loaded, renamed or saved under a new name, and a new document once a save finds
-  text in it, so an empty new document never enters the list; a file that answers 404 is
+  text in it, so a blank launch never fills the list by itself; a file that answers 404 is
   forgotten. `WriterMenus.recent` picks Writer's own entries without the open document for
   File > Recent documents, and the list is part of the menu signature.
   `OfficeSession.drafts()` lists kept drafts without their bytes. File > Unsaved drafts
