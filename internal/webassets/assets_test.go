@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -40,8 +41,15 @@ func TestArchiveSizeBudgetRejectsBeforeReading(t *testing.T) {
 			s := Open(t.TempDir(), pin)
 			defer s.Close()
 			r := &archiveProbeReader{}
-			if err := s.Install(context.Background(), r); err == nil {
+			err := s.Install(context.Background(), r)
+			if err == nil {
 				t.Fatal("accepted missing archive content")
+			}
+			if tc.size > MaxArchiveBytes {
+				want := fmt.Sprintf("asset archive exceeds size limit: %d bytes (maximum %d bytes)", tc.size, MaxArchiveBytes)
+				if err.Error() != want {
+					t.Fatalf("oversized archive error = %q, want %q", err, want)
+				}
 			}
 			if r.read != tc.read {
 				t.Fatalf("archive read = %v, want %v", r.read, tc.read)

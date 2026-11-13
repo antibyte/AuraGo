@@ -20,8 +20,11 @@ import (
 // Install verifies a pinned archive before extraction and publishes a complete
 // set with one rename. Existing sets (including rollback versions) stay intact.
 func (s *Store) Install(ctx context.Context, source io.Reader) error {
-	if !validHash(s.Pin.ID) || !validHash(s.Pin.SHA256) || s.Pin.Bytes <= 0 || s.Pin.Bytes > MaxArchiveBytes {
+	if !validHash(s.Pin.ID) || !validHash(s.Pin.SHA256) || s.Pin.Bytes <= 0 {
 		return fmt.Errorf("binary has no valid asset release pin")
+	}
+	if s.Pin.Bytes > MaxArchiveBytes {
+		return fmt.Errorf("asset archive exceeds size limit: %d bytes (maximum %d bytes)", s.Pin.Bytes, MaxArchiveBytes)
 	}
 	if err := os.MkdirAll(s.Dir, 0750); err != nil {
 		return err

@@ -63,6 +63,8 @@ Local builds have no download URL. Never substitute a `latest` resource set.
 The compressed archive limit is 1 GiB; the expanded set remains limited to
 2 GiB and 20,000 files. The updater installs resources with the staged candidate
 binary, so it applies the matching version's limits before activation.
+The packer uses gzip's default compression level. An oversized archive reports
+its byte count and limit separately from an invalid binary resource pin.
 
 The release builders require a clean worktree so the binary identity matches
 the reviewed commit. A local `scripts/make_deploy.sh` diagnostic build from modified

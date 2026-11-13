@@ -130,7 +130,7 @@ func build(out, stage, release string) error {
 	}
 	defer os.Remove(archive.Name())
 	defer archive.Close()
-	gz, err := gzip.NewWriterLevel(archive, gzip.BestSpeed)
+	gz, err := gzip.NewWriterLevel(archive, gzip.DefaultCompression)
 	if err != nil {
 		return err
 	}

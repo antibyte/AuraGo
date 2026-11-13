@@ -14,6 +14,8 @@ integration and versioned HTTP serving. See `documentation/web-assets.md`.
   Serialize installs; publish a verified directory atomically. Keep old sets.
 - Archives are bounded to 1 GiB; expanded resources remain bounded to 2 GiB
   and 20,000 files. Packaging, installation and verification share these limits.
+  The packer uses gzip's default compression level. Oversized archives report
+  their byte count and limit separately from invalid pins, before reading data.
 - Set `Default` once before services start. Installation never hot-swaps captured
   templates or the active filesystem; restart activates the matching set.
 - A plain `--healthcheck` probes the running server without opening a local
