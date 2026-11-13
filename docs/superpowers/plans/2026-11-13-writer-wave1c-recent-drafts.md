@@ -866,7 +866,7 @@ func verifyWriterRecent(t *testing.T, page *rod.Page) {
         void app.act('drafts');
         await until(()=>!!select(),'the drafts dialog did not open');
         if(select().options.length!==2||!select().options[0].textContent.startsWith('lost.docx'))throw Error('drafts shown: '+select().textContent);
-        if(select().size<2||select().getBoundingClientRect().height<40)throw Error('the drafts are not shown as a list');
+        if(select().size!==2||select().multiple)throw Error('the drafts are not shown as a list of two rows');
         // Delete acts on the picked draft and the dialog comes back with the rest.
         select().value=key('Documents/old.docx');
         dialog().querySelector('[data-form-extra]').click();
