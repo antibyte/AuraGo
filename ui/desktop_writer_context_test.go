@@ -49,7 +49,7 @@ func verifyWriterContext(t *testing.T, page *rod.Page) {
         if(editor.query({type:'selectedText'})!=='Alpha beta')throw Error('a right-click dropped the selection: '+JSON.stringify(editor.query({type:'selectedText'})));
         if(!window.contextMenu)throw Error('no menu opened on a right-click');
         const got=ids(window.contextMenu.items).join();
-        if(got!=='cut,copy,paste,pastePlain,link,comment,assist')throw Error('menu for a text selection: '+got);
+        if(got!=='cut,copy,paste,pastePlain,link,comment,paragraphFormat,assist')throw Error('menu for a text selection: '+got);
         if(entry('copy').disabled||entry('cut').disabled)throw Error('copy and cut must be enabled for a selection');
         caret(0);window.contextMenu=null;await toTop();
     `))
