@@ -89,42 +89,9 @@
     let modelEpoch = 0;
     let modelState = 'idle';
     const modelAmbientStates = ['waving', 'jumping', 'running', 'running', 'dancing', 'sitting', 'sleeping', 'nodding', 'playing', 'clapping'];
-    const modelFolders = {
-        'aurago-punk-3d': 'punk', 'aurago-zombie-3d': 'zombert',
-        'aurago-psycho-3d': 'green', 'aurago-friend-3d': 'hoodie',
-        'aurago-thinker-3d': 'professor', 'aurago-neutral-3d': 'silver',
-        'aurago-trex-3d': 'rexi', 'aurago-tentacle-3d': 'purple-tentacle',
-        'openpets-default-3d': 'openpets-default',
-        'snoopy-3d': 'snoopy',
-        'clippit-3d': 'clippit',
-        'tux-3d': 'tux',
-        'wall-e-3d': 'wall-e',
-        'dobby-3d': 'dobby',
-        'aurago-servant-3d': 'butler',
-        'aurago-professional-3d': 'manager',
-        'aurago-mistress-3d': 'commander',
-        'aurago-evil-3d': 'vampire',
-        'aurago-secretary-3d': 'assistant',
-        'aurago-mcp-3d': 'mcp',
-        'aurago-terminator-3d': 'terminator',
-        'aurago-slime-3d': 'glibbi',
-        'aurago-spider-3d': 'webbi',
-        'aurago-alien-3d': 'zorbit',
-        'aurago-indiana-jones-3d': 'indiana-jones',
-        'aurago-manga-girl-3d': 'hana',
-        'aurago-chick-3d': 'pippin',
-        'aurago-peacock-3d': 'pavlo',
-        'aurago-puppy-3d': 'buddy',
-        'aurago-cat-3d': 'minka',
-        'aurago-crocodile-3d': 'kroko'
-    };
-
-    function modelAssetFolder(id) {
-        return Object.hasOwn(modelFolders, id) ? modelFolders[id] : '';
-    }
 
     function isModelPet(pet) {
-        return pet && pet.subcategory === '3d' && !!modelAssetFolder(pet.id);
+        return pet && pet.subcategory === '3d' && !!petModelAssetFolder(pet.id);
     }
 
     function releaseModelPet() {
@@ -1102,7 +1069,7 @@
         handleEvent: handlePetEvent,
         syncBootstrap: syncPetBootstrap,
         inspect3D: () => modelPet ? modelPet.inspect() : null,
-        modelAssetFolder,
+        modelAssetFolder: petModelAssetFolder,
         saveSetting
     };
     initPetRuntime();

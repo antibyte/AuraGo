@@ -65,7 +65,9 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 - The 31 optional model pets lazily load `js/desktop/core/pet-3d.js` and the local
   Aura Drift Three.js bundle. `PetRuntime.modelAssetFolder(id)` shares the fixed
-  ID/folder allowlist with the picker; authoring IDs are in `assets/desktop-pets/catalog.json`.
+  ID/folder allowlist with the picker. The allowlist lives in
+  `js/desktop/core/pet-model-catalog.js`, bundled before `pet-runtime.js` (its own file keeps
+  the runtime under the desktop JS line budget); authoring IDs are in `assets/desktop-pets/catalog.json`.
   Their fixed model/motion URLs are under `3d/pets/<folder>/`;
   no imported pet can choose model URLs. Keep gaze, animation crossfades, drag,
   reduced motion, hidden-tab suspension, stale-load cancellation and GPU disposal.

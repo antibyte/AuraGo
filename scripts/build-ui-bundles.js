@@ -19,6 +19,7 @@ const desktopMainParts = [
   'ui/js/desktop/core/screensaver-runtime.js',
   'ui/js/desktop/core/mini-icons-runtime.js',
   'ui/js/desktop/core/global-menu-runtime.js',
+  'ui/js/desktop/core/pet-model-catalog.js',
   'ui/js/desktop/core/pet-runtime.js',
   'ui/js/desktop/core/icon-selection-runtime.js',
   'ui/js/desktop/core/sip-phone-runtime.js',

@@ -8,7 +8,8 @@ Authoring sources and reproducible animation assets for optional real-time deskt
 
 - `punk/source.blend` and `punk/reference.png` retain the locally authored Rigify character and its reference image.
 - `catalog.json` names the 31 supported model pets, sprite counterparts and
-  joint counts. Keep it aligned with `service_pets.go` and the fixed browser map.
+  joint counts. Keep it aligned with `service_pets.go` and the fixed browser map
+  in `ui/js/desktop/core/pet-model-catalog.js`.
 - The seventeen VARCO humanoid folders retain references/prompts, original
   finger rigs, editable `source.blend` and
   `generation.json` provenance. `build_zombert.py -- --pet=<folder>` bakes the

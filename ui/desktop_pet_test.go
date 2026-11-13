@@ -171,6 +171,10 @@ func TestDesktopPetRuntimeLoadsEarlyAndStartsItself(t *testing.T) {
 	if !(foundationIdx < petIdx && petIdx < windowIdx) {
 		t.Fatalf("pet runtime must load immediately after desktop foundation; foundation=%d pet=%d window=%d", foundationIdx, petIdx, windowIdx)
 	}
+	catalogIdx := strings.Index(buildScript, "'ui/js/desktop/core/pet-model-catalog.js'")
+	if catalogIdx < 0 || catalogIdx > petIdx {
+		t.Fatalf("pet model catalog must be listed before the pet runtime; catalog=%d pet=%d", catalogIdx, petIdx)
+	}
 
 	bundle := readDesktopAssetText(t, "js/desktop/bundles/main.bundle.js")
 	foundationMarker := strings.Index(bundle, "/* ui/js/desktop/core/desktop-foundation.js */")
@@ -181,6 +185,18 @@ func TestDesktopPetRuntimeLoadsEarlyAndStartsItself(t *testing.T) {
 	}
 	if !(foundationMarker < petMarker && petMarker < windowMarker) {
 		t.Fatalf("desktop main bundle must load pet runtime immediately after foundation; foundation=%d pet=%d window=%d", foundationMarker, petMarker, windowMarker)
+	}
+	catalogMarker := strings.Index(bundle, "/* ui/js/desktop/core/pet-model-catalog.js */")
+	if catalogMarker < 0 || catalogMarker > petMarker {
+		t.Fatalf("desktop main bundle must define the pet model catalog before the pet runtime; catalog=%d pet=%d", catalogMarker, petMarker)
+	}
+	for _, marker := range []string{
+		"function petModelAssetFolder(id)",
+		"modelAssetFolder: petModelAssetFolder",
+	} {
+		if !strings.Contains(bundle, marker) {
+			t.Fatalf("desktop main bundle is missing pet model catalog marker %q", marker)
+		}
 	}
 }
 

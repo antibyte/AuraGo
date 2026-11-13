@@ -128,7 +128,7 @@ window.settingValue=k=>state.bootstrap.settings[k];window.t=k=>I18N[k]||k;window
 window.api=async(url,options)=>{if(options&&options.body){const {key,value}=JSON.parse(options.body);state.bootstrap.settings[key]=value;}return {pets:state.bootstrap.pets,active_pet_id:state.bootstrap.active_pet_id,settings:state.bootstrap.settings};};
 window.until=async(predicate,message)=>{const end=Date.now()+30000;while(Date.now()<end){if(predicate())return;await new Promise(r=>setTimeout(r,30));}throw Error('Timed out: '+message+' '+JSON.stringify({notifications,hidden:document.hidden,model:window.PetRuntime?.inspect3D()}));};
 window.changePet=id=>{PetRuntime.syncBootstrap({active_pet_id:id});PetRuntime.load();};
-</script><script src="/js/shared/lazy-assets.js"></script><script src="/js/desktop/core/pet-runtime.js"></script></body></html>`;
+</script><script src="/js/shared/lazy-assets.js"></script><script src="/js/desktop/core/pet-model-catalog.js"></script><script src="/js/desktop/core/pet-runtime.js"></script></body></html>`;
 let delay=0,fail=false;
 const server=http.createServer((request,response)=>{
     try{const pathname=new URL(request.url,'http://localhost').pathname;
