@@ -34,6 +34,16 @@ func localePlaceholders(s string) string {
 	return strings.Join(found, " ")
 }
 
+// localePluralSuffix marks a plural form X_<category> of a count text; the bare key X is the other form.
+var localePluralSuffix = regexp.MustCompile(`_(zero|one|two|few|many)$`)
+
+// hasEnPluralBase reports whether key is a plural form X_<category> and en has the bare key X.
+func hasEnPluralBase(en map[string]string, key string) bool {
+	base := localePluralSuffix.ReplaceAllString(key, "")
+	_, ok := en[base]
+	return base != key && ok
+}
+
 func TestCatalogTranslationsAreComplete(t *testing.T) {
 	reg := catalogRegistry(t, fullEnv())
 	en := loadEasyDragLocale(t, "en")
@@ -55,7 +65,7 @@ func TestCatalogTranslationsAreComplete(t *testing.T) {
 			}
 		}
 		for key := range m {
-			if _, ok := en[key]; !ok {
+			if _, ok := en[key]; !ok && !hasEnPluralBase(en, key) {
 				t.Errorf("%s.json has %s, which en.json lacks", lang, key)
 			}
 			if !strings.HasPrefix(key, "easydrag.") {

@@ -83,7 +83,13 @@ func TestEasyDragCountKeysHaveThePluralFormsOfEveryLocale(t *testing.T) {
 			if !strings.Contains(bare, "{count}") {
 				t.Errorf("%s %s: the bare (other) form is missing or has no {count}", lang, key)
 			}
-			for _, cat := range forms {
+			// ja and zh need no "one" form, but carry one (the bare text) to keep the key parity with en
+			// that internal/flows checks: en has key_one, so every locale does.
+			want := forms
+			if !containsString(want, "one") {
+				want = append(append([]string{}, want...), "one")
+			}
+			for _, cat := range want {
 				form := strings.TrimSpace(words[key+"_"+cat])
 				if form == "" {
 					t.Errorf("%s needs %s_%s", lang, key, cat)
