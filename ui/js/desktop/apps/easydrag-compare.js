@@ -64,7 +64,7 @@
         const core = ED.core, { t, esc } = ed;
         const choices = records.filter(r => ED.runs.isFinal(r.status)).slice(0, 200);
         if (choices.length < 2) return;
-        const option = (record, selected) => '<option value="' + esc(record.id) + '"' + (selected ? ' selected' : '') + '>' + esc(core.fmt.dateTime(record.started_at) + ' · ' + core.tr(t, 'easydrag.ui.status_' + record.status, record.status) + ' · ' + record.id) + '</option>';
+        const option = (record, selected) => '<option value="' + esc(record.id) + '"' + (selected ? ' selected' : '') + '>' + esc(core.fmt.dateTime(record.started_at) + ' · ' + ED.status.word(t, ED.status.of(record.status, 'run')) + ' · ' + record.id) + '</option>';
         let seq = 0, closed = false, current = null;
         const dialog = core.modal(ed.root, {
             title: t('easydrag.ui.compare_runs'), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--publish',
@@ -88,7 +88,7 @@
         let previewShortened = false;
         const value = (data, field) => {
             if (data === undefined) return '—';
-            if (field === 'status' && typeof data === 'string') return core.tr(t, 'easydrag.ui.status_' + data, data);
+            if (field === 'status' && typeof data === 'string') return ED.status.word(t, ED.status.of(data, 'step'));
             if (field === 'error_code' && data) return core.stepErrorText(t, { error_code: data });
             const text = JSON.stringify(data, null, 2);
             if (text.length > 1200) { previewShortened = true; return text.slice(0, 1200) + '…'; }

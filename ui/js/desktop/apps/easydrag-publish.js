@@ -185,7 +185,7 @@
             body += diffMarkup(preview.diff);
             const evidence = ed.testEvidence;
             const exactTest = evidence && Number.isInteger(preview.draft_revision) && Number(evidence.revision) === preview.draft_revision && !(ed.saver && ed.saver.isDirty());
-            body += '<section class="ed-publish-evidence"><h4>' + esc(t('easydrag.ui.publish_tested_revision')) + '</h4><p>' + esc(exactTest ? (evidence.mode === 'simulation' ? t('easydrag.ui.simulation_title') : t('easydrag.ui.real_test')) + ' · ' + core.tr(t, 'easydrag.ui.status_' + evidence.status, evidence.status) : t('easydrag.ui.publish_not_tested')) + '</p></section>';
+            body += '<section class="ed-publish-evidence"><h4>' + esc(t('easydrag.ui.publish_tested_revision')) + '</h4><p>' + (exactTest ? esc((evidence.mode === 'simulation' ? t('easydrag.ui.simulation_title') : t('easydrag.ui.real_test')) + ' · ') + ED.status.label(t, ED.status.of(evidence.status, 'run')) : esc(t('easydrag.ui.publish_not_tested'))) + '</p></section>';
             if (!ed.isBlock && !enabled && !errors.length) body += '<label class="ed-check"><input type="checkbox" data-ed-activate' + (ed.flow.live ? '' : ' checked') + '> ' + esc(t('easydrag.ui.publish_activate')) + '</label>';
             const note = !errors.length && ED.metadata ? ED.metadata.publicationNote(ed, preview) : null;
             if (note) body += '<div data-ed-publication-note></div>';

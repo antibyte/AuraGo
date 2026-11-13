@@ -71,7 +71,7 @@
             (!complete ? '<p class="ed-callout ed-callout--warn">' + esc(t('easydrag.ui.batch_result_incomplete')) + '</p>' : '') +
             (!compact && hasItems ? '<p class="ed-hint">' + esc(t('easydrag.ui.batch_result_visible', { visible: core.fmt.number(shown.length), retained: core.fmt.number(items.length) })) + '</p><ol class="ed-batch-item-results" data-ed-batch-results>' + shown.map(item => {
                 const valid = item && Number.isInteger(item.index) && item.index >= 0 && item.index < 1000 && ['success', 'error'].includes(item.status);
-                return '<li>' + (valid ? '<strong>' + esc(t('easydrag.ui.batch_item_index') + ' ' + item.index + ' · ' + core.tr(t, 'easydrag.ui.status_' + item.status, item.status)) + '</strong>' + (item.status === 'error' ? '<p>' + esc(core.errorText(t, { body: { code: typeof item.error_code === 'string' ? item.error_code : 'FLOW_NODE_FAILED' } })) + '</p>' : '<code>' + esc(preview(item.output)) + '</code>') : esc(t('easydrag.ui.batch_result_incomplete'))) + '</li>';
+                return '<li>' + (valid ? '<strong>' + esc(t('easydrag.ui.batch_item_index') + ' ' + item.index + ' · ') + ED.status.label(t, ED.status.of(item.status, 'step')) + '</strong>' + (item.status === 'error' ? '<p>' + esc(core.errorText(t, { body: { code: typeof item.error_code === 'string' ? item.error_code : 'FLOW_NODE_FAILED' } })) + '</p>' : '<code>' + esc(preview(item.output)) + '</code>') : esc(t('easydrag.ui.batch_result_incomplete'))) + '</li>';
             }).join('') + '</ol>' : '') + '</section>';
     }
     ED.batches = { options, resultMarkup, parseItems };

@@ -163,19 +163,19 @@
             if (v.trace) {
                 if (!f || v.list === 'calls') {
                     const frames = v.trace.frames.filter(row => !f || row.parent_invocation_id === f.invocation_id);
-                    body += '<h4>' + esc(t('easydrag.ui.child_history_calls')) + '</h4><div class="ed-child-list">' + frames.slice(v.page * 50, v.page * 50 + 50).map(row => '<button type="button" class="ed-child-row" data-ed-child-frame="' + row.invocation_id + '"><strong>' + esc(frameName(v, row)) + '</strong><span>' + esc(callName(row) + ' · ' + (row.status ? core.tr(t, 'easydrag.ui.status_' + row.status, row.status) : t('easydrag.ui.child_history_unknown_outcome'))) + '</span></button>').join('') + '</div>';
+                    body += '<h4>' + esc(t('easydrag.ui.child_history_calls')) + '</h4><div class="ed-child-list">' + frames.slice(v.page * 50, v.page * 50 + 50).map(row => '<button type="button" class="ed-child-row" data-ed-child-frame="' + row.invocation_id + '"><strong>' + esc(frameName(v, row)) + '</strong><span>' + esc(callName(row) + ' · ') + (row.status ? ED.status.label(t, ED.status.of(row.status, 'run')) : esc(t('easydrag.ui.child_history_unknown_outcome'))) + '</span></button>').join('') + '</div>';
                     if (!frames.length && v.state === 'complete') body += '<p>' + esc(t('easydrag.ui.child_history_empty')) + '</p>';
                     body += range(v, frames.length, 50, f ? null : history?.total_invocations);
                 } else {
                     const doc = documentFor(v, f);
                     body += '<p class="ed-hint" data-ed-child-document-missing' + (doc?.doc_missing ? '' : ' hidden') + '>' + (doc?.doc_missing ? esc(t('easydrag.ui.child_document_' + doc.doc_missing)) : '') + '</p>';
-                    body += '<p class="ed-hint">' + esc(callName(f) + ' · ' + (f.status ? core.tr(t, 'easydrag.ui.status_' + f.status, f.status) : t('easydrag.ui.child_history_unknown_outcome'))) + '</p>';
+                    body += '<p class="ed-hint">' + esc(callName(f) + ' · ') + (f.status ? ED.status.label(t, ED.status.of(f.status, 'run')) : esc(t('easydrag.ui.child_history_unknown_outcome'))) + '</p>';
                     if (!f.entered) body += '<p>' + esc(t('easydrag.ui.child_history_not_started')) + '</p>';
                     if (f.error_code) body += '<p class="ed-error">' + esc(core.errorText(t, { body: { code: f.error_code } })) + '</p>';
                     const row = f.steps.find(s => s.ordinal === v.record);
                     if (!row) {
                         if (v.trace.frames.some(row => row.parent_invocation_id === f.invocation_id)) body += '<button type="button" class="ed-btn" data-ed-child-calls>' + esc(t('easydrag.ui.child_history_calls')) + '</button>';
-                        body += '<div class="ed-child-list">' + f.steps.slice(v.page * 100, v.page * 100 + 100).map(row => '<button type="button" class="ed-child-row" data-ed-child-record="' + row.ordinal + '" aria-label="' + esc(t('easydrag.ui.child_history_open_record', { name: nodeName(v, f, row.step), attempt: row.step.attempt || '—' })) + '"><strong>' + esc(nodeName(v, f, row.step)) + '</strong><span>' + esc(core.tr(t, 'easydrag.ui.status_' + row.step.status, row.step.status)) + (row.step.attempt ? ' · ' + esc(t('easydrag.ui.child_history_attempt', { attempt: row.step.attempt })) : '') + '</span></button>').join('') + '</div>' + range(v, f.steps.length, 100, null);
+                        body += '<div class="ed-child-list">' + f.steps.slice(v.page * 100, v.page * 100 + 100).map(row => '<button type="button" class="ed-child-row" data-ed-child-record="' + row.ordinal + '" aria-label="' + esc(t('easydrag.ui.child_history_open_record', { name: nodeName(v, f, row.step), attempt: row.step.attempt || '—' })) + '"><strong>' + esc(nodeName(v, f, row.step)) + '</strong><span>' + ED.status.label(t, ED.status.of(row.step.status, 'step')) + (row.step.attempt ? ' · ' + esc(t('easydrag.ui.child_history_attempt', { attempt: row.step.attempt })) : '') + '</span></button>').join('') + '</div>' + range(v, f.steps.length, 100, null);
                     }
                     if (row) {
                         const s = row.step;
