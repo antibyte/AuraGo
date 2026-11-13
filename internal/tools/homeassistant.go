@@ -182,6 +182,10 @@ func HACallService(cfg HAConfig, domain, service, entityID string, serviceData m
 
 // HACallServiceContext calls a service with cancellation and the existing policy gates.
 func HACallServiceContext(ctx context.Context, cfg HAConfig, domain, service, entityID string, serviceData map[string]interface{}) string {
+	domain, service = strings.ToLower(strings.TrimSpace(domain)), strings.ToLower(strings.TrimSpace(service))
+	if d, s, ok := strings.Cut(service, "."); ok && domain == d {
+		service = s
+	}
 	if domain == "" || service == "" {
 		return errJSON("'domain' and 'service' are required (e.g. domain='light', service='turn_on')")
 	}
@@ -202,6 +206,9 @@ func HACallServiceContext(ctx context.Context, cfg HAConfig, domain, service, en
 		if k != "entity_id" && k != "domain" && k != "service" {
 			payload[k] = v
 		}
+	}
+	if msg := HAServiceTargetRefusal(domain, service, payload, cfg.AllowedServices, cfg.BlockedServices); msg != "" {
+		return errJSON("%s", msg)
 	}
 
 	body, _ := json.Marshal(payload)
@@ -264,8 +271,14 @@ func HAServiceRefusal(domain, service string, allowedServices, blockedServices [
 	}
 	if len(allowedServices) == 0 {
 		switch domain {
-		case "shell_command", "python_script", "script", "hassio":
+		case "shell_command", "python_script", "script", "hassio", "automation", "rest_command", "pyscript":
 			return "Home Assistant service " + full + " requires an explicit entry in home_assistant.allowed_services"
+		case "homeassistant":
+			switch service {
+			case "turn_on", "turn_off", "toggle", "update_entity", "check_config":
+			default:
+				return "Home Assistant service " + full + " requires an explicit entry in home_assistant.allowed_services"
+			}
 		}
 		return ""
 	}

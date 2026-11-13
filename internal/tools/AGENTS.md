@@ -10,6 +10,13 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 ## Local Contracts
 
+- Home Assistant indirect execution (`script`, `automation`, `python_script`,
+  `rest_command`, `pyscript`, `shell_command`, `hassio`) and core system services
+  require explicit allowed-service entries. Generic homeassistant turn/toggle
+  calls check each concrete entity's effective service as well; unresolved group,
+  area, device, label, floor and all-target selections are refused. Read-only and
+  blocked services always win. Verify `TestHA*Service*` and `TestHAGenericTargets*`.
+
 - PDF text extraction reads the rooted file handle through `pdftext.Extract`.
   Pass dispatch cancellation; failed extraction never reaches the summary LLM.
   Resource limits and source maintenance belong to `../pdftext/AGENTS.md`.

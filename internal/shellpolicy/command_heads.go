@@ -6,6 +6,9 @@ import (
 )
 
 var commandAssignment = regexp.MustCompile("^[A-Za-z_][A-Za-z0-9_]*=")
+var timeoutDuration = regexp.MustCompile(`^[0-9]+(?:\.[0-9]+)?[smhd]?$`)
+var niceAdjustment = regexp.MustCompile(`^[+-]?[0-9]+$`)
+var stdbufMode = regexp.MustCompile(`^(?:L|[0-9]+(?:\.[0-9]+)?[KMGTPEZY]?(?:i?B)?)$`)
 
 // shortcut: normalize literal command heads only; expansions and arbitrary shell
 // programs still need the existing OS isolation and trusted host-execution grants.
@@ -16,6 +19,8 @@ func normalizeCommandHeads(command string, escape byte) (string, bool) {
 		breaks += "\r"
 	}
 	atHead, envOptions, envValue, commandOptions := true, false, false, false
+	wrapper := ""
+	wrapped := false
 	for i := 0; i < len(command); {
 		c := command[i]
 		if strings.IndexByte(breaks, c) >= 0 {
@@ -23,6 +28,8 @@ func normalizeCommandHeads(command string, escape byte) (string, bool) {
 			i++
 			if c != ' ' && c != '\t' {
 				atHead, envOptions, envValue, commandOptions = true, false, false, false
+				wrapper = ""
+				wrapped = false
 			}
 			continue
 		}
@@ -46,6 +53,93 @@ func normalizeCommandHeads(command string, escape byte) (string, bool) {
 		if envValue {
 			envValue = false
 			continue
+		}
+		if wrapper != "" {
+			if wrapper == "nice-value" || wrapper == "stdbuf-value" || wrapper == "time-value" {
+				if wrapper == "nice-value" && !niceAdjustment.MatchString(word) || wrapper == "stdbuf-value" && !stdbufMode.MatchString(word) || strings.ContainsAny(word, "$`") || escape == '^' && strings.Contains(word, "%") {
+					return out.String(), true
+				}
+				wrapper = strings.TrimSuffix(wrapper, "-value")
+				continue
+			}
+			if word == "--help" || word == "--version" {
+				out.WriteString(wrapper + " " + word)
+				wrapper, atHead = "", false
+				continue
+			}
+			if word == "--" && wrapper != "duration" {
+				if wrapper == "timeout" {
+					wrapper = "duration"
+				} else {
+					wrapper = ""
+				}
+				continue
+			}
+			if wrapper == "timeout" && strings.HasPrefix(word, "-") {
+				switch {
+				case word == "-s" || word == "--signal" || word == "-k" || word == "--kill-after":
+					envValue = true
+				case word == "--foreground" || word == "--preserve-status" || word == "-v" || word == "--verbose":
+				case strings.HasPrefix(word, "--signal=") || strings.HasPrefix(word, "--kill-after=") || strings.HasPrefix(word, "-s") && len(word) > 2 || strings.HasPrefix(word, "-k") && len(word) > 2:
+				default:
+					return out.String(), true
+				}
+				continue
+			}
+			if wrapper == "timeout" || wrapper == "duration" {
+				if !timeoutDuration.MatchString(word) {
+					return out.String(), true
+				}
+				wrapper = ""
+				continue
+			}
+			if wrapper == "nice" && strings.HasPrefix(word, "-") {
+				switch {
+				case word == "-n" || word == "--adjustment":
+					wrapper = "nice-value"
+				case strings.HasPrefix(word, "--adjustment=") && niceAdjustment.MatchString(strings.TrimPrefix(word, "--adjustment=")):
+				case niceAdjustment.MatchString(word[1:]):
+				default:
+					return out.String(), true
+				}
+				continue
+			}
+			if wrapper == "stdbuf" && strings.HasPrefix(word, "-") {
+				if word == "-i" || word == "-o" || word == "-e" || word == "--input" || word == "--output" || word == "--error" {
+					wrapper = "stdbuf-value"
+					continue
+				}
+				mode := ""
+				if len(word) > 2 && strings.ContainsRune("ioe", rune(word[1])) {
+					mode = word[2:]
+				} else {
+					for _, option := range []string{"--input=", "--output=", "--error="} {
+						if strings.HasPrefix(word, option) {
+							mode = strings.TrimPrefix(word, option)
+						}
+					}
+				}
+				if !stdbufMode.MatchString(mode) {
+					return out.String(), true
+				}
+				continue
+			}
+			if wrapper == "time" && strings.HasPrefix(word, "-") {
+				switch word {
+				case "-f", "--format", "-o", "--output":
+					wrapper = "time-value"
+				case "-p", "--portability", "-v", "--verbose", "-a", "--append", "-q", "--quiet":
+				default:
+					if !strings.HasPrefix(word, "--format=") && !strings.HasPrefix(word, "--output=") {
+						return out.String(), true
+					}
+				}
+				continue
+			}
+			if strings.HasPrefix(word, "-") {
+				return out.String(), true
+			}
+			wrapper = ""
 		}
 		if envOptions && strings.HasPrefix(word, "-") {
 			switch {
@@ -73,13 +167,24 @@ func normalizeCommandHeads(command string, escape byte) (string, bool) {
 			continue
 		}
 		if commandAssignment.MatchString(word) {
+			if executableEnvironment(word) {
+				return out.String(), true
+			}
 			continue
+		}
+		if wrapped && strings.ContainsAny(word, "$%!*?[](){}") {
+			return out.String(), true
 		}
 		name := word[strings.LastIndexAny(word, "/\\")+1:]
 		name = strings.TrimSuffix(strings.ToLower(name), ".exe")
 		if name == "env" {
 			envOptions = true
 			commandOptions = false
+			continue
+		}
+		if name == "nohup" || name == "timeout" || name == "nice" || name == "stdbuf" || name == "time" {
+			wrapper = name
+			wrapped = true
 			continue
 		}
 		if name == "command" || name == "busybox" {
@@ -90,7 +195,7 @@ func normalizeCommandHeads(command string, escape byte) (string, bool) {
 		out.WriteString(name)
 		atHead = false
 	}
-	return out.String(), false
+	return out.String(), wrapper != "" || envValue
 }
 
 // literalCommandWord removes literal quotes without evaluating shell expressions.
