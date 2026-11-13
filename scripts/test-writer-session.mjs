@@ -30,18 +30,7 @@ const disposed=create({serialize:async()=>[],write:async()=>{throw Error('dispos
 disposed.changed();disposed.dispose();await tick(1000);
 await assert.rejects(disposed.save(),/closed/);
 console.log('Writer sessions: debounce, maximum delay, single-flight, revision acknowledgement, errors, retry and disposal pass');
-const panels={window:{}};
-vm.runInNewContext(readFileSync('ui/js/desktop/apps/writer-panels.js','utf8'),panels);
-const paperSize=panels.window.WriterPanels.paperSize;
-assert.equal(paperSize(12240,15840),'letter');
-assert.equal(paperSize(15840,12240),'letter');
-assert.equal(paperSize(12259,15840),'letter');
-assert.equal(paperSize(12260,15840),'');
-assert.equal(paperSize(11906,16838),'a4');
-assert.equal(paperSize(16838,11906),'a4');
-assert.equal(paperSize(11925,16838),'a4');
-assert.equal(paperSize(9000,9000),'');
-console.log('Writer paper sizes: Letter and A4 match both orientations');
+// Paper sizes are tested with the layout model in scripts/test-writer-layout.mjs.
 // The draft list leaves the document bytes out and puts the newest first.
 const stored = [{key: 'o:Documents/a.docx', id: '1', path: 'Documents/a.docx', updated: 10, bytes: new Uint8Array(3)},
     {key: 'o:Documents/b.docx', id: '2', path: 'Documents/b.docx', updated: 20, bytes: new Uint8Array(5)}];

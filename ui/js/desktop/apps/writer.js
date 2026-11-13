@@ -55,6 +55,7 @@
             get revision(){return queue?.revision || 0;}, get readonly(){return !!ctx.readonly;},
             commands,run,can,blocked:commands.blocked,notice,prompt:(key,value)=>ctx.promptDialog(tr(key),value || ''),
             windowId,signal:()=>documentLife.signal,countWords:text=>countWords(text),menuSignature,fileMenuItems,recentMenuItems,restoreDraft,
+            units:window.WriterLayout.units(locale,navigator.language),
             act,refresh:()=>refresh(),pinSelection,
             markCommand:commands.valueCommand,colorHex:colors.hex,highlightHex:colors.highlightHex,
             get author(){return author;},set author(value){author=value;localStorage.setItem('aurago.writer.author',value);editor.setAuthor(value);}
@@ -575,6 +576,10 @@
                         run({type:'setHeaderFooterOptions',[option]:!editor?.getHeaderFooterState()?.[option]});break;
                     }
                     case 'comment':await dialogs.comment();break;
+                    case 'pageSetup':await dialogs.page();break;
+                    case 'paragraphFormat':await dialogs.paragraph();break;
+                    // The engine has no date field; today's date goes in as text.
+                    case 'insertDate':run({type:'paste',text:new Date().toLocaleDateString(locale,{dateStyle:'long'})});break;
                     case 'paste':case 'pastePlain':
                         try{await pasteFromClipboard(action==='pastePlain');}
                         catch(_){notice(ctx.t('desktop.clipboard_read_unavailable'),true,'info');}

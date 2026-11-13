@@ -19,6 +19,11 @@ assert.equal(absent.join(), 'style,fontFamily,fontSize,lineSpacing,textColor,hig
 assert.ok(flat(menus[0].items).some(item => item.id === 'cloud'), 'the app-supplied file items are placed');
 assert.equal(menus[0].items.map(item => item.id || '-').slice(0, 5).join(), 'new,open,recent,drafts,-', 'File starts with New, Open, the recent documents and the drafts');
 assert.equal(menus[0].items[2].items[0].id, 'recent-0', 'the recent documents are a submenu');
+assert.ok(menus[0].items.some(item => item.id === 'pageSetup'), 'Page setup is in File');
+const formatMenu = menus.find(menu => menu.id === 'format');
+assert.equal(formatMenu.items.filter(item => item.id === 'paragraphFormat' || item.id === 'pageSetup').map(item => item.id).join(), 'paragraphFormat,pageSetup', 'the two dialogs are in Format');
+const fields = menus.find(menu => menu.id === 'insert').items.find(item => item.id === 'fields');
+assert.equal(fields.items.map(item => item.id || '-').join(), 'fieldPage,pageNumber,fieldPages,fieldSectionPages,-,insertDate', 'the page fields and the date are a submenu of Insert');
 for (const menu of menus) {
     assert.ok(menu.labelKey || String(menu.label).startsWith('tr:'), menu.id + ' has a title');
     const ids = flat(menu.items).filter(item => item.id).map(item => item.id);

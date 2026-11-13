@@ -14,7 +14,8 @@
     const BARS = {
         table: {items: ['rowAbove', 'rowBelow', 'columnLeft', 'columnRight', '|', 'deleteRow', 'deleteColumn', 'deleteTable', '|', 'mergeCells', 'splitCell', '|', 'borders', 'noBorders']},
         image: {items: ['rotateLeft', 'rotateRight', '|', 'deleteImage', 'format'], text: ['deleteImage', 'format']},
-        headerFooter: {items: ['pageNumber', 'headerFirstPage', 'headerOddEven', '|', 'backDocument'], text: ['pageNumber', 'headerFirstPage', 'headerOddEven', 'backDocument']}
+        headerFooter: {items: ['fieldPage', 'pageNumber', 'fieldPages', 'insertDate', '|', 'headerFirstPage', 'headerOddEven', '|', 'backDocument'],
+            text: ['fieldPage', 'pageNumber', 'fieldPages', 'insertDate', 'headerFirstPage', 'headerOddEven', 'backDocument']}
     };
     // The right-click menu as sections. An entry is a registry id, '@name' for an item only the
     // app can build, or {submenu, items}. target: {review, link, table, image, toc, scope}.
@@ -24,6 +25,7 @@
             ['cut', 'copy', 'paste', 'pastePlain'],
             target.link ? ['link', '@unlink'] : ['link'],
             ['comment'],
+            ['paragraphFormat'],
             target.table ? [{submenu: 'table', items: BARS.table.items}] : [],
             target.image ? ['rotateLeft', 'rotateRight', 'deleteImage'] : [],
             target.toc ? ['@updateToc'] : [],

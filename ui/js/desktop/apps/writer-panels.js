@@ -1,13 +1,9 @@
 (function () {
     'use strict';
-    function paperSize(widthTwips, heightTwips) {
-        const near = (width, height, expectedWidth, expectedHeight) => Math.abs(width - expectedWidth) < 20 && Math.abs(height - expectedHeight) < 20;
-        if (near(widthTwips, heightTwips, 12240, 15840) || near(widthTwips, heightTwips, 15840, 12240)) return 'letter';
-        if (near(widthTwips, heightTwips, 11906, 16838) || near(widthTwips, heightTwips, 16838, 11906)) return 'a4';
-        return '';
-    }
     function create(app) {
         const {root,find,tr,esc}=app, life=new AbortController();
+        // Lengths carry the unit of the user's locale; the papers are the layout module's.
+        const L=window.WriterLayout, u=app.units, unitName=tr(u.unit==='in'?'unit_in':'unit_cm');
         let side='', matches=[], matchIndex=-1, searchSignature='', reviewSignature='', outlineSignature='', outlineActive='';
         let aiRequest, suggestion, printFrame;
         const textButton=(id,label=id)=>'<button type="button" data-panel-command="'+id+'">'+esc(tr(label))+'</button>';
@@ -16,6 +12,9 @@
         const input=(key,value,type='number',extra='')=>'<input data-field="'+key+'" type="'+type+'" value="'+esc(value)+'" '+extra+'>';
         const select=(key,items,extra='')=>'<select data-field="'+key+'">'+items.map(([value,label])=>'<option value="'+esc(value)+'">'+esc(tr(label))+'</option>').join('')+extra+'</select>';
         const section=(label,body)=>'<section class="writer-panel-section"><h3>'+esc(tr(label))+'</h3>'+body+'</section>';
+        const length=(label,key)=>'<label class="writer-field"><span>'+esc(tr(label)+' · '+unitName)+'</span>'+input(key,'','text','inputmode="decimal" maxlength="8"')+'</label>';
+        // Opens the dialog that holds everything a section's quick fields leave out.
+        const more=action=>'<div class="writer-buttonrow"><button type="button" data-action="'+action+'">'+esc(tr('more'))+'</button></div>';
         function show(which,name) {
             const node=find('[data-'+which+']');node.hidden=!name;
             if(!name){node.replaceChildren();return;}
@@ -39,10 +38,10 @@
                     '<div class="writer-buttonrow">'+commandButton({type:'setAlignment',align:'justify'},'justify')+commandButton({type:'clearFormatting'},'clear_format')+'</div>')+
                     section('paragraph',field('line_spacing',input('lineSpacing',1.15,'number','min=".5" max="10" step=".05"'))+
                     field('before_spacing',input('beforePt',0,'number','min="0" max="200"'))+field('after_spacing',input('afterPt',8,'number','min="0" max="200"'))+
-                    field('left_indent',input('leftIndent',0,'number','min="0" max="100"'))+field('first_indent',input('firstIndent',0,'number','min="-100" max="100"')))+
-                    section('page_setup',field('paper',select('paper',[['a4','a4'],['letter','letter_paper']],'<option value="custom" disabled>'+esc(tr('paper_custom'))+'</option>'))+
+                    length('left_indent','leftIndent')+length('first_indent','firstIndent')+more('paragraphFormat'))+
+                    section('page_setup',field('paper','<select data-field="paper">'+L.papers.map(paper=>'<option value="'+paper.id+'">'+esc(paper.name)+'</option>').join('')+'<option value="custom" disabled>'+esc(tr('paper_custom'))+'</option></select>')+
                     field('orientation',select('orientation',[['portrait','portrait'],['landscape','landscape']]))+
-                    ['Top','Bottom','Left','Right'].map(x=>field('margin_'+x.toLowerCase(),input('margin'+x,25,'number','min="0" max="100"'))).join(''))+
+                    ['Top','Bottom','Left','Right'].map(x=>length('margin_'+x.toLowerCase(),'margin'+x)).join('')+more('pageSetup'))+
                     section('table','<p class="writer-hint">'+esc(tr('table_resize_hint'))+'</p>'+
                     field('cell_fill',input('cellFill','#ffffff','color'))+
                     '<div class="writer-buttonrow">'+commandButton({type:'setTableBorders',scope:'all',spec:{style:'single',size:4,color:{kind:'hex',value:'64748B'}}},'borders')+
@@ -50,7 +49,7 @@
                     '<div class="writer-buttonrow">'+commandButton({type:'insertRow',where:'below'},'row_add')+commandButton({type:'deleteRow'},'row_delete')+
                     commandButton({type:'insertColumn',where:'right'},'column_add')+commandButton({type:'deleteColumn'},'column_delete')+
                     commandButton({type:'mergeCells'},'merge_cells')+commandButton({type:'splitCell',rows:1,cols:2},'split_cell')+'</div>')+
-                    section('image',field('image_width',input('imageWidth',80,'number','min="1" max="300"'))+field('alt_text',input('imageAlt','','text'))+
+                    section('image',length('image_width','imageWidth')+field('alt_text',input('imageAlt','','text'))+
                     field('image_wrap',select('imageWrap',[['inline','inline'],['squareLeft','wrap_left'],['squareRight','wrap_right'],['topAndBottom','wrap_top']])));
                 case 'insert':return section('content','<div class="writer-buttonrow">'+textButton('table_insert','table')+'<button data-action="image">'+esc(tr('image'))+'</button>'+
                     commandButton({type:'insertBreak',kind:'page'},'page_break')+commandButton({type:'insertNote',noteKind:'footnote'},'footnote')+
@@ -120,24 +119,23 @@
             const snapshot=editor.snapshot(),fmt=snapshot.formatting || {};
             if(right==='format') {
                 const setup=snapshot.pageSetup, image=snapshot.image;
-                const mm=twips=>Math.round(Number(twips)*25.4/1440);
                 const indent=fmt.indent;
                 const fields={lineSpacing:fmt.lineSpacing?.value || 1.15,beforePt:fmt.spaceBeforePt || 0,afterPt:fmt.spaceAfterPt || 0,
-                    orientation:setup.orientation,paper:paperSize(setup.pageWidthTwips,setup.pageHeightTwips) || 'custom',
-                    leftIndent:indent && !indent.mixed?.left ? mm(indent.left) : '',
-                    firstIndent:indent && !indent.mixed?.firstLine ? mm(indent.firstLine) : ''};
+                    orientation:setup.orientation,paper:L.paperOf(setup.pageWidthTwips,setup.pageHeightTwips),
+                    leftIndent:indent && !indent.mixed?.left ? u.show(indent.left) : '',
+                    firstIndent:indent && !indent.mixed?.firstLine ? u.show(indent.firstLine) : ''};
                 const color=app.colorHex(fmt.color), highlight=app.highlightHex(fmt.highlight);
                 if(color)fields['text.color']=color;
                 if(highlight)fields['text.highlight']=highlight;
                 if(image) {
                     const selected=editor.getSelectedImage();
                     if(selected) {
-                        if(Number.isFinite(selected.widthEmu) && selected.widthEmu>0)fields.imageWidth=Math.round(selected.widthEmu/36000);
+                        if(Number.isFinite(selected.widthEmu) && selected.widthEmu>0)fields.imageWidth=u.show(selected.widthEmu/635);
                         fields.imageAlt=selected.description || '';
                         if(['inline','squareLeft','squareRight','topAndBottom'].includes(selected.wrap))fields.imageWrap=selected.wrap;
                     }
                 }
-                for(const direction of ['Top','Bottom','Left','Right'])fields['margin'+direction]=Math.round(setup.marginsTwips[direction.toLowerCase()]*25.4/1440);
+                for(const direction of ['Top','Bottom','Left','Right'])fields['margin'+direction]=u.show(setup.marginsTwips[direction.toLowerCase()]);
                 for(const [key,v] of Object.entries(fields)) {
                     const el=find('[data-field="'+key+'"]');if(el && el!==document.activeElement)el.value=v;
                 }
@@ -149,6 +147,10 @@
                     el.disabled=app.readonly || !!(type && app.blocked(type)) || (key==='cellFill' && !editor.getSelectedTable()) || (!!key?.startsWith('image') && !image);
                     el.title=el.disabled?tr('command_unavailable'):'';
                 }
+            }
+            if(right==='format')for(const id of ['pageSetup','paragraphFormat']) {
+                const el=root.querySelector('.writer-right [data-action="'+id+'"]'),state=app.commands.state(id);
+                if(el){el.disabled=!state.enabled;el.title=state.reason || '';}
             }
             if(right==='review') {
                 const mode=find('[data-field="tracking"]');if(mode)mode.value=snapshot.editingMode;
@@ -269,12 +271,15 @@
             if(key==='text.color' || key==='text.highlight'){app.run(app.markCommand(key,v));return;}
             if(key==='lineSpacing')app.run({type:'setLineSpacing',rule:'multiple',value:n});
             if(key==='beforePt' || key==='afterPt')app.run({type:'setParagraphSpacing',[key]:n});
-            if(key==='leftIndent' || key==='firstIndent')app.run({type:'setIndent',[key==='leftIndent'?'left':'firstLine']:Math.round(n*1440/25.4)});
-            if(key?.startsWith('margin'))app.run({type:'setPageSetup',[key]:Math.round(n*1440/25.4),scope:'document'});
+            const twips=u.read(v);
+            if((['leftIndent','firstIndent','imageWidth'].includes(key) || key?.startsWith('margin')) && !Number.isFinite(twips)){app.notice(tr('length_invalid'),true);return;}
+            if(key==='leftIndent' || key==='firstIndent')app.run({type:'setIndent',[key==='leftIndent'?'left':'firstLine']:twips});
+            if(key?.startsWith('margin'))app.run({type:'setPageSetup',[key]:twips,scope:'document'});
             if(key==='orientation')app.run({type:'setPageSetup',orientation:v});
             if(key==='paper') {
-                if(v==='custom')return;
-                let [pageWidth,pageHeight]=v==='letter'?[12240,15840]:[11906,16838];
+                const paper=L.papers.find(candidate=>candidate.id===v);
+                if(!paper)return;
+                let pageWidth=paper.width,pageHeight=paper.height;
                 if(editor.snapshot().pageSetup.orientation==='landscape')[pageWidth,pageHeight]=[pageHeight,pageWidth];
                 app.run({type:'setPageSetup',pageWidth,pageHeight});
             }
@@ -283,7 +288,7 @@
             if(key==='imageAlt')app.run({type:'setImageProperties',alt:v,description:v});
             if(key==='imageWidth') {
                 const image=editor.getSelectedImage();
-                if(image)app.run({type:'setImageProperties',widthEmu:n*36000,heightEmu:n*36000*image.heightEmu/image.widthEmu});
+                if(image && twips>0)app.run({type:'setImageProperties',widthEmu:twips*635,heightEmu:Math.round(twips*635*image.heightEmu/image.widthEmu)});
             }
         }
         root.addEventListener('click',event=>{
@@ -325,5 +330,5 @@
         function reset(){aiRequest?.abort();suggestion=null;renderSuggestion();matches=[];reviewSignature=outlineSignature=searchSignature='';outlineActive='';}
         return {show,update,template,print,reset,dispose(){life.abort();reset();printFrame?.dispose();}};
     }
-    window.WriterPanels={create,paperSize};
+    window.WriterPanels={create};
 })();

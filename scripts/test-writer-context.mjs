@@ -33,7 +33,8 @@ for (const id of WriterContext.bars.table.items.filter(id => id !== '|')) assert
 const flatten = sections => sections.flat().flatMap(entry => typeof entry === 'string' ? [entry] : entry.items.filter(id => id !== '|'));
 const custom = new Set(['@accept', '@reject', '@unlink', '@updateToc']);
 const plain = WriterContext.sections({review: '', link: false, table: false, image: false, toc: '', scope: 'body'});
-assert.equal(plain.filter(section => section.length).map(section => section.join()).join(' / '), 'cut,copy,paste,pastePlain / link / comment / assist');
+assert.equal(plain.filter(section => section.length).map(section => section.join()).join(' / '), 'cut,copy,paste,pastePlain / link / comment / paragraphFormat / assist');
+assert.equal(WriterContext.bars.headerFooter.items.join(), 'fieldPage,pageNumber,fieldPages,insertDate,|,headerFirstPage,headerOddEven,|,backDocument');
 const everything = WriterContext.sections({review: 'r1', link: true, table: true, image: true, toc: 't1', scope: 'headerFooter'});
 for (const entry of flatten(everything)) assert.ok(entry.startsWith('@') ? custom.has(entry) : known.has(entry), 'menu entry ' + entry + ' is unknown');
 assert.equal(everything[0].join(), '@accept,@reject', 'a change under the pointer comes first');
