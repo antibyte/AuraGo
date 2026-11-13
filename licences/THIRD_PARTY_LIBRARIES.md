@@ -122,7 +122,7 @@ QR caption resources under `ui/fonts/qr/` are Noto Sans Arabic/Devanagari, Noto 
 | `github.com/ulikunitz/xz` | v0.5.17 | BSD-3-Clause | https://github.com/ulikunitz/xz |
 | `github.com/vishen/go-chromecast` | v0.3.4 | Apache-2.0 | https://github.com/vishen/go-chromecast |
 | `github.com/xeipuuv/gojsonschema` | v1.2.0 | Apache-2.0 | https://github.com/xeipuuv/gojsonschema |
-| `github.com/xuri/excelize/v2` | v2.11.1-0.20261003002531-6258dcebc4e2 | BSD-3-Clause | https://github.com/qax-os/excelize |
+| `github.com/xuri/excelize/v2` | v2.11.1 | BSD-3-Clause | https://github.com/qax-os/excelize |
 | `go.mau.fi/whatsmeow` | v0.0.0-20261030195514-56e5ad0581ce | MPL-2.0 | https://github.com/tulir/whatsmeow |
 | `golang.org/x/crypto` | v0.58.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/crypto |
 | `golang.org/x/image` | v0.47.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/image |

@@ -8,7 +8,7 @@ REM   make_release.bat            -> prompts for version tag (default: v{YYYY.MM
 REM   make_release.bat v1.2.3     -> uses given tag directly
 REM
 REM Prerequisites:
-REM   - Go 1.27.3+  (https://go.dev)
+REM   - Go 1.27.4+  (https://go.dev)
 REM   - gh CLI    (https://cli.github.com) -- run "gh auth login" once
 REM   - tar       (built-in Windows 10 Build 17063+)
 REM   - Python 3.10+ (py launcher, python or python3)
@@ -20,9 +20,9 @@ if defined AURAGO_RELEASE_SIGNING_KEY goto local_release
 powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0make_release.ps1" %*
 exit /b %ERRORLEVEL%
 :local_release
-set "MIN_GO_VERSION=1.27.3"
+set "MIN_GO_VERSION=1.27.4"
 REM Pin the compiler used by CI and release artifacts.
-set "GOTOOLCHAIN=go1.27.3"
+set "GOTOOLCHAIN=go1.27.4"
 
 echo.
 echo  +--------------------------------------------+
