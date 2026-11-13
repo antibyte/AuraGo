@@ -55,4 +55,12 @@ find('copy').action();
 assert.equal(log.focused, 2);
 find('wordCount').action();
 assert.equal(log.focused, 2, 'an app action keeps the focus where its dialog puts it');
-console.log('Writer menus: model, coverage and rebuild rule pass');
+// The recent list: Writer's own files, newest first, without the open one; twins show their folder.
+const recent = WriterMenus.recent([
+    {path: 'Documents/a.docx', appId: 'writer'}, {path: 'Pictures/x.png', appId: 'gallery'}, {path: 'Documents/open.docx', appId: 'writer'},
+    {path: 'Letters/a.docx', appId: 'writer'}, {path: 'b.docx', appId: 'writer'}], 'Documents/open.docx');
+assert.equal(recent.map(entry => entry.path).join(), 'Documents/a.docx,Letters/a.docx,b.docx');
+assert.equal(recent.map(entry => entry.label).join('|'), 'a.docx · Documents|a.docx · Letters|b.docx');
+assert.equal(WriterMenus.recent(Array.from({length: 20}, (_, index) => ({path: 'f' + index + '.docx', appId: 'writer'})), '').length, 8);
+assert.equal(WriterMenus.recent(undefined, '').length, 0);
+console.log('Writer menus: model, coverage, rebuild rule and recent list pass');

@@ -51,5 +51,16 @@
         }
         return {sync};
     }
-    window.WriterMenus = {create, build};
+    // The documents Writer opened last, newest first, without the one that is open. entries is the
+    // shell's recent list ({path, appId}); two files of one name are told apart by their folder.
+    function recent(entries, current, limit = 8) {
+        const list = (entries || []).filter(entry => entry && entry.appId === 'writer' && entry.path && entry.path !== current).slice(0, limit);
+        const names = list.map(entry => entry.path.split('/').pop());
+        return list.map((entry, index) => {
+            const folder = entry.path.split('/').slice(0, -1).join('/');
+            const twin = names.indexOf(names[index]) !== names.lastIndexOf(names[index]);
+            return {path: entry.path, label: twin && folder ? names[index] + ' · ' + folder : names[index]};
+        });
+    }
+    window.WriterMenus = {create, build, recent};
 })();
