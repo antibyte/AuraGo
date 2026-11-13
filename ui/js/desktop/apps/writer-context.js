@@ -72,11 +72,14 @@
             const el = event.target.closest('button[data-tool]');
             if (el && !el.disabled) commands.invoke(el.dataset.tool);
         }, {signal: life.signal});
-        // The engine moves its caret on a right-click like on a left one, which would drop the
+        // On macOS the context click is Ctrl+click, a left press.
+        const mac = /Mac|iPhone|iPad/.test(navigator.platform || '');
+        const contextPress = event => event.button === 2 || (mac && event.button === 0 && event.ctrlKey);
+        // The engine moves its caret on a context press like on a left one, which would drop the
         // selection the menu is about. With a selection or a selected image the press is kept
         // from the engine; with a plain caret the caret follows the click.
         mount.addEventListener('pointerdown', event => {
-            const snapshot = event.button === 2 && app.editor ? app.editor.snapshot() : null;
+            const snapshot = contextPress(event) && app.editor ? app.editor.snapshot() : null;
             if (!snapshot || (snapshot.selectionCollapsed && !snapshot.image)) return;
             event.preventDefault();
             event.stopPropagation();
@@ -124,9 +127,10 @@
                 drawing.dispatchEvent(new (type.startsWith('pointer') ? PointerEvent : MouseEvent)(type, Object.assign({buttons: type.endsWith('down') ? 1 : 0}, at)));
         }
         // The selection lands with the engine's next update; the menu waits for it, briefly.
-        function whenSelected(done, tries) {
-            if (!app.editor || app.editor.snapshot().image || !tries) return done();
-            setTimeout(() => whenSelected(done, tries - 1), 20);
+        function whenSelected(id, done, tries) {
+            if (life.signal.aborted) return;
+            if (!app.editor || app.editor.snapshot().image?.id === id || !tries) return done();
+            setTimeout(() => whenSelected(id, done, tries - 1), 20);
         }
         // Opens the menu for a contextmenu event inside the document; false when it is not Writer's to answer.
         function open(event) {
@@ -135,7 +139,7 @@
             const keyboard = event.button === -1 || (!event.clientX && !event.clientY), box = mount.getBoundingClientRect();
             const point = keyboard ? null : [event.clientX, event.clientY], drawing = point && event.target.closest?.('.docx-drawing');
             const present = () => {
-                if (!app.editor) return;
+                if (life.signal.aborted || !app.editor) return;
                 const at = target(point), items = [];
                 for (const section of sections(at)) {
                     if (!section.length) continue;
@@ -144,7 +148,9 @@
                 }
                 ctx.showContextMenu(point ? point[0] : box.left + Math.min(120, box.width / 2), point ? point[1] : box.top + 60, items);
             };
-            if (drawing && !app.editor.snapshot().image) { select(drawing, point); whenSelected(present, 10); }
+            // Another image than the selected one is selected first, so the menu is about what was clicked.
+            const id = drawing ? drawing.dataset.drawingNodeId : '';
+            if (id && app.editor.snapshot().image?.id !== id) { select(drawing, point); whenSelected(id, present, 10); }
             else present();
             return true;
         }

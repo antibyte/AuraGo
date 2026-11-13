@@ -150,7 +150,7 @@
         async function load(target,template) {
             const token=++generation;
             documentLife.abort();documentLife=new AbortController();const requestLife=documentLife;
-            queue?.dispose();queue=null;editor?.destroy();editor=null;panels.reset();
+            queue?.dispose();queue=null;editor?.destroy();editor=null;contextBar.refresh();panels.reset();
             clearTimeout(updateTimer);clearTimeout(draftTimer);clearTimeout(draftDeadline);
             draftTimer=draftDeadline=null;lastDraft=null;statsRevision=-1;rulerSignature='';
             mount.replaceChildren();path=target;etag=null;loading=true;loadFailed=false;pin=null;
@@ -237,7 +237,7 @@
                 find('[data-loading]').hidden=false;find('[data-load-status]').textContent=tr('load_failed');find('[data-load-actions]').hidden=false;
                 find('[data-save-state]').textContent=tr('load_failed');find('[data-save-state]').dataset.state='error';
                 if(error.status===404)ctx.updateWindowContext?.(windowId,{path:''});
-                fail(error,'load');menus.sync(true);
+                fail(error,'load');menus.sync(true);contextBar.refresh();
             }
         }
         function sanitize(html) {

@@ -59,6 +59,7 @@
         async function comment() {
             const editor = app.editor;
             if (!editor) return;
+            if (editor.snapshot().selectionCollapsed) { app.notice(tr('select_text'), true); return; }
             const text = await app.prompt('comment');
             if (!text?.trim() || app.editor !== editor) return;
             const result = editor.addComment(text, app.author);
