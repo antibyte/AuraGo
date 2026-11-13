@@ -1434,7 +1434,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 /* Lebendigkeit: one gate for all motion. ED.delight sets data-motion="normal" on .ed-app when nothing asks
    for calm. Under any other value (Ruhig, reduced motion, desktop animations off, or no value yet) no
    animation runs: a running step keeps its static blue border and disc, a spinner stays a static ring or
-   icon, flowing wires keep their dashes. Transitions are not affected; they end by themselves. */
+   icon, flowing wires become solid. Transitions are not affected; they end by themselves. */
 .ed-app:not([data-motion="normal"]) *, .ed-app:not([data-motion="normal"]) *::before, .ed-app:not([data-motion="normal"]) *::after {
     animation: none !important;
 }

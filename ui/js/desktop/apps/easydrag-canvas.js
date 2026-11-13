@@ -188,7 +188,7 @@
         function setView(view, opts) {
             const v = view && typeof view === 'object' ? view : {};
             ed.view = { x: Number.isFinite(v.x) ? v.x : 0, y: Number.isFinite(v.y) ? v.y : 0, zoom: G.clampZoom(v.zoom) };
-            el.classList.toggle('is-animating', !!(opts && opts.animate) && !matchMedia('(prefers-reduced-motion: reduce)').matches);
+            el.classList.toggle('is-animating', !!(opts && opts.animate) && (ED.delight ? ED.delight.allow('view') : !matchMedia('(prefers-reduced-motion: reduce)').matches));
             if (opts && opts.animate) {
                 cancel(animTimer);
                 animTimer = later(() => el.classList.remove('is-animating'), 260);

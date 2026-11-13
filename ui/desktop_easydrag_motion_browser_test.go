@@ -2,6 +2,7 @@ package ui
 
 import (
 	"testing"
+	"time"
 
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
@@ -36,6 +37,7 @@ func easyDragSettle(page *rod.Page) {
 //  1. normal motion, idle editor: nothing runs;
 //  2. normal motion, a step running: something runs (so the first check is not vacuous);
 //  3. Ruhig, chosen through the editor's more menu, the same step still running: nothing runs.
+//  4. Ruhig, a fit of the view: the canvas does not glide.
 func TestEasyDragMotionIsCalmWhenIdle(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	s := startEasyDragSmokeWith(t, easyDragSmokeOptions{Motion: true})
@@ -98,6 +100,18 @@ func TestEasyDragMotionIsCalmWhenIdle(t *testing.T) {
 	}
 	if got := p.MustEval(easyDragRunningAnimations).Str(); got != "" {
 		t.Fatalf("Ruhig with a running step: running animations: %s", got)
+	}
+	// A glide of the canvas is a motion too: Shift+1 (fit) under Ruhig must never set is-animating.
+	// The observer sees a class that is set and removed between two polls.
+	p.MustEval(`()=>{window.__edGlide=false;const c=document.querySelector('.ed-canvas');new MutationObserver(()=>{if(c.classList.contains('is-animating'))window.__edGlide=true;}).observe(c,{attributes:true,attributeFilter:['class']});}`)
+	p.MustEval(`()=>{const ed=edFixture.editor();window.__edViewed=false;const off=ed.bus.on('view',()=>{window.__edViewed=true;off();});document.querySelector('.ed-canvas').focus();}`)
+	p.KeyActions().Press(input.ShiftLeft).Type(input.Digit1).MustDo()
+	s.wait(`()=>window.__edViewed===true`)
+	for i := 0; i < 12; i++ {
+		if p.MustEval(`()=>window.__edGlide||document.querySelector('.ed-canvas').classList.contains('is-animating')`).Bool() {
+			t.Fatal("Ruhig: fit set is-animating on the canvas")
+		}
+		time.Sleep(40 * time.Millisecond)
 	}
 	s.failOnPageErrors("motion")
 }
