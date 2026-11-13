@@ -8,7 +8,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 
-const MODULES = ['easydrag-core.js', 'easydrag-format.js', 'easydrag-template.js', 'easydrag-credentials.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-canvas.js'];
+const MODULES = ['easydrag-core.js', 'easydrag-format.js', 'easydrag-status.js', 'easydrag-template.js', 'easydrag-credentials.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-canvas.js'];
 const UI_MODULES = ['easydrag-core.js', 'easydrag-format.js', 'easydrag-status.js', 'easydrag-durable.js', 'easydrag-template.js', 'easydrag-credentials.js', 'easydrag-model.js', 'easydrag-template-field.js', 'easydrag-fields-conditions.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-testing.js', 'easydrag-child-history.js', 'easydrag-run-stream.js', 'easydrag-run-start.js', 'easydrag-run-stop.js', 'easydrag-run-drawer.js', 'easydrag-runs.js', 'easydrag-library-pause.js', 'easydrag-home-grid.js', 'easydrag-home.js'];
 const T1 = 'n_tttttttt';
 const T2 = 'n_uuuuuuuu';

@@ -741,13 +741,6 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-badge--warn { background: var(--ed-warn); }
 .ed-badge--risk { background: var(--ed-danger); }
 .ed-badge--issue { width: 10px; height: 10px; margin-top: 4px; background: var(--ed-warn); }
-.ed-status { width: 18px; height: 18px; border-radius: 50%; box-shadow: 0 0 0 2px var(--ed-panel-strong); background: var(--ed-border-strong); position: relative; }
-.ed-status--success { background: var(--ed-ok); }
-.ed-status--success::after { content: ""; position: absolute; left: 6px; top: 3px; width: 5px; height: 9px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
-.ed-status--error { background: var(--ed-danger); }
-.ed-status--error::after { content: "!"; position: absolute; inset: 0; display: grid; place-items: center; color: white; font: 800 12px/1 sans-serif; }
-.ed-status--running, .ed-status--queued { background: var(--ed-info); animation: ed-pulse 1s ease-in-out infinite; }
-.ed-status--skipped { background: var(--ed-control); box-shadow: 0 0 0 2px var(--ed-panel-strong), inset 0 0 0 1px var(--ed-border-strong); }
 /* status map (W1a A): ED.status draws one disc per value; the word beside it is plain text. Colour never stands alone: every value has its own glyph. */
 .ed-status-disc { display: inline-grid; place-items: center; flex: none; box-sizing: border-box; width: var(--ed-disc, 18px); height: var(--ed-disc, 18px); border-radius: 50%; vertical-align: middle; background: var(--ed-status-neutral); color: var(--ed-status-neutral-ink); box-shadow: 0 0 0 1px var(--ed-status-edge); }
 .ed-status-disc svg { display: block; width: 72%; height: 72%; }
@@ -997,10 +990,6 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-subtabs button[aria-selected="true"] { color: var(--ed-text); border-bottom-color: var(--ed-accent); }
 .ed-col-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
 .ed-col-head h3 { margin: 0; font-family: var(--ed-label-font); font-size: 11px; font-weight: 700; letter-spacing: var(--ed-label-tracking); text-transform: var(--ed-label-transform); color: var(--ed-label-color); }
-.ed-status-pill { display: inline-flex; align-items: center; min-height: 20px; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: var(--ed-control); color: var(--ed-muted); }
-.ed-status-pill--success { background: color-mix(in srgb, var(--ed-ok) 16%, transparent); color: var(--ed-ok-ink); }
-.ed-status-pill--error { background: color-mix(in srgb, var(--ed-danger) 16%, transparent); color: var(--ed-danger-ink); }
-.ed-status-pill--running, .ed-status-pill--queued { background: color-mix(in srgb, var(--ed-info) 16%, transparent); color: var(--ed-info-ink); }
 .ed-output-status { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 12px; color: var(--ed-muted); }
 .ed-output-empty { display: grid; justify-items: center; gap: 6px; padding: 30px 12px; color: var(--ed-muted); text-align: center; }
 .ed-output-empty .ed-icon { width: 30px; height: 30px; opacity: 0.6; }
@@ -1600,8 +1589,6 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     .ed-run-dot--error { background-color: CanvasText; border-radius: 1px; transform: rotate(45deg); }
     .ed-run-dot--running, .ed-run-dot--queued { border-color: Highlight; }
     .ed-run-dot--cancelled { border-color: GrayText; }
-    .ed-status { outline: 2px solid CanvasText; outline-offset: -2px; }
-    .ed-status--running, .ed-status--queued { outline-color: Highlight; }
     /* status discs are told apart by glyph, fill and ring, not by hue */
     .ed-status-disc { background-color: Canvas; color: CanvasText; outline: 2px solid CanvasText; outline-offset: -2px; box-shadow: none; }
     .ed-status-disc[data-status="running"], .ed-status-disc[data-status="waiting"] { color: Highlight; outline-color: Highlight; }

@@ -271,7 +271,7 @@
                 ? '<span class="ed-code">' + esc(node.key) + '</span>'
                 : esc((info ? info.label : node.type) + ' · ' + node.key);
             const step = ed.run && ed.run.steps && ed.run.steps.get(node.id);
-            el.querySelector('.ed-detail-status').innerHTML = step ? '<span class="ed-status-pill ed-status-pill--' + esc(step.status) + '">' + esc(core.tr(t, 'easydrag.ui.status_' + step.status, step.status)) + '</span>' : '';
+            el.querySelector('.ed-detail-status').innerHTML = step ? ED.status.label(t, ED.status.ofStep(step, !!ed.run && ed.run.mode === 'simulation')) : '';
             // One run at a time: "test this step" waits until the active run ended.
             const busy = !!(ed.run && !ed.run.view && !ed.run.stale && ED.runs && !ED.runs.isFinal(ed.run.status));
             el.querySelector('[data-ed-detail-test]').disabled = !!(ed.readonly || ed.runView || (info && info.trigger) || busy);
@@ -610,13 +610,13 @@
                 out.innerHTML = '<div class="ed-output-empty">' + core.icon('flask') + '<p>' + esc(t('easydrag.ui.output_none')) + '</p></div>';
                 return;
             }
-            const parts = ['<span class="ed-status-pill ed-status-pill--' + esc(step.status) + '">' + esc(core.tr(t, 'easydrag.ui.status_' + step.status, step.status)) + '</span>'];
+            const parts = [ED.status.label(t, ED.status.ofStep(step, !!simulation))];
             if (simulation) parts.push('<span class="ed-chip ed-chip--muted">' + esc(t('easydrag.ui.simulation_title')) + '</span>');
             if (step.duration_ms) parts.push(esc(core.fmt.duration(step.duration_ms)));
             if (!simulation && step.output && step.output.tokens) parts.push(esc(t('easydrag.ui.output_tokens', { count: (step.output.tokens.input || 0) + (step.output.tokens.output || 0) })));
             if (step.item_count) parts.push(esc(t('easydrag.ui.output_items', { count: step.item_count })));
             if (step.output_truncated) parts.push('<span class="ed-chip ed-chip--warn">' + esc(t('easydrag.ui.output_truncated')) + '</span>');
-            if (step.effect_uncertain) parts.push('<span class="ed-chip ed-chip--warn" title="' + esc(t('easydrag.ui.step_effect_uncertain_hint')) + '">' + esc(t('easydrag.ui.step_effect_uncertain')) + '</span>');
+            if (step.effect_uncertain) parts.push('<span class="ed-chip ed-chip--muted" title="' + esc(t('easydrag.ui.step_effect_uncertain_hint')) + '">' + ED.status.label(t, ED.status.of('effect_uncertain', 'effect')) + '</span>');
             status.innerHTML = parts.join(' · ');
             if (step.status === 'error' && outputSubject === 'output') {
                 out.innerHTML = '<div class="ed-callout ed-callout--error">' + core.icon('alert') + '<div><strong>' + esc(t('easydrag.ui.output_error')) + '</strong><p>' + esc(core.stepErrorText(t, step)) + '</p></div></div>';

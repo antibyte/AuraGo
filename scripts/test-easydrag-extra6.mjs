@@ -381,16 +381,16 @@ export async function run(env) {
             btn.focus();
             for (const [name, step] of states) {
                 runWith(step ? 'running' : 'success', step);
-                const status = card.querySelector('.ed-status');
+                const status = card.querySelector('.ed-status-disc');
                 const error = card.querySelector('.ed-node-error');
                 rows.push([tool, name, h.dom.document.activeElement === btn && card.contains(btn), btn.getAttribute('tabindex'),
                     card.classList.contains('status-' + name), status ? status.getAttribute('title') : null, error ? error.textContent : null]);
             }
         }
         const expected = tool => [
-            [tool, 'running', true, '0', true, 'status_running', null],
-            [tool, 'success', true, '0', true, 'status_success · 1.2 s', null],
-            [tool, 'error', true, '0', true, 'status_error · 900 ms', 'error_flow_tool_error: boom'],
+            [tool, 'running', true, '0', true, 'running', null],
+            [tool, 'success', true, '0', true, 'ok · 1.2 s', null],
+            [tool, 'error', true, '0', true, 'failed · 900 ms', 'error_flow_tool_error: boom'],
             [tool, 'none', true, '0', false, null, null]
         ];
         const statusRebuilds = rebuilds;

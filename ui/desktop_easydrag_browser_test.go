@@ -813,7 +813,7 @@ func (s *easyDragSmoke) failingRun() {
 	s.wait(`()=>document.querySelectorAll('.ed-node.is-selected').length===1`)
 	// The step's error reads as one sentence, and the selected step's toolbar leaves its status badge free.
 	s.wait(`()=>!/[.。।]:/.test(document.querySelector('.ed-node-error').textContent)`)
-	s.wait(`()=>{const sel=document.querySelector('.ed-node.is-selected');const a=sel.querySelector('.ed-node-tools').getBoundingClientRect();const b=sel.querySelector('.ed-status').getBoundingClientRect();return a.right<=b.left || b.right<=a.left || a.bottom<=b.top || b.bottom<=a.top}`)
+	s.wait(`()=>{const sel=document.querySelector('.ed-node.is-selected');const a=sel.querySelector('.ed-node-tools').getBoundingClientRect();const b=sel.querySelector('.ed-status-disc').getBoundingClientRect();return a.right<=b.left || b.right<=a.left || a.bottom<=b.top || b.bottom<=a.top}`)
 	s.shot("run-error")
 	s.noRawKeys("run error")
 	s.failOnPageErrors("failing run")

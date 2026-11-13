@@ -400,7 +400,7 @@
             const status = statusOf(n.id);
             const step = ed.run && ed.run.steps && ed.run.steps.get(n.id);
             const issues = counts.get(n.id) || 0;
-            const state = JSON.stringify([status, step && step.duration_ms, step && step.error_code, step && step.error_message, step && !!step.effect_uncertain, issues]);
+            const state = JSON.stringify([status, step && step.duration_ms, step && step.error_code, step && step.error_message, step && !!step.effect_uncertain, ed.run && ed.run.mode, issues]);
             if (states.get(n.id) === state) return;
             states.set(n.id, state);
             const nextClass = classesFor(n) + (card.classList.contains('is-new') ? ' is-new' : '');
@@ -418,7 +418,7 @@
             else if (avail === 'needs_setup') parts.push(t('easydrag.ui.badge_needs_setup'));
             else if (avail === 'blocked') parts.push(t('easydrag.ui.badge_blocked'));
             if (issues) parts.push(t('easydrag.ui.badge_incomplete'));
-            if (status) parts.push(core.tr(t, 'easydrag.ui.status_' + status, status));
+            if (status) parts.push(ED.status.word(t, ED.status.ofStep({ status }, !!ed.run && ed.run.mode === 'simulation')));
             return parts.join(', ');
         }
 
@@ -433,9 +433,9 @@
             if (i && i.risky) badges.push('<span class="ed-badge ed-badge--risk" title="' + esc(t('easydrag.ui.badge_risky')) + '">' + core.icon('alert') + '</span>');
             if (issues) badges.push('<span class="ed-badge ed-badge--issue" title="' + esc(t('easydrag.ui.badge_incomplete')) + '"></span>');
             if (status) {
-                const label = core.tr(t, 'easydrag.ui.status_' + status, status);
+                const value = ED.status.ofStep({ status }, !!ed.run && ed.run.mode === 'simulation');
                 const dur = step && step.duration_ms ? ' · ' + core.fmt.duration(step.duration_ms) : '';
-                badges.push('<span class="ed-status ed-status--' + esc(status) + '" title="' + esc(label + dur) + '"><span class="ed-sr-only">' + esc(label) + '</span></span>');
+                badges.push(ED.status.disc(value, 18, { t, title: ED.status.word(t, value) + dur }));
             }
             return badges.join('');
         }
