@@ -99,7 +99,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 - Aura Drift (`aura-drift`, category `games`) is a first-party offline Virtual Desktop racer
   with a three.js 3D view (default) and a Canvas 2D fallback. Its three.js runtime
-  (`js/vendor/aura-drift/`, three.js 0.186.1), 40 lazy-loaded app modules, stylesheet, icon and
+  (`js/vendor/aura-drift/`, three.js 0.186.1), 41 lazy-loaded app modules, stylesheet, icon and
   `aura_drift.*` keys in all sixteen `lang/desktop/*.json` bundles are owned by
   `js/desktop/apps/AGENTS.md`. The 3D models and sound pack are owned by
   `../ui/3d/aura-drift/` (payload) and `../assets/aura-drift/` (model kit and audio sources).
@@ -1510,6 +1510,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
   `../internal/qrcode/AGENTS.md`.
 
 - `3d/screensaver/AGENTS.md` — Compact Tiefsee screensaver creature GLBs and their shader-facing UV contract.
+- `3d/aura-drift/pets/AGENTS.md` — Curated mascot motions, shared pet models, track clearance and rendering budgets.
 - `3d/chess/AGENTS.md` — Versioned AuraGo chess piece GLBs and their manifest contract for the Desktop 3D board.
 - `3d/system-world/AGENTS.md` — Compact versioned Blender GLBs and asset integrity/LOD contracts.
 

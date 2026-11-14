@@ -57,6 +57,11 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
   `repair-hana-pet.mjs` applies its current hash-bound report to isolated LOD
   faces (never more than 5%); rebuild Hana's motions and repeat the test afterward.
 
+- Aura Drift mascots: `build-aura-drift-pets.mjs [--check]` curates nine stationary
+  three-clip packs from existing Desktop models/motions; original assets stay
+  unchanged. `test-aura-drift-pets.mjs` checks track clearance, prop reservations,
+  source hashes, budgets and anchored motion. Native checks use
+  `TestDesktopAuraDriftPetDecorBrowser`.
 - Aura Drift: `node scripts/test-aura-drift-audio.mjs --fast` checks the pack and
   requested-music queue priority; the full run also decodes assets with FFmpeg.
   `node scripts/test-aura-drift-fx-resources.mjs` checks ordered FX initialization

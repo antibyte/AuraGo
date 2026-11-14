@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "models": {
+    "punk": {
+      "pet_id": "aurago-punk-3d",
+      "model_sha256": "65360e5ce10cffee0cbfedd46ff957cc612949bd2777551c827c156ae1372637",
+      "source_sha256": "10bc38755a33b6ea56a1cd5a84c46715039936df3388600e5fb3a03a981b8b61",
+      "motion_sha256": "0738d96923e070faabf145e56a72b4114f300f3c74c7b7a2b2fd038337e45fb8",
+      "bytes": 429928,
+      "license": "CC0-1.0",
+      "clips": [
+        "idle-a",
+        "greeting",
+        "clapping"
+      ]
+    },
+    "hoodie": {
+      "pet_id": "aurago-friend-3d",
+      "model_sha256": "51575fab886c2b8de5071abf2783da73ec7454ba6e8923943cf78decb50896af",
+      "source_sha256": "881e3a03e320818258736e68319189be55094141a6095f839dcd578e302d7102",
+      "motion_sha256": "e17b57452f46b03e851f036f398dea8a96b28655d33423201e188655253f0b64",
+      "bytes": 426541,
+      "license": "CC0-1.0",
+      "clips": [
+        "idle-a",
+        "greeting",
+        "clapping"
+      ]
+    },
+    "pippin": {
+      "pet_id": "aurago-chick-3d",
+      "model_sha256": "8ae5a37ecf21ed9b5a27338247acc09c6251cd0256f0bed1b8a0220c8fa502c1",
+      "source_sha256": "f51488b37d0cc1c30a62c5aa5531a095ee1308ac227b73f19cb2f3961840dc16",
+      "motion_sha256": "93534efef9c23d58f8d05c1db95413f63bd7820ba5c87394806e0076994b9b7f",
+      "bytes": 70216,
+      "license": "GPL-3.0-only",
+      "clips": [
+        "idle-a",
+        "greeting",
+        "clapping"
+      ]
+    },
+    "tux": {
+      "pet_id": "tux-3d",
+      "model_sha256": "f221d6f733df36a81a6e3c1761c786bb2dbdbeee4709e9a23f74c60198805a78",
+      "source_sha256": "69590fceb654f504ca3c8c3ade5a13a55a66bcf3388fd1adf07a32013076b9ed",
+      "motion_sha256": "2e454795d60d9c86b8c54cccd75839d50999c0f5dc21b2f42229ff958e8561ce",
+      "bytes": 70229,
+      "license": "GPL-3.0-only",
+      "clips": [
+        "idle-a",
+        "greeting",
+        "clapping"
+      ]
+    },
+    "buddy": {
+      "pet_id": "aurago-puppy-3d",
+      "model_sha256": "3ed2b4e1d53603fda82f63cea499d934222bc79fedec3c477f1cc765951e892f",
+      "source_sha256": "2206b2a709e66167d7943782678ffc43dfdc03e6cdcc4bd0669b6ee5b0ef1b58",
+      "motion_sha256": "d9abadb83e0c9a7cbf51e148b65c874243f1d5f203bf28732ccc5c9c82a5cdac",
+      "bytes": 69385,
+      "license": "GPL-3.0-only",
+      "clips": [
+        "idle-a",
+        "greeting",
+        "head-nod"
+      ]
+    },
+    "rexi": {
+      "pet_id": "aurago-trex-3d",
+      "model_sha256": "d869ae1e155cbef6b4da7a0024aab2eda4da62ca2dae36bc6f8c02411992eccf",
+      "source_sha256": "04150631d915b3b7d1fd064325067dc6ace17a1f454a1dfa757b8449ef1bb9d2",
+      "motion_sha256": "a91c590b202f6ccf017ba7dcc9fc42a3dd4f5c2111c8443ff3b72840bb55265b",
+      "bytes": 81231,
+      "license": "GPL-3.0-only",
+      "clips": [
+        "idle-a",
+        "greeting",
+        "victory-fist-pump"
+      ]
+    },
+    "kroko": {
+      "pet_id": "aurago-crocodile-3d",
+      "model_sha256": "6f63836e394a73e97756392b07aa828b62b63e915f1806db5888b59bfe86eaf8",
+      "source_sha256": "e6df5e05fdbbe95ccf7a9efa1cb004d90f0fbaf99f1c8988e454a6391ee80e12",
+      "motion_sha256": "64ab7104681295eb937e15b4bf8aabcefd55eae4e4e4cb77801bbeb909938e8d",
+      "bytes": 72754,
+      "license": "GPL-3.0-only",
+      "clips": [
+        "idle-a",
+        "greeting",
+        "head-nod"
+      ]
+    },
+    "zorbit": {
+      "pet_id": "aurago-alien-3d",
+      "model_sha256": "4735db3e63fb9953abe3ea33d5fdb7b54a5ed3b5176b137f4f1227b5af379790",
+      "source_sha256": "f85745d87c700f92d9bb7d4acf22bbd8154eb5c075e045443cf1040e10fae5a1",
+      "motion_sha256": "c35fef55798d86729f04dda24bcaa35a481ed1d881b32472e74ba2c2c2854975",
+      "bytes": 364478,
+      "license": "CC0-1.0",
+      "clips": [
+        "idle-a",
+        "greeting",
+        "head-nod"
+      ]
+    },
+    "purple-tentacle": {
+      "pet_id": "aurago-tentacle-3d",
+      "model_sha256": "5049b3f0a24ce5faac437e0ae6190a1fe693ac5afd518ee6e8772a9597cd4255",
+      "source_sha256": "b6f127fe71721191e73a181056d0726960c9c6849ae771f16646b31568377461",
+      "motion_sha256": "d14a86614ca25ef9555f718f8499cfd2304ad73f45cd87827723862046467094",
+      "bytes": 67468,
+      "license": "GPL-3.0-only",
+      "clips": [
+        "idle-a",
+        "greeting",
+        "victory-fist-pump"
+      ]
+    }
+  },
+  "biomes": {
+    "alpine": [
+      "pippin",
+      "buddy"
+    ],
+    "desert": [
+      "rexi",
+      "zorbit"
+    ],
+    "harbour": [
+      "punk",
+      "purple-tentacle"
+    ],
+    "salt": [
+      "zorbit",
+      "purple-tentacle"
+    ],
+    "forest": [
+      "rexi",
+      "kroko"
+    ],
+    "industry": [
+      "hoodie",
+      "purple-tentacle"
+    ],
+    "glacier": [
+      "tux",
+      "pippin"
+    ],
+    "metro": [
+      "punk",
+      "hoodie"
+    ]
+  }
+}

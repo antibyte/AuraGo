@@ -36,6 +36,9 @@ Authoring sources and reproducible animation assets for optional real-time deskt
 - `model_export.py` preserves packed full-resolution Blender sources, then
   normalizes four skin weights, exports the compact LOD and renders its poster.
 - `mesh2motion/` retains the pinned official CC0 human animations and the MIT retargeting math used by the offline build.
+- Aura Drift reuses nine active model GLBs without changing these sources or the
+  Desktop pet behaviour. Stationary motion subsets and resource limits belong
+  to `../../ui/3d/aura-drift/pets/AGENTS.md`.
 - Runtime files live in `ui/3d/pets/<folder>/`; `ui/js/desktop/core/pet-3d.js` owns rendering and interactive pose layers. The shared pet runtime owns placement, settings, notifications and drag physics.
 
 ## Local Contracts

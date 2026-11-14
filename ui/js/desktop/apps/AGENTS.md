@@ -3631,9 +3631,9 @@ buttons and menu popovers remain excluded from those gestures.
 - `aura-drift-*.js` implements Aura Drift, a first-party offline Virtual Desktop racer:
   a three.js 3D view (default) with a Canvas 2D fallback. The `aura-drift` entry in
   `js/desktop/core/module-loader.js` loads `vendor/aura-drift/three-runtime.js` (three.js
-  0.186.1 IIFE) first, then 40 app modules: core, physics, track, style, conditions, tricks,
+  0.186.1 IIFE) first, then 41 app modules: core, physics, track, style, conditions, tricks,
   features, weapons, projectiles, modes, ai, race, banter, camera, look, assets, cars, scenery,
-  render, terrain, road, sky, props, actors, carlight, fx-resources, fx, post, render3d, hud, hud-fx,
+  render, terrain, road, sky, props, pet-decor, actors, carlight, fx-resources, fx, post, render3d, hud, hud-fx,
   audio-bank, engine, audio, music, ui, ui-cards, woof-lines, woof, and last `aura-drift.js`, which exposes
   `window.AuraDriftApp = { render, dispose, stats }`. Shared state lives on
   `window.AuraDriftCore` (`CARS` 8, `DRIVERS` 8, `WEAPONS` 18, `TRICKS` 16, `MODES` 7,
@@ -3661,6 +3661,15 @@ buttons and menu popovers remain excluded from those gestures.
   Tall cars raise the chase camera from `AD.CAR_VIEW` heights.
   Opaque glazing writes depth; transparent glazing and cloaked cars do not. Returning from
   cloak restores opaque depth handling (`assets/aura-drift/reviewed/runtime-check.js`).
+- Mascots: `aura-drift-pet-decor.js` places six stationary skinned pets per track
+  from nine reviewed models, with two biome-specific species. Three curated
+  clips per species provide idle, greeting and suitable cheering gestures; root
+  translation stays anchored. Reserve whole-body clearance from roads, furniture
+  and scaled scatter. Show/animate at most one on Low, two otherwise, within 105 m;
+  pause, reduced motion, late loads and shared-resource disposal stay guarded.
+  Loading/model failure omits only mascots. Models reuse `3d/pets/`; motion and
+  source rights belong to `../../../3d/aura-drift/pets/AGENTS.md`. Verify
+  `node scripts/test-aura-drift-pets.mjs` and `TestDesktopAuraDriftPetDecorBrowser`.
 - Audio: `aura-drift-audio-bank.js` plays the Ogg pack under `ui/3d/aura-drift/audio`
   (priority loading, sfx variants, four-layer engines per car, one generated song per biome) and
   falls back to the live Web Audio synthesis in `aura-drift-engine.js` and `aura-drift-music.js` when a

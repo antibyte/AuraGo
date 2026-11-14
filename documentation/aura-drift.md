@@ -3,7 +3,7 @@
 Aura Drift (`aura-drift`, category `games`) is a first-party, offline single-player racing
 game for the Virtual Desktop. The default view is true 3D: Blender-built models, a three.js
 r186 runtime and golden-hour diorama lighting. A Canvas 2D view remains as the fallback. The
-game needs no provider, account, backend, network request or external resource at runtime.
+game needs no provider, account, cloud service or external resource at runtime.
 The 3D overhaul is specified in `plans/2026-11-06-aura-drift-3d-overhaul.md`; it supersedes
 the earlier top-down plan `plans/2026-11-04-aura-drift-racing-plan.md`, which is kept as history.
 
@@ -197,7 +197,7 @@ weather motion are removed by reduced motion.
 ### 3D view (default)
 
 - Runtime: `ui/js/vendor/aura-drift/three-runtime.js`, a three.js **0.186.1 (r186)** IIFE bundle
-  (908 369 bytes, manifest and licence beside it in `ui/js/vendor/aura-drift/`).
+  (908 390 bytes, manifest and licence beside it in `ui/js/vendor/aura-drift/`).
 - Models: 20 GLB files, under 11 MiB in total (exact sizes in the manifest), under `ui/3d/aura-drift/v1`: eight cars, `items`,
   `track`, `animals`, `shared` props and eight biome scenery kits. `manifest.json` records
   per-file size, hash and car measurements; `LICENSE.txt` lists the licence. The models are made
@@ -215,6 +215,19 @@ weather motion are removed by reduced motion.
   plus an alpine snow gauge, a desert anemometer, a harbour storm lantern and a glacier drift
   fence in their biomes. All twelve new props are placed through `AD.SCATTER` bands or
   `AD.furnitureProps`, so they are visible rather than merely exported.
+- Animated mascots: nine existing 3D pets decorate all eight environments, with six
+  clear places per track. Pippin/Buddy greet racers in the Alps, Rexi/Zorbit in
+  the desert, Punk/Purple Tentacle at the harbour, Zorbit/Purple Tentacle on the
+  salt flats, Rexi/Kroko in the forest, Hoodie/Purple Tentacle at the factories,
+  Tux/Pippin on the glacier, and Punk/Hoodie in the city. They idle, wave, clap,
+  nod or flex their tentacles beside the road. Their complete bodies stay out
+  of the driving corridor and do not enter collision or replay logic. The
+  renderer draws/animates at most one nearby mascot on Low, two on other tiers,
+  within 105 m. Pausing/reduced motion freezes their rigs; missing assets simply
+  omit them. No provider, cloud generation or additional model downloads from
+  external services are needed. The GLBs are shared with Desktop pets; nine
+  three-clip subsets total about 1.58 MiB under `ui/3d/aura-drift/pets/`. Their
+  CC0/GPL motion licences and source hashes remain recorded alongside them.
 - Reviewed models: all eight vehicles use original ImageGen concepts reconstructed through the
   NC AI VARCO API. Softeis retains its earlier reviewed source; the other seven cars and twenty
   prominent scenery/shared objects are retained under `assets/aura-drift/reviewed/` with hashes
@@ -505,6 +518,8 @@ node scripts/test-aura-drift-modes.mjs
 node scripts/test-aura-drift-camera.mjs
 node scripts/test-aura-drift-world.mjs
 node scripts/test-aura-drift-props.mjs
+node scripts/build-aura-drift-pets.mjs --check
+node scripts/test-aura-drift-pets.mjs
 node scripts/test-aura-drift-weather.mjs
 node scripts/test-aura-drift-banter.mjs
 node scripts/test-aura-drift-assets.mjs
