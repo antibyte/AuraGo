@@ -407,3 +407,35 @@ func (r *labRun) sceneTestResult() {
 		labProbe{Name: "disclosure", Selector: ".ed-disclosure-head", Role: "text", Min: 1})})
 	s.checkTargets(r.theme + "/5-test-result")
 }
+
+// labPseudo is scene 3 with the pseudo-locale: every translated string comes back accented, about 35% longer and in
+// brackets (spec §5.4), so a hard-coded width or a missing ellipsis shows up as a clipped text.
+func labPseudo(t *testing.T, name string) {
+	t.Helper()
+	start := time.Now()
+	s := startEasyDragSmoke(t)
+	s.page.MustEval(`()=>localStorage.setItem('aurago.easydrag.pseudo','1')`)
+	s.page.MustReload().MustWaitLoad()
+	s.page.MustEval(`async()=>{await fixtureReady;await fixtureOpen('easydrag');}`)
+	r := &labRun{s: s, theme: name + "+pseudo"}
+	r.applyTheme(name)
+	s.wait(`()=>document.querySelectorAll('.ed-flow-card').length>=1`)
+	s.clearToasts()
+	r.openEditor()
+	s.wait(`()=>document.querySelectorAll('.ed-rail-caption').length>=5`)
+	// the switch must be on, or the run proves nothing: a caption is bracketed
+	s.wait(`()=>document.querySelector('.ed-rail-caption').textContent.includes('[')`)
+	r.check("3-idle-editor-pseudo", labSpec{Clip: true})
+	r.report()
+	t.Logf("lab %s pseudo: %s", name, time.Since(start).Round(100*time.Millisecond))
+}
+
+// TestEasyDragLabPseudoBrowser is the pseudo-locale run of the lab (scene 3 with localStorage['aurago.easydrag.pseudo']
+// set), a test of its own because the whole lab took more than four minutes (spec §7).
+func TestEasyDragLabPseudoBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	for _, name := range labContexts(t) {
+		name := name
+		t.Run(name, func(t *testing.T) { labPseudo(t, name) })
+	}
+}
