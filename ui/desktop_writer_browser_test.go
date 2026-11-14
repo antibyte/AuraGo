@@ -10,6 +10,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -240,16 +243,31 @@ func TestDesktopWriterAppBrowser(t *testing.T) {
 	page.MustEval(`async()=>{
         const observer=new MutationObserver(records=>{for(const r of records)for(const frame of r.addedNodes)if(frame.tagName==='IFRAME'){
             const hook=()=>{frame.contentWindow.print=()=>{
-                window.printProbe={pages:frame.contentDocument.querySelectorAll('.docx-page').length,text:frame.contentDocument.body.innerText,html:frame.contentDocument.documentElement.outerHTML};window.printFonts=[...frame.contentDocument.fonts];
+                window.printProbe={pages:frame.contentDocument.querySelectorAll('.docx-page').length,text:frame.contentDocument.body.innerText,html:frame.contentDocument.documentElement.outerHTML,title:document.title,frameTitle:frame.contentDocument.title};window.printFonts=[...frame.contentDocument.fonts];
             };};hook();frame.addEventListener('load',hook);
         }});
         observer.observe(document.body,{childList:true});
-        await WriterApp.instances.get('test').act('print');observer.disconnect();
-        if(!window.printProbe || printProbe.pages!==WriterApp.instances.get('test').editor.getTotalPages() || !printProbe.text.includes('First window edit'))throw Error('Print did not capture all current pages: '+JSON.stringify(window.printProbe)+'; notice: '+document.querySelector('[data-notice]').textContent);
+        const app=WriterApp.instances.get('test'),editor=app.editor;
+        // A landscape section after the portrait pages: every printed page must keep its own format.
+        const last=editor.surface.session.paragraphIds().at(-1),end={paragraphId:last,offset:editor.query({type:'paragraphs'}).at(-1).text.length};
+        for(const command of [{type:'setSelection',range:{anchor:end,head:end}},{type:'insertBreak',kind:'section'},{type:'paste',text:'Landscape section'},{type:'setPageSetup',orientation:'landscape',scope:'section'}]) {
+            const result=editor.exec(command);if(!result.ok)throw Error(JSON.stringify({command,result}));
+        }
+        window.titleBeforePrint=document.title;
+        const name=app.path.split('/').pop().replace(/\.docx$/,''),labels=await(await fetch('/lang/desktop/en.json')).json();
+        // Save as PDF is the same print job with a hint about the destination and the document's name.
+        await app.act('pdf');
+        if(!window.printProbe)throw Error('Save as PDF printed nothing: '+document.querySelector('[data-notice]').textContent);
+        if(document.querySelector('[data-notice-text]').textContent!==labels['desktop.writer_pdf_hint'])throw Error('Save as PDF says '+document.querySelector('[data-notice-text]').textContent);
+        if(printProbe.title!==name||printProbe.frameTitle!==name)throw Error('the print job is named '+JSON.stringify({title:printProbe.title,frameTitle:printProbe.frameTitle,name}));
+        window.printProbe=null;
+        await app.act('print');observer.disconnect();
+        if(!window.printProbe || printProbe.pages!==editor.getTotalPages() || printProbe.pages!==3 || !printProbe.text.includes('First window edit') || !printProbe.text.includes('Landscape section'))throw Error('Print did not capture all current pages: '+JSON.stringify({pages:window.printProbe?.pages,total:editor.getTotalPages()})+'; notice: '+document.querySelector('[data-notice]').textContent);
     }`)
 
 	page.MustEval(`async()=>{
         WriterApp.dispose('test');
+        if(document.title!==window.titleBeforePrint)throw Error('printing left the page title at '+document.title);
         const html=printProbe.html,faces=printFonts;
         document.open();document.write('<!doctype html>'+html);document.close();
         for(const face of faces)document.fonts.add(face);
@@ -262,8 +280,22 @@ func TestDesktopWriterAppBrowser(t *testing.T) {
 	if err = os.WriteFile("../reports/autor/print.pdf", pdf.Data, 0644); err != nil {
 		t.Fatal(err)
 	}
-	if pages := bytes.Count(pdf.Data, []byte("/Type /Page\n")); pages != 2 {
-		t.Fatalf("Printed PDF has %d pages instead of 2", pages)
+	if pages := bytes.Count(pdf.Data, []byte("/Type /Page\n")); pages != 3 {
+		t.Fatalf("Printed PDF has %d pages instead of 3", pages)
+	}
+	// Two portrait pages and the landscape section, each in its own format.
+	portrait, landscape := 0, 0
+	for _, box := range regexp.MustCompile(`/MediaBox \[0 0 ([0-9.]+) ([0-9.]+)\]`).FindAllSubmatch(pdf.Data, -1) {
+		width, _ := strconv.ParseFloat(string(box[1]), 64)
+		height, _ := strconv.ParseFloat(string(box[2]), 64)
+		if width > height {
+			landscape++
+		} else {
+			portrait++
+		}
+	}
+	if portrait != 2 || landscape != 1 {
+		t.Fatalf("Printed PDF has %d portrait and %d landscape pages instead of 2 and 1", portrait, landscape)
 	}
 }
 
@@ -590,6 +622,29 @@ func TestDesktopWriterAppBrowserFileOps(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, "{}")
 	})
+	mux.HandleFunc("/api/desktop/files", func(w http.ResponseWriter, r *http.Request) {
+		folder := r.URL.Query().Get("path") + "/"
+		mu.Lock()
+		var names []string
+		for name := range files {
+			if strings.HasPrefix(name, folder) && !strings.Contains(name[len(folder):], "/") {
+				names = append(names, name)
+			}
+		}
+		mu.Unlock()
+		// Like the server, the fixture refuses a folder that does not exist.
+		if len(names) == 0 {
+			http.Error(w, `{"error":"list desktop files"}`, http.StatusBadRequest)
+			return
+		}
+		sort.Strings(names)
+		list := make([]map[string]string, 0, len(names))
+		for _, name := range names {
+			list = append(list, map[string]string{"name": name[len(folder):], "path": name, "type": "file"})
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"status": "ok", "files": list})
+	})
 	mux.HandleFunc("/writer-file-ops-fixture", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8">
@@ -685,4 +740,5 @@ func TestDesktopWriterAppBrowserFileOps(t *testing.T) {
         if(app.path===original)throw Error('file ops stayed on the generated path');
     }`)
 	verifyWriterRecent(t, page)
+	verifyWriterTemplates(t, page)
 }
