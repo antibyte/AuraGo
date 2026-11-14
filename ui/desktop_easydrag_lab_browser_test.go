@@ -180,6 +180,7 @@ const labMeasureJS = `spec=>{
 		return d[3]===0?[0,0,0,0]:[d[0],d[1],d[2],d[3]/255];
 	};
 	const over=(top,under,k)=>{const a=top[3]*(k===undefined?1:k);return [0,1,2].map(i=>top[i]*a+under[i]*(1-a));};
+	const splitShadows=v=>{const out=[];let d=0,cur='';for(const ch of String(v||'')){if(ch==='(')d++;if(ch===')')d--;if(ch===','&&d===0){out.push(cur.trim());cur='';}else cur+=ch;}if(cur.trim()&&cur.trim()!=='none')out.push(cur.trim());return out;};
 	const round=a=>a&&a.map(v=>Math.round(v*10)/10);
 	const vis=el=>{const cs=getComputedStyle(el),r=el.getBoundingClientRect();return cs.display!=='none'&&cs.visibility!=='hidden'&&(r.width>0||r.height>0);};
 	const opacity=el=>{let o=1;for(let n=el;n;n=n.parentElement)o*=parseFloat(getComputedStyle(n).opacity);return o;};
@@ -230,12 +231,21 @@ const labMeasureJS = `spec=>{
 				const pick=f&&f[3]>0?f:(s&&s[3]>0?s:null);
 				if(pick)svg=over(pick,b.rgb,op);
 			}
+			// ring: the outermost solid ring a box-shadow draws (0 blur, positive spread, not inset), over what is behind the element.
+			// Part A's --ed-status-edge is such a ring; a disc is told apart by its fill or by this ring (spec 7).
+			let ring=null;
+			splitShadows(cs.boxShadow).forEach(sh=>{
+				const col=sh.match(/(rgba?\([^)]*\)|color\([^)]*\)|oklab\([^)]*\)|oklch\([^)]*\)|lab\([^)]*\)|lch\([^)]*\)|#[0-9a-f]{3,8})/i);
+				if(!col||/\binset\b/.test(sh))return;
+				const n=sh.replace(col[0],'').trim().split(/\s+/).map(parseFloat);
+				if(n.length>=4&&n[2]===0&&n[3]>0){const c=parse(col[1]);if(c&&c[3]>0)ring=over(c,b.rgb,op);}
+			});
 			let edge=null;
 			if(parseFloat(cs.borderLeftWidth)>0){const c=parse(cs.borderLeftColor);if(c&&c[3]>0)edge=over(c,b.rgb,op);}
 			const surf=el.closest('[data-lab-surface]');
 			out.elements.push({probe:p.name,role:p.role,name:describe(el),text:(el.textContent||'').trim().slice(0,40),
 				status:el.getAttribute('data-status')||'',cat:el.getAttribute('data-cat')||'',surface:surf?surf.dataset.labSurface:'',
-				fg:fgc?round(over(fgc,eff,op)):null,eff:round(eff),behind:round(b.rgb),own:round(ownOver),svg:round(svg),edge:round(edge),approx:b.approx});
+				fg:fgc?round(over(fgc,eff,op)):null,eff:round(eff),behind:round(b.rgb),own:round(ownOver),svg:round(svg),ring:round(ring),edge:round(edge),approx:b.approx});
 		}));
 		out.counts[p.name]=n;
 	});

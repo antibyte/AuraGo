@@ -55,6 +55,7 @@ type labElement struct {
 	Eff     *[3]float64 `json:"eff"`    // the element's own background over Behind
 	Behind  *[3]float64 `json:"behind"` // the ancestors' backgrounds
 	Own     *[3]float64 `json:"own"`    // the element's own background over Behind, nil when it has none
+	Ring    *[3]float64 `json:"ring"`   // the outermost solid box-shadow ring over Behind (Part A's --ed-status-edge), nil when none
 	Svg     *[3]float64 `json:"svg"`    // the first svg shape's fill (or stroke) over Behind
 	Edge    *[3]float64 `json:"edge"`   // the left border over Behind
 	Approx  bool        `json:"approx"` // a gradient or pattern lies under it; only background-color was read
@@ -97,6 +98,25 @@ func labMarkColour(e labElement) *[3]float64 {
 		return e.Own
 	}
 	return e.Svg
+}
+
+// labMarkFinding passes a mark when its fill or its outer ring reaches labMarkMin against what is behind it: Part A's
+// 1px --ed-status-edge ring exists to give the discs 3:1 on the light surfaces (amendment 4). When both fail, the finding
+// prints both values.
+func labMarkFinding(out *[]labFinding, theme, scene string, e labElement, fill [3]float64) {
+	fr := cssContrastRatio(fill, *e.Behind)
+	if fr >= labMarkMin {
+		return
+	}
+	value := fmt.Sprintf("%.3f:1", fr)
+	if e.Ring != nil {
+		rr := cssContrastRatio(*e.Ring, *e.Behind)
+		if rr >= labMarkMin {
+			return
+		}
+		value = fmt.Sprintf("fill %.3f:1, ring %.3f:1", fr, rr)
+	}
+	*out = append(*out, labFinding{theme, scene, e.Name, "mark-contrast", value + labApproxNote(e), fmt.Sprintf("at least %.1f:1 (fill or ring)", labMarkMin)})
 }
 
 func labApproxNote(e labElement) string {
@@ -142,7 +162,7 @@ func labContrastFindings(theme, scene string, probes []labProbe, els []labElemen
 				unmeasured("disc colour")
 				continue
 			}
-			ratio("mark-contrast", *colour, *e.Behind, labMarkMin)
+			labMarkFinding(&out, theme, scene, e, *colour)
 		case "edge":
 			if e.Edge == nil || e.Behind == nil {
 				unmeasured("frame colour")
@@ -262,6 +282,15 @@ func TestEasyDragLabFindings(t *testing.T) {
 	svgMark := []labElement{{Probe: "disc", Role: "mark", Name: "disc", Svg: &[3]float64{140, 140, 140}, Behind: white}}
 	if got := labContrastFindings("t", "s", nil, svgMark, nil); len(got) != 0 {
 		t.Errorf("a 3.4:1 svg disc gave findings %v", got)
+	}
+	// the fill fails but the ring reaches 3:1: no finding; both fail: one finding that prints both values
+	ringOK := []labElement{{Probe: "disc", Role: "mark", Name: "disc", Own: &[3]float64{200, 220, 200}, Ring: &[3]float64{140, 140, 140}, Behind: white}}
+	if got := labContrastFindings("t", "s", nil, ringOK, nil); len(got) != 0 {
+		t.Errorf("a failing fill with a 3.4:1 ring gave findings %v", got)
+	}
+	ringWeak := []labElement{{Probe: "disc", Role: "mark", Name: "disc", Own: &[3]float64{200, 220, 200}, Ring: grey, Behind: white}}
+	if got := labContrastFindings("t", "s", nil, ringWeak, nil); len(got) != 1 || !strings.Contains(got[0].Value, "fill ") || !strings.Contains(got[0].Value, "ring 2.9") {
+		t.Errorf("fill and ring both failing gave %v, want one finding naming both", got)
 	}
 	weakMark := []labElement{{Probe: "disc", Role: "mark", Name: "disc", Own: grey, Behind: white}}
 	if got := labContrastFindings("t", "s", nil, weakMark, nil); len(got) != 1 || got[0].Check != "mark-contrast" {
