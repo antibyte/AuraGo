@@ -46,6 +46,8 @@ func TestUIBrowserCIShardsCoverEveryTest(t *testing.T) {
 		count     int
 	}
 	expected := map[string]string{
+		"TestMailReceiptsConfigBrowser":                        "General A-M",
+		"TestYepAPIReadOnlyProbeBrowser":                       "General remaining",
 		"TestAuraDriftSurveyBrowser":                           "Aura Drift other flows",
 		"TestDesktopAuraDriftGTAOShadowReuseBrowser":           "Aura Drift quality and controls",
 		"TestDesktopLeafyRuntimeBrowser":                       "Leafy",

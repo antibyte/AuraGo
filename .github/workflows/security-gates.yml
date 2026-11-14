@@ -174,9 +174,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: General
-            run: '.'
+          - name: General A-M
+            run: '^Test[A-M]'
             skip: '^TestConfigRefresh(Populated|RealSections)Browser$|^TestDesktop|^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^TestGoldfish'
+          - name: General remaining
+            run: '.'
+            skip: '^TestConfigRefresh(Populated|RealSections)Browser$|^TestDesktop|^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^TestGoldfish|^Test[A-M]'
           - name: Desktop A-D
             run: '^TestDesktop[A-D]'
             skip: '^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^TestGoldfish'
