@@ -87,6 +87,7 @@
                 '/js/desktop/apps/aura-drift-road.js',
                 '/js/desktop/apps/aura-drift-sky.js',
                 '/js/desktop/apps/aura-drift-props.js',
+                '/js/desktop/apps/aura-drift-pet-decor.js',
                 '/js/desktop/apps/aura-drift-actors.js',
                 '/js/desktop/apps/aura-drift-carlight.js',
                 '/js/desktop/apps/aura-drift-fx-resources.js',

@@ -47,14 +47,14 @@
         let loadFailed = false, loading = true, pin = null, updateTimer, draftTimer, draftDeadline, lastDraft = null;
         let statsRevision=-1, rulerSignature='', documentLanguage='', documentFonts, documentStats='';
         let leftPanel = '', rightPanel = '', author = localStorage.getItem('aurago.writer.author') || 'AuraGo';
-        let noticeKind = '', retrySaveAs = null;
+        let noticeKind = '', retrySaveAs = null, recorded = false;
         const lifecycle = new AbortController();
         let documentLife = new AbortController();
         const locale = document.documentElement.lang || 'en';
         const state = {ctx,esc,tr,root,find,get editor(){return editor;},get lib(){return lib;},
             get revision(){return queue?.revision || 0;}, get readonly(){return !!ctx.readonly;},
             commands,run,can,blocked:commands.blocked,notice,prompt:(key,value)=>ctx.promptDialog(tr(key),value || ''),
-            windowId,signal:()=>documentLife.signal,countWords:text=>countWords(text),menuSignature,fileMenuItems,
+            windowId,signal:()=>documentLife.signal,countWords:text=>countWords(text),menuSignature,fileMenuItems,recentMenuItems,restoreDraft,
             act,refresh:()=>refresh(),pinSelection,
             markCommand:commands.valueCommand,colorHex:colors.hex,highlightHex:colors.highlightHex,
             get author(){return author;},set author(value){author=value;localStorage.setItem('aurago.writer.author',value);editor.setAuthor(value);}
@@ -105,6 +105,9 @@
             if (resolved !== 'saveAs') retrySaveAs = null;
             notice(resolved === 'conflict' ? tr('conflict') : (error?.message || String(error)), true, resolved);
         }
+        // The shell keeps the recent list. Writer adds what the shell cannot see: a file opened,
+        // renamed or saved under a new name inside the window, and a new document once it holds text.
+        function remember(){recorded=true;ctx.recordRecentFile?.(path,'writer');menus.sync();}
         function draftKey(){return location.origin+':'+path;}
         async function storeDraft(bytes,revision) {
             try {
@@ -129,7 +132,10 @@
         async function write(bytes,target=path,expected=etag) {
             const response=await responseOK(await fetch(nativeURL(target),{method:'PUT',credentials:'same-origin',signal:documentLife.signal,
                 headers:{'Content-Type':MIME,...(expected?{'If-Match':expected}:{'If-None-Match':'*'})},body:bytes}));
-            if(target===path)etag=response.headers.get('ETag');
+            if(target===path) {
+                etag=response.headers.get('ETag');
+                if(!recorded && editor?.surface.session.bodyText().trim())remember();
+            }
             return response.headers.get('ETag');
         }
         function makeQueue() {
@@ -147,12 +153,13 @@
                 }
             });
         }
-        async function load(target,template) {
+        // take: put the kept draft in without asking, and start a new document when the file is gone.
+        async function load(target,template,take) {
             const token=++generation;
             documentLife.abort();documentLife=new AbortController();const requestLife=documentLife;
             queue?.dispose();queue=null;editor?.destroy();editor=null;contextBar.refresh();panels.reset();
             clearTimeout(updateTimer);clearTimeout(draftTimer);clearTimeout(draftDeadline);
-            draftTimer=draftDeadline=null;lastDraft=null;statsRevision=-1;rulerSignature='';
+            draftTimer=draftDeadline=null;lastDraft=null;statsRevision=-1;rulerSignature='';recorded=false;
             mount.replaceChildren();path=target;etag=null;loading=true;loadFailed=false;pin=null;
             find('[data-loading]').hidden=false;find('[data-load-status]').textContent=tr('loading');find('[data-load-actions]').hidden=true;
             find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;notice('');
@@ -167,8 +174,9 @@
                 let bytes='blank',imported=null,loadedETag=null,loadedPath=target;
                 if(!template) {
                     if(/\.docx$/i.test(target)) {
-                        const response=await responseOK(await fetch(nativeURL(target),{signal:requestLife.signal,cache:'no-store'}));
-                        loadedETag=response.headers.get('ETag');bytes=await response.arrayBuffer();
+                        const found=await fetch(nativeURL(target),{signal:requestLife.signal,cache:'no-store'});
+                        if(take && found.status===404){await found.body?.cancel().catch(()=>{});template='blank';}
+                        else{const response=await responseOK(found);loadedETag=response.headers.get('ETag');bytes=await response.arrayBuffer();}
                     } else {
                         const response=await responseOK(await fetch('/api/desktop/office/document?path='+encodeURIComponent(target),{signal:requestLife.signal}));
                         imported=(await response.json()).document;
@@ -212,13 +220,14 @@
                 find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;
                 find('[data-save-state]').textContent=tr(queue.dirty?'unsaved':'saved');
                 ctx.updateWindowContext?.(windowId,{path});
+                if(etag)remember();
                 toolbar.fill();menus.sync(true);refresh();
                 const draft=await WriterSession.draft('get',draftKey()).catch(()=>null);
                 if(disposed || token!==generation)return;
-                const restore=draft?.bytes && !ctx.readonly && await ctx.confirmDialog(tr('recover'),tr('recover_detail'));
+                const restore=draft?.bytes && !ctx.readonly && (take || await ctx.confirmDialog(tr('recover'),tr('recover_detail')));
                 if(disposed || token!==generation)return;
                 if(restore) {
-                    loading=true;editor.load(draft.bytes);loading=false;etag=draft.etag || null;queue.changed();notice(tr('recovered'));refresh();
+                    loading=true;editor.load(draft.bytes);loading=false;etag=template?null:draft.etag || null;queue.changed();notice(tr('recovered'));refresh();
                 }
                 if(editor.snapshot().isOpening)await editor.save();
                 if(disposed || token!==generation || editor!==mounted)return;
@@ -236,7 +245,7 @@
                 loading=false;loadFailed=true;editor?.destroy();editor=null;queue?.dispose();queue=null;mount.replaceChildren();
                 find('[data-loading]').hidden=false;find('[data-load-status]').textContent=tr('load_failed');find('[data-load-actions]').hidden=false;
                 find('[data-save-state]').textContent=tr('load_failed');find('[data-save-state]').dataset.state='error';
-                if(error.status===404)ctx.updateWindowContext?.(windowId,{path:''});
+                if(error.status===404){ctx.updateWindowContext?.(windowId,{path:''});ctx.forgetRecentFile?.(target);}
                 fail(error,'load');menus.sync(true);contextBar.refresh();
             }
         }
@@ -377,7 +386,7 @@
                 find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;
                 find('[data-save-state]').textContent=tr(changed?'unsaved':'saved');
                 ctx.updateWindowContext?.(windowId,{path});
-                retrySaveAs=null;notice(tr('saved'));ctx.loadBootstrap?.();
+                retrySaveAs=null;notice(tr('saved'));ctx.loadBootstrap?.();remember();
             } catch(error) {
                 if(error?.name==='AbortError' || disposed)return;
                 retrySaveAs={path:target,expected,probed:decided};
@@ -417,7 +426,7 @@
                 const adopted=await responseOK(await fetch(nativeURL(target),{signal:documentLife.signal,cache:'no-store'}));
                 etag=adopted.headers.get('ETag');
                 await adopted.body?.cancel().catch(()=>{});
-                ctx.loadBootstrap?.();
+                ctx.loadBootstrap?.();ctx.forgetRecentFile?.(oldPath);remember();
             } catch(error) {
                 if(error?.name==='AbortError' || disposed || stage==='save')return;
                 notice(error?.message || String(error),true,'info');
@@ -546,6 +555,7 @@
                         const choice=await ctx.openFileDialog({title:tr('open'),initialPath:'Documents',filters:[{label:tr('documents'),extensions:['.docx','.html','.htm','.md','.txt']}]});
                         if(choice?.path && !choice.canceled && await guard())await load(choice.path);break;
                     }
+                    case 'drafts':await dialogs.drafts();break;
                     case 'new':if(!ctx.readonly && await guard()){await load(newPath(),'blank');showPanel('right','insert');}break;
                     case 'blank':case 'letter':case 'report':case 'meeting':if(!ctx.readonly && await guard())await load(newPath(),action);break;
                     case 'focus':setFocus(!root.classList.contains('writer-focus'));break;
@@ -604,6 +614,20 @@
                 if(result?.file?.path&&!disposed)await load(result.file.path);
             }catch(error){fail(error);}
         }
+        // A document from the recent list opens like one picked in the Open dialog.
+        async function openRecent(target) {
+            try{if(await guard())await load(target);}catch(error){fail(error);}
+        }
+        function recentMenuItems() {
+            const list=window.WriterMenus.recent(ctx.recentFiles?.(),path);
+            if(!list.length)return [{id:'recent-none',label:tr('recent_none'),disabled:true}];
+            return list.map((entry,index)=>({id:'recent-'+index,label:entry.label,action:()=>openRecent(entry.path)}));
+        }
+        // A kept draft goes into its document without the question load() asks otherwise.
+        async function restoreDraft(entry) {
+            if(ctx.readonly || !await guard())return;
+            await load(entry.path,null,true);
+        }
         function fileMenuItems() {
             return [{id:'gog-import',label:ctx.t('desktop.gog.import'),disabled:ctx.readonly,action:()=>gogOffice('import')},
                 {id:'gog-export',label:ctx.t('desktop.gog.export'),disabled:ctx.readonly||!editor,action:()=>gogOffice('export')}];
@@ -613,6 +637,7 @@
             const s=editor && !loading?editor.snapshot():null;
             return JSON.stringify([!!s,!!ctx.readonly,s?.editingMode,s?.reviewDisplayMode,!!s?.showParagraphMarks,!!s?.canUndo,!!s?.canRedo,!!s?.selectionCollapsed,
                 !!s?.table,!!s?.image,s?.scope?.kind,s?.formatting?.lineSpacing?.value,leftPanel,rightPanel,root.classList.contains('writer-focus'),
+                window.WriterMenus.recent(ctx.recentFiles?.(),path).map(entry=>entry.path).join('|'),
                 ...(s?['mergeCells','splitCell','pasteFormat','previousChange','nextChange','backDocument'].map(id=>commands.state(id).enabled):[]),
                 ...(s?.scope?.kind==='headerFooter'?[activeAction('headerFirstPage'),activeAction('headerOddEven')]:[])]);
         }

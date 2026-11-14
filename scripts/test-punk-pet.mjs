@@ -76,10 +76,31 @@ if(['zombert','snoopy','hana'].includes(pet)||['bird','bird-tail','clip','spider
     }
 }
 if(pet==='wall-e')assert.ok(doc.meshes[0].primitives[0].attributes.COLOR_0!==undefined,'The mechanical reconstruction must retain its vertex colors');
+if(pet==='vampire'){
+    const used=new Set();
+    for(const primitive of doc.meshes[0].primitives){
+        const js=doc.accessors[primitive.attributes.JOINTS_0],ws=doc.accessors[primitive.attributes.WEIGHTS_0];
+        const off=(a,i,size)=>(doc.bufferViews[a.bufferView].byteOffset||0)+(a.byteOffset||0)+i*(doc.bufferViews[a.bufferView].byteStride||size);
+        for(let i=0;i<js.count;i++)for(let j=0;j<4;j++){
+            const weight=binary.readFloatLE(off(ws,i,16)+j*4);if(weight<.00001)continue;
+            const bone=doc.nodes[doc.skins[0].joints[binary.readUInt8(off(js,i,4)+j)]].name;
+            assert.ok(!/^DEF-(upper_arm|forearm|hand|thumb|f_)/.test(bone),'Vampire tentacles must not use human arm/finger weights');
+            if(bone.startsWith('Tentacle.'))used.add(bone);
+        }
+    }
+    assert.equal(used.size,16,'All sixteen tentacle segments must influence the surface');
+}
 for(const image of doc.images||[]){const view=doc.bufferViews[image.bufferView],bytes=binary.subarray(view.byteOffset,view.byteOffset+view.byteLength);assert.equal(bytes.toString('ascii',1,4),'PNG');assert.ok(bytes.readUInt32BE(16)<=1024&&bytes.readUInt32BE(20)<=1024,'Runtime textures must actually be resized');}
 const pack=JSON.parse(readFileSync(resolve(ui,'3d/pets',pet,'motions.json'),'utf8'));
 assert.equal(pack.clips.length,30);
 assert.equal(pack.model_sha256,createHash('sha256').update(model).digest('hex'));
+if(pet==='vampire'){
+    const digest=createHash('sha256').update(readFileSync(resolve(root,'scripts/vampire-pet-motions.mjs'))).update(readFileSync(resolve(root,'assets/desktop-pets/vampire/rig.json'))).digest('hex');
+    assert.equal(pack.tentacle_layer.source_sha256,digest);
+    assert.equal(pack.tentacle_layer.license,'GPL-3.0-only');
+    for(const {clip} of pack.clips)assert.equal(clip.tracks.filter(t=>t.name.startsWith('Tentacle')).length,16,'Each body clip must carry all sixteen tentacle tracks');
+}
+
 if(humanoid){
     for(const item of pack.clips){const source=readFileSync(resolve(root,'assets/desktop-pets/mesh2motion/animations',item.id+'.glb'));assert.equal(item.source_sha256,createHash('sha256').update(source).digest('hex'));}
 }else{
@@ -92,7 +113,7 @@ for(const {clip} of pack.clips){
 }
 const browser=[process.env.CHROME_BIN,process.env.PROGRAMFILES&&resolve(process.env.PROGRAMFILES,'Google/Chrome/Application/chrome.exe'),process.env['PROGRAMFILES(X86)']&&resolve(process.env['PROGRAMFILES(X86)'],'Microsoft/Edge/Application/msedge.exe'),'/usr/bin/google-chrome','/usr/bin/chromium'].filter(Boolean).find(existsSync);
 assert.ok(browser,'Chrome/Edge is required for the real WebGL pet test');
-if(pet==='hana'){
+if(['hana','vampire'].includes(pet)){
     const THREE=await import('three');const {loadSkeleton,reset}=await import('./pet-skeleton.mjs');
     const target=await loadSkeleton(resolve(ui,'3d/pets',pet,'model.glb'));let surface;
     target.gltf.scene.traverse(o=>{if(o.isSkinnedMesh)surface=o;});
@@ -117,8 +138,8 @@ if(pet==='hana'){
         edgeChecks.push({id,fraction,spikes,maxStretch,badTriangles:[...badTriangles],examples});
         mixer.stopAllAction();mixer.uncacheRoot(target.gltf.scene);
     }
-    writeFileSync(resolve(scratch,'hair-edge-check.json'),JSON.stringify({model_sha256:pack.model_sha256,samples:edgeChecks},null,2)+'\n');
-    assert.ok(edgeChecks.every(check=>check.spikes===0),'Short surface edges must not turn into hair/clothing spikes; see hair-edge-check.json');
+    writeFileSync(resolve(scratch,pet==='hana'?'hair-edge-check.json':'tentacle-edge-check.json'),JSON.stringify({model_sha256:pack.model_sha256,samples:edgeChecks},null,2)+'\n');
+    assert.ok(edgeChecks.every(check=>check.spikes===0),'Short surface edges must not turn into stretched spikes; see the per-pet edge-check report');
 }
 const labels=JSON.parse(readFileSync(resolve(ui,'lang/desktop/de.json'),'utf8'));
 const html=`<!doctype html><html lang="de"><head><meta charset="utf-8"><link rel="stylesheet" href="/css/desktop-shell.bundle.css"><style>body{margin:0;background:#252331;color:white;font:16px system-ui}.vd-taskbar{position:fixed;bottom:0;width:100%;height:48px;background:#131219}#title{padding:20px}button{margin:8px}#test-window{position:absolute;inset:0;background:#252331;pointer-events:auto}</style></head><body class="desktop-body" data-animations="true" data-theme="standard" data-scheme="dark"><main class="vd-shell"><section class="vd-workspace" id="vd-workspace"><div class="vd-window-layer" id="test-window-layer"><div id="test-window"></div></div></section></main><div id="title">AuraGo - ${name} 3D</div><div class="vd-taskbar"></div><script>
@@ -128,7 +149,7 @@ window.settingValue=k=>state.bootstrap.settings[k];window.t=k=>I18N[k]||k;window
 window.api=async(url,options)=>{if(options&&options.body){const {key,value}=JSON.parse(options.body);state.bootstrap.settings[key]=value;}return {pets:state.bootstrap.pets,active_pet_id:state.bootstrap.active_pet_id,settings:state.bootstrap.settings};};
 window.until=async(predicate,message)=>{const end=Date.now()+30000;while(Date.now()<end){if(predicate())return;await new Promise(r=>setTimeout(r,30));}throw Error('Timed out: '+message+' '+JSON.stringify({notifications,hidden:document.hidden,model:window.PetRuntime?.inspect3D()}));};
 window.changePet=id=>{PetRuntime.syncBootstrap({active_pet_id:id});PetRuntime.load();};
-</script><script src="/js/shared/lazy-assets.js"></script><script src="/js/desktop/core/pet-runtime.js"></script></body></html>`;
+</script><script src="/js/shared/lazy-assets.js"></script><script src="/js/desktop/core/pet-model-catalog.js"></script><script src="/js/desktop/core/pet-runtime.js"></script></body></html>`;
 let delay=0,fail=false;
 const server=http.createServer((request,response)=>{
     try{const pathname=new URL(request.url,'http://localhost').pathname;
@@ -259,6 +280,7 @@ try{
     fail=false;await evaluate(`PetRuntime.load();`);await evaluate(`until(()=>PetRuntime.inspect3D()?.frames>2,'retry after failure')`);
     await evaluate(`document.querySelector('.vd-pet-sprite canvas').getContext('webgl2').getExtension('WEBGL_lose_context').loseContext()`);
     await evaluate(`until(()=>notifications.length===2&&!PetRuntime.inspect3D(),'context-loss fallback')`);
+    assert.deepEqual(await evaluate(`['aurago-mcp-3d','snoopy-3d','wall-e-3d','aurago-spider-3d'].map(id=>PetRuntime.modelAssetFolder(id))`),['','','',''],'Retired model IDs must not resolve to 3D URLs');
     const posters=await evaluate(`(async()=>{
         await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='/js/desktop/apps/pet-picker.js';s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});
         const host=document.createElement('section');host.hidden=true;document.body.appendChild(host);

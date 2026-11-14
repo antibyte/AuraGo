@@ -86,6 +86,7 @@
         {id: 'highlight', slot: 'text.highlight', label: 'highlight', glyph: 'highlight', control: 'color', value: '#ffff00'},
         {id: 'new', label: 'new', icon: 'file-plus', shortcut: 'Ctrl+N', keys: ['n'], write: true},
         {id: 'open', label: 'open', icon: 'folder-open', shortcut: 'Ctrl+O', keys: ['o']},
+        {id: 'drafts', label: 'drafts', write: true},
         {id: 'save', label: 'save', icon: 'save', shortcut: 'Ctrl+S', keys: ['s'], write: true, needsEditor: true},
         {id: 'saveAs', label: 'save_as', icon: 'copy', shortcut: 'Ctrl+Shift+S', keys: ['shift+s'], write: true, needsEditor: true},
         {id: 'docx', label: 'download_docx', icon: 'file-text', needsEditor: true},

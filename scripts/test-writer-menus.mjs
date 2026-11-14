@@ -10,13 +10,15 @@ const flat = items => items.flatMap(item => item.items ? flat(item.items) : [ite
 
 // The model names registry commands only, and every command is reachable from a menu or the toolbar.
 const used = [];
-const menus = WriterMenus.build(id => { used.push(id); return {id}; }, key => 'tr:' + key, {file: [{id: 'cloud'}]});
+const menus = WriterMenus.build(id => { used.push(id); return {id}; }, key => 'tr:' + key, {file: [{id: 'cloud'}], recent: [{id: 'recent-0'}]});
 assert.equal(menus.map(menu => menu.id).join(), 'file,edit,view,insert,format,table,tools,agent');
 const known = new Set(WriterCommands.definitions.map(definition => definition.id));
 for (const id of used) assert.ok(known.has(id), 'menu item ' + id + ' is not a registry command');
 const absent = WriterCommands.definitions.map(definition => definition.id).filter(id => !used.includes(id));
 assert.equal(absent.join(), 'style,fontFamily,fontSize,lineSpacing,textColor,highlight,insert', 'only toolbar controls and the insert panel stay out of the menus');
 assert.ok(flat(menus[0].items).some(item => item.id === 'cloud'), 'the app-supplied file items are placed');
+assert.equal(menus[0].items.map(item => item.id || '-').slice(0, 5).join(), 'new,open,recent,drafts,-', 'File starts with New, Open, the recent documents and the drafts');
+assert.equal(menus[0].items[2].items[0].id, 'recent-0', 'the recent documents are a submenu');
 for (const menu of menus) {
     assert.ok(menu.labelKey || String(menu.label).startsWith('tr:'), menu.id + ' has a title');
     const ids = flat(menu.items).filter(item => item.id).map(item => item.id);
@@ -35,7 +37,7 @@ const app = {
         get: id => WriterCommands.definitions.find(definition => definition.id === id),
         menuItem: id => ({id, action: () => log.ran.push(id)})
     },
-    menuSignature: () => signature, fileMenuItems: () => []
+    menuSignature: () => signature, fileMenuItems: () => [], recentMenuItems: () => []
 };
 const bar = WriterMenus.create(app);
 bar.sync();
@@ -55,4 +57,12 @@ find('copy').action();
 assert.equal(log.focused, 2);
 find('wordCount').action();
 assert.equal(log.focused, 2, 'an app action keeps the focus where its dialog puts it');
-console.log('Writer menus: model, coverage and rebuild rule pass');
+// The recent list: Writer's own files, newest first, without the open one; twins show their folder.
+const recent = WriterMenus.recent([
+    {path: 'Documents/a.docx', appId: 'writer'}, {path: 'Pictures/x.png', appId: 'gallery'}, {path: 'Documents/open.docx', appId: 'writer'},
+    {path: 'Letters/a.docx', appId: 'writer'}, {path: 'b.docx', appId: 'writer'}], 'Documents/open.docx');
+assert.equal(recent.map(entry => entry.path).join(), 'Documents/a.docx,Letters/a.docx,b.docx');
+assert.equal(recent.map(entry => entry.label).join('|'), 'a.docx · Documents|a.docx · Letters|b.docx');
+assert.equal(WriterMenus.recent(Array.from({length: 20}, (_, index) => ({path: 'f' + index + '.docx', appId: 'writer'})), '').length, 8);
+assert.equal(WriterMenus.recent(undefined, '').length, 0);
+console.log('Writer menus: model, coverage, rebuild rule and recent list pass');

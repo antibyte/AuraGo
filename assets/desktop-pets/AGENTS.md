@@ -7,9 +7,10 @@ Authoring sources and reproducible animation assets for optional real-time deskt
 ## Ownership
 
 - `punk/source.blend` and `punk/reference.png` retain the locally authored Rigify character and its reference image.
-- `catalog.json` names the 31 supported model pets, sprite counterparts and
-  joint counts. Keep it aligned with `service_pets.go` and the fixed browser map.
-- The seventeen VARCO humanoid folders retain references/prompts, original
+- `catalog.json` names the 27 supported model pets, sprite counterparts and
+  joint counts. Keep it aligned with `service_pets.go` and the fixed browser map
+  in `ui/js/desktop/core/pet-model-catalog.js`.
+- The fifteen active VARCO humanoid folders retain references/prompts, original
   finger rigs, editable `source.blend` and
   `generation.json` provenance. `build_zombert.py -- --pet=<folder>` bakes the
   T-bind and maps the 53 joints to shared motion names (default: Zombert).
@@ -24,14 +25,25 @@ Authoring sources and reproducible animation assets for optional real-time deskt
 - `buddy/`, `minka/` and `kroko/` retain the native 29-joint VARCO quadruped rigs.
   `build_quadruped_pet.py` preserves their learned weights, maps joint names and
   removes the unskinned reference instance before compact export.
+- `vampire_rig.py` replaces the vampire surface's human arm/finger weights with
+  two eight-segment curved tentacle chains (69 total joints). Arc-length weights
+  blend adjacent segments and the chest at the roots; keep the cape separate.
+  `scripts/vampire-pet-motions.mjs` layers original GPL tentacle movements over
+  the CC0 body clips, with its script and landmark hashes recorded in the pack.
+- MCP, Snoopy, WALL·E and Webbi are retired model pets. Their source, runtime and
+  fallback files remain intact; omit their IDs from the bundled catalog and browser
+  allowlist. They must not reappear from old workspace installations.
 - `model_export.py` preserves packed full-resolution Blender sources, then
   normalizes four skin weights, exports the compact LOD and renders its poster.
 - `mesh2motion/` retains the pinned official CC0 human animations and the MIT retargeting math used by the offline build.
+- Aura Drift reuses nine active model GLBs without changing these sources or the
+  Desktop pet behaviour. Stationary motion subsets and resource limits belong
+  to `../../ui/3d/aura-drift/pets/AGENTS.md`.
 - Runtime files live in `ui/3d/pets/<folder>/`; `ui/js/desktop/core/pet-3d.js` owns rendering and interactive pose layers. The shared pet runtime owns placement, settings, notifications and drag physics.
 
 ## Local Contracts
 
-- The 31 model pets are separate bundled entries (62 entries including sprites); preserve their original
+- The 27 model pets are separate bundled entries (58 entries including sprites); preserve their original
   sprites and the active selection. Their ordinary OpenPets sheets
   are WebGL-failure fallbacks; keep them hidden and noninteractive during loading.
 - Model and motion URLs are fixed, version-bound local resource URLs, never supplied by an imported pet manifest. No cloud service is required at runtime.
@@ -54,6 +66,9 @@ Authoring sources and reproducible animation assets for optional real-time deskt
   preserving rigid facial details and the full-resolution
   Blender master, bone weights and textures. Rebuild the motions and rerun the
   test after this final LOD cleanup.
+- The vampire test checks all sixteen tentacle segments, rejects human arm/finger
+  influences and samples all thirty clips at three times with head gaze. Short
+  surface edges must never stretch into spikes.
 - `PunkPersona_Eyes` is authored geometry with separate sclera, violet iris,
   pupil and catchlight materials, parented to `DEF-spine.006`. Export it with the
   portable head, retain its world placement and include it in geometry budgets.
@@ -70,7 +85,7 @@ Authoring sources and reproducible animation assets for optional real-time deskt
   with `python scripts/test-pet-notices.py`. Generated notices and the retained upstream license copies
   have LF-pinned attributes; preserve third-party character design provenance.
 - Keep upstream source revision, hashes, motion names and license notices with the generated outputs. Mesh2Motion art is CC0; its retargeting code is MIT. These licenses do not relabel AuraGo's character source artwork.
-- The thirteen non-humanoids use thirty original procedural movements, generated
+- The eleven active non-humanoids use thirty original procedural movements, generated
   by `scripts/build-creature-pet-motions.mjs`, rather than a human motion retarget.
   Keep grounded feet/base, attached cups, tail/tip flexibility and the shared
   semantic gesture IDs. Hash the motion script and `rig.json` into both outputs;
@@ -87,7 +102,7 @@ Authoring sources and reproducible animation assets for optional real-time deskt
 
 ## Verification
 
-Run Blender with `--background --factory-startup --python-exit-code 1 --python assets/desktop-pets/build_model.py` for Punk. Use `build_zombert.py -- --pet=<folder>` for the seventeen VARCO humanoids, `build_quadruped_pet.py -- --pet=<folder>` for the three quadrupeds, or `build_creature_pet.py -- --pet=<folder>` for the ten other creatures. Then run `node scripts/build-punk-pet-motions.mjs --pet=<folder>` for humanoids, or `node scripts/build-creature-pet-motions.mjs --pet=<folder>` for non-humanoids; `scripts/pet-skeleton.mjs` loads their offline skeletons. Regenerate all thirteen procedural packs when their shared generator changes. Run `node scripts/test-punk-pet.mjs --pet=<folder>` for every changed model (default: Punk). Checks cover encoded textures, normalized skinning, motion hashes, rigid face/skull/finger separation, real WebGL movement, all picker posters and interaction/lifecycle. Existing `go test ./internal/desktop -run 'TestBundledPersonaSprites|TestInstallBundledDefaultPets|TestServiceBootstrapIncludesAllBundledDefaultPets|TestBundledPet'` and `go test ./ui -run 'DesktopPet|DesktopChat.*Pet'` cover catalog preservation and the shared runtime.
+Run Blender with `--background --factory-startup --python-exit-code 1 --python assets/desktop-pets/build_model.py` for Punk. Use `build_zombert.py -- --pet=<folder>` for the fifteen active VARCO humanoids, `build_quadruped_pet.py -- --pet=<folder>` for the three quadrupeds, or `build_creature_pet.py -- --pet=<folder>` for the eight active other creatures. Then run `node scripts/build-punk-pet-motions.mjs --pet=<folder>` for humanoids, or `node scripts/build-creature-pet-motions.mjs --pet=<folder>` for non-humanoids; `scripts/pet-skeleton.mjs` loads their offline skeletons. Regenerate all eleven active procedural packs when their shared generator changes. Run `node scripts/test-punk-pet.mjs --pet=<folder>` for every changed model (default: Punk). Checks cover encoded textures, normalized skinning, motion hashes, rigid face/skull/finger separation, real WebGL movement, all picker posters and interaction/lifecycle. Existing `go test ./internal/desktop -run 'TestBundledPersonaSprites|TestInstallBundledDefaultPets|TestServiceBootstrapIncludesAllBundledDefaultPets|TestBundledPet'` and `go test ./ui -run 'DesktopPet|DesktopChat.*Pet'` cover catalog preservation and the shared runtime.
 
 ## Child DOX Index
 

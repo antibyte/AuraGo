@@ -1,6 +1,7 @@
 // Aura Drift three.js runtime entry. Bundled by scripts/build-aura-drift-vendor.mjs.
 export * from 'three';
 export { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+export { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 export { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 export { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 export { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';

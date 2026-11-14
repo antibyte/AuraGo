@@ -67,9 +67,11 @@ New app-scoped prefixes must contain no `ad` substring; verify
   No external service, backend route or capability switch is required.
 <!-- pinball:end -->
 
-- The 31 optional model pets lazily load `js/desktop/core/pet-3d.js` and the local
+- The 27 optional model pets lazily load `js/desktop/core/pet-3d.js` and the local
   Aura Drift Three.js bundle. `PetRuntime.modelAssetFolder(id)` shares the fixed
-  ID/folder allowlist with the picker; authoring IDs are in `assets/desktop-pets/catalog.json`.
+  ID/folder allowlist with the picker. The allowlist lives in
+  `js/desktop/core/pet-model-catalog.js`, bundled before `pet-runtime.js` (its own file keeps
+  the runtime under the desktop JS line budget); authoring IDs are in `assets/desktop-pets/catalog.json`.
   Their fixed model/motion URLs are under `3d/pets/<folder>/`;
   no imported pet can choose model URLs. Keep gaze, animation crossfades, drag,
   reduced motion, hidden-tab suspension, stale-load cancellation and GPU disposal.
@@ -101,7 +103,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 - Aura Drift (`aura-drift`, category `games`) is a first-party offline Virtual Desktop racer
   with a three.js 3D view (default) and a Canvas 2D fallback. Its three.js runtime
-  (`js/vendor/aura-drift/`, three.js 0.186.1), 40 lazy-loaded app modules, stylesheet, icon and
+  (`js/vendor/aura-drift/`, three.js 0.186.1), 41 lazy-loaded app modules, stylesheet, icon and
   `aura_drift.*` keys in all sixteen `lang/desktop/*.json` bundles are owned by
   `js/desktop/apps/AGENTS.md`. The 3D models and sound pack are owned by
   `../ui/3d/aura-drift/` (payload) and `../assets/aura-drift/` (model kit and audio sources).
@@ -1515,6 +1517,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
   `../internal/qrcode/AGENTS.md`.
 
 - `3d/screensaver/AGENTS.md` — Compact Tiefsee screensaver creature GLBs and their shader-facing UV contract.
+- `3d/aura-drift/pets/AGENTS.md` — Curated mascot motions, shared pet models, track clearance and rendering budgets.
 - `3d/chess/AGENTS.md` — Versioned AuraGo chess piece GLBs and their manifest contract for the Desktop 3D board.
 - `3d/system-world/AGENTS.md` — Compact versioned Blender GLBs and asset integrity/LOD contracts.
 

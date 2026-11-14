@@ -115,7 +115,7 @@
         let sizeDirty = false, tierDirty = false, lastPose = null, inShowcase = false;
         let env = null, envKey = '', wetness = 0, time = 0, gen = 0;
         let actors = null, carLights = null, terrain = null, road = null, sky = null, props = null, fx = null, fallback = null;
-        let post = null, realPost = null;
+        let post = null, realPost = null, petDecor = null;
         let shadowMode = '', discoCount = 0;
 
         AD.assets.acquire();
@@ -279,9 +279,9 @@
         /* ---- per-track objects ------------------------------------------- */
         function stop(mod) { if (mod && typeof mod.dispose === 'function') { try { mod.dispose(); } catch (_) { /* partial module */ } } }
         function disposeTrack() {
-            stop(actors); stop(carLights); stop(terrain); stop(road); stop(sky); stop(props); stop(fx); stop(fallback);
+            stop(actors); stop(carLights); stop(terrain); stop(road); stop(sky); stop(props); stop(fx); stop(fallback); stop(petDecor);
             for (const m of [terrain, road]) if (m && m.group) m.group.removeFromParent();
-            actors = carLights = terrain = road = sky = props = fx = fallback = null;
+            actors = carLights = terrain = road = sky = props = fx = fallback = petDecor = null;
             wetness = 0; discoCount = 0;
         }
         function buildTrack() {
@@ -300,6 +300,7 @@
             }
             if (typeof AD.createSky === 'function') sky = AD.createSky(T, scene, look, glq, track);
             if (typeof AD.createProps === 'function') props = AD.createProps(T, scene, track, id, glq, t || (k => k));
+            if (typeof AD.createPetDecor === 'function') petDecor = AD.createPetDecor(T, scene, track, glq, terrain && terrain.group);
             if (!terrain && !sky) fallback = makeFallback();
             actors = AD.createActors(T, scene, glq);
             actors.setRace(race);
@@ -533,6 +534,7 @@
                 if (actors) actors.setQuality(glq);
                 if (fx && fx.setQuality) fx.setQuality(glq);
                 if (props && props.setQuality) props.setQuality(glq);
+                if (petDecor) petDecor.setQuality(glq);
                 if (carLights) carLights.setQuality(glq);
                 if (show) show.rig && show.rig.setGl(glq);
                 if (realPost) realPost.setQuality(glq);
@@ -575,6 +577,7 @@
                 if (fallback) { fallback.dome.position.copy(camera.position); }
                 if (sky && sky.update) sky.update(dt, pose, r.conditions ? r.conditions.state : null);
                 if (props && props.update) props.update(pose, r);
+                if (petDecor) petDecor.update(pose, r, dt, reduced);
                 if (fx && fx.setReducedMotion) fx.setReducedMotion(reduced);
                 if (fx && fx.update) fx.update(dt, pose);
                 const cond = r.conditions && r.conditions.state;
@@ -623,7 +626,8 @@
                     geometries: info.memory.geometries, textures: info.memory.textures,
                     particles: fxs ? fxs.particles || 0 : 0, ripples: fxs ? fxs.ripples || 0 : 0, rippleTotal: fxs ? fxs.rippleTotal || 0 : 0, aura: fxs ? fxs.aura || 0 : 0, props: ps ? ps.props || 0 : 0,
                     standIns: AD.assets.stats().standIns + (ps && ps.standIns ? ps.standIns : 0),
-                    wetness: wetness, chunks: ts ? ts.chunks || 0 : 0, projection: projection, tier: tier
+                    wetness: wetness, chunks: ts ? ts.chunks || 0 : 0, projection: projection, tier: tier,
+                    petDecor: petDecor ? petDecor.stats() : null
                 };
             },
             /* Draw-call accounting for tuning: visible meshes per scene child, main pass and shadow pass. */

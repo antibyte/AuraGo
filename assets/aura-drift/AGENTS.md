@@ -25,6 +25,10 @@ Own the Blender 5.2 generator of the Aura Drift model pack and its pure-Python k
   The eight race songs (`music/<biome>-song.ogg`) are YuE2 Studio generations (licence terms NOT verified, open item),
   recorded in `audio/yue2-songs.json` and re-encoded from FLAC masters with `build-aura-drift-audio.mjs --songs <dir>`.
 - Check: `scripts/test-aura-drift-assets.mjs`.
+- Trackside mascots reuse nine reviewed Desktop pet GLBs. Three-clip motion
+  subsets are built by `scripts/build-aura-drift-pets.mjs`, separately from the
+  twenty core GLBs and the kit's MIT artwork. The resource contract is
+  `ui/3d/aura-drift/pets/AGENTS.md`; original character rights remain unchanged.
 - `kit/export.py` stages each GLB beside its destination and atomically replaces it only after
   export succeeds; readers never receive a truncated model. `check_export.py` checks failure
   preservation, successful promotion and staging cleanup with a local exporter fixture.
@@ -70,3 +74,4 @@ Own the Blender 5.2 generator of the Aura Drift model pack and its pure-Python k
 | Area | Guide | Scope |
 | --- | --- | --- |
 | Reviewed reconstructions | `reviewed/AGENTS.md` | Retained geometry, provenance, rigid-part preparation and offline replacements. |
+| Mascot motions | `../../ui/3d/aura-drift/pets/AGENTS.md` | Shared Desktop models, stationary clips, clearance and GPU budgets. |

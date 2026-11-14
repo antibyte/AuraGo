@@ -2,11 +2,12 @@
     'use strict';
     const SEP = {type:'separator'};
     // The window menus. item(id) turns a registry command into a menu item; extra carries the items
-    // only writer.js can build (cloud import and export). A command no surface offers fails
-    // scripts/test-writer-menus.mjs.
+    // only writer.js can build (cloud import and export in `file`, the recent documents in `recent`).
+    // A command no surface offers fails scripts/test-writer-menus.mjs.
     function build(item, tr, extra) {
         return [
-            {id:'file',labelKey:'desktop.menu_file',items:[item('new'),item('open'),item('save'),item('saveAs'),SEP,...extra.file,SEP,
+            {id:'file',labelKey:'desktop.menu_file',items:[item('new'),item('open'),{id:'recent',label:tr('recent'),items:extra.recent},item('drafts'),SEP,
+                item('save'),item('saveAs'),SEP,...extra.file,SEP,
                 item('docx'),item('html'),item('md'),item('txt'),SEP,item('print')]},
             {id:'edit',labelKey:'desktop.menu_edit',items:[item('undo'),item('redo'),SEP,item('cut'),item('copy'),item('paste'),item('pastePlain'),SEP,
                 item('selectAll'),SEP,item('search'),item('goToPage')]},
@@ -31,7 +32,7 @@
             {id:'agent',labelKey:'desktop.menu_agent',items:[item('assist')]}
         ];
     }
-    // app: the state facade of writer.js ({ctx, tr, commands, windowId, editor, menuSignature(), fileMenuItems()}).
+    // app: the state facade of writer.js ({ctx, tr, commands, windowId, editor, menuSignature(), fileMenuItems(), recentMenuItems()}).
     function create(app) {
         const {ctx, tr, commands} = app;
         let signature = null;
@@ -47,9 +48,20 @@
             const next = app.menuSignature();
             if (!force && next === signature) return;
             signature = next;
-            ctx.setWindowMenus?.(app.windowId, build(item, tr, {file: app.fileMenuItems()}));
+            ctx.setWindowMenus?.(app.windowId, build(item, tr, {file: app.fileMenuItems(), recent: app.recentMenuItems()}));
         }
         return {sync};
     }
-    window.WriterMenus = {create, build};
+    // The documents Writer opened last, newest first, without the one that is open. entries is the
+    // shell's recent list ({path, appId}); two files of one name are told apart by their folder.
+    function recent(entries, current, limit = 8) {
+        const list = (entries || []).filter(entry => entry && entry.appId === 'writer' && entry.path && entry.path !== current).slice(0, limit);
+        const names = list.map(entry => entry.path.split('/').pop());
+        return list.map((entry, index) => {
+            const folder = entry.path.split('/').slice(0, -1).join('/');
+            const twin = names.indexOf(names[index]) !== names.lastIndexOf(names[index]);
+            return {path: entry.path, label: twin && folder ? names[index] + ' · ' + folder : names[index]};
+        });
+    }
+    window.WriterMenus = {create, build, recent};
 })();

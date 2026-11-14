@@ -34,18 +34,22 @@ const config={pelvis:['pelvis'],spine:['spine_01','spine_02','spine_03'],head:['
 for(const [side,suffix] of [['L','l'],['R','r']])for(const f of ['Thumb','Index','Middle','Ring','Pinky'])config['fingers'+f+side]=[1,2,3].map(i=>`${f.toLowerCase()}_0${i}_${suffix}`);
 const targetConfig=Object.fromEntries(Object.entries(config).map(([k,v])=>[k,v.map(n=>reverse.get(n)||'')]));
 const clips=[];
+const tentacleRig=pet==='vampire'?JSON.parse(await readFile(path.join(root,'assets/desktop-pets/vampire/rig.json'),'utf8')):null;
+const tentacleLayer=tentacleRig?await import('./vampire-pet-motions.mjs'):null;
 for(const motion of input.animations){
     reset(src);reset(target);
     const file=await loadSkeleton(path.join(source,'animations',motion.id+'.glb'));
     assert.equal(file.gltf.animations.length,1);
     const baked=HumanClipRetargeter.retarget(file.gltf.animations[0],new Rig(src.skeleton).fromConfig(config),new Rig(target.skeleton).fromConfig(targetConfig),{clip_name:motion.id,fps:24});
     baked.optimize();
+    if(tentacleLayer){reset(target);baked.tracks=baked.tracks.filter(t=>!t.name.startsWith('Tentacle'));tentacleLayer.addVampireTentacles(baked,target,motion.id,tentacleRig.rest_curl);}
     assert.ok(baked.tracks.length>=target.skeleton.bones.length);
     assert.ok(baked.tracks.every(t=>[...t.values].every(Number.isFinite)));
     assert.ok(baked.tracks.some(t=>t.values.some((v,i)=>i>=t.getValueSize()&&Math.abs(v-t.values[i%t.getValueSize()])>.01)));
     clips.push({id:motion.id,name:motion.name,loop:motion.loop,source_sha256:file.hash,clip:THREE.AnimationClip.toJSON(baked)});
 }
-const body=JSON.stringify({version:1,repository:input.repository,revision:input.revision,license:'CC0-1.0',skeleton_sha256:src.hash,model_sha256:target.hash,clips},(k,v)=>typeof v==='number'?Math.round(v*1e5)/1e5:v)+'\n';
+const tentacleSource=tentacleRig?createHash('sha256').update(await readFile(path.join(root,'scripts/vampire-pet-motions.mjs'))).update(await readFile(path.join(root,'assets/desktop-pets/vampire/rig.json'))).digest('hex'):null;
+const body=JSON.stringify({version:1,repository:input.repository,revision:input.revision,license:tentacleRig?'CC0-1.0 AND GPL-3.0-only':'CC0-1.0',skeleton_sha256:src.hash,model_sha256:target.hash,...(tentacleRig?{tentacle_layer:{license:'GPL-3.0-only',source_sha256:tentacleSource}}:{}),clips},(k,v)=>typeof v==='number'?Math.round(v*1e5)/1e5:v)+'\n';
 assert.ok(Buffer.byteLength(body)<10*1024*1024);
 await writeFile(path.join(out,'motions.json'),body);
 await writeFile(path.join(out,'motions-manifest.json'),JSON.stringify({revision:input.revision,skeleton_sha256:src.hash,clips:clips.map(({id,name,loop,source_sha256,clip})=>({id,name,loop,source_sha256,duration:clip.duration})),bytes:Buffer.byteLength(body),sha256:createHash('sha256').update(body).digest('hex')},null,2)+'\n');

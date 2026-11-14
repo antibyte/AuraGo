@@ -69,6 +69,22 @@
             tx.onabort = () => reject(tx.error || new Error('Draft transaction aborted'));
         });
     }
-    window.OfficeSession = { create, draft };
+    // Every draft of a namespace, newest first, without its document bytes:
+    // {key, id, path, updated, revision, etag, size}.
+    async function drafts(namespace = 'writer') {
+        const db = await openDrafts(namespace);
+        return new Promise((resolve, reject) => {
+            const found = [], request = db.transaction('documents', 'readonly').objectStore('documents').openCursor();
+            request.onsuccess = () => {
+                const cursor = request.result;
+                if (!cursor) { resolve(found.sort((a, b) => (b.updated || 0) - (a.updated || 0))); return; }
+                const {bytes, ...rest} = cursor.value;
+                found.push({...rest, size: bytes?.byteLength || 0});
+                cursor.continue();
+            };
+            request.onerror = () => reject(request.error);
+        });
+    }
+    window.OfficeSession = { create, draft, drafts };
     window.WriterSession = window.OfficeSession;
 })();

@@ -3638,9 +3638,9 @@ buttons and menu popovers remain excluded from those gestures.
 - `aura-drift-*.js` implements Aura Drift, a first-party offline Virtual Desktop racer:
   a three.js 3D view (default) with a Canvas 2D fallback. The `aura-drift` entry in
   `js/desktop/core/module-loader.js` loads `vendor/aura-drift/three-runtime.js` (three.js
-  0.186.1 IIFE) first, then 40 app modules: core, physics, track, style, conditions, tricks,
+  0.186.1 IIFE) first, then 41 app modules: core, physics, track, style, conditions, tricks,
   features, weapons, projectiles, modes, ai, race, banter, camera, look, assets, cars, scenery,
-  render, terrain, road, sky, props, actors, carlight, fx-resources, fx, post, render3d, hud, hud-fx,
+  render, terrain, road, sky, props, pet-decor, actors, carlight, fx-resources, fx, post, render3d, hud, hud-fx,
   audio-bank, engine, audio, music, ui, ui-cards, woof-lines, woof, and last `aura-drift.js`, which exposes
   `window.AuraDriftApp = { render, dispose, stats }`. Shared state lives on
   `window.AuraDriftCore` (`CARS` 8, `DRIVERS` 8, `WEAPONS` 18, `TRICKS` 16, `MODES` 7,
@@ -3668,6 +3668,15 @@ buttons and menu popovers remain excluded from those gestures.
   Tall cars raise the chase camera from `AD.CAR_VIEW` heights.
   Opaque glazing writes depth; transparent glazing and cloaked cars do not. Returning from
   cloak restores opaque depth handling (`assets/aura-drift/reviewed/runtime-check.js`).
+- Mascots: `aura-drift-pet-decor.js` places six stationary skinned pets per track
+  from nine reviewed models, with two biome-specific species. Three curated
+  clips per species provide idle, greeting and suitable cheering gestures; root
+  translation stays anchored. Reserve whole-body clearance from roads, furniture
+  and scaled scatter. Show/animate at most one on Low, two otherwise, within 105 m;
+  pause, reduced motion, late loads and shared-resource disposal stay guarded.
+  Loading/model failure omits only mascots. Models reuse `3d/pets/`; motion and
+  source rights belong to `../../../3d/aura-drift/pets/AGENTS.md`. Verify
+  `node scripts/test-aura-drift-pets.mjs` and `TestDesktopAuraDriftPetDecorBrowser`.
 - Audio: `aura-drift-audio-bank.js` plays the Ogg pack under `ui/3d/aura-drift/audio`
   (priority loading, sfx variants, four-layer engines per car, one generated song per biome) and
   falls back to the live Web Audio synthesis in `aura-drift-engine.js` and `aura-drift-music.js` when a
@@ -3899,6 +3908,17 @@ buttons and menu popovers remain excluded from those gestures.
   `writer-dialogs.js` holds the dialogs (table size, link, go to page, word count,
   shortcut overview), all through `shared/form-dialog.js`;
   `writer-context.js` owns the two context surfaces: the bar over the ruler (`kind(snapshot)` picks image, header/footer or table; `bars` lists its commands) and the right-click menu (`sections(target)`), both built from the registry. The engine moves its caret on a right-click, so the module keeps a right-button press from the engine while there is a selection or a selected image, and lets a plain caret follow the click. A right-click on an image that is not selected selects it first with a synthetic left press, because the engine acts on the selected image only. Items only the app can build (accept or reject the change under the pointer, unlink, update a table of contents) are the `@` entries; every context-menu item names an icon the shell has, because the shell draws an unknown key as text;
+  Recent documents come from the shell's list: the shell hands Writer `recentFiles`,
+  `recordRecentFile` and `forgetRecentFile` in its context. `remember()` in `writer.js` records a
+  file that was loaded, renamed or saved under a new name, and a new document once a save finds
+  text in it, so a blank launch never fills the list by itself; a file that answers 404 is
+  forgotten. `WriterMenus.recent` picks Writer's own entries without the open document for
+  File > Recent documents, and the list is part of the menu signature.
+  `OfficeSession.drafts()` lists kept drafts without their bytes. File > Unsaved drafts
+  (`drafts()` in `writer-dialogs.js`) restores one through `load(path, null, true)`, which skips
+  the recovery question and starts a new document at the draft's path when the file is gone, or
+  deletes it with `deleteIf`. In the form dialog a `select` with `size` is a list, and the extra
+  button answers with the field values;
   `writer-session.js` owns revision-bound autosave and IndexedDB recovery;
   `writer-panels.js` owns formatting, search, review, AI and snapshot printing.
   A new command is one entry in `DEFINITIONS`: a `slot`, a `command` (an engine
@@ -5717,7 +5737,7 @@ registration lives in `internal/desktop/types.go`.
   Public table merge/split operations live in `scripts/writer-table-ops.js`.
   Exposes `window.WriterApp`. No child DOX file needed.
 - `pet-picker.js` - Pet catalog, scale/enabled/always-on-top settings, and
-  ZIP import. All 31 separate model pets with subcategory `3d` use version-bound
+  ZIP import. All 27 separate model pets with subcategory `3d` use version-bound
   posters through `PetRuntime.modelAssetFolder(id)`; unknown IDs keep sprite
   previews. 3D source/runtime ownership is `../../../../assets/desktop-pets/AGENTS.md`.
   Scale text uses `desktop.pet_scale_value`. Load,

@@ -21,7 +21,7 @@ func TestBundledPersonaSprites(t *testing.T) {
 		}
 		wantCategory := "persona"
 		switch pet.Manifest.ID {
-		case "aurago-slime", "aurago-spider", "aurago-alien", "aurago-tentacle", "aurago-tentacle-3d", "aurago-indiana-jones", "aurago-manga-girl", "aurago-zombie", "aurago-zombie-3d", "aurago-chick", "aurago-peacock", "aurago-trex", "aurago-trex-3d", "aurago-puppy", "aurago-cat", "aurago-crocodile", "aurago-slime-3d", "aurago-spider-3d", "aurago-alien-3d", "aurago-indiana-jones-3d", "aurago-manga-girl-3d", "aurago-chick-3d", "aurago-peacock-3d", "aurago-puppy-3d", "aurago-cat-3d", "aurago-crocodile-3d":
+		case "aurago-slime", "aurago-spider", "aurago-alien", "aurago-tentacle", "aurago-tentacle-3d", "aurago-indiana-jones", "aurago-manga-girl", "aurago-zombie", "aurago-zombie-3d", "aurago-chick", "aurago-peacock", "aurago-trex", "aurago-trex-3d", "aurago-puppy", "aurago-cat", "aurago-crocodile", "aurago-slime-3d", "aurago-alien-3d", "aurago-indiana-jones-3d", "aurago-manga-girl-3d", "aurago-chick-3d", "aurago-peacock-3d", "aurago-puppy-3d", "aurago-cat-3d", "aurago-crocodile-3d":
 			wantCategory = "mascot"
 		}
 		if pet.Manifest.Category != wantCategory {
@@ -73,10 +73,10 @@ func TestBundledPersonaSprites(t *testing.T) {
 			}
 		})
 	}
-	if personas != 24 {
-		t.Fatalf("got %d persona pets, want 24", personas)
+	if personas != 23 {
+		t.Fatalf("got %d persona pets, want 23", personas)
 	}
-	if mascots != 26 {
-		t.Fatalf("got %d mascot pets, want 26", mascots)
+	if mascots != 25 {
+		t.Fatalf("got %d mascot pets, want 25", mascots)
 	}
 }

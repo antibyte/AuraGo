@@ -35,6 +35,7 @@ var auraDriftModules = []string{
 	"aura-drift-road.js",
 	"aura-drift-sky.js",
 	"aura-drift-props.js",
+	"aura-drift-pet-decor.js",
 	"aura-drift-actors.js",
 	"aura-drift-carlight.js",
 	"aura-drift-fx-resources.js",
@@ -516,7 +517,7 @@ func TestAuraDriftRepaintsWhenTheWindowComesBack(t *testing.T) {
 	if paint < 0 {
 		t.Fatal("Aura Drift shell lost the repaint helper")
 	}
-	repaint := shell[paint:paint+600]
+	repaint := shell[paint : paint+600]
 	if !strings.Contains(repaint, "renderer.render(") || !strings.Contains(repaint, "renderer.showcase(") {
 		t.Fatal("the Aura Drift repaint must draw the current view")
 	}

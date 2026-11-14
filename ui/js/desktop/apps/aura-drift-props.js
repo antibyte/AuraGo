@@ -83,7 +83,8 @@
         for (const name of Object.keys(table)) { const b = table[name]; entries.push({ name: name, min: b.min, max: b.max, rate: b.rate, scale: 1, back: false }); }
         const back = BACKDROP[biomeId] || {};
         for (const name of Object.keys(back)) { const b = back[name]; entries.push({ name: name, min: b.min, max: b.max, rate: b.rate, scale: b.scale, back: true }); }
-        const furniture = AD.furnitureProps(track);
+        const furniture = AD.furnitureProps(track).concat(typeof AD.petDecorPlacements === 'function' ? AD.petDecorPlacements(track) : []);
+        const mascotSpaces = furniture.filter(p => p.folder);
         const cells = new Map();
         const cellKey = (x, y) => Math.floor(x / 16) + ',' + Math.floor(y / 16);
         for (const f of furniture) { const k = cellKey(f.x, f.y); (cells.get(k) || cells.set(k, []).get(k)).push(f); }
@@ -138,6 +139,7 @@
                             reach: e.back || tags.indexOf('far') >= 0 ? 1.8 : (tags.indexOf('scatter') >= 0 ? 0.7 : 1),
                             tags: tags.indexOf('hero') >= 0 ? 'hero' : ''
                         };
+                        if (mascotSpaces.some(p => Math.hypot(p.x - pl.x, p.y - pl.y) < p.r + pl.r + 2)) continue;
                         out.push(pl);
                         (cells.get(cellKey(x, y)) || cells.set(cellKey(x, y), []).get(cellKey(x, y))).push(pl);
                     }

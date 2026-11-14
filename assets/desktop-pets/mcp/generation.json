@@ -11,7 +11,7 @@
   "imagegen_input_sha256": "19e643e5f5ffc96124dbb9e96f5f8324e126e68904a1a2be8138fb2e59b83aab",
   "model_created": true,
   "rig_created": true,
-  "desktop_integrated": true,
+  "desktop_integrated": false,
   "kind": "humanoid",
   "category": "persona",
   "retained_sources": {
@@ -50,5 +50,10 @@
     "animation_source": "Pinned Mesh2Motion movements (CC0)",
     "model_sha256": "f0679dea0a65b4afff0a6922e64b6d506477e110f1812ca50301352e68862989",
     "motions_sha256": "fad557fd77dcc50a0d3fb4778da8ffd2f744766f339d6d5c12007afb787eb905"
+  },
+  "retired": {
+    "reason": "Removed from selectable 3D pets after user review",
+    "replacement_pet_id": "aurago-mcp",
+    "source_and_runtime_files_retained": true
   }
 }

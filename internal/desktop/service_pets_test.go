@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-var expectedBundledDefaultPetIDs = []string{"openpets-default", "snoopy", "clippit", "tux", "wall-e", "dobby", "aurago-neutral", "aurago-servant", "aurago-professional", "aurago-mistress", "aurago-thinker", "aurago-evil", "aurago-secretary", "aurago-psycho", "aurago-punk", "aurago-friend", "aurago-mcp", "aurago-terminator", "aurago-slime", "aurago-spider", "aurago-alien", "aurago-tentacle", "aurago-indiana-jones", "aurago-manga-girl", "aurago-zombie", "aurago-zombie-3d", "aurago-chick", "aurago-peacock", "aurago-trex", "aurago-puppy", "aurago-cat", "aurago-crocodile", "aurago-punk-3d", "aurago-psycho-3d", "aurago-friend-3d", "aurago-thinker-3d", "aurago-neutral-3d", "aurago-trex-3d", "aurago-tentacle-3d", "openpets-default-3d", "snoopy-3d", "clippit-3d", "tux-3d", "wall-e-3d", "dobby-3d", "aurago-servant-3d", "aurago-professional-3d", "aurago-mistress-3d", "aurago-evil-3d", "aurago-secretary-3d", "aurago-mcp-3d", "aurago-terminator-3d", "aurago-slime-3d", "aurago-spider-3d", "aurago-alien-3d", "aurago-indiana-jones-3d", "aurago-manga-girl-3d", "aurago-chick-3d", "aurago-peacock-3d", "aurago-puppy-3d", "aurago-cat-3d", "aurago-crocodile-3d"}
+var expectedBundledDefaultPetIDs = []string{"openpets-default", "snoopy", "clippit", "tux", "wall-e", "dobby", "aurago-neutral", "aurago-servant", "aurago-professional", "aurago-mistress", "aurago-thinker", "aurago-evil", "aurago-secretary", "aurago-psycho", "aurago-punk", "aurago-friend", "aurago-mcp", "aurago-terminator", "aurago-slime", "aurago-spider", "aurago-alien", "aurago-tentacle", "aurago-indiana-jones", "aurago-manga-girl", "aurago-zombie", "aurago-zombie-3d", "aurago-chick", "aurago-peacock", "aurago-trex", "aurago-puppy", "aurago-cat", "aurago-crocodile", "aurago-punk-3d", "aurago-psycho-3d", "aurago-friend-3d", "aurago-thinker-3d", "aurago-neutral-3d", "aurago-trex-3d", "aurago-tentacle-3d", "openpets-default-3d", "clippit-3d", "tux-3d", "dobby-3d", "aurago-servant-3d", "aurago-professional-3d", "aurago-mistress-3d", "aurago-evil-3d", "aurago-secretary-3d", "aurago-terminator-3d", "aurago-slime-3d", "aurago-alien-3d", "aurago-indiana-jones-3d", "aurago-manga-girl-3d", "aurago-chick-3d", "aurago-peacock-3d", "aurago-puppy-3d", "aurago-cat-3d", "aurago-crocodile-3d"}
 
 func TestInstallAndListPets(t *testing.T) {
 	svc := testService(t)
@@ -842,5 +842,56 @@ func TestParsePetScale(t *testing.T) {
 	}
 	if ParsePetScale("5.0") != 1.0 {
 		t.Fatalf("ParsePetScale(5.0) should clamp to 1.0")
+	}
+}
+
+func TestRetiredModelPetsStayHiddenAndResolveToSprites(t *testing.T) {
+	svc := testService(t)
+	ctx := context.Background()
+	for _, id := range []string{"aurago-mcp-3d", "snoopy-3d", "wall-e-3d", "aurago-spider-3d"} {
+		t.Run(id, func(t *testing.T) {
+			manifest, err := json.Marshal(PetJSON{ID: id, DisplayName: "Old bundled model", SpritesheetPath: "spritesheet.webp", Subcategory: "3d"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			files := map[string][]byte{"pet.json": manifest, "spritesheet.webp": []byte("retained workspace data")}
+			if err := svc.InstallPet(ctx, id, files); err != nil {
+				t.Fatal(err)
+			}
+			if err := svc.SetActivePet(ctx, id); err != nil {
+				t.Fatal(err)
+			}
+			pets, err := svc.ListPets(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			sprite := strings.TrimSuffix(id, "-3d")
+			if _, found := findPet(pets, id); found {
+				t.Fatalf("retired model %s remains selectable", id)
+			}
+			if _, found := findPet(pets, sprite); !found {
+				t.Fatalf("sprite %s disappeared", sprite)
+			}
+			active, err := svc.GetActivePetID(ctx)
+			if err != nil || active != sprite {
+				t.Fatalf("active=%q err=%v; want %s", active, err, sprite)
+			}
+			boot, err := svc.Bootstrap(ctx)
+			if err != nil || boot.ActivePetID != sprite {
+				t.Fatalf("bootstrap active=%q err=%v; want %s", boot.ActivePetID, err, sprite)
+			}
+			path := filepath.Join(svc.Config().WorkspaceDir, petsDirName, id, "spritesheet.webp")
+			contents, err := os.ReadFile(path)
+			if err != nil || !bytes.Equal(contents, files["spritesheet.webp"]) {
+				t.Fatalf("workspace files changed: %v", err)
+			}
+		})
+	}
+	if err := svc.SetActivePet(ctx, "aurago-evil-3d"); err != nil {
+		t.Fatal(err)
+	}
+	active, err := svc.GetActivePetID(ctx)
+	if err != nil || active != "aurago-evil-3d" {
+		t.Fatalf("retained model selection changed: %q %v", active, err)
 	}
 }

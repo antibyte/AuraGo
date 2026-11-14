@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "space": "retained VARCO source, Z up",
+  "points_left": [
+    [
+      0.085,
+      0.0,
+      0.53
+    ],
+    [
+      0.17,
+      0.0,
+      0.52
+    ],
+    [
+      0.26,
+      0.0,
+      0.514
+    ],
+    [
+      0.35,
+      0.0,
+      0.506
+    ],
+    [
+      0.43,
+      0.002,
+      0.497
+    ],
+    [
+      0.478,
+      0.004,
+      0.521
+    ],
+    [
+      0.474,
+      0.005,
+      0.555
+    ],
+    [
+      0.447,
+      0.005,
+      0.566
+    ],
+    [
+      0.439,
+      0.005,
+      0.546
+    ]
+  ],
+  "segments_per_side": 8,
+  "tentacle_vertices": 28772,
+  "body_motion": "retained VARCO humanoid joints",
+  "rest_curl": [
+    0.68,
+    0.15,
+    -0.08,
+    -0.15,
+    -0.09,
+    -0.03,
+    -0.02,
+    0
+  ],
+  "weights": "arc-length interpolation between adjacent segment centers; chest blend at roots"
+}
