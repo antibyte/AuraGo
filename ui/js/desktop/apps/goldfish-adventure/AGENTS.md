@@ -132,6 +132,8 @@ approved content and acceptance scope lives in
   `AURAGO_BROWSER_ARTIFACT_DIR` writes screenshots, expected/observed reactions
   and the reachability matrix. R05's two `ship_ready` exits cannot be reached
   locked: entering the ship already needs the action granting that flag.
+- Before moving the real pointer, scroll the stage back into view when bar/menu interactions clipped it behind small-window chrome. Require the final point to hit the stage; never bypass occlusion with synthetic hotspot clicks.
+- The cinematic harness observes and activates the visible Skip button in one browser turn so a completed moment cannot turn a delayed click into a dialogue skip. Action targets still use real pointer clicks and compare persisted effects and the first result line.
 - Validate asset paths/hashes/alpha/atlas bounds and complete localization keys.
 - Rebuild and check Desktop bundles after shared shell registration changes.
 

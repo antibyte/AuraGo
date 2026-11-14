@@ -189,11 +189,12 @@ func goldfishPointerMove(page *rod.Page, point [2]float64) {
         const stage=document.querySelector('.agfish-stage'), canvas=document.querySelector('.agfish-canvas');
         if(!stage||!canvas) throw new Error('Goldfish stage is missing');
         let r=canvas.getBoundingClientRect(), x=r.x+point[0]*r.width, y=r.y+point[1]*r.height;
-        if(x<0||y<0||x>=innerWidth||y>=innerHeight){
+        let hit=document.elementFromPoint(x,y);
+        if(x<0||y<0||x>=innerWidth||y>=innerHeight||hit?.closest('.agfish-stage')!==stage){
             stage.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'});
             r=canvas.getBoundingClientRect(); x=r.x+point[0]*r.width; y=r.y+point[1]*r.height;
+            hit=document.elementFromPoint(x,y);
         }
-        const hit=document.elementFromPoint(x,y);
         if(r.width<=0||r.height<=0||x<0||y<0||x>=innerWidth||y>=innerHeight||hit?.closest('.agfish-stage')!==stage)
             throw new Error('Goldfish pointer point is not visible: '+JSON.stringify({x,y,width:r.width,height:r.height,hit:hit?.className||hit?.tagName||''}));
         return [x,y];

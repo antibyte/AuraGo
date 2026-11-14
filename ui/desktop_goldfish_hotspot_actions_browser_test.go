@@ -115,10 +115,12 @@ func goldfishPointerAction(t *testing.T, page *rod.Page, id string, profile gold
 	step = "waiting for action dialogue"
 	moment := page.MustEval(`id=>GoldfishHotspotFixture.moments().includes(id)`, id).Bool()
 	if moment {
-		page.Timeout(10 * time.Second).MustWait(`()=>!!document.querySelector('.agfish-in-moment')`)
-		if skip {
-			page.MustElement(".agfish-skip-scene:not([hidden])").MustClick()
-		}
+		// Rod's layout wait can outlive a short moment; observe and activate its visible control atomically.
+		page.Timeout(10*time.Second).MustWait(`skip=>{
+            if(!document.querySelector('.agfish-in-moment'))return false;
+            if(skip){const button=document.querySelector('.agfish-skip-scene:not([hidden])');if(!button)return false;button.click();}
+            return true;
+        }`, skip)
 	}
 	page.Timeout(15 * time.Second).MustWait(`()=>!document.querySelector('.agfish-busy,.agfish-in-moment')&&!document.querySelector('.agfish-speech').hidden`)
 	step = "verifying persisted action result"
@@ -130,6 +132,7 @@ func goldfishPointerAction(t *testing.T, page *rod.Page, id string, profile gold
         const fields=['flags','inventory','completed','applied','routes','protocols','ending'];
         const walkX=Math.max(0.08,Math.min(0.92,hotspot.walk[0]));
         return {expected:GoldfishContent.texts[result.lines[0].text], actual:document.querySelector('.agfish-line').textContent,
+            reading:JSON.parse(localStorage.getItem('aurago.goldfish.speech')),
             lookExpected:GoldfishContent.texts[GoldfishState.lines(result.state,hotspot.look)[0].text],
             r07Invoice:saved.state.flags.includes('r07_invoice'),readHead:saved.state.inventory.includes('read_head'),
             walkExpectedX:walkX,walkActualX:saved.state.position.x,
