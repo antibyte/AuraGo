@@ -1502,3 +1502,13 @@ Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
 - `git status --short` is empty; `disposable/_writer-wave2b/` does not exist.
 - One branch review by the reader-agent (Critical and Important only), one fix round.
 - Left for the user's acceptance: the file name Chrome's print dialog proposes for the PDF, and the look of the four templates in the real shell.
+
+## Changes after the branch review (2026-11-14)
+
+Implemented as written: Tasks 1 to 5 by maker-agents, Task 6 by the docs-agent; every file matched the dry run. One fix round followed (902e2350a):
+
+- `fileName` refuses a name that starts with `~$` and a Windows device name with an extension (`nul.bak`). `own()` hides `~$` files, so such a template was saved and never listed.
+- A blank document and a built-in template no longer open with the notice about substitute fonts. The bullets of a built-in list name the Symbol font, which showed the notice on minutes and report.
+- `verifyWriterTemplates` reads the footer part for both page fields, expects no notice after a built-in template opens, and watches all four untouched documents for writes, not only the last.
+
+Looked at and left: `window.print()` is assumed to block until the dialog closes, as it does in Chrome, so the page title is restored afterwards; two windows printing at the same moment could restore a stale title. `saveTemplate` returns without a notice while another file operation of the window runs.
