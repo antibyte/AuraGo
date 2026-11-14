@@ -212,7 +212,7 @@
                 node.alt = item.name || '';
                 node.draggable = false;
                 node.decoding = 'async';
-                node.addEventListener('load', () => {
+                const loaded = () => {
                     lb.natural = { width: node.naturalWidth, height: node.naturalHeight };
                     item._width = node.naturalWidth;
                     item._height = node.naturalHeight;
@@ -220,10 +220,14 @@
                     node.classList.add('is-loaded');
                     updateZoomLabel();
                     if (lb.infoOpen) renderInfo();
-                }, { once: true });
+                };
+                node.addEventListener('load', loaded, { once: true });
                 node.addEventListener('error', () => fail(), { once: true });
                 node.src = url;
-                if (node.complete && node.naturalWidth) { el.spinner.hidden = true; node.classList.add('is-loaded'); }
+                if (node.complete && node.naturalWidth) {
+                    node.removeEventListener('load', loaded);
+                    loaded();
+                }
             }
             if (animations && direction) node.classList.add(direction < 0 ? 'enter-from-left' : 'enter-from-right');
             el.canvas.replaceChildren(node);

@@ -2797,6 +2797,7 @@ buttons and menu popovers remain excluded from those gestures.
   exactly once for 90°/270° rotation. Flipping preserves screen-axis dragging;
   resize reclamps pan. The zoom limit permits at least native size even beyond 8×
   fit; preserve exact 1:1 at fractional layout sizes. Verify `TestDesktopGalleryPanUsesLayoutSizeBrowser`.
+  Cached and asynchronous image loads publish natural dimensions through the same handler.
 - Readonly omits rename/delete controls and shows the readonly hint instead of
   rendering disabled buttons. There is no upload because media mounts are
   server-side read-only.
