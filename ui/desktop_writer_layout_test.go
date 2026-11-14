@@ -21,7 +21,7 @@ func verifyWriterLayout(t *testing.T, page *rod.Page) {
             void app.act('pageSetup');await wait(250);
             if(!dialog())throw Error('page setup did not open');
             if([field('paper').value,field('orientation').value,field('preset').value,field('scope').value].join()!=='a4,portrait,normal,document')throw Error('page setup shows '+[field('paper').value,field('orientation').value,field('preset').value,field('scope').value]);
-            if(field('top').value!==u.show(1417)||!dialog().textContent.includes(u.unit==='in'?'in':'cm'))throw Error('page setup margins show '+field('top').value);
+            if(field('top').value!==u.show(1417)||field('top').closest('label').querySelector('small')?.textContent!==u.unit)throw Error('page setup margins show '+field('top').value+' '+field('top').closest('label').textContent);
             type('paper','a5');
             if(field('width').value!==u.show(8391)||field('height').value!==u.show(11906))throw Error('A5 shows '+field('width').value+' x '+field('height').value);
             type('orientation','landscape');
@@ -42,7 +42,7 @@ func verifyWriterLayout(t *testing.T, page *rod.Page) {
             await wait(200);
             const panel=key=>document.querySelector('.writer-right [data-field="'+key+'"]');
             if(panel('marginTop').value!==u.show(720)||panel('paper').value!=='a5')throw Error('the panel shows '+panel('marginTop').value+' '+panel('paper').value);
-            if(!panel('marginTop').closest('label').textContent.includes(u.unit==='in'?'in':'cm'))throw Error('the panel names no unit: '+panel('marginTop').closest('label').textContent);
+            if(!panel('marginTop').closest('label').textContent.endsWith(' · '+u.unit))throw Error('the panel names no unit: '+panel('marginTop').closest('label').textContent);
             panel('marginTop').value=u.show(1417);panel('marginTop').dispatchEvent(new Event('change',{bubbles:true}));await wait(250);
             if(editor.getPageSetup().marginsTwips.top!==u.read(u.show(1417)))throw Error('the panel margin gave '+editor.getPageSetup().marginsTwips.top);
             for(const id of ['pageSetup','paragraphFormat'])if(!document.querySelector('.writer-right [data-action="'+id+'"]'))throw Error('the panel has no button for '+id);
@@ -70,7 +70,7 @@ func verifyWriterLayout(t *testing.T, page *rod.Page) {
             if(!editor.exec({type:'editHeaderFooter',position:'footer'}).ok)throw Error('the footer did not open');
             await wait(350);
             const bar=document.querySelector('[data-contextbar]'),tools=[...bar.querySelectorAll('button[data-tool]')].map(button=>button.dataset.tool).join();
-            if(tools!=='fieldPage,pageNumber,fieldPages,insertDate,headerFirstPage,headerOddEven,backDocument')throw Error('the footer bar holds '+tools);
+            if(tools!=='backDocument,fieldPage,pageNumber,fieldPages,insertDate,headerFirstPage,headerOddEven')throw Error('the footer bar holds '+tools);
             for(const id of ['fieldPage','fieldPages','insertDate']) {
                 const before=app.session.revision;
                 bar.querySelector('[data-tool="'+id+'"]').click();await wait(250);

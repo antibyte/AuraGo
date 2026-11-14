@@ -1440,3 +1440,13 @@ Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
 - `go test ./ui -count=1 -skip GoldfishAdventureHotspot` fails only in `TestDesktopCodeStudioRunUsesTerminalSession`.
 - `git status --short` is empty; `disposable/_writer-wave2a/` does not exist.
 - One branch review by the reader-agent (Critical and Important only), one fix round.
+
+## Changes after the branch review (2026-11-14)
+
+The code blocks above are the plan as it was executed. The review led to these changes on top:
+
+- `pageCommand(values, setup, u)` and `paragraphCommand(values, formatting, u)` take the engine's original state instead of the field texts and compare values: a retyped equal value ("2.50" for "2,5") sends nothing, an untouched side of a non-catalogue page keeps its exact size, and turning such a page swaps the unrounded sizes.
+- The header/footer bar starts with "back to the document", so it cannot scroll out of view in a narrow window.
+- In the form dialog an input fills its column (`box-sizing: border-box; width: 100%`); half-width inputs without a unit overflowed.
+- The right-click check in `ui/desktop_writer_context_test.go` expects the Paragraph item, and the layout check compares the unit element instead of searching the dialog's text.
+- `module-loader.js` is not part of `main.bundle.js`; `npm run build:ui` changed nothing.

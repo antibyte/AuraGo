@@ -57,20 +57,27 @@ same(L.pageInput('preset', {...page, preset: 'custom'}, cm), {});
 same(L.pageInput('left', {...page, left: '3'}, cm), {preset: 'custom'});
 same(L.pageInput('left', {...page, left: '2,5'}, cm), {preset: 'normal'});
 same(L.pageInput('scope', {...page, scope: 'section'}, cm), {});
-same(L.pageCommand(page, page, cm), {command: null});
-same(L.pageCommand({...page, paper: 'a5', width: '14,8', height: '21'}, page, cm), {command: {type: 'setPageSetup', pageWidth: 8391, pageHeight: 11906, orientation: 'portrait', scope: 'document'}});
-same(L.pageCommand({...page, width: '29,7', height: '21', orientation: 'landscape'}, page, cm), {command: {type: 'setPageSetup', pageWidth: 16838, pageHeight: 11906, orientation: 'landscape', scope: 'document'}});
-same(L.pageCommand({...page, left: '3', scope: 'section'}, page, cm), {command: {type: 'setPageSetup', marginLeft: 1701, scope: 'section'}});
-same(L.pageCommand({...page, scope: 'section'}, page, cm), {command: null});
-same(L.pageCommand({...page, top: 'x'}, page, cm), {error: 'length_invalid'});
-same(L.pageCommand({...page, top: ''}, page, cm), {error: 'length_invalid'});
-same(L.pageCommand({...page, top: '-1'}, page, cm), {error: 'length_invalid'});
-same(L.pageCommand({...page, width: '1'}, page, cm), {error: 'page_size_range'});
-same(L.pageCommand({...page, left: '10', right: '10'}, page, cm), {error: 'margins_too_large'});
+same(L.pageCommand(page, a4, cm), {command: null});
+same(L.pageCommand({...page, paper: 'a5', width: '14,8', height: '21'}, a4, cm), {command: {type: 'setPageSetup', pageWidth: 8391, pageHeight: 11906, orientation: 'portrait', scope: 'document'}});
+same(L.pageCommand({...page, width: '29,7', height: '21', orientation: 'landscape'}, a4, cm), {command: {type: 'setPageSetup', pageWidth: 16838, pageHeight: 11906, orientation: 'landscape', scope: 'document'}});
+same(L.pageCommand({...page, left: '3', scope: 'section'}, a4, cm), {command: {type: 'setPageSetup', marginLeft: 1701, scope: 'section'}});
+same(L.pageCommand({...page, scope: 'section'}, a4, cm), {command: null});
+same(L.pageCommand({...page, top: 'x'}, a4, cm), {error: 'length_invalid'});
+same(L.pageCommand({...page, top: ''}, a4, cm), {error: 'length_invalid'});
+same(L.pageCommand({...page, top: '-1'}, a4, cm), {error: 'length_invalid'});
+same(L.pageCommand({...page, width: '1'}, a4, cm), {error: 'page_size_range'});
+same(L.pageCommand({...page, left: '10', right: '10'}, a4, cm), {error: 'margins_too_large'});
+// A retyped value that still shows the same is no change, and an untouched side of an odd page keeps its exact size.
+same(L.pageCommand({...page, left: '2.50', width: '21,0'}, a4, cm), {command: null});
+const odd = {...a4, pageWidthTwips: 11890}, oddFields = L.pageFields(odd, cm);
+assert.equal(oddFields.width, '20,97');
+same(L.pageCommand({...oddFields, height: '25'}, odd, cm).command, {type: 'setPageSetup', pageWidth: 11890, pageHeight: 14173, orientation: 'portrait', scope: 'document'});
+same(L.pageCommand({...oddFields, ...L.pageInput('orientation', {...oddFields, orientation: 'landscape'}, cm), orientation: 'landscape'}, odd, cm).command,
+    {type: 'setPageSetup', pageWidth: 16838, pageHeight: 11890, orientation: 'landscape', scope: 'document'});
 // In inches a paper keeps its exact size although the text is rounded to two places.
 const inches = L.pageFields(a4, inch);
 assert.equal(inches.width, '8.27');
-same(L.pageCommand({...inches, ...L.pageInput('paper', {...inches, paper: 'a5'}, inch), paper: 'a5'}, inches, inch).command,
+same(L.pageCommand({...inches, ...L.pageInput('paper', {...inches, paper: 'a5'}, inch), paper: 'a5'}, a4, inch).command,
     {type: 'setPageSetup', pageWidth: 8391, pageHeight: 11906, orientation: 'portrait', scope: 'document'});
 
 // The Paragraph dialog.
@@ -85,9 +92,10 @@ const shaped = L.paragraphFields({...plain, alignment: 'both', lineSpacing: {rul
 assert.equal([shaped.alignment, shaped.special, shaped.by, shaped.lineRule, shaped.lineValue].join('|'), 'justify|hanging|0,5|150|');
 assert.equal(L.paragraphFields({...plain, lineSpacing: {rule: 'exact', value: 18}}, cm).lineRule, 'exact');
 assert.equal(L.paragraphFields({...plain, lineSpacing: undefined}, cm).lineRule, 'single');
-const mixed = L.paragraphFields({paragraphFlags: {contextualSpacing: null, keepNext: null, keepLines: false, widowControl: true, pageBreakBefore: false},
+const mixedFormatting = {paragraphFlags: {contextualSpacing: null, keepNext: null, keepLines: false, widowControl: true, pageBreakBefore: false},
     indent: {left: 0, right: 0, firstLine: 0, mixed: {left: true, right: false, firstLine: true}},
-    disagrees: {alignment: true, spaceBeforePt: true, spaceAfterPt: false, lineSpacing: true}}, cm);
+    disagrees: {alignment: true, spaceBeforePt: true, spaceAfterPt: false, lineSpacing: true}};
+const mixed = L.paragraphFields(mixedFormatting, cm);
 same(mixed, {alignment: '', left: '', right: '0', special: '', by: '', before: '', after: '0', lineRule: '', lineValue: '',
     keepNext: null, keepLines: false, widowControl: true, pageBreakBefore: false});
 assert.equal(L.paragraphFields(undefined, cm).keepNext, null);
@@ -95,16 +103,22 @@ same(L.paragraphInput('special', {...paragraph, special: 'none'}), {by: ''});
 same(L.paragraphInput('special', {...paragraph, special: 'first'}), {});
 same(L.paragraphInput('lineRule', {...paragraph, lineRule: 'double'}), {lineValue: ''});
 same(L.paragraphInput('lineRule', {...paragraph, lineRule: 'exact'}), {});
-same(L.paragraphCommand(paragraph, paragraph, cm), {command: null});
-same(L.paragraphCommand({...paragraph, alignment: 'justify', left: '1', special: 'hanging', by: '0,5', before: '6', lineRule: 'exact', lineValue: '18', keepNext: true}, paragraph, cm),
+same(L.paragraphCommand(paragraph, plain, cm), {command: null});
+same(L.paragraphCommand({...paragraph, alignment: 'justify', left: '1', special: 'hanging', by: '0,5', before: '6', lineRule: 'exact', lineValue: '18', keepNext: true}, plain, cm),
     {command: {type: 'setParagraphFormat', alignment: 'justify', indentLeftTwips: 567, indentFirstLineTwips: -283, spaceBeforePt: 6, lineSpacing: {rule: 'exact', value: 18}, keepNext: true}});
-same(L.paragraphCommand({...paragraph, left: '', after: ''}, paragraph, cm), {command: {type: 'setParagraphFormat', indentLeftTwips: null, spaceAfterPt: null}});
-same(L.paragraphCommand({...paragraph, lineRule: '150', lineValue: ''}, paragraph, cm).command.lineSpacing, {rule: 'multiple', value: 1.5});
-same(L.paragraphCommand({...paragraph, special: 'first', by: '1,25'}, paragraph, cm).command, {type: 'setParagraphFormat', indentFirstLineTwips: 709});
-same(L.paragraphCommand({...paragraph, special: 'first', by: ''}, paragraph, cm), {error: 'length_invalid'});
-same(L.paragraphCommand({...paragraph, right: 'x'}, paragraph, cm), {error: 'length_invalid'});
-same(L.paragraphCommand({...paragraph, before: '-1'}, paragraph, cm), {error: 'spacing_invalid'});
-same(L.paragraphCommand({...paragraph, lineRule: 'multiple', lineValue: '20'}, paragraph, cm), {error: 'line_spacing_invalid'});
-same(L.paragraphCommand({...paragraph, lineRule: 'atLeast', lineValue: ''}, paragraph, cm), {error: 'line_spacing_invalid'});
-same(L.paragraphCommand({...mixed, keepNext: true}, mixed, cm), {command: {type: 'setParagraphFormat', keepNext: true}});
+same(L.paragraphCommand({...paragraph, left: '', after: ''}, plain, cm), {command: {type: 'setParagraphFormat', indentLeftTwips: null, spaceAfterPt: null}});
+same(L.paragraphCommand({...paragraph, lineRule: '150', lineValue: ''}, plain, cm).command.lineSpacing, {rule: 'multiple', value: 1.5});
+same(L.paragraphCommand({...paragraph, special: 'first', by: '1,25'}, plain, cm).command, {type: 'setParagraphFormat', indentFirstLineTwips: 709});
+same(L.paragraphCommand({...paragraph, special: 'first', by: ''}, plain, cm), {error: 'length_invalid'});
+same(L.paragraphCommand({...paragraph, right: 'x'}, plain, cm), {error: 'length_invalid'});
+same(L.paragraphCommand({...paragraph, before: '-1'}, plain, cm), {error: 'spacing_invalid'});
+same(L.paragraphCommand({...paragraph, lineRule: 'multiple', lineValue: '20'}, plain, cm), {error: 'line_spacing_invalid'});
+same(L.paragraphCommand({...paragraph, lineRule: 'atLeast', lineValue: ''}, plain, cm), {error: 'line_spacing_invalid'});
+same(L.paragraphCommand({...mixed, keepNext: true}, mixedFormatting, cm), {command: {type: 'setParagraphFormat', keepNext: true}});
+// A retyped value is no change; an invalid text in a mixed field is refused; inside a table there is no indent to show.
+same(L.paragraphCommand({...paragraph, after: '8,0', left: '0.0', lineValue: '1.08'}, plain, cm), {command: null});
+same(L.paragraphCommand({...mixed, left: 'x'}, mixedFormatting, cm), {error: 'length_invalid'});
+const cell = {...plain, indent: undefined}, cellFields = L.paragraphFields(cell, cm);
+assert.equal([cellFields.left, cellFields.right, cellFields.special].join('|'), '||');
+same(L.paragraphCommand({...cellFields, keepLines: true}, cell, cm), {command: {type: 'setParagraphFormat', keepLines: true}});
 console.log('Writer layout: units, papers, page setup and paragraph models pass');

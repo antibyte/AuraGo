@@ -103,7 +103,7 @@
         async function page() {
             const editor = app.editor, setup = editor?.getPageSetup();
             if (!setup) return;
-            const initial = L.pageFields(setup, app.units), command = values => L.pageCommand(values, initial, app.units);
+            const initial = L.pageFields(setup, app.units), command = values => L.pageCommand(values, setup, app.units);
             const answer = await layout(tr('page_setup'), [
                 choice('paper', tr('paper'), initial, L.papers.map(paper => [paper.id, paper.name]).concat([['custom', tr('paper_custom')]])),
                 length('width', tr('page_width'), initial), length('height', tr('page_height'), initial),
@@ -121,7 +121,7 @@
         async function paragraph() {
             const editor = app.editor;
             if (!editor) return;
-            const u = app.units, initial = L.paragraphFields(editor.snapshot().formatting, u), command = values => L.paragraphCommand(values, initial, u);
+            const u = app.units, formatting = editor.snapshot().formatting, initial = L.paragraphFields(formatting, u), command = values => L.paragraphCommand(values, formatting, u);
             const answer = await layout(tr('paragraph'), [
                 choice('alignment', tr('alignment'), initial, [['left', tr('align_left')], ['center', tr('align_center')], ['right', tr('align_right')], ['justify', tr('justify')]]),
                 {id: 'indentHeading', type: 'heading', label: tr('indent_heading')},

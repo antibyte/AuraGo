@@ -71,16 +71,26 @@
         }
         return {};
     }
-    // The setPageSetup command for the dialog's answer: only what differs from what the dialog opened
-    // with. {command} (null when nothing changed) or {error} with a desktop.writer_ key.
-    function pageCommand(values, initial, u) {
-        const width = exact(values.width, u), height = exact(values.height, u), margins = SIDES.map(side => exact(values[side], u));
-        if (![width, height, ...margins].every(Number.isFinite) || margins.some(twips => twips < 0)) return {error: 'length_invalid'};
+    // The setPageSetup command for the dialog's answer: only what differs from the page setup the
+    // dialog opened with. {command} (null when nothing changed) or {error} with a desktop.writer_ key.
+    function pageCommand(values, setup, u) {
+        const initial = pageFields(setup, u), was = {width: setup.pageWidthTwips, height: setup.pageHeightTwips};
+        for (const side of SIDES) was[side] = setup.marginsTwips[side];
+        // A text that still shows what the dialog opened with stands for the original value, not for its rounding.
+        const twips = field => {
+            const typed = exact(values[field], u);
+            return Number.isFinite(typed) && u.show(typed) === initial[field] ? was[field] : typed;
+        };
+        let width = twips('width'), height = twips('height');
+        // Turning the page swaps the two texts; the sizes behind them swap unrounded.
+        if (values.width === initial.height && values.height === initial.width) [width, height] = [was.height, was.width];
+        const margins = SIDES.map(twips);
+        if (![width, height, ...margins].every(Number.isFinite) || margins.some(value => value < 0)) return {error: 'length_invalid'};
         if (Math.min(width, height) < 1440 || Math.max(width, height) > 31680) return {error: 'page_size_range'};
         if (margins[1] + margins[3] > width - 1440 || margins[0] + margins[2] > height - 1440) return {error: 'margins_too_large'};
         const command = {type: 'setPageSetup'};
-        if (values.width !== initial.width || values.height !== initial.height) Object.assign(command, {pageWidth: width, pageHeight: height, orientation: width > height ? 'landscape' : 'portrait'});
-        SIDES.forEach((side, index) => { if (values[side] !== initial[side]) command['margin' + side[0].toUpperCase() + side.slice(1)] = margins[index]; });
+        if (width !== was.width || height !== was.height) Object.assign(command, {pageWidth: width, pageHeight: height, orientation: width > height ? 'landscape' : 'portrait'});
+        SIDES.forEach((side, index) => { if (margins[index] !== was[side]) command['margin' + side[0].toUpperCase() + side.slice(1)] = margins[index]; });
         if (Object.keys(command).length === 1) return {command: null};
         command.scope = values.scope === 'section' ? 'section' : 'document';
         return {command};
@@ -109,18 +119,25 @@
         if (changed === 'lineRule' && (LINES[values.lineRule] || values.lineRule === '')) return {lineValue: ''};
         return {};
     }
-    // The setParagraphFormat command for the dialog's answer: only what differs from what the dialog
-    // opened with. An emptied length or spacing is null, which hands the value back to the style.
-    function paragraphCommand(values, initial, u) {
-        const command = {type: 'setParagraphFormat'};
+    // The setParagraphFormat command for the dialog's answer: only what differs from the formatting
+    // the dialog opened with. An emptied length or spacing is null, which hands the value back to the style.
+    function paragraphCommand(values, formatting, u) {
+        const initial = paragraphFields(formatting, u), command = {type: 'setParagraphFormat'};
+        const length = text => u.show(u.read(text)), points = text => u.number(u.points(text));
+        // A retyped value that shows like the one the dialog opened with is no change.
+        const kept = (field, show) => {
+            if (values[field] === initial[field]) return true;
+            const shown = show(values[field]);
+            return shown !== '' && shown === initial[field];
+        };
         if (values.alignment !== initial.alignment && values.alignment) command.alignment = values.alignment;
         for (const [field, key] of [['left', 'indentLeftTwips'], ['right', 'indentRightTwips']]) {
-            if (values[field] === initial[field]) continue;
+            if (kept(field, length)) continue;
             const twips = u.read(values[field]);
             if (Number.isNaN(twips)) return {error: 'length_invalid'};
             command[key] = twips;
         }
-        if (values.special !== initial.special || values.by !== initial.by) {
+        if (values.special !== initial.special || !kept('by', length)) {
             if (values.special === 'none') command.indentFirstLineTwips = 0;
             else if (values.special) {
                 const by = u.read(values.by);
@@ -129,12 +146,12 @@
             }
         }
         for (const [field, key] of [['before', 'spaceBeforePt'], ['after', 'spaceAfterPt']]) {
-            if (values[field] === initial[field]) continue;
-            const points = u.points(values[field]);
-            if (Number.isNaN(points) || points < 0 || points > 1584) return {error: 'spacing_invalid'};
-            command[key] = points;
+            if (kept(field, points)) continue;
+            const value = u.points(values[field]);
+            if (Number.isNaN(value) || value < 0 || value > 1584) return {error: 'spacing_invalid'};
+            command[key] = value;
         }
-        if (values.lineRule !== initial.lineRule || values.lineValue !== initial.lineValue) {
+        if (values.lineRule !== initial.lineRule || !kept('lineValue', points)) {
             if (LINES[values.lineRule]) command.lineSpacing = {rule: 'multiple', value: LINES[values.lineRule]};
             else if (values.lineRule) {
                 const value = u.points(values.lineValue), multiple = values.lineRule === 'multiple';
