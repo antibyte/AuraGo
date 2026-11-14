@@ -95,6 +95,10 @@ func (r *labRun) scenes() {
 	r.sceneHome()
 	r.sceneStatusSheet()
 	r.sceneCategorySheet()
+	r.openEditor()
+	r.sceneIdleEditor()
+	r.sceneRunDone()
+	r.sceneTestResult()
 }
 
 func (r *labRun) add(f []labFinding) { r.findings = append(r.findings, f...) }
@@ -344,4 +348,62 @@ func (r *labRun) sceneCategorySheet() {
 	}})
 	r.add(labDistanceFindings(r.theme, "2-category-sheet", res.Elements))
 	s.page.MustEval(labSheetOffJS)
+}
+
+// openEditor opens the seeded flow in the editor and shows all of it (the contact sheet's steps).
+func (r *labRun) openEditor() {
+	s := r.s
+	s.page.MustEval(`id=>EasyDragApp.open(Array.from(EasyDragApp._instances.values())[0].windowId,{flowId:id})`, s.page.MustEval(`()=>edFixture.seededID`).Str())
+	s.wait(`()=>!!edFixture.editor() && document.querySelectorAll('.ed-node').length===4 && document.querySelectorAll('.ed-edge').length===3`)
+	s.fit()
+	s.clearToasts()
+}
+
+// labRailProbe is the rail's captions (Part D): text on the rail surface at 4.5:1.
+var labRailProbe = labProbe{Name: "rail-caption", Selector: ".ed-rail-caption", Role: "text", Min: 5}
+
+// sceneIdleEditor is scene 3: the editor of the seeded flow with the labelled rail and nothing running.
+func (r *labRun) sceneIdleEditor() {
+	s := r.s
+	s.wait(`()=>document.querySelectorAll('.ed-rail-caption').length>=5`)
+	r.check("3-idle-editor", labSpec{Names: true, Probes: append(labStatusProbes(0), labRailProbe)})
+	s.checkTargets(r.theme + "/3-idle-editor")
+}
+
+// sceneRunDone is scene 4: the same editor after a finished run, with a status disc on each of the four cards (the
+// contact sheet's seed, easyDragContactRunDoneJS).
+func (r *labRun) sceneRunDone() {
+	s := r.s
+	s.page.MustEval(easyDragContactRunDoneJS)
+	s.wait(`()=>document.querySelectorAll('.ed-edge.is-delivered').length===3 && document.querySelectorAll('.ed-node .ed-status-disc').length>=4`)
+	s.clearToasts()
+	r.check("4-run-done", labSpec{Names: true, Probes: append(labStatusProbes(4), labRailProbe)})
+	s.checkTargets(r.theme + "/4-run-done")
+}
+
+// labResultCalloutJS puts one uncertain callout into the test result panel. The fixture's run has no uncertain effect, so
+// this is the one injected piece of scene 5; the disclosure and the status words are the product's.
+const labResultCalloutJS = `()=>{
+	const ED=window.EasyDrag,panel=document.querySelector('.ed-run-results');
+	const c=ED.kit.callout({status:'uncertain',text:ED.status.word(window.t,'uncertain')});
+	let el=c;if(typeof c==='string'){const d=document.createElement('div');d.innerHTML=c.trim();el=d.firstElementChild;}
+	panel.appendChild(el);
+}`
+
+// sceneTestResult is scene 5: a real test run through the fixture backend, with the results panel open (disclosure) and
+// a callout.
+func (r *labRun) sceneTestResult() {
+	s := r.s
+	s.page.MustElement(`[data-ed-cmd="test"]`).MustClick()
+	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-action="run"]')`)
+	// The seeded flow has effects, so Test opens in Simulation; the lab runs the real test (as the boundary journey does).
+	s.page.MustEval(`()=>{const m=document.querySelector('.ed-modal [data-ed-test-mode]');if(m){m.value='real';m.dispatchEvent(new Event('change',{bubbles:true}));}}`)
+	s.page.MustElement(`.ed-modal [data-ed-action="run"]`).MustClick()
+	s.wait(`()=>{const ed=edFixture.editor();return !!ed.run && ed.run.id!=='run_contact' && ed.run.status==='success'}`)
+	s.wait(`()=>{const p=document.querySelector('.ed-run-results');return !!p && !p.hidden && p.getClientRects().length>0}`)
+	s.clearToasts()
+	s.page.MustEval(labResultCalloutJS)
+	r.check("5-test-result", labSpec{Names: true, Probes: append(labStatusProbes(1),
+		labProbe{Name: "disclosure", Selector: ".ed-disclosure-head", Role: "text", Min: 1})})
+	s.checkTargets(r.theme + "/5-test-result")
 }
