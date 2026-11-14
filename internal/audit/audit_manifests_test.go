@@ -1062,10 +1062,10 @@ func TestCIGatesRunGoTestsAndGovulncheck(t *testing.T) {
 	t.Parallel()
 
 	workflowText := combinedGitHubWorkflowText(t)
+	// TestGoSecurityChecksRunIndependently verifies the targeted race matrix.
 	for _, needle := range []string{
 		"actions/setup-go",
 		"go test ./...",
-		"go test -race ./internal/llm ./internal/server ./internal/memory",
 		"go install golang.org/x/vuln/cmd/govulncheck@v",
 		"run: govulncheck ./...",
 	} {
