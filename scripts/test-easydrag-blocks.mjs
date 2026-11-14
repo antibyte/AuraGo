@@ -33,7 +33,7 @@ export async function run({ sandbox, openEditor, eq, guardAsync, settle }) {
         editor.el.appendChild(form.el);
         eq('blocks typed values preserve zero false and explicit null without adding optional keys', form.values(), { count: 0, enabled: false, null_value: null });
         eq('blocks complete typed sample flushes', form.flush(), true);
-        eq('blocks sample limits remain available in collapsed preview notes', [form.el.querySelector('.ed-details').getAttribute('open'), !!form.el.querySelector('.ed-details .ed-hint')], [null, true]);
+        eq('blocks sample limits remain available in collapsed preview notes', [h.ED.kit.isOpen(form.el.querySelector('.ed-disclosure')), !!form.el.querySelector('.ed-disclosure .ed-hint')], [false, true]);
         const missing = h.ED.blockFields.values({ ed: editor.ed, fields, value: {}, requireComplete: true });
         eq('blocks simulation refuses omitted required values', missing.flush(), false);
         const draft = h.ED.blockFields.values({ ed: editor.ed, fields, value: {} });

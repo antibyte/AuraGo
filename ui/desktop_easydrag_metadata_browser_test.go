@@ -46,7 +46,7 @@ func TestDesktopEasyDragMetadataBrowser(t *testing.T) {
 	}
 
 	s.wait(`()=>document.querySelectorAll('.ed-flow-card').length===1 && !!document.querySelector('[data-ed-folders-manage]')`)
-	p.MustElement(`.ed-library-organization > summary`).MustClick()
+	p.MustElement(`.ed-library-organization > .ed-disclosure-head`).MustClick()
 	p.MustElement(`[data-ed-folders-manage]`).MustClick()
 	p.MustElement(`[data-ed-folder-new]`).MustClick()
 	p.MustElement(`[data-ed-folder-name]`).MustInput("Archive")

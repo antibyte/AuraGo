@@ -17,7 +17,7 @@
         let data = clone(options.value || {}), closed = false, inner, fieldBag = core.bag();
         const rejected = new Map();
         const rejectionText = kind => ed.t(kind === 'incomplete' ? 'easydrag.ui.test_data_incomplete' : 'easydrag.ui.block_sample_limit');
-        const el = core.el('<div class="ed-block-values">' + (options.requireComplete ? '<details class="ed-details"><summary>' + ed.esc(ed.t('easydrag.ui.transform_notes')) + '</summary><p class="ed-hint">' + ed.esc(ed.t('easydrag.ui.block_sample_limit')) + '</p></details>' : '') + '<div data-ed-block-value-form></div><div data-ed-block-unknown></div><p class="ed-error" role="alert" hidden></p></div>');
+        const el = core.el('<div class="ed-block-values">' + (options.requireComplete ? ED.kit.disclosureMarkup({ title: ed.t('easydrag.ui.transform_notes'), body: '<p class="ed-hint">' + ed.esc(ed.t('easydrag.ui.block_sample_limit')) + '</p>' }) : '') + '<div data-ed-block-value-form></div><div data-ed-block-unknown></div><p class="ed-error" role="alert" hidden></p></div>');
         const names = new Set(fields.map(field => field.name));
         function valid(field) {
             if (!own(data, field.name)) return !field.required;
@@ -30,7 +30,7 @@
         function showUnknown() {
             const keys = unknown(), host = el.querySelector('[data-ed-block-unknown]');
             const preview = value => { const raw = JSON.stringify(value, null, 2); return raw.length > 2048 ? raw.slice(0, 2047).replace(/[\uD800-\uDBFF]$/, '') + '…' : raw; };
-            host.innerHTML = !keys.length ? '' : '<details class="ed-details" open><summary>' + ed.esc(ed.t('easydrag.ui.block_unknown_bindings')) + '</summary><ul>' + keys.map((name, index) => '<li><code>' + ed.esc(name) + '</code><pre class="ed-code ed-output-json">' + ed.esc(preview(data[name])) + '</pre><button type="button" class="ed-btn" data-ed-block-unknown-remove="' + index + '"' + (ed.readonly || ed.runView ? ' disabled' : '') + '>' + ed.esc(ed.t('easydrag.ui.delete')) + '</button></li>').join('') + '</ul></details>';
+            host.innerHTML = !keys.length ? '' : ED.kit.disclosureMarkup({ open: true, title: ed.t('easydrag.ui.block_unknown_bindings'), body: '<ul>' + keys.map((name, index) => '<li><code>' + ed.esc(name) + '</code><pre class="ed-code ed-output-json">' + ed.esc(preview(data[name])) + '</pre><button type="button" class="ed-btn" data-ed-block-unknown-remove="' + index + '"' + (ed.readonly || ed.runView ? ' disabled' : '') + '>' + ed.esc(ed.t('easydrag.ui.delete')) + '</button></li>').join('') + '</ul>' });
             host.querySelectorAll('[data-ed-block-unknown-remove]').forEach(button => fieldBag.listen(button, 'click', () => {
                 if (closed || ed.readonly || ed.runView || !inner.flush()) return;
                 delete data[keys[Number(button.dataset.edBlockUnknownRemove)]];
@@ -227,7 +227,7 @@
         const selfWarning = core.el('<p class="ed-error" role="alert" data-ed-call-self hidden>' + ed.esc(ed.t('easydrag.ui.block_self_reference')) + '</p>');
         selfWarning.id = core.randomID('ed-call-self-', 8);
         el.insertBefore(selfWarning, blockSelect.closest('label'));
-        if (ed.isBlock) el.insertBefore(core.el('<details class="ed-details" data-ed-nested-call-help><summary>' + ed.esc(ed.t('easydrag.ui.block_nested_title')) + '</summary><p class="ed-hint">' + ed.esc(ed.t('easydrag.ui.block_nested_hint')) + '</p></details>'), selfWarning);
+        if (ed.isBlock) el.insertBefore(ED.kit.disclosure({ attrs: { 'data-ed-nested-call-help': '' }, title: ed.t('easydrag.ui.block_nested_title'), body: '<p class="ed-hint">' + ed.esc(ed.t('easydrag.ui.block_nested_hint')) + '</p>' }), selfWarning);
         const more = core.el('<button type="button" class="ed-btn" data-ed-call-more hidden>' + ed.esc(ed.t('easydrag.ui.block_load_more')) + '</button>'); el.insertBefore(more, versionSelect.closest('label'));
         const versionMore = core.el('<button type="button" class="ed-btn" data-ed-call-version-more hidden>' + ed.esc(ed.t('easydrag.ui.block_load_more')) + '</button>'); el.insertBefore(versionMore, apply);
         function current() { return !closed && ed.model.node(id) === node; }

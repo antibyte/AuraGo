@@ -113,7 +113,7 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 	page.MustElement(`[data-ed-library-view="list"]`).MustClick()
 	page.MustElement(`[data-ed-favorite]`).MustClick()
 	page.MustElement(`[data-ed-library-favorites]`).MustClick()
-	page.MustElement(`.ed-library-saved > summary`).MustClick()
+	page.MustElement(`.ed-library-saved > .ed-disclosure-head`).MustClick()
 	page.MustElement(`[data-ed-library-save]`).MustClick()
 	s.wait(`()=>!!document.querySelector('.vd-modal-input')`)
 	page.MustElement(`.vd-modal-input`).MustInput("Favoriten")
@@ -123,7 +123,7 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 	s.wait(`()=>!document.querySelector('.ed-flow-card')`)
 	page.MustEval(`()=>{const s=document.querySelector('[data-ed-library-filter]');s.value=JSON.parse(localStorage.getItem('aurago.easydrag.library')).filters[0].id;s.dispatchEvent(new Event('change',{bubbles:true}));}`)
 	s.wait(`()=>document.querySelectorAll('.ed-flow-card').length===1 && document.querySelector('[data-ed-library-favorites]').getAttribute('aria-pressed')==='true'`)
-	page.MustElement(`.ed-library-saved > summary`).MustClick()
+	page.MustElement(`.ed-library-saved > .ed-disclosure-head`).MustClick()
 	for _, theme := range []string{"standard", "fruity-light", "fruity-dark"} {
 		for _, width := range []int{390, 1440} {
 			page.MustSetViewport(width, 900, 1, width < 760)
@@ -170,14 +170,14 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 	s.shot("ux-private-scenario-360")
 	page.MustElement(`[data-ed-action="run"]`).MustClick()
 	s.wait(`()=>!document.querySelector('.ed-modal') && edFixture.editor().run.mode==='simulation' && edFixture.editor().run.record.assertions[0].passed`)
-	s.wait(`()=>document.querySelector('.ed-run-results').open && document.querySelector('.ed-result-preview').textContent.includes('Hallo Welt')`)
+	s.wait(`()=>document.querySelector('.ed-run-results > .ed-disclosure-head').getAttribute('aria-expanded')==='true' && document.querySelector('.ed-result-preview').textContent.includes('Hallo Welt')`)
 	s.shot("ux-scenario-result-360")
 	page.MustSetViewport(390, 844, 1, true)
 	s.shot("ux-scenario-result-390")
 	s.noRawKeys("goal-first authoring and private scenarios")
 	s.failOnPageErrors("goal-first authoring and private scenarios")
 
-	page.MustElement(`.ed-run-results > summary`).MustClick()
+	page.MustElement(`.ed-run-results > .ed-disclosure-head`).MustClick()
 	page.MustSetViewport(1280, 900, 1, false)
 	page.MustEval(`()=>fixtureTheme('standard')`)
 	target := page.MustEval(`()=>{const ed=edFixture.editor();const id=ed.model.addNode('notify.telegram',{x:1000,y:400},{message:'Before AFTER'},{node:'n_greeting',port:'out'});ed.bus.emit('focus-node',id);return id;}`).Str()
@@ -197,7 +197,7 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 	page.MustElement(`[data-ed-transform-action="add"]`).MustClick()
 	page.MustEval(`()=>{const s=document.querySelectorAll('[data-ed-transform-filter]')[1];s.value='upper';s.dispatchEvent(new Event('change',{bubbles:true}));}`)
 	s.wait(`()=>document.querySelector('[data-ed-transform-preview]').textContent==='HALLO WELT'`)
-	page.MustElement(`.ed-modal--transform details:first-of-type > summary`).MustClick()
+	page.MustElement(`.ed-modal--transform [data-ed-transform-disclosure="sample"] > .ed-disclosure-head`).MustClick()
 	if name := s.axName(`[data-ed-transform-sample]`); name == "" {
 		t.Error("transform sample has no accessible name")
 	}

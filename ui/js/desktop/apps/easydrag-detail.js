@@ -51,7 +51,7 @@
         return out;
     }
 
-    // jsonTree renders a value as nested <details>. A list or object shows 200 entries and
+    // jsonTree renders a value as nested disclosures. A list or object shows 200 entries and
     // counts the rest; all in all TREE_BUDGET entries and MAX_DEPTH levels are drawn, and what
     // is left reads "…" (budget: {left}, shared by the whole tree).
     function jsonTree(value, esc, depth, budget) {
@@ -74,7 +74,7 @@
         }
         const body = items.join('') + (total > i ? '<li class="ed-json-more">… ' + (total - i) + '</li>' : '');
         const summary = Array.isArray(value) ? '[' + total + ']' : '{' + total + '}';
-        return '<details' + (d < 2 ? ' open' : '') + '><summary>' + summary + '</summary><ul>' + body + '</ul></details>';
+        return ED.kit.disclosureMarkup({ className: 'ed-json-node', open: d < 2, title: summary, body: '<ul>' + body + '</ul>' });
     }
 
     function tableOf(output) {

@@ -180,7 +180,7 @@
             if (untrusted.length) {
                 body += '<div class="ed-callout ed-callout--warn">' + core.icon('alert') + '<div><strong>' + esc(t('easydrag.ui.publish_untrusted')) + '</strong>' + issuesMarkup(untrusted) + '</div></div>';
             }
-            if (warnings.length) body += '<details class="ed-details"><summary>' + esc(t('easydrag.ui.publish_warnings', { count: warnings.length })) + '</summary>' + issuesMarkup(warnings) + '</details>';
+            if (warnings.length) body += ED.kit.disclosureMarkup({ title: t('easydrag.ui.publish_warnings', { count: warnings.length }), body: issuesMarkup(warnings) });
             body += '<p class="ed-diff">' + core.icon('history') + '<span>' + esc(diffText(preview.diff)) + '</span></p>';
             body += diffMarkup(preview.diff);
             const evidence = ed.testEvidence;

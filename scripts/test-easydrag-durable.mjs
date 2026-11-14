@@ -64,7 +64,7 @@ export async function run({ sandbox, openEditor, eq, guardAsync, settle }) {
         eq('durable waiting is active and keeps its explicit window run identity', [f.editor.ed.run.status, f.h.contexts.at(-1).run_id, !!f.editor.el.querySelector('[data-ed-durable-run]')], ['waiting', RID, true]);
         f.state.phase = phase('blocked'); await f.view();
         const body = f.editor.el.querySelector('.ed-run-results-body');
-        eq('durable reversible block is distinct from a final error and exposes fixed reason times', [f.editor.ed.run.status, f.editor.el.querySelector('.ed-run-results summary').textContent.includes('· blocked'), body.html.includes('durable_reason_disabled'), body.html.includes('durable_deadline')], ['waiting', true, true, true]);
+        eq('durable reversible block is distinct from a final error and exposes fixed reason times', [f.editor.ed.run.status, f.editor.el.querySelector('.ed-run-results .ed-disclosure-title').textContent.includes('· blocked'), body.html.includes('durable_reason_disabled'), body.html.includes('durable_deadline')], ['waiting', true, true, true]);
         eq('durable body keeps the one visible title in its summary', body.html.includes('<strong>durable_title'), false);
         eq('durable opening a stored waiting run starts no replacement run', mutations(f).filter(req => req.url.endsWith('/run')).length, 1);
         f.editor.dispose();
@@ -72,18 +72,18 @@ export async function run({ sandbox, openEditor, eq, guardAsync, settle }) {
 
     await guardAsync('durable status disclosure starts compact and preserves an explicit user choice', async () => {
         const f = fixture(); await f.view();
-        const results = f.editor.el.querySelector('.ed-run-results'), summary = results.querySelector('summary');
-        eq('durable ordinary waiting status is initially collapsed', results.open, false);
-        results.open = true; summary.fire('click');
+        const results = f.editor.el.querySelector('.ed-run-results'), summary = results.querySelector('.ed-disclosure-head'), kit = f.h.ED.kit;
+        eq('durable ordinary waiting status is initially collapsed', kit.isOpen(results), false);
+        summary.fire('click');
         f.state.phase.generation++; f.editor.ed.bus.emit('refresh-durable-run'); await settle();
-        eq('durable a metadata refresh retains the users expanded status', results.open, true);
-        results.open = false; summary.fire('click');
+        eq('durable a metadata refresh retains the users expanded status', kit.isOpen(results), true);
+        summary.fire('click');
         f.state.phase.state = 'running'; f.state.run.status = 'running';
         f.editor.ed.bus.emit('refresh-durable-run'); await settle();
-        eq('durable a later phase retains the users collapsed status', results.open, false);
+        eq('durable a later phase retains the users collapsed status', kit.isOpen(results), false);
         f.editor.dispose();
         const blocked = fixture(); blocked.state.phase = phase('blocked'); await blocked.view();
-        eq('durable an initially blocked status exposes its reason', blocked.editor.el.querySelector('.ed-run-results').open, true);
+        eq('durable an initially blocked status exposes its reason', blocked.h.ED.kit.isOpen(blocked.editor.el.querySelector('.ed-run-results')), true);
         blocked.editor.dispose();
     });
 

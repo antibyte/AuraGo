@@ -199,14 +199,14 @@ func TestDesktopEasyDragBlocksBrowser(t *testing.T) {
 		p.MustSetViewport(390, 844, 1, true)
 		p.MustElement(`[data-ed-cmd="test"]`).MustClick()
 		s.wait(`()=>!!document.querySelector('[data-ed-block-inputs]')`)
-		s.wait(`()=>{const notes=document.querySelector('[data-ed-block-inputs] .ed-details');return notes && !notes.open && notes.textContent.includes(edFixture.editor().t('easydrag.ui.block_sample_limit'));}`)
+		s.wait(`()=>{const notes=document.querySelector('[data-ed-block-inputs] .ed-disclosure');return notes && notes.querySelector('.ed-disclosure-head').getAttribute('aria-expanded')==='false' && notes.textContent.includes(edFixture.editor().t('easydrag.ui.block_sample_limit'));}`)
 		s.wait(`()=>{const d=document.querySelector('.ed-modal');return d.scrollWidth<=d.clientWidth+1 && [...d.querySelectorAll('button,select,input')].filter(e=>e.getClientRects().length).every(e=>e.getBoundingClientRect().right<=innerWidth+1);}`)
 		s.shot("blocks-simulation-390-" + theme)
 		if theme == "standard" {
-			p.MustElement(`[data-ed-block-inputs] .ed-details summary`).MustClick()
-			s.wait(`()=>document.querySelector('[data-ed-block-inputs] .ed-details').open`)
+			p.MustElement(`[data-ed-block-inputs] .ed-disclosure-head`).MustClick()
+			s.wait(`()=>document.querySelector('[data-ed-block-inputs] .ed-disclosure-head').getAttribute('aria-expanded')==='true'`)
 			s.shot("blocks-simulation-limits-390")
-			p.MustElement(`[data-ed-block-inputs] .ed-details summary`).MustClick()
+			p.MustElement(`[data-ed-block-inputs] .ed-disclosure-head`).MustClick()
 		}
 		p.MustSetViewport(320, 760, 1, true)
 		s.wait(`()=>{const d=document.querySelector('.ed-modal');return d.scrollWidth<=d.clientWidth+1 && d.getBoundingClientRect().right<=innerWidth+1;}`)

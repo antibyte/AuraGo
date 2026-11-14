@@ -52,7 +52,7 @@ assert.equal(pick(['trigger.manual', 'notify.telegram', 'logic.durable_approval'
     const open = ed => {
         const select = { value: 'real', disabled: false, addEventListener(type, fn) { select[type] = fn; } };
         const stub = () => ({ hidden: false, disabled: false, textContent: '', querySelector: () => ({ value: '' }), querySelectorAll: () => [] });
-        ED.core = { el: () => Object.assign(stub(), { querySelector: sel => sel === 'select' ? select : { value: '' } }) };
+        ED.core = { el: () => Object.assign(stub(), { querySelector: sel => sel === 'select' ? select : { value: '' } }) }; ED.kit = { disclosureMarkup: () => '', setOpen() {} };
         ed.t = key => key; ed.esc = x => x; ed.api = {};
         const dialog = { body: Object.assign(stub(), { insertBefore() {}, appendChild() {} }), el: { querySelector: () => null }, done: new Promise(() => {}) };
         let trigger = 'n0';

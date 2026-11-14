@@ -58,13 +58,13 @@ console.log('easydrag stop hint: ok');
 // results panel still says why. createResults runs on a minimal stub of the core and the canvas.
 {
     const body = { innerHTML: '' }, summary = { textContent: '' };
-    const el = { hidden: true, open: false, querySelector: sel => (sel === 'summary' ? summary : body), addEventListener() {} };
+    const el = { hidden: true, open: false, querySelector: sel => (sel === '.ed-disclosure-head' ? summary : body), setAttribute() {}, addEventListener() {} };
     box.window.EasyDrag.core = {
         bag: () => ({ listen() {}, add() {}, dispose() {} }), el: () => el, tr: (t, key, fallback) => fallback,
         stepErrorText: (t, s) => (s && s.error_code ? 'ERR ' + s.error_code + (s.error_message ? ': ' + s.error_message : '') : ''),
         fmt: { duration: String }
     };
-    box.window.EasyDrag.runs = { isFinal: () => true };
+    box.window.EasyDrag.runs = { isFinal: () => true }; box.window.EasyDrag.kit = { disclosure: () => el, setOpen() {}, setTitle: (_, text) => { summary.textContent = text; } };
     let onRun = null;
     const ed = { t: key => key, esc: s => String(s), model: model, isBlock: false, bus: { on: (name, fn) => { onRun = fn; return () => {}; } }, run: null };
     box.window.EasyDrag.testing.createResults(ed, { el: { appendChild() {} } });

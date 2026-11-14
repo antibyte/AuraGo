@@ -155,7 +155,7 @@
             let nav = '<button type="button" class="ed-btn" data-ed-child-back>' + core.icon('arrow-left') + '<span>' + esc(t('easydrag.ui.inspector_back')) + '</span></button>';
             if (f) {
                 const chain = []; let at = f; while (at && chain.length < 9) { chain.unshift(at); at = v.trace.byId.get(at.parent_invocation_id); }
-                nav += '<details class="ed-child-path"><summary aria-label="' + esc(t('easydrag.ui.child_history_navigation')) + '">' + esc(t('easydrag.ui.child_history_calls')) + '</summary><button type="button" class="ed-btn" data-ed-child-root>' + esc(t('easydrag.ui.child_history_calls')) + '</button>' + chain.map(p => '<button type="button" class="ed-btn" data-ed-child-frame="' + p.invocation_id + '"' + (p === f ? ' aria-current="location"' : '') + '>' + esc(callName(p) + ' · ' + frameName(v, p)) + '</button>').join('') + '</details>';
+                nav += ED.kit.disclosureMarkup({ className: 'ed-child-path', headLabel: t('easydrag.ui.child_history_navigation'), title: t('easydrag.ui.child_history_calls'), body: '<button type="button" class="ed-btn" data-ed-child-root>' + esc(t('easydrag.ui.child_history_calls')) + '</button>' + chain.map(p => '<button type="button" class="ed-btn" data-ed-child-frame="' + p.invocation_id + '"' + (p === f ? ' aria-current="location"' : '') + '>' + esc(callName(p) + ' · ' + frameName(v, p)) + '</button>').join('') });
             }
             nav += '<button type="button" class="ed-icon-btn" data-ed-child-reload aria-label="' + esc(t('easydrag.ui.reload')) + '" title="' + esc(t('easydrag.ui.reload')) + '"' + (v.loading || v.denied ? ' disabled' : '') + '>' + core.icon('refresh') + '</button>';
             let body = '<p role="status" class="ed-hint">' + esc(v.loading ? t('easydrag.ui.loading') : stateText(t, v.state)) + '</p>';
@@ -188,7 +188,7 @@
                 }
             }
             const heading = f ? frameName(v, f) : t(v.modal ? 'easydrag.ui.child_history_calls' : 'easydrag.ui.child_history_title');
-            v.el.innerHTML = '<nav class="ed-child-nav" aria-label="' + esc(t('easydrag.ui.child_history_navigation')) + '">' + nav + '</nav><h3 tabindex="-1" data-ed-child-heading>' + esc(heading) + '</h3>' + body + '<details class="ed-child-help"><summary>' + esc(t('easydrag.ui.child_history_values_hint')) + '</summary><p>' + esc(t('easydrag.ui.child_history_time_hint')) + '</p></details>';
+            v.el.innerHTML = '<nav class="ed-child-nav" aria-label="' + esc(t('easydrag.ui.child_history_navigation')) + '">' + nav + '</nav><h3 tabindex="-1" data-ed-child-heading>' + esc(heading) + '</h3>' + body + ED.kit.disclosureMarkup({ className: 'ed-child-help', title: t('easydrag.ui.child_history_values_hint'), body: '<p>' + esc(t('easydrag.ui.child_history_time_hint')) + '</p>' });
             if (hadFocus) {
                 const match = focusAttr && Array.from(v.el.querySelectorAll('[' + focusAttr.name + ']')).find(el => el.getAttribute(focusAttr.name) === focusAttr.value && !el.disabled);
                 (match || v.el.querySelector('[data-ed-child-heading]'))?.focus({ preventScroll: true });

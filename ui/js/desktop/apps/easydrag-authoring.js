@@ -128,7 +128,7 @@
             return '<p class="ed-hint">' + esc(t('easydrag.ui.authoring_review')) + '</p><div class="ed-flow-preview" aria-hidden="true">' + preview + '</div><ol class="ed-proposal-steps">' + nodes.slice(0, 500).map(node => '<li><strong>' + esc(node.label || node.key || node.type) + '</strong> <span class="ed-muted">' + esc((info(node.type) || {}).label || node.type) + '</span></li>').join('') + '</ol>' +
                 ((result.issues || []).length ? '<ul class="ed-issues">' + result.issues.slice(0, 500).map(issue => '<li>' + esc(core.issueText(t, issue)) + '</li>').join('') + '</ul>' : '') +
                 ((result.effects || []).length ? '<h4>' + esc(t('easydrag.ui.recipe_effects')) + '</h4><ul class="ed-effects">' + result.effects.map(effect => '<li>' + esc(core.tr(t, 'easydrag.ui.effect_' + effect.effect, effect.effect)) + '</li>').join('') + '</ul>' : '') +
-                (result.diff ? '<details class="ed-details"><summary>' + esc(t('easydrag.ui.publish_changes')) + '</summary><pre class="ed-code ed-output-json">' + esc(JSON.stringify(result.diff.details || [], null, 2)) + '</pre></details>' : '');
+                (result.diff ? ED.kit.disclosureMarkup({ title: t('easydrag.ui.publish_changes'), body: '<pre class="ed-code ed-output-json">' + esc(JSON.stringify(result.diff.details || [], null, 2)) + '</pre>' }) : '');
         }
         return { open, dispose() { disposed = true; if (controller) controller.abort(); if (dialog) dialog.close(); dialog = null; } };
     }

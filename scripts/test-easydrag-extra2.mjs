@@ -408,7 +408,7 @@ export async function run(env) {
         h.ed.root.querySelector('[data-ed-view="json"]').fire('click');
         const json = h.ed.root.querySelector('.ed-output').html;
         eq('c1d06 output nested 10000 levels deep renders, cut at 24 levels',
-            [!!detail, h.ed.detail === detail, (tree.match(/<details/g) || []).length < 100, tree.includes('ed-json-more'), cards < 30, json.includes('…')], [true, true, true, true, true, true]);
+            [!!detail, h.ed.detail === detail, (tree.match(/class="ed-disclosure /g) || []).length < 100, tree.includes('ed-json-more'), cards < 30, json.includes('…')], [true, true, true, true, true, true]);
         h.ED.detail.close(h.ed);
         h.runTimers();
         // A render that throws closes the overlay instead of leaving it stuck.

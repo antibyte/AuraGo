@@ -18,10 +18,10 @@
         const area = dialog.body.querySelector('[data-ed-test-data]');
         const originalLabel = area.parentNode;
         const fields = core.el('<section class="ed-sample-fields"><h4>' + esc(t('easydrag.ui.sample_fields')) + '</h4><p class="ed-hint">' + esc(t('easydrag.ui.sample_fields_hint')) + '</p><div data-ed-sample-fields></div></section>');
-        const advanced = core.el('<details class="ed-details"><summary>' + esc(t('easydrag.ui.sample_json')) + '</summary></details>');
+        const advanced = ED.kit.disclosure({ title: t('easydrag.ui.sample_json') });
         originalLabel.parentNode.insertBefore(fields, originalLabel);
         originalLabel.parentNode.insertBefore(advanced, originalLabel);
-        advanced.appendChild(originalLabel);
+        ED.kit.body(advanced).appendChild(originalLabel);
         const section = core.el('<section class="ed-scenario-fields"><h4>' + esc(t('easydrag.ui.scenario_title')) + '</h4><p class="ed-hint">' + esc(t('easydrag.ui.scenario_hint')) + '</p>' +
             '<label class="ed-label">' + esc(t('easydrag.ui.scenario_title')) + '<select class="ed-input" data-ed-scenario><option value="">' + esc(t('easydrag.ui.scenario_current')) + '</option></select></label>' +
             '<p class="ed-callout" data-ed-scenario-state hidden></p><div class="ed-scenario-actions"><button type="button" class="ed-btn" data-ed-scenario-new>' + esc(t('easydrag.ui.scenario_new')) + '</button><button type="button" class="ed-btn" data-ed-scenario-rename hidden>' + esc(t('easydrag.ui.scenario_rename')) + '</button><button type="button" class="ed-btn" data-ed-scenario-delete hidden>' + esc(t('easydrag.ui.scenario_delete')) + '</button></div>' +
@@ -58,10 +58,10 @@
             invalidFields.clear();
             const host = fields.querySelector('[data-ed-sample-fields]');
             let value;
-            try { value = ED.testing.parseSample(area.value); } catch (_) { host.innerHTML = ''; advanced.open = true; return; }
+            try { value = ED.testing.parseSample(area.value); } catch (_) { host.innerHTML = ''; ED.kit.setOpen(advanced, true); return; }
             const keys = Object.keys(value).filter(key => ['string', 'number', 'boolean'].includes(typeof value[key])).slice(0, 100);
             host.innerHTML = keys.map((key, index) => '<label class="ed-label">' + esc(key) + (typeof value[key] === 'boolean' ? '<select class="ed-input" data-ed-sample-field="' + index + '"><option value="true"' + (value[key] ? ' selected' : '') + '>true</option><option value="false"' + (!value[key] ? ' selected' : '') + '>false</option></select>' : '<input class="ed-input"' + (typeof value[key] === 'number' ? ' type="number" step="any"' : '') + ' data-ed-sample-field="' + index + '" value="' + esc(value[key]) + '">') + '</label>').join('');
-            if (!keys.length) advanced.open = true;
+            if (!keys.length) ED.kit.setOpen(advanced, true);
             host.querySelectorAll('[data-ed-sample-field]').forEach(input => {
                 input.disabled = !!selected;
                 const key = keys[Number(input.dataset.edSampleField)];
@@ -71,7 +71,7 @@
                     invalidFields.delete(input);
                     input.setCustomValidity && input.setCustomValidity('');
                     // Re-read JSON so nested and advanced-only fields are retained.
-                    try { const all = ED.testing.parseSample(area.value); all[key] = next; area.value = JSON.stringify(all, null, 2); sampleSignature = area.value; } catch (_) { advanced.open = true; }
+                    try { const all = ED.testing.parseSample(area.value); all[key] = next; area.value = JSON.stringify(all, null, 2); sampleSignature = area.value; } catch (_) { ED.kit.setOpen(advanced, true); }
                 };
                 input.addEventListener('input', change); input.addEventListener('change', change);
             });

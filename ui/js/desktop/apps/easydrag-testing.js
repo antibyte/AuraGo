@@ -167,7 +167,7 @@
         // The select is named by its own label only (an embedded select would add its option text).
         const modeLabel = 'ed-test-mode-' + (++modeIds);
         const mode = core.el('<label class="ed-label"><span id="' + modeLabel + '">' + esc(t('easydrag.ui.test_mode')) + '</span><select class="ed-input" data-ed-test-mode aria-labelledby="' + modeLabel + '"><option value="real">' + esc(t('easydrag.ui.real_test')) + '</option><option value="simulation">' + esc(t('easydrag.ui.simulation_title')) + '</option></select></label>');
-        const panel = core.el('<section class="ed-simulation-fields" hidden><p class="ed-callout">' + esc(t('easydrag.ui.simulation_hint')) + '</p><details class="ed-details" data-ed-fixtures-advanced><summary>' + esc(t('easydrag.ui.simulation_fixtures')) + '</summary><label class="ed-label">' + esc(t('easydrag.ui.simulation_fixtures')) + '<textarea class="ed-input ed-code" spellcheck="false" rows="7" data-ed-simulation-fixtures>{}</textarea></label><p class="ed-hint">' + esc(t('easydrag.ui.simulation_fixture_hint')) + '</p><ul class="ed-simulation-nodes">' + ed.model.doc.nodes.filter(n => !(ed.model.info(n.type) || {}).trigger).map(n => '<li><strong>' + esc(n.label || n.type) + '</strong> <code>' + esc(n.id) + '</code></li>').join('') + '</ul></details></section>');
+        const panel = core.el('<section class="ed-simulation-fields" hidden><p class="ed-callout">' + esc(t('easydrag.ui.simulation_hint')) + '</p>' + ED.kit.disclosureMarkup({ attrs: { 'data-ed-fixtures-advanced': '' }, title: t('easydrag.ui.simulation_fixtures'), body: '<label class="ed-label">' + esc(t('easydrag.ui.simulation_fixtures')) + '<textarea class="ed-input ed-code" spellcheck="false" rows="7" data-ed-simulation-fixtures>{}</textarea></label><p class="ed-hint">' + esc(t('easydrag.ui.simulation_fixture_hint')) + '</p><ul class="ed-simulation-nodes">' + ed.model.doc.nodes.filter(n => !(ed.model.info(n.type) || {}).trigger).map(n => '<li><strong>' + esc(n.label || n.type) + '</strong> <code>' + esc(n.id) + '</code></li>').join('') + '</ul>' }) + '</section>');
         panel.querySelector('textarea').value = '{}';
         dialog.body.insertBefore(mode, dialog.body.firstChild);
         if (ED.durable && ED.durable.requires(ed.model.doc)) dialog.body.insertBefore(core.el('<p class="ed-hint">' + esc(t('easydrag.ui.durable_live_only')) + '</p>'), mode);
@@ -224,7 +224,7 @@
                     if (closed) return false;
                     if (!env.isCurrent() || Number(result.revision) !== revision) { error.hidden = false; error.textContent = t('easydrag.ui.error_flow_revision_conflict'); return false; }
                     if (result.error_code === 'FLOW_SIMULATION_FIXTURE_REQUIRED') {
-                        panel.querySelector('[data-ed-fixtures-advanced]').open = true;
+                        ED.kit.setOpen(panel.querySelector('[data-ed-fixtures-advanced]'), true);
                         const node = ed.model.node(result.error_node_id);
                         error.hidden = false; error.textContent = core.errorText(t, { body: { code: result.error_code } }) + (node ? ' · ' + (node.label || node.type) : '');
                         return false;
@@ -252,7 +252,7 @@
 
     function createResults(ed, canvas) {
         const core = ED.core, bag = core.bag(), { t, esc } = ed;
-        const el = core.el('<details class="ed-run-results" hidden><summary></summary><div class="ed-run-results-body"></div></details>');
+        const el = ED.kit.disclosure({ className: 'ed-run-results', body: '<div class="ed-run-results-body"></div>' }); el.setAttribute('hidden', '');
         canvas.el.appendChild(el);
         let signature = '', paintedRun = null, durableRunId = '', durablePhaseKnown = false, durableTouched = false;
         function render() {
@@ -267,9 +267,9 @@
                 signature = next; paintedRun = run; el.hidden = false;
                 if (durableRunId !== run.id) { durableRunId = run.id; durablePhaseKnown = false; durableTouched = false; }
                 const status = ED.durable.info(run);
-                if (!durableTouched && !durablePhaseKnown) el.open = status?.state === 'blocked';
+                if (!durableTouched && !durablePhaseKnown) ED.kit.setOpen(el, status?.state === 'blocked');
                 if (status) durablePhaseKnown = true;
-                el.querySelector('summary').textContent = t('easydrag.ui.durable_title') + ' · ' + ED.durable.label(t, run);
+                ED.kit.setTitle(el, t('easydrag.ui.durable_title') + ' · ' + ED.durable.label(t, run));
                 el.querySelector('.ed-run-results-body').innerHTML = ED.durable.markup(ed, run);
                 return;
             }
@@ -280,10 +280,10 @@
             paintedRun = run;
             el.hidden = false;
             const simulation = run.mode === 'simulation';
-            el.open = simulation || run.status === 'error';
-            el.querySelector('summary').textContent = (simulation ? t('easydrag.ui.simulation_result') : t('easydrag.ui.run_diagnosis')) + ' · ' + statusLabel(t, ed, run);
+            ED.kit.setOpen(el, simulation || run.status === 'error');
+            ED.kit.setTitle(el, (simulation ? t('easydrag.ui.simulation_result') : t('easydrag.ui.run_diagnosis')) + ' · ' + statusLabel(t, ed, run));
             const failed = steps.find(step => step.status === 'error');
-            const stopped = stoppedBy({ run, steps }, ed.model); el.querySelector('summary').title = stopped ? t('easydrag.ui.run_stopped_by', { step: stopped.label }) : '';
+            const stopped = stoppedBy({ run, steps }, ed.model); el.querySelector('.ed-disclosure-head').title = stopped ? t('easydrag.ui.run_stopped_by', { step: stopped.label }) : '';
             const complete = steps.filter(step => step.status === 'success');
             const preview = ed.isBlock && run.outputs ? null : contentResult(ed, complete);
             const label = step => { const n = ed.model.node(step.node_id); return n ? n.label || (ed.model.info(n.type) || {}).label || n.type : step.node_key || step.node_id; };
@@ -301,7 +301,7 @@
         bag.listen(el, 'pointerdown', event => event.stopPropagation());
         bag.listen(el, 'wheel', event => event.stopPropagation());
         bag.listen(el, 'click', event => {
-            if (event.target.closest('summary')) durableTouched = true;
+            if (event.target.closest('.ed-disclosure-head')) durableTouched = true;
             if (event.target.closest('[data-ed-durable-check]')) { ed.bus.emit('refresh-durable-run'); return; }
             const button = event.target.closest('[data-ed-result-node]');
             if (!button) return;

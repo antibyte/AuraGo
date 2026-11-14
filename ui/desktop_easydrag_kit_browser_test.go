@@ -26,9 +26,9 @@ func TestEasyDragKitBrowser(t *testing.T) {
 	// the kit disclosure: Enter opens, Space closes (a real button)
 	p.MustEval(`()=>{const d=EasyDrag.kit.disclosure({title:'Notes',count:2,body:'<p>More</p>'});document.querySelector('.ed-modal-body').appendChild(d);d.querySelector('.ed-disclosure-head').focus();return true}`)
 	p.Keyboard.MustType(input.Enter)
-	s.wait(`()=>document.querySelector('.ed-disclosure-head').getAttribute('aria-expanded')==='true' && !document.querySelector('.ed-disclosure-body').hidden`)
+	s.wait(`()=>document.querySelector('.ed-modal-body .ed-disclosure-head').getAttribute('aria-expanded')==='true' && !document.querySelector('.ed-modal-body .ed-disclosure-body').hidden`)
 	p.Keyboard.MustType(input.Space)
-	s.wait(`()=>document.querySelector('.ed-disclosure-head').getAttribute('aria-expanded')==='false' && document.querySelector('.ed-disclosure-body').hidden`)
+	s.wait(`()=>document.querySelector('.ed-modal-body .ed-disclosure-head').getAttribute('aria-expanded')==='false' && document.querySelector('.ed-modal-body .ed-disclosure-body').hidden`)
 	p.MustEval(`()=>window.__kitDialog.close('ok')`)
 	s.wait(`()=>!document.querySelector('.ed-modal')`)
 

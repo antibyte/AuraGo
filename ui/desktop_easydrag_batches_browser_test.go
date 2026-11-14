@@ -74,7 +74,7 @@ func TestDesktopEasyDragBatchesBrowser(t *testing.T) {
 		p.MustElement(`[data-ed-cmd="test"]`).MustClick()
 		s.wait(`()=>!!document.querySelector('[data-ed-test-mode]')`)
 		selectValue(`[data-ed-test-mode]`, "simulation")
-		p.MustEval(`()=>{const area=document.querySelector('[data-ed-test-data]'),details=area.closest('details');if(details && !details.open)details.querySelector('summary').click();}`)
+		p.MustEval(`()=>{const area=document.querySelector('[data-ed-test-data]'),box=area.closest('.ed-disclosure');if(box && box.querySelector('.ed-disclosure-head').getAttribute('aria-expanded')!=='true')box.querySelector('.ed-disclosure-head').click();}`)
 		p.MustElement(`[data-ed-test-data]`).MustSelectAllText().MustInput(data)
 		p.MustEval(`data=>{if(document.querySelector('[data-ed-test-data]').value!==data)throw Error('Sample input not applied');}`, data)
 		p.MustElement(`[data-ed-action="run"]`).MustClick()
