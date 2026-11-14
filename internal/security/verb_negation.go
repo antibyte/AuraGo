@@ -87,7 +87,8 @@ func MaskNegatedVerbs(text string, isVerb func(string) bool) string {
 									continue
 								}
 								switch words[k].text {
-								case "mir", "dir", "uns", "euch", "ihm", "ihr", "ihnen", "bitte", "jetzt", "künftig", "fortan":
+								case "mir", "dir", "uns", "euch", "ihm", "ihr", "ihnen", "bitte", "jetzt", "künftig", "fortan",
+									"bloß", "bloss", "wirklich", "ausdrücklich", "grundsätzlich", "überhaupt":
 									continue
 								case "im", "in":
 									next := k + 1
