@@ -5,6 +5,10 @@ package invasion
 func sshEggPreflightScript(baseDir string) string {
 	return "set -eu\ndir=" + shellPath(baseDir) + `
 env_file="$dir/.env"
+if [ ! -x "$dir/aurago" ] && { [ -e "$dir.bak" ] || [ -L "$dir.bak" ]; }; then
+    echo 'Existing Egg recovery backup requires authenticated operator recovery before deployment.' >&2
+    exit 1
+fi
 if [ -e "$env_file" ] || [ -L "$env_file" ]; then
     if [ ! -f "$env_file" ] || [ ! -r "$env_file" ] || [ -L "$env_file" ]; then
         echo 'Existing Egg .env must be a readable regular private file; recover it before deployment.' >&2

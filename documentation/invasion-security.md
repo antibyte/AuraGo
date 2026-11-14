@@ -57,8 +57,11 @@ proxy over plain TCP is not a local secret transport. Configure a TLS/mTLS remot
 Docker nest or Docker over SSH instead. The Compose BUILD default stays disabled.
 SSH checks the existing `.env` and Vault/key availability before stopping, keeps
 that key and copies the predecessor only after shutdown, before creating new
-directories. If the primary directory is absent, an existing `.bak` remains
-untouched; it does not count as a newly acknowledged predecessor.
+directories. If an existing `.bak` has no executable primary Egg beside it,
+deployment and reconfiguration stop at preflight, retaining that recovery copy
+across retries. The error names both paths. Recover the predecessor through the
+authenticated operator path before retrying; an orphan backup does not count as
+a newly acknowledged predecessor.
 
 Before any possible configuration transfer, a failed hatch can restore a freshly
 acknowledged, security-marked predecessor and its previous shared key. Failure

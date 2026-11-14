@@ -74,7 +74,7 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 	backupDir := baseDir + ".bak"
 	preflight, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, "bash -s", strings.NewReader(sshEggPreflightScript(baseDir)))
 	if err != nil {
-		return configNotDelivered(fmt.Errorf("Egg key/Vault preflight failed before stop: %w", err))
+		return configNotDelivered(fmt.Errorf("Egg key/Vault preflight failed before stop; inspect %s and %s for authenticated recovery: %w", baseDir, backupDir, err))
 	}
 	backedUp := false
 	defer func() {
@@ -376,7 +376,7 @@ func (c *SSHConnector) Reconfigure(ctx context.Context, nest NestRecord, secret 
 	}
 	remoteConfig := baseDir + "/config.yaml"
 	if _, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, "bash -s", strings.NewReader(sshEggPreflightScript(baseDir))); err != nil {
-		return configNotDelivered(fmt.Errorf("Egg key/Vault preflight failed before reconfigure stop: %w", err))
+		return configNotDelivered(fmt.Errorf("Egg key/Vault preflight failed before reconfigure stop; inspect %s and %s.bak for authenticated recovery: %w", baseDir, baseDir, err))
 	}
 
 	// 1. Stop the running egg
