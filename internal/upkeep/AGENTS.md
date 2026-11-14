@@ -39,10 +39,17 @@ The updater owns transaction manifests; this package verifies them before collec
   explicit `--check-assets`; disk reads must not consume the readiness deadline.
 - Keep cleanup results sanitized in `data/update_cleanup_status.json`; private
   backups may contain credentials.
-- `update.sh` shows a compact cleanup summary, including removed/kept counts
+- The updater's retention helper emits a compact summary with removed/kept counts
   and freed space. Keep the maintenance CLI's default JSON inventory for
   diagnostics; `--summary` must preserve failure exit codes and visible errors.
   Older rollback binaries without `--summary` get a generic success line.
+- After a confirmed successful restart, `update.sh` starts retention in the
+  background only after its own staging and ownership finalization. The worker
+  inherits update-lock descriptor 9, ignores hangup and detaches all terminal
+  streams. Its compact result/errors go to `.aurago-update/cleanup.log`; the
+  existing sanitized status remains in `data/update_cleanup_status.json`.
+  Failed, interrupted and deferred-restart updates do not schedule this worker;
+  rollback cleanup remains synchronous.
 - Source builds with Go do not resolve the AuraGo application release. Optional
   Phonon provisioning uses the source-pinned resource package independently.
   Reject missing/invalid current-binary resource pins before shutdown and explain that

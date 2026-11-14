@@ -1433,6 +1433,7 @@ update_safe_remove_work() {
 #                            stale lock files were removed): restart the
 #                            previous instance and mark the transaction rolled back
 UPDATE_RECOVERY=off
+UPDATE_RETENTION_BINARY=""
 update_recover_interrupted() {
     local rc="$1"
     [ "${UPDATE_RECOVERY:-off}" = armed ] || return 0
@@ -1481,6 +1482,9 @@ update_exit_cleanup() {
     fi
     remove_regular_file_if_present "${BASH_SOURCE[0]}" >/dev/null || true
     [ -z "${VERIFIED_RELEASE_CHECKSUMS_FILE:-}" ] || remove_regular_file_if_present "$VERIFIED_RELEASE_CHECKSUMS_FILE" >/dev/null || true
+    if [ "$rc" -eq 0 ] && [ -n "${UPDATE_RETENTION_BINARY:-}" ]; then
+        update_start_retention_cleanup "$UPDATE_RETENTION_BINARY"
+    fi
     exit "$rc"
 }
 
@@ -1501,6 +1505,26 @@ update_retention_cleanup() {
         [ -z "$output" ] || printf '%s\n' "$output" >&2
         warn "Update is healthy, but artifact cleanup failed; retained data is safe. See the maintenance result above."
     fi
+}
+
+update_start_retention_cleanup() {
+    local binary="$1" log="$UPDATE_STATE/cleanup.log"
+    if [ -L "$log" ] || { [ -e "$log" ] && [ ! -f "$log" ]; } || ! (umask 077; : > "$log"); then
+        warn "Update is healthy, but background cleanup could not create its log; retained data is safe."
+        return 0
+    fi
+    if [ -n "${_svc_user:-}" ] && [ -n "${_svc_group:-}" ]; then
+        $SUDO chown "${_svc_user}:${_svc_group}" "$log" 2>/dev/null || true
+    fi
+    # Keep descriptor 9 until collection finishes; detach every terminal stream.
+    trap '' HUP
+    (
+        TUI_FULL=0
+        TUI_ANIM=0
+        update_retention_cleanup "$binary"
+    ) > "$log" 2>&1 < /dev/null &
+    disown "$!" 2>/dev/null || true
+    info "Artifact cleanup continues in the background. Log: $log"
 }
 
 mark_executable_if_present() {
@@ -4052,7 +4076,7 @@ fi
 UPDATE_RECOVERY=off   # update settled; later exits must not roll back
 if $STARTED_AFTER_UPDATE; then
     update_manifest confirmed
-    update_retention_cleanup "$LAUNCH_BIN"
+    UPDATE_RETENTION_BINARY="$LAUNCH_BIN"
 else
     # A manually deferred restart is not evidence of a successful update.
     update_manifest pending

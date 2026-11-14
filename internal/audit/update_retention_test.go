@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func retentionHelpers(t *testing.T) string {
@@ -115,6 +116,10 @@ func TestUpdaterRetentionLifecycleContract(t *testing.T) {
 	if confirmed < ready || ready < 0 {
 		t.Fatal("retention runs before readiness")
 	}
+	queued := strings.LastIndex(s, `UPDATE_RETENTION_BINARY="$LAUNCH_BIN"`)
+	if queued < confirmed || strings.Contains(s[confirmed:], `update_retention_cleanup "$LAUNCH_BIN"`) {
+		t.Fatal("successful restart still waits for retention or schedules it before confirmation")
+	}
 	start := strings.Index(s, "backup_binary_update_resources() {")
 	end := strings.Index(s[start:], "\nrestore_binary_update_resources_after_failure() {")
 	block := s[start : start+end]
@@ -173,6 +178,110 @@ echo 'healthy update continues'
 	}
 	if strings.Contains(out, "private-legacy-inventory") || strings.Count(out, "OK ") != 2 {
 		t.Fatalf("inventory leaked or failed cleanup reported success: %s", out)
+	}
+}
+
+func TestUpdateBackgroundRetentionDetachesTerminalAndKeepsLock(t *testing.T) {
+	if _, err := exec.LookPath("flock"); err != nil {
+		t.Skip("flock not available")
+	}
+	root, out := runRetentionBash(t, `
+DIR="$FIXTURE_ROOT"
+UPDATE_STATE="$DIR/.aurago-update"
+mkdir -p "$UPDATE_STATE"
+UPDATE_WORK=$(mktemp -d "$UPDATE_STATE/work.XXXXXX")
+_AU_LOCK="$DIR/pid"
+exec 9>"$UPDATE_STATE/update.lock"
+flock -n 9
+export AURAGO_UPDATE_LOCK_FD=9
+UPDATE_OUTCOME=confirmed
+UPDATE_RETENTION_BINARY=mock_binary
+remove_regular_file_if_present() { return 0; }
+tui_cleanup() { :; }
+info() { echo "INFO $*"; }
+ok() { echo "OK $*"; }
+warn() { echo "WARN $*"; }
+mock_binary() {
+    if [ "$2" = --help ]; then echo '  -summary'; return 0; fi
+    test ! -e "$UPDATE_WORK" || return 90
+    test "$AURAGO_UPDATE_LOCK_FD" = 9 || return 91
+    : >&9
+    if read -r line; then return 92; fi
+    kill -HUP "$BASHPID"
+    echo 'cleanup started' >&2
+    for attempt in {1..100}; do
+        [ ! -e "$DIR/release-cleanup" ] || break
+        sleep 0.05
+    done
+    test -e "$DIR/release-cleanup" || return 93
+    echo 'Artifact cleanup: 0 removed, 2 kept; 0 B freed.'
+}
+trap update_exit_cleanup EXIT
+echo 'update finished'
+`)
+	if !strings.Contains(out, "update finished") || !strings.Contains(out, "cleanup continues in the background") || strings.Contains(out, "cleanup started") {
+		t.Fatalf("terminal output was not detached: %s", out)
+	}
+	logPath := filepath.Join(root, ".aurago-update", "cleanup.log")
+	waitForLog := func(want string) {
+		t.Helper()
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) {
+			data, _ := os.ReadFile(logPath)
+			if strings.Contains(string(data), want) {
+				return
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		data, _ := os.ReadFile(logPath)
+		t.Fatalf("background cleanup did not log %q: %s", want, data)
+	}
+	waitForLog("cleanup started")
+	if err := exec.Command("flock", "-n", filepath.Join(root, ".aurago-update", "update.lock"), "true").Run(); err == nil {
+		t.Fatal("background cleanup released the update lock")
+	}
+	if err := os.WriteFile(filepath.Join(root, "release-cleanup"), nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	waitForLog("OK Artifact cleanup:")
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if exec.Command("flock", "-n", filepath.Join(root, ".aurago-update", "update.lock"), "true").Run() == nil {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("finished background cleanup kept the update lock")
+}
+
+func TestUpdateBackgroundRetentionSkipsFailedOrDeferredUpdatesAndUnsafeLog(t *testing.T) {
+	_, out := runRetentionBash(t, `
+DIR="$FIXTURE_ROOT"
+UPDATE_STATE="$DIR/.aurago-update"
+mkdir -p "$UPDATE_STATE"
+_AU_LOCK="$DIR/pid"
+remove_regular_file_if_present() { return 0; }
+tui_cleanup() { :; }
+warn() { echo "WARN $*"; }
+for mode in failed deferred; do
+    (
+        UPDATE_OUTCOME=confirmed
+        UPDATE_RETENTION_BINARY=""
+        trap update_exit_cleanup EXIT
+        if [ "$mode" = failed ]; then
+            UPDATE_RETENTION_BINARY=must_not_run
+            exit 1
+        fi
+    ) || test "$?" = 1
+    test ! -e "$UPDATE_STATE/cleanup.log"
+done
+echo keep > "$DIR/keep"
+ln -s "$DIR/keep" "$UPDATE_STATE/cleanup.log"
+update_start_retention_cleanup must_not_run
+test "$(cat "$DIR/keep")" = keep
+`)
+	if !strings.Contains(out, "background cleanup could not create its log") {
+		t.Fatal(out)
 	}
 }
 
