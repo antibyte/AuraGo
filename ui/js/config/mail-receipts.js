@@ -14,11 +14,14 @@
         const stop = () => lifetime.abort();
         window.addEventListener('cfg:section-leave', stop, { once: true, signal: lifetime.signal });
         window.addEventListener('pagehide', stop, { once: true, signal: lifetime.signal });
-        root.append(element('h3', labels('title')), element('p', labels('help')));
+        const help = element('p', labels('help'), 'field-help');
+        help.id = 'config-mail-receipts-help';
+        root.append(element('h3', labels('title')), help);
         const occupancy = element('p');
         const controls = element('div', undefined, 'cfg-action-row');
         const filterLabel = element('label', labels('channel') + ' ');
         const filter = element('select', undefined, 'field-select');
+        filter.setAttribute('aria-describedby', help.id);
         filter.append(new Option(labels('all'), ''));
         const channelNames = { ntfy: 'ntfy', pushover: 'Pushover', telegram: 'Telegram', whatsapp: 'WhatsApp', discord: 'Discord', push: 'Web Push', telnyx: 'Telnyx', cyd: 'CYD', legacy: labels('legacy') };
         Object.entries(channelNames).forEach(([id, name]) => filter.append(new Option(name, id)));
@@ -44,6 +47,7 @@
         table.append(head, body);
         scroll.append(table);
         const more = element('button', labels('more'), 'btn btn-secondary');
+        more.id = 'config-mail-receipts-more';
         more.type = 'button';
         more.hidden = true;
         root.append(occupancy, controls, status, scroll, more);

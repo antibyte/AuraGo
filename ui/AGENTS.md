@@ -27,7 +27,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 ## Ownership
 
-- Notifications contains the metadata-only Mail delivery receipts card (`cfg/mail_receipts.js`). Show per-channel occupancy, attempt time and status; active attempts cannot be resolved. Both explicit resolutions use the native confirmation dialog and revision-bound POST, never send mail, never replay a lost mutation reply, and refresh current state. Abort reads on section leave/pagehide and keep all sixteen generic Config locales aligned. Verify `TestMailReceiptsConfigBrowser`; API/storage contracts belong to server/tools.
+- Notifications contains the metadata-only Mail delivery receipts widget (`js/config/mail-receipts.js`), loaded with the shared Config components and mounted only in that section. Its channel filter references the translated help. Show per-channel occupancy, attempt time and status; active attempts cannot be resolved. Both explicit resolutions use the native confirmation dialog and revision-bound POST, never send mail, never replay a lost mutation reply, and refresh current state. Abort reads on section leave/pagehide and keep all sixteen generic Config locales aligned. Verify `TestMailReceiptsConfigBrowser`; API/storage contracts belong to server/tools.
 
 
 - Chat question dialogs use the shared modal controller and session stop endpoint

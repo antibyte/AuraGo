@@ -36,7 +36,9 @@ func TestMailReceiptsConfigBrowser(t *testing.T) {
 	waitForJSBool(t, page, `() => document.querySelectorAll('#config-mail-receipts tbody tr').length===2`)
 	if !page.MustEval(`() => {
  const root=document.getElementById('config-mail-receipts'), rows=root.querySelectorAll('tbody tr');
+ const help=document.getElementById(root.querySelector('select').getAttribute('aria-describedby'));
  return root.innerText.includes('Mail-Zustellbelege') && root.innerText.includes('2/2000') &&
+ !!help?.textContent.trim() && root.contains(help) &&
  rows[0].innerText.includes('Zustellung unklar') && Array.from(rows[1].querySelectorAll('button')).every(b=>b.disabled) &&
  !root.innerText.includes('MUST_NOT_RENDER') && receiptFixture.writes.length===0;
 }`).Bool() {
@@ -55,9 +57,9 @@ func TestMailReceiptsConfigBrowser(t *testing.T) {
 	if !page.MustEval(`() => receiptFixture.writes.length===2 && receiptFixture.writes[1].resolution==='not_sent' && receiptFixture.writes[1].revision==='c'.repeat(64)`).Bool() {
 		t.Fatal("resolution did not bind the refreshed revision")
 	}
-	page.MustElement("#config-mail-receipts > button").MustClick()
+	page.MustElement("#config-mail-receipts-more").MustClick()
 	waitForJSBool(t, page, `() => document.querySelectorAll('#config-mail-receipts tbody tr').length===3`)
-	if !page.MustEval(`() => document.querySelector('#config-mail-receipts > button').hidden && receiptFixture.writes.length===2`).Bool() {
+	if !page.MustEval(`() => document.getElementById('config-mail-receipts-more').hidden && receiptFixture.writes.length===2`).Bool() {
 		t.Fatal("paging triggered a mutation or retained a finished cursor")
 	}
 	page.MustEval(`async () => {await selectSection('overview');}`)

@@ -2186,7 +2186,6 @@ async function renderSection(key) {
     if (key === 'notifications') {
         const receiptsRoot = document.getElementById('config-mail-receipts');
         try {
-            await loadModule('mail_receipts');
             if (receiptsRoot?.isConnected) window.mountMailReceiptsCard(receiptsRoot);
         } catch (error) {
             if (receiptsRoot?.isConnected) receiptsRoot.textContent = t('config.mail_receipts.error');
