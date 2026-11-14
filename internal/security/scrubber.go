@@ -3,6 +3,7 @@ package security
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"net/url"
 	"regexp"
 	"strings"
 	"sync"
@@ -53,6 +54,7 @@ var (
 	sensitiveMu           sync.RWMutex
 	sensitiveValues       = make(map[string]sensitiveEntry)
 	scopedSensitiveValues = make(map[string]int)
+	scopedSensitiveForms  = make(map[string]sensitiveEntry)
 )
 
 const minimumGlobalSensitiveLiteralBytes = 8
@@ -68,6 +70,7 @@ type sensitiveEntry struct {
 	fragmented *regexp.Regexp
 	hex        *regexp.Regexp
 	base64     []string
+	urlEncoded []*regexp.Regexp
 }
 
 // RedactedText returns a user-visible placeholder for hidden content.
@@ -147,6 +150,12 @@ func RegisterScopedSensitiveExact(value string) func() {
 	if scopedSensitiveValues == nil {
 		scopedSensitiveValues = make(map[string]int)
 	}
+	if scopedSensitiveForms == nil {
+		scopedSensitiveForms = make(map[string]sensitiveEntry)
+	}
+	if scopedSensitiveValues[value] == 0 {
+		scopedSensitiveForms[value] = sensitiveEntry{value: value, urlEncoded: encodedSensitiveForms(value)}
+	}
 	scopedSensitiveValues[value]++
 	sensitiveMu.Unlock()
 
@@ -156,6 +165,7 @@ func RegisterScopedSensitiveExact(value string) func() {
 			sensitiveMu.Lock()
 			if scopedSensitiveValues[value] <= 1 {
 				delete(scopedSensitiveValues, value)
+				delete(scopedSensitiveForms, value)
 			} else {
 				scopedSensitiveValues[value]--
 			}
@@ -191,11 +201,11 @@ func scrubRegistered(text string, identities bool) string {
 		}
 		entries = append(entries, entry)
 	}
-	scoped := make([]string, 0, len(scopedSensitiveValues))
+	scoped := make([]sensitiveEntry, 0, len(scopedSensitiveValues))
 	for value := range scopedSensitiveValues {
 		// A scoped value is a secret even when the same text is also an identity.
 		if existing, permanent := sensitiveValues[value]; !permanent || (existing.identity && !identities) {
-			scoped = append(scoped, value)
+			scoped = append(scoped, scopedSensitiveForms[value])
 		}
 	}
 	sensitiveMu.RUnlock()
@@ -203,14 +213,14 @@ func scrubRegistered(text string, identities bool) string {
 	for _, entry := range entries {
 		text = scrubSensitiveEntry(text, entry)
 	}
-	for _, value := range scoped {
-		text = strings.ReplaceAll(text, value, redactedPlaceholder)
+	for _, entry := range scoped {
+		text = scrubSensitiveEntry(text, entry)
 	}
 	return text
 }
 
 func prepareSensitiveEntry(value string) sensitiveEntry {
-	entry := sensitiveEntry{value: value}
+	entry := sensitiveEntry{value: value, urlEncoded: encodedSensitiveForms(value)}
 	compact := compactSensitiveValue(value)
 	if len(compact) >= 8 {
 		entry.fragmented = buildFragmentedSensitiveRegex(compact)
@@ -230,6 +240,9 @@ func prepareSensitiveEntry(value string) sensitiveEntry {
 }
 
 func scrubSensitiveEntry(text string, entry sensitiveEntry) string {
+	for _, encoded := range entry.urlEncoded {
+		text = encoded.ReplaceAllString(text, redactedPlaceholder)
+	}
 	if entry.value != "" && strings.Contains(text, entry.value) {
 		text = strings.ReplaceAll(text, entry.value, redactedPlaceholder)
 	}
@@ -245,6 +258,30 @@ func scrubSensitiveEntry(text string, entry sensitiveEntry) string {
 		}
 	}
 	return text
+}
+
+func encodedSensitiveForms(value string) []*regexp.Regexp {
+	var forms []*regexp.Regexp
+	seen := map[string]bool{value: true}
+	query := url.QueryEscape(value)
+	for _, encoded := range []string{query, url.PathEscape(value), strings.ReplaceAll(query, "+", "%20")} {
+		if seen[encoded] {
+			continue
+		}
+		seen[encoded] = true
+		var pattern strings.Builder
+		for i := 0; i < len(encoded); i++ {
+			if encoded[i] == '%' && i+2 < len(encoded) {
+				// Only percent hex digits are case-insensitive; secret text is not.
+				pattern.WriteString("%(?i:" + encoded[i+1:i+3] + ")")
+				i += 2
+			} else {
+				pattern.WriteString(regexp.QuoteMeta(encoded[i : i+1]))
+			}
+		}
+		forms = append(forms, regexp.MustCompile(pattern.String()))
+	}
+	return forms
 }
 
 func compactSensitiveValue(value string) string {

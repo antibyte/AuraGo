@@ -2,6 +2,7 @@ package ui
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/png"
 	"os"
@@ -174,6 +175,31 @@ func checkDesktopThemeOcclusion(t *testing.T, id string, fallback bool) {
 		s.waitFor(t, "selected voxel renderer", 30*time.Second, `(fallback)=>{const f=AuraDesktopThemeFx.inspect();return fallback?f.renderer==='fallback':f.rendererReady && f.windowOccluderCount===2;}`, fallback)
 	}
 	s.settle(t)
+	var contentBounds []int
+	s.evalInto(t, &contentBounds, `()=>{
+        const win=[...auditTest.state.windows.values()].find(w=>w.appId==='calculator');
+        const r=win.element.querySelector('.vd-window-content').getBoundingClientRect();
+        return [Math.ceil(r.left+12),Math.ceil(r.top+12),Math.floor(r.right-12),Math.floor(r.bottom-12)];
+    }`)
+	contentArea := image.Rect(contentBounds[0], contentBounds[1], contentBounds[2], contentBounds[3])
+	if contentArea.Dx() < 200 || contentArea.Dy() < 200 {
+		t.Fatalf("front-window content is unexpectedly small: %v", contentArea)
+	}
+	if id == "electronic_dreams" {
+		var painted int
+		s.evalInto(t, &painted, `bounds=>{
+            const canvas=document.querySelector('.vd-fx-dreams-canvas'), r=canvas.getBoundingClientRect();
+            const sx=canvas.width/r.width, sy=canvas.height/r.height;
+            const x=Math.ceil((bounds[0]-r.left)*sx), y=Math.ceil((bounds[1]-r.top)*sy);
+            const right=Math.floor((bounds[2]-r.left)*sx), bottom=Math.floor((bounds[3]-r.top)*sy);
+            const pixels=canvas.getContext('2d').getImageData(x,y,right-x,bottom-y).data;
+            let painted=0;for(let i=3;i<pixels.length;i+=4)if(pixels[i]!==0)painted++;
+            return painted;
+        }`, contentBounds)
+		if painted != 0 {
+			t.Fatalf("theme canvas paints %d pixels inside window content %v", painted, contentArea)
+		}
+	}
 	capture := func() image.Image {
 		t.Helper()
 		data, err := s.page.Screenshot(false, &proto.PageCaptureScreenshot{Format: proto.PageCaptureScreenshotFormatPng})
@@ -195,13 +221,23 @@ func checkDesktopThemeOcclusion(t *testing.T, id string, fallback bool) {
 	s.eval(t, `()=>{document.querySelector('.vd-theme-fx-layer').style.visibility='hidden';}`)
 	s.settle(t)
 	hidden := capture()
+	var firstDifferences []string
+	rounding := uint32(0)
+	if id == "electronic_dreams" {
+		// Source alpha stays exactly zero; the compositor can round RGB by one 8-bit step.
+		rounding = 0x101
+	}
 	difference := func(region image.Rectangle) int {
 		count := 0
+		firstDifferences = nil
 		for y := region.Min.Y; y < region.Max.Y; y++ {
 			for x := region.Min.X; x < region.Max.X; x++ {
 				r1, g1, b1, a1 := visible.At(x, y).RGBA()
 				r2, g2, b2, a2 := hidden.At(x, y).RGBA()
-				if r1 != r2 || g1 != g2 || b1 != b2 || a1 != a2 {
+				if max(r1, r2)-min(r1, r2) > rounding || max(g1, g2)-min(g1, g2) > rounding || max(b1, b2)-min(b1, b2) > rounding || a1 != a2 {
+					if len(firstDifferences) < 8 {
+						firstDifferences = append(firstDifferences, fmt.Sprintf("(%d,%d) %v / %v", x, y, visible.At(x, y), hidden.At(x, y)))
+					}
 					count++
 				}
 			}
@@ -211,8 +247,8 @@ func checkDesktopThemeOcclusion(t *testing.T, id string, fallback bool) {
 	if changed := difference(image.Rect(605, 350, 620, 600)); changed < 100 {
 		t.Fatalf("front theme frame disappeared over the lower window: only %d effect pixels", changed)
 	}
-	if changed := difference(image.Rect(650, 370, 960, 650)); changed != 0 {
-		t.Fatalf("theme effects painted over front-window contents: %d pixels", changed)
+	if changed := difference(contentArea); changed != 0 {
+		t.Fatalf("theme effects painted over front-window contents: %d pixels in %v: %v", changed, contentArea, firstDifferences)
 	}
 }
 

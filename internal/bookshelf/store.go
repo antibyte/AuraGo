@@ -15,10 +15,10 @@ import (
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
+	_ "modernc.org/sqlite"
 
 	"aurago/internal/dbutil"
 	"aurago/internal/fileutil"
-	_ "modernc.org/sqlite"
 )
 
 const schemaVersion = 6
@@ -140,7 +140,7 @@ func (s *Service) migrate(ctx context.Context, dbPath string) error {
 	}
 	if version > 0 && dbPath != ":memory:" {
 		backup := fmt.Sprintf("%s.v%d.%s.bak", dbPath, version, time.Now().UTC().Format("20060102T150405.000000000"))
-		if _, err := s.db.ExecContext(ctx, `VACUUM INTO ?`, backup); err != nil {
+		if _, err := dbutil.BackupSQLite(ctx, s.db, backup); err != nil {
 			return fmt.Errorf("back up bookshelf catalog before migration: %w", err)
 		}
 	}

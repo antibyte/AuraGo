@@ -49,7 +49,7 @@
   "invasion.deploy_method": "Μέθοδος Ανάπτυξης",
   "invasion.deploy_ssh": "SSH",
   "invasion.description": "Περιγραφή",
-  "invasion.docker_local_hint": "Για τοπικές εγκαταστάσεις Docker, το κύριο URL αντιστοιχίζεται αυτόματα σε host.docker.internal — δεν απαιτείται χειροκίνητη ρύθμιση host.",
+  "invasion.docker_local_hint": "Η διεύθυνση του master χρησιμοποιεί αυτόματα το host.docker.internal. Τα μυστικά απαιτούν τοπικό Unix socket, Windows pipe ή loopback TCP· το απομακρυσμένο TCP χρειάζεται TLS/mTLS ή SSH. Μετά από πιθανή μεταφορά ρυθμίσεων, τα τρέχοντα κλειδιά διατηρούνται σε σφάλματα. Έλεγξε το Egg και ανάπτυξέ το ξανά με τον τρέχοντα master.",
   "invasion.docker_remote_plaintext_hint": "Η ιδιωτική ρύθμιση Egg απαιτεί Docker με TLS, mTLS ή SSH. Το μη κρυπτογραφημένο HTTP απορρίπτεται.",
   "invasion.docker_ssh_hint": "Εκτελεί το container του egg στο Docker Engine του στόχου μέσω κρυπτογραφημένης σύνδεσης SSH (socket /var/run/docker.sock). Χρησιμοποιεί τον host, τη θύρα, το όνομα χρήστη και το secret αυτού του nest· ο χρήστης SSH χρειάζεται πρόσβαση στο socket του Docker και το κλειδί του host πρέπει να υπάρχει στο known_hosts.",
   "invasion.docker_tls": "Docker TLS",

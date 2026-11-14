@@ -8,6 +8,8 @@ Memory retrieval, hygiene, indexing, and maintenance.
 
 `internal/memory` owns this domain. The contracts below also bind related server, UI, config, asset, and test work through the root routing table.
 
+- Migration backups use `dbutil.BackupSQLite`: owner-only staging and file permissions/Windows ACL, WAL-inclusive copy, sync and atomic publication. Backup failure aborts migration. Keep existing copies; collisions insert a unique suffix before the extension. Restore guidance: `documentation/migration-backups.md`.
+
 ## Local Contracts
 
 ### Corpus capacity

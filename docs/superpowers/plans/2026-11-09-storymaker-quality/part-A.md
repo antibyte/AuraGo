@@ -268,15 +268,19 @@ New:
 
 **Edit** `internal/storymaker/agentjob_test.go` (add a row; keep the tabs of the neighbouring rows)
 Old:
+{% raw %}
 ```go
 {name: "clean, advice is not listed", in: OutcomeInput{Progress: done, Check: CheckReport{Compile: "ok", Advice: []Issue{{Severity: SeverityWarning, Code: CodeCueLate, SceneID: "s1"}}}}, outcome: OutcomeReadyUnverified, checks: []AgentCheck{layout}},
 ```
+{% endraw %}
 New:
+{% raw %}
 ```go
 {name: "clean, advice is not listed", in: OutcomeInput{Progress: done, Check: CheckReport{Compile: "ok", Advice: []Issue{{Severity: SeverityWarning, Code: CodeCueLate, SceneID: "s1"}}}}, outcome: OutcomeReadyUnverified, checks: []AgentCheck{layout}},
 		{name: "a craft finding is listed and never blocks", in: OutcomeInput{Progress: done, Check: CheckReport{Compile: "ok", Issues: []Issue{{Severity: SeverityWarning, Code: CodeEnvironmentMonotony}, {Severity: SeverityWarning, Code: CodeCastUnused, SceneID: "s3"}}}}, outcome: OutcomeReadyUnverified, checks: []AgentCheck{layout, {Code: CodeEnvironmentMonotony}, {Code: CodeCastUnused, SceneID: "s3"}}},
 		{name: "a real model-fixable error still blocks next to a craft finding", in: OutcomeInput{Progress: done, Check: CheckReport{Compile: "ok", Issues: []Issue{{Severity: SeverityWarning, Code: CodeGestureMonotony}, {Severity: SeverityError, Code: CodeSceneUnfilled, SceneID: "s2"}}}}, outcome: OutcomeIncomplete, checks: []AgentCheck{layout, {Code: CodeGestureMonotony}, {Code: CodeSceneUnfilled, SceneID: "s2"}}},
 ```
+{% endraw %}
 
 **Edit** `internal/storymaker/issues_test.go`: append to the end of the file.
 ```go
@@ -469,6 +473,7 @@ func TestFilmCraftCastUnusedIgnoresTheNarrator(t *testing.T) {
 - [ ] **Step 2: Run to see it fail:** `GOCACHE='D:\dev-cache\go-build' GOTMPDIR='D:\tmp\go-build' go test ./internal/storymaker -run '^TestFilmCraft' -count=1`. Expected: FAIL to build (`LintFilmCraft` is not defined).
 - [ ] **Step 3: Create `internal/storymaker/studio_craft.go`:**
 
+{% raw %}
 ```go
 package storymaker
 
@@ -665,6 +670,7 @@ func lintCastUnused(st *Story, plan []SceneDirection) []Issue {
 	return out
 }
 ```
+{% endraw %}
 - [ ] **Step 4: Run:** `GOCACHE='D:\dev-cache\go-build' GOTMPDIR='D:\tmp\go-build' go test ./internal/storymaker -run '^TestFilmCraft' -count=1 -v`. Expected: all PASS. If `TestFilmCraftPassesTheVariedStory` fails, read which finding fired: it is either a threshold bug in the lint or a gap in the fixture, and the fixture is hand-written, so fix the fixture only when the lint is right.
 - [ ] **Step 5: Commit:** `gofmt -w internal/storymaker/studio_craft.go internal/storymaker/studio_craft_test.go`, then `git add internal/storymaker/studio_craft.go internal/storymaker/studio_craft_test.go`; message `feat(storymaker): film-level craft lint (environments, framing, gestures, cast)`.
 
@@ -750,6 +756,7 @@ New:
 // Walking away before showing at "left" resolves spot_overlap in s2, while fade across environments triggers advice; s1 holds the third "pop" in a row.
 ```
 - [ ] **Step 3: Add a test for the new rule.** Append to `internal/storymaker/studio_check_test.go`:
+{% raw %}
 ```go
 
 func TestLintForJobEntryStreakResetsPerScene(t *testing.T) {
@@ -771,6 +778,7 @@ func TestLintForJobEntryStreakResetsPerScene(t *testing.T) {
 	}
 }
 ```
+{% endraw %}
 - [ ] **Step 4: Run:** `GOCACHE='D:\dev-cache\go-build' GOTMPDIR='D:\tmp\go-build' go test ./internal/storymaker -run '^(TestStudioCheck|TestLintForJobEntryStreakResetsPerScene)' -count=1`. Expected: PASS.
 - [ ] **Step 5: Commit:** `gofmt -w internal/storymaker/studio_check.go internal/storymaker/studio_check_test.go`; `git add` both; message `fix(storymaker): reset the entry_monotony streak per scene and name only valid entries`.
 
@@ -1275,6 +1283,7 @@ func tagMatches(words []string, tag string) bool {
 ```
 - [ ] **Step 2: Create `internal/storymaker/studio_direction_test.go`:**
 
+{% raw %}
 ```go
 package storymaker
 
@@ -1389,6 +1398,7 @@ func TestTagMatchesWholeWordsAndLongPrefixes(t *testing.T) {
 	}
 }
 ```
+{% endraw %}
 - [ ] **Step 3: Run:** `GOCACHE='D:\dev-cache\go-build' GOTMPDIR='D:\tmp\go-build' go test ./internal/storymaker -run '^(TestDirection|TestTagMatches|TestEnvironmentGuide)' -count=1 -v`. Expected: all PASS. If `TestDirectionPlanForTheRealFirewallRun` fails on `plan[2].Environment`, print the ranking with a temporary `t.Logf` of `rankEnvironments` and fix the tag lists in `env_direction.json`, not the test: the test states what a firewall story should get.
 - [ ] **Step 4: Commit:** `gofmt -w` the two files; `git add internal/storymaker/studio_direction.go internal/storymaker/studio_direction_test.go`; message `feat(storymaker): direction plan (role, environment, framing, gesture, cast, prop spot)`.
 

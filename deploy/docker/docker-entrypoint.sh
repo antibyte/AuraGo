@@ -225,6 +225,13 @@ fi
 echo "[Entrypoint] Config OK"
 
 # === 4. MASTER KEY SETUP ===
+# Query the same loader as the backend before any key can be generated. Egg
+# configurations resolve ./data relative to /app/data/config.yaml, not /app.
+if ! DATA_DIR="$("$MERGER_BIN" -data-dir "$CONFIG_FILE")"; then
+    echo "[Entrypoint] FATAL: Cannot resolve the configured data directory before Vault setup."
+    exit 1
+fi
+VAULT_FILE="$DATA_DIR/vault.bin"
 # Priority:
 #   1. explicit env var / stack-secret environment injection
 #   2. Docker secret (/run/secrets/aurago_master_key)
@@ -279,7 +286,7 @@ if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
         echo "[Entrypoint] Loading master key from $ENV_FILE"
         export AURAGO_MASTER_KEY="$(read_master_key_from_env_file "$ENV_FILE")"
         export AURAGO_MASTER_KEY
-    elif [ -s /app/data/vault.bin ]; then
+    elif [ -e "$VAULT_FILE" ] || [ -L "$VAULT_FILE" ]; then
         echo "[Entrypoint] FATAL: Existing vault has no master key; restore its original key before starting."
         exit 1
     else

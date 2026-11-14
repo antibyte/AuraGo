@@ -101,9 +101,22 @@ func TestServiceLiveRuns(t *testing.T) {
 	if _, err := s.TriggerFromMission("mission_unknown", "", "api", nil); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("unknown mission = %v", err)
 	}
+	// The rejected trigger records its failed run asynchronously. Join that
+	// bookkeeping before reading the complete history, including terminal states.
+	s.startFailures.Wait()
 	runs, err := s.Runs(ctx, pub.ID, RunFilter{Mode: ModeLive})
-	if err != nil || len(runs) != 2 {
+	if err != nil || len(runs) != 3 {
 		t.Fatalf("Runs = %d, %v", len(runs), err)
+	}
+	counts := map[RunStatus]int{}
+	for _, run := range runs {
+		counts[run.Status]++
+		if run.Status == RunError && (run.ErrorCode != StartFailedCode || run.TriggerNode != "n_zzzzzzzz" || run.FinishedAt == nil) {
+			t.Fatalf("rejected trigger history = %+v", run)
+		}
+	}
+	if counts[RunSuccess] != 2 || counts[RunError] != 1 {
+		t.Fatalf("terminal run states = %v", counts)
 	}
 }
 

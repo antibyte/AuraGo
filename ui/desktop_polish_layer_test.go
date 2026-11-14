@@ -85,7 +85,7 @@ func TestDesktopPolishPointerLightTargetsMatch(t *testing.T) {
 	if match == nil {
 		t.Fatalf("polish-runtime.js must declare POINTER_LIGHT_TARGETS")
 	}
-	list := regexp.MustCompile(`:is\(([^)]+)\):hover`).FindAllStringSubmatch(css, -1)
+	list := regexp.MustCompile(`:is\(([^)]+)\):hover\s*\{\s*background-image:\s*radial-gradient\(circle at var\(--vd-rx, 50%\) var\(--vd-ry, 50%\)`).FindAllStringSubmatch(css, -1)
 	if len(list) == 0 {
 		t.Fatalf("desktop-polish.css must style the pointer light targets")
 	}

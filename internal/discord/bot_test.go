@@ -10,6 +10,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
+	"aurago/internal/tools"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/sashabaranov/go-openai"
@@ -326,7 +327,7 @@ func TestRunDiscordMessageReleasesSlotAfterTheRun(t *testing.T) {
 	sender := &fakeDiscordSender{}
 	runs := 0
 
-	if !runDiscordMessage(context.Background(), slots, 1, sender, "channel-1", slog.Default(), func() { runs++ }) {
+	if !runDiscordMessage(context.Background(), slots, 1, sender, "channel-1", slog.Default(), false, func() { runs++ }) {
 		t.Fatal("runDiscordMessage rejected a message while the pool was free")
 	}
 	if runs != 1 {
@@ -351,7 +352,7 @@ func TestRunDiscordMessageRejectsWhenPoolExhausted(t *testing.T) {
 
 	sender := &fakeDiscordSender{}
 	runs := 0
-	accepted := runDiscordMessage(context.Background(), slots, 1, sender, "channel-1", slog.Default(), func() { runs++ })
+	accepted := runDiscordMessage(context.Background(), slots, 1, sender, "channel-1", slog.Default(), false, func() { runs++ })
 	if accepted {
 		t.Fatal("runDiscordMessage accepted a message while the pool was exhausted")
 	}
@@ -373,11 +374,64 @@ func TestRunDiscordMessageWithoutLimitRunsUnbounded(t *testing.T) {
 	sender := &fakeDiscordSender{}
 	runs := 0
 
-	if !runDiscordMessage(context.Background(), newDiscordWorkerSlots(0), 0, sender, "channel-1", slog.Default(), func() { runs++ }) {
+	if !runDiscordMessage(context.Background(), newDiscordWorkerSlots(0), 0, sender, "channel-1", slog.Default(), false, func() { runs++ }) {
 		t.Fatal("runDiscordMessage rejected a message without a configured limit")
 	}
 	if runs != 1 {
 		t.Fatalf("runs = %d, want 1", runs)
+	}
+}
+
+func TestRunDiscordStopBypassesSaturatedWorkers(t *testing.T) {
+	slots := newDiscordWorkerSlots(1)
+	slots <- struct{}{}
+	sender := &fakeDiscordSender{}
+	runs := 0
+	if !runDiscordMessage(context.Background(), slots, 1, sender, "channel", slog.Default(), discordControlMessage("/stop", t.Name()), func() { runs++ }) ||
+		runs != 1 || len(slots) != 1 || sender.sends != 0 {
+		t.Fatal("authorized stop waited for or changed the occupied worker")
+	}
+	for _, text := range []string{"/stop", " <@bot> /stop ", "<@!bot> /stop"} {
+		if got := discordCommandText(text, "bot", true); got != "/stop" {
+			t.Fatalf("command text = %q", got)
+		}
+	}
+}
+
+func TestRunDiscordQuestionReplyBypassesSaturatedWorkers(t *testing.T) {
+	sessionID := t.Name()
+	answers := tools.RegisterQuestion(sessionID, &tools.PendingQuestion{Options: []tools.QuestionOption{{Label: "Continue", Value: "continue"}}})
+	defer tools.CancelQuestion(sessionID)
+	if discordControlMessage("1", sessionID+"-other") {
+		t.Fatal("another session inherited the question")
+	}
+	slots := newDiscordWorkerSlots(1)
+	slots <- struct{}{}
+	sender := &fakeDiscordSender{}
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	if !runDiscordMessage(ctx, slots, 1, sender, "channel", slog.Default(), discordControlMessage("1", sessionID), func() {
+		answer, ok := tools.ResolveQuestionReply(sessionID, "1")
+		if !ok {
+			t.Fatal("reply did not resolve the real pending question")
+		}
+		answer.Source = tools.QuestionSourceDiscord
+		if !tools.CompleteQuestion(sessionID, answer) {
+			t.Fatal("question completion failed")
+		}
+	}) {
+		t.Fatal("question reply waited for a worker")
+	}
+	select {
+	case answer := <-answers:
+		if answer.Selected != "continue" || answer.Source != tools.QuestionSourceDiscord {
+			t.Fatalf("answer=%+v", answer)
+		}
+	default:
+		t.Fatal("waiting agent received no answer")
+	}
+	if len(slots) != 1 || sender.sends != 0 || discordControlMessage("hello", sessionID) {
+		t.Fatal("question handling changed the worker or kept a stale priority")
 	}
 }
 

@@ -653,6 +653,7 @@ func issueNeverBlocks(code string) bool {
 
 - [ ] **Step 2: Write the failing test.** Create `internal/storymaker/layout_test.go`:
 
+{% raw %}
 ```go
 package storymaker
 
@@ -759,6 +760,7 @@ func TestLayoutIssuesStaticSceneAndMissingArt(t *testing.T) {
 	}
 }
 ```
+{% endraw %}
 - [ ] **Step 3: Run to see it fail:** `GOCACHE='D:\dev-cache\go-build' GOTMPDIR='D:\tmp\go-build' go test ./internal/storymaker -run '^TestLayoutIssues' -count=1`. Expected: FAIL to build (`LayoutIssues`, `LayoutOptions`, `IssueLayout` are not defined).
 - [ ] **Step 4: Implement.** Append to `internal/storymaker/layout.go`:
 
@@ -989,6 +991,7 @@ New:
 (The comment of `keepAnswer`, "It is released only with the outcome ready_unverified.", gets "ready or" before it.)
 - [ ] **Step 3: Tests.** In `internal/storymaker/agentjob_test.go` add rows (same place as in A2):
 
+{% raw %}
 ```go
 		{name: "ready when the layout was measured and nothing is open", in: OutcomeInput{Progress: done, Check: CheckReport{Compile: "ok", StoryboardScenes: 3, LayoutScenes: 3}}, outcome: OutcomeReady, checks: nil},
 		{name: "a code scene keeps layout_unverified", in: OutcomeInput{Progress: done, Check: CheckReport{Compile: "ok", StoryboardScenes: 2, CodeScenes: 1, LayoutScenes: 2}}, outcome: OutcomeReadyUnverified, checks: []AgentCheck{layout}},
@@ -996,10 +999,12 @@ New:
 		{name: "a layout finding that is left is listed and never blocks", in: OutcomeInput{Progress: done, Check: CheckReport{Compile: "ok", StoryboardScenes: 2, LayoutScenes: 2, Issues: []Issue{{Severity: SeverityWarning, Code: CodeCaptionOverlap, SceneID: "s2"}}}}, outcome: OutcomeReadyUnverified, checks: []AgentCheck{{Code: CodeCaptionOverlap, SceneID: "s2"}}},
 		{name: "an open narration check keeps the film from ready", in: OutcomeInput{Progress: done, Narration: "narration_pending", Check: CheckReport{Compile: "ok", StoryboardScenes: 2, LayoutScenes: 2}}, outcome: OutcomeReadyUnverified, checks: []AgentCheck{{Code: "narration_pending"}}},
 ```
+{% endraw %}
 The table compares `checks` with `reflect.DeepEqual`: for the first row, `DecideOutcome` returns a nil slice when nothing was added, which equals `nil`. If the table type compares an empty slice differently, use `[]AgentCheck(nil)`.
 
 Create `internal/storymaker/studio_layout_check_test.go`:
 
+{% raw %}
 ```go
 package storymaker
 
@@ -1063,6 +1068,7 @@ func TestCheckTurnsTheLayoutIntoFindings(t *testing.T) {
 	}
 }
 ```
+{% endraw %}
 The fixture `agent-varied` has seven scenes, so the rig reports `Layout` for only two of them: that is enough for this test; the counts come from the summary, not from the story.
 - [ ] **Step 4: Run:** `GOCACHE='D:\dev-cache\go-build' GOTMPDIR='D:\tmp\go-build' go test ./internal/storymaker -run '(TestDecideOutcome|TestCheck|TestLayoutIssues|TestStudioCheck)' -count=1`, then `GOCACHE='D:\dev-cache\go-build' GOTMPDIR='D:\tmp\go-build' go test ./internal/server -run 'TestStorymakerAgentScripted' -count=1 -timeout 20m`. Expected: PASS. A scripted job still ends `ready_unverified`: its browser is a stub, so the compile is unavailable.
 - [ ] **Step 5: Commit:** `gofmt -w` the touched Go files; `git add internal/storymaker/studio_check.go internal/storymaker/agentjob.go internal/storymaker/agentjob_test.go internal/storymaker/studio_layout_check_test.go internal/server/storymaker_agent.go`; message `feat(storymaker): layout findings never block, and a film with nothing open is ready`.

@@ -14,6 +14,7 @@ func MaskNegatedVerbs(text string, isVerb func(string) bool) string {
 		text       string
 		start, end int
 		boundary   bool
+		filler     bool
 	}
 	var words []word
 	start, previousEnd := -1, 0
@@ -22,7 +23,7 @@ func MaskNegatedVerbs(text string, isVerb func(string) bool) string {
 			return
 		}
 		w := strings.ToLower(strings.ReplaceAll(text[start:end], "’", "'"))
-		words = append(words, word{w, start, end, strings.ContainsAny(text[previousEnd:start], ",.;:!?\n\r")})
+		words = append(words, word{text: w, start: start, end: end, boundary: strings.ContainsAny(text[previousEnd:start], ",.;:!?\n\r")})
 		previousEnd, start = end, -1
 	}
 	for i, r := range text {
@@ -35,6 +36,15 @@ func MaskNegatedVerbs(text string, isVerb func(string) bool) string {
 		}
 	}
 	flush(len(text))
+	for i := 0; i+1 < len(words); i++ {
+		if words[i+1].boundary {
+			continue
+		}
+		phrase := words[i].text + " " + words[i+1].text
+		if phrase == "kein witz" || phrase == "keine ahnung" || phrase == "keinen scherz" || phrase == "kein scherz" {
+			words[i].filler, words[i+1].filler = true, true
+		}
+	}
 	isBarrier := func(w string) bool {
 		switch w {
 		case "and", "but", "then", "while", "yet", "und", "aber", "dann", "sondern",
@@ -65,11 +75,50 @@ func MaskNegatedVerbs(text string, isVerb func(string) bool) string {
 				if words[gap].boundary || isBarrier(words[j].text) || isVerb(words[j].text) {
 					break
 				}
+				if words[j].filler {
+					continue
+				}
 				if isNegative(words[j].text, direction < 0) {
 					if direction > 0 {
+						if strings.HasPrefix(words[j].text, "kein") {
+							// A determiner after an existing object does not negate its disclosure.
+							for k := i + 1; k < j; k++ {
+								if words[k].filler {
+									continue
+								}
+								switch words[k].text {
+								case "mir", "dir", "uns", "euch", "ihm", "ihr", "ihnen", "bitte", "jetzt", "künftig", "fortan",
+									"bloß", "bloss", "wirklich", "ausdrücklich", "grundsätzlich", "überhaupt":
+									continue
+								case "im", "in":
+									next := k + 1
+									if words[k].text == "in" && next < j {
+										switch words[next].text {
+										case "dem", "der", "diesem", "dieser":
+											next++
+										}
+									}
+									if next < j && negationLocation(words[next].text) {
+										k = next
+										continue
+									}
+								case "auf":
+									if k == j-1 && words[j].text == "keinen" && j+1 < len(words) && !words[j+1].boundary && words[j+1].text == "fall" {
+										continue
+									}
+								}
+								return false
+							}
+						}
 						for k := j + 1; k < len(words) && !words[k].boundary; k++ {
 							// A destination contrast still permits disclosure elsewhere.
 							if words[k].text == "but" || words[k].text == "aber" || words[k].text == "sondern" {
+								return false
+							}
+							if words[k].text == "and" || words[k].text == "und" || words[k].text == "then" || words[k].text == "dann" {
+								break
+							}
+							if isBarrier(words[k].text) || isVerb(words[k].text) {
 								return false
 							}
 						}
@@ -108,4 +157,12 @@ func absNegationDistance(n int) int {
 		return -n
 	}
 	return n
+}
+
+func negationLocation(word string) bool {
+	switch word {
+	case "chat", "antwort", "antworten", "protokoll", "log", "logs", "ausgabe", "bildschirm", "konsole":
+		return true
+	}
+	return false
 }

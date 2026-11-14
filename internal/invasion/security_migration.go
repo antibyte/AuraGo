@@ -1,11 +1,11 @@
 package invasion
 
 import (
+	"context"
 	"database/sql"
-	"errors"
 	"fmt"
-	"os"
-	"time"
+
+	"aurago/internal/dbutil"
 )
 
 var eggSecurityColumns = []struct{ table, name, definition string }{
@@ -70,20 +70,5 @@ func migrateEggSecurity(db *sql.DB) error {
 }
 
 func backupInvasionDatabase(db *sql.DB, target string) (string, error) {
-	if _, err := os.Stat(target); err == nil {
-		target += "." + time.Now().UTC().Format("20060102T150405.000000000Z")
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return "", err
-	}
-	file, err := os.OpenFile(target, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-	if err != nil {
-		return "", fmt.Errorf("create private Invasion backup: %w", err)
-	}
-	if err := file.Close(); err != nil {
-		return "", err
-	}
-	if _, err := db.Exec(`VACUUM INTO ?`, target); err != nil {
-		return "", fmt.Errorf("backup Invasion database: %w", err)
-	}
-	return target, nil
+	return dbutil.BackupSQLite(context.Background(), db, target)
 }

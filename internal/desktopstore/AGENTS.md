@@ -86,6 +86,8 @@ Store app configuration, runtime, assets, and publication.
 
 ### DeepTutor
 
+- Login remains mandatory while installed, even when stopped or Desktop is disabled. `DeepTutorNeedsLogin` passively reads installed and pending/running metadata; it performs no initialization. `AdmitDeepTutor` serializes operation admission and durable pending records with server config saves. Recheck relay requirements before every non-cleanup operation, including start/restart; stop and uninstall stay available.
+
 - `deeptutor` (category `ai`, icon `book`, `open_maximized`) is pinned to the
   digest of `ghcr.io/hkuds/deeptutor:1.7.2` (amd64+arm64 index
   `sha256:9b8b21ea…6da8`, see `catalog.go`). Port 3782, one named volume
@@ -385,13 +387,12 @@ Store app configuration, runtime, assets, and publication.
   `delete_data` keeps them) are reused and never removed by a failed install; do
   not turn them into a blocker, the reinstall that reuses them is a feature
   (`TestUninstallRemovesVolumesOnlyWhenRequested`).
-- Before a schema migration step runs on an existing database (a table or a
-  column from `storeColumnMigrations` is missing), `backupBeforeMigrationLocked`
-  writes a `VACUUM INTO` copy to `<db>.before-install-journal.bak` (mode 0600).
-  A fresh or up-to-date database takes none, an existing file (even an empty
-  one) is never overwritten, a failed copy is removed and the migration goes
-  on. A future schema migration needs its own backup suffix, otherwise this
-  file blocks its backup. Verify `TestStoreMigration*`.
+- Before a pending schema migration, `backupBeforeMigrationLocked` requires a
+  private, WAL-inclusive, synced `dbutil.BackupSQLite` copy at
+  `<db>.before-install-journal.bak`. Existing copies remain; a conflict inserts
+  a unique suffix before `.bak`. Fresh/current databases take no copy. Any
+  backup or schema-inspection failure aborts initialization before DDL. See
+  `documentation/migration-backups.md`; verify `TestStoreMigration*`.
 - Installing records without an attempt marker (written before the journal)
   keep the old remove-by-record cleanup (`TestInstallReplacesFailedInstallingRecord`,
   `TestInitRecoversInterruptedInstallingOperation`). The interrupted-install

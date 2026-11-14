@@ -41,6 +41,8 @@ DeepTutor's `model_catalog.json`:
   is first created. Change them later in DeepTutor's settings if AuraGo's model
   changes.
 
+Login cannot be disabled while DeepTutor is installed, including when stopped or when an installation is pending. Uninstall DeepTutor first. Rejected changes return `409 deeptutor_requires_login` and leave configuration and credentials unchanged. Manual invalid configuration prevents startup; a rejected reload retains the running valid settings. AuraGo never stops the container automatically to allow this change.
+
 ## Requirements
 
 - **AuraGo login must be enabled** (Config > Auth, with a password set). The

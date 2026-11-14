@@ -119,12 +119,21 @@ approved content and acceptance scope lives in
 - `TestGoldfishAdventureOpeningBrowser` hovers artwork coordinates in R02 and
   solves its document/stamp puzzle with pointer clicks through the exit to R03;
   selector-only clicks cannot verify hotspot placement.
+- `TestGoldfishAdventureHotspotActionsBrowser/r05_check_invoice` opens a
+  reducer-reached R05 save with `customs_clear`, clicks the independently reviewed
+  invoice point with the real pointer, and checks persisted `r07_invoice` and
+  `read_head` effects. Give its shared browser page a 30-minute deadline and run
+  it with `go test -timeout=30m`; failure screenshots and UI diagnostics are
+  best effort so they preserve the original test failure.
 - The hotspot suite covers all 16 rooms, four viewport/window/DPR/theme profiles,
   reachable actor/layer/exit/route/ending variants, all actions, and completion
-  and skipping of all 14 cinematics. It belongs to the existing General CI shard.
+  and skipping of all 14 cinematics. Core/targets/scenes run in Goldfish core; all actions run in Goldfish actions,
+  and cinematic recovery runs in Goldfish cinematics.
   `AURAGO_BROWSER_ARTIFACT_DIR` writes screenshots, expected/observed reactions
   and the reachability matrix. R05's two `ship_ready` exits cannot be reached
   locked: entering the ship already needs the action granting that flag.
+- Before moving the real pointer, scroll the stage back into view when bar/menu interactions clipped it behind small-window chrome. Require the final point to hit the stage; never bypass occlusion with synthetic hotspot clicks.
+- The cinematic harness observes and activates the visible Skip button in one browser turn so a completed moment cannot turn a delayed click into a dialogue skip. Action targets still use real pointer clicks and compare persisted effects and the first result line.
 - Validate asset paths/hashes/alpha/atlas bounds and complete localization keys.
 - Rebuild and check Desktop bundles after shared shell registration changes.
 

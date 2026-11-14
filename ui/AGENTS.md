@@ -27,6 +27,9 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 ## Ownership
 
+- Notifications contains the metadata-only Mail delivery receipts widget (`js/config/mail-receipts.js`), loaded with the shared Config components and mounted only in that section. Its channel filter references the translated help. Show per-channel occupancy, attempt time and status; active attempts cannot be resolved. Both explicit resolutions use the native confirmation dialog and revision-bound POST, never send mail, never replay a lost mutation reply, and refresh current state. Abort reads on section leave/pagehide and keep all sixteen generic Config locales aligned. Verify `TestMailReceiptsConfigBrowser`; API/storage contracts belong to server/tools.
+
+
 - Chat question dialogs use the shared modal controller and session stop endpoint
   `/api/admin/stop` for Cancel/Escape. Keep failed answer/stop requests visible and
   retryable, trap focus in nested Desktop dialogs, and restore focus on completion.
@@ -47,6 +50,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
   passive capability metadata, even with routing disabled. Keep the common
   label in all sixteen locales; verify `TestLLMCapabilityNoticeBrowser`.
 
+- Invasion nest help explains local secret transports and key-preserving recovery after possible configuration delivery in all sixteen locales.
 - Invasion's Egg editor stores explicit file/network/unsandboxed grants. The
   reconfiguration dialog loads the applied permission snapshot and submits false
   and [] revocations. History failures keep editing safe and retryable. Empty
@@ -284,6 +288,9 @@ New app-scoped prefixes must contain no `ad` substring; verify
   `TestChatFrontend_VideoPlayerFlowRemainsPresent`.
 
 ## Local Contracts
+
+- Shared browser smoke cleanup closes, kills and reaps its launched browser before removing the profile or returning to test-owned directory cleanup. Preserve central browser opt-in and verify `TestBrowserSmokeCleanup` with opt-in enabled.
+- Theme occlusion checks measure the actual window content bounds. Electronic Dreams requires exactly zero source-canvas alpha there; only its composited RGB comparison permits one 8-bit rounding step, with alpha still exact. Verify `TestDesktopExperienceEffectOcclusionBrowser`.
 
 - Desktop file drops belong to the workspace background and `#vd-icons` only.
   Events bubbling from app windows, widgets, dialogs or already handled drop
@@ -1357,6 +1364,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
   the existing delete-permission dialog, first asserting that the grant stays off.
   Fritz!Box mouse-pager and theme-cursor fixtures declare
   hover-capable pointer hardware; touch layouts intentionally hide its arrows.
+- Storymaker preview tours await the host frame acknowledgement before the late-message
+  stability window; compiled UI state alone does not prove the frame was drawn.
 - Infra menu browser journeys await the native dialog `close` event before
   opening another popover, so pending focus restoration cannot steal its keys.
 - EasyDrag metadata journeys select active dialogs for native close clicks and
@@ -1379,7 +1388,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
   not stale its velocity samples. Scene, coverage and quality assertions retain quality 1.
 - Browser contracts (Chrome or Edge):
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; $env:AURAGO_BROWSER_ARTIFACT_DIR='../disposable/browser-artifacts'; go test -count=1 ./ui/... -run 'Precision.*Browser|Config.*Browser'`.
-- Browser discovery honors `CHROME_BIN`, then PATH and standard Windows/macOS locations. An explicit override must be executable; it never silently falls back. With `AURAGO_RUN_BROWSER_SMOKE=1`, missing browsers and launch failures fail the test. Security Gates partitions the full UI package into populated-config, config-layout, General and four Desktop name ranges (`A-D`, `E-G`, `H-R`, `S-Z`) with independent timeouts and fail-fast disabled; the audit package checks that each test belongs to exactly one job.
+- Browser discovery honors `CHROME_BIN`, then PATH and standard Windows/macOS locations. An explicit override must be executable; it never silently falls back. With `AURAGO_RUN_BROWSER_SMOKE=1`, missing browsers and launch failures fail the test. The central launcher requires this opt-in before discovery or process creation, including the shared EasyDrag browser. Security Gates partitions the full UI package into populated-config, config-layout, General A–M/remaining, four Desktop name ranges (`A-D`, `E-G`, `H-R`, `S-Z`), dedicated Aura Drift quality/controls and other flows, Leafy/Minigolf/Pinball/Orbit shards, and Goldfish core/actions/cinematics. Every test (including special names) belongs to exactly one shard; each has a 30-minute test and 60-minute job budget with fail-fast disabled.
 - The shared Rod browser helper disables its leakless wrapper on Windows because the wrapper can hang before publishing the child PID; it registers `launcher.Kill` for explicit process cleanup. Linux retains Rod's default leakless behavior.
 - Config refresh browser coverage uses the real lazy renderers with local API
   fixtures, every section at five widths in both themes/densities, plus draft,

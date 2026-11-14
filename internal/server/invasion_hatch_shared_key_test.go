@@ -65,7 +65,7 @@ func TestReplaceEggSharedKeyRestoresThePreviousKeyWhenTheConfigWasNotDelivered(t
 }
 
 func TestReplaceEggSharedKeyKeepsTheNewKeyOnceTheConfigMayHaveBeenDelivered(t *testing.T) {
-	for name, deployErr := range map[string]error{"success": nil, "start failed": errors.New("container start failed (500): busy")} {
+	for name, deployErr := range map[string]error{"success": nil, "start failed": errors.New("container start failed (500): busy"), "health check failed": errors.New("deployment health check failed; current key retained")} {
 		s := newSharedKeyTestServer(t, "old-key")
 		undo, err := s.replaceEggSharedKey(sharedKeyNestID, "new-key")
 		if err != nil {
@@ -74,6 +74,17 @@ func TestReplaceEggSharedKeyKeepsTheNewKeyOnceTheConfigMayHaveBeenDelivered(t *t
 		if undo(deployErr) || storedSharedKey(t, s) != "new-key" {
 			t.Fatalf("%s: the new key must stay", name)
 		}
+	}
+}
+
+func TestReplaceEggSharedKeyRestoresAfterVerifiedUndeliveredRecovery(t *testing.T) {
+	s := newSharedKeyTestServer(t, "old-key")
+	undo, err := s.replaceEggSharedKey(sharedKeyNestID, "new-key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !undo(errors.Join(invasion.ErrEggConfigNotDelivered, invasion.ErrEggPredecessorRestored)) || storedSharedKey(t, s) != "old-key" {
+		t.Fatal("verified pre-transfer recovery did not restore its own previous key")
 	}
 }
 

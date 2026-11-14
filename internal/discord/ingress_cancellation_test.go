@@ -10,12 +10,76 @@ import (
 	"testing"
 	"time"
 
+	"aurago/internal/commands"
 	"aurago/internal/config"
 	"aurago/internal/memory"
 	"aurago/internal/tools"
 
 	"github.com/bwmarrin/discordgo"
 )
+
+func TestDiscordStopSkipsAttachmentsWithSaturatedWorkers(t *testing.T) {
+	for _, tc := range []struct {
+		text   string
+		author string
+	}{
+		{"/stop", "owner"},
+		{"<@bot> /stop", "owner"},
+		{"<@!bot> /stop", "owner"},
+		{"/stop", "stranger"},
+	} {
+		t.Run(tc.author+tc.text, func(t *testing.T) {
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			store, err := memory.NewSQLiteMemory(":memory:", logger)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer store.Close()
+			cfg := &config.Config{}
+			cfg.Discord.AllowedUserID, cfg.Discord.DefaultChannelID = "owner", "channel"
+			recorder := newDiscordRESTRecorder(t)
+			recorder.session.State.User = &discordgo.User{ID: "bot"}
+			message := &discordgo.MessageCreate{Message: &discordgo.Message{
+				Author: &discordgo.User{ID: tc.author}, GuildID: "guild", ChannelID: "channel", Content: tc.text,
+				Mentions:    []*discordgo.User{{ID: "bot"}},
+				Attachments: []*discordgo.MessageAttachment{{Filename: "voice.ogg", ContentType: "audio/ogg"}},
+			}}
+			sessionID, err := store.ResolveUserSession(context.Background(), discordConversationID(message))
+			if err != nil {
+				t.Fatal(err)
+			}
+			active, release, err := store.RegisterSessionRun(context.Background(), sessionID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer release()
+			previous := discordAttachmentProcessor
+			t.Cleanup(func() { discordAttachmentProcessor = previous })
+			processed := 0
+			discordAttachmentProcessor = func(_ context.Context, _ *discordgo.MessageAttachment, text string, _ *config.Config, _ *slog.Logger) string {
+				processed++
+				return text
+			}
+			slots := newDiscordWorkerSlots(1)
+			slots <- struct{}{}
+			stop := commands.IsStop(discordCommandText(message.Content, "bot", true))
+			if !runDiscordMessage(context.Background(), slots, 1, recorder.session, "channel", logger, stop, func() {
+				handleMessage(recorder.session, message, cfg, logger, nil, store, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+			}) {
+				t.Fatal("stop was rejected by the occupied worker pool")
+			}
+			if processed != 0 {
+				t.Errorf("stop performed %d attachment preprocessing calls", processed)
+			}
+			if got, want := active.Err() == context.Canceled, tc.author == "owner"; got != want {
+				t.Errorf("session cancelled=%v, want %v", got, want)
+			}
+			if len(slots) != 1 {
+				t.Fatal("stop changed worker occupancy")
+			}
+		})
+	}
+}
 
 func TestDiscordSessionStopCancelsMediaBeforeHistoryOrExecution(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))

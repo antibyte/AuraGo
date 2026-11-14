@@ -440,6 +440,9 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 		})
 		s.CfgSaveMu.Unlock()
 		if err := patchErr; err != nil {
+			if writeDeepTutorPolicyError(s, w, err) {
+				return
+			}
 			s.Logger.Error("[Auth] Failed to save password", "error", err)
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_failed_save_config"), http.StatusInternalServerError)
 			return
@@ -532,6 +535,9 @@ func handleAuthTOTPConfirm(s *Server) http.HandlerFunc {
 		})
 		s.CfgSaveMu.Unlock()
 		if err := patchErr; err != nil {
+			if writeDeepTutorPolicyError(s, w, err) {
+				return
+			}
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_failed_save_totp_config"), http.StatusInternalServerError)
 			return
 		}
@@ -590,6 +596,9 @@ func handleAuthTOTPDelete(s *Server) http.HandlerFunc {
 		})
 		s.CfgSaveMu.Unlock()
 		if err := patchErr; err != nil {
+			if writeDeepTutorPolicyError(s, w, err) {
+				return
+			}
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_failed_save_config"), http.StatusInternalServerError)
 			return
 		}
@@ -641,6 +650,9 @@ var vaultAuthKeys = map[string]string{
 // snapshot is loaded. Any failure restores the previous config.yaml bytes and
 // vault values and leaves the live snapshot untouched.
 func patchAuthConfig(s *Server, fields map[string]interface{}) error {
+	if err := s.validateDeepTutorPatch(map[string]interface{}{"auth": fields}); err != nil {
+		return err
+	}
 	s.CfgMu.RLock()
 	configPath := s.Cfg.ConfigPath
 	s.CfgMu.RUnlock()

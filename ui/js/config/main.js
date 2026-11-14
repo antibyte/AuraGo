@@ -2172,6 +2172,7 @@ async function renderSection(key) {
     }
     if (sectionBlocked) html += '</div>'; // End feature-unavailable-fields
     if (key === 'personality') html += '<section id="config-personality-legacy" class="personality-dynamics"></section>';
+    if (key === 'notifications') html += '<section id="config-mail-receipts" class="cfg-card"></section>';
     html += '</div>';
 
     document.getElementById('content').innerHTML = html;
@@ -2182,6 +2183,14 @@ async function renderSection(key) {
     }
     _initArrayChipFields();
     if (integrationActions) integrationActions.bind(key);
+    if (key === 'notifications') {
+        const receiptsRoot = document.getElementById('config-mail-receipts');
+        try {
+            if (receiptsRoot?.isConnected) window.mountMailReceiptsCard(receiptsRoot);
+        } catch (error) {
+            if (receiptsRoot?.isConnected) receiptsRoot.textContent = t('config.mail_receipts.error');
+        }
+    }
     if (key === 'vision') mirageCheckStatus();
 
     // ── Embeddings: multimodal_format visibility depends on multimodal toggle ──

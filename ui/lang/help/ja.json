@@ -178,7 +178,7 @@
   "help.github.read_only": "有効にすると、エージェントはリポジトリ、課題、PR の読み取りのみが可能ですが、ファイルの作成、削除、変更はできません。",
   "help.github.token": "GitHub API のパーソナル アクセス トークン (PAT)。 https://github.com/settings/tokens で必要なスコープ (リポジトリ、問題など) を指定して作成します。暗号化されて金庫に保管されます。",
   "help.home_assistant.access_token": "ホーム アシスタント認証用の長期間有効なアクセス トークン。",
-  "help.home_assistant.allowed_services": "完全なサービス名（domain.service）の許可リスト。空欄では通常のサービスを許可します。shell_command、python_script、script、hassio には常に明示的な登録が必要です。ブロックリストと読み取り専用が優先されます。",
+  "help.home_assistant.allowed_services": "完全なdomain.service名を指定する任意の許可リストです。間接実行（script、automation、python_script、rest_command、pyscript、shell_command、hassio）と重要なシステムサービスには明示的な許可が必要です。汎用呼び出しは具体的な対象アクションを確認し、解決できないグループは拒否します。拒否リストと読み取り専用設定が優先されます。",
   "help.home_assistant.blocked_services": "エージェントが絶対に呼び出せない Home Assistant サービスです (例: lock.unlock)。このブロックリストは許可サービスより先に確認されます。",
   "help.home_assistant.enabled": "ホームアシスタントのスマートホーム統合を有効にします。",
   "help.home_assistant.read_only": "有効にすると、エージェントはデバイス状態の読み取りのみが可能ですが、サービスを呼び出すことはできません (デバイスの切り替えはありません)。",

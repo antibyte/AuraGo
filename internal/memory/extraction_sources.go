@@ -1,11 +1,13 @@
 package memory
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"fmt"
-	"os"
 	"time"
+
+	"aurago/internal/dbutil"
 )
 
 const extractionSourcesSchema = `CREATE TABLE IF NOT EXISTS memory_extraction_sources (
@@ -51,11 +53,8 @@ func (s *SQLiteMemory) initExtractionSources() error {
 		}
 		if path != "" {
 			backup := path + ".memory-sources-v1-" + rand.Text() + ".bak"
-			if _, err = s.db.Exec(`VACUUM main INTO ?`, backup); err != nil {
+			if _, err = dbutil.BackupSQLite(context.Background(), s.db, backup); err != nil {
 				return fmt.Errorf("back up memory source migration: %w", err)
-			}
-			if err = os.Chmod(backup, 0600); err != nil {
-				return fmt.Errorf("protect memory source backup: %w", err)
 			}
 		}
 	}

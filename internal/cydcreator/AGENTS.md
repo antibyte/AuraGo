@@ -50,6 +50,8 @@ OTA updates and the ZIP export and import.
   export) and `transfer_import.go` (ZIP import). Device routes, the device URL and the certificate pin live in
   `internal/server` (`internal/server/AGENTS.md`, "CYD Creator").
 
+- Migration backups use `dbutil.BackupSQLite`: owner-only staging and file permissions/Windows ACL, WAL-inclusive copy, sync and atomic publication. Backup failure aborts migration. Keep existing copies; collisions insert a unique suffix before the extension. Restore guidance: `documentation/migration-backups.md`.
+
 ## Local Contracts
 
 ### Package rules

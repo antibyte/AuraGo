@@ -243,6 +243,9 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		// deep-merge, write to disk, reload and resolve vault secrets. This is the
 		// shared read/merge/write/reload sequence used by /api/setup and /api/config.
 		reloadedCfg, err := applyConfigPatch(s, patch)
+		if writeDeepTutorPolicyError(s, w, err) {
+			return
+		}
 		if errors.Is(err, errUnauthenticatedRemoteExposure) {
 			s.Logger.Warn("[Setup] Refused to disable auth on a remotely reachable listener")
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_auth_required_for_remote"), http.StatusBadRequest)

@@ -21,6 +21,8 @@ var sqliteBackupExclusions = map[string]string{
 	"knowledge_graph.sqlite": "memory snapshot file name inside snapshot directories, not a live store",
 	"memory.sqlite":          "memory-repair tool scratch file",
 	"backup.sqlite":          "private migration-backup staging file, published as a .bak file and cleaned after use",
+	"pre-restore.db":         "private Flow restore scratch snapshot; recovery uses its separate encrypted pre-restore backup, never a live .ago store",
+	"restored.db":            "decrypted Flow restore candidate inside private staging; verified and swapped offline, never copied as live .ago data",
 	// Fallback defaults of sqlite.*_path settings: the configured path is what
 	// SQLiteDatabasePaths backs up (config always fills these in).
 	"image_gallery.db":   "default of sqlite.image_gallery_path",

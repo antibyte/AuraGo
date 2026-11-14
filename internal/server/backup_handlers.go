@@ -723,6 +723,8 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		//     the linked device; the owner relinks after a restore.
 		//   - downloads, piper voices, models and caches: re-downloadable.
 		//   - workspace_search.db and similar derived indexes: rebuilt from files.
+		//   - Flow pre-restore.db/restored.db: private offline restore staging,
+		//     recovered separately from encrypted purge/pre-restore backups.
 		// SQLite stores are listed in config.SQLiteDatabasePaths (exclusions are
 		// documented and guarded by internal/audit TestSQLiteOpensAreBackedUpOrExcluded).
 		absData, _ := filepath.Abs(s.Cfg.Directories.DataDir)
