@@ -1265,7 +1265,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-sheet-grab { display: none; }
 .ed-modal-backdrop:has(> .ed-modal.ed-sheet) { place-items: end stretch; padding: 0; }
 .ed-app .ed-modal.ed-sheet {
-    width: 100%; max-width: none; max-height: 92%; border-radius: var(--ed-radius-xl) var(--ed-radius-xl) 0 0; border-bottom: 0;
+    width: 100%; max-width: none; max-height: 92%; border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: 0;
     transform: translateY(var(--ed-space-5)); transition: transform var(--ed-motion-base) var(--ed-ease-out);
 }
 .ed-app .ed-modal-backdrop.is-open .ed-modal.ed-sheet { transform: none; }
@@ -1489,13 +1489,15 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 
 @media (pointer: coarse) {
     .ed-app .ed-btn, .ed-app .ed-icon-btn, .ed-app .ed-node-tool, .ed-app .ed-switch-btn,
-    .ed-app .ed-subtabs button, .ed-app button.ed-foot-item, .ed-app .ed-port-add { min-width: 44px; min-height: 44px; }
+    .ed-app .ed-subtabs button, .ed-app button.ed-foot-item, .ed-app .ed-port-add,
+    .ed-app .ed-toast-action, .ed-app .ed-callout-action, .ed-app .ed-disclosure-head { min-width: 44px; min-height: 44px; }
     .ed-app .ed-port-add { width: 44px; height: 44px; margin-top: -22px; }
     .ed-app .ed-input, .ed-app .ed-title-input, .ed-app textarea, .ed-app select { font-size: var(--ed-font-card); }
 }
 @container (max-width: 760px) {
     .ed-app .ed-btn, .ed-app .ed-icon-btn, .ed-app .ed-node-tool, .ed-app .ed-switch-btn,
-    .ed-app .ed-subtabs button, .ed-app button.ed-foot-item, .ed-app .ed-port-add { min-width: 44px; min-height: 44px; }
+    .ed-app .ed-subtabs button, .ed-app button.ed-foot-item, .ed-app .ed-port-add,
+    .ed-app .ed-toast-action, .ed-app .ed-callout-action, .ed-app .ed-disclosure-head { min-width: 44px; min-height: 44px; }
     .ed-app .ed-port-add { width: 44px; height: 44px; margin-top: -22px; }
     .ed-app .ed-input, .ed-app .ed-title-input, .ed-app textarea, .ed-app select { font-size: var(--ed-font-card); }
     .ed-app .ed-error { font-size: var(--ed-font-body); line-height: 1.45; }

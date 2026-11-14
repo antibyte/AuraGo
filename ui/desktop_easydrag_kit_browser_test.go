@@ -23,6 +23,21 @@ func TestEasyDragKitBrowser(t *testing.T) {
 	}
 	s.shot("kit-sheet-390")
 
+	// a theme with a square card radius keeps it on the sheet's top corners (spec 4.2)
+	p.MustEval(`()=>document.querySelector('.ed-app').style.setProperty('--vd-mat-card-radius','0px')`)
+	if got := p.MustEval(`()=>getComputedStyle(document.querySelector('.ed-modal.ed-sheet')).borderTopLeftRadius`).Str(); got != "0px" {
+		t.Errorf("390 px: the sheet ignores the theme card radius, top-left is %s", got)
+	}
+	p.MustEval(`()=>document.querySelector('.ed-app').style.removeProperty('--vd-mat-card-radius')`)
+
+	// the toast's Undo keeps a 44 px touch target in a narrow window
+	p.MustEval(`()=>{const root=document.querySelector('.ed-app');const t=EasyDrag.kit.toast({host:root,status:'info',text:'Gone',closeLabel:'Close',duration:0,action:{label:'Undo',onClick(){}}});root.appendChild(t.el);t.show();window.__kitToast=t;return true}`)
+	s.wait(`()=>{const a=document.querySelector('[data-ed-toast-action]');return !!a && a.getBoundingClientRect().height>0}`)
+	if h := p.MustEval(`()=>document.querySelector('[data-ed-toast-action]').getBoundingClientRect().height`).Num(); h < 44 {
+		t.Errorf("390 px: the toast action is %.1f px high, want at least 44", h)
+	}
+	p.MustEval(`()=>{window.__kitToast.dispose();return true}`)
+
 	// the kit disclosure: Enter opens, Space closes (a real button)
 	p.MustEval(`()=>{const d=EasyDrag.kit.disclosure({title:'Notes',count:2,body:'<p>More</p>'});document.querySelector('.ed-modal-body').appendChild(d);d.querySelector('.ed-disclosure-head').focus();return true}`)
 	p.Keyboard.MustType(input.Enter)
