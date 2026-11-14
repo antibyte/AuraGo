@@ -98,7 +98,7 @@ the Egg runtime in `cmd/aurago`.
   selected exports and explicit secret updates with Vault.WriteSecrets, retaining
   the local Vault key and unrelated entries. An atomic receipt prevents leftover
   inputs from overwriting later rotations. Failed import or removal blocks startup.
-- SSH preflight validates an existing .env and Vault/key availability before stopping; recheck before publishing a missing .env. Back up only after the old process has stopped so its SQLite/WAL files are stable. Propagate stop errors.
+- SSH preflight validates an existing .env and Vault/key availability before stopping; recheck before publishing a missing .env. Back up only after the old process has stopped so its SQLite/WAL files are stable. Create new directories after that backup; retain an orphan .bak when the primary is absent. Automatic recovery requires an explicit successful copy acknowledgement. Propagate stop and copy errors.
 - Preserve existing .env keys. A Vault without its actual key requires authenticated
   operator recovery; never overwrite it with a newly generated key.
 - Empty tool lists grant neither shell nor Python. Only the documented shell/Python

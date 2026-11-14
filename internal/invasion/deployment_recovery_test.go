@@ -78,8 +78,16 @@ func TestDockerEggRecoveryOnlyBeforePossibleTransfer(t *testing.T) {
 }
 
 func TestSSHEggRecoveryOnlyBeforePossibleTransfer(t *testing.T) {
-	for _, before := range []bool{true, false} {
-		t.Run(map[bool]string{true: "before-transfer", false: "possible-transfer"}[before], func(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		before, backedUp bool
+	}{
+		{"before-transfer", true, true},
+		{"possible-transfer", false, true},
+		{"no-acknowledged-predecessor", true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			before := tc.before
 			previousCommand, previousTransfer := sshRemoteCommand, sshTransferFile
 			t.Cleanup(func() { sshRemoteCommand, sshTransferFile = previousCommand, previousTransfer })
 			restored, checked := false, false
@@ -91,6 +99,12 @@ func TestSSHEggRecoveryOnlyBeforePossibleTransfer(t *testing.T) {
 				}
 				if strings.Contains(body, "Existing Egg .env") && !strings.Contains(body, "AURAGO_DEPLOY_DATA") {
 					return "recoverable\n", nil
+				}
+				if strings.Contains(cmd, "cp -a ") {
+					if tc.backedUp {
+						return "backed_up\n", nil
+					}
+					return "", nil
 				}
 				if strings.HasPrefix(cmd, "test -d ") {
 					checked = true
@@ -114,7 +128,8 @@ func TestSSHEggRecoveryOnlyBeforePossibleTransfer(t *testing.T) {
 				return nil
 			}
 			err := (&SSHConnector{}).Deploy(context.Background(), sshDeployTestNest(), nil, sshDeployTestPayload())
-			if errors.Is(err, ErrEggConfigNotDelivered) != before || errors.Is(err, ErrEggPredecessorRestored) != before || restored != before || checked != before {
+			wantRestore := before && tc.backedUp
+			if errors.Is(err, ErrEggConfigNotDelivered) != before || errors.Is(err, ErrEggPredecessorRestored) != wantRestore || restored != wantRestore || checked != wantRestore {
 				t.Fatalf("unsafe SSH recovery phase: restored=%v checked=%v error=%v", restored, checked, err)
 			}
 		})

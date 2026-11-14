@@ -211,7 +211,7 @@ func TestSSHConnectorPreflightsBeforeStopAndBacksUpAfterStop(t *testing.T) {
 	if err := (&SSHConnector{}).Deploy(context.Background(), sshDeployTestNest(), []byte("secret"), sshDeployTestPayload()); err != nil {
 		t.Fatalf("Deploy: %v", err)
 	}
-	want := "key-preflight,mkdir,service-stop,process-stop,backup,binary,chmod,config,resources,unpack,bootstrap,env,marker,start"
+	want := "key-preflight,service-stop,process-stop,backup,mkdir,binary,chmod,config,resources,unpack,bootstrap,env,marker,start"
 	if got := strings.Join(*steps, ","); got != want {
 		t.Fatalf("steps = %s, want %s", got, want)
 	}

@@ -92,22 +92,23 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 		}
 	}()
 
-	// 1. Create target directory
-	mkdirCmd := fmt.Sprintf("mkdir -p %s %s %s", shellPath(baseDir+"/data"), shellPath(baseDir+"/log"), shellPath(baseDir+"/prompts"))
-	if _, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, mkdirCmd); err != nil {
-		return configNotDelivered(fmt.Errorf("failed to create directories: %w", err))
-	}
-
-	// 2. Transfer binary
+	// 1. Stop and back up the existing Egg before creating a fresh directory.
 	if err := c.Stop(ctx, nest, secret); err != nil {
 		return configNotDelivered(fmt.Errorf("failed to stop Egg before deployment: %w", err))
 	}
 	// Copy only after shutdown so SQLite/WAL state is no longer changing.
-	backupCmd := fmt.Sprintf("if [ -d %s ]; then rm -rf %s; cp -a %s %s; fi", shellPath(baseDir), shellPath(backupDir), shellPath(baseDir), shellPath(backupDir))
-	if _, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, backupCmd); err != nil {
+	backupCmd := fmt.Sprintf("if [ -d %s ]; then rm -rf %s && cp -a %s %s && echo backed_up; fi", shellPath(baseDir), shellPath(backupDir), shellPath(baseDir), shellPath(backupDir))
+	backupAck, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, backupCmd)
+	if err != nil {
 		return configNotDelivered(fmt.Errorf("previous Egg stopped; backup failed; retain original directory %s for recovery: %w", baseDir, err))
 	}
-	backedUp = true
+	backedUp = strings.TrimSpace(backupAck) == "backed_up"
+
+	// 2. Create directories and transfer the binary.
+	mkdirCmd := fmt.Sprintf("mkdir -p %s %s %s", shellPath(baseDir+"/data"), shellPath(baseDir+"/log"), shellPath(baseDir+"/prompts"))
+	if _, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, mkdirCmd); err != nil {
+		return configNotDelivered(fmt.Errorf("failed to create directories: %w", err))
+	}
 	remoteBinary := baseDir + "/aurago"
 	if err := sshTransferFile(ctx, nest.Host, nest.Port, nest.Username, secret, payload.BinaryPath, sftpPath(remoteBinary), "upload"); err != nil {
 		return configNotDelivered(fmt.Errorf("failed to transfer binary: %w", err))

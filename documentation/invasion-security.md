@@ -56,7 +56,9 @@ Windows pipe or loopback TCP. This also applies to `DOCKER_HOST`; a remote socke
 proxy over plain TCP is not a local secret transport. Configure a TLS/mTLS remote
 Docker nest or Docker over SSH instead. The Compose BUILD default stays disabled.
 SSH checks the existing `.env` and Vault/key availability before stopping, keeps
-that key and copies the predecessor only after shutdown.
+that key and copies the predecessor only after shutdown, before creating new
+directories. If the primary directory is absent, an existing `.bak` remains
+untouched; it does not count as a newly acknowledged predecessor.
 
 Before any possible configuration transfer, a failed hatch can restore a freshly
 acknowledged, security-marked predecessor and its previous shared key. Failure
