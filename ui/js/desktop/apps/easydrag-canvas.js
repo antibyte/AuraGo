@@ -487,7 +487,7 @@
             const typeLine = !i ? n.type : n.label && n.label !== i.label ? i.label : (i.description || '');
             return '<div class="ed-node-tile">' + core.icon(i ? i.icon : 'tool') + '</div>' +
                 '<div class="ed-node-body"><div class="ed-node-label">' + esc(n.label || (i && i.label) || n.type) + '</div>' +
-                (sum ? '<div class="ed-node-summary"' + (whole && whole !== sum ? ' title="' + esc(whole) + '"' : '') + '>' + esc(sum) + '</div>' : typeLine ? '<div class="ed-node-summary ed-node-summary--muted">' + esc(typeLine) + '</div>' : '') + '</div>' +
+                (sum ? '<div class="ed-node-summary"' + (whole && whole !== sum ? ' title="' + esc(whole) + '"' : '') + '>' + esc(sum) + '</div>' : typeLine ? '<div class="ed-node-summary ed-node-summary--muted" title="' + esc(typeLine) + '">' + esc(typeLine) + '</div>' : '') + '</div>' +
                 '<div class="ed-node-badges"></div>' + inPorts + outPorts + tools;
         }
 

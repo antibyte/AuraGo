@@ -40,7 +40,7 @@
     function itemMarkup(core, t, esc, info, tag) {
         const unavailable = (info.availability || {}).state !== 'available';
         const item = '<' + tag + ' class="ed-palette-item' + (unavailable ? ' is-unavailable' : '') + '" data-ed-type="' + esc(info.type) + '" data-cat="' + esc(core.catOf(info)) + '"' +
-            (tag === 'li' ? ' role="option"' : ' role="button" tabindex="0"') + ' title="' + esc(info.description || info.label) + '">' +
+            (tag === 'li' ? ' role="option"' : ' role="button" tabindex="0"') + ' title="' + esc(info.description ? info.label + '\n' + info.description : info.label) + '">' +
             '<span class="ed-palette-tile">' + core.icon(info.icon) + '</span>' +
             '<span class="ed-palette-text"><span class="ed-palette-name">' + esc(info.label) + '</span>' +
             (info.description ? '<span class="ed-palette-desc">' + esc(info.description) + '</span>' : '') + '</span>' +
