@@ -1364,6 +1364,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
   the existing delete-permission dialog, first asserting that the grant stays off.
   Fritz!Box mouse-pager and theme-cursor fixtures declare
   hover-capable pointer hardware; touch layouts intentionally hide its arrows.
+- Storymaker preview tours await the host frame acknowledgement before the late-message
+  stability window; compiled UI state alone does not prove the frame was drawn.
 - Infra menu browser journeys await the native dialog `close` event before
   opening another popover, so pending focus restoration cannot steal its keys.
 - EasyDrag metadata journeys select active dialogs for native close clicks and
