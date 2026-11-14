@@ -3947,6 +3947,17 @@ buttons and menu popovers remain excluded from those gestures.
   missing folder as "none". A document from a template gets a new `untitled-` path and is not
   written before its first change. Printing gives every painted page a named `@page` of its own
   size (`WriterLayout.sheets`), so sections of different formats print right;
+  `writer-pdf.js` packs those painted pages for the server's PDF renderer. `paint` in
+  `writer-panels.js` is the one way to the print frame, for Print and for the PDF: the scratch
+  editor lives in `#source` and decodes the pictures, the pages are painted into `#pages`, where a
+  picture is only a placeholder, so `graft` copies the decoded drawings over by
+  `data-drawing-node-id` and `inline` turns their `blob:` addresses into `data:` ones before the
+  scratch editor goes. Never paint into the scratch editor's own container. `pack` returns one
+  HTML page without script or link: the engine stylesheet inline and an `@font-face` only for the
+  faces the pages use, under the family name the pages ask for, from the file the engine laid the
+  text out with (`source`: own file or substitution). `pdf` (Download as PDF) posts that page to
+  `/api/desktop/office/pdf` and falls back to the print dialog with `pdf_hint` when the server
+  answers `pdf_unavailable`; `pdfSave` posts it with `?path=` and asks before `overwrite=1`;
   `writer-session.js` owns revision-bound autosave and IndexedDB recovery;
   `writer-panels.js` owns formatting, search, review, AI and snapshot printing.
   A new command is one entry in `DEFINITIONS`: a `slot`, a `command` (an engine

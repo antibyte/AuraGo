@@ -122,11 +122,16 @@ A document made from a template is new. It has no undo steps, never writes
 back to the template, and becomes a file in `Documents` under an `untitled-`
 name with its first change or with Save.
 
-**File > Save as PDF…** opens the browser's print dialog; choose "Save as PDF"
-as the destination there. Writer hands the document's name to the print job so
-that the dialog can propose it as the file name. **Print…** uses the same path.
-Every page prints in the format of its own section, so a landscape section
-inside a portrait document stays landscape.
+**File > Download as PDF** lets the server render the document and saves the
+PDF under the document's name. **File > Save as PDF in the workspace…** writes
+the PDF into a folder of the workspace and asks before it replaces a file.
+Both use the pages of the print path, so the PDF has the fonts, pictures and
+page formats of the print. The server renders with Gotenberg when it is the
+document backend, and with its built-in Chromium otherwise. When neither is
+available, Download as PDF opens the browser's print dialog; choose "Save as
+PDF" as the destination there. **Print…** hands the document's name to the
+print job. Every page prints in the format of its own section, so a landscape
+section inside a portrait document stays landscape.
 
 ## Files and recovery
 
@@ -177,8 +182,9 @@ separate simplified copy. DOCX-to-DOCX downloads preserve the full package.
   groups and overflow rule (`scripts/test-writer-toolbar.mjs`), the window
   menu model (`scripts/test-writer-menus.mjs`), the context surfaces
   (`scripts/test-writer-context.mjs`), the layout model and print sheets
-  (`scripts/test-writer-layout.mjs`) and the templates
-  (`scripts/test-writer-templates.mjs`).
+  (`scripts/test-writer-layout.mjs`), the templates
+  (`scripts/test-writer-templates.mjs`) and the PDF packer (`scripts/test-writer-pdf.mjs`).
+- `go test ./internal/server -run DesktopWriterPDF` and `go test ./internal/tools -run RenderHTMLPDF`.
 - `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopWriter(App|Engine)Browser'`
   exercises the actual editor, review, round-trips, conflicts, AI, imports,
   images, printing and a 100-page document.

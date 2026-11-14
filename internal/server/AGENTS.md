@@ -1208,6 +1208,7 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
   delivered bytes, using the same version function as conditional file writes.
   Keep it on range/conditional downloads; Ziro's Shared adapter owns that version
   alongside its snapshot, never a later HEAD observation.
+- `POST /api/desktop/office/pdf` renders the Writer's packed print pages (one self-contained HTML page, at most 50 MiB) through `tools.RenderHTMLPDF`. Without `path` it needs Desktop read and returns the PDF, also on a read-only desktop. With `path` (must end in `.pdf`) it needs Desktop write, refuses an existing file with 409 `pdf_exists` before rendering unless `overwrite=1`, and writes through `WriteFileBytesConditional`. No renderer is 503 `pdf_unavailable`, any other render failure 502 `pdf_failed`; the cause goes to the log, never to the client. Verify `TestDesktopWriterPDF*`.
 - Server Desktop events go out only through `broadcastDesktopEvent`, which sends
   each one over the Desktop WebSocket hub and SSE with one `id` (assigned when
   empty). The shell handles an id once; never give two events the same id or
