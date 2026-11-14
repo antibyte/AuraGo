@@ -8,13 +8,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"aurago/internal/fileutil"
 )
 
-var sqliteBackupPublication sync.Mutex
-var sqliteBackupRename = fileutil.RenameContext
+var sqliteBackupLink = os.Link
 var sqliteBackupSync = (*os.File).Sync
 
 // BackupSQLite publishes a synced, owner-only main-database snapshot, including
@@ -64,20 +62,24 @@ func BackupSQLite(ctx context.Context, db *sql.DB, destination string) (string, 
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	sqliteBackupPublication.Lock()
-	defer sqliteBackupPublication.Unlock()
 	requested := destination
 	for {
 		if _, err := os.Lstat(destination); os.IsNotExist(err) {
-			break
+			// Linking publishes the complete snapshot without replacing a concurrent backup.
+			err = fileutil.PublishContext(ctx, func() error { return sqliteBackupLink(temporary, destination) })
+			if err == nil {
+				return destination, nil
+			}
+			if !os.IsExist(err) {
+				return "", fmt.Errorf("publish SQLite backup: %w", err)
+			}
 		} else if err != nil {
+			return "", err
+		}
+		if err := ctx.Err(); err != nil {
 			return "", err
 		}
 		ext := filepath.Ext(requested)
 		destination = strings.TrimSuffix(requested, ext) + "." + rand.Text() + ext
 	}
-	if err := sqliteBackupRename(ctx, temporary, destination); err != nil {
-		return "", fmt.Errorf("publish SQLite backup: %w", err)
-	}
-	return destination, nil
 }

@@ -8,15 +8,18 @@ Own shared SQLite opening, migration primitives and consistent private backups.
 
 Callers own database paths, schema versions, migration ordering and recovery.
 `BackupSQLite` owns copy preparation and publication; `fileutil` owns platform
-permissions and replacement retries.
+permissions and the cancellation/publication gate.
 
 ## Local Contracts
 
 - Before changing an existing schema, finish the required backup or abort.
 - Stage beside the destination in an owner-only directory. Protect the empty
   file before SQLite writes; VACUUM main includes WAL. Sync before publication.
-- Never remove or overwrite an old backup. On collisions, insert a random suffix
-  before the extension and return the actual path. Clean staging on every exit.
+- Publish the synced file with an atomic, create-only hard link under the context
+  publication gate. Require filesystem hard-link support; fail closed otherwise.
+- Never remove or overwrite an old backup, including one created concurrently.
+  On collisions, insert a random suffix before the extension and return the
+  actual path. Clean staging on every exit.
 - Keep existing private snapshot/archive workflows and their authorization.
 
 ## Work Guidance
