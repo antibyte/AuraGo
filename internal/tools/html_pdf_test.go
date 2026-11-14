@@ -109,7 +109,7 @@ func TestRenderHTMLPDFBrowserKeepsPageSizesAndLoadsNothing(t *testing.T) {
 	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { hits.Add(1) }))
 	defer remote.Close()
 	page := `<!doctype html><html><head><style>@page{size:595pt 842pt;margin:0}@page wide{size:842pt 595pt;margin:0}div{break-after:page}.wide{page:wide;break-after:auto}</style></head><body><div>Portrait</div><div class="wide">Landscape<img src="` +
-		remote.URL + `/picture.png"><script>fetch("` + remote.URL + `/script")</script></div></body></html>`
+		remote.URL + `/picture.png"><script>fetch("` + remote.URL + `/script")</script><iframe srcdoc="&lt;meta http-equiv=refresh content=&quot;0;url=` + remote.URL + `/frame&quot;&gt;&lt;img src=&quot;` + remote.URL + `/nested.png&quot;&gt;"></iframe></div></body></html>`
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	data, err := RenderHTMLPDF(ctx, nil, page)

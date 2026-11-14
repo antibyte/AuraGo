@@ -102,7 +102,8 @@
     async function inline(pages) {
         for (const image of pages.querySelectorAll('img')) {
             if (!/^blob:/.test(image.src)) continue;
-            image.src = await dataURL(await (await fetch(image.src)).blob());
+            // A picture that cannot be read stays as it is; the other pages still print.
+            try { image.src = await dataURL(await (await fetch(image.src)).blob()); } catch (_) { /* keep the blob: address */ }
         }
     }
 

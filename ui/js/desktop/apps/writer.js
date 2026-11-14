@@ -604,7 +604,8 @@
                     case 'shortcuts':await dialogs.shortcuts();break;
                     case 'image':find('[data-image]').click();break;
                     case 'qr':await insertQR();break;
-                    case 'print':if(editor)await panels.print(await editor.save(),lib,documentFonts,basename(path).replace(/\.docx$/i,''));break;
+                    // One print frame serves Print and the PDF, so they take turns.
+                    case 'print':if(editor && !pdfBusy){pdfBusy=true;try{await panels.print(await editor.save(),lib,documentFonts,basename(path).replace(/\.docx$/i,''));}finally{pdfBusy=false;}}break;
                     case 'pdf':await pdfDownload();break;
                     case 'pdfSave':await pdfSave();break;
                     case 'docx':if(editor)download(await editor.save(),MIME,basename(path));break;
@@ -622,6 +623,9 @@
         // the user kept the existing file.
         async function renderPdf(target) {
             const html=await panels.pdf(await editor.save(),lib,documentFonts,basename(path).replace(/\.docx$/i,''));
+            // The server takes 50 MiB. It would cut a larger page off mid-upload, which a browser reports as a network
+            // failure, so such a document goes the way of "no renderer": the print dialog, which has no such limit.
+            if(html.length>48*1024*1024)throw new Error('pdf_unavailable');
             const send=overwrite=>fetch('/api/desktop/office/pdf'+(target?'?path='+encodeURIComponent(target)+(overwrite?'&overwrite=1':''):''),{method:'POST',credentials:'same-origin',headers:{'Content-Type':'text/html; charset=utf-8'},body:html,signal:documentLife.signal});
             let response=await send(false);
             if(target && response.status===409) {
@@ -636,9 +640,11 @@
         async function pdfDownload() {
             if(!editor || pdfBusy)return;
             pdfBusy=true;notice(tr('pdf_working'));
+            // The name belongs to the document that is rendered, not to one opened meanwhile.
+            const name=window.WriterPdf.fileName(path);
             try {
                 const response=await renderPdf();
-                download(await response.arrayBuffer(),'application/pdf',window.WriterPdf.fileName(path));
+                download(await response.arrayBuffer(),'application/pdf',name);
                 pdfIdle();
             } catch(error) {
                 if(error?.name==='AbortError' || disposed)return;
