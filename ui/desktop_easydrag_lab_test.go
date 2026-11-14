@@ -51,8 +51,11 @@ type labElement struct {
 	Text    string      `json:"text"`
 	Status  string      `json:"status"`
 	Surface string      `json:"surface"`
-	Fg      *[3]float64 `json:"fg"`     // text colour over Eff
-	Eff     *[3]float64 `json:"eff"`    // the element's own background over Behind
+	Fg      *[3]float64 `json:"fg"`     // text colour over Eff (set by labPaint, or given directly in a test)
+	Eff     *[3]float64 `json:"eff"`    // the element's own background over Behind, faded (idem)
+	Op      float64     `json:"op"`     // the element's opacity times its ancestors'
+	OwnRaw  *[4]float64 `json:"ownRaw"` // the computed background-color, r g b 0-255 and alpha 0-1, nil when transparent
+	FgRaw   *[4]float64 `json:"fgRaw"`  // the computed text colour, r g b 0-255 and alpha 0-1
 	Behind  *[3]float64 `json:"behind"` // the ancestors' backgrounds
 	Own     *[3]float64 `json:"own"`    // the element's own background over Behind, nil when it has none
 	Ring    *[3]float64 `json:"ring"`   // the outermost solid box-shadow ring over Behind (Part A's --ed-status-edge), nil when none
@@ -101,6 +104,40 @@ func labMarkColour(e labElement) *[3]float64 {
 	return e.Svg
 }
 
+// labPaint composites the raw page colours the way the browser paints them. Opacity fades the element as a group:
+// the background and the text are composited inside the group first (the text over the element's own background, which sits
+// over what is behind), and the group is faded once over what is behind. Fading each layer on its own would apply the
+// opacity twice. It leaves Fg and Eff alone when the element carries no raw colour (a test that gives them directly).
+func labPaint(e *labElement) {
+	if e.FgRaw == nil || e.Behind == nil {
+		return
+	}
+	op := e.Op
+	if op == 0 {
+		op = 1
+	}
+	over := func(top [4]float64, under [3]float64) [3]float64 {
+		var out [3]float64
+		for i := 0; i < 3; i++ {
+			out[i] = top[i]*top[3] + under[i]*(1-top[3])
+		}
+		return out
+	}
+	fade := func(c [3]float64) *[3]float64 {
+		var out [3]float64
+		for i := 0; i < 3; i++ {
+			out[i] = c[i]*op + e.Behind[i]*(1-op)
+		}
+		return &out
+	}
+	ownO := *e.Behind
+	if e.OwnRaw != nil && e.OwnRaw[3] > 0 {
+		ownO = over(*e.OwnRaw, *e.Behind)
+	}
+	e.Eff = fade(ownO)
+	e.Fg = fade(over(*e.FgRaw, ownO))
+}
+
 // labMarkFinding passes a mark when its fill or its outer ring reaches labMarkMin against what is behind it: Part A's
 // 1px --ed-status-edge ring exists to give the discs 3:1 on the light surfaces (amendment 4). When both fail, the finding
 // prints both values.
@@ -144,6 +181,7 @@ func labContrastFindings(theme, scene string, probes []labProbe, els []labElemen
 				out = append(out, labFinding{theme, scene, e.Name, check, fmt.Sprintf("%.3f:1%s", r, labApproxNote(e)), fmt.Sprintf("at least %.1f:1", need)})
 			}
 		}
+		labPaint(&e)
 		switch e.Role {
 		case "text":
 			if e.Fg == nil || e.Eff == nil {
@@ -292,6 +330,17 @@ func TestEasyDragLabFindings(t *testing.T) {
 	ringWeak := []labElement{{Probe: "disc", Role: "mark", Name: "disc", Own: &[3]float64{200, 220, 200}, Ring: grey, Behind: white}}
 	if got := labContrastFindings("t", "s", nil, ringWeak, nil); len(got) != 1 || !strings.Contains(got[0].Value, "fill ") || !strings.Contains(got[0].Value, "ring 2.9") {
 		t.Errorf("fill and ring both failing gave %v, want one finding naming both", got)
+	}
+	// opacity fades the element as a group, once: a tile at 55% opacity is 2.98:1, not the 3.30:1 of fading each layer
+	// (panel 245, tile 180/220/240, ink 20/40/60)
+	faded := []labElement{{Probe: "tile", Role: "tile", Name: "tile", Op: 0.55, OwnRaw: &[4]float64{180, 220, 240, 1}, FgRaw: &[4]float64{20, 40, 60, 1}, Behind: &[3]float64{245, 245, 245}}}
+	if got := labContrastFindings("t", "s", nil, faded, nil); len(got) != 1 || got[0].Check != "icon-on-tile-contrast" || !strings.Contains(got[0].Value, "2.9") {
+		t.Errorf("a 55%% opacity tile gave %v, want one icon-on-tile-contrast finding near 2.98:1", got)
+	}
+	solid := faded
+	solid[0].Op = 1
+	if got := labContrastFindings("t", "s", nil, solid, nil); len(got) != 0 {
+		t.Errorf("the same tile at full opacity gave %v", got)
 	}
 	weakMark := []labElement{{Probe: "disc", Role: "mark", Name: "disc", Own: grey, Behind: white}}
 	if got := labContrastFindings("t", "s", nil, weakMark, nil); len(got) != 1 || got[0].Check != "mark-contrast" {

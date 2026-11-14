@@ -225,7 +225,7 @@ const labMeasureJS = `spec=>{
 			n++;
 			const cs=getComputedStyle(el),op=opacity(el),b=behind(el);
 			const own=parse(cs.backgroundColor),ownOver=own&&own[3]>0?over(own,b.rgb,op):null;
-			const eff=ownOver||b.rgb,fgc=parse(cs.color);
+			const fgc=parse(cs.color);
 			let svg=null;
 			const host=el.matches('svg')?el:el.querySelector('svg');
 			const shape=host&&host.querySelector('circle,path,rect,polygon,ellipse');
@@ -248,7 +248,7 @@ const labMeasureJS = `spec=>{
 			const surf=el.closest('[data-lab-surface]');
 			out.elements.push({probe:p.name,role:p.role,name:describe(el),text:(el.textContent||'').trim().slice(0,40),
 				status:el.getAttribute('data-status')||'',cat:el.getAttribute('data-cat')||'',surface:surf?surf.dataset.labSurface:'',
-				fg:fgc?round(over(fgc,eff,op)):null,eff:round(eff),behind:round(b.rgb),own:round(ownOver),svg:round(svg),ring:round(ring),edge:round(edge),approx:b.approx});
+				op:op,ownRaw:own&&own[3]>0?own:null,fgRaw:fgc,behind:round(b.rgb),own:round(ownOver),svg:round(svg),ring:round(ring),edge:round(edge),approx:b.approx});
 		}));
 		out.counts[p.name]=n;
 	});
