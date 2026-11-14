@@ -33,6 +33,10 @@ class PetNoticesTest(unittest.TestCase):
                     self.assertEqual(notice, (ROOT / f"ui/3d/pets/{pet}/NOTICE.txt").read_bytes())
                     self.assertIn(b"Geometry, textures and character rigs:", notice)
                     self.assertIn(b"do not license or relicense these assets", notice)
+                    if pet == "vampire":
+                        self.assertIn(b"Base body animations:", notice)
+                        self.assertIn(b"Original tentacle animation layer:", notice)
+                        self.assertIn(b"CC0-1.0 AND GPL-3.0-only", notice)
                     self.assertEqual((out / "model.glb").read_bytes(), b"unchanged model fixture")
                     if entry["kind"] == "humanoid":
                         for name in ["LICENSE-CC0.txt", "LICENSE-MIT.txt"]:

@@ -10,9 +10,13 @@ def write_notices(root, pet):
             f"Retained provenance: assets/desktop-pets/{pet}/. The Mesh2Motion licenses do not license or relicense these assets.\n"
             "This notice does not claim ownership of pre-existing character designs; retain their original notices and provenance.\n\n")
     if kind == 'humanoid':
-        text += ("Animations: retargeted Mesh2Motion human motion data (CC0-1.0). LICENSE-CC0.txt applies only to the Mesh2Motion animation inputs.\n"
-                 "Upstream repository, revision and input hashes are retained in motions.json and motions-manifest.json.\n\n"
-                 "Retargeting code: Mesh2Motion offline retargeting software (MIT). LICENSE-MIT.txt applies only to that software, not to the character geometry or motion data.\n")
+        scope = 'Base body animations' if pet == 'vampire' else 'Animations'
+        text += (f"{scope}: retargeted Mesh2Motion human motion data (CC0-1.0). LICENSE-CC0.txt applies only to the Mesh2Motion animation inputs.\n"
+                 "Upstream repository, revision and input hashes are retained in motions.json and motions-manifest.json.\n\n")
+        if pet == 'vampire':
+            text += ("Original tentacle animation layer: AuraGo procedural motion code/data (GPL-3.0-only).\n"
+                     "Combined exported animation data: CC0-1.0 AND GPL-3.0-only. The CC0 license does not cover the original tentacle layer.\n\n")
+        text += "Retargeting code: Mesh2Motion offline retargeting software (MIT). LICENSE-MIT.txt applies only to that software, not to the character geometry or motion data.\n"
         for name in ['LICENSE-CC0.txt', 'LICENSE-MIT.txt']:
             (out / name).write_bytes((root / 'ui/3d/pets/punk' / name).read_bytes())
     else:
