@@ -64,6 +64,10 @@ func TestExecutionWrappersCannotHideBlockedCommands(t *testing.T) {
 func TestWindowsTimeoutIsNotAnExecutionWrapper(t *testing.T) {
 	for _, escape := range []byte{'^', '`'} {
 		for _, command := range []string{
+			"timeout 2",
+			"timeout.exe -1 /NOBREAK",
+			"timeout -1",
+			"timeout.exe 0",
 			"timeout /t 2 /nobreak",
 			"timeout.exe /T 2 /NOBREAK",
 			"timeout /nobreak /t -1",
@@ -81,6 +85,7 @@ func TestWindowsTimeoutIsNotAnExecutionWrapper(t *testing.T) {
 			"timeout.exe /T 2 & git -c core.gitProxy=classification-only status",
 			"timeout /? && timeout 1 sh -c true",
 			"timeout 2 git -c core.gitProxy=classification-only status",
+			"timeout -1 git -c core.gitProxy=classification-only status",
 			"nohup timeout 2 nice -n 1 stdbuf -oL rm -rf ./classification-only",
 		} {
 			if err := ValidateCommandWithEscape(command, escape); err == nil {

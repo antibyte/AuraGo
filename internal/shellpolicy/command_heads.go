@@ -56,8 +56,10 @@ func normalizeCommandHeads(command string, escape byte) (string, bool) {
 		}
 		if wrapper != "" {
 			if wrapper == "timeout" && escape != '\\' {
-				switch strings.ToLower(word) {
-				case "/t", "/nobreak", "/?":
+				tail := strings.TrimSpace(command[i:])
+				switch {
+				case strings.EqualFold(word, "/t"), strings.EqualFold(word, "/nobreak"), word == "/?",
+					word == "-1" && (tail == "" || strings.EqualFold(tail, "/nobreak")):
 					// Windows timeout waits locally; it does not wrap a child command.
 					out.WriteString("timeout " + word)
 					wrapper, atHead = "", false
