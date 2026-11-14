@@ -5,7 +5,8 @@
   - Part C: 3144a0b90 to 8fc76ebdc (8 commits).
   - Part A: 453799f0d to 75d9db914 (11 commits).
   - Part D: 98d90e8c5 to 799d48c64 (8 commits).
-  - Parts B (kit and type scale) and E (lab) are still open. §12 lists what review changed.
+  - Part B: 54d854d21 to 55becb497 (7 commits), landed 2026-11-14.
+  - Part E (lab) is still open. §12 lists what review changed.
 - **Roadmap:** `plans/2026-11-09-easydrag-next-roadmap.md`:
   - §6, Wave 1 "Readable and honest" (lines 1412-1434);
   - E2 "One visual language" (lines 350-416);
@@ -431,7 +432,7 @@ Every new Node script matches `scripts/test-easydrag*.mjs` and every new Go test
 - **The lab is slow or flaky.** 84 renders on a shared Chrome. Every check reports its measured value, a flaky check is re-run alone before it counts, and the time budget in §7 applies.
 - **Removing an idle animation removes a cue someone relies on**, for example a pulsing "unsaved" dot. Each removed animation is listed in Part D's report, and a cue that matters becomes a static mark.
 
-## 12. Changes from implementation and review (Parts A, C, D)
+## 12. Changes from implementation and review (Parts A, B, C, D)
 
 The plan README's amendments 1-33 and 9a apply. Review added these:
 
@@ -451,6 +452,14 @@ The plan README's amendments 1-33 and 9a apply. Review added these:
   - The visible rail caption is each button's accessible name; the long name and the shortcut stay in `title`.
   - "Ruhig" also stops canvas glides and smooth scrolling through `ED.delight.allow('view'|'scroll')`.
   - The target-size scan skips the screen-reader-only node list.
+- **Part B**
+  - The callout picks its hue through `data-ed-hue` (ok, danger, warn, info, neutral), mapped from the status in JS, because the status lint forbids `[data-status=` in CSS outside the status block. `data-status` stays on the element.
+  - The results panel hides with the `hidden` attribute; the Node DOM stub does not reflect the property.
+  - JSON-tree disclosure titles keep weight 400, and their head uses `font-size: inherit`, which the scale lint allows.
+  - The radius ratchet counts `50%` too (the plan's `%\b` never matched), so its ceiling is 79; colour literals stop at 14.
+  - Toast actions, callout actions and disclosure heads join the 44px touch lists (pointer: coarse and windows up to 760px). The old Undo was an `ed-btn` and had 44px.
+  - The sheet squares only its bottom corners, so themes with a square or organic card radius keep it on top (§4.2).
+  - Four sizes moved by more than 1px: `.ed-recipe-intro h2` 20 to 18, and `.ed-home-sort`, `.ed-version-meta`, `.ed-port-tip` 12.5 to 14.
 - **Open follow-ups**
   - **Duplicate "unclear" wording:** on a step with an uncertain effect, the detail chip at `easydrag-detail.js:619` repeats the status label's word. W1d decides whether to keep only the chip's tooltip.
   - **Native-speaker check:** the rail captions and the cs, pl, el and hi plural texts, in the Wave 1 sessions.

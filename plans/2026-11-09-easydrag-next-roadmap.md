@@ -1417,11 +1417,12 @@ The ten waves sum to 22.5 relative units instead of 20.5, for two reasons. The p
   - W1d Test loop;
   - W1e Canvas;
   - W1f Entry and demo 3.1.
-  - **Where W1a is.** Spec `plans/2026-11-13-easydrag-w1a-spec.md`, plan `plans/2026-11-13-easydrag-w1a/`. Parts A, C and D have landed on main and are not pushed:
+  - **Where W1a is.** Spec `plans/2026-11-13-easydrag-w1a-spec.md`, plan `plans/2026-11-13-easydrag-w1a/`. Parts A, B, C and D have landed on main and are not pushed:
     - A, the status map and tokens: 453799f0d to 75d9db914;
     - C, plurals, formatting, vN and the pseudo-locale: 3144a0b90 to 8fc76ebdc;
     - D, the icon map, the labelled rail and the motion gate with Lebendigkeit: 98d90e8c5 to 799d48c64.
-  - Parts B (kit and type scale, 11/12/14/16/18/24) and E (the lab) are next.
+    - B, the kit (disclosure, callout, chip, toast, toolbar), the bottom sheet, the type scale 11/12/14/16/18/24 and the literal ratchets: 54d854d21 to 55becb497 (landed 2026-11-14).
+  - Part E (the lab) is next.
   - S0c ledger rows 23 (plurals) and 24 (status-map "stopped") are closed by W1a C and A.
 - *Includes:*
   - E2: FD-08 with the status map, UI-17, FD-09, FD-11, CS-01, UI-15, JY-01, the action registry, UX-18 and CS-20, the first FD-14 scenes, and the CS-17 ledger and control budgets;
