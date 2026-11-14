@@ -218,9 +218,6 @@ const labMeasureJS = `spec=>{
 		let n=0;
 		roots.forEach(root=>root.querySelectorAll(p.selector).forEach(el=>{
 			if(!vis(el))return;
-			// an unavailable item (.is-unavailable: a block whose service is not set up) is dimmed to 0.55 on purpose, like a disabled
-			// control; WCAG 1.4.3 leaves inactive components out, so the lab does not measure what it dims
-			if(el.closest('.is-unavailable'))return;
 			if(p.role==='text'&&(el.disabled||el.getAttribute('aria-disabled')==='true'))return;
 			n++;
 			const cs=getComputedStyle(el),op=opacity(el),b=behind(el);
