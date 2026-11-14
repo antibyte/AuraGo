@@ -96,13 +96,16 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 	if err := c.Stop(ctx, nest, secret); err != nil {
 		return configNotDelivered(fmt.Errorf("failed to stop Egg before deployment: %w", err))
 	}
-	// Copy only after shutdown so SQLite/WAL state is no longer changing.
-	backupCmd := fmt.Sprintf("if [ -d %s ]; then rm -rf %s && cp -a %s %s && echo backed_up; fi", shellPath(baseDir), shellPath(backupDir), shellPath(baseDir), shellPath(backupDir))
-	backupAck, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, backupCmd)
-	if err != nil {
-		return configNotDelivered(fmt.Errorf("previous Egg stopped; backup failed; retain original directory %s for recovery: %w", baseDir, err))
+	// Fresh retries must not turn their empty directories into predecessor backups.
+	if strings.TrimSpace(preflight) != "fresh" {
+		// Copy only after shutdown so SQLite/WAL state is no longer changing.
+		backupCmd := fmt.Sprintf("if [ -d %s ]; then rm -rf %s && cp -a %s %s && echo backed_up; fi", shellPath(baseDir), shellPath(backupDir), shellPath(baseDir), shellPath(backupDir))
+		backupAck, err := sshRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, backupCmd)
+		if err != nil {
+			return configNotDelivered(fmt.Errorf("previous Egg stopped; backup failed; retain original directory %s for recovery: %w", baseDir, err))
+		}
+		backedUp = strings.TrimSpace(backupAck) == "backed_up"
 	}
-	backedUp = strings.TrimSpace(backupAck) == "backed_up"
 
 	// 2. Create directories and transfer the binary.
 	mkdirCmd := fmt.Sprintf("mkdir -p %s %s %s", shellPath(baseDir+"/data"), shellPath(baseDir+"/log"), shellPath(baseDir+"/prompts"))

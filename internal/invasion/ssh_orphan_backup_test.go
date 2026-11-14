@@ -16,8 +16,15 @@ import (
 )
 
 func TestSSHConnectorDeployPreservesOrphanRecoveryBackup(t *testing.T) {
-	for _, emptyPrimary := range []bool{false, true} {
-		t.Run(fmt.Sprintf("empty-primary-%v", emptyPrimary), func(t *testing.T) {
+	for _, tc := range []struct {
+		name                 string
+		emptyPrimary, backup bool
+	}{
+		{"missing-primary-with-backup", false, true},
+		{"empty-primary-with-backup", true, true},
+		{"fresh-retries-without-backup", false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
 			nest := sshDeployTestNest()
 			base, err := sshEggBaseDir(nest.ID)
@@ -29,17 +36,19 @@ func TestSSHConnectorDeployPreservesOrphanRecoveryBackup(t *testing.T) {
 			if err != nil || strings.HasPrefix(rel, "..") {
 				t.Fatal("fixture escaped temporary root")
 			}
-			if emptyPrimary {
+			if tc.emptyPrimary {
 				if err := os.MkdirAll(filepath.Join(root, strings.TrimPrefix(base, "~/"), "data"), 0700); err != nil {
 					t.Fatal(err)
 				}
 			}
 			dataPath := filepath.Join(backup, "data", "original.db")
-			if err := os.MkdirAll(filepath.Dir(dataPath), 0700); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.WriteFile(dataPath, []byte("only recovery copy"), 0600); err != nil {
-				t.Fatal(err)
+			if tc.backup {
+				if err := os.MkdirAll(filepath.Dir(dataPath), 0700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(dataPath, []byte("only recovery copy"), 0600); err != nil {
+					t.Fatal(err)
+				}
 			}
 			bash := "bash"
 			if runtime.GOOS == "windows" {
@@ -81,14 +90,24 @@ func TestSSHConnectorDeployPreservesOrphanRecoveryBackup(t *testing.T) {
 				uploads++
 				return errors.New("synthetic binary transfer failure")
 			}
-			for attempt := 0; attempt < 2; attempt++ {
+			for attempt := 0; attempt < 3; attempt++ {
 				err = (&SSHConnector{}).Deploy(context.Background(), nest, nil, sshDeployTestPayload())
 				if !errors.Is(err, ErrEggConfigNotDelivered) {
 					t.Fatalf("unexpected failure phase: %v", err)
 				}
-				if got, readErr := os.ReadFile(dataPath); readErr != nil || string(got) != "only recovery copy" {
-					t.Fatalf("attempt %d destroyed the orphan recovery copy: read=%v, deploy=%v", attempt+1, readErr, err)
+				if tc.backup {
+					if got, readErr := os.ReadFile(dataPath); readErr != nil || string(got) != "only recovery copy" {
+						t.Fatalf("attempt %d destroyed the orphan recovery copy: read=%v, deploy=%v", attempt+1, readErr, err)
+					}
+				} else if _, statErr := os.Lstat(backup); !os.IsNotExist(statErr) {
+					t.Fatalf("attempt %d created a spurious predecessor backup: %v", attempt+1, statErr)
 				}
+			}
+			if !tc.backup {
+				if uploads != 3 {
+					t.Fatalf("fresh retries were blocked: uploads=%d, error=%v", uploads, err)
+				}
+				return
 			}
 			err = (&SSHConnector{}).Reconfigure(context.Background(), nest, nil, []byte("egg_mode: {}"))
 			if !errors.Is(err, ErrEggConfigNotDelivered) {

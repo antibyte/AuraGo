@@ -61,7 +61,9 @@ directories. If an existing `.bak` has no executable primary Egg beside it,
 deployment and reconfiguration stop at preflight, retaining that recovery copy
 across retries. The error names both paths. Recover the predecessor through the
 authenticated operator path before retrying; an orphan backup does not count as
-a newly acknowledged predecessor.
+a newly acknowledged predecessor. Fresh installations do not back up empty
+attempt directories, so failed binary transfers can be retried without creating
+a spurious predecessor.
 
 Before any possible configuration transfer, a failed hatch can restore a freshly
 acknowledged, security-marked predecessor and its previous shared key. Failure
