@@ -213,7 +213,7 @@ const labMeasureJS = `spec=>{
 	};
 	const scope=spec.scope||'.ed-app';
 	const roots=[...document.querySelectorAll(scope)];
-	const out={elements:[],counts:{},unnamed:[],scanned:0,clipped:[]};
+	const out={elements:[],counts:{},unnamed:[],scanned:0,clipped:[],clipScanned:0,clipRails:0};
 	(spec.probes||[]).forEach(p=>{
 		let n=0;
 		roots.forEach(root=>root.querySelectorAll(p.selector).forEach(el=>{
@@ -276,9 +276,11 @@ const labMeasureJS = `spec=>{
 			const cs=getComputedStyle(el);
 			if(cs.display==='inline'||cs.display==='contents'||!el.clientWidth)return;
 			if(![...el.childNodes].some(n=>n.nodeType===3&&n.textContent.trim()))return;
+			if(!shown(el))return;
+			// a box the scan really checked: visible to a user, with its own text; the Go side needs a floor of them
+			out.clipScanned++;if(el.matches('.ed-rail-caption'))out.clipRails++;
 			if(el.scrollWidth<=el.clientWidth+1)return;
 			if(/auto|scroll/.test(cs.overflowX))return;
-			if(!shown(el))return;
 			// the title: on the element itself or on the nearest control (button, link, role button or option) around it,
 			// the one the pointer hovers
 			const ctl=el.closest('button,a[href],[role="button"],[role="option"]');
@@ -393,11 +395,15 @@ func (r *labRun) openEditor() {
 // labRailProbe is the rail's captions (Part D): text on the rail surface at 4.5:1.
 var labRailProbe = labProbe{Name: "rail-caption", Selector: ".ed-rail-caption", Role: "text", Min: 5}
 
+// labNodeTileProbe is the four cards' tiles of the seeded flow: the icon on its category tile at 3:1. A floor, so a renamed
+// class cannot make scenes 3 and 4 pass empty.
+var labNodeTileProbe = labProbe{Name: "node-tile", Selector: ".ed-node-tile", Role: "tile", Min: 4}
+
 // sceneIdleEditor is scene 3: the editor of the seeded flow with the labelled rail and nothing running.
 func (r *labRun) sceneIdleEditor() {
 	s := r.s
 	s.wait(`()=>document.querySelectorAll('.ed-rail-caption').length>=5`)
-	r.check("3-idle-editor", labSpec{Names: true, Probes: append(labStatusProbes(0), labRailProbe)})
+	r.check("3-idle-editor", labSpec{Names: true, Probes: append(labStatusProbes(0), labRailProbe, labNodeTileProbe)})
 	s.checkTargets(r.theme + "/3-idle-editor")
 }
 
@@ -408,7 +414,7 @@ func (r *labRun) sceneRunDone() {
 	s.page.MustEval(easyDragContactRunDoneJS)
 	s.wait(`()=>document.querySelectorAll('.ed-edge.is-delivered').length===3 && document.querySelectorAll('.ed-node .ed-status-disc').length>=4`)
 	s.clearToasts()
-	r.check("4-run-done", labSpec{Names: true, Probes: append(labStatusProbes(4), labRailProbe)})
+	r.check("4-run-done", labSpec{Names: true, Probes: append(labStatusProbes(4), labRailProbe, labNodeTileProbe)})
 	s.checkTargets(r.theme + "/4-run-done")
 }
 
@@ -438,7 +444,14 @@ func (r *labRun) sceneTestResult() {
 	// open it the product way and wait for the timeline: its discs and its muted status words are what this scene measures
 	s.page.MustElement(`.ed-run-results .ed-disclosure-head`).MustClick()
 	s.wait(`()=>{const t=document.querySelector('.ed-run-timeline');return !!t && t.getClientRects().length>0 && t.querySelectorAll('li').length>=4}`)
-	r.check("5-test-result", labSpec{Names: true, Probes: append(labStatusProbes(1),
+	// the injected uncertain callout and its disc must be there: a floor of 1 each
+	probes5 := labStatusProbes(1)
+	for i := range probes5 {
+		if probes5[i].Name == "callout" || probes5[i].Name == "callout-disc" {
+			probes5[i].Min = 1
+		}
+	}
+	r.check("5-test-result", labSpec{Names: true, Probes: append(probes5,
 		labProbe{Name: "disclosure", Selector: ".ed-disclosure-head", Role: "text", Min: 1},
 		// the timeline's status words are muted 12px text, not .ed-status-word; one row per step of the run (the seeded flow has 4)
 		labProbe{Name: "timeline-word", Selector: ".ed-run-timeline .ed-muted", Role: "text", Min: 4},

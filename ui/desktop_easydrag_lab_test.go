@@ -81,11 +81,13 @@ type labClip struct {
 
 // labScene is the page's answer for one scene.
 type labScene struct {
-	Elements []labElement   `json:"elements"`
-	Counts   map[string]int `json:"counts"`
-	Unnamed  []labBox       `json:"unnamed"`
-	Scanned  int            `json:"scanned"`
-	Clipped  []labClip      `json:"clipped"`
+	Elements    []labElement   `json:"elements"`
+	Counts      map[string]int `json:"counts"`
+	Unnamed     []labBox       `json:"unnamed"`
+	Scanned     int            `json:"scanned"`
+	Clipped     []labClip      `json:"clipped"`
+	ClipScanned int            `json:"clipScanned"` // boxes the clip scan checked (visible to a user, with their own text)
+	ClipRails   int            `json:"clipRails"`   // of them, the rail captions
 }
 
 type labFinding struct{ Theme, Scene, Element, Check, Value, Want string }
@@ -270,11 +272,23 @@ func labNameFindings(theme, scene string, res labScene) []labFinding {
 
 func labClipFindings(theme, scene string, res labScene) []labFinding {
 	var out []labFinding
+	// floors: a scan that checked nothing proves nothing (a hidden or renamed editor would pass)
+	if res.ClipScanned < labClipScanFloor {
+		out = append(out, labFinding{theme, scene, "clip scan", "present", fmt.Sprintf("%d boxes scanned", res.ClipScanned), fmt.Sprintf("at least %d", labClipScanFloor)})
+	}
+	if res.ClipRails < labClipRailFloor {
+		out = append(out, labFinding{theme, scene, "clip scan of .ed-rail-caption", "present", fmt.Sprintf("%d captions scanned", res.ClipRails), fmt.Sprintf("at least %d", labClipRailFloor)})
+	}
 	for _, c := range res.Clipped {
 		out = append(out, labFinding{theme, scene, c.Name, "text-clipped", fmt.Sprintf("scrollWidth %d > clientWidth %d, ellipsis=%v, title=%v (looked at %s), text %q", c.ScrollWidth, c.ClientWidth, c.Ellipsis, c.Title, c.Looked, c.Text), "no overflow, or text-overflow: ellipsis plus a title"})
 	}
 	return out
 }
+
+const (
+	labClipScanFloor = 20 // boxes the pseudo run's clip scan must have checked
+	labClipRailFloor = 5  // of them, rail captions (the rail has 5 or more)
+)
 
 // labSplit separates findings the owner accepted (labKnown) from the ones that fail the lab.
 func labSplit(findings []labFinding) (failing, known []labFinding) {
@@ -367,9 +381,17 @@ func TestEasyDragLabFindings(t *testing.T) {
 	if got := labNameFindings("t", "s", labScene{}); len(got) != 1 {
 		t.Errorf("an empty scan gave %v, want one finding", got)
 	}
-	clip := labScene{Clipped: []labClip{{Name: "span.ed-rail-caption", Text: "[Vörlägén]", ScrollWidth: 80, ClientWidth: 60, Ellipsis: true}}}
+	clip := labScene{ClipScanned: 40, ClipRails: 5, Clipped: []labClip{{Name: "span.ed-rail-caption", Text: "[Vörlägén]", ScrollWidth: 80, ClientWidth: 60, Ellipsis: true}}}
 	if got := labClipFindings("t", "s", clip); len(got) != 1 || !strings.Contains(got[0].Value, "scrollWidth 80 > clientWidth 60") {
 		t.Errorf("a clipped caption gave %v", got)
+	}
+
+	// a clip scan that checked nothing (or no rail caption) must fail
+	if got := labClipFindings("t", "s", labScene{}); len(got) != 2 || !strings.Contains(got[0].Value, "0 boxes scanned") || !strings.Contains(got[1].Value, "0 captions scanned") {
+		t.Errorf("a scan of nothing gave %v, want the two floor findings", got)
+	}
+	if got := labClipFindings("t", "s", labScene{ClipScanned: 19, ClipRails: 5}); len(got) != 1 {
+		t.Errorf("19 boxes scanned gave %v, want one finding", got)
 	}
 
 	// known findings are split off; an entry needs a reason
