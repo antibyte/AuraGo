@@ -17,7 +17,8 @@ This is a roadmap. Each wave gets its own implementation plan; Wave 3 items get 
 | Priority | Interaction quality first, then business documents. Long-document and collaboration depth later. | User, 2026-11-12 |
 | Interaction concept | Menu bar + context, like Google Docs: complete window menus, one toolbar with an overflow menu, a contextual bar for table / image / header-footer, a right-click menu, form dialogs. No ribbon, no second toolbar row. | User, 2026-11-12 |
 | Approach | Foundation first (a command registry that feeds every surface), then feature waves. Bolting features onto today's structure and a UI rewrite were both rejected. | Recommended, not yet confirmed |
-| PDF | Through the existing print path (browser "Save as PDF"), after fixing per-section page sizes. A server-side renderer is optional and later. | Recommended, not yet confirmed |
+| PDF | Through the existing print path (browser "Save as PDF"), after fixing per-section page sizes, in 2b. A one-click server-side PDF is wanted as well and follows as its own part directly after 2b. | User, 2026-11-14 |
+| Templates | Built-in templates are recipes that Writer builds into a document when one is created: no binary files in the repo, texts in all 16 languages. The user's own templates are real DOCX files in a workspace folder. | User, 2026-11-14 |
 | Spell check | Parked. Not feasible on the current engine. | Evidence below |
 
 ## Evidence
@@ -174,7 +175,8 @@ Decided while planning 1a: superscript and subscript are menu items, not toolbar
 Wave 2 is planned in three parts, each shippable on its own (user, 2026-11-13):
 
 - **2a** — page setup dialog, paragraph dialog, page fields and date, one length unit. Plan: `docs/superpowers/plans/2026-11-14-writer-wave2a-page-paragraph.md`. Tab stops move to the interactive ruler in Wave 3 (user, 2026-11-13). Header and footer distance is left out: the engine exposes it only while a header or footer is open. The ruler keeps centimetres until Wave 3.
-- **2b** — PDF through the print path, templates as real `.docx` files, "save as template".
+- **2b** — PDF through the print path (one named page per page size, File > Save as PDF…), four built-in templates (letter after DIN 5008, invoice, minutes, report) as recipes built at creation, the user's own templates as DOCX files in `Documents/Templates` with "Save as template" and "New from template". Plan: `docs/superpowers/plans/2026-11-14-writer-wave2b-pdf-templates.md`. Decided 2026-11-14: recipes instead of shipped `.docx` files, because the repo packs no binary documents, nothing here can author them in Word and recipes carry all 16 languages; the price is that a built-in template uses the engine's stock styles only and the letter's address field is spaced, not a positioned frame. Left out: preview pictures in the template dialog, managing templates inside Writer (the Files app does it).
+- **2b+** — server-side one-click PDF (user, 2026-11-14), planned after 2b on the corrected print path.
 - **2c** — table border style, image size, crop, replace and position, styles gallery, repeat header row and table alignment.
 
 Dropped from the first draft: a print preview dialog (the browser print dialog already has preview and page range) and a document-properties dialog (the bundle has no command for it).
@@ -213,5 +215,5 @@ Done inside each wave, not as a separate pass.
 ## Open questions for the user
 
 1. Is the wave split right, or should something move forward (for example templates into Wave 1)?
-2. Is PDF through the browser print dialog enough for now, or is a one-click server-side PDF wanted from the start?
-3. Which business templates matter most beyond letter, invoice and minutes?
+2. Is PDF through the browser print dialog enough for now, or is a one-click server-side PDF wanted from the start? Answered 2026-11-14: both; the print path comes with 2b, the server-side PDF directly after it.
+3. Which business templates matter most beyond letter, invoice and minutes? 2b ships letter, invoice, minutes and report; CV and offer stay open.
