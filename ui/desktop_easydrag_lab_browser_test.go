@@ -93,6 +93,8 @@ func (r *labRun) applyTheme(name string) {
 // editor scenes. Each task of Part E adds its lines here.
 func (r *labRun) scenes() {
 	r.sceneHome()
+	r.sceneStatusSheet()
+	r.sceneCategorySheet()
 }
 
 func (r *labRun) add(f []labFinding) { r.findings = append(r.findings, f...) }
@@ -191,8 +193,8 @@ const labMeasureJS = `spec=>{
 	const describe=el=>{
 		const cls=typeof el.className==='string'?el.className.trim().split(/\s+/).filter(Boolean):[];
 		const data=[...el.attributes].map(a=>a.name).find(n=>n.startsWith('data-ed'))||'';
-		const st=el.getAttribute('data-status'),surf=el.closest('[data-lab-surface]');
-		return el.tagName.toLowerCase()+(cls.length?'.'+cls.join('.'):'')+(st?'[status='+st+']':'')+(data?'['+data+']':'')+(surf?'@'+surf.dataset.labSurface:'');
+		const st=el.getAttribute('data-status'),cat=el.getAttribute('data-cat'),surf=el.closest('[data-lab-surface]');
+		return el.tagName.toLowerCase()+(cls.length?'.'+cls.join('.'):'')+(st?'[status='+st+']':'')+(cat?'[cat='+cat+']':'')+(data?'['+data+']':'')+(surf?'@'+surf.dataset.labSurface:'');
 	};
 	const name=el=>{
 		const lb=el.getAttribute('aria-labelledby');
@@ -267,4 +269,79 @@ func (r *labRun) sceneHome() {
 	s.clearToasts()
 	r.check("6-home", labSpec{Names: true, Probes: labStatusProbes(0)}) // the home page shows no status disc (probe: 0 on HOME), so Min is 0
 	s.checkTargets(r.theme + "/6-home")
+}
+
+// labSheetJS lays a lab sheet over the open EasyDrag window. kind is "status" or "categories". The sheet is a real child
+// of .ed-app, so the tokens, the status classes and the kit render as in the product. data-lab-surface names the
+// surface a column draws on; the measure script reports it in every element name.
+const labSheetJS = `(kind,args)=>{
+	const ED=window.EasyDrag,tr=window.t,app=document.querySelector('.ed-app');
+	const toEl=x=>{if(typeof x!=='string')return x;const d=document.createElement('div');d.innerHTML=x.trim();return d.firstElementChild;};
+	const old=app.querySelector('.ed-lab-sheet');if(old)old.remove();
+	const sheet=document.createElement('div');sheet.className='ed-lab-sheet';
+	sheet.style.cssText='position:fixed;inset:0;z-index:99999;overflow:auto;box-sizing:border-box;padding-top:64px;display:flex;flex-wrap:wrap;align-content:flex-start;background:var(--ed-bg);color:var(--ed-text);font:13px/1.4 system-ui,sans-serif';
+	const surfaces={panel:'var(--ed-panel-strong)',canvas:'var(--ed-bg)',well:'var(--ed-well-color)'};
+	const section=name=>{const s=document.createElement('section');s.dataset.labSurface=name;s.style.cssText='box-sizing:border-box;width:33.33%;min-width:280px;padding:12px;background:'+surfaces[name]+';color:var(--ed-text)';sheet.appendChild(s);return s;};
+	const row=(parent,node)=>{const r=document.createElement('div');r.style.cssText='display:flex;align-items:center;gap:8px;padding:3px 0';r.appendChild(toEl(node));parent.appendChild(r);};
+	if(kind==='status'){
+		Object.keys(surfaces).forEach(name=>{
+			const s=section(name);
+			ED.status.VALUES.forEach(v=>row(s,ED.status.label(tr,v)));
+			if(name!=='well')['ok','failed','running','uncertain','skipped'].forEach(v=>row(s,ED.kit.callout({status:v,text:ED.status.word(tr,v)})));
+		});
+	}
+	if(kind==='categories'){
+		Object.keys(surfaces).forEach(name=>{
+			const s=section(name);
+			const tiles=document.createElement('div');tiles.style.cssText='display:flex;flex-wrap:wrap;gap:8px';
+			args.cats.forEach(c=>{const tile=document.createElement('span');tile.className='ed-tile';tile.dataset.cat=c;tile.innerHTML=ED.core.icon('tool');tiles.appendChild(tile);});
+			s.appendChild(tiles);
+			if(name==='well'){
+				const g=document.createElement('div');g.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin-top:12px';
+				args.groups.forEach(n=>{const f=document.createElement('div');f.className='ed-group-frame'+(n==='neutral'?'':' ed-group--'+n);f.style.cssText='position:static;width:84px;height:28px';f.title=n;g.appendChild(f);});
+				s.appendChild(g);
+			}
+			if(name==='panel'){
+				const refs=document.createElement('div');refs.dataset.labRef='1';refs.style.cssText='display:flex;gap:8px;margin-top:12px';
+				['ok','failed','running','uncertain'].forEach(v=>refs.appendChild(toEl(ED.status.disc(v,18))));
+				s.appendChild(refs);
+			}
+		});
+	}
+	app.appendChild(sheet);
+	return sheet.querySelectorAll('*').length;
+}`
+
+const labSheetOffJS = `()=>{document.querySelectorAll('.ed-lab-sheet').forEach(n=>n.remove());}`
+
+// sceneStatusSheet is scene 1: every status value as a disc plus word on the panel, canvas and well surfaces, and a
+// callout per status colour (ok, failed, running, uncertain and the grey skipped) on the panel and canvas surfaces.
+// 12 values on three surfaces make 36 discs and 36 words; 5 callouts on two surfaces make 10.
+func (r *labRun) sceneStatusSheet() {
+	s := r.s
+	s.page.MustEval(labSheetJS, "status", nil)
+	r.check("1-status-sheet", labSpec{Scope: ".ed-lab-sheet", Names: true, Probes: []labProbe{
+		{Name: "disc", Selector: ".ed-status-disc:not(.ed-callout *)", Role: "mark", Min: 36},
+		{Name: "word", Selector: ".ed-status-word", Role: "text", Min: 36},
+		{Name: "callout", Selector: ".ed-callout", Role: "text", Min: 10},
+		{Name: "callout-disc", Selector: ".ed-callout .ed-status-disc", Role: "mark", Min: 10},
+	}})
+	s.page.MustEval(labSheetOffJS)
+}
+
+// sceneCategorySheet is scene 2: the nine category tiles on the three surfaces (27), the six group frames on the well,
+// and a row of the four coloured status discs for the distance check. Tiles must keep their icon at 3:1 on the tile,
+// group frames must reach 3:1 on the well, and every category colour keeps 30 degrees of hue (tiles) and 0.20 OKLab
+// from the rendered status colours.
+func (r *labRun) sceneCategorySheet() {
+	s := r.s
+	groups := append(append([]string{}, easyDragS0GroupNames...), "neutral")
+	s.page.MustEval(labSheetJS, "categories", map[string]interface{}{"cats": easyDragS0Categories, "groups": groups})
+	res := r.check("2-category-sheet", labSpec{Scope: ".ed-lab-sheet", Names: true, Probes: []labProbe{
+		{Name: "tile", Selector: ".ed-tile", Role: "tile", Min: 27},
+		{Name: "group", Selector: ".ed-group-frame", Role: "edge", Min: 6},
+		{Name: "ref-status", Selector: "[data-lab-ref] .ed-status-disc", Role: "ref", Min: 4},
+	}})
+	r.add(labDistanceFindings(r.theme, "2-category-sheet", res.Elements))
+	s.page.MustEval(labSheetOffJS)
 }
