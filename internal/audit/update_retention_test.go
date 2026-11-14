@@ -196,6 +196,21 @@ flock -n 9
 export AURAGO_UPDATE_LOCK_FD=9
 UPDATE_OUTCOME=confirmed
 UPDATE_RETENTION_BINARY=mock_binary
+_svc_user=fixture
+_svc_group=fixture
+SUDO=sudo
+sudo() {
+    if [ -e "$DIR/release-cleanup" ]; then
+        test "$1" = -n || return 94
+        shift
+    fi
+    "$@"
+}
+chown() {
+    if [ "$1" = -R ] && [ -e "$DIR/release-cleanup" ]; then
+        echo 'ownership restored after cleanup'
+    fi
+}
 remove_regular_file_if_present() { return 0; }
 tui_cleanup() { :; }
 info() { echo "INFO $*"; }
@@ -244,6 +259,7 @@ echo 'update finished'
 		t.Fatal(err)
 	}
 	waitForLog("OK Artifact cleanup:")
+	waitForLog("ownership restored after cleanup")
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
 		if exec.Command("flock", "-n", filepath.Join(root, ".aurago-update", "update.lock"), "true").Run() == nil {

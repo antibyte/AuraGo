@@ -48,6 +48,8 @@ The updater owns transaction manifests; this package verifies them before collec
   inherits update-lock descriptor 9, ignores hangup and detaches all terminal
   streams. Its compact result/errors go to `.aurago-update/cleanup.log`; the
   existing sanitized status remains in `data/update_cleanup_status.json`.
+  Restore the migrated service account's state ownership after legacy adoption;
+  background sudo must never prompt.
   Failed, interrupted and deferred-restart updates do not schedule this worker;
   rollback cleanup remains synchronous.
 - Source builds with Go do not resolve the AuraGo application release. Optional

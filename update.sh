@@ -1522,6 +1522,9 @@ update_start_retention_cleanup() {
         TUI_FULL=0
         TUI_ANIM=0
         update_retention_cleanup "$binary"
+        if [ -n "${_svc_user:-}" ] && [ -n "${_svc_group:-}" ]; then
+            $SUDO ${SUDO:+-n} chown -R "${_svc_user}:${_svc_group}" "$UPDATE_STATE" 2>/dev/null || warn "Update state ownership could not be restored after cleanup."
+        fi
     ) > "$log" 2>&1 < /dev/null &
     disown "$!" 2>/dev/null || true
     info "Artifact cleanup continues in the background. Log: $log"
