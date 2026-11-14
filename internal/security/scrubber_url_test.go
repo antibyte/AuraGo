@@ -9,6 +9,9 @@ import (
 
 func TestScrubRegisteredURLForms(t *testing.T) {
 	percent := regexp.MustCompile(`%[0-9A-Fa-f]{2}`)
+	encoders := []func(string) string{url.QueryEscape, url.PathEscape, func(value string) string {
+		return strings.ReplaceAll(url.QueryEscape(value), "+", "%20")
+	}}
 	for _, scoped := range []bool{false, true} {
 		value := "CaseSensitive+/ space?=#value"
 		if scoped {
@@ -20,7 +23,7 @@ func TestScrubRegisteredURLForms(t *testing.T) {
 		} else {
 			RegisterSensitive(value)
 		}
-		for _, encode := range []func(string) string{url.QueryEscape, url.PathEscape} {
+		for _, encode := range encoders {
 			encoded := encode(value)
 			mixed := percent.ReplaceAllStringFunc(encoded, func(s string) string { return strings.ToLower(s) })
 			for _, form := range []string{value, encoded, mixed} {
@@ -37,8 +40,10 @@ func TestScrubRegisteredURLForms(t *testing.T) {
 		if release != nil {
 			release()
 			release()
-			if got := Scrub(url.QueryEscape(value)); got != url.QueryEscape(value) {
-				t.Fatal("released temporary URL form remained registered")
+			for _, encode := range encoders {
+				if got := Scrub(encode(value)); got != encode(value) {
+					t.Fatal("released temporary URL form remained registered")
+				}
 			}
 		}
 	}

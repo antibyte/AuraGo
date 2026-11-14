@@ -263,7 +263,8 @@ func scrubSensitiveEntry(text string, entry sensitiveEntry) string {
 func encodedSensitiveForms(value string) []*regexp.Regexp {
 	var forms []*regexp.Regexp
 	seen := map[string]bool{value: true}
-	for _, encoded := range []string{url.QueryEscape(value), url.PathEscape(value)} {
+	query := url.QueryEscape(value)
+	for _, encoded := range []string{query, url.PathEscape(value), strings.ReplaceAll(query, "+", "%20")} {
 		if seen[encoded] {
 			continue
 		}

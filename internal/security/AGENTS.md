@@ -10,7 +10,8 @@ This package owns reusable primitives; server owns session and HTTP policy.
 
 ## Local Contracts
 
-- Registered secrets are redacted in raw, QueryEscape and PathEscape forms;
+- Registered secrets are redacted in raw, QueryEscape, PathEscape and RFC 3986
+  component forms (percent-encoded spaces and literal plus signs);
   percent hex digits accept either case without changing literal case sensitivity.
   Temporary registrations retain reference-counted release and the eight-byte
   minimum. Precompute encoded forms on registration, never per log message.
