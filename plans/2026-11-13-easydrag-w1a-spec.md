@@ -6,7 +6,8 @@
   - Part A: 453799f0d to 75d9db914 (11 commits).
   - Part D: 98d90e8c5 to 799d48c64 (8 commits).
   - Part B: 54d854d21 to 55becb497 (7 commits), landed 2026-11-14.
-  - Part E (lab) is still open. §12 lists what review changed.
+  - Part E: 64f238545 to e1c988e6a (15 commits), landed 2026-11-14. W1a is complete.
+  - §12 lists what review changed.
 - **Roadmap:** `plans/2026-11-09-easydrag-next-roadmap.md`:
   - §6, Wave 1 "Readable and honest" (lines 1412-1434);
   - E2 "One visual language" (lines 350-416);
@@ -432,7 +433,7 @@ Every new Node script matches `scripts/test-easydrag*.mjs` and every new Go test
 - **The lab is slow or flaky.** 84 renders on a shared Chrome. Every check reports its measured value, a flaky check is re-run alone before it counts, and the time budget in §7 applies.
 - **Removing an idle animation removes a cue someone relies on**, for example a pulsing "unsaved" dot. Each removed animation is listed in Part D's report, and a cue that matters becomes a static mark.
 
-## 12. Changes from implementation and review (Parts A, B, C, D)
+## 12. Changes from implementation and review (Parts A to E)
 
 The plan README's amendments 1-33 and 9a apply. Review added these:
 
@@ -460,6 +461,21 @@ The plan README's amendments 1-33 and 9a apply. Review added these:
   - Toast actions, callout actions and disclosure heads join the 44px touch lists (pointer: coarse and windows up to 760px). The old Undo was an `ed-btn` and had 44px.
   - The sheet squares only its bottom corners, so themes with a square or organic card radius keep it on top (§4.2).
   - Four sizes moved by more than 1px: `.ed-recipe-intro h2` 20 to 18, and `.ed-home-sort`, `.ed-version-meta`, `.ed-port-tip` 12.5 to 14.
+- **Part E**
+  - The lab is two tests. `TestEasyDragLabBrowser` runs the six scenes in 16 contexts, one page per context. `TestEasyDragLabPseudoBrowser` runs the pseudo-locale pass; it was split off because the first full run took 312 s against the 240 s budget (amendment 32). Each takes about 115 to 220 s, depending on machine load.
+  - A status disc passes when its fill or its outer ring (`--ed-status-edge`, amendment 4) reaches 3:1. The ring must be a solid `box-shadow` with zero offsets and blur.
+  - Opacity fades an element once, as a group; Go composites the raw values. The lab reads colours before filters: `grayscale()` keeps relative luminance and is ignored, and any other filter marks the reading as approximate.
+  - The neutral group frame is out of the distance check and keeps its 3:1 against the well, as amendment 3 does for grey.
+  - A clipped text with an ellipsis passes when the element or its nearest control (`button`, `a[href]`, `role=button`, `role=option`) carries a title. Screen-reader-only, hidden and inert text is not scanned.
+  - Scene 5 opens the results panel and measures the timeline's words and discs. Floors keep the lab from passing by measuring nothing: four node tiles, four timeline rows, the scene 5 callout, and at least 20 scanned boxes with 5 rail captions in the pseudo run.
+  - The home page shows no status disc, so scene 6 checks names and targets only.
+  - Product fixes the lab found:
+    - the neutral callout tints 5% instead of 14%, because voxel_world's grey disc measured 2.88:1 on the 14% tint;
+    - a palette item's title carries the name and then the description, and a muted card summary carries its own text, so clipped text stays readable;
+    - the unavailable palette tile greys out with `grayscale(0.8)`, like the canvas card, instead of fading to 55%. The fade measured 2.3 to 2.7:1 in six light themes (owner decision, 2026-11-14).
+  - `TestEasyDragCSSTokensAreDeclared` requires every `--ed-*` token read without a fallback to be declared.
+  - `labKnown` is empty.
 - **Open follow-ups**
+  - **Catalogue text in the pseudo run:** palette descriptions and card summaries arrive localised from the node catalogue and bypass `t()`, so the pseudo-locale does not lengthen them. The clip check covers them at their real length only.
   - **Duplicate "unclear" wording:** on a step with an uncertain effect, the detail chip at `easydrag-detail.js:619` repeats the status label's word. W1d decides whether to keep only the chip's tooltip.
   - **Native-speaker check:** the rail captions and the cs, pl, el and hi plural texts, in the Wave 1 sessions.
