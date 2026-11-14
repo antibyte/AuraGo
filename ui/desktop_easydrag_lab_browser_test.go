@@ -223,6 +223,10 @@ const labMeasureJS = `spec=>{
 			const cs=getComputedStyle(el),op=opacity(el),b=behind(el);
 			const own=parse(cs.backgroundColor),ownOver=own&&own[3]>0?over(own,b.rgb,op):null;
 			const fgc=parse(cs.color);
+			// filters: the lab reads colours before any filter. Only grayscale() is safe to ignore: it runs in linearRGB with the
+			// luminance weights, so it keeps relative luminance and with it the ink-on-tile contrast. Any other filter on the element
+			// or an ancestor sets the approx note, like a gradient does.
+			let odd=false;for(let n=el;n;n=n.parentElement){const fl=getComputedStyle(n).filter;if(fl&&fl!=='none'&&!/^grayscale\([^)]*\)$/.test(fl))odd=true;}
 			let svg=null;
 			const host=el.matches('svg')?el:el.querySelector('svg');
 			const shape=host&&host.querySelector('circle,path,rect,polygon,ellipse');
@@ -246,7 +250,7 @@ const labMeasureJS = `spec=>{
 			const surf=el.closest('[data-lab-surface]');
 			out.elements.push({probe:p.name,role:p.role,name:describe(el),text:(el.textContent||'').trim().slice(0,40),
 				status:el.getAttribute('data-status')||'',cat:el.getAttribute('data-cat')||'',surface:surf?surf.dataset.labSurface:'',
-				op:op,ownRaw:own&&own[3]>0?own:null,fgRaw:fgc,behind:round(b.rgb),own:round(ownOver),svg:round(svg),ring:round(ring),edge:round(edge),approx:b.approx});
+				op:op,ownRaw:own&&own[3]>0?own:null,fgRaw:fgc,behind:round(b.rgb),own:round(ownOver),svg:round(svg),ring:round(ring),edge:round(edge),approx:b.approx||odd});
 		}));
 		out.counts[p.name]=n;
 	});

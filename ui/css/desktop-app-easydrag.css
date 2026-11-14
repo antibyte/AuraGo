@@ -702,7 +702,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 }
 .ed-palette-item:hover, .ed-palette-item.is-active { background: var(--ed-control-hover); }
 .ed-palette-item:active { cursor: grabbing; transform: scale(0.985); }
-.ed-palette-item.is-unavailable .ed-palette-tile { opacity: 0.55; }
+.ed-palette-item.is-unavailable .ed-palette-tile { filter: grayscale(0.8); }
 .ed-palette-item.is-unavailable .ed-palette-name { color: var(--ed-muted); }
 .ed-palette-tile {
     display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 9px; color: var(--ed-cat-ink);
