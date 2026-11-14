@@ -301,19 +301,25 @@
         root.addEventListener('change',event=>change(event.target),{signal:life.signal});
         root.addEventListener('input',event=>{if(event.target.dataset.field==='query'){searchSignature='';search(true);}},{signal:life.signal});
         root.addEventListener('keydown',event=>{if(event.key==='Enter' && event.target.dataset.field==='query'){event.preventDefault();command(event.shiftKey?'previous':'next');}},{signal:life.signal});
-        // title names the document, so that the print dialog can propose it as the file name of a PDF.
-        async function print(bytes,lib,fonts,title) {
+        // paint renders the document into a hidden print frame and returns the job: every page with its own size
+        // and its pictures. title names the document, so that the print dialog can propose it as a PDF's file name.
+        async function paint(bytes,lib,fonts,title) {
             // A separate snapshot keeps edits and review state out of the print transaction.
             printFrame?.dispose();
-            const job=await window.AuraDesktopPrint.create({html:'<!doctype html><html><head><link rel="stylesheet" href="/js/vendor/writer/engine.css"></head><body><div class="docx-editor" id="pages"></div></body></html>',title:tr('print'),documentTitle:title || '',className:'writer-print-frame',signal:life.signal});
+            const job=await window.AuraDesktopPrint.create({html:'<!doctype html><html><head><link rel="stylesheet" href="/js/vendor/writer/engine.css"></head><body><div class="docx-editor" id="source"></div><div class="docx-editor" id="pages"></div></body></html>',title:tr('print'),documentTitle:title || '',className:'writer-print-frame',signal:life.signal});
             printFrame=job;
-            const doc=job.document;
-            const printEditor=lib.createDocxEditor({container:doc.getElementById('pages'),document:bytes,fonts,mode:'view',zoom:1,modules:[lib.reviewModule]});
+            const doc=job.document,P=window.WriterPdf;
+            // The scratch editor lives in #source and decodes the pictures there. A page painted on its own (#pages)
+            // only gets placeholders for them, so the decoded ones are copied over and freed from the editor.
+            const printEditor=lib.createDocxEditor({container:doc.getElementById('source'),document:bytes,fonts,mode:'view',zoom:1,modules:[lib.reviewModule]});
             try {
                 await printEditor.save();
                 for (const face of document.fonts) doc.fonts.add(face);
                 await doc.fonts.ready;
+                await P.pictures(printEditor);
                 lib.paintSemanticLayout(doc.getElementById('pages'), printEditor.surface.layout(), {scale:96/72,ariaHidden:false,defaultFontFamily:'Calibri'});
+                P.graft(doc.getElementById('source'),doc.getElementById('pages'));
+                await P.inline(doc.getElementById('pages'));
                 // Every painted page carries its own size. A named page per size lets a landscape section inside a
                 // portrait document print as landscape; the section at the caret no longer decides for all pages.
                 const setup=printEditor.snapshot().pageSetup,fallback=setup.pageWidthTwips/20+'pt '+setup.pageHeightTwips/20+'pt';
@@ -321,14 +327,23 @@
                 const sheets=L.sheets(sheetPages.map(page=>page.style.width && page.style.height?page.style.width+' '+page.style.height:fallback));
                 sheetPages.forEach((page,index)=>page.style.setProperty('page',sheets.names[index]));
                 const style=doc.createElement('style');
-                style.textContent=sheets.css+'html,body,#pages{margin:0!important;padding:0!important;height:auto!important;overflow:visible!important;background:white!important}.docx-page{position:relative!important;top:auto!important;left:auto!important;transform:none!important;break-after:page!important;break-inside:avoid!important;margin:0!important;box-shadow:none!important}.docx-page:last-child{break-after:auto!important}';
+                style.textContent=sheets.css+'#source{display:none!important}html,body,#pages{margin:0!important;padding:0!important;height:auto!important;overflow:visible!important;background:white!important}.docx-page{position:relative!important;top:auto!important;left:auto!important;transform:none!important;break-after:page!important;break-inside:avoid!important;margin:0!important;box-shadow:none!important}.docx-page:last-child{break-after:auto!important}';
                 doc.head.appendChild(style);
-                await job.print();
+                return job;
             } catch(error) {job.dispose();throw error;}
             finally {printEditor.destroy();}
         }
+        async function print(bytes,lib,fonts,title) {
+            const job=await paint(bytes,lib,fonts,title);
+            try {await job.print();} catch(error) {job.dispose();throw error;}
+        }
+        // pdf returns the painted pages as one self-contained HTML page for the server's PDF renderer.
+        async function pdf(bytes,lib,fonts,title) {
+            const job=await paint(bytes,lib,fonts,title);
+            try {return await window.WriterPdf.pack(job.document,fonts,title);} finally {job.dispose();}
+        }
         function reset(){aiRequest?.abort();suggestion=null;renderSuggestion();matches=[];reviewSignature=outlineSignature=searchSignature='';outlineActive='';}
-        return {show,update,print,reset,dispose(){life.abort();reset();printFrame?.dispose();}};
+        return {show,update,print,pdf,reset,dispose(){life.abort();reset();printFrame?.dispose();}};
     }
     window.WriterPanels={create};
 })();
