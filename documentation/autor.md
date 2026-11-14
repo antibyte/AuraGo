@@ -100,6 +100,34 @@ While a header or footer is open, its bar and **Insert > Fields** insert the
 page number, "page X of Y", the number of pages and the pages of the section.
 **Date** inserts today's date as text; it does not update itself.
 
+## Templates and PDF
+
+**File > New from template…** lists the built-in templates (letter, invoice,
+minutes, report) and, below them, your own. The Insert panel shows the built-in
+ones as tiles. A built-in template brings its margins (25 mm at the top and the
+left, 20 mm at the right and the bottom), its paragraph formats, tables and a
+footer with "page / pages". Its texts follow the interface language, and it
+uses A4, or Letter where lengths are shown in inches. The letter follows
+DIN 5008 with paragraph spacing: letterhead at the right, return line,
+recipient, date and subject. It has no positioned address frame, so check the
+position before using window envelopes.
+
+**File > Save as template…** stores the open document under a name of your
+choice as a DOCX file in `Documents/Templates`; the folder is created with the
+first template. An existing name is replaced only after a question. Rename or
+delete templates in the Files app. Every DOCX file in that folder is offered as
+a template.
+
+A document made from a template is new. It has no undo steps, never writes
+back to the template, and becomes a file in `Documents` under an `untitled-`
+name with its first change or with Save.
+
+**File > Save as PDF…** opens the browser's print dialog; choose "Save as PDF"
+as the destination there. Writer hands the document's name to the print job so
+that the dialog can propose it as the file name. **Print…** uses the same path.
+Every page prints in the format of its own section, so a landscape section
+inside a portrait document stays landscape.
+
 ## Files and recovery
 
 Autosave starts after 800 ms of inactivity, or after five seconds of continuous
@@ -146,8 +174,11 @@ separate simplified copy. DOCX-to-DOCX downloads preserve the full package.
 - `npm run test:writer` checks save queue timing, revisions, failures and disposal
   (`scripts/test-writer-session.mjs`), the command table with its tracking rule,
   shortcuts and language keys (`scripts/test-writer-commands.mjs`) and the toolbar
-  groups and overflow rule (`scripts/test-writer-toolbar.mjs`) and the window
-  menu model (`scripts/test-writer-menus.mjs`).
+  groups and overflow rule (`scripts/test-writer-toolbar.mjs`), the window
+  menu model (`scripts/test-writer-menus.mjs`), the context surfaces
+  (`scripts/test-writer-context.mjs`), the layout model and print sheets
+  (`scripts/test-writer-layout.mjs`) and the templates
+  (`scripts/test-writer-templates.mjs`).
 - `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopWriter(App|Engine)Browser'`
   exercises the actual editor, review, round-trips, conflicts, AI, imports,
   images, printing and a 100-page document.

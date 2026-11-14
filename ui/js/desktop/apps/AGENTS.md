@@ -2696,6 +2696,8 @@ buttons and menu popovers remain excluded from those gestures.
 - Notes, Writer, Sheets and Viewer share `AuraDesktopPrint` from
   `core/print-runtime.js`. Set iframe sandbox before insertion to
   `allow-same-origin allow-modals`, never allow scripts; only the parent prints.
+  `documentTitle` names a job: it goes on the frame's document and, while the job is open, on
+  the page itself, because browsers take the proposed PDF file name from one of the two.
   Preserve sanitization, await fonts/images, bind the frame to its owner signal,
   and translate timeout errors at the caller. Browser regression:
   `TestDesktopPrintSandboxBrowser`.
@@ -3923,6 +3925,20 @@ buttons and menu popovers remain excluded from those gestures.
   offered. In the form dialog `heading`, `half`, `suffix`, a `mixed` checkbox and
   `onInput(changed, values, set)` exist for these dialogs. Browser checks never hold a length as
   a literal text: the fixtures run in inches;
+  `writer-templates.js` holds the built-in templates and the rules for the user's own. A built-in
+  template is a recipe (`recipe(id, tr, {date, inches})`: paper, margins, blocks, footer) and
+  `build` turns it into DOCX bytes in a scratch editor inside the empty mount, so
+  `load(target, template)` starts every templated document from finished bytes with no undo steps
+  (`template` is `'blank'`, a built-in id or `{bytes}`). The recipe goes in as HTML because the
+  engine's import is known to keep alignment, font size, bold and paragraph spacing; in a table it
+  reads the column width from the `width` attribute only, the borders from the cell style and an
+  alignment only from a paragraph inside the cell. Paragraph styles and the footer's page fields
+  are set by commands afterwards. The user's own templates are the DOCX files in
+  `Documents/Templates` (`folder`): `saveTemplate` in `writer.js` writes there and the server
+  creates the folder with the first file; `ownTemplates` lists it and takes the refusal for a
+  missing folder as "none". A document from a template gets a new `untitled-` path and is not
+  written before its first change. Printing gives every painted page a named `@page` of its own
+  size (`WriterLayout.sheets`), so sections of different formats print right;
   `writer-session.js` owns revision-bound autosave and IndexedDB recovery;
   `writer-panels.js` owns formatting, search, review, AI and snapshot printing.
   A new command is one entry in `DEFINITIONS`: a `slot`, a `command` (an engine
