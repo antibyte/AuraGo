@@ -421,8 +421,8 @@ const labResultCalloutJS = `()=>{
 	panel.appendChild(el);
 }`
 
-// sceneTestResult is scene 5: a real test run through the fixture backend, with the results panel open (disclosure) and
-// a callout.
+// sceneTestResult is scene 5: a real test run through the fixture backend, with the results panel opened by its disclosure
+// head, the run timeline (a disc and a muted status word per step) and an injected uncertain callout.
 func (r *labRun) sceneTestResult() {
 	s := r.s
 	s.page.MustElement(`[data-ed-cmd="test"]`).MustClick()
@@ -434,8 +434,15 @@ func (r *labRun) sceneTestResult() {
 	s.wait(`()=>{const p=document.querySelector('.ed-run-results');return !!p && !p.hidden && p.getClientRects().length>0}`)
 	s.clearToasts()
 	s.page.MustEval(labResultCalloutJS)
+	// a successful real run leaves the results disclosure closed (easydrag-testing.js opens it for a simulation or an error), so
+	// open it the product way and wait for the timeline: its discs and its muted status words are what this scene measures
+	s.page.MustElement(`.ed-run-results .ed-disclosure-head`).MustClick()
+	s.wait(`()=>{const t=document.querySelector('.ed-run-timeline');return !!t && t.getClientRects().length>0 && t.querySelectorAll('li').length>=4}`)
 	r.check("5-test-result", labSpec{Names: true, Probes: append(labStatusProbes(1),
-		labProbe{Name: "disclosure", Selector: ".ed-disclosure-head", Role: "text", Min: 1})})
+		labProbe{Name: "disclosure", Selector: ".ed-disclosure-head", Role: "text", Min: 1},
+		// the timeline's status words are muted 12px text, not .ed-status-word; one row per step of the run (the seeded flow has 4)
+		labProbe{Name: "timeline-word", Selector: ".ed-run-timeline .ed-muted", Role: "text", Min: 4},
+		labProbe{Name: "timeline-disc", Selector: ".ed-run-timeline .ed-status-disc", Role: "mark", Min: 4})})
 	s.checkTargets(r.theme + "/5-test-result")
 }
 
