@@ -198,7 +198,7 @@ const labMeasureJS = `spec=>{
 	const describe=el=>{
 		const cls=typeof el.className==='string'?el.className.trim().split(/\s+/).filter(Boolean):[];
 		const data=[...el.attributes].map(a=>a.name).find(n=>n.startsWith('data-ed'))||'';
-		const st=el.getAttribute('data-status'),cat=el.getAttribute('data-cat'),surf=el.closest('[data-lab-surface]');
+		const st=el.getAttribute('data-status'),cat=el.getAttribute('data-cat')||(/tile/.test(String(el.className))&&el.parentElement&&el.parentElement.closest('[data-cat]')?el.parentElement.closest('[data-cat]').getAttribute('data-cat'):''),surf=el.closest('[data-lab-surface]');
 		return el.tagName.toLowerCase()+(cls.length?'.'+cls.join('.'):'')+(st?'[status='+st+']':'')+(cat?'[cat='+cat+']':'')+(data?'['+data+']':'')+(surf?'@'+surf.dataset.labSurface:'');
 	};
 	const name=el=>{
@@ -218,6 +218,9 @@ const labMeasureJS = `spec=>{
 		let n=0;
 		roots.forEach(root=>root.querySelectorAll(p.selector).forEach(el=>{
 			if(!vis(el))return;
+			// an unavailable item (.is-unavailable: a block whose service is not set up) is dimmed to 0.55 on purpose, like a disabled
+			// control; WCAG 1.4.3 leaves inactive components out, so the lab does not measure what it dims
+			if(el.closest('.is-unavailable'))return;
 			if(p.role==='text'&&(el.disabled||el.getAttribute('aria-disabled')==='true'))return;
 			n++;
 			const cs=getComputedStyle(el),op=opacity(el),b=behind(el);
@@ -258,6 +261,19 @@ const labMeasureJS = `spec=>{
 		}));
 	}
 	if(spec.clip){
+		// shown: a visible box that no ancestor clips away. A visually hidden ancestor (overflow hidden at 2px or less, as .ed-sr-only,
+		// or clip: rect(0 0 0 0)) leaves its content to screen readers only, so a text inside it is not a text a user can see clipped.
+		const shown=el=>{
+			if(!vis(el))return false;
+			for(let n=el.parentElement;n&&n!==document.body;n=n.parentElement){
+				const cs=getComputedStyle(n);
+				if(cs.visibility==='hidden'||n.inert)return false;
+				const r=n.getBoundingClientRect();
+				if((cs.overflowX!=='visible'||cs.overflowY!=='visible')&&(r.width<=2||r.height<=2))return false;
+				if(/^rect\((0(px)?[ ,]*){4}\)$/.test(cs.clip))return false;
+			}
+			return true;
+		};
 		roots.forEach(root=>root.querySelectorAll('*').forEach(el=>{
 			if(el.matches('input,textarea,select,svg,svg *,script,style')||!vis(el))return;
 			const cs=getComputedStyle(el);
@@ -265,9 +281,14 @@ const labMeasureJS = `spec=>{
 			if(![...el.childNodes].some(n=>n.nodeType===3&&n.textContent.trim()))return;
 			if(el.scrollWidth<=el.clientWidth+1)return;
 			if(/auto|scroll/.test(cs.overflowX))return;
-			const hasTitle=!!(el.getAttribute('title')||'').trim(),ell=cs.textOverflow==='ellipsis';
+			if(!shown(el))return;
+			// the title: on the element itself or on the nearest control (button, link, role button or option) around it,
+			// the one the pointer hovers
+			const ctl=el.closest('button,a[href],[role="button"],[role="option"]');
+			const own=!!(el.getAttribute('title')||'').trim(),viaCtl=!own&&!!ctl&&!!(ctl.getAttribute('title')||'').trim();
+			const hasTitle=own||viaCtl,ell=cs.textOverflow==='ellipsis';
 			if(ell&&hasTitle)return;
-			out.clipped.push({name:describe(el),text:(el.textContent||'').trim().slice(0,40),sw:el.scrollWidth,cw:el.clientWidth,ellipsis:ell,title:hasTitle});
+			out.clipped.push({name:describe(el),text:(el.textContent||'').trim().slice(0,40),sw:el.scrollWidth,cw:el.clientWidth,ellipsis:ell,title:hasTitle,looked:ctl?'the element and its control '+describe(ctl):'the element (no control around it)'});
 		}));
 	}
 	return JSON.stringify(out);
@@ -353,7 +374,10 @@ func (r *labRun) sceneCategorySheet() {
 	s.page.MustEval(labSheetJS, "categories", map[string]interface{}{"cats": easyDragS0Categories, "groups": groups})
 	res := r.check("2-category-sheet", labSpec{Scope: ".ed-lab-sheet", Names: true, Probes: []labProbe{
 		{Name: "tile", Selector: ".ed-tile", Role: "tile", Min: 27},
-		{Name: "group", Selector: ".ed-group-frame", Role: "edge", Min: 6},
+		{Name: "group", Selector: `.ed-group-frame[class*="ed-group--"]`, Role: "edge", Min: 5},
+		// The neutral frame is grey. Like the grey statuses (amendment 3) and easyDragS0GroupNames in the static colour test,
+		// it is checked for contrast on the well (3:1) but not for distance to the status colours.
+		{Name: "group-neutral", Selector: `.ed-group-frame:not([class*="ed-group--"])`, Role: "edge", Min: 1},
 		{Name: "ref-status", Selector: "[data-lab-ref] .ed-status-disc", Role: "ref", Min: 4},
 	}})
 	r.add(labDistanceFindings(r.theme, "2-category-sheet", res.Elements))

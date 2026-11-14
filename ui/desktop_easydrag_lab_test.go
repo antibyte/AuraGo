@@ -73,6 +73,7 @@ type labClip struct {
 	ClientWidth int    `json:"cw"`
 	Ellipsis    bool   `json:"ellipsis"`
 	Title       bool   `json:"title"`
+	Looked      string `json:"looked"` // where the title was looked for
 }
 
 // labScene is the page's answer for one scene.
@@ -232,7 +233,7 @@ func labNameFindings(theme, scene string, res labScene) []labFinding {
 func labClipFindings(theme, scene string, res labScene) []labFinding {
 	var out []labFinding
 	for _, c := range res.Clipped {
-		out = append(out, labFinding{theme, scene, c.Name, "text-clipped", fmt.Sprintf("scrollWidth %d > clientWidth %d, ellipsis=%v, title=%v, text %q", c.ScrollWidth, c.ClientWidth, c.Ellipsis, c.Title, c.Text), "no overflow, or text-overflow: ellipsis plus a title"})
+		out = append(out, labFinding{theme, scene, c.Name, "text-clipped", fmt.Sprintf("scrollWidth %d > clientWidth %d, ellipsis=%v, title=%v (looked at %s), text %q", c.ScrollWidth, c.ClientWidth, c.Ellipsis, c.Title, c.Looked, c.Text), "no overflow, or text-overflow: ellipsis plus a title"})
 	}
 	return out
 }
