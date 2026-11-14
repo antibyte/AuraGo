@@ -28,7 +28,7 @@ func verifyWriterTemplates(t *testing.T, page *rod.Page) {
         const fileIds=window.menus.find(menu=>menu.id==='file').items.map(item=>item.id||'-').join();
         for(const run of ['new,newFromTemplate,open','saveAs,saveTemplate,-','docx,pdf,html'])if(!fileIds.includes(run))throw Error('the File menu reads '+fileIds);
         // Every built-in template builds: its paper and margins, its texts, a footer, no undo steps.
-        const paper=u.unit==='in'?[12240,15840]:[11906,16838],marks={letter:'template_subject',invoice:'invoice_intro',minutes:'agenda',report:'summary'};
+        const paper=u.unit==='in'?[12240,15840]:[11906,16838],marks={letter:'template_subject',invoice:'invoice_intro',minutes:'agenda',report:'summary'},opened=[];
         for(const id of T.ids) {
             const before=app.path;
             await app.act(id);
@@ -38,8 +38,11 @@ func verifyWriterTemplates(t *testing.T, page *rod.Page) {
             if(!text(marks[id])||!body().includes(text(marks[id])))throw Error(id+' lacks "'+text(marks[id])+'": '+body().slice(0,200));
             if(body().includes('undefined')||body().includes('desktop.writer_'))throw Error(id+' shows a raw key: '+body().slice(0,300));
             if(app.editor.snapshot().canUndo)throw Error(id+' starts with undo steps');
-            if(![...app.editor.surface.session.currentPackage().partBytes.keys()].some(key=>key.includes('footer')))throw Error(id+' has no footer');
+            const parts=app.editor.surface.session.currentPackage().partBytes,footer=[...parts.keys()].filter(key=>key.includes('footer')).map(key=>new TextDecoder().decode(parts.get(key))).join('');
+            if(!/NUMPAGES/.test(footer)||!/[^M]PAGE/.test(footer))throw Error(id+' has no footer with both page fields: '+footer.slice(0,400));
+            if(!notice().hidden)throw Error(id+' opens with a notice: '+notice().textContent);
             if(!/untitled-[0-9a-f]{8}\.docx$/.test(app.path))throw Error(id+' opened at '+app.path);
+            opened.push(app.path.split('/').pop());
             if((id==='minutes'||id==='report')&&app.editor.getOutline().length!==3)throw Error(id+' outline: '+JSON.stringify(app.editor.getOutline()));
             if(id==='invoice') {
                 const at=app.editor.query({type:'paragraphs'}).findIndex(paragraph=>paragraph.text===text('invoice_description'));
@@ -49,10 +52,10 @@ func verifyWriterTemplates(t *testing.T, page *rod.Page) {
                 if(!table||table.columnCount!==5||table.rowCount!==6)throw Error('the invoice table is '+JSON.stringify(table));
             }
         }
-        // An untouched document from a template is not written.
-        const untouched=app.path.split('/').pop();
+        // An untouched document from a template is never written, whichever template it came from.
         await wait(1500);
-        if(app.session.dirty||(await puts(untouched)).length)throw Error('an untouched template document was written');
+        const written=(await (await fetch('/test/traces')).json()).filter(item=>item.method==='PUT'&&opened.some(name=>item.url.includes(name)));
+        if(app.session.dirty||opened.length!==4||written.length)throw Error('an untouched template document was written: '+JSON.stringify(written));
         // The Insert panel shows the built-in templates and leads to the list.
         if(!document.querySelector('.writer-right .writer-template-grid'))await app.act('insert');
         await wait(150);

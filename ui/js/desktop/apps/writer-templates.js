@@ -106,10 +106,11 @@
     // styles, so build() sets them afterwards.
     const styled = blocks => blocks.filter(block => block.style).map(block => [block.text, block.style]);
     // The file name of a template the user names: {name} with .docx, or {error}. The same name must be valid on
-    // every system the workspace may live on.
+    // every system the workspace may live on, so a Windows device name is refused with or without an extension.
+    // A name own() would hide (a leading dot or ~$) is refused too: the template would be saved and never listed.
     function fileName(value) {
         const base = String(value ?? '').trim().replace(/\.docx$/i, '').trim();
-        if (!base || base.length > 80 || /[\\/:*?"<>|\x00-\x1f]/.test(base) || /^\.|[. ]$/.test(base) || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(base))
+        if (!base || base.length > 80 || /[\\/:*?"<>|\x00-\x1f]/.test(base) || /^(\.|~\$)|[. ]$/.test(base) || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i.test(base))
             return {error: 'template_name_invalid'};
         return {name: base + '.docx'};
     }

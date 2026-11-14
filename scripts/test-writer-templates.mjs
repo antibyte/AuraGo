@@ -67,7 +67,9 @@ same(T.fileName('  House style '), {name: 'House style.docx'});
 same(T.fileName('Brief.DOCX'), {name: 'Brief.docx'});
 same(T.fileName('Angebot 2026 (Entwurf)'), {name: 'Angebot 2026 (Entwurf).docx'});
 same(T.fileName('x'.repeat(80)), {name: 'x'.repeat(80) + '.docx'});
-for (const bad of ['', '   ', '.docx', 'a/b', 'a' + String.fromCharCode(92) + 'b', 'a:b', 'what?', 'a*b', '"q"', '<x>', 'a|b', '.hidden', 'dot.', 'CON', 'lpt1', 'x'.repeat(81), 'tab' + String.fromCharCode(9) + 'here'])
+same(T.fileName('console'), {name: 'console.docx'}, 'a name that only starts like a device name is fine');
+same(T.fileName('nulls.bak'), {name: 'nulls.bak.docx'});
+for (const bad of ['', '   ', '.docx', 'a/b', 'a' + String.fromCharCode(92) + 'b', 'a:b', 'what?', 'a*b', '"q"', '<x>', 'a|b', '.hidden', 'dot.', 'CON', 'lpt1', '~$Brief', 'nul.bak', 'COM1.v2', 'x'.repeat(81), 'tab' + String.fromCharCode(9) + 'here'])
     same(T.fileName(bad), {error: 'template_name_invalid'}, JSON.stringify(bad));
 
 // The user's own templates out of a folder listing.

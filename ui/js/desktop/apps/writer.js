@@ -247,7 +247,9 @@
                 if(!ctx.readonly && (!owner || owner.classList.contains('active')))editor.focus();
                 find('[data-scroll]').scrollTop=0;
                 const warnings=[];
-                if(resources.substitutions.length)warnings.push(tr('font_substitution')+' '+resources.substitutions.join(', '));
+                // A blank document and a built-in template hold nothing the user authored; the bullets of a built-in
+                // list would otherwise open the document with a notice about a substitute font.
+                if(resources.substitutions.length && typeof template!=='string')warnings.push(tr('font_substitution')+' '+resources.substitutions.join(', '));
                 if(resources.unsupported.length)warnings.push(tr('preserved_parts')+' '+resources.unsupported.join(', '));
                 if(warnings.length)notice(warnings.join(' · '));
             } catch(error) {
