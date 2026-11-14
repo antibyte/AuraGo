@@ -253,8 +253,8 @@ Outcome kinds: **fixed** (with a test), **closed** (already fixed; evidence give
 | 20 | Touch F3: the card tools covered the selected card, so it could not be long-pressed or dragged by touch | fixed (D.4, review D) | ee84466f6, 65cd54130 (one row below the card, error box moved down, hover bridge); `TestEasyDragTouchCardTools` |
 | 21 | Review D: the stacked Insert/Delete pill covered both ports, pinned actions outlived a run view or Escape, the tap slop was 4 px, and a long-press release could click a menu item | fixed (review D) | 65cd54130; assertions in `TestEasyDragTouchInsertOnWire`, `TestEasyDragTouchDeleteWire`, `TestEasyDragTouchCardTools` |
 | 22 | `.ed-port-add` (invisible until hover) covers a wire's midpoint, so a finger there opens quick-add | handed to Wave 1 | `pointer-events: none` until its card is selected |
-| 23 | "1 …" plurals in other features: `folder_flows`, `cred_purge_versions`, `cred_purge_pinned` | handed to Wave 1 | `core.pluralKey`, about three lines each |
-| 24 | Status-map entry "stopped" (decision 13) | handed to Wave 1, FD-08 | a run-level reason "stopped" whose word is "durch Stopp beendet", on every run-status surface |
+| 23 | "1 …" plurals in other features: `folder_flows`, `cred_purge_versions`, `cred_purge_pinned` | handed to Wave 1; closed by W1a Part C (`plans/2026-11-13-easydrag-w1a-spec.md`) | `core.pluralKey`, about three lines each |
+| 24 | Status-map entry "stopped" (decision 13) | handed to Wave 1, FD-08; closed by W1a Part A (`plans/2026-11-13-easydrag-w1a-spec.md`) | a run-level reason "stopped" whose word is "durch Stopp beendet", on every run-status surface |
 | 25 | With a failed run, the step-history panel lies over the canvas at 1024×768 | handed to Wave 1 | seen while building the D review fixture; layout work for the run view |
 | 26 | The long-press menu opens under the finger | handed to Wave 1 (human session) | the release click is swallowed (65cd54130); check the feel on a real touch screen |
 

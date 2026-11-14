@@ -1417,12 +1417,13 @@ The ten waves sum to 22.5 relative units instead of 20.5, for two reasons. The p
   - W1d Test loop;
   - W1e Canvas;
   - W1f Entry and demo 3.1.
-  - **Where W1a is.** Spec `plans/2026-11-13-easydrag-w1a-spec.md`, plan `plans/2026-11-13-easydrag-w1a/`. Parts A, B, C and D have landed on main and are not pushed:
+  - **Where W1a is.** Spec `plans/2026-11-13-easydrag-w1a-spec.md`, plan `plans/2026-11-13-easydrag-w1a/`. All five parts have landed on main and are not pushed, so W1a is complete:
     - A, the status map and tokens: 453799f0d to 75d9db914;
     - C, plurals, formatting, vN and the pseudo-locale: 3144a0b90 to 8fc76ebdc;
     - D, the icon map, the labelled rail and the motion gate with Lebendigkeit: 98d90e8c5 to 799d48c64.
     - B, the kit (disclosure, callout, chip, toast, toolbar), the bottom sheet, the type scale 11/12/14/16/18/24 and the literal ratchets: 54d854d21 to 55becb497 (landed 2026-11-14).
-  - Part E (the lab) is next.
+    - E, the lab: six scenes in 16 theme contexts plus a pseudo-locale run, 64f238545 to e1c988e6a (landed 2026-11-14).
+  - Next: W1b to W1f, each with its own spec and plan.
   - S0c ledger rows 23 (plurals) and 24 (status-map "stopped") are closed by W1a C and A.
 - *Includes:*
   - E2: FD-08 with the status map, UI-17, FD-09, FD-11, CS-01, UI-15, JY-01, the action registry, UX-18 and CS-20, the first FD-14 scenes, and the CS-17 ledger and control budgets;
@@ -1982,9 +1983,10 @@ The design spec for S0 is `plans/2026-11-10-easydrag-s0-spec.md` (2026-11-10). W
     - in library metadata: CollectEffects then cannot show the routing as an outbound effect.
     - *Default:* split them. Routing (which channels; on error, success or recovery) lives in the document and is reviewed as an effect. Mute and snooze ("stumm bis …") are operational state in library metadata with their own CAS. They never bump `model.version` and are shown in the pill popover.
     - *Needed by:* Wave 3.
-13. **logic.stop semantics (FD-20, defect E3).** Options: logic.stop ends the whole run or only its own branch, and the run then shows as succeeded or with its own stopped state.
-    - *Default:* the FD-20 spike first records today's behaviour and proposes one option. Whichever is chosen gets a status-map entry and a test.
-    - *Needed by:* the Wave 1 exit.
+13. **logic.stop semantics (FD-20, defect E3).** **Decided in S0c (`plans/2026-11-12-easydrag-s0c-spec.md`, owner decision 1): keep today's behaviour and make it visible.**
+    - Options were: logic.stop ends the whole run or only its own branch, and the run then shows as succeeded or with its own stopped state.
+    - A run that a stop node ends with "success" stays successful. Steps it cut off show "unklar" when they may have had an effect. No engine change.
+    - W1a Part A gave the run-level status "stopped" ("durch Stopp beendet") its status-map entry and test.
 
 **Engineering questions** (settled by the named epic, verify first)
 - Does the email trigger carry attachments? Settles PI-04 (E10), before Wave 6b.
