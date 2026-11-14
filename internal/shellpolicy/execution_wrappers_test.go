@@ -60,3 +60,35 @@ func TestExecutionWrappersCannotHideBlockedCommands(t *testing.T) {
 		}
 	}
 }
+
+func TestWindowsTimeoutIsNotAnExecutionWrapper(t *testing.T) {
+	for _, escape := range []byte{'^', '`'} {
+		for _, command := range []string{
+			"timeout /t 2 /nobreak",
+			"timeout.exe /T 2 /NOBREAK",
+			"timeout /nobreak /t -1",
+			"timeout /?",
+			"timeout.exe /t 2",
+			"C:\\Windows\\System32\\timeout.exe /t 2 /nobreak",
+			"timeout /t 1 && echo done",
+		} {
+			if err := ValidateCommandWithEscape(command, escape); err != nil {
+				t.Errorf("escape %q rejected native timeout %q: %v", escape, command, err)
+			}
+		}
+		for _, command := range []string{
+			"timeout /t 2 && sudo id",
+			"timeout.exe /T 2 & git -c core.gitProxy=classification-only status",
+			"timeout /? && timeout 1 sh -c true",
+			"timeout 2 git -c core.gitProxy=classification-only status",
+			"nohup timeout 2 nice -n 1 stdbuf -oL rm -rf ./classification-only",
+		} {
+			if err := ValidateCommandWithEscape(command, escape); err == nil {
+				t.Errorf("escape %q admitted blocked command %q", escape, command)
+			}
+		}
+	}
+	if err := ValidateCommand("timeout /t 2 /nobreak"); err == nil {
+		t.Fatal("POSIX timeout accepted unresolved duration syntax")
+	}
+}

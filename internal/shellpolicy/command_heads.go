@@ -55,6 +55,15 @@ func normalizeCommandHeads(command string, escape byte) (string, bool) {
 			continue
 		}
 		if wrapper != "" {
+			if wrapper == "timeout" && escape != '\\' {
+				switch strings.ToLower(word) {
+				case "/t", "/nobreak", "/?":
+					// Windows timeout waits locally; it does not wrap a child command.
+					out.WriteString("timeout " + word)
+					wrapper, atHead = "", false
+					continue
+				}
+			}
 			if wrapper == "nice-value" || wrapper == "stdbuf-value" || wrapper == "time-value" {
 				if wrapper == "nice-value" && !niceAdjustment.MatchString(word) || wrapper == "stdbuf-value" && !stdbufMode.MatchString(word) || strings.ContainsAny(word, "$`") || escape == '^' && strings.Contains(word, "%") {
 					return out.String(), true

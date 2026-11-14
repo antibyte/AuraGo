@@ -13,6 +13,8 @@ retain execution grants, platform escape rules and OS isolation.
 
 - Unwrap literal env/command/busybox/nohup/timeout/nice/stdbuf/time prefixes,
   including nested wrappers and their documented literal options, before classification.
+  Under Cmd/PowerShell, native timeout /t, /nobreak and /? remain ordinary
+  wait/help commands; GNU timeout durations still unwrap the executed command.
 - Reject unresolved wrapper syntax, executing xargs, editor command modes and
   executable Git configuration/environment. Help and version queries remain reads.
 - Preserve quotes, escaped separators, comments and benign literal arguments.
