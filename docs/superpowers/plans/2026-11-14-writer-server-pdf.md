@@ -1574,3 +1574,22 @@ In "Build and verification", change `and the templates (`scripts/test-writer-tem
 - [ ] **Step 4: DOX pass and commit**
 
 Re-read the `AGENTS.md` chain of every touched path and check that no statement about Writer printing or the PDF entry is stale (`git grep -n "Save as PDF" -- '*.md'`). Commit as `docs(writer): one-click PDF from the server`.
+
+---
+
+## Changes after the branch review (2026-11-14)
+
+One review of the whole branch found nothing critical. These findings were fixed in one round; the code blocks above show the state before it:
+
+- **Print and the PDF take turns.** Both use the one print frame, and `paint` disposes the previous job. `case 'print'` in `writer.js` now holds `pdfBusy` like the two PDF actions, so a second click cannot dispose a job that is still painting.
+- **A page above the server's limit goes to the print dialog.** `renderPdf` refuses a packed page longer than 48 MiB as `pdf_unavailable` before it is sent. The server would cut the upload off at 50 MiB, which a browser reports as a network failure.
+- **The download keeps the name of the rendered document.** `pdfDownload` takes the file name before it awaits the render.
+- **One unreadable picture no longer aborts the export.** `inline` in `writer-pdf.js` leaves such a picture as it is.
+- **The renderer test covers a nested frame.** `TestRenderHTMLPDFBrowserKeepsPageSizesAndLoadsNothing` adds an `<iframe srcdoc>` whose document (a refresh and a picture pointing at the remote host) only exists after entity decoding.
+
+Seen and left as they are:
+
+- A busy egress browser pool (`ErrEgressBusy`) counts as "no renderer", so Download as PDF opens the print dialog. The fallback works; a separate "busy" answer was not worth a seventeenth language key.
+- The built-in browser inside a Docker install is untested (the image has no Chromium; Gotenberg serves those installs). On this Windows host the real-browser test passes, including `Eval` with script execution switched off.
+- `graft`, `inline`, `pack` and `paint` are covered by the browser tests only, which need `AURAGO_RUN_BROWSER_SMOKE=1`.
+- `reports/autor/server.pdf` is written next to the existing `print.pdf` of the same suite.
