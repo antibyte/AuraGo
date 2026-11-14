@@ -121,4 +121,9 @@ same(L.paragraphCommand({...mixed, left: 'x'}, mixedFormatting, cm), {error: 'le
 const cell = {...plain, indent: undefined}, cellFields = L.paragraphFields(cell, cm);
 assert.equal([cellFields.left, cellFields.right, cellFields.special].join('|'), '||');
 same(L.paragraphCommand({...cellFields, keepLines: true}, cell, cm), {command: {type: 'setParagraphFormat', keepLines: true}});
-console.log('Writer layout: units, papers, page setup and paragraph models pass');
+// Printing: one named page per page size, the first size as the default page.
+same(L.sheets(['794px 1123px', '794px 1123px', '1123px 794px', '794px 1123px']), {
+    css: '@page{size:794px 1123px;margin:0}@page writer-sheet-0{size:794px 1123px;margin:0}@page writer-sheet-1{size:1123px 794px;margin:0}',
+    names: ['writer-sheet-0', 'writer-sheet-0', 'writer-sheet-1', 'writer-sheet-0']});
+same(L.sheets([]), {css: '', names: []});
+console.log('Writer layout: units, papers, page setup, paragraph models and print sheets pass');

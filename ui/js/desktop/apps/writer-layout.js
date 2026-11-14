@@ -162,5 +162,13 @@
         for (const flag of FLAGS) if (values[flag] !== initial[flag] && typeof values[flag] === 'boolean') command[flag] = values[flag];
         return {command: Object.keys(command).length > 1 ? command : null};
     }
-    window.WriterLayout = {units, papers: PAPERS, margins: MARGINS, lines: LINES, paperOf, pageFields, pageInput, pageCommand, paragraphFields, paragraphInput, paragraphCommand};
+    // Printing: one named page per page size, so every section prints in its own format. sizes holds one CSS
+    // 'width height' per printed page. The first size is also the default page, for a browser without named pages.
+    function sheets(sizes) {
+        const names = new Map();
+        for (const size of sizes) if (!names.has(size)) names.set(size, 'writer-sheet-' + names.size);
+        const css = (sizes.length ? '@page{size:' + sizes[0] + ';margin:0}' : '') + [...names].map(([size, name]) => '@page ' + name + '{size:' + size + ';margin:0}').join('');
+        return {css, names: sizes.map(size => names.get(size))};
+    }
+    window.WriterLayout = {units, papers: PAPERS, margins: MARGINS, lines: LINES, paperOf, pageFields, pageInput, pageCommand, paragraphFields, paragraphInput, paragraphCommand, sheets};
 })();

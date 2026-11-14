@@ -10281,16 +10281,20 @@ function wireWindow(win, id) {
 
     // Parent-owned printing: the document can load images/fonts but never run
     // scripts, submit forms or navigate its parent. Keep sanitization at callers.
-    async function create({ html, title = '', className = 'vd-print-frame', failureMessage = 'desktop.print_failed', signal } = {}) {
+    // documentTitle names the printed document. A browser proposes the title of the printing page as the file
+    // name of "Save as PDF"; which page counts differs, so the frame's document carries it, and the page itself
+    // does while the job is open.
+    async function create({ html, title = '', documentTitle = '', className = 'vd-print-frame', failureMessage = 'desktop.print_failed', signal } = {}) {
         const frame = document.createElement('iframe');
         frame.className = className;
         frame.title = title;
         frame.setAttribute('sandbox', 'allow-same-origin allow-modals');
-        let timer = 0, disposed = false;
+        let timer = 0, disposed = false, pageTitle = null;
         let rejectLoad;
         const dispose = () => {
             if (disposed) return;
             disposed = true;
+            if (pageTitle !== null) document.title = pageTitle;
             window.clearTimeout(timer);
             signal?.removeEventListener('abort', dispose);
             frame.remove();
@@ -10320,6 +10324,7 @@ function wireWindow(win, id) {
                 if (disposed || signal?.aborted) throw new DOMException('Print cancelled', 'AbortError');
                 frame.contentWindow.addEventListener('afterprint', dispose, { once: true });
                 timer = window.setTimeout(dispose, 60000);
+                if (documentTitle) { doc.title = documentTitle; pageTitle = document.title; document.title = documentTitle; }
                 frame.contentWindow.focus();
                 frame.contentWindow.print();
             } catch (error) { dispose(); throw error; }

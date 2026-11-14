@@ -307,10 +307,11 @@
             if(kind==='report')return '<h1>'+esc(tr('report'))+'</h1><p>'+esc(date)+'</p><h2>'+esc(tr('summary'))+'</h2><p>'+esc(tr('template_body'))+'</p><h2>'+esc(tr('findings'))+'</h2><p>'+esc(tr('template_body'))+'</p><h2>'+esc(tr('next_steps'))+'</h2><ul><li>'+esc(tr('template_task'))+'</li></ul>';
             return '<h1>'+esc(tr('meeting'))+'</h1><p>'+esc(date)+'</p><h2>'+esc(tr('participants'))+'</h2><p>…</p><h2>'+esc(tr('agenda'))+'</h2><ol><li>'+esc(tr('template_subject'))+'</li></ol><h2>'+esc(tr('decisions'))+'</h2><p>…</p><h2>'+esc(tr('next_steps'))+'</h2><table><tr><td>'+esc(tr('task'))+'</td><td>'+esc(tr('owner'))+'</td><td>'+esc(tr('due'))+'</td></tr><tr><td>…</td><td>…</td><td>…</td></tr></table>';
         }
-        async function print(bytes,lib,fonts) {
+        // title names the document, so that the print dialog can propose it as the file name of a PDF.
+        async function print(bytes,lib,fonts,title) {
             // A separate snapshot keeps edits and review state out of the print transaction.
             printFrame?.dispose();
-            const job=await window.AuraDesktopPrint.create({html:'<!doctype html><html><head><link rel="stylesheet" href="/js/vendor/writer/engine.css"></head><body><div class="docx-editor" id="pages"></div></body></html>',title:tr('print'),className:'writer-print-frame',signal:life.signal});
+            const job=await window.AuraDesktopPrint.create({html:'<!doctype html><html><head><link rel="stylesheet" href="/js/vendor/writer/engine.css"></head><body><div class="docx-editor" id="pages"></div></body></html>',title:tr('print'),documentTitle:title || '',className:'writer-print-frame',signal:life.signal});
             printFrame=job;
             const doc=job.document;
             const printEditor=lib.createDocxEditor({container:doc.getElementById('pages'),document:bytes,fonts,mode:'view',zoom:1,modules:[lib.reviewModule]});
@@ -319,9 +320,14 @@
                 for (const face of document.fonts) doc.fonts.add(face);
                 await doc.fonts.ready;
                 lib.paintSemanticLayout(doc.getElementById('pages'), printEditor.surface.layout(), {scale:96/72,ariaHidden:false,defaultFontFamily:'Calibri'});
-                const setup=printEditor.snapshot().pageSetup;
+                // Every painted page carries its own size. A named page per size lets a landscape section inside a
+                // portrait document print as landscape; the section at the caret no longer decides for all pages.
+                const setup=printEditor.snapshot().pageSetup,fallback=setup.pageWidthTwips/20+'pt '+setup.pageHeightTwips/20+'pt';
+                const sheetPages=[...doc.querySelectorAll('#pages .docx-page')];
+                const sheets=L.sheets(sheetPages.map(page=>page.style.width && page.style.height?page.style.width+' '+page.style.height:fallback));
+                sheetPages.forEach((page,index)=>page.style.setProperty('page',sheets.names[index]));
                 const style=doc.createElement('style');
-                style.textContent='@page{size:'+setup.pageWidthTwips/20+'pt '+setup.pageHeightTwips/20+'pt;margin:0}html,body,#pages{margin:0!important;padding:0!important;height:auto!important;overflow:visible!important;background:white!important}.docx-page{position:relative!important;top:auto!important;left:auto!important;transform:none!important;break-after:page!important;break-inside:avoid!important;margin:0!important;box-shadow:none!important}.docx-page:last-child{break-after:auto!important}';
+                style.textContent=sheets.css+'html,body,#pages{margin:0!important;padding:0!important;height:auto!important;overflow:visible!important;background:white!important}.docx-page{position:relative!important;top:auto!important;left:auto!important;transform:none!important;break-after:page!important;break-inside:avoid!important;margin:0!important;box-shadow:none!important}.docx-page:last-child{break-after:auto!important}';
                 doc.head.appendChild(style);
                 await job.print();
             } catch(error) {job.dispose();throw error;}
