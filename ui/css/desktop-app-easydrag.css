@@ -447,7 +447,8 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-callout--error, .ed-callout[data-ed-hue="danger"] { --ed-callout-hue: var(--ed-danger); }
 .ed-callout[data-ed-hue="ok"] { --ed-callout-hue: var(--ed-ok); }
 .ed-callout[data-ed-hue="info"] { --ed-callout-hue: var(--ed-info); }
-.ed-callout[data-ed-hue="neutral"] { --ed-callout-hue: var(--ed-kit-neutral); }
+/* the grey disc of a neutral callout is read against the callout's own tint: 5% keeps 3:1 on every surface, the 14% of the coloured hues does not (lab L-06) */
+.ed-callout[data-ed-hue="neutral"] { --ed-callout-hue: var(--ed-kit-neutral); background: color-mix(in srgb, var(--ed-callout-hue) 5%, var(--ed-panel-strong)); }
 .ed-callout > [role="img"], .ed-callout > .ed-callout-disc { flex: none; margin-top: 1px; }
 .ed-callout-disc { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: var(--ed-radius-pill); background: var(--ed-info); color: var(--ed-kit-ink); }
 .ed-callout-disc svg { width: 12px; height: 12px; }
