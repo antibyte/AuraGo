@@ -104,7 +104,9 @@ open images, videos or audio (`openMediaPreview`). It provides:
 - Previous/next navigation with a filmstrip of neighbouring items and a
   position counter (arrow keys, `PageUp`/`PageDown`, `Home`, `End`).
 - Zoom with the mouse wheel, pinch, double-click, `+`/`−`, `0` (fit) and `1`
-  (actual size); panning by dragging when zoomed in.
+  (actual size); panning by dragging when zoomed in. Actual size remains reachable
+  for large images in small viewports; rotation, flipping and fractional layout
+  dimensions preserve the natural image size.
 - Image tools in a floating dock: rotate left/right (`R` / `Shift+R`),
   flip horizontally (`F`), browser fullscreen (`Shift+F`), copy to clipboard
   (`C`) and quick zoom controls for small viewports.

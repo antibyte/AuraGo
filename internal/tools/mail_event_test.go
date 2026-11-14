@@ -60,7 +60,7 @@ func TestMailNotificationClaimsAreAtomicAndChannelScoped(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			finish, skipped, err := beginMailNotification(ctx, "telegram", "high")
+			finish, _, skipped, err := beginMailNotification(ctx, "telegram", "high")
 			if err != nil { // An in-flight, unconfirmed claim is deliberately not replayable.
 				if !strings.Contains(err.Error(), "outcome unknown") {
 					t.Error(err)
@@ -80,7 +80,7 @@ func TestMailNotificationClaimsAreAtomicAndChannelScoped(t *testing.T) {
 	if claims.Load() != 1 {
 		t.Fatalf("claims=%d, want one", claims.Load())
 	}
-	finish, skipped, err := beginMailNotification(ctx, "ntfy", "high")
+	finish, _, skipped, err := beginMailNotification(ctx, "ntfy", "high")
 	if err != nil || skipped || finish == nil {
 		t.Fatalf("independent channel refused: skipped=%v err=%v", skipped, err)
 	}
@@ -118,7 +118,7 @@ func TestMailNotificationSuppressesUnsolicitedFileBeforeOpeningIt(t *testing.T) 
 
 func TestMailNotificationExplicitRelayAndMissingStore(t *testing.T) {
 	ctx := WithMailNotificationPolicy(context.Background(), t.TempDir(), MailEventSessionID("relay fixture"), true)
-	finish, skipped, err := beginMailNotification(ctx, "telegram", "normal")
+	finish, _, skipped, err := beginMailNotification(ctx, "telegram", "normal")
 	if err != nil || skipped || finish == nil {
 		t.Fatalf("configured relay refused: %v %v", skipped, err)
 	}
@@ -126,7 +126,7 @@ func TestMailNotificationExplicitRelayAndMissingStore(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx = WithMailNotificationPolicy(context.Background(), "", "fixture", false)
-	if _, _, err := beginMailNotification(ctx, "telegram", "high"); err == nil {
+	if _, _, _, err := beginMailNotification(ctx, "telegram", "high"); err == nil {
 		t.Fatal("missing durable store must not send")
 	}
 }

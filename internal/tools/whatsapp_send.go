@@ -106,6 +106,7 @@ func sendWhatsAppNotification(ctx context.Context, title, message string) error 
 	}
 	ctx, cancel := context.WithTimeout(ctx, whatsAppNotifyBudget)
 	defer cancel()
+	markMailNotificationPossible(ctx)
 	_, err := sender.SendOwnerMessage(ctx, "**"+title+"**\n"+message, "")
 	return err
 }

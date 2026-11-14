@@ -1,0 +1,6 @@
+Geometry, textures and character rigs: AuraGo character assets, not Mesh2Motion artwork.
+Retained provenance: assets/desktop-pets/openpets-default/. The Mesh2Motion licenses do not license or relicense these assets.
+This notice does not claim ownership of pre-existing character designs; retain their original notices and provenance.
+
+Animations: original AuraGo anatomical procedural motion code/data (GPL-3.0-only).
+No Mesh2Motion animation data or retargeting code is included in this pet.

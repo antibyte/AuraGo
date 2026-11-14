@@ -579,6 +579,12 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			webAuthnError(w, "webauthn_use_settings_api", http.StatusForbidden)
 			return
 		}
+		if err := s.validateDeepTutorPatch(patch); err != nil {
+			if !writeDeepTutorPolicyError(s, w, err) {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+			}
+			return
+		}
 		go2RTCSourceTxn, txnErr := captureGo2RTCSourceVaultState(patch, s.Vault)
 		if txnErr != nil {
 			s.Logger.Error("[Config] Could not stage go2rtc stream sources", "error", txnErr)

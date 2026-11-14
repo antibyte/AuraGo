@@ -138,6 +138,7 @@
     "jsqr": "1.4.0"
   },
   "overrides": {
+    "fast-xml-parser": "5.12.0",
     "katex": "0.18.9",
     "lodash-es": "4.18.1"
   }

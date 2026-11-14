@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -819,7 +820,7 @@ func TestStoreMigrationBackupRules(t *testing.T) {
 		createPreJournalStoreDB(t, dbPath)
 		backup := dbPath + storeMigrationBackupSuffix
 		// An empty file: VACUUM INTO would happily write into it, so only the
-		// existence guard keeps it unchanged.
+		// no-overwrite publication keeps it unchanged.
 		if err := os.WriteFile(backup, nil, 0o600); err != nil {
 			t.Fatal(err)
 		}
@@ -827,50 +828,46 @@ func TestStoreMigrationBackupRules(t *testing.T) {
 		if info, err := os.Stat(backup); err != nil || info.Size() != 0 {
 			t.Fatalf("existing backup = %v (%v), want it unchanged and empty", info, err)
 		}
+		copies, _ := filepath.Glob(strings.TrimSuffix(backup, ".bak") + ".*.bak")
+		if len(copies) != 1 || !sqliteTableExists(t, copies[0], "desktop_store_operations") {
+			t.Fatal("missing fresh migration copy")
+		}
 		if _, err := svc.Operation(context.Background(), "op-old-failed"); err != nil {
 			t.Fatalf("migration did not run: %v", err)
 		}
 	})
-	t.Run("a partial backup of a failed copy is removed", func(t *testing.T) {
-		dbPath := filepath.Join(t.TempDir(), "desktop_store.db")
-		createPreJournalStoreDB(t, dbPath)
-		original := storeMigrationBackup
-		t.Cleanup(func() { storeMigrationBackup = original })
-		storeMigrationBackup = func(_ context.Context, _ *sql.DB, path string) error {
-			if err := os.WriteFile(path, []byte("partial"), 0o600); err != nil {
-				return err
+	for _, existing := range []bool{false, true} {
+		t.Run(fmt.Sprintf("backup failure blocks migration existing=%v", existing), func(t *testing.T) {
+			dbPath := filepath.Join(t.TempDir(), "desktop_store.db")
+			createPreJournalStoreDB(t, dbPath)
+			backup := dbPath + storeMigrationBackupSuffix
+			if existing {
+				if err := os.WriteFile(backup, []byte("retained"), 0600); err != nil {
+					t.Fatal(err)
+				}
 			}
-			return errors.New("disk full")
-		}
-		svc := newTestServiceAtPath(t, dbPath, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19947), nil)
-		if _, err := os.Stat(dbPath + storeMigrationBackupSuffix); !os.IsNotExist(err) {
-			t.Fatalf("the partial backup is still there: %v", err)
-		}
-		if _, err := svc.Operation(context.Background(), "op-old-failed"); err != nil {
-			t.Fatalf("migration did not run: %v", err)
-		}
-	})
-	t.Run("a failed backup still migrates", func(t *testing.T) {
-		dbPath := filepath.Join(t.TempDir(), "desktop_store.db")
-		createPreJournalStoreDB(t, dbPath)
-		original := storeMigrationBackup
-		t.Cleanup(func() { storeMigrationBackup = original })
-		calls := 0
-		storeMigrationBackup = func(context.Context, *sql.DB, string) error {
-			calls++
-			return errors.New("disk full")
-		}
-		svc := newTestServiceAtPath(t, dbPath, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19946), nil)
-		if calls != 1 {
-			t.Fatalf("backup attempts = %d, want 1", calls)
-		}
-		if op, err := svc.Operation(context.Background(), "op-old-failed"); err != nil || op.ErrorCode != "" {
-			t.Fatalf("migration did not run: %#v (%v)", op, err)
-		}
-		if !sqliteTableExists(t, dbPath, "desktop_store_install_resources") {
-			t.Fatal("the install journal table is missing")
-		}
-	})
+			original := storeMigrationBackup
+			t.Cleanup(func() { storeMigrationBackup = original })
+			storeMigrationBackup = func(context.Context, *sql.DB, string) (string, error) { return "", errors.New("disk full") }
+			svc, err := NewService(Config{DBPath: dbPath, Docker: &fakeDockerAdapter{}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer svc.Close()
+			if err := svc.Init(context.Background()); err == nil || !strings.Contains(err.Error(), "disk full") {
+				t.Fatalf("init: %v", err)
+			}
+			if sqliteTableExists(t, dbPath, "desktop_store_install_resources") {
+				t.Fatal("migrated after backup failure")
+			}
+			if existing {
+				data, _ := os.ReadFile(backup)
+				if string(data) != "retained" {
+					t.Fatal("old backup changed")
+				}
+			}
+		})
+	}
 }
 
 // F-S5 review, minor 5: a poll must never see a failed operation without its

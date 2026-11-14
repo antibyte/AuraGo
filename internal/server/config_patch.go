@@ -43,6 +43,9 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 
 	// Apply any setup-profile-specific defaults (no-op for non-profile patches).
 	applySetupProfileConfigPatch(patch, s)
+	if err := s.validateDeepTutorPatch(patch); err != nil {
+		return nil, err
+	}
 
 	// Read current config file.
 	data, err := os.ReadFile(configPath)

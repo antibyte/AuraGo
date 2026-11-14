@@ -128,7 +128,7 @@ func (m *Manager) Subscribe(sub PushSubscription) error {
 }
 
 // SendPush sends a payload to all active subscribers. Returns the number of successful pushes.
-func (m *Manager) SendPush(payload []byte) (int, error) {
+func (m *Manager) SendPush(payload []byte, beforeSend ...func()) (int, error) {
 	privKey, err := m.vault.ReadSecret("vapid_private_key")
 	if err != nil {
 		return 0, fmt.Errorf("failed to read vapid private key: %w", err)
@@ -158,6 +158,11 @@ func (m *Manager) SendPush(payload []byte) (int, error) {
 		}
 
 		// Send notification
+		for _, observe := range beforeSend {
+			if observe != nil {
+				observe()
+			}
+		}
 		res, err := webpush.SendNotification(payload, sub, &webpush.Options{
 			Subscriber:      "mailto:aurago@localhost", // Replace with an email for the VAPID claim if needed, but this works
 			VAPIDPublicKey:  m.publicKey,

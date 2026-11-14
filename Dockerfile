@@ -1,7 +1,7 @@
 # ============================================================
 # Stage 1: Build
 # ============================================================
-FROM --platform=$BUILDPLATFORM golang:1.27.3-bookworm AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27.4-bookworm AS builder
 
 # Injected by docker buildx for cross-compilation
 ARG TARGETOS=linux

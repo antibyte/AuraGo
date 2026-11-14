@@ -49,7 +49,7 @@
   "invasion.deploy_method": "Metoda Wdrożenia",
   "invasion.deploy_ssh": "SSH",
   "invasion.description": "Opis",
-  "invasion.docker_local_hint": "W przypadku lokalnych wdrożeń Docker adres URL mastera jest automatycznie rozwiązywany do host.docker.internal — nie jest wymagana ręczna konfiguracja hosta.",
+  "invasion.docker_local_hint": "Adres mastera automatycznie używa host.docker.internal. Sekrety wymagają lokalnego gniazda Unix, potoku Windows lub TCP pętli zwrotnej; zdalne TCP wymaga TLS/mTLS lub SSH. Po możliwym przesłaniu konfiguracji błędy nie zmieniają bieżących kluczy. Sprawdź Egg i wdróż go ponownie z bieżącego mastera.",
   "invasion.docker_remote_plaintext_hint": "Prywatna konfiguracja Egg wymaga Dockera z TLS, mTLS lub SSH. Nieszyfrowany HTTP jest odrzucany.",
   "invasion.docker_ssh_hint": "Uruchamia kontener jaja na Docker Engine celu przez szyfrowane połączenie SSH (gniazdo /var/run/docker.sock). Używa hosta, portu, nazwy użytkownika i sekretu tego gniazda; użytkownik SSH potrzebuje dostępu do gniazda Dockera, a klucz hosta musi być w known_hosts.",
   "invasion.docker_tls": "TLS Dockera",

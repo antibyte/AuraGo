@@ -1,11 +1,11 @@
 # Dependency maintenance
 
-AuraGo pins Go 1.27.3 in `go.mod`, container builders, installers and release
+AuraGo pins Go 1.27.4 in `go.mod`, container builders, installers and release
 scripts. `GOTOOLCHAIN=auto` downloads that compiler when the host has an older Go.
 Release scripts select the exact compiler explicitly. The stripped executable
 budget is 200 MB (200,000,000 bytes); first-party embeds remain capped at 10 MB and recovery at 1 MB.
 
-The managed gog helper also uses Go 1.27.3. `go run ./scripts/build-gog.go` checks
+The managed gog helper also uses Go 1.27.4. `go run ./scripts/build-gog.go` checks
 all six packages against `internal/gog/build/artifacts.json` without changing
 those pins. After a reviewed source/compiler update, run it with `-write-manifest`,
 verify identical Windows/Linux output and commit the generated manifest before
@@ -117,7 +117,7 @@ needs a hash-pinned source with `license: "CC0-1.0"`, as described in
 | RustFS | 1.0.4; multi-architecture image digest in `internal/rustfs/types.go` | Optional managed S3 server. Qualify native IAM privilege denials, S3 operations, revocation and retained-volume lifecycle against each new pin. See [Managed RustFS](rustfs.md). |
 | Gotenberg | Docker 8.38.0, multi-architecture digest in Compose and `internal/tools/gotenberg_lifecycle.go`; external instances >=8.38.0 and <9 | Every conversion requires private `/debug` proof of the four private-IP filters and absence of bypasses. Keep both managed profiles aligned and run isolated Docker acceptance on upgrades. The [8.38.1 release](https://github.com/gotenberg/gotenberg/releases/tag/v8.38.1) fixes Go module metadata and uses the same code as Docker 8.38.0. See [Document Creator](document-creator.md). |
 | gRPC Go | 1.83.2 | 1.84.0 is affected by GO-2026-6443; use a fixed stable successor when available. |
-| Excelize | 2.11.1-0.20261003002531-6258dcebc4e2 | Security exception to stable releases: 2.11.0 remains affected by 15 workbook-parsing advisories. This exact upstream commit contains all their fixes; move to a fixed stable release when available and rerun the Office preservation and security tests. |
+| Excelize | 2.11.1 | Stable security release; rerun Office preservation, package roundtrip and workbook-allocation checks on upgrades. |
 | pdfcpu | 0.15.0 | 0.16 changes `MergeRaw`; Maroto 2.4.3 still calls the previous API. |
 | fetchup | 0.2.4 | Rod 0.116.2 still needs its older browser-download API. |
 | ysmood/got and gop | 0.41.0 and 0.2.0 | Rod 0.116.2 imports `got/lib/lcs`, which newer got releases remove. |

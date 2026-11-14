@@ -109,6 +109,19 @@ func validateSnapshotNames(dir string, names []string) ([]string, error) {
 // It refuses while a run is running (ErrPurgeRunsActive), without a master key, without free disk space
 // and while another job runs. New runs wait in the queue until the job ends; waiting runs do not block it.
 func (s *Service) StartCredentialPurge(snapshots []string) (PurgeState, error) {
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return PurgeState{}, ErrRunnerClosed
+	}
+	s.purging.Add(1)
+	s.mu.Unlock()
+	started := false
+	defer func() {
+		if !started {
+			s.purging.Done()
+		}
+	}()
 	key := ""
 	if s.cfg.PurgeKey != nil {
 		key = strings.TrimSpace(s.cfg.PurgeKey())
@@ -160,7 +173,11 @@ func (s *Service) StartCredentialPurge(snapshots []string) (PurgeState, error) {
 		SnapshotsDeleted: []string{}, Remaining: []PurgeRemaining{}}
 	state := p.state
 	p.mu.Unlock()
-	go s.runPurge(dbPath, dir, key, names, release)
+	started = true
+	go func() {
+		defer s.purging.Done()
+		s.runPurge(dbPath, dir, key, names, release)
+	}()
 	return state, nil
 }
 
@@ -180,15 +197,22 @@ func (s *Service) runPurge(dbPath, dir, key string, snapshots []string, release 
 			fail(fmt.Errorf("internal error: %v", r))
 		}
 	}()
-	enter := func(next PurgeStep) {
+	enter := func(next PurgeStep) bool {
 		step = next
 		s.updatePurge(func(st *PurgeState) { st.Step = next })
 		if hook := s.purge.stepHook; hook != nil {
 			hook(next)
 		}
+		if err := ctx.Err(); err != nil {
+			fail(err)
+			return false
+		}
+		return true
 	}
 
-	enter(PurgeStepBackup)
+	if !enter(PurgeStepBackup) {
+		return
+	}
 	if _, err := SweepPurgeBackups(dir, s.now()); err != nil {
 		s.logger.Warn("flows leftovers could not be swept before the purge", "error", err)
 	}
@@ -199,7 +223,9 @@ func (s *Service) runPurge(dbPath, dir, key string, snapshots []string, release 
 	}
 	s.updatePurge(func(st *PurgeState) { st.Backup = backup })
 
-	enter(PurgeStepVersions)
+	if !enter(PurgeStepVersions) {
+		return
+	}
 	scan, err := s.store.scanCredentials(ctx) // before anything is deleted: the moved tokens are still in the old versions
 	if err != nil {
 		fail(err)
@@ -224,7 +250,9 @@ func (s *Service) runPurge(dbPath, dir, key string, snapshots []string, release 
 	}
 	s.updatePurge(func(st *PurgeState) { st.VersionsDeleted, st.VersionsPinned = int(deleted), pinned })
 
-	enter(PurgeStepRedact)
+	if !enter(PurgeStepRedact) {
+		return
+	}
 	conn, err := s.store.db.Conn(ctx)
 	if err != nil {
 		fail(err)
@@ -243,13 +271,17 @@ func (s *Service) runPurge(dbPath, dir, key string, snapshots []string, release 
 	}
 	s.updatePurge(func(st *PurgeState) { st.RowsRedacted = redacted })
 
-	enter(PurgeStepCompact)
+	if !enter(PurgeStepCompact) {
+		return
+	}
 	if err := compactDatabase(ctx, conn); err != nil {
 		fail(err)
 		return
 	}
 
-	enter(PurgeStepSnapshots)
+	if !enter(PurgeStepSnapshots) {
+		return
+	}
 	gone, err := deleteSnapshots(dir, snapshots)
 	if err != nil {
 		fail(err)
@@ -257,7 +289,9 @@ func (s *Service) runPurge(dbPath, dir, key string, snapshots []string, release 
 	}
 	s.updatePurge(func(st *PurgeState) { st.SnapshotsDeleted = gone })
 
-	enter(PurgeStepVerify)
+	if !enter(PurgeStepVerify) {
+		return
+	}
 	remaining, err := s.store.verifyPurge(ctx, dbPath, dir, literals)
 	if err != nil {
 		fail(err)

@@ -1,13 +1,16 @@
 package flows
 
 import (
+	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"aurago/internal/fileutil"
 	"aurago/internal/security"
 )
 
@@ -25,10 +28,15 @@ const (
 	// purgeWorkPrefix names the 0700 directories that hold every plaintext temporary file.
 	purgeWorkPrefix = security.PlaintextWorkDirPrefix
 	// The old-style temporary names, only ever swept.
-	purgeTempPrefix   = PurgeBackupPrefix + "tmp-"
-	preRestoreTempExt = ".pre-restore.tmp"
-	restoreTempExt    = ".restore.tmp"
+	purgeTempPrefix     = PurgeBackupPrefix + "tmp-"
+	preRestoreTempExt   = ".pre-restore.tmp"
+	restoreTempExt      = ".restore.tmp"
+	purgeRecoveryMarker = "RECOVERY_REQUIRED.json"
 )
+
+type purgeRecoveryNotice struct {
+	Backup string `json:"encrypted_backup"`
+}
 
 // newPurgeWorkDir creates a fresh directory (mode 0700) inside dir for plaintext temporary files.
 func newPurgeWorkDir(dir string) (string, error) {
@@ -36,7 +44,10 @@ func newPurgeWorkDir(dir string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("create the work directory: %w", err)
 	}
-	_ = os.Chmod(work, 0o700)
+	if err := fileutil.RestrictToOwner(work); err != nil {
+		_ = os.RemoveAll(work)
+		return "", fmt.Errorf("protect the work directory: %w", err)
+	}
 	return work, nil
 }
 
@@ -58,7 +69,8 @@ func isEncryptedBackupName(name string) bool {
 
 // SweepPurgeBackups deletes the encrypted purge and pre-restore backups in dir that are older than
 // PurgeBackupMaxAge, by modification time. It returns the deleted names.
-// It also deletes the plaintext leftovers of a crashed purge or restore. Only call it while no purge runs.
+// Protected recovery directories and their encrypted safety copies never expire.
+// Other plaintext leftovers are removed. Only call it while no purge runs.
 func SweepPurgeBackups(dir string, now time.Time) ([]string, error) {
 	return sweepPurgeDir(dir, now, true)
 }
@@ -69,7 +81,37 @@ func sweepPurgeDir(dir string, now time.Time, leftovers bool) ([]string, error) 
 		return nil, err
 	}
 	var deleted []string
+	protectedWork, protectedBackups := map[string]bool{}, map[string]bool{}
+	keepEncrypted := false
 	for _, entry := range entries {
+		if !entry.IsDir() || !isPlaintextLeftoverDir(entry.Name()) {
+			continue
+		}
+		work := filepath.Join(dir, entry.Name())
+		data, markerErr := os.ReadFile(filepath.Join(work, purgeRecoveryMarker))
+		if markerErr == nil {
+			protectedWork[entry.Name()] = true
+			var notice purgeRecoveryNotice
+			if json.Unmarshal(data, &notice) != nil || notice.Backup == "" || filepath.Base(notice.Backup) != notice.Backup {
+				keepEncrypted = true
+			} else {
+				protectedBackups[notice.Backup] = true
+			}
+		} else if !os.IsNotExist(markerErr) {
+			return nil, fmt.Errorf("inspect recovery marker: %w", markerErr)
+		} else {
+			// Older failed restores have no marker; their only original may be here.
+			for _, suffix := range []string{"", "-wal", "-shm"} {
+				if _, err := os.Lstat(filepath.Join(work, "old.db"+suffix)); !os.IsNotExist(err) {
+					protectedWork[entry.Name()], keepEncrypted = true, true
+				}
+			}
+		}
+	}
+	for _, entry := range entries {
+		if protectedWork[entry.Name()] || protectedBackups[entry.Name()] {
+			continue
+		}
 		if leftovers {
 			if entry.IsDir() && isPlaintextLeftoverDir(entry.Name()) || entry.Type().IsRegular() && isPlaintextLeftover(entry.Name()) {
 				if err := os.RemoveAll(filepath.Join(dir, entry.Name())); err != nil {
@@ -79,7 +121,7 @@ func sweepPurgeDir(dir string, now time.Time, leftovers bool) ([]string, error) 
 				continue
 			}
 		}
-		if !entry.Type().IsRegular() || !isEncryptedBackupName(entry.Name()) {
+		if keepEncrypted || !entry.Type().IsRegular() || !isEncryptedBackupName(entry.Name()) {
 			continue
 		}
 		info, err := entry.Info()
@@ -120,8 +162,7 @@ var renameFile = os.Rename
 // keeps the current database as an encrypted .flows-pre-restore file, verifies the decrypted backup
 // opens and passes integrity_check, then moves the old database, WAL and SHM aside, renames the
 // restored file into place and deletes the aside files. If the rename fails the old files go back,
-// so a failed restore never leaves the system without a database. All plaintext lives in a 0700
-// work directory that is removed on every path.
+// retaining marked private recovery files if rollback also fails. Other paths clean staging.
 func RestorePurgeBackup(dbPath, backupFile, masterKeyHex string, now time.Time) (err error) {
 	if info, statErr := os.Lstat(backupFile); statErr != nil || !info.Mode().IsRegular() {
 		return fmt.Errorf("the backup file %q cannot be read", backupFile)
@@ -131,6 +172,7 @@ func RestorePurgeBackup(dbPath, backupFile, masterKeyHex string, now time.Time) 
 		return err
 	}
 	keepWork := false
+	recoveryBackup := backupFile
 	defer func() {
 		if !keepWork {
 			_ = os.RemoveAll(work)
@@ -151,6 +193,7 @@ func RestorePurgeBackup(dbPath, backupFile, masterKeyHex string, now time.Time) 
 		if encErr := security.EncryptFileWithMasterKey(plain, pre, PurgeBackupLabel, masterKeyHex); encErr != nil {
 			return fmt.Errorf("keep the current database: %w", encErr)
 		}
+		recoveryBackup = pre
 		_ = os.Remove(plain)
 	}
 	restored := filepath.Join(work, "restored.db")
@@ -170,6 +213,17 @@ func RestorePurgeBackup(dbPath, backupFile, masterKeyHex string, now time.Time) 
 	if err != nil || integrity != "ok" {
 		return fmt.Errorf("the decrypted backup is not a usable flows database (%q, %v)", integrity, err)
 	}
+	if err := fileutil.RestrictToOwner(restored); err != nil {
+		return err
+	}
+	notice, err := json.Marshal(purgeRecoveryNotice{Backup: filepath.Base(recoveryBackup)})
+	if err != nil {
+		return err
+	}
+	// Publish the recovery marker before any original file can leave its live path.
+	if err := fileutil.WriteFileContext(context.Background(), filepath.Join(work, purgeRecoveryMarker), notice, 0600); err != nil {
+		return err
+	}
 	// Move the old files aside; a stale WAL must never replay over the restored database.
 	type move struct{ from, to string }
 	var moved []move
@@ -185,7 +239,7 @@ func RestorePurgeBackup(dbPath, backupFile, masterKeyHex string, now time.Time) 
 	fail := func(cause error) error {
 		if backErr := putBack(); backErr != nil {
 			keepWork = true // the old files are only in the work directory now
-			return fmt.Errorf("%w; the old database could not be put back, it is kept in %s: %v", cause, work, backErr)
+			return fmt.Errorf("%w; the old database could not be put back; recovery files are protected in %s; encrypted backup: %s: %v", cause, work, recoveryBackup, backErr)
 		}
 		return cause
 	}

@@ -49,7 +49,7 @@
   "invasion.deploy_method": "Deployment विधि",
   "invasion.deploy_ssh": "SSH",
   "invasion.description": "विवरण",
-  "invasion.docker_local_hint": "स्थानीय Docker deployments के लिए, master URL स्वचालित रूप से host.docker.internal पर हल होता है — कोई मैन्युअल होस्ट कॉन्फ़िगरेशन आवश्यक नहीं।",
+  "invasion.docker_local_hint": "मास्टर का URL अपने आप host.docker.internal होता है। गुप्त जानकारी के लिए स्थानीय Unix सॉकेट, Windows पाइप या लूपबैक TCP चाहिए; दूरस्थ TCP के लिए TLS/mTLS या SSH चाहिए। कॉन्फ़िगरेशन के संभावित हस्तांतरण के बाद त्रुटि होने पर वर्तमान कुंजियाँ बनी रहती हैं। Egg की स्थिति जाँचें और वर्तमान मास्टर से फिर तैनात करें।",
   "invasion.docker_remote_plaintext_hint": "निजी Egg सेटअप के लिए TLS, mTLS या SSH वाला Docker आवश्यक है। बिना एन्क्रिप्शन वाला HTTP अस्वीकार किया जाता है।",
   "invasion.docker_ssh_hint": "egg कंटेनर को लक्ष्य के Docker Engine पर एन्क्रिप्टेड SSH कनेक्शन के ज़रिए चलाता है (socket /var/run/docker.sock)। इस nest का होस्ट, पोर्ट, उपयोगकर्ता नाम और secret उपयोग होता है; SSH उपयोगकर्ता को Docker socket तक पहुंच चाहिए, और होस्ट कुंजी known_hosts में होनी चाहिए।",
   "invasion.docker_tls": "Docker TLS",

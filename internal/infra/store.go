@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"sort"
 	"time"
+
+	"aurago/internal/dbutil"
 )
 
 const schemaVersion = 3
@@ -262,11 +264,8 @@ func backupExistingDatabase(db *sql.DB, targetVersion int) error {
 		return nil
 	}
 	backup := fmt.Sprintf("%s.infra-v%d-%s.bak", path, targetVersion, rand.Text())
-	if _, err := db.Exec(`VACUUM main INTO ?`, backup); err != nil {
+	if _, err := dbutil.BackupSQLite(context.Background(), db, backup); err != nil {
 		return fmt.Errorf("back up inventory database before infra migration: %w", err)
-	}
-	if err := os.Chmod(backup, 0o600); err != nil {
-		return fmt.Errorf("protect inventory database migration backup: %w", err)
 	}
 	pruneMigrationBackups(path)
 	return nil

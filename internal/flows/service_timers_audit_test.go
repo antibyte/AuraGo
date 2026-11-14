@@ -174,6 +174,14 @@ func TestAudit17StoreErrorKeepsTheOccurrence(t *testing.T) {
 		t.Fatalf("the failed start must be logged at Warn, got %v", warned)
 	}
 
+	// Keep the injected store fault active until its asynchronous bookkeeping ends.
+	fx.s.startFailures.Wait()
+	if got := fx.timerRuns(t); len(got) != 0 {
+		t.Fatalf("the unavailable store recorded a timer run: %+v", got)
+	}
+	if warned := fx.logs.messages(slog.LevelWarn, "a trigger start failure could not be recorded as a run"); len(warned) != 1 {
+		t.Fatalf("the unavailable store must reject the failure record once, got %v", warned)
+	}
 	exec(`DROP TRIGGER audit17_block_runs`)
 	fx.clock.Advance(fx.s.timers.retryDelay)
 	if err := fx.s.timers.processDue(ctx, false); err != nil {

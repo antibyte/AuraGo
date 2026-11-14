@@ -212,7 +212,7 @@
                 node.alt = item.name || '';
                 node.draggable = false;
                 node.decoding = 'async';
-                node.addEventListener('load', () => {
+                const loaded = () => {
                     lb.natural = { width: node.naturalWidth, height: node.naturalHeight };
                     item._width = node.naturalWidth;
                     item._height = node.naturalHeight;
@@ -220,10 +220,14 @@
                     node.classList.add('is-loaded');
                     updateZoomLabel();
                     if (lb.infoOpen) renderInfo();
-                }, { once: true });
+                };
+                node.addEventListener('load', loaded, { once: true });
                 node.addEventListener('error', () => fail(), { once: true });
                 node.src = url;
-                if (node.complete && node.naturalWidth) { el.spinner.hidden = true; node.classList.add('is-loaded'); }
+                if (node.complete && node.naturalWidth) {
+                    node.removeEventListener('load', loaded);
+                    loaded();
+                }
             }
             if (animations && direction) node.classList.add(direction < 0 ? 'enter-from-left' : 'enter-from-right');
             el.canvas.replaceChildren(node);
@@ -296,8 +300,8 @@
         function fittedSize() {
             const node = media();
             if (!node || !(node instanceof HTMLImageElement)) return null;
-            const rect = node.getBoundingClientRect();
-            return { width: rect.width / lb.zoom.scale, height: rect.height / lb.zoom.scale };
+            const style = getComputedStyle(node);
+            return { width: parseFloat(style.width) || node.clientWidth, height: parseFloat(style.height) || node.clientHeight };
         }
 
         function rotationDegrees() {
@@ -341,7 +345,9 @@
         function zoomTo(scale, clientX, clientY) {
             const node = media();
             if (!node || !(node instanceof HTMLImageElement)) return;
-            const next = clamp(scale, MIN_SCALE, MAX_SCALE);
+            const fitted = fittedSize();
+            const maxScale = Math.max(MAX_SCALE, lb.natural.width / (fitted.width || 1));
+            const next = clamp(scale, MIN_SCALE, maxScale);
             if (next === lb.zoom.scale) return;
             const stage = el.stage.getBoundingClientRect();
             const cx = (typeof clientX === 'number' ? clientX : stage.left + stage.width / 2) - (stage.left + stage.width / 2);
@@ -357,7 +363,7 @@
 
         function zoomActual() {
             const fitted = fittedSize();
-            if (!fitted || !lb.natural.width) return;
+            if (!fitted || !fitted.width || !lb.natural.width) return;
             zoomTo(lb.natural.width / fitted.width);
         }
 

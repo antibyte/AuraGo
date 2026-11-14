@@ -312,12 +312,15 @@ func storymakerTour(t *testing.T, fixture storymakerBackend) {
 	page.MustEval(setSelect, `[data-stm="transition"]`, "fade")
 	page.MustEval(`()=>window.stmSeekWhileCompiling`)
 	storymakerWait(t, page, `()=>document.querySelector('[data-stm="stage-note"]').hidden && (()=>{const s=document.querySelector('[data-stm="scrubber"]');return s.getAttribute('aria-valuenow')===s.getAttribute('aria-valuemax')&&s.getAttribute('aria-valuemax')!=='0'})()`)
+	// Rendering can outlive the compiled UI state; wait for the actual host acknowledgement.
+	const hostAtEnd = `()=>{const s=document.querySelector('[data-stm="scrubber"]'),f=window.stmHostFrames;return f.length>0&&String(f[f.length-1])===s.getAttribute('aria-valuemax')}`
+	storymakerWait(t, page, hostAtEnd)
 	time.Sleep(700 * time.Millisecond) // a late answer of the host must not move the playhead back
 	if !page.MustEval(`()=>{const s=document.querySelector('[data-stm="scrubber"]');return s.getAttribute('aria-valuenow')===s.getAttribute('aria-valuemax')}`).Bool() {
 		t.Fatal("the playhead left the end after the preview reloaded")
 	}
 	// and the host shows that frame too: its last time message is the end, not the frame 0 it starts at after a load
-	if !page.MustEval(`()=>{const s=document.querySelector('[data-stm="scrubber"]'),f=window.stmHostFrames;return f.length>0&&String(f[f.length-1])===s.getAttribute('aria-valuemax')}`).Bool() {
+	if !page.MustEval(hostAtEnd).Bool() {
 		t.Fatalf("the host stayed on another frame than the playhead: %v", page.MustEval(`()=>JSON.stringify(window.stmHostFrames)`).String())
 	}
 

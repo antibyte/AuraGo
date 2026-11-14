@@ -49,7 +49,7 @@
   "invasion.deploy_method": "部署方式",
   "invasion.deploy_ssh": "SSH",
   "invasion.description": "描述",
-  "invasion.docker_local_hint": "对于本地Docker部署，主URL会自动解析为host.docker.internal — 无需手动配置主机。",
+  "invasion.docker_local_hint": "主控地址会自动使用host.docker.internal。秘密信息仅通过本地Unix套接字、Windows管道或回环TCP传输；远程TCP需要TLS/mTLS或SSH。配置可能已传输后，如果发生错误，会保留当前密钥。请检查Egg状态，再使用当前主控重新部署。",
   "invasion.docker_remote_plaintext_hint": "Egg 的私密配置需要使用 TLS、mTLS 或 SSH 的 Docker。未加密的 HTTP 将被拒绝。",
   "invasion.docker_ssh_hint": "通过加密的 SSH 连接在目标的 Docker Engine 上运行 egg 容器（套接字 /var/run/docker.sock）。使用此 nest 的主机、端口、用户名和密钥；SSH 用户需要有 Docker 套接字的访问权限，且主机密钥必须在 known_hosts 中。",
   "invasion.docker_tls": "Docker TLS",

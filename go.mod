@@ -1,6 +1,6 @@
 module aurago
 
-go 1.27.3
+go 1.27.4
 
 require (
 	codeberg.org/readeck/go-readability/v2 v2.1.3
@@ -70,7 +70,7 @@ require (
 	github.com/ulikunitz/xz v0.5.17
 	github.com/vishen/go-chromecast v0.3.4
 	github.com/xeipuuv/gojsonschema v1.2.0
-	github.com/xuri/excelize/v2 v2.11.1-0.20261003002531-6258dcebc4e2
+	github.com/xuri/excelize/v2 v2.11.1
 	github.com/ysmood/gson v0.7.3
 	go.bug.st/serial v1.8.0
 	go.mau.fi/whatsmeow v0.0.0-20261030195514-56e5ad0581ce
@@ -213,7 +213,7 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
-	github.com/xuri/efp v0.0.2 // indirect
+	github.com/xuri/efp v0.0.3-0.20260924042702-217b81952dec // indirect
 	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
 	github.com/ysmood/fetchup v0.2.4 // indirect
 	github.com/ysmood/goob v0.4.0 // indirect

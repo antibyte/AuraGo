@@ -106,7 +106,7 @@ func TestMemoryAuditBrowser(t *testing.T) {
  }[key]||key);
  window.esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
  window.DashSections={register(){}};window.DashDisclosures={setCount(){}};
- const data={pending_memory_writes:2,exhausted_memory_writes:3,terminal_consolidation_failures:4,memory_health:{strategy:{mode:'balanced'},confidence:{},usage:{},corpus:{available:true,documents:17,dimensions:[384],database_bytes:1048576,wal_bytes:524288,vector_payload_bytes:262144}},episodic:{},pending_actions:[],memory_conflicts:[]};
+ const data={pending_memory_writes:2,exhausted_memory_writes:3,terminal_consolidation_failures:4,memory_health:{strategy:{mode:'balanced'},confidence:{},usage:{},corpus:{available:true,documents:17,dimensions:[384],database_bytes:1048576,wal_bytes:524288,used_bytes:1572864,vector_payload_bytes:262144}},episodic:{},pending_actions:[],memory_conflicts:[]};
  renderMemoryHealth(data);
  const summary=document.getElementById('memory-health-summary');
  const text=summary.textContent;

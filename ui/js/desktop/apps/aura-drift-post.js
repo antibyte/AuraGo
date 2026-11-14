@@ -107,6 +107,7 @@
         let manual = null;
         const holes = [new T.Vector4(), new T.Vector4()];
         const tmp = new T.Vector3(), tmp2 = new T.Vector3(), right = new T.Vector3();
+        const savedClearColor = new T.Color();
         const hasPipeline = !!(T.EffectComposer && T.RenderPass && T.ShaderPass && T.OutputPass && T.UnrealBloomPass);
 
         function bloomStrength() { return bloomBase * g.bloom * (q.bloom === 'half' ? 1.25 : 1); }
@@ -139,18 +140,19 @@
                        sky domes, blob shadows and fx quads would count as occluders. Hide them for that pass. */
                     const baseRender = gtao.render.bind(gtao);
                     gtao.render = (r, wb, rb, dt, mask) => {
-                        const hidden = [];
+                        const visibility = [];
                         const shadowAutoUpdate = r.shadowMap.autoUpdate;
                         scene.traverse(o => {
-                            if (!o.visible || !(o.isMesh || o.isPoints || o.isLine || o.isSprite)) return;
+                            if (!(o.isMesh || o.isPoints || o.isLine || o.isSprite)) return;
+                            visibility.push([o, o.visible]);
                             const m = Array.isArray(o.material) ? o.material[0] : o.material;
-                            if (m && (m.transparent || m.depthWrite === false)) { o.visible = false; hidden.push(o); }
+                            if (m && (m.transparent || m.depthWrite === false)) o.visible = false;
                         });
                         // The preceding beauty pass already rendered this frame's shadows.
                         r.shadowMap.autoUpdate = false;
                         try { baseRender(r, wb, rb, dt, mask); } finally {
                             r.shadowMap.autoUpdate = shadowAutoUpdate;
-                            for (const o of hidden) o.visible = true;
+                            for (const [o, visible] of visibility) o.visible = visible;
                         }
                     };
                     cp.addPass(gtao);
@@ -255,6 +257,9 @@
             get enabled() { return hasPipeline && !!q.post && !failed && !disposed; },
             render(dt, race, pose, reduced) {
                 if (!api.enabled) return false;
+                const target = renderer.getRenderTarget(), face = renderer.getActiveCubeFace(), level = renderer.getActiveMipmapLevel();
+                const autoClear = renderer.autoClear, alpha = renderer.getClearAlpha(), override = scene.overrideMaterial;
+                renderer.getClearColor(savedClearColor);
                 try {
                     if (!composer) build();
                     updateUniforms(dt, race, !!reduced);
@@ -264,6 +269,12 @@
                     failed = true;
                     dropComposer();
                     return false;
+                } finally {
+                    // A failed pass may leave its target/material active before the direct-render fallback.
+                    scene.overrideMaterial = override;
+                    renderer.autoClear = autoClear;
+                    renderer.setClearColor(savedClearColor, alpha);
+                    renderer.setRenderTarget(target, face, level);
                 }
             },
             setQuality(next) {

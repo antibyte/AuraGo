@@ -34,7 +34,7 @@
       "license": "MIT"
     },
     "fast-xml-parser": {
-      "version": "5.11.2",
+      "version": "5.12.0",
       "license": "MIT"
     },
     "fflate": {
@@ -42,7 +42,7 @@
       "license": "MIT"
     },
     "is-unsafe": {
-      "version": "2.0.2",
+      "version": "2.0.3",
       "license": "MIT"
     },
     "orderedmap": {
@@ -78,7 +78,7 @@
       "license": "MIT"
     },
     "strnum": {
-      "version": "2.4.2",
+      "version": "2.5.1",
       "license": "MIT"
     },
     "utif2": {
@@ -96,8 +96,8 @@
   },
   "files": {
     "engine.js": {
-      "bytes": 3836508,
-      "sha256": "e10bdb286631848662db227323bd0bd8018eaa360be62f58ce033d8ba5d5f807"
+      "bytes": 3841129,
+      "sha256": "de2e45473b50f65b0e087ec39f4dc03cca1f7a051c2372086ad905fc09f31e9a"
     },
     "engine.css": {
       "bytes": 151637,
@@ -205,7 +205,7 @@
     },
     "LICENSES.md": {
       "bytes": 106251,
-      "sha256": "bce88111606755ffc813fa4c9a2b036ff6a24cb772e2ce21092899caede4bd00"
+      "sha256": "adab108fb5a317977c9e21363d17e8afaa60efe0496d0bc93df9444f0339704d"
     }
   }
 }

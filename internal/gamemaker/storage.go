@@ -1,17 +1,16 @@
 package gamemaker
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
+	_ "modernc.org/sqlite"
 
 	"aurago/internal/dbutil"
-
-	_ "modernc.org/sqlite"
 )
 
 func openDatabase(path string) (*sql.DB, error) {
@@ -215,7 +214,7 @@ func ensureJobOutcomeColumns(db *sql.DB) error {
 	}
 	if path != "" {
 		backup := path + ".before-job-outcome-" + time.Now().UTC().Format("20060102T150405.000000000") + ".bak"
-		if _, err := db.Exec(`VACUUM INTO '` + strings.ReplaceAll(backup, "'", "''") + `'`); err != nil {
+		if _, err := dbutil.BackupSQLite(context.Background(), db, backup); err != nil {
 			return fmt.Errorf("backup before game maker job outcome migration: %w", err)
 		}
 	}

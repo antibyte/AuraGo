@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -72,7 +73,11 @@ func (c *DockerConnector) Validate(ctx context.Context, nest NestRecord, secret 
 	return nil
 }
 
-func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []byte, payload EggDeployPayload) error {
+func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []byte, payload EggDeployPayload) (retErr error) {
+	archive, err := buildDockerEggConfigArchive(payload.ConfigYAML, payload.Bootstrap)
+	if err != nil {
+		return configNotDelivered(err)
+	}
 	if len(payload.Bootstrap) > 0 || payload.MasterKey != "" {
 		if err := requirePrivateDockerBootstrap(nest); err != nil {
 			return configNotDelivered(err)
@@ -119,8 +124,24 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 	}
 
 	// 2. Remove any stale backup, then rename current container as backup
-	_ = c.removeContainer(ctx, nest, secret, backupName)
-	_ = c.renameContainer(ctx, nest, secret, containerName, backupName)
+	if err := c.removeContainer(ctx, nest, secret, backupName); err != nil {
+		return configNotDelivered(fmt.Errorf("failed to retire stale Egg backup before stop: %w", err))
+	}
+	previousRenamed, err := c.renameContainerStatus(ctx, nest, secret, containerName, backupName)
+	if err != nil {
+		return configNotDelivered(fmt.Errorf("previous Egg may be stopped; rename failed before configuration transfer: %w", err))
+	}
+	defer func() {
+		if retErr != nil && previousRenamed && errors.Is(retErr, ErrEggConfigNotDelivered) {
+			recoveryCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+			defer cancel()
+			if err := c.Rollback(recoveryCtx, nest, secret); err != nil {
+				retErr = fmt.Errorf("%w; previous Egg recovery blocked or failed; retain %s for operator recovery: %v", retErr, backupName, err)
+			} else {
+				retErr = fmt.Errorf("%w; %w", retErr, ErrEggPredecessorRestored)
+			}
+		}
+	}()
 	stopURL := c.apiURL(nest, fmt.Sprintf("/containers/%s/stop?t=15", backupName))
 	stopRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, stopURL, nil)
 	if err != nil {
@@ -162,7 +183,7 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 
 	// 4. Copy config.yaml into the container via the Docker Archive API.
 	// This ensures secrets (shared key, API keys) are not visible in "docker inspect".
-	if err := c.copyConfigToContainer(ctx, nest, secret, containerName, payload.ConfigYAML, payload.Bootstrap); err != nil {
+	if err := c.copyConfigArchiveToContainer(ctx, nest, secret, containerName, archive); err != nil {
 		// Clean up the created container on failure
 		_ = c.removeContainer(ctx, nest, secret, containerName)
 		return fmt.Errorf("failed to copy config to container: %w", err)
@@ -266,6 +287,10 @@ func (c *DockerConnector) copyConfigToContainer(ctx context.Context, nest NestRe
 	if err != nil {
 		return err
 	}
+	return c.copyConfigArchiveToContainer(ctx, nest, secret, containerName, archive)
+}
+
+func (c *DockerConnector) copyConfigArchiveToContainer(ctx context.Context, nest NestRecord, secret []byte, containerName string, archive []byte) error {
 	buf := bytes.NewReader(archive)
 
 	// Upload to the persisted config path read by docker-entrypoint.sh.
@@ -290,6 +315,10 @@ func (c *DockerConnector) copyConfigToContainer(ctx context.Context, nest NestRe
 }
 
 func buildDockerEggConfigArchive(configYAML []byte, bootstrap ...[]byte) ([]byte, error) {
+	bootstrapPath, err := dockerEggBootstrapPath(configYAML)
+	if err != nil {
+		return nil, err
+	}
 	var buf bytes.Buffer
 	tw := tar.NewWriter(&buf)
 	hdr := &tar.Header{
@@ -308,8 +337,17 @@ func buildDockerEggConfigArchive(configYAML []byte, bootstrap ...[]byte) ([]byte
 		return nil, fmt.Errorf("failed to write config to tar: %w", err)
 	}
 	if len(bootstrap) > 0 && len(bootstrap[0]) > 0 {
+		parts := strings.Split(path.Dir(bootstrapPath), "/")
+		if parts[0] != "." {
+			for i := range parts {
+				dir := &tar.Header{Name: strings.Join(parts[:i+1], "/") + "/", Typeflag: tar.TypeDir, Mode: 0700, Uid: dockerEggConfigUID, Gid: dockerEggConfigGID, Uname: dockerEggConfigUser, Gname: dockerEggConfigGroup}
+				if err := tw.WriteHeader(dir); err != nil {
+					return nil, fmt.Errorf("write bootstrap directory: %w", err)
+				}
+			}
+		}
 		bootstrapHeader := *hdr
-		bootstrapHeader.Name, bootstrapHeader.Size = EggBootstrapFile, int64(len(bootstrap[0]))
+		bootstrapHeader.Name, bootstrapHeader.Size = bootstrapPath, int64(len(bootstrap[0]))
 		if err := tw.WriteHeader(&bootstrapHeader); err != nil {
 			return nil, fmt.Errorf("write bootstrap header: %w", err)
 		}
@@ -655,6 +693,13 @@ func dockerRemoveContainerPath(name string) string {
 }
 
 func (c *DockerConnector) renameContainer(ctx context.Context, nest NestRecord, secret []byte, oldName, newName string) error {
+	_, err := c.renameContainerStatus(ctx, nest, secret, oldName, newName)
+	return err
+}
+
+// The boolean proves an acknowledged rename; 404 must never authorize recovery
+// from a possibly stale backup left by an earlier hatch.
+func (c *DockerConnector) renameContainerStatus(ctx context.Context, nest NestRecord, secret []byte, oldName, newName string) (bool, error) {
 	client := c.httpClient(nest, secret)
 	// Stop the container first so it can be renamed cleanly. The stop is best
 	// effort: a request that cannot be built or sent skips it, and the rename
@@ -669,18 +714,18 @@ func (c *DockerConnector) renameContainer(ctx context.Context, nest NestRecord, 
 	renameURL := c.apiURL(nest, fmt.Sprintf("/containers/%s/rename?name=%s", oldName, newName))
 	req, err := http.NewRequestWithContext(ctx, "POST", renameURL, nil)
 	if err != nil {
-		return err
+		return false, err
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("rename container failed: %w", err)
+		return false, fmt.Errorf("rename container failed: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
 		body := dockerutil.ReadErrorBody(resp.Body)
-		return fmt.Errorf("rename container failed with HTTP %d: %s", resp.StatusCode, string(body))
+		return false, fmt.Errorf("rename container failed with HTTP %d: %s", resp.StatusCode, string(body))
 	}
-	return nil
+	return resp.StatusCode != http.StatusNotFound, nil
 }
 
 func (c *DockerConnector) HealthCheck(ctx context.Context, nest NestRecord, secret []byte) error {
@@ -725,6 +770,10 @@ func (c *DockerConnector) HealthCheck(ctx context.Context, nest NestRecord, secr
 // Reconfigure writes a patched config.yaml into the running egg container and restarts it.
 // The container is stopped, the config is replaced via the archive API, then restarted.
 func (c *DockerConnector) Reconfigure(ctx context.Context, nest NestRecord, secret []byte, configYAML []byte, bootstrap ...[]byte) error {
+	archive, err := buildDockerEggConfigArchive(configYAML, bootstrap...)
+	if err != nil {
+		return configNotDelivered(err)
+	}
 	if len(bootstrap) > 0 && len(bootstrap[0]) > 0 {
 		if err := requirePrivateDockerBootstrap(nest); err != nil {
 			return err
@@ -741,7 +790,7 @@ func (c *DockerConnector) Reconfigure(ctx context.Context, nest NestRecord, secr
 	}
 
 	// 2. Copy the patched config into the container
-	if err := c.copyConfigToContainer(ctx, nest, secret, containerName, configYAML, bootstrap...); err != nil {
+	if err := c.copyConfigArchiveToContainer(ctx, nest, secret, containerName, archive); err != nil {
 		return fmt.Errorf("failed to copy patched config to container: %w", err)
 	}
 
@@ -795,11 +844,17 @@ func (c *DockerConnector) Rollback(ctx context.Context, nest NestRecord, secret 
 	}
 
 	// Remove the failed new container
-	_ = c.removeContainer(ctx, nest, secret, containerName)
+	if err := c.removeContainer(ctx, nest, secret, containerName); err != nil {
+		return fmt.Errorf("failed to remove replacement before rollback; backup retained: %w", err)
+	}
 
 	// Rename backup back to primary name
-	if err := c.renameContainer(ctx, nest, secret, backupName, containerName); err != nil {
+	restored, err := c.renameContainerStatus(ctx, nest, secret, backupName, containerName)
+	if err != nil {
 		return fmt.Errorf("failed to restore backup container: %w", err)
+	}
+	if !restored {
+		return fmt.Errorf("backup disappeared during rollback; no predecessor was restored")
 	}
 
 	// Start the restored container

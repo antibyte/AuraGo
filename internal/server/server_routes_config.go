@@ -22,6 +22,8 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	if !s.Cfg.WebConfig.Enabled {
 		return
 	}
+	mux.Handle(mailReceiptsRoute, requireAdmin(s, handleMailReceipts(s)))
+	mux.Handle(mailReceiptsRoute+"/", requireAdmin(s, handleMailReceipts(s)))
 	for _, operation := range []string{"status", "download", "cancel", "test"} {
 		mux.Handle("/api/guardian/injection-guard/"+operation, requireAdmin(s, handleInjectionGuard(s, operation)))
 	}

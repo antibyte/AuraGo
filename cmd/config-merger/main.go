@@ -37,7 +37,16 @@ func main() {
 	sourcePath := flag.String("source", "", "Path to the existing config.yaml")
 	templatePath := flag.String("template", "", "Path to the template config.yaml (upstream defaults)")
 	outputPath := flag.String("output", "", "Path to save merged config (defaults to source)")
+	dataDirPath := flag.String("data-dir", "", "Print the resolved data directory of this configuration without writing it")
 	flag.Parse()
+	if *dataDirPath != "" {
+		dir, err := resolvedDataDirectory(*dataDirPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(dir)
+		return
+	}
 
 	if *sourcePath == "" || *templatePath == "" {
 		flag.Usage()

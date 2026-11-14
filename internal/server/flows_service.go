@@ -268,8 +268,7 @@ var flowsStartRetryJoinTimeout = 2 * time.Second
 // (ended, and joined for at most flowsStartRetryJoinTimeout: see startFlows), Service.Shutdown (timers, runs, the retention loop,
 // a startup reconciliation still in progress), then the store. Shutdown gets
 // flowsShutdownBudget(ctx) on a context of its own (ctx's cancellation is ignored); runs
-// that do not stop in time end in the background, and their last writes then fail on the
-// closed store and are logged.
+// that do not stop in time drain in the background before the store is closed.
 //
 // Service.Shutdown does not wait for flow operations that Mission Control starts through
 // the hooks: until the process ends a cron job, an MQTT or mail trigger or a mission
@@ -284,10 +283,13 @@ func (s *Server) shutdownFlows(ctx context.Context) {
 	}
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), flowsShutdownBudget(ctx))
 	defer cancel()
+	svc := s.Flows
+	var retryDone <-chan struct{}
 	// A start retry that is still going would call Start (and reconcile) against the
 	// service that is stopping: end it and wait for it first, within the same budget.
 	if v, ok := flowsStartRetries.LoadAndDelete(s.Flows); ok {
 		retry := v.(*flowsStartRetry)
+		retryDone = retry.done
 		retry.cancel()
 		join := time.NewTimer(flowsStartRetryJoinTimeout)
 		select {
@@ -299,12 +301,48 @@ func (s *Server) shutdownFlows(ctx context.Context) {
 		}
 		join.Stop()
 	}
-	if err := s.Flows.Shutdown(ctx); err != nil {
-		s.Logger.Warn("EasyDrag flows did not stop in time", "error", err)
+	closeStore := func() {
+		if err := svc.Store().Close(); err != nil {
+			s.Logger.Warn("EasyDrag flow store could not be closed", "error", err)
+		}
 	}
-	if err := s.Flows.Store().Close(); err != nil {
-		s.Logger.Warn("EasyDrag flow store could not be closed", "error", err)
+	drained := make(chan error, 1)
+	go func() { drained <- svc.Shutdown(context.Background()) }()
+	finish := func() {
+		if retryDone != nil {
+			<-retryDone
+		}
+		closeStore()
 	}
+	var err error
+	select {
+	case err = <-drained:
+	case <-ctx.Done():
+		s.Logger.Warn("EasyDrag flows did not stop in time", "error", ctx.Err())
+		go func() {
+			if err := <-drained; err != nil {
+				s.Logger.Warn("EasyDrag background drain failed", "error", err)
+			}
+			finish()
+		}()
+		return
+	}
+	if err != nil {
+		s.Logger.Warn("EasyDrag background drain failed", "error", err)
+	}
+	retryDrained := retryDone == nil
+	if retryDone != nil {
+		select {
+		case <-retryDone:
+			retryDrained = true
+		default:
+		}
+	}
+	if !retryDrained {
+		go finish()
+		return
+	}
+	closeStore()
 }
 
 // flowsRuntimeConfigChanged reports whether a flows setting changed that initFlows reads

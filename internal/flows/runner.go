@@ -176,6 +176,7 @@ type Runner struct {
 
 	mu                   sync.Mutex
 	closed               bool
+	shutdownDone         chan struct{}
 	slots                int
 	live                 map[string]int
 	durable              map[string]durableReservation
@@ -1200,11 +1201,19 @@ func (r *Runner) Shutdown(ctx context.Context) error {
 	r.startMu.Lock()
 	r.mu.Lock()
 	if r.closed {
+		done := r.shutdownDone
 		r.mu.Unlock()
 		r.startMu.Unlock()
-		return nil
+		select {
+		case <-done:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 	r.closed = true
+	done := make(chan struct{})
+	r.shutdownDone = done
 	var pending []*pendingRun
 	for _, q := range r.flowQueue {
 		pending = append(pending, q...)
@@ -1228,7 +1237,6 @@ func (r *Runner) Shutdown(ctx context.Context) error {
 		}
 		r.finishUnstarted(p, "FLOW_SHUTDOWN", "AuraGo shut down before the run started")
 	}
-	done := make(chan struct{})
 	go func() {
 		r.wg.Wait()
 		close(done)

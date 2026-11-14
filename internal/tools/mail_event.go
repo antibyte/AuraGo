@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 
 	"aurago/internal/config"
 )
@@ -58,67 +57,4 @@ func mailAccountEventID(acct config.EmailAccount, uids []uint32, kind string, id
 // WithMailNotificationPolicy is installed only by authenticated mail ingress.
 func WithMailNotificationPolicy(ctx context.Context, dataDir, eventID string, allowRoutine bool) context.Context {
 	return context.WithValue(ctx, mailNotificationKey{}, mailNotificationPolicy{dataDir, eventID, allowRoutine})
-}
-
-func beginMailNotification(ctx context.Context, channel, priority string) (func(bool) error, bool, error) {
-	policy, scoped := ctx.Value(mailNotificationKey{}).(mailNotificationPolicy)
-	if !scoped {
-		return nil, false, nil
-	}
-	priority = strings.ToLower(strings.TrimSpace(priority))
-	if !policy.allowRoutine && priority != "high" && priority != "critical" {
-		return nil, true, nil
-	}
-	if policy.dataDir == "" || policy.eventID == "" {
-		return nil, false, fmt.Errorf("mail notification receipt store unavailable")
-	}
-	store, err := newSystemTaskStore(policy.dataDir)
-	if err != nil {
-		return nil, false, fmt.Errorf("open mail notification receipts: %w", err)
-	}
-	namespace := fmt.Sprintf("mail_notice:%x", sha256.Sum256([]byte(policy.eventID+"\x00"+channel)))
-	now := time.Now().UTC()
-	// Unknown deliveries remain pending; only confirmed receipts may expire.
-	_, err = store.db.ExecContext(ctx, "DELETE FROM system_tasks WHERE namespace GLOB 'mail_notice:*' AND payload_json = ? AND updated_at < ?", `"sent"`, now.AddDate(0, 0, -30).Format(time.RFC3339))
-	if err == nil {
-		result, insertErr := store.db.ExecContext(ctx, `INSERT OR IGNORE INTO system_tasks(namespace,payload_json,updated_at)
-   SELECT ?,?,? WHERE (SELECT COUNT(*) FROM system_tasks WHERE namespace GLOB 'mail_notice:*') < 2000`, namespace, `"pending"`, now.Format(time.RFC3339))
-		err = insertErr
-		if err == nil {
-			var changed int64
-			changed, err = result.RowsAffected()
-			if err == nil && changed == 0 {
-				var state string
-				err = store.db.QueryRowContext(ctx, "SELECT payload_json FROM system_tasks WHERE namespace = ?", namespace).Scan(&state)
-				_ = store.release()
-				if err != nil {
-					return nil, false, fmt.Errorf("mail notification receipt capacity reached")
-				}
-				// A pending claim is not a confirmed send and must not be replayed.
-				if state != `"sent"` {
-					return nil, false, fmt.Errorf("mail notification outcome unknown; inspect before explicit resend")
-				}
-				return nil, true, nil
-			}
-		}
-	}
-	if err != nil {
-		_ = store.release()
-		return nil, false, fmt.Errorf("claim mail notification: %w", err)
-	}
-	closed := false
-	return func(sent bool) error {
-		if closed {
-			return nil
-		}
-		closed = true
-		defer store.release()
-		if !sent {
-			return nil
-		}
-		if _, err := store.db.ExecContext(ctx, "UPDATE system_tasks SET payload_json = ?, updated_at = ? WHERE namespace = ?", `"sent"`, time.Now().UTC().Format(time.RFC3339), namespace); err != nil {
-			return fmt.Errorf("confirm mail notification: %w", err)
-		}
-		return nil
-	}, false, nil
 }

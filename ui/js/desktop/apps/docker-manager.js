@@ -188,7 +188,7 @@
         }
 
         // The rows, the sorted groups and the stack groups are rebuilt only when what they come from changed: a new listing of a host in
-        // scope (the store replaces the entry on every load), the host list, the scope, the search or the filter. A paint for anything
+        // scope (use the container array, not loading/error metadata), the host list, the scope, the search or the filter. A paint for anything
         // else (the drawer, a toast, an operation) reuses them and sorts nothing.
         const memos = { rows: model.memo(), view: model.memo(), counts: model.memo(), sgroups: model.memo() };
 
@@ -201,7 +201,7 @@
             const hosts = state.hosts;
             const scopeHosts = state.scope === 'all' ? hosts : hosts.filter(item => item.id === state.scope);
             const hostKey = JSON.stringify(hosts.map(item => [item.id, item.name, item.color]));
-            const rows = memos.rows([hostKey, state.scope].concat(scopeHosts.map(item => state.byHost[item.id])), () => model.buildRows(hosts, state.byHost, state.scope));
+            const rows = memos.rows([hostKey, state.scope].concat(scopeHosts.map(item => state.byHost[item.id]?.containers)), () => model.buildRows(hosts, state.byHost, state.scope));
             const multi = state.scope === 'all' && hosts.length > 1;
             const view = memos.view([rows, ui.query, ui.filter, multi, hostKey, ui.section === 'containers'], () => {
                 const visible = model.filterRows(rows, { query: ui.query, filter: ui.filter });

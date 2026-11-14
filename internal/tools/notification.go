@@ -95,8 +95,20 @@ func SendNotificationContext(ctx context.Context, cfg *config.Config, logger *sl
 			results = append(results, result{Channel: string(c), Status: "error", Detail: ctx.Err().Error()})
 			return
 		}
-		var err error
-		finish, skipped, err := beginMailNotification(ctx, string(c), priority)
+		skipped, reason, err := checkMailNotification(ctx, string(c), priority)
+		if err != nil {
+			results = append(results, result{Channel: string(c), Status: "error", Detail: err.Error()})
+			return
+		}
+		if skipped {
+			results = append(results, result{Channel: string(c), Status: "skipped", Detail: reason})
+			return
+		}
+		if err := validateNotification(cfg, c, title, message, discordSend, telnyxSend...); err != nil {
+			results = append(results, result{Channel: string(c), Status: "error", Detail: err.Error()})
+			return
+		}
+		finish, sendCtx, skipped, err := beginMailNotification(ctx, string(c), priority)
 		if err != nil {
 			results = append(results, result{Channel: string(c), Status: "error", Detail: err.Error()})
 			return
@@ -110,15 +122,15 @@ func SendNotificationContext(ctx context.Context, cfg *config.Config, logger *sl
 		}
 		switch c {
 		case ChannelNtfy:
-			err = sendNtfy(cfg, title, message, priority, ctx)
+			err = sendNtfy(cfg, title, message, priority, sendCtx)
 		case ChannelPushover:
-			err = sendPushover(cfg, title, message, priority, ctx)
+			err = sendPushover(cfg, title, message, priority, sendCtx)
 		case ChannelTelegram:
 			if cfg.Telegram.ReadOnly {
 				err = fmt.Errorf("telegram is in read-only mode")
 				break
 			}
-			err = sendTelegramNotification(cfg, title, message, ctx)
+			err = sendTelegramNotification(cfg, title, message, sendCtx)
 		case ChannelWhatsApp:
 			if !cfg.WhatsApp.Enabled {
 				err = errWhatsAppDisabled
@@ -128,23 +140,25 @@ func SendNotificationContext(ctx context.Context, cfg *config.Config, logger *sl
 				err = errWhatsAppReadOnly
 				break
 			}
-			err = sendWhatsAppNotification(ctx, title, message)
+			err = sendWhatsAppNotification(sendCtx, title, message)
 		case ChannelDiscord:
 			if cfg.Discord.ReadOnly {
 				err = fmt.Errorf("discord is in read-only mode")
 				break
 			}
+			markMailNotificationPossible(sendCtx)
 			err = sendDiscordNotification(cfg, discordSend, title, message)
 		case ChannelPush:
-			err = sendPushNotification(title, message, priority)
+			err = sendPushNotification(title, message, priority, sendCtx)
 		case ChannelTelnyx:
 			if cfg.Telnyx.ReadOnly {
 				err = fmt.Errorf("telnyx is in read-only mode")
 				break
 			}
+			markMailNotificationPossible(sendCtx)
 			err = sendTelnyxNotification(cfg, title, message, telnyxSend...)
 		case ChannelCYD:
-			err = sendCYDNotification(cfg, title, message, priority)
+			err = sendCYDNotification(cfg, title, message, priority, sendCtx)
 		default:
 			results = append(results, result{Channel: string(c), Status: "error", Detail: "unknown channel"})
 			return
@@ -252,6 +266,9 @@ func sendNtfy(cfg *config.Config, title, message, priority string, contexts ...c
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if resp.StatusCode >= 400 && resp.StatusCode < 500 && resp.StatusCode != http.StatusRequestTimeout {
+			markMailNotificationRejected(nativeHTTPContext(contexts...))
+		}
 		body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 		if err != nil {
 			return fmt.Errorf("ntfy returned HTTP %d and response body could not be read safely: %w", resp.StatusCode, err)
@@ -312,6 +329,9 @@ func sendPushover(cfg *config.Config, title, message, priority string, contexts 
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if resp.StatusCode >= 400 && resp.StatusCode < 500 && resp.StatusCode != http.StatusRequestTimeout {
+			markMailNotificationRejected(nativeHTTPContext(contexts...))
+		}
 		body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 		if err != nil {
 			return fmt.Errorf("pushover returned HTTP %d and response body could not be read safely: %w", resp.StatusCode, err)
@@ -392,6 +412,9 @@ func sendTelegramNotification(cfg *config.Config, title, message string, context
 		// Only flood control is retried: that answer states that the message was
 		// not accepted, so a repeat cannot duplicate a delivered message.
 		var statusErr *telegramStatusError
+		if errors.As(err, &statusErr) && statusErr.status >= 400 && statusErr.status < 500 && statusErr.status != http.StatusRequestTimeout {
+			markMailNotificationRejected(ctx)
+		}
 		if !errors.As(err, &statusErr) || statusErr.status != http.StatusTooManyRequests || attempt == telegramSendMaxAttempts {
 			return err
 		}
@@ -462,7 +485,7 @@ func sendTelnyxNotification(cfg *config.Config, title, message string, telnyxSen
 	return telnyxSend[0](cfg.Telnyx.AllowedNumbers[0], text)
 }
 
-func sendPushNotification(title, message, priority string) error {
+func sendPushNotification(title, message, priority string, contexts ...context.Context) error {
 	if push.GlobalManager == nil {
 		return fmt.Errorf("web push manager is not initialized")
 	}
@@ -475,7 +498,7 @@ func sendPushNotification(title, message, priority string) error {
 		return fmt.Errorf("failed to encode push payload: %v", err)
 	}
 
-	successCount, err := push.GlobalManager.SendPush(payload)
+	successCount, err := push.GlobalManager.SendPush(payload, func() { markMailNotificationPossible(nativeHTTPContext(contexts...)) })
 	if err != nil {
 		return err
 	}
@@ -485,7 +508,7 @@ func sendPushNotification(title, message, priority string) error {
 	return nil
 }
 
-func sendCYDNotification(cfg *config.Config, title, message, priority string) error {
+func sendCYDNotification(cfg *config.Config, title, message, priority string, contexts ...context.Context) error {
 	if cfg == nil || !cfg.Cyd.Enabled {
 		return fmt.Errorf("cyd is not enabled in config")
 	}
@@ -498,6 +521,7 @@ func sendCYDNotification(cfg *config.Config, title, message, priority string) er
 	}
 	ttl := cfg.Cyd.OverlayTTLSeconds
 	hub.SetSpeechLanguage(cyd.AnnounceLanguage(cfg.Agent.SystemLanguage, cfg.Server.UILanguage, cfg.SanoTTSLanguage("")))
+	markMailNotificationPossible(nativeHTTPContext(contexts...))
 	hub.Notify(title, message, priority, ttl)
 	return nil
 }

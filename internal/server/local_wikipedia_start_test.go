@@ -37,14 +37,14 @@ func TestStartWithdrawsTheLocalWikipediaToolWhenSIPFailsProcess(t *testing.T) {
 	if os.Getenv(localWikiStartSIPTestEnv) != "1" {
 		t.Skip("runs in an isolated process: Start changes process-wide state")
 	}
-	// A data directory that is a file makes the SIP call store fail to open.
-	dataFile := filepath.Join(t.TempDir(), "data")
-	if err := os.WriteFile(dataFile, []byte("not a directory"), 0o600); err != nil {
+	// Block only the SIP store, so earlier service initialization still succeeds.
+	dataDir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dataDir, "sip_calls.db"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	cfg := &config.Config{}
 	cfg.Server.Host = "127.0.0.1" // loopback only: no remote-exposure refusal before initSIP
-	cfg.Directories.DataDir = dataFile
+	cfg.Directories.DataDir = dataDir
 	shutdown := make(chan struct{})
 	defer close(shutdown)
 	err := Start(StartOptions{Cfg: cfg, Logger: slog.Default(), AccessLogger: slog.Default(), ShutdownCh: shutdown})

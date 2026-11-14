@@ -8,12 +8,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	_ "modernc.org/sqlite"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	_ "modernc.org/sqlite"
+	"aurago/internal/dbutil"
 )
 
 type Store struct{ db *sql.DB }
@@ -34,7 +35,7 @@ func Open(path string) (*Store, error) {
 	}
 	if version == 1 {
 		backup := fmt.Sprintf("%s.pre-v2-%d.db", path, time.Now().UTC().UnixNano())
-		if _, err := db.Exec("VACUUM INTO ?", backup); err != nil {
+		if _, err := dbutil.BackupSQLite(context.Background(), db, backup); err != nil {
 			_ = db.Close()
 			return nil, fmt.Errorf("back up newspaper database before migration: %w", err)
 		}

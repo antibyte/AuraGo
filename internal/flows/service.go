@@ -209,6 +209,8 @@ type Service struct {
 	// startFailures counts the goroutines that record a start failure. Add happens only under mu
 	// while !closed, so it never races with Shutdown's Wait.
 	startFailures sync.WaitGroup
+	// Purge admission and preflight are counted under mu before touching the store.
+	purging sync.WaitGroup
 }
 
 // NewService wires engine, runner and timers. Call Start, and Shutdown when done.
@@ -330,7 +332,7 @@ func (s *Service) Start(ctx context.Context) error {
 }
 
 // Shutdown stops the timers, cancels the runs and waits for them, for the retention
-// loop and for a ReconcileMissions in progress and for the goroutines that record a start failure (which stops after the flow it is
+// loop, credential purge/preflight, ReconcileMissions and start-failure writers (which stop after the flow they are
 // working on), or until ctx ends (then it returns ctx's error and the rest ends in the
 // background). It may be called more than once, and without Start.
 //
@@ -359,6 +361,7 @@ func (s *Service) Shutdown(ctx context.Context) error {
 	go func() {
 		s.reconciling.Wait()
 		s.startFailures.Wait()
+		s.purging.Wait()
 		close(reconciled)
 	}()
 	select {

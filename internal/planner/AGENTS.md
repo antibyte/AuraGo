@@ -8,6 +8,8 @@ Issue lifecycle, notification, and background retry policy.
 
 `internal/planner` owns this domain. The contracts below also bind related server, UI, config, asset, and test work through the root routing table.
 
+- Migration backups use `dbutil.BackupSQLite`: owner-only staging and file permissions/Windows ACL, WAL-inclusive copy, sync and atomic publication. Backup failure aborts migration. Keep existing copies; collisions insert a unique suffix before the extension. Restore guidance: `documentation/migration-backups.md`.
+
 ## Local Contracts
 
 - Overdue todo notifications claim the todo ID and exact due value durably in `planner_meta` before dispatch. Recheck due/status atomically. A restart or ambiguous/panicking delivery cannot replay that revision; changing the due value creates a new claimable revision. A due value of `YYYY-MM-DDT00:00:00Z` is that civil day in the machine's local timezone. It becomes overdue on the next local day. Any other timestamp is overdue once that instant has passed. Reopening through `UpdateTodo` with status `open` or `in_progress` keeps checklist ticks. Verify `TestOverdueClaimSurvivesNotifierRestartAndPanic`, `TestCivilDueDateIsNotOverdueOnItsLocalDay`, and `TestUpdateTodoReopenKeepsFinishedItems`.

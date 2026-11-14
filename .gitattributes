@@ -95,3 +95,8 @@ internal/rtlsdr/runtime/*.patch text eol=lf whitespace=-blank-at-eol
 # diff context deliberately contains leading spaces before tabs and blank lines.
 internal/tools/go2rtc_sidecar/* text eol=lf
 internal/tools/go2rtc_sidecar/*.patch text eol=lf whitespace=-blank-at-eol,-space-before-tab
+
+# Reproduce pet notices and verbatim upstream license copies across platforms.
+ui/3d/pets/*/NOTICE.txt text eol=lf
+ui/3d/pets/*/LICENSE-CC0.txt text eol=lf
+ui/3d/pets/*/LICENSE-MIT.txt text eol=lf

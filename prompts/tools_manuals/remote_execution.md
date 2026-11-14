@@ -31,6 +31,12 @@ Returns a list of matching devices (ID, Name, Type, IP Address, Tags, Descriptio
 
 Run a command on a remote server via SSH. Authentication is handled automatically via the vault.
 
+The shared shell policy also applies remotely: literal `nohup`/`timeout` targets
+are checked, while executing `xargs`, editor command modes and executable Git
+pager/editor configuration or environment writes are refused. Help/version
+queries and ordinary Git reads remain available. These checks supplement the
+remote host's permissions and isolation.
+
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `server_id` | string | yes | UUID of the server from inventory |

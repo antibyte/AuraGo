@@ -1,7 +1,7 @@
 # SECURITY: This script handles sensitive data. Do not echo secrets.
 # make_release.ps1 — Build all release artifacts and publish to GitHub Releases
 # Default: dispatch CI with PowerShell, Git and GitHub CLI. Explicit keys retain local builds.
-# Local build prerequisites: Go 1.27.3+, tar, Node.js, Python 3.10+ and Cosign.
+# Local build prerequisites: Go 1.27.4+, tar, Node.js, Python 3.10+ and Cosign.
 
 param(
     [string]$Version,
@@ -13,7 +13,7 @@ if ($env:GITHUB_ACTIONS -ne 'true' -and -not $Local -and -not $env:AURAGO_RELEAS
     & (Join-Path $PSScriptRoot 'start-release-ci.ps1') -Version $Version
     return
 }
-$env:GOTOOLCHAIN = 'go1.27.3' # Pin the compiler used by CI and release artifacts.
+$env:GOTOOLCHAIN = 'go1.27.4' # Pin the compiler used by CI and release artifacts.
 
 # ── Banner ────────────────────────────────────────────────────────────────
 Write-Host ""
@@ -28,7 +28,7 @@ Write-Host "[0/5] Checking prerequisites..." -ForegroundColor Yellow
 
 # Go
 try {
-    $minGoVersion = [version]"1.27.3"
+    $minGoVersion = [version]"1.27.4"
     $rawGoVersion = ((go version) -split '\s+')[2]
     $goVersionText = $rawGoVersion -replace '^go', ''
     $goVersion = [version]$goVersionText
@@ -38,7 +38,7 @@ try {
     Write-Host "    Go: $rawGoVersion" -ForegroundColor Green
 } catch {
     Write-Host "[ERROR] $_" -ForegroundColor Red
-    Write-Host "        Install Go 1.27.3+ from https://go.dev/dl/" -ForegroundColor Yellow
+    Write-Host "        Install Go 1.27.4+ from https://go.dev/dl/" -ForegroundColor Yellow
     exit 1
 }
 

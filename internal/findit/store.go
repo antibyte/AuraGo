@@ -9,12 +9,11 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+	_ "modernc.org/sqlite"
 
 	"aurago/internal/dbutil"
 	"aurago/internal/fileutil"
 	"aurago/internal/uid"
-
-	_ "modernc.org/sqlite"
 )
 
 // Open opens the standalone FindIt database and applies its schema migrations.
@@ -122,10 +121,7 @@ func backupDatabase(db *sql.DB) error {
 		return nil
 	}
 	backup := fmt.Sprintf("%s.findit-v%d-%s.bak", path, SchemaVersion, uid.New())
-	if _, err := db.Exec(`VACUUM main INTO ?`, backup); err != nil {
-		return err
-	}
-	if err := fileutil.RestrictToOwner(backup); err != nil {
+	if _, err := dbutil.BackupSQLite(context.Background(), db, backup); err != nil {
 		return err
 	}
 	pruneBackups(path)

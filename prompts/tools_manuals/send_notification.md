@@ -31,6 +31,11 @@ or `"critical"` only for a genuinely new, actionable, time-sensitive finding.
 Per-event/channel receipts prevent repeated sends across restarts. A `skipped`
 result is not a delivered message; an unknown delivery requires explicit review,
 not an automatic resend or a switch to another messaging tool.
+Each fixed channel independently retains up to 2,000 receipts. Local validation
+failures release reservations; confirmed deliveries expire after 30 days and
+uncertain deliveries remain blocked until the administrator explicitly resolves
+the receipt under Config → Notifications → Mail delivery receipts. Resolution
+itself never sends a message. Telegram attachment text and file use one receipt.
 
 ### Channels
 

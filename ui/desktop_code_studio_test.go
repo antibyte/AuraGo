@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -78,7 +79,6 @@ func TestDesktopCodeStudioRunUsesTerminalSession(t *testing.T) {
 		"writeTerminalBytes(command + '\\n', terminal)",
 		"tr('codeStudio.noRunner'",
 		"state.runSession = terminal",
-		"if (ext === 'js' || ext === 'mjs') return 'node ' + quoted;",
 		"gcc -std=c17 -Wall -Wextra -x c",
 		`rustc ' + quoted + ' -o "$cs_run_dir/program"`,
 		"mktemp -d /tmp/cs-run.XXXXXX",
@@ -96,6 +96,32 @@ func TestDesktopCodeStudioRunUsesTerminalSession(t *testing.T) {
 		if strings.Contains(core, forbidden) {
 			t.Fatalf("Code Studio run path still contains %q", forbidden)
 		}
+	}
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Fatal("Node.js is required to verify runner selection")
+	}
+	languageStart, languageEnd := strings.Index(core, "function languageForPath("), strings.Index(core, "function languageExtension(")
+	runnerStart, runnerEnd := strings.Index(core, "function runCommandFor("), strings.Index(core, "function fileIcon(")
+	if languageStart < 0 || languageEnd < languageStart || runnerStart < 0 || runnerEnd < runnerStart {
+		t.Fatal("runner functions missing")
+	}
+	script := core[languageStart:languageEnd] + core[runnerStart:runnerEnd] + `
+const assert = require('node:assert/strict');
+for (const extension of ['js','mjs','cjs','JS']) assert.equal(runCommandFor('sample.'+extension), "node 'sample."+extension+"'");
+for (const extension of ['ts','tsx','jsx']) assert.equal(runCommandFor('sample.'+extension), "tsx 'sample."+extension+"'");
+assert.equal(runCommandFor('sample.py'), "python3 'sample.py'");
+assert.equal(runCommandFor('sample.go'), "go run 'sample.go'");
+assert.equal(runCommandFor('sample.h'), null);
+assert.equal(runCommandFor('sample.txt'), null);
+assert.match(runCommandFor('sample.c'), /gcc -std=c17/);
+assert.match(runCommandFor('sample.rs'), /rustc 'sample.rs'/);
+assert.equal(runCommandFor("a'b.cjs"), "node 'a'\"'\"'b.cjs'");
+`
+	cmd := exec.Command(node, "-")
+	cmd.Stdin = strings.NewReader(script)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("runner selection: %v\n%s", err, out)
 	}
 	start := strings.Index(core, "async function runCurrentFile()")
 	end := strings.Index(core, "function toggleSidebar()")

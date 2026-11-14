@@ -49,7 +49,7 @@
   "invasion.deploy_method": "Deploy Metode",
   "invasion.deploy_ssh": "SSH",
   "invasion.description": "Beskrivelse",
-  "invasion.docker_local_hint": "For lokale Docker-distribusjoner løses master-URL-en automatisk til host.docker.internal — ingen manuell verts konfigurasjon kreves.",
+  "invasion.docker_local_hint": "Masterens URL bruker automatisk host.docker.internal. Hemmeligheter krever en lokal Unix-socket, Windows-pipe eller loopback-TCP; ekstern TCP krever TLS/mTLS eller SSH. Etter mulig konfigurasjonsoverføring beholdes gjeldende nøkler ved feil. Kontroller Egg og klekk på nytt med gjeldende master.",
   "invasion.docker_remote_plaintext_hint": "Privat Egg-oppsett krever Docker med TLS, mTLS eller SSH. Ukryptert HTTP avvises.",
   "invasion.docker_ssh_hint": "Kjører egg-containeren på målets Docker Engine over en kryptert SSH-tilkobling (socket /var/run/docker.sock). Bruker vert, port, brukernavn og secret for denne nesten; SSH-brukeren trenger tilgang til Docker-socketen, og vertsnøkkelen må stå i known_hosts.",
   "invasion.docker_tls": "Docker TLS",

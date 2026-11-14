@@ -241,7 +241,11 @@ func acquireDiscordWorker(ctx context.Context, slots chan struct{}) bool {
 // runDiscordMessage runs the agent pipeline for one accepted message under the
 // worker limit. It returns false when the message was rejected because no
 // worker slot became free in time; then no agent run happened.
-func runDiscordMessage(ctx context.Context, slots chan struct{}, limit int, sender discordMessageSender, channelID string, logger *slog.Logger, run func()) bool {
+func runDiscordMessage(ctx context.Context, slots chan struct{}, limit int, sender discordMessageSender, channelID string, logger *slog.Logger, control bool, run func()) bool {
+	if control {
+		run()
+		return true
+	}
 	if limit <= 0 || slots == nil {
 		run()
 		return true
@@ -316,7 +320,13 @@ func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 			logBlockedDiscordMessage(logger, m, current, decision)
 			return
 		}
-		runDiscordMessage(context.Background(), workerSlots, workerLimit, s, m.ChannelID, logger, func() {
+		sessionID, err := shortTermMem.ResolveUserSession(context.Background(), discordConversationID(m))
+		if err != nil {
+			logger.Error("[Discord] Resolve conversation before admission", "error", err)
+			return
+		}
+		control := discordControlMessage(discordCommandText(m.Content, discordBotUserID(s), decision.IsMentioned), sessionID)
+		runDiscordMessage(context.Background(), workerSlots, workerLimit, s, m.ChannelID, logger, control, func() {
 			handleMessage(s, m, current, logger, currentClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, remoteHub, guardian, budgetTrackerSnapshot, webhookManager, routingDecisions)
 		})
 	})
@@ -695,28 +705,25 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 	}
 	defer releaseRun()
 
-	// Strip the bot mention from the message text
-	if decision.IsMentioned {
-		inputText = strings.ReplaceAll(inputText, "<@"+botUserID+">", "")
-		inputText = strings.ReplaceAll(inputText, "<@!"+botUserID+">", "")
-		inputText = strings.TrimSpace(inputText)
-	}
+	inputText = discordCommandText(inputText, botUserID, decision.IsMentioned)
 	commandText := inputText
+	stopCommand := commands.IsStop(commandText)
 
 	// ── Voice & Image Attachments ───────────────────────────────────────
 	// Discord sends voice messages and images as attachments on the message.
-	for _, att := range m.Attachments {
-		if ctx.Err() != nil {
-			return
+	if !stopCommand {
+		for _, att := range m.Attachments {
+			if ctx.Err() != nil {
+				return
+			}
+			inputText = discordAttachmentProcessor(ctx, att, inputText, cfg, logger)
 		}
-		inputText = discordAttachmentProcessor(ctx, att, inputText, cfg, logger)
 	}
 
 	if ctx.Err() != nil || inputText == "" {
 		return
 	}
 
-	stopCommand := commands.IsStop(commandText)
 	if !stopCommand && tools.HasPendingQuestion(sessionID) {
 		if response, ok := tools.ResolveQuestionReply(sessionID, inputText); ok {
 			response.Source = tools.QuestionSourceDiscord
@@ -1146,4 +1153,16 @@ func (b *DiscordBroker) SendTokenUpdate(prompt, completion, total, sessionTotal,
 }
 
 func (b *DiscordBroker) SendThinkingBlock(provider, content, state string) {
+}
+
+func discordCommandText(text, botUserID string, mentioned bool) string {
+	if mentioned {
+		text = strings.ReplaceAll(text, "<@"+botUserID+">", "")
+		text = strings.ReplaceAll(text, "<@!"+botUserID+">", "")
+	}
+	return strings.TrimSpace(text)
+}
+
+func discordControlMessage(text, sessionID string) bool {
+	return commands.IsStop(text) || tools.HasPendingQuestion(sessionID)
 }

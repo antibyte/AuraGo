@@ -699,6 +699,10 @@ Namen, Beschreibungen und Wirkungen stammen aus dem Baustein-Katalog. *Wirkungen
 
 ---
 
+### Wiederherstellung nach fehlgeschlagenem Backup-Restore
+
+Beende AuraGo vor der Wiederherstellung mit `aurago --restore-flows-purge-backup <Datei>` und behalte den ursprünglichen Hauptschlüssel. Scheitern sowohl Restore als auch Rücknahme, nennt die Fehlermeldung einen privaten Wiederherstellungsordner und die verschlüsselte Sicherung. Der Ordner enthält `RECOVERY_REQUIRED.json` und möglicherweise die einzige ursprüngliche Datenbank samt WAL. Die automatische Bereinigung bewahrt ihn und die genannte verschlüsselte Sicherung auf. Behalte beide, bis Du die Datenbank offline wiederhergestellt und geprüft hast. Starte keine zweite Instanz und lösche die Dateien nicht, um die Fehlermeldung zu beseitigen. Normale `.ago`-Backups schließen diese temporären Restore-Datenbanken aus.
+
 **Siehe auch:** [Kapitel 11: Mission Control](./11-missions.md) · [Kapitel 4: Web-Oberfläche](./04-webui.md) · [Kapitel 14: Sicherheit](./14-security.md)
 
 ---

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -223,6 +224,12 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 			_ = invasion.UpdateDeploymentStatus(s.InvasionDB, deployID, "failed")
 		}
 		restorePreviousKey(err)
+		if errors.Is(err, invasion.ErrEggPredecessorRestored) && deployID != "" {
+			_ = invasion.UpdateDeploymentStatus(s.InvasionDB, deployID, "rolled_back")
+		}
+		if !errors.Is(err, invasion.ErrEggConfigNotDelivered) {
+			return fmt.Errorf("%w; new configuration may already be present; current shared key retained; inspect the Egg and re-hatch with the current master for recovery", err)
+		}
 		return err
 	}
 
@@ -234,21 +241,11 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 	time.Sleep(3 * time.Second)
 	if err := connector.HealthCheck(ctx, nest, secretBytes); err != nil {
 		_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, revisionID, "failed", "deployment health check failed")
-		s.Logger.Warn("Health check failed after deploy, attempting auto-rollback", "nest_id", nest.ID, "error", err)
+		s.Logger.Warn("Health check failed after configuration delivery; operator recovery required", "nest_id", nest.ID, "error", err)
 		if deployID != "" {
 			_ = invasion.UpdateDeploymentStatus(s.InvasionDB, deployID, "failed")
 		}
-		if rbErr := connector.Rollback(ctx, nest, secretBytes); rbErr != nil {
-			s.Logger.Error("Auto-rollback failed", "nest_id", nest.ID, "error", rbErr)
-			if deployID != "" {
-				_ = invasion.UpdateDeploymentStatus(s.InvasionDB, deployID, "failed")
-			}
-			return fmt.Errorf("deploy health check failed (%w) and rollback also failed: %v", err, rbErr)
-		}
-		if deployID != "" {
-			_ = invasion.UpdateDeploymentStatus(s.InvasionDB, deployID, "rolled_back")
-		}
-		return fmt.Errorf("deploy health check failed, rolled back: %w", err)
+		return fmt.Errorf("deploy health check failed: %w; configuration was delivered and the current shared key is retained; inspect the Egg and re-hatch with the current master for recovery", err)
 	}
 
 	if deployID != "" {

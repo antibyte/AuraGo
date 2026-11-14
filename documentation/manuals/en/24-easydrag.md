@@ -633,6 +633,10 @@ Names, descriptions and effects come from the building-block catalog. *Effects* 
 
 ---
 
+### Recovery after a failed credential-backup restore
+
+Stop AuraGo before restoring a purge backup with `aurago --restore-flows-purge-backup <file>` and keep the original master key. If both restore and rollback fail, the error names a private recovery directory and the encrypted safety backup. The directory contains `RECOVERY_REQUIRED.json` and may contain the only original database and its WAL. Automatic cleanup preserves it and its named encrypted backup. Keep them together until you have recovered and verified the database offline; do not start a second instance or remove these files to clear the error. Normal `.ago` backups exclude these temporary restore databases.
+
 **See also:** [Chapter 11: Mission Control](./11-missions.md) · [Chapter 4: Web UI](./04-webui.md) · [Chapter 14: Security](./14-security.md)
 
 ---

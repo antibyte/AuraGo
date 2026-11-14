@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   js-security:
-    name: JS audits and sidecar checks
+    name: JS audits and UI regressions
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -24,6 +24,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -48,13 +50,39 @@ jobs:
       - name: Check Aura Drift FX resource loading
         run: node scripts/test-aura-drift-fx-resources.mjs
 
+      - name: Verify scoped pet notices without rebuilding models
+        run: python scripts/test-pet-notices.py
+
       - name: Test UI delivery regressions
         run: npm run test:ui-regressions
 
+  easydrag-t0:
+    name: EasyDrag T0 contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - run: npm ci
       - name: Test EasyDrag scripts (T0, Node only)
         timeout-minutes: 10
         run: node scripts/test-easydrag-t0.mjs --node-only
 
+  browser-sidecar:
+    name: Browser sidecar audit and auth
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
       - name: Install browser sidecar dependencies
         working-directory: browser_automation_sidecar
         run: npm ci
@@ -75,6 +103,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Build documentation without deployment
         uses: actions/jekyll-build-pages@44a6e6beabd48582f863aeeb6cb2151cc1716697 # v1.0.13
         with:
@@ -90,6 +120,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -129,7 +161,7 @@ jobs:
           ffprobe -version
 
       - name: Run Go tests
-        run: go test ./... -p 1
+        run: go test ./... -p 1 -timeout=30m
 
       - name: Run complete Go vet analysis
         run: go vet ./...
@@ -142,26 +174,56 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: General
+          - name: General A-M
+            run: '^Test[A-M]'
+            skip: '^TestConfigRefresh(Populated|RealSections)Browser$|^TestDesktop|^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^TestGoldfish'
+          - name: General remaining
             run: '.'
-            skip: '^TestConfigRefresh(Populated|RealSections)Browser$|^TestDesktop'
+            skip: '^TestConfigRefresh(Populated|RealSections)Browser$|^TestDesktop|^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^TestGoldfish|^Test[A-M]'
           - name: Desktop A-D
             run: '^TestDesktop[A-D]'
-            skip: '^$'
+            skip: '^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^TestGoldfish'
           - name: Desktop E-G
             run: '^TestDesktop[E-G]'
-            skip: '^$'
+            skip: '^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^TestGoldfish'
           - name: Desktop H-R
             run: '^TestDesktop[H-R]'
-            skip: '^$'
+            skip: '^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^TestGoldfish'
           - name: Desktop S-Z
             run: '^TestDesktop[S-Z]'
-            skip: '^$'
+            skip: '^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^TestGoldfish'
           - name: Populated config
             run: '^TestConfigRefreshPopulatedBrowser$'
             skip: '^$'
           - name: Config layout
             run: '^TestConfigRefreshRealSectionsBrowser$'
+            skip: '^$'
+          - name: Aura Drift quality and controls
+            run: '^TestDesktopAuraDrift(QualityMatrixBrowser|SteeringBrowser|SteeringFrameBrowser|GTAOShadowReuseBrowser)$'
+            skip: '^$'
+          - name: Aura Drift other flows
+            run: '^Test(Desktop)?AuraDrift'
+            skip: '^TestDesktopAuraDrift(QualityMatrixBrowser|SteeringBrowser|SteeringFrameBrowser|GTAOShadowReuseBrowser)$'
+          - name: Leafy
+            run: '^TestDesktopLeafy'
+            skip: '^$'
+          - name: Minigolf
+            run: '^TestDesktopMinigolf'
+            skip: '^$'
+          - name: Pinball
+            run: '^Test(Desktop)?Pinball'
+            skip: '^$'
+          - name: Orbit
+            run: '^TestDesktopOrbit'
+            skip: '^$'
+          - name: Goldfish core
+            run: '^TestGoldfish'
+            skip: '^TestGoldfishAdventureHotspot(Actions|CinematicRecovery)Browser$'
+          - name: Goldfish actions
+            run: '^TestGoldfishAdventureHotspotActionsBrowser$'
+            skip: '^$'
+          - name: Goldfish cinematics
+            run: '^TestGoldfishAdventureHotspotCinematicRecoveryBrowser$'
             skip: '^$'
     permissions:
       contents: read
@@ -171,6 +233,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
@@ -200,14 +264,73 @@ jobs:
         run: go test ./ui -v -p 1 -count=1 -timeout=30m -run '${{ matrix.run }}' -skip '${{ matrix.skip }}'
 
   go-race:
-    name: Go race tests
+    name: Go race tests (${{ matrix.name }})
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: llm
+            package: llm
+            run: '.'
+            skip: '^$'
+          - name: server
+            package: server
+            run: '.'
+            skip: '^$'
+          - name: memory
+            package: memory
+            run: '.'
+            skip: '^$'
+          - name: tools
+            package: tools
+            run: '.'
+            skip: '^$'
+          - name: telegram
+            package: telegram
+            run: '.'
+            skip: '^$'
+          - name: whatsapp
+            package: whatsapp
+            run: '.'
+            skip: '^$'
+          - name: flows
+            package: flows
+            run: '.'
+            skip: '^$'
+          - name: invasion
+            package: invasion
+            run: '.'
+            skip: '^$'
+          - name: security
+            package: security
+            run: '.'
+            skip: '^$'
+          - name: discord
+            package: discord
+            run: '.'
+            skip: '^$'
+          - name: dbutil
+            package: dbutil
+            run: '.'
+            skip: '^$'
+          - name: agent A-M
+            package: agent
+            run: '^Test[A-M]'
+            skip: '^$'
+          - name: agent remaining
+            package: agent
+            run: '.'
+            skip: '^Test[A-M]'
     permissions:
       contents: read
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -216,13 +339,15 @@ jobs:
           cache: true
 
       - name: Run targeted race tests
-        run: go test -race ./internal/llm ./internal/server ./internal/memory ./internal/tools ./internal/telegram ./internal/whatsapp ./internal/agent -p 1 -timeout=30m
+        run: go test -race ./internal/${{ matrix.package }} -p 1 -timeout=30m -run '${{ matrix.run }}' -skip '${{ matrix.skip }}'
 
   windows-runtime:
     name: Windows focused runtime contracts
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
@@ -246,6 +371,8 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
@@ -277,6 +404,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -318,6 +447,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up Node.js for the AuraGo image
         if: matrix.id == 'aurago'
@@ -362,6 +493,21 @@ jobs:
           'test -s /app/LICENSE && test -s /app/THIRD_PARTY_NOTICES.md &&
           test -s /app/licences/texts/GPL-3.0-only.txt && test -s /app/licences/linked-go-modules.tsv'
 
+      - name: Set up Go for the isolated Egg runtime contract
+        if: matrix.id == 'aurago'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.4'
+
+      - name: Verify Egg bootstrap and reconfiguration in the current image
+        if: matrix.id == 'aurago'
+        timeout-minutes: 15
+        env:
+          AURAGO_RUN_DOCKER_EGG_SMOKE: '1'
+          AURAGO_EGG_SMOKE_IMAGE: aurago-ci-aurago:test
+          DOCKER_HOST: unix:///var/run/docker.sock
+        run: go test -p 1 ./internal/invasion -run '^TestDockerEggRuntimeBootstrapAndReconfigure$' -count=1 -timeout=10m
+
       - name: Verify God's Eye View on both architectures
         if: matrix.id == 'gods-eye-view'
         run: >-
@@ -370,7 +516,7 @@ jobs:
 
       - name: Verify Code Studio Go toolchain
         if: matrix.id == 'code-studio'
-        run: docker run --rm --entrypoint go "aurago-ci-${{ matrix.id }}:test" version | grep -F "go1.27.3"
+        run: docker run --rm --entrypoint go "aurago-ci-${{ matrix.id }}:test" version | grep -F "go1.27.4"
 
       - name: Verify Supertonic non-root cache
         if: matrix.id == 'supertonic'

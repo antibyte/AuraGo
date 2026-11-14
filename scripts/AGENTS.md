@@ -39,6 +39,8 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
   catalogs and their files, shared mini aliases/SVG symbols, and EasyDrag's
   literal app-local icon calls. `TestDesktopAllAppIconsBrowser` verifies every
   built-in app identity and the shared action supplements in light and dark.
+- `python scripts/test-pet-notices.py` reproduces the catalog's scoped model notices
+  and verbatim humanoid license copies without Blender or touching model bytes.
 - 3D pets: Blender runs `assets/desktop-pets/build_model.py` (Punk),
   `build_zombert.py -- --pet=<folder>` (fifteen active VARCO humanoids),
   `build_quadruped_pet.py -- --pet=<folder>` (three native quadruped rigs), or
@@ -66,6 +68,9 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
   requested-music queue priority; the full run also decodes assets with FFmpeg.
   `node scripts/test-aura-drift-fx-resources.mjs` checks ordered FX initialization
   and the optional fallback when a stale loader omits its resource module.
+- Chat regression fixtures load the shared `shouldShowAgentToolStatus` policy before
+  the Desktop chat module, matching production order. Camera preference assertions
+  allow only the non-secret viewing fields and the optional `sound` flag (default false).
 - Camera creative controls: `node scripts/test-camera-creative.mjs` (also
   `npm run test:camera`, chained into `test:ui-regressions`) checks the
   cover-aware crop maths, zoom/ratio masks, look availability, panel lifecycle

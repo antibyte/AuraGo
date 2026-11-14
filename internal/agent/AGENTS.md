@@ -10,6 +10,9 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ## Local Contracts
 
+- Trusted mail-policy contexts clear only their session-scoped Inner Voice state at actual ExecuteAgentLoop completion, including cancellation/early errors. Session prefixes never authorize cleanup. Retain persistent user history and delivery receipts; verify TestMailInnerVoiceClearsAtActualTurnCompletion.
+
+
 - Optimizer variants never replace canonical manuals. Request-local optional
   notes use external-data isolation and separate fitting/exposure accounting.
   Missing native tool support is logged and shown through passive llm_route
