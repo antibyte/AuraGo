@@ -17,8 +17,11 @@ for (const id of used) assert.ok(known.has(id), 'menu item ' + id + ' is not a r
 const absent = WriterCommands.definitions.map(definition => definition.id).filter(id => !used.includes(id));
 assert.equal(absent.join(), 'style,fontFamily,fontSize,lineSpacing,textColor,highlight,insert', 'only toolbar controls and the insert panel stay out of the menus');
 assert.ok(flat(menus[0].items).some(item => item.id === 'cloud'), 'the app-supplied file items are placed');
-assert.equal(menus[0].items.map(item => item.id || '-').slice(0, 5).join(), 'new,open,recent,drafts,-', 'File starts with New, Open, the recent documents and the drafts');
-assert.equal(menus[0].items[2].items[0].id, 'recent-0', 'the recent documents are a submenu');
+assert.equal(menus[0].items.map(item => item.id || '-').slice(0, 6).join(), 'new,newFromTemplate,open,recent,drafts,-', 'File starts with New, New from template, Open, the recent documents and the drafts');
+assert.equal(menus[0].items[3].items[0].id, 'recent-0', 'the recent documents are a submenu');
+const fileIds = menus[0].items.map(item => item.id || '-').join();
+assert.ok(fileIds.includes('save,saveAs,saveTemplate,-'), 'Save as template follows Save as');
+assert.ok(fileIds.includes('docx,pdf,html,md,txt'), 'the PDF stands with the other exports');
 assert.ok(menus[0].items.some(item => item.id === 'pageSetup'), 'Page setup is in File');
 const formatMenu = menus.find(menu => menu.id === 'format');
 assert.equal(formatMenu.items.filter(item => item.id === 'paragraphFormat' || item.id === 'pageSetup').map(item => item.id).join(), 'paragraphFormat,pageSetup', 'the two dialogs are in Format');

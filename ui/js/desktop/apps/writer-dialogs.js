@@ -142,7 +142,26 @@
             const result = command(answer);
             if (result.command) commands.run(result.command);
         }
-        return {table, link, goToPage, wordCount, shortcuts, comment, drafts, page, paragraph};
+        // New from template: the built-in recipes first, then the user's own DOCX files from the templates folder.
+        async function templates() {
+            const T = window.WriterTemplates, own = await app.ownTemplates();
+            const options = T.ids.map(id => ({value: 'builtin:' + id, label: T.label(id, tr)}))
+                .concat(own.map(entry => ({value: 'own:' + entry.path, label: entry.title + ' · ' + tr('template_own')})));
+            const answer = await ask(tr('new_from_template'), [
+                {id: 'template', type: 'select', label: tr('template_pick'), size: Math.min(10, Math.max(4, options.length)), value: options[0].value, options},
+                {id: 'folder', type: 'static', label: tr('template_folder'), value: T.folder}], {submitLabel: tr('template_use')});
+            if (answer) await app.newFromTemplate(answer.template);
+        }
+        // Save as template asks for a name only. The folder is fixed, so the list above finds the file again.
+        async function saveTemplate() {
+            const editor = app.editor, T = window.WriterTemplates;
+            if (!editor) return;
+            const answer = await ask(tr('save_template'), [{id: 'name', label: tr('template_name'), value: T.title(app.path), required: true, maxlength: 80},
+                {id: 'folder', type: 'static', label: tr('template_folder'), value: T.folder}],
+                {submitLabel: tr('save'), validate: values => T.fileName(values.name).error ? tr('template_name_invalid') : ''});
+            if (answer && app.editor === editor) await app.saveTemplate(T.fileName(answer.name).name);
+        }
+        return {table, link, goToPage, wordCount, shortcuts, comment, drafts, page, paragraph, templates, saveTemplate};
     }
     window.WriterDialogs = {create};
 })();

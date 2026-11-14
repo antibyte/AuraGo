@@ -57,7 +57,7 @@
                     section('headers','<div class="writer-buttonrow">'+commandButton({type:'editHeaderFooter',position:'header'},'header')+
                     commandButton({type:'editHeaderFooter',position:'footer'},'footer')+commandButton({type:'insertPageField',field:'PAGE_X_OF_Y'},'page_numbers')+
                     commandButton({type:'exitHeaderFooter'},'back_document')+'</div>')+
-                    section('templates','<div class="writer-template-grid">'+['blank','letter','report','meeting'].map(x=>'<button data-action="'+x+'"><span class="writer-template-paper" aria-hidden="true"><i></i><i></i><i></i></span>'+esc(tr(x))+'</button>').join('')+'</div>');
+                    section('templates','<div class="writer-template-grid">'+['blank'].concat(window.WriterTemplates.ids).map(x=>'<button data-action="'+x+'"><span class="writer-template-paper" aria-hidden="true"><i></i><i></i><i></i></span>'+esc(x==='blank'?tr('blank'):window.WriterTemplates.label(x,tr))+'</button>').join('')+'</div>'+more('newFromTemplate'));
                 case 'review':return '<div class="writer-review-mode">'+field('tracking',select('tracking',[['editing','editing'],['suggesting','tracking']]))+
                     field('author',input('author',app.author,'text','maxlength="100"'))+'</div>'+
                     '<p class="writer-hint">'+esc(tr('tracking_hint'))+'</p><div class="writer-buttonrow">'+textButton('comment_add','comment')+textButton('accept_all')+textButton('reject_all')+'</div><div data-review></div>';
@@ -301,12 +301,6 @@
         root.addEventListener('change',event=>change(event.target),{signal:life.signal});
         root.addEventListener('input',event=>{if(event.target.dataset.field==='query'){searchSignature='';search(true);}},{signal:life.signal});
         root.addEventListener('keydown',event=>{if(event.key==='Enter' && event.target.dataset.field==='query'){event.preventDefault();command(event.shiftKey?'previous':'next');}},{signal:life.signal});
-        function template(kind) {
-            const date=new Date().toLocaleDateString(document.documentElement.lang || 'en');
-            if(kind==='letter')return '<p>'+esc(tr('template_sender'))+'</p><p>'+esc(tr('template_recipient'))+'</p><p>'+esc(date)+'</p><h1>'+esc(tr('template_subject'))+'</h1><p>'+esc(tr('template_greeting'))+'</p><p>'+esc(tr('template_body'))+'</p><p>'+esc(tr('template_closing'))+'</p>';
-            if(kind==='report')return '<h1>'+esc(tr('report'))+'</h1><p>'+esc(date)+'</p><h2>'+esc(tr('summary'))+'</h2><p>'+esc(tr('template_body'))+'</p><h2>'+esc(tr('findings'))+'</h2><p>'+esc(tr('template_body'))+'</p><h2>'+esc(tr('next_steps'))+'</h2><ul><li>'+esc(tr('template_task'))+'</li></ul>';
-            return '<h1>'+esc(tr('meeting'))+'</h1><p>'+esc(date)+'</p><h2>'+esc(tr('participants'))+'</h2><p>…</p><h2>'+esc(tr('agenda'))+'</h2><ol><li>'+esc(tr('template_subject'))+'</li></ol><h2>'+esc(tr('decisions'))+'</h2><p>…</p><h2>'+esc(tr('next_steps'))+'</h2><table><tr><td>'+esc(tr('task'))+'</td><td>'+esc(tr('owner'))+'</td><td>'+esc(tr('due'))+'</td></tr><tr><td>…</td><td>…</td><td>…</td></tr></table>';
-        }
         // title names the document, so that the print dialog can propose it as the file name of a PDF.
         async function print(bytes,lib,fonts,title) {
             // A separate snapshot keeps edits and review state out of the print transaction.
@@ -334,7 +328,7 @@
             finally {printEditor.destroy();}
         }
         function reset(){aiRequest?.abort();suggestion=null;renderSuggestion();matches=[];reviewSignature=outlineSignature=searchSignature='';outlineActive='';}
-        return {show,update,template,print,reset,dispose(){life.abort();reset();printFrame?.dispose();}};
+        return {show,update,print,reset,dispose(){life.abort();reset();printFrame?.dispose();}};
     }
     window.WriterPanels={create};
 })();

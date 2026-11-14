@@ -55,6 +55,7 @@
             get revision(){return queue?.revision || 0;}, get readonly(){return !!ctx.readonly;},
             commands,run,can,blocked:commands.blocked,notice,prompt:(key,value)=>ctx.promptDialog(tr(key),value || ''),
             windowId,signal:()=>documentLife.signal,countWords:text=>countWords(text),menuSignature,fileMenuItems,recentMenuItems,restoreDraft,
+            get path(){return path;},ownTemplates,newFromTemplate,saveTemplate,
             units:window.WriterLayout.units(locale,navigator.language),
             act,refresh:()=>refresh(),pinSelection,
             markCommand:commands.valueCommand,colorHex:colors.hex,highlightHex:colors.highlightHex,
@@ -154,6 +155,7 @@
                 }
             });
         }
+        // template: 'blank', the id of a built-in template, or {bytes} of one of the user's own. The document is new.
         // take: put the kept draft in without asking, and start a new document when the file is gone.
         async function load(target,template,take) {
             const token=++generation;
@@ -173,7 +175,14 @@
                 if(fonts.failures.length){fontsPromise=null;throw new Error(tr('fonts_failed'));}
                 if(disposed || token!==generation)return;
                 let bytes='blank',imported=null,loadedETag=null,loadedPath=target;
-                if(!template) {
+                // A template hands over finished DOCX bytes: the user's own file as it is, a built-in one built in a
+                // scratch editor under the loading layer. So the new document has no undo steps of its own.
+                const started=!!template && template!=='blank';
+                if(started) {
+                    const T=window.WriterTemplates;
+                    bytes=template.bytes || await T.build(T.recipe(template,tr,{date:new Date().toLocaleDateString(locale,{dateStyle:'long'}),inches:state.units.unit==='in'}),lib,mount,fonts);
+                    if(disposed || token!==generation)return;
+                } else if(!template) {
                     if(/\.docx$/i.test(target)) {
                         const found=await fetch(nativeURL(target),{signal:requestLife.signal,cache:'no-store'});
                         if(take && found.status===404){await found.body?.cancel().catch(()=>{});template='blank';}
@@ -209,17 +218,17 @@
                 editor.on('change',()=>{if(!loading){queue.changed();scheduleDraft();refreshSoon();}});
                 editor.on('selectionChange',refreshSoon);editor.on('error',fail);
                 find('[data-scroll]').addEventListener('scroll',refreshSoon,{signal:documentLife.signal,passive:true});
-                if(template || imported) {
+                if(!started && (template || imported)) {
                     if(!ctx.readonly) {
                         run({type:'setPageSetup',pageWidth:11906,pageHeight:16838,marginTop:1417,marginBottom:1417,marginLeft:1417,marginRight:1417});
-                        const html=imported?sanitize(imported.html || ''):template!=='blank'?panels.template(template):'';
-                        if(imported || html){run({type:'paste',text:imported?.text || '',html});restoreHTMLHeadings(editor,html);}
+                        if(imported){const html=sanitize(imported.html || '');run({type:'paste',text:imported.text || '',html});restoreHTMLHeadings(editor,html);}
                     }
                     if(imported)notice(tr('import_copy'));
                 }
                 find('[data-loading]').hidden=true;
                 find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;
-                find('[data-save-state]').textContent=tr(queue.dirty?'unsaved':'saved');
+                // An untouched document from a template is not written; its first change or Save makes it a file.
+                find('[data-save-state]').textContent=tr(queue.dirty || started?'unsaved':'saved');
                 ctx.updateWindowContext?.(windowId,{path});
                 if(etag)remember();
                 toolbar.fill();menus.sync(true);refresh();
@@ -558,7 +567,9 @@
                     }
                     case 'drafts':await dialogs.drafts();break;
                     case 'new':if(!ctx.readonly && await guard()){await load(newPath(),'blank');showPanel('right','insert');}break;
-                    case 'blank':case 'letter':case 'report':case 'meeting':if(!ctx.readonly && await guard())await load(newPath(),action);break;
+                    case 'blank':case 'letter':case 'invoice':case 'minutes':case 'report':if(!ctx.readonly && await guard())await load(newPath(),action);break;
+                    case 'newFromTemplate':await dialogs.templates();break;
+                    case 'saveTemplate':await dialogs.saveTemplate();break;
                     case 'focus':setFocus(!root.classList.contains('writer-focus'));break;
                     case 'fit':editor?.setZoomMode({type:'fit',fit:'pageWidth',minZoom:.25,maxZoom:1});refresh();break;
                     case 'zoomIn':case 'zoomOut':if(editor)zoomTo(editor.getZoom()+(action==='zoomIn'?.1:-.1));break;
@@ -591,12 +602,14 @@
                     case 'shortcuts':await dialogs.shortcuts();break;
                     case 'image':find('[data-image]').click();break;
                     case 'qr':await insertQR();break;
-                    case 'print':if(editor)await panels.print(await editor.save(),lib,documentFonts);break;
+                    case 'print':if(editor)await panels.print(await editor.save(),lib,documentFonts,basename(path).replace(/\.docx$/i,''));break;
+                    // The browser's print dialog writes the PDF; the notice says which destination to pick there.
+                    case 'pdf':if(editor){notice(tr('pdf_hint'));await panels.print(await editor.save(),lib,documentFonts,basename(path).replace(/\.docx$/i,''));}break;
                     case 'docx':if(editor)download(await editor.save(),MIME,basename(path));break;
                     case 'html':case 'md':case 'txt':await exportSimple(action);break;
                     default:{const preset=/^zoom(\d+)$/.exec(action);if(preset && editor)zoomTo(Number(preset[1])/100);}
                 }
-            } catch(error){if(action==='print')notice(ctx.t('desktop.print_failed'),true);else fail(error);}
+            } catch(error){if(action==='print' || action==='pdf')notice(ctx.t('desktop.print_failed'),true);else fail(error);}
         }
         function download(bytes,type,name) {
             const url=URL.createObjectURL(new Blob([bytes],{type})),link=document.createElement('a');
@@ -632,6 +645,52 @@
         async function restoreDraft(entry) {
             if(ctx.readonly || !await guard())return;
             await load(entry.path,null,true);
+        }
+        // The user's own templates are the DOCX files of one workspace folder. The server refuses to list a folder
+        // that does not exist yet, which means there are none.
+        async function ownTemplates() {
+            try {
+                const response=await fetch('/api/desktop/files?path='+encodeURIComponent(window.WriterTemplates.folder),{signal:lifecycle.signal,cache:'no-store'});
+                if(!response.ok){await response.body?.cancel().catch(()=>{});return [];}
+                return window.WriterTemplates.own((await response.json()).files);
+            } catch(_){return [];}
+        }
+        // choice: 'builtin:<id>' or 'own:<path>'. The new document gets a path of its own, so saving it never
+        // writes the template.
+        async function newFromTemplate(choice) {
+            if(ctx.readonly)return;
+            const at=String(choice).indexOf(':'),kind=String(choice).slice(0,at),value=String(choice).slice(at+1);
+            try {
+                let template=value;
+                if(kind==='own') {
+                    const response=await fetch(nativeURL(value),{signal:lifecycle.signal,cache:'no-store'});
+                    if(!response.ok){await response.body?.cancel().catch(()=>{});notice(tr('template_failed'),true,'info');return;}
+                    template={bytes:await response.arrayBuffer()};
+                }
+                if(await guard())await load(newPath(),template);
+            } catch(error){if(error?.name!=='AbortError' && !disposed)notice(tr('template_failed'),true,'info');}
+        }
+        // Writes the open document into the templates folder; the server creates the folder with the first file.
+        // The document itself keeps its path.
+        async function saveTemplate(name) {
+            if(!editor || ctx.readonly || fileOperation)return;
+            const source=editor,target=window.WriterTemplates.folder+'/'+name;
+            try {
+                const probe=await fetch(nativeURL(target),{signal:documentLife.signal,cache:'no-store'});
+                let expected=null;
+                if(probe.ok) {
+                    expected=probe.headers.get('ETag');
+                    await probe.body?.cancel().catch(()=>{});
+                    if(!expected){const error=new Error(tr('conflict'));error.status=412;throw error;}
+                    if(!await ctx.confirmDialog(ctx.t?.('desktop.file_dialog_overwrite_title') || tr('save_template'),ctx.t?.('desktop.file_dialog_overwrite_message',{name}) || name))return;
+                } else if(probe.status===404)await probe.body?.cancel().catch(()=>{});
+                else await responseOK(probe);
+                if(disposed || editor!==source)return;
+                await write(await editor.save(),target,expected);
+                notice(tr('template_saved',{name:name.replace(/\.docx$/i,'')}));ctx.loadBootstrap?.();
+            } catch(error) {
+                if(error?.name!=='AbortError' && !disposed)notice(error.status===412?tr('conflict'):(error.message || String(error)),true,'info');
+            }
         }
         function fileMenuItems() {
             return [{id:'gog-import',label:ctx.t('desktop.gog.import'),disabled:ctx.readonly,action:()=>gogOffice('import')},

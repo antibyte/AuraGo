@@ -102,8 +102,8 @@ function harness(options = {}) {
     const {commands} = harness({noEditor: true});
     assert.equal(commands.can({type: 'undo'}).ok, false);
     assert.equal(commands.tracking(), false);
-    for (const id of ['save', 'bold', 'copy', 'paste', 'goToPage', 'wordCount', 'zoom100', 'table', 'link']) assert.equal(commands.state(id).enabled, false, id);
-    for (const id of ['open', 'shortcuts', 'outline']) assert.equal(commands.state(id).enabled, true, id);
+    for (const id of ['save', 'bold', 'copy', 'paste', 'goToPage', 'wordCount', 'zoom100', 'table', 'link', 'saveTemplate', 'pdf']) assert.equal(commands.state(id).enabled, false, id);
+    for (const id of ['open', 'shortcuts', 'outline', 'newFromTemplate']) assert.equal(commands.state(id).enabled, true, id);
     assert.equal(commands.menuItem('undo').disabled, true);
     assert.equal(commands.menuItem('print').disabled, true);
     assert.equal(commands.menuItem('open').disabled, false);
@@ -158,8 +158,8 @@ function harness(options = {}) {
 }
 { // Read-only windows keep reading actions.
     const {commands} = harness({readonly: true});
-    for (const id of ['new', 'save', 'saveAs', 'image', 'qr', 'paste', 'pastePlain', 'table', 'link', 'tracking']) assert.equal(commands.state(id).enabled, false, id);
-    for (const id of ['open', 'print', 'docx', 'search', 'goToPage', 'wordCount', 'zoomPage', 'shortcuts']) assert.equal(commands.state(id).enabled, true, id);
+    for (const id of ['new', 'newFromTemplate', 'save', 'saveAs', 'saveTemplate', 'image', 'qr', 'paste', 'pastePlain', 'table', 'link', 'tracking']) assert.equal(commands.state(id).enabled, false, id);
+    for (const id of ['open', 'print', 'pdf', 'docx', 'search', 'goToPage', 'wordCount', 'zoomPage', 'shortcuts']) assert.equal(commands.state(id).enabled, true, id);
 }
 { // An action can name the command type that tracking refuses.
     const {commands} = harness({mode: 'suggesting'});
