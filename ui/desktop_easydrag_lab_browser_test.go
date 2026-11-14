@@ -233,12 +233,13 @@ const labMeasureJS = `spec=>{
 			}
 			// ring: the outermost solid ring a box-shadow draws (0 blur, positive spread, not inset), over what is behind the element.
 			// Part A's --ed-status-edge is such a ring; a disc is told apart by its fill or by this ring (spec 7).
-			let ring=null;
+			let ring=null,ringSpread=0;
 			splitShadows(cs.boxShadow).forEach(sh=>{
 				const col=sh.match(/(rgba?\([^)]*\)|color\([^)]*\)|oklab\([^)]*\)|oklch\([^)]*\)|lab\([^)]*\)|lch\([^)]*\)|#[0-9a-f]{3,8})/i);
 				if(!col||/\binset\b/.test(sh))return;
 				const n=sh.replace(col[0],'').trim().split(/\s+/).map(parseFloat);
-				if(n.length>=4&&n[2]===0&&n[3]>0){const c=parse(col[1]);if(c&&c[3]>0)ring=over(c,b.rgb,op);}
+				// a ring is centred (x and y offsets 0), sharp (blur 0) and grows outwards (spread > 0); the one with the largest spread is the outermost
+				if(n.length>=4&&n[0]===0&&n[1]===0&&n[2]===0&&n[3]>0&&n[3]>ringSpread){const c=parse(col[1]);if(c&&c[3]>0){ring=over(c,b.rgb,op);ringSpread=n[3];}}
 			});
 			let edge=null;
 			if(parseFloat(cs.borderLeftWidth)>0){const c=parse(cs.borderLeftColor);if(c&&c[3]>0)edge=over(c,b.rgb,op);}
