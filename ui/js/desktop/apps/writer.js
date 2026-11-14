@@ -43,7 +43,7 @@
         const rulerResize=new ResizeObserver(()=>{rulerSignature='';if(editor&&!loading)syncRuler(editor.snapshot().pageSetup);});
         rulerResize.observe(find('.writer-canvas'));
         rulerResize.observe(mount);
-        let editor, lib, queue, path = ctx.path || newPath(), etag = null, generation = 0, disposed = false, fileOperation = false;
+        let editor, lib, queue, path = ctx.path || newPath(), etag = null, generation = 0, disposed = false, fileOperation = false, pdfBusy = false;
         let loadFailed = false, loading = true, pin = null, updateTimer, draftTimer, draftDeadline, lastDraft = null;
         let statsRevision=-1, rulerSignature='', documentLanguage='', documentFonts, documentStats='';
         let leftPanel = '', rightPanel = '', author = localStorage.getItem('aurago.writer.author') || 'AuraGo';
@@ -605,17 +605,65 @@
                     case 'image':find('[data-image]').click();break;
                     case 'qr':await insertQR();break;
                     case 'print':if(editor)await panels.print(await editor.save(),lib,documentFonts,basename(path).replace(/\.docx$/i,''));break;
-                    // The browser's print dialog writes the PDF; the notice says which destination to pick there.
-                    case 'pdf':if(editor){notice(tr('pdf_hint'));await panels.print(await editor.save(),lib,documentFonts,basename(path).replace(/\.docx$/i,''));}break;
+                    case 'pdf':await pdfDownload();break;
+                    case 'pdfSave':await pdfSave();break;
                     case 'docx':if(editor)download(await editor.save(),MIME,basename(path));break;
                     case 'html':case 'md':case 'txt':await exportSimple(action);break;
                     default:{const preset=/^zoom(\d+)$/.exec(action);if(preset && editor)zoomTo(Number(preset[1])/100);}
                 }
-            } catch(error){if(action==='print' || action==='pdf')notice(ctx.t('desktop.print_failed'),true);else fail(error);}
+            } catch(error){if(action==='print')notice(ctx.t('desktop.print_failed'),true);else fail(error);}
         }
         function download(bytes,type,name) {
             const url=URL.createObjectURL(new Blob([bytes],{type})),link=document.createElement('a');
             link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+        }
+        // The server renders the document's print pages to a PDF. With a target the PDF becomes that file in the
+        // workspace and an existing file is asked about first; without one the response carries the PDF. null means
+        // the user kept the existing file.
+        async function renderPdf(target) {
+            const html=await panels.pdf(await editor.save(),lib,documentFonts,basename(path).replace(/\.docx$/i,''));
+            const send=overwrite=>fetch('/api/desktop/office/pdf'+(target?'?path='+encodeURIComponent(target)+(overwrite?'&overwrite=1':''):''),{method:'POST',credentials:'same-origin',headers:{'Content-Type':'text/html; charset=utf-8'},body:html,signal:documentLife.signal});
+            let response=await send(false);
+            if(target && response.status===409) {
+                await response.body?.cancel().catch(()=>{});
+                const name=basename(target);
+                if(!await ctx.confirmDialog(ctx.t?.('desktop.file_dialog_overwrite_title') || tr('pdf_save'), ctx.t?.('desktop.file_dialog_overwrite_message',{name}) || name))return null;
+                response=await send(true);
+            }
+            return responseOK(response);
+        }
+        const pdfIdle=()=>{if(find('[data-notice-text]').textContent===tr('pdf_working'))notice('');};
+        async function pdfDownload() {
+            if(!editor || pdfBusy)return;
+            pdfBusy=true;notice(tr('pdf_working'));
+            try {
+                const response=await renderPdf();
+                download(await response.arrayBuffer(),'application/pdf',window.WriterPdf.fileName(path));
+                pdfIdle();
+            } catch(error) {
+                if(error?.name==='AbortError' || disposed)return;
+                if(error.message!=='pdf_unavailable'){notice(tr('pdf_failed'),true);return;}
+                // No renderer on the server: the browser's print dialog writes the PDF, and the notice says how.
+                notice(tr('pdf_hint'));
+                try {await panels.print(await editor.save(),lib,documentFonts,basename(path).replace(/\.docx$/i,''));}
+                catch(_) {notice(ctx.t('desktop.print_failed'),true);}
+            } finally {pdfBusy=false;}
+        }
+        async function pdfSave() {
+            if(!editor || ctx.readonly || pdfBusy)return;
+            const sourceEditor=editor;
+            const choice=await ctx.saveFileDialog({title:tr('pdf_save'),initialPath:path.split('/').slice(0,-1).join('/'),defaultName:window.WriterPdf.fileName(path),defaultExtension:'.pdf',filters:[{label:'PDF',extensions:['.pdf']}]});
+            if(!choice?.path || choice.canceled || editor!==sourceEditor || disposed || pdfBusy)return;
+            pdfBusy=true;notice(tr('pdf_working'));
+            try {
+                const response=await renderPdf(choice.path);
+                if(!response){pdfIdle();return;}
+                await response.body?.cancel().catch(()=>{});
+                notice(tr('pdf_saved'));ctx.loadBootstrap?.();
+            } catch(error) {
+                if(error?.name==='AbortError' || disposed)return;
+                notice(error.message==='pdf_unavailable'?tr('pdf_unavailable'):tr('pdf_failed'),true);
+            } finally {pdfBusy=false;}
         }
         async function exportSimple(format, asFile=false, signal=documentLife.signal) {
             if(!editor || !await ctx.confirmDialog(tr('export'),tr('export_loss')))return false;

@@ -70,6 +70,14 @@ func TestDesktopWriterAppBrowser(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{"replacement": "A clear, considered proposal.", "source_revision": body["source_revision"]})
 	})
+	// This fixture has no PDF renderer: Download as PDF falls back to the print dialog. Like the server it reads
+	// the page first; an answer to a half-sent upload reaches the browser as a network failure.
+	mux.HandleFunc("/api/desktop/office/pdf", func(w http.ResponseWriter, r *http.Request) {
+		io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		fmt.Fprint(w, `{"error":"pdf_unavailable"}`)
+	})
 	mux.HandleFunc("/writer-app-fixture", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8">
@@ -255,10 +263,11 @@ func TestDesktopWriterAppBrowser(t *testing.T) {
         }
         window.titleBeforePrint=document.title;
         const name=app.path.split('/').pop().replace(/\.docx$/,''),labels=await(await fetch('/lang/desktop/en.json')).json();
-        // Save as PDF is the same print job with a hint about the destination and the document's name.
+        // Without a renderer on the server, Download as PDF is the same print job with a hint about the destination
+        // and the document's name.
         await app.act('pdf');
-        if(!window.printProbe)throw Error('Save as PDF printed nothing: '+document.querySelector('[data-notice]').textContent);
-        if(document.querySelector('[data-notice-text]').textContent!==labels['desktop.writer_pdf_hint'])throw Error('Save as PDF says '+document.querySelector('[data-notice-text]').textContent);
+        if(!window.printProbe)throw Error('Download as PDF printed nothing: '+document.querySelector('[data-notice]').textContent);
+        if(document.querySelector('[data-notice-text]').textContent!==labels['desktop.writer_pdf_hint'])throw Error('Download as PDF says '+document.querySelector('[data-notice-text]').textContent);
         if(printProbe.title!==name||printProbe.frameTitle!==name)throw Error('the print job is named '+JSON.stringify({title:printProbe.title,frameTitle:printProbe.frameTitle,name}));
         window.printProbe=null;
         await app.act('print');observer.disconnect();
@@ -647,12 +656,57 @@ func TestDesktopWriterAppBrowserFileOps(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{"status": "ok", "files": list})
 	})
+	// The PDF endpoint of the fixture keeps the last page it was sent and answers like the server: 409 for an
+	// existing file without overwrite, 503 while /test/pdf-down is on.
+	var pdfDown bool
+	var pdfPage string
+	mux.HandleFunc("/api/desktop/office/pdf", func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		target, overwrite := r.URL.Query().Get("path"), r.URL.Query().Get("overwrite") == "1"
+		mu.Lock()
+		defer mu.Unlock()
+		status, code := http.StatusOK, ""
+		if _, exists := files[target]; pdfDown {
+			status, code = http.StatusServiceUnavailable, "pdf_unavailable"
+		} else if target != "" && exists && !overwrite {
+			status, code = http.StatusConflict, "pdf_exists"
+		}
+		traces = append(traces, map[string]any{"method": "PDF", "url": r.URL.String(), "status": status, "bytes": len(body)})
+		if status != http.StatusOK {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(status)
+			fmt.Fprintf(w, `{"error":%q}`, code)
+			return
+		}
+		pdfPage = string(body)
+		if target == "" {
+			w.Header().Set("Content-Type", "application/pdf")
+			w.Write([]byte("%PDF-1.7 fixture"))
+			return
+		}
+		files[target] = []byte("%PDF-1.7 fixture")
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"status":"ok","path":%q}`, target)
+	})
+	mux.HandleFunc("/test/pdf-down", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		pdfDown = r.URL.Query().Get("on") == "1"
+		mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
+	})
+	mux.HandleFunc("/test/pdf-page", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		fmt.Fprint(w, pdfPage)
+	})
 	mux.HandleFunc("/writer-file-ops-fixture", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <link rel="stylesheet" href="/js/vendor/writer/engine.css"><link rel="stylesheet" href="/css/desktop-app-writer.css">
 <style>html,body{margin:0;height:100%;font-family:system-ui}#host{height:100%}</style></head><body class="desktop-body"><div id="host"></div>
 <script src="/js/vendor/purify.min.js"></script><script src="/js/vendor/marked.min.js"></script><script src="/js/desktop/apps/writer-session.js"></script><script src="/js/desktop/apps/writer-layout.js"></script><script src="/js/desktop/apps/writer-templates.js"></script><script src="/js/desktop/apps/writer-pdf.js"></script><script src="/js/desktop/apps/writer-commands.js"></script><script src="/js/desktop/shared/form-dialog.js"></script><script src="/js/desktop/apps/writer-toolbar.js"></script><script src="/js/desktop/apps/writer-dialogs.js"></script><script src="/js/desktop/apps/writer-menus.js"></script><script src="/js/desktop/apps/writer-context.js"></script><script src="/js/desktop/apps/writer-panels.js"></script><script src="/js/desktop/apps/writer.js"></script>
+<script src="/js/desktop/core/print-runtime.js"></script>
 <script>window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/en.json')).json();window.writerContext={t:(key,params)=>String(labels[key]||key).replace(/\{\{(\w+)\}\}/g,(_,x)=>params?.[x]??''),promptDialog:async(title,value)=>window.promptAnswer??value,confirmDialog:async()=>window.confirmAnswer!==false,setWindowBeforeClose:()=>{},setWindowMenus:(id,menus)=>window.menus=menus,recentFiles:()=>window.recent||[],recordRecentFile:(path,appId)=>{window.recent=[{path,appId},...(window.recent||[]).filter(entry=>entry.path!==path)];},forgetRecentFile:path=>{window.recent=(window.recent||[]).filter(entry=>entry.path!==path);},saveFileDialog:async()=>({path:window.saveTarget}),openFileDialog:async()=>({path:'Documents/other.docx'})};WriterApp.render(document.getElementById('host'),'test',writerContext);})();</script></body></html>`)
 	})
 	srv := httptest.NewServer(mux)
@@ -743,4 +797,5 @@ func TestDesktopWriterAppBrowserFileOps(t *testing.T) {
     }`)
 	verifyWriterRecent(t, page)
 	verifyWriterTemplates(t, page)
+	verifyWriterPdf(t, page)
 }

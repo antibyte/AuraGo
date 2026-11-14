@@ -21,7 +21,7 @@ assert.equal(menus[0].items.map(item => item.id || '-').slice(0, 6).join(), 'new
 assert.equal(menus[0].items[3].items[0].id, 'recent-0', 'the recent documents are a submenu');
 const fileIds = menus[0].items.map(item => item.id || '-').join();
 assert.ok(fileIds.includes('save,saveAs,saveTemplate,-'), 'Save as template follows Save as');
-assert.ok(fileIds.includes('docx,pdf,html,md,txt'), 'the PDF stands with the other exports');
+assert.ok(fileIds.includes('docx,pdf,pdfSave,html,md,txt'), 'both PDF entries stand with the other exports');
 assert.ok(menus[0].items.some(item => item.id === 'pageSetup'), 'Page setup is in File');
 const formatMenu = menus.find(menu => menu.id === 'format');
 assert.equal(formatMenu.items.filter(item => item.id === 'paragraphFormat' || item.id === 'pageSetup').map(item => item.id).join(), 'paragraphFormat,pageSetup', 'the two dialogs are in Format');

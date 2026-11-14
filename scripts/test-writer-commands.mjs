@@ -102,7 +102,7 @@ function harness(options = {}) {
     const {commands} = harness({noEditor: true});
     assert.equal(commands.can({type: 'undo'}).ok, false);
     assert.equal(commands.tracking(), false);
-    for (const id of ['save', 'bold', 'copy', 'paste', 'goToPage', 'wordCount', 'zoom100', 'table', 'link', 'saveTemplate', 'pdf']) assert.equal(commands.state(id).enabled, false, id);
+    for (const id of ['save', 'bold', 'copy', 'paste', 'goToPage', 'wordCount', 'zoom100', 'table', 'link', 'saveTemplate', 'pdf', 'pdfSave']) assert.equal(commands.state(id).enabled, false, id);
     for (const id of ['open', 'shortcuts', 'outline', 'newFromTemplate']) assert.equal(commands.state(id).enabled, true, id);
     assert.equal(commands.menuItem('undo').disabled, true);
     assert.equal(commands.menuItem('print').disabled, true);

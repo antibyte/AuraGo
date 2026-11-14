@@ -93,6 +93,7 @@
         {id: 'saveTemplate', label: 'save_template', write: true, needsEditor: true},
         {id: 'docx', label: 'download_docx', icon: 'file-text', needsEditor: true},
         {id: 'pdf', label: 'pdf', icon: 'file-text', needsEditor: true},
+        {id: 'pdfSave', label: 'pdf_save', icon: 'file-text', write: true, needsEditor: true},
         {id: 'html', label: 'export_html', icon: 'file-code', needsEditor: true},
         {id: 'md', label: 'export_md', icon: 'notes', needsEditor: true},
         {id: 'txt', label: 'export_txt', icon: 'file-text', needsEditor: true},

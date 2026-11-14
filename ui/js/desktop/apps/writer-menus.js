@@ -8,7 +8,7 @@
         return [
             {id:'file',labelKey:'desktop.menu_file',items:[item('new'),item('newFromTemplate'),item('open'),{id:'recent',label:tr('recent'),items:extra.recent},item('drafts'),SEP,
                 item('save'),item('saveAs'),item('saveTemplate'),SEP,...extra.file,SEP,
-                item('docx'),item('pdf'),item('html'),item('md'),item('txt'),SEP,item('pageSetup'),item('print')]},
+                item('docx'),item('pdf'),item('pdfSave'),item('html'),item('md'),item('txt'),SEP,item('pageSetup'),item('print')]},
             {id:'edit',labelKey:'desktop.menu_edit',items:[item('undo'),item('redo'),SEP,item('cut'),item('copy'),item('paste'),item('pastePlain'),SEP,
                 item('selectAll'),SEP,item('search'),item('goToPage')]},
             {id:'view',label:tr('view'),items:[item('outline'),item('format'),item('review'),SEP,item('marks'),

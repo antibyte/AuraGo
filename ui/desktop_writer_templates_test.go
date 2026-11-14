@@ -26,7 +26,7 @@ func verifyWriterTemplates(t *testing.T, page *rod.Page) {
         if(app.session.dirty)await app.session.save();
         // The File menu offers the three new entries where they belong.
         const fileIds=window.menus.find(menu=>menu.id==='file').items.map(item=>item.id||'-').join();
-        for(const run of ['new,newFromTemplate,open','saveAs,saveTemplate,-','docx,pdf,html'])if(!fileIds.includes(run))throw Error('the File menu reads '+fileIds);
+        for(const run of ['new,newFromTemplate,open','saveAs,saveTemplate,-','docx,pdf,pdfSave,html'])if(!fileIds.includes(run))throw Error('the File menu reads '+fileIds);
         // Every built-in template builds: its paper and margins, its texts, a footer, no undo steps.
         const paper=u.unit==='in'?[12240,15840]:[11906,16838],marks={letter:'template_subject',invoice:'invoice_intro',minutes:'agenda',report:'summary'},opened=[];
         for(const id of T.ids) {
