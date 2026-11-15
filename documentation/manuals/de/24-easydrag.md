@@ -556,28 +556,28 @@ Die Berechtigungen und geschützten Pfade des Dateisystem-Werkzeugs gelten weite
 - Die E-Mail-, Geräte- und Kamerabeispiele starten mit breiten Filtern: Sie erfassen passende Nachrichten aus dem überwachten Posteingang, das Trennen von Geräten oder Personenerkennungen scharfgeschalteter Kameras aus den eingerichteten Quellen. Setze vor der Veröffentlichung die gewünschten Filter für Betreff/Absender, Gerät, Kamera oder Zone, wenn der Flow enger reagieren soll.
 - **Exportieren** lädt den Entwurf als `<name>.easydrag.json` herunter. **Importieren** auf der Startseite legt aus so einer Datei einen neuen Flow an (höchstens 2 MiB). Vault-Verweise enthalten Geheimnisnamen. Zugangs-Header (*Authorization*, *X-Api-Key*, *Cookie*, ...) werden als `[redacted]` exportiert; registrierte Geheimnisse in Gruppentiteln und -notizen werden maskiert. Überschreitet der maskierte Text die Längenbegrenzung, wird er mit Auslassungspunkten gekürzt. Andere gewöhnliche Felder werden wie eingegeben exportiert und können sensible Werte enthalten. Ein Export mit visuellen Gruppen braucht eine aktuelle AuraGo-Version, die sie unterstützt; ältere Versionen lehnen ihn ab, statt die Gruppen stillschweigend zu entfernen.
 
-### Einen lokalen Flow mit seinen Blöcken teilen
+### Einen lokalen Flow mit seinen Bausteinen teilen
 
 **Lokales Pack exportieren** lädt eine `.easydrag-pack.json`-Datei mit dem Flow und
-den genau verwendeten reinen Blockversionen herunter, einschließlich verschachtelter
+den genau verwendeten reinen Bausteinversionen herunter, einschließlich verschachtelter
 Aufrufe. Dieses Format unterstützt manuell gestartete Flows mit lokalen Setzen-, Wenn-,
-Verzweigung-, Zusammenführen- und Blockaufruf-Schritten. Warte-, Freigabe- und Stapelschritte,
+Verzweigung-, Zusammenführen- und Bausteinaufruf-Schritten. Warte-, Freigabe- und Stapelschritte,
 KI, Werkzeuge, Integrationen und Geheimnisverweise werden nicht unterstützt. Der
 gewöhnliche Import und Export von `.easydrag.json` bleibt verfügbar.
 
-Importiere das Pack in der Bibliothek und prüfe Flow, Blockversionen und Inhalte.
+Importiere das Pack in der Bibliothek und prüfe Flow, Bausteinversionen und Inhalte.
 Wähle anschließend **Als inaktiven Entwurf importieren**. Du erhältst einen neuen,
-unveröffentlichten Flow und unabhängige lokale Blockkopien. Vorhandene Flows werden
+unveröffentlichten Flow und unabhängige lokale Bausteinkopien. Vorhandene Flows werden
 nicht überschrieben; es wird nichts ausgeführt oder aktiviert. Öffne den neuen Entwurf
 und gib vor der **Simulation** ausdrücklich Beispieldaten ein. Behalte die importierten
-Blöcke, solange der Entwurf sie verwendet: Das Löschen eines nicht gebundenen Blocks
+Bausteine, solange der Entwurf sie verwendet: Das Löschen eines nicht gebundenen Bausteins
 kann den Entwurf ungültig machen.
 
 Ausführungshistorie und private Szenarien sind ausgeschlossen. Der Export entfernt
 manuelle Beispieleingaben und macht bekannte Geheimnisse unkenntlich. Gewöhnliche
 Texte können dennoch private Daten enthalten. Prüfe die Inhalte vor dem Teilen oder
 Importieren. Das Dateilimit beträgt 32 MiB, das Limit je Flow-Dokument 2 MiB und für
-alle Flow- und Blockinhalte zusammen 18 MiB. Zusätzlich gelten die Abhängigkeitsgrenzen.
+alle Flow- und Bausteininhalte zusammen 18 MiB. Zusätzlich gelten die Abhängigkeitsgrenzen.
 
 Fehlt die Importantwort, nutze **Importstatus prüfen**. Das liest nur den vorhandenen
 Zustand und wiederholt den Import nicht. Ein unvollständiges oder verändertes Ergebnis
