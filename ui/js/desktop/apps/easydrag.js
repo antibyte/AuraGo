@@ -73,15 +73,17 @@
     // turn them back on.
     function setHomeMenus(inst) {
         if (typeof inst.ctx.setWindowMenus !== 'function') return;
-        const blocked = !!(inst.ctx.readonly || (inst.screen && typeof inst.screen.createOff === 'function' && inst.screen.createOff()));
-        inst.ctx.setWindowMenus(inst.windowId, [{
-            id: 'flow', labelKey: 'easydrag.ui.menu_flow', items: [
-                { id: 'new', labelKey: inst.blockHome ? 'easydrag.ui.block_new' : 'easydrag.ui.home_new', icon: 'plus', disabled: blocked, action: () => clickHome(inst, '[data-ed-new]') },
-                ...(!inst.blockHome ? [{ id: 'import', labelKey: 'easydrag.ui.home_import', icon: 'upload', disabled: blocked, action: () => clickHome(inst, '[data-ed-import]') }] : []),
-                { type: 'separator' },
-                { id: 'reload', labelKey: 'easydrag.ui.reload', icon: 'refresh', action: () => inst.screen && inst.screen.reload && inst.screen.reload() }
-            ]
-        }]);
+        inst.ctx.setWindowMenus(inst.windowId, [{ id: 'flow', labelKey: 'easydrag.ui.menu_flow', items: ED.actions.items(['flow.new', 'flow.import', '-', 'flow.reload'], { host: inst }) }]);
+    }
+
+    // bindHomeActions binds the start page's window-menu actions. The shell instance is their host: New and Import are
+    // off when the desktop is read-only (readonly) or the list came back FLOWS_DISABLED (createOff, the registry's locked).
+    function bindHomeActions(inst) {
+        inst.actionFacts = () => ({ readonly: !!inst.ctx.readonly, locked: !!(inst.screen && typeof inst.screen.createOff === 'function' && inst.screen.createOff()) });
+        const bind = (id, impl) => ED.actions.bind(id, impl, inst);
+        bind('flow.new', { run: () => clickHome(inst, '[data-ed-new]'), label: () => (inst.blockHome ? 'easydrag.ui.block_new' : '') });
+        bind('flow.import', { run: () => clickHome(inst, '[data-ed-import]'), show: () => !inst.blockHome });
+        bind('flow.reload', { run: () => inst.screen && inst.screen.reload && inst.screen.reload() });
     }
 
     function clickHome(inst, selector) {
@@ -233,6 +235,7 @@
             openFlow: (id, opts) => showFlow(inst, id, opts),
             openBlock: (id, opts) => showBlock(inst, id, opts)
         };
+        bindHomeActions(inst);
         instances.set(windowId, inst);
         // A new window keeps its launch context, so section "home" is dropped once read: a later
         // render from that context must not lead back to the start page (the start page is the

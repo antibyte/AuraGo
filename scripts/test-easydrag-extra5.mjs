@@ -178,7 +178,7 @@ export async function run(env) {
         const badges = home.el.querySelector('.ed-flow-grid').html.match(/ed-chip--muted">[^<]*/g);
         eq('ff2 the Paused filter lists published flows that are off; Run now is off with its hint for a paused flow; a never published flow reads "Not published yet"',
             [filters, runItems, badges],
-            [{ all: ['f1', 'f2', 'f3'], active: ['f1'], inactive: ['f2'] }, [['f1', false, ''], ['f2', true, 'error_flow_disabled'], ['f3', true, '']], ['ed-chip--muted">state_draft']]);
+            [{ all: ['f1', 'f2', 'f3'], active: ['f1'], inactive: ['f2'] }, [['f1', false, ''], ['f2', true, 'reason_paused'], ['f3', true, 'reason_not_published']], ['ed-chip--muted">state_draft']]);
         home.dispose();
     });
 

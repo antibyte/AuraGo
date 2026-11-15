@@ -674,23 +674,22 @@
             }
         }
 
+        // The card menu lists registry actions with the card's flow as context (easydrag-actions.js). The host's readonly is the
+        // desktop's, locked is createOff without it; a paused or unpublished flow and a pending run-now are checks of run_now.
+        const actionHost = { t, readonly: !!app.readonly, actionFacts: () => ({ locked: createOff() && !app.readonly }) };
+        const bindAction = (id, impl) => ED.actions.bind(id, impl, actionHost);
+        bindAction('flow.open', { run: c => { clearSelection(); app.openFlow(c.flow.id); } });
+        if (hasOrganization) bindAction('flow.organize', { run: c => ED.metadata.organization(metadataEnv(), c.flow.id, reload) });
+        bindAction('flow.run_now', { run: c => runNow(c.flow), check: c => (runsPending.has(c.flow.id) ? 'easydrag.ui.reason_running' : '') });
+        bindAction('flow.duplicate', { run: c => duplicate(c.flow.id) });
+        bindAction('flow.export', { run: c => download(c.flow.id, c.flow.name) });
+        if (packUI) bindAction('flow.export_pack', { run: c => packUI.exportStored(c.flow.id, c.flow.name) });
+        bindAction('flow.mission_control', { run: () => ctx.openApp && ctx.openApp('mission-control') });
+        bindAction('flow.delete', { run: c => remove(c.flow) });
+
         function cardMenu(f, x, y) {
             if (!f || typeof ctx.showContextMenu !== 'function') return;
-            const locked = createOff();
-            // Run now needs a published flow that is switched on (a paused one is refused).
-            const paused = !!f.published && !f.enabled;
-            const why = blockReason();
-            ctx.showContextMenu(x, y, [
-                { icon: 'edit', label: t('easydrag.ui.home_open'), action: () => { clearSelection(); app.openFlow(f.id); } },
-                ...(hasOrganization ? [{ icon: 'folder', label: t('easydrag.ui.organize'), disabled: locked, disabledHint: why, action: () => ED.metadata.organization(metadataEnv(), f.id, reload) }] : []),
-                { icon: 'play', label: t('easydrag.ui.run_now'), disabled: locked || !f.published || paused || runsPending.has(f.id), disabledHint: why || (paused && !app.readonly ? t('easydrag.ui.error_flow_disabled') : ''), action: () => runNow(f) },
-                { icon: 'copy', label: t('easydrag.ui.home_duplicate'), disabled: locked, disabledHint: why, action: () => duplicate(f.id) },
-                { icon: 'download', label: t('easydrag.ui.home_export'), action: () => download(f.id, f.name) },
-                { icon: 'download', label: t('easydrag.ui.pack_export'), action: () => packUI && packUI.exportStored(f.id, f.name) },
-                { icon: 'list', label: t('easydrag.ui.home_mission_control'), action: () => ctx.openApp && ctx.openApp('mission-control') },
-                { separator: true },
-                { icon: 'trash', label: t('easydrag.ui.home_delete'), disabled: locked, disabledHint: why, action: () => remove(f) }
-            ]);
+            ctx.showContextMenu(x, y, ED.actions.items(['flow.open', 'flow.organize', 'flow.run_now', 'flow.duplicate', 'flow.export', 'flow.export_pack', 'flow.mission_control', '-', 'flow.delete'], { host: actionHost, flow: f }));
         }
 
         // focusTemplates moves to the existing template section. It never creates a flow.
