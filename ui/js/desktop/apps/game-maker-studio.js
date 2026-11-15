@@ -427,6 +427,7 @@
         }
         list.setAttribute('role', 'list');
         const runningID = state.activeJob && state.activeJob.project_id;
+        const deleteLabel = t('game_maker.delete');
         list.innerHTML = state.projects.map(project => {
             const updated = relativeTime(state, project.updated_at);
             const running = runningID === project.id;
@@ -579,7 +580,6 @@
         setButton(state, 'revisions', true);
         setButton(state, 'knowledge', Boolean(window.AuraGoLearnings));
         setButton(state, 'rename', Boolean(state.capabilities.allow_edit), 'game_maker.readonly_notice');
-        setButton(state, 'delete', Boolean(state.capabilities.allow_delete), 'game_maker.readonly_notice');
         setButton(state, 'export', revisionReady, 'game_maker.no_revision_yet');
         setButton(state, 'reload', revisionReady, 'game_maker.no_revision_yet');
         setButton(state, 'fullscreen', revisionReady, 'game_maker.no_revision_yet');
