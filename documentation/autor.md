@@ -100,6 +100,25 @@ While a header or footer is open, its bar and **Insert > Fields** insert the
 page number, "page X of Y", the number of pages and the pages of the section.
 **Date** inserts today's date as text; it does not update itself.
 
+## Tables and pictures
+
+The Format panel draws table borders with a pen: choose the line (solid,
+double, triple or thick), its width and its colour, then press
+an edge button (Borders, Outside, Inside, Top, Bottom, Left, Right or No
+borders). The buttons act on the selected cells; drag across cells to select
+several, otherwise the cell with the caret is meant. **Borders** in the table
+bar and in the Table menu draws all edges with the same pen.
+
+A selected picture has a width and a height; **Keep aspect ratio** changes
+both together. **Crop** hides a share of the picture on each side, in percent,
+and **Reset crop** shows all of it again. **Replace image…** puts another file
+in the picture's place, keeps the width and adjusts the height. Text wrapping
+can be changed only for a picture that an imported document has anchored; a
+picture inserted in Writer stays in the line of text.
+
+The style list in the toolbar shows every paragraph style in its own font,
+size and colour in Chrome and Edge; other browsers show the names.
+
 ## Templates and PDF
 
 **File > New from template…** lists the built-in templates (letter, invoice,
@@ -183,7 +202,8 @@ separate simplified copy. DOCX-to-DOCX downloads preserve the full package.
   menu model (`scripts/test-writer-menus.mjs`), the context surfaces
   (`scripts/test-writer-context.mjs`), the layout model and print sheets
   (`scripts/test-writer-layout.mjs`), the templates
-  (`scripts/test-writer-templates.mjs`) and the PDF packer (`scripts/test-writer-pdf.mjs`).
+  (`scripts/test-writer-templates.mjs`), the objects module (`scripts/test-writer-objects.mjs`)
+  and the PDF packer (`scripts/test-writer-pdf.mjs`).
 - `go test ./internal/server -run DesktopWriterPDF` and `go test ./internal/tools -run RenderHTMLPDF`.
 - `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopWriter(App|Engine)Browser'`
   exercises the actual editor, review, round-trips, conflicts, AI, imports,

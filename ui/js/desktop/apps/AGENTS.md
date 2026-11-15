@@ -3961,6 +3961,23 @@ buttons and menu popovers remain excluded from those gestures.
   answers `pdf_unavailable`; `pdfSave` posts it with `?path=` and asks before `overwrite=1`;
   `writer-session.js` owns revision-bound autosave and IndexedDB recovery;
   `writer-panels.js` owns formatting, search, review, AI and snapshot printing.
+  `writer-objects.js` turns the Format panel's table and picture fields into engine commands and
+  touches no editor. Borders are drawn with a pen (one of four line styles, width in eighths of a point, colour;
+  dashed and dotted are left out because the engine does not paint them on a left edge that had
+  no line before)
+  that the panel keeps per window; `borders` in the registry is marked `pen` and takes it through
+  the host. A border command acts on the engine's cell selection, which only a mouse drag across
+  cells makes, and otherwise on the one cell at the caret: never loop over a table's cells to
+  border "the whole table", because each cell would be its own undo step (the engine's history
+  groups cover text and paragraph formatting only). A picture's size goes through `sizeCommand`
+  (locked keeps the proportions), its crop is in percent of the picture. `replaceImage` in
+  `writer.js` keeps the width, lets the height follow the new picture and tries the file as it
+  is, then as PNG, then as JPEG, because the engine takes only the format the picture has. The
+  wrap list is off where `snapshot().image.canChangeWrap` is false: a picture inserted here is
+  inline and the engine cannot anchor it. Repeat header row, table alignment and picture position
+  are not offered for the same reason: the engine refuses the commands. The toolbar's style list
+  stays a `<select>`; with `appearance: base-select` its options carry `stylePreview` as inline
+  styles, and without it the list is plain;
   A new command is one entry in `DEFINITIONS`: a `slot`, a `command` (an engine
   command without a slot), or neither for an app action, which also needs its
   `case` in `act` in `writer.js` (panel and zoom-preset actions are matched in
