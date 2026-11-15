@@ -203,7 +203,7 @@
     // value.length; a step label counts code points). t translates. after is the element the note follows
     // (default: the label around the input, else the input). The note describes the input, so a screen reader
     // reads the count on focus; a separate polite live region (.ed-sr-only) speaks only when the state changes:
-    // the counter appears, the cap is reached, the text goes over the limit, the note hides. It never speaks on
+    // the counter appears, the cap is reached (a counter at max: a textarea with maxlength never goes over), the text goes over the limit, the note hides. It never speaks on
     // every keystroke (W1b amendment 23). The note hides again when the text is shorter. Returns {update, detach}.
     function limit(input, opts) {
         const o = opts || {};
@@ -235,7 +235,7 @@
             note.toggleAttribute('hidden', !kind);
             note.classList.toggle('is-over', length > max);
             note.setAttribute('data-ed-limit', kind || 'none');
-            const state = kind ? kind + (length > max ? '-over' : '') : 'none';
+            const state = kind ? kind + (length > max ? '-over' : length >= max ? '-cap' : '') : 'none';
             if (state !== spoken) { spoken = state; live.textContent = message; }
         }
         const events = ['input', 'change', 'blur'];

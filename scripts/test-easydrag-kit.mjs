@@ -124,7 +124,9 @@ export async function run({ apps, miniDom, eq }) {
         eq('kit limit counter: shown from 90 % in the UI number format', at(1800), [true, '1,800 / 2,000', false]);
         eq('kit limit counter: the live region speaks when the counter appears, not on each keystroke inside the band',
             [live.textContent, (at(1850), live.textContent), (at(1999), live.textContent)], ['1,800 / 2,000', '1,800 / 2,000', '1,800 / 2,000']);
-        eq('kit limit counter: still a counter at the limit, over it one character later', [at(2000), at(2001)], [[true, '2,000 / 2,000', false], [true, '2,001 / 2,000', true]]);
+        // A textarea with maxlength stops at max and never goes over: reaching the cap is a spoken state of its own.
+        eq('kit limit counter: still a counter at the limit, and the live region speaks the cap once', [at(2000), live.textContent, (at(2000), live.textContent)], [[true, '2,000 / 2,000', false], '2,000 / 2,000', '2,000 / 2,000']);
+        eq('kit limit counter: over the limit one character later', at(2001), [true, '2,001 / 2,000', true]);
         eq('kit limit counter: the live region speaks again when the text goes over the limit', live.textContent, '2,001 / 2,000');
         eq('kit limit counter: hidden again when the text is short, and the live region is quiet', [at(1000), live.textContent], [[false, '', false], '']);
         guard.detach();
