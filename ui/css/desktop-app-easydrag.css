@@ -348,6 +348,8 @@
 .ed-icon-btn:hover:not(:disabled) { background: var(--ed-control-hover); color: var(--ed-text); }
 .ed-icon-btn:disabled { opacity: 0.4; cursor: default; }
 .ed-icon-btn--small { width: 24px; height: 24px; }
+.ed-icon-btn[data-ed-flash] { width: auto; min-width: 30px; padding: 0 8px; color: var(--ed-ok-ink); font-size: var(--ed-font-meta); font-weight: 600; white-space: nowrap; }
+.ed-icon-btn[data-ed-flash] > :not(.ed-flash-text) { display: none; }
 
 .ed-input {
     width: 100%; min-height: 32px; padding: 6px 10px;

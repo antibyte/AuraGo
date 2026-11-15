@@ -10,6 +10,8 @@
     const ED = window.EasyDrag = window.EasyDrag || {};
     // TOAST_MS is how long a toast stays while neither the pointer nor the focus is on it.
     const TOAST_MS = 8000;
+    // FLASH_MS is how long a button shows its confirmation (flash).
+    const FLASH_MS = 2000;
     let serial = 0;
 
     const esc = value => ED.core.esc(value);
@@ -169,5 +171,31 @@
         return { el, show, hide, isShown: () => !el.hidden, dispose() { clearTimeout(timer); el.remove(); } };
     }
 
-    ED.kit = { disclosure, disclosureMarkup, attach, isOpen, setOpen, setTitle, setCount, body, callout, chip, toast, toolbar };
+    // flash shows text on a button for ms (default 2 s) and then gives the button back its own look: the
+    // text is one added span (the stylesheet hides the icon while data-ed-flash is set), and the label and
+    // title are restored. Nothing moves or fades. A second flash on the same button restarts the time.
+    function flash(button, message, ms) {
+        if (!button) return;
+        if (button.edFlash) clearTimeout(button.edFlash.timer);
+        else {
+            const span = document.createElement('span');
+            span.className = 'ed-flash-text';
+            button.appendChild(span);
+            button.edFlash = { span, label: button.getAttribute('aria-label'), title: button.getAttribute('title') };
+        }
+        const saved = button.edFlash;
+        saved.span.textContent = text(message);
+        button.setAttribute('data-ed-flash', '');
+        button.setAttribute('aria-label', text(message));
+        button.setAttribute('title', text(message));
+        saved.timer = setTimeout(() => {
+            saved.span.remove();
+            if (saved.label == null) button.toggleAttribute('aria-label', false); else button.setAttribute('aria-label', saved.label);
+            if (saved.title == null) button.toggleAttribute('title', false); else button.setAttribute('title', saved.title);
+            button.toggleAttribute('data-ed-flash', false);
+            button.edFlash = null;
+        }, ms || FLASH_MS);
+    }
+
+    ED.kit = { disclosure, disclosureMarkup, attach, isOpen, setOpen, setTitle, setCount, body, callout, chip, toast, toolbar, flash };
 })();

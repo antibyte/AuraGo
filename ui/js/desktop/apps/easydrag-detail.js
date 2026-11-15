@@ -776,9 +776,8 @@
                 if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
                     navigator.clipboard.writeText(json).catch(() => {});
                 }
-                if (ed.ctx && typeof ed.ctx.notify === 'function') {
-                    ed.ctx.notify({ title: node.label || node.type, message: t('easydrag.ui.copied_json') });
-                }
+                ED.kit.flash(event.target.closest('[data-ed-copy-json]'), t('easydrag.ui.copy_json_done'));
+                core.say(ed, t('easydrag.ui.copy_json_done'));
                 return;
             }
             const v = event.target.closest('[data-ed-view]');

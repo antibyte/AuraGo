@@ -418,10 +418,10 @@
 
         // The grid render path (flow cards, badges, banners, error, empty and no-match cards,
         // template cards) is easydrag-home-grid.js; it reads this page's state at every render.
-        const gridView = ED.homeGrid.create({
+        const runningNow = new Set(); const gridView = ED.homeGrid.create({
             app, el, grid, tplGrid, previewSVG, libraryControls, organizationControls, selectionControls, createOff, blockReason, metadataOf, metadataMarkup,
             state: () => ({ flows, templates, filter, sortBy, query, templateQuery, templateCategory, prefs, favoritesOnly,
-                organizationFolder, organizationTag, selectedFlows, loadError, staleError, timersRunning, templateError })
+                organizationFolder, organizationTag, selectedFlows, loadError, staleError, timersRunning, templateError, runningNow })
         });
         function render() { gridView.render(); }
 
@@ -474,7 +474,7 @@
             loadError = null;
             staleError = null;
             listed = true;
-            flows = list.flows || [];
+            flows = list.flows || []; runningNow.clear();
             if (folderAnswer.status === 'fulfilled') { folders = folderAnswer.value.folders || []; foldersError = null; }
             else { foldersError = folderAnswer.reason; if (authLoss(foldersError)) folders = []; }
             cacheOrganization();
@@ -656,7 +656,7 @@
                 const res = await app.api.runNow(f.id);
                 // Concurrency "skip" with a run still going starts nothing (202 {status: "skipped"}).
                 const skipped = !!(res && res.status === 'skipped' && !res.run_id);
-                if (!gone) ctx.notify({ title: f.name, message: t(skipped ? 'easydrag.ui.run_now_skipped' : 'easydrag.ui.run_started') });
+                if (!gone) { if (skipped) ctx.notify({ title: f.name, message: t('easydrag.ui.run_now_skipped') }); else { runningNow.add(f.id); render(); voice.announce(t('easydrag.ui.run_started')); } }
             } catch (err) {
                 if (!gone) ctx.notify({ title: f.name, message: core.errorText(t, err), type: 'error' });
             } finally {

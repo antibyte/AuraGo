@@ -141,7 +141,7 @@ export async function run(env) {
         const notes = [];
         const announced = [];
         const ed = {
-            ctx: { notify: n => notes.push(n), confirmDialog: async () => false }, t, esc: ED.core.esc, api: ED.core.createApi(transport),
+            ctx: { notify: n => notes.push(n), confirmDialog: async () => false }, announce: text => announced.push(text), t, esc: ED.core.esc, api: ED.core.createApi(transport),
             catalog: { types: catalogTypes }, windowId: 'w1', readonly: false, root: ED.core.el('<div class="ed-editor"></div>'),
             flow: { id: 'f1', draft_revision: 3, published_draft_revision: 0 }, flowEnabled: false, model, saver: null,
             selection: new Set(), run: null, runView: null, issues: [], lastRunData: null, detail: null, effectsConfirmed: false, bus
@@ -185,7 +185,7 @@ export async function run(env) {
         action.fire('click');
         await settle();
         eq('c1d06 a full publish clears the flag and activates',
-            [h.ed.publishIncomplete, enables(), h.ed.flowEnabled, h.notes.slice(1).map(n => n.message)], ['', 1, true, ['publish_done:Flow']]);
+            [h.ed.publishIncomplete, enables(), h.ed.flowEnabled, h.notes.slice(1).map(n => n.message), h.announced], ['', 1, true, [], ['publish_done:Flow']]);
         // A missing Mission Control entry: publishing again does not help, so nothing suggests it.
         answers.push({ flow: live(3), issues: [], partial: true, code: 'FLOW_MISSION_MISSING', error: 'Export the flow, delete it and import it again.' });
         h.ed.flowEnabled = false;

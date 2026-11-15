@@ -155,6 +155,8 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	s.wait(`()=>edFixture.state.streams.some(es=>/[?&]after=\d+/.test(es.url))`)
 	s.shot("run-done")
 	s.failOnPageErrors("test run")
+	// Own actions stay quiet (W1b B.6): "JSON kopieren" confirms on its button, not in a notification.
+	s.copyJSONConfirms()
 
 	// Publish (no blocking problems left). The first answer is partial: the revision is live but
 	// Mission Control was not updated, so the state chip warns and Publish stays offered.
@@ -162,12 +164,15 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	page.MustElement(`[data-ed-cmd="publish"]`).MustClick()
 	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-action="publish"]')`)
 	s.shot("publish-dialog")
+	s.recordAnnouncements()
 	s.noRawKeys("publish dialog")
 	s.publishPartial()
 	page.MustElement(`[data-ed-cmd="publish"]`).MustClick()
 	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-action="publish"]') && !!document.querySelector('.ed-modal .ed-callout--warn')`)
 	page.MustElement(`.ed-modal [data-ed-action="publish"]`).MustClick()
 	s.wait(`()=>{const r=edFixture.flow().rec;const ed=edFixture.editor();return r.published_draft_revision===r.draft_revision && !document.querySelector('.ed-modal-backdrop') && !ed.publishIncomplete && !!document.querySelector('[data-ed-state] .ed-chip--ok')}`)
+	// Publishing and the active switch announce and do not notify (W1b B.6).
+	s.publishAndActiveAreQuiet()
 	s.clearToasts()
 
 	// Run drawer and read-only run view; Esc returns to the draft.

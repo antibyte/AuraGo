@@ -180,7 +180,7 @@
                     if (controller.signal.aborted || !ed.root.isConnected || ed.readonly || ed.runView) return;
                     const res = await ed.api.restoreVersion(ed.flow.id, rev, ed.saver.revision, controller.signal);
                     if (controller.signal.aborted || !ed.root.isConnected) return;
-                    dialog.close('restored'); ed.bus.emit('restored', res); ed.ctx.notify({ title: ed.t('easydrag.ui.versions_title'), message: ed.t('easydrag.ui.versions_restored', { revision: rev }) });
+                    dialog.close('restored'); ed.bus.emit('restored', res); ED.core.say(ed, ed.t('easydrag.ui.versions_restored', { revision: rev }));
                 } catch (err) { if (!controller.signal.aborted) { const error = dialog.body.querySelector('.ed-error'); error.hidden = false; error.textContent = ED.core.errorText(ed.t, err); } }
                 finally { restore.disabled = false; }
                 return;

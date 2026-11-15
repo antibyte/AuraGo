@@ -114,7 +114,7 @@ export async function run(env) {
         eq('a1023 F1 an unsaved draft: when its save fails nothing is restored, the button works again, the notice says why and the edit and its copy stay; when it saves, the restore goes on',
             [await restoreOver(true), await restoreOver(false)], [
                 [0, false, [['versions_title', 'versions_unsaved', 'error']], true, 'unsaved edit', []],
-                [1, true, [['versions_title', 'versions_restored:2', undefined]], false, undefined, []]
+                [1, true, [], false, undefined, []]
             ]);
         eq('a1023 F1 the notice exists in all 16 locales', missingKeys(apps, ['easydrag.ui.versions_unsaved']), []);
     });

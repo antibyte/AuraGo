@@ -233,7 +233,7 @@
                 ed.publishIncomplete = '';
                 if (activate) await setActive(true, true);
                 ed.bus.emit('published', ed.flow);
-                ed.ctx.notify({ title: t('easydrag.ui.publish'), message: t('easydrag.ui.publish_done', { name: ed.model.doc.name }) });
+                core.say(ed, t('easydrag.ui.publish_done', { name: ed.model.doc.name }));
                 return true;
             } catch (err) {
                 if (core.errorCode(err) === 'FLOW_INVALID') {
@@ -251,7 +251,7 @@
                 await ed.api.setEnabled(ed.flow.id, on);
                 ed.flowEnabled = on;
                 ed.bus.emit('enabled', on);
-                if (!quiet) ed.ctx.notify({ title: ed.model.doc.name, message: on ? t('easydrag.ui.active_on') : t('easydrag.ui.active_off') });
+                if (!quiet) core.say(ed, on ? t('easydrag.ui.active_on') : t('easydrag.ui.active_off'));
                 return true;
             } catch (err) {
                 ed.bus.emit('enabled', ed.flowEnabled);
@@ -317,7 +317,7 @@
                     const res = await ed.api.restoreVersion(ed.flow.id, rev, baseRev);
                     dialog.close('restored');
                     ed.bus.emit('restored', res);
-                    ed.ctx.notify({ title: t('easydrag.ui.versions_title'), message: t('easydrag.ui.versions_restored', { revision: rev }) });
+                    core.say(ed, t('easydrag.ui.versions_restored', { revision: rev }));
                 } catch (err) {
                     b.disabled = false;
                     ed.ctx.notify({ title: t('easydrag.ui.versions_title'), message: core.errorText(t, err), type: 'error' });

@@ -104,4 +104,20 @@ export async function run({ apps, miniDom, eq }) {
     eq('kit modal() has a grab bar', !!open(390).el.querySelector('.ed-sheet-grab'), true);
     const noWidth = new dom.El('div', {});
     eq('kit modal() with an unmeasured host stays a dialog', ED.core.modal(noWidth, { title: 'T', body: '' }).el.classList.contains('ed-sheet'), false);
+
+    // flash(): the text sits on the button for 2 s, then label, title and look come back
+    {
+        const button = new dom.El('button', { 'aria-label': 'Copy JSON', title: 'Copy JSON' });
+        const icon = button.appendChild(new dom.El('svg', {}));
+        kit.flash(button, 'Copied');
+        const timer = timers[timers.length - 1];
+        eq('kit flash shows the text, names the button by it and arms 2 seconds',
+            [button.querySelector('.ed-flash-text').textContent, button.getAttribute('aria-label'), button.getAttribute('title'), button.getAttribute('data-ed-flash'), timer.ms, button.children.includes(icon)],
+            ['Copied', 'Copied', 'Copied', '', 2000, true]);
+        kit.flash(button, 'Copied');
+        eq('kit flash twice restarts the time and keeps one text', [button.querySelectorAll('.ed-flash-text').length, timer.fn], [1, null]);
+        timers[timers.length - 1].fn();
+        eq('kit flash gives the button back its label, title and look',
+            [button.querySelector('.ed-flash-text'), button.getAttribute('aria-label'), button.getAttribute('title'), button.getAttribute('data-ed-flash')], [null, 'Copy JSON', 'Copy JSON', null]);
+    }
 }

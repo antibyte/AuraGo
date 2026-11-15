@@ -90,7 +90,7 @@
                     }
                     if (!applyProposal(model, proposal.doc, version, t('easydrag.ui.authoring_apply'))) { error.hidden = false; error.textContent = t('easydrag.ui.authoring_stale'); return false; }
                     ed.bus.emit('proposal-applied');
-                    ed.ctx.notify({ title: t('easydrag.ui.authoring_title'), message: t('easydrag.ui.authoring_applied') });
+                    core.say(ed, t('easydrag.ui.authoring_applied'));
                     return true;
                     })().finally(() => { if (action !== 'cancel') busy = false; setTimeout(syncGoal, 0); });
                 }

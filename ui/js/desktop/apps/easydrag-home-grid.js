@@ -17,10 +17,10 @@
         let spoken = '';
         // The page's state, read at the start of every render; the helpers below run only inside render().
         let flows, templates, filter, sortBy, query, templateQuery, templateCategory, prefs, favoritesOnly,
-            organizationFolder, organizationTag, selectedFlows, loadError, staleError, timersRunning, templateError;
+            organizationFolder, organizationTag, selectedFlows, loadError, staleError, timersRunning, templateError, runningNow;
         function pull() {
             ({ flows, templates, filter, sortBy, query, templateQuery, templateCategory, prefs, favoritesOnly,
-                organizationFolder, organizationTag, selectedFlows, loadError, staleError, timersRunning, templateError } = host.state());
+                organizationFolder, organizationTag, selectedFlows, loadError, staleError, timersRunning, templateError, runningNow } = host.state());
         }
 
         function triggerLabels(f) {
@@ -45,7 +45,7 @@
         }
 
         function lastRun(f) {
-            const r = f.last_run;
+            if (runningNow.has(f.id)) return ED.status.label(t, 'running'); const r = f.last_run;
             if (!r) return '<span class="ed-muted">' + esc(t('easydrag.ui.home_never_ran')) + '</span>';
             return ED.status.label(t, ED.durable.value(r), ED.durable.label(t, r)) + '<span> · ' + esc(core.fmt.relative(r.started_at)) + (r.durable ? ' · ' + esc(t('easydrag.ui.durable_title')) : '') + '</span>';
         }

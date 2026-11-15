@@ -451,7 +451,7 @@
                         ed.publishIncomplete = ''; ed.flowEnabled = false;
                         await refreshRecord();
                         renderHeader(); setMenus();
-                        ctx.notify({ title: 'EasyDrag', message: t('easydrag.ui.repair_mission_done') });
+                        canvas.announce(t('easydrag.ui.repair_mission_done'));
                         return true;
                     } catch (err) { if (!disposed) ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' }); return false; }
                 }

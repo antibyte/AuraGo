@@ -78,7 +78,7 @@
             ed.bus.emit('selection');
             ed.bus.emit('issues', result.issues || []);
             canvas.ensureSelected();
-            ed.ctx.notify({ title: t('easydrag.ui.extraction_title'), message: t('easydrag.ui.extraction_success') });
+            core.say(ed, t('easydrag.ui.extraction_success'));
             return true;
         }
         async function recover() {
