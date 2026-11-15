@@ -76,6 +76,9 @@ func (s *Service) PreviewFile(token, rawPath string) ([]byte, string, error) {
 	if rawPath == "" || strings.HasSuffix(rawPath, "/") {
 		rawPath += "index.html"
 	}
+	if strings.HasPrefix(rawPath, ".") || strings.Contains(rawPath, "/.") || strings.Contains(rawPath, `\.`) {
+		return nil, "", ErrInvalidPath
+	}
 	path, _, err := secureJoin(root, rawPath, true)
 	if err != nil {
 		return nil, "", err
@@ -106,18 +109,6 @@ func (s *Service) PreviewFile(token, rawPath string) ([]byte, string, error) {
 	}
 	if isPreviewHTML(rawPath, path, contentType) {
 		data = injectPreviewBoot(data)
-		// The driver is served only in the authenticated preview, never exported.
-		if project.Dimension == "2d" || project.Dimension == "3d" {
-			driverPath := "runtime/preview-tests.js"
-			if project.Variant == "voxel" {
-				driverPath = "runtime/preview-voxel-tests.js"
-			}
-			driver, err := runtimeFS.ReadFile(driverPath)
-			if err != nil {
-				return nil, "", err
-			}
-			data = append(data, append([]byte("<script>"), append(driver, []byte("</script>")...)...)...)
-		}
 		if contentType == "application/octet-stream" || contentType == "" {
 			contentType = "text/html; charset=utf-8"
 		}
@@ -143,144 +134,14 @@ func isPreviewHTML(rawPath, absPath, contentType string) bool {
 const previewBootMarker = `data-aurago-preview-boot`
 
 const previewBootScript = `<script ` + previewBootMarker + `>
-(function () {
-  if (window.__AURAGO_PREVIEW_BOOT__) return;
-  window.__AURAGO_PREVIEW_BOOT__ = true;
-  function isLoadingText(value) {
-    return /^loading[.…]*(?:\s*preview)?[.…\s]*$/i.test(String(value || "").trim());
-  }
-  function hideStaleLoading() {
-    var nodes = document.querySelectorAll("#hud, [data-loading], .loading, .gm-loading");
-    for (var i = 0; i < nodes.length; i++) {
-      var el = nodes[i];
-      if (!el) continue;
-      var text = String(el.textContent || "").trim();
-      if (isLoadingText(text)) {
-        el.setAttribute("data-aurago-hid-loading", "1");
-        el.hidden = true;
-        el.style.display = "none";
-        continue;
-      }
-      // Restore HUD labels the boot previously hid once the game sets real text.
-      if (text && el.getAttribute("data-aurago-hid-loading") === "1") {
-        el.removeAttribute("data-aurago-hid-loading");
-        el.hidden = false;
-        el.style.display = "";
-      }
-    }
-  }
-  var channel = "";
-  try {
-    channel = new URLSearchParams(location.hash.replace(/^#/, "")).get("gm-channel") || "";
-  } catch (_) {}
-  function errorFrames(error, filename, line, column) {
-    var frames = [];
-    if (typeof filename === 'string' && /\/dist\/game\.js(?:[?#]|$)/.test(filename) && Number.isInteger(line) && line > 0 && Number.isInteger(column) && column > 0) {
-      frames.push({ file: 'dist/game.js', line: line, column: column });
-    }
-    var stack = error && typeof error.stack === 'string' ? error.stack.slice(0, 8000) : '';
-    var pattern = /\/dist\/game\.js(?:[?#][^\s():]*)?:(\d+):(\d+)/g, match;
-    while (frames.length < 5 && (match = pattern.exec(stack))) {
-      var row = Number(match[1]), col = Number(match[2]);
-      if (row > 0 && col > 0 && row <= 10000000 && col <= 10000000) frames.push({ file: 'dist/game.js', line: row, column: col });
-    }
-    return frames;
-  }
-  function reportError(type, message, error, filename, line, column) {
-    if (!channel) return;
-    parent.postMessage({ source: "aurago-game", type: type, channel: channel, message: String(message).slice(0, 1000), frames: errorFrames(error, filename, line, column) }, "*");
-  }
-  // Engines also report failures for detached Image/Audio objects through the
-  // console; these do not reach window's error/unhandledrejection listeners.
-  var originalConsoleError = console.error;
-  console.error = function () {
-    originalConsoleError.apply(console, arguments);
-    var parts = [], error;
-    for (var i = 0; i < arguments.length && i < 8; i++) {
-      try { parts.push(String(arguments[i]).slice(0, 1000)); } catch (_) {}
-      if (!error && arguments[i] && typeof arguments[i].stack === 'string') error = arguments[i];
-    }
-    reportError("runtime_error", parts.join(" "), error);
-  };
-  window.addEventListener("error", function (event) {
-    reportError(event.message ? "runtime_error" : "resource_error", event.message || "Failed to load game resource", event.error, event.filename, event.lineno, event.colno);
-  }, true);
-  window.addEventListener("unhandledrejection", function (event) {
-    reportError("runtime_error", event.reason, event.reason);
-  });
-  var readySent = false, layoutFailed = false, hostActive = true;
-  var invalidSince = null, layoutTimer, observer;
-  function visibleCanvas() {
-    var canvases = document.querySelectorAll("canvas");
-    for (var i = 0; i < canvases.length; i++) {
-      var canvas = canvases[i], rect = canvas.getBoundingClientRect();
-      if (!(canvas.width > 0 && canvas.height > 0 && rect.width > 0 && rect.height > 0 &&
-          rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth)) continue;
-      var visible = true;
-      for (var el = canvas; el; el = el.parentElement) {
-        var style = getComputedStyle(el);
-        if (style.display === "none" || style.visibility === "hidden" || style.visibility === "collapse" || Number(style.opacity) === 0) { visible = false; break; }
-      }
-      if (visible) return true;
-    }
-    return false;
-  }
-  function stopLayoutWatch() {
-    clearInterval(layoutTimer);
-    window.removeEventListener("resize", tick);
-    window.removeEventListener("message", activity);
-    document.removeEventListener("visibilitychange", tick);
-  }
-  function notifyReady() {
-    if (readySent || layoutFailed || document.readyState === "loading") return;
-    if (!channel) { stopLayoutWatch(); return; }
-    // Studio minimization, tab changes and an unsized iframe are host states,
-    // not evidence of a broken game. Resume observation when the host returns.
-    if (!hostActive || document.hidden || innerWidth <= 0 || innerHeight <= 0) { invalidSince = null; return; }
-    var canvas = document.querySelector("canvas");
-    if (!canvas) { invalidSince = null; return; }
-    if (!visibleCanvas()) {
-      if (invalidSince === null) invalidSince = performance.now();
-      // Allow async renderer setup and layout to settle. Only continuous bad
-      // layout in an active viewport is a game error; report it once.
-      if (performance.now() - invalidSince >= 3000) {
-        var rect = canvas.getBoundingClientRect();
-        layoutFailed = true;
-        stopLayoutWatch();
-        reportError("runtime_error", "Game canvas remains hidden or outside the active preview viewport. Check the renderer's canvas and container layout. " +
-          "canvas=" + Math.round(rect.width) + "x" + Math.round(rect.height) + " at " + Math.round(rect.left) + "," + Math.round(rect.top) +
-          "; viewport=" + innerWidth + "x" + innerHeight + "; buffer=" + canvas.width + "x" + canvas.height);
-      }
-      return;
-    }
-    readySent = true;
-    stopLayoutWatch();
-    try {
-      parent.postMessage({ source: "aurago-game", type: "ready", channel: channel, canvas: true, boot: true, visible: true }, "*");
-    } catch (_) {}
-  }
-  function tick() {
-    hideStaleLoading();
-    notifyReady();
-  }
-  function activity(event) {
-    if (event.source !== parent || event.data?.type !== "aurago:game:active" || typeof event.data.active !== "boolean") return;
-    hostActive = event.data.active;
-    tick();
-  }
-  window.addEventListener("message", activity);
-  window.addEventListener("resize", tick);
-  window.addEventListener("pagehide", function () { stopLayoutWatch(); if (observer) observer.disconnect(); }, { once: true });
-  document.addEventListener("visibilitychange", tick);
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", tick, { once: true });
-  }
-  try {
-    observer = new MutationObserver(tick);
-    observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
-  } catch (_) {}
-  layoutTimer = setInterval(tick, 250);
-  tick();
+(() => {
+  const channel = new URLSearchParams(location.hash.slice(1)).get('gm-channel');
+  const send = (type, message = '') => { if (channel) parent.postMessage({source:'aurago-game', channel, type, message:String(message).slice(0,2000)}, '*'); };
+  addEventListener('error', event => send(event.message ? 'runtime_error' : 'resource_error', event.message || 'Failed resource: ' + (event.target?.src || event.target?.href || 'unknown')), true);
+  addEventListener('unhandledrejection', event => send('runtime_error', event.reason));
+  const original = console.error;
+  console.error = (...args) => { original.apply(console,args); send('runtime_error',args.join(' ')); };
+  if (document.readyState === 'loading') addEventListener('DOMContentLoaded', () => send('ready'), {once:true}); else send('ready');
 })();
 </script>`
 

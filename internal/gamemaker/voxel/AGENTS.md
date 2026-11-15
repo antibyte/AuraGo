@@ -11,27 +11,20 @@ game lifecycle and the sprite/model library stay in `internal/gamemaker/AGENTS.m
 
 ## Local Contracts
 
-- Voxel projects use immutable `dimension: 3d, variant: voxel`; legacy projects
-  retain the empty variant. Schema 5/base `voxel` owns `src/voxel.json` and optional
-  `main.ts` hooks. Plan acceptance and file writes share definition validation.
-  Build evidence requires a used definition and the installed Voxel runtime;
-  executable definitions count as implementations. Keep generic `config.objects`,
-  scene/mechanics and unchanged-code requirements on their existing game paths.
+- Existing Voxel project identity and published saves remain compatible.
+  The optional Voxel template installs src/voxel.json and its local runtime.
+  Runtime definition checks still protect world/save transactions; free source
+  edits and publication do not enforce plan or gameplay evidence.
 - Version 1 is a finite, single-player FPS sandbox: 96×48×96 by default,
   at most 128×64×128, 16³ chunks, 64 blocks/items/recipes and 24 enemies.
   Survival/creative is fixed by the definition. Definition errors name the
   element index/ID, the field and its accepted values. Grid mutation owns collision,
   geometry invalidation and saves; inventory/crafting transactions are atomic.
   Hooks use the public API and dispose their scene additions on reload/disposal.
-- Both modes require the seven `voxelTerrainMaterials` used by terrain generation.
-  Planning/editing guidance names them; creative supply does not remove them.
-  Definition validation reports bounded independent corrections together before
-  checking reachability. Native JSON-string and object designs retain the same
-  failed draft for partial corrections; acceptance and file-write gates stay strict.
-- Voxel prepared profiles keep three planning/four editing tools and fixed
-  schemas; repair shares editing. Only compact definitions/API and bounded file
-  observations enter prompts. Saves and chunk arrays never enter agent context.
-  Exact helper comparison remains necessary for compact source references.
+- Both modes use the seven voxelTerrainMaterials during terrain generation.
+  Definition errors remain concrete runtime/helper diagnostics. Request framework
+  documentation when needed; no dedicated planning/editing profile is required.
+  Saves and chunk arrays never enter agent context.
 - The additive migration takes a SQLite backup before changing existing project
   tables. Autosaves are CAS-versioned by project and compatible world identity;
   incompatible revisions retain older saves. Reset advances a tombstone version.
@@ -41,10 +34,7 @@ game lifecycle and the sprite/model library stay in `internal/gamemaker/AGENTS.m
   validation frames never read or write saved progress. Published previews and
   exports use immutable revision files; no automatic source/runtime migrations.
   Exported games use IndexedDB; studio save rows are never exported.
-- Voxel validation uses real sampled block/inventory/player/enemy consequences.
-  Counter-only reports cannot pass mining, placing, crafting or combat. Preserve
-  the 16-check/60-second ceilings and the ordinary input-only driver boundary.
-  Pause, inventory, focus loss, touch cancellation and disposal release input.
+- Pause, inventory, focus loss, touch cancellation and disposal release input.
   Held input is owned by its keyboard, UI or canvas-pointer source: releasing
   camera look cannot cancel a separately held Mine action. Verify
   `TestVoxelTouchMineSurvivesCanvasLookRelease` with `GAMEMAKER_VOXEL_BROWSER=1`.

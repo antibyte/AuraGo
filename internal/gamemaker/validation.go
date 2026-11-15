@@ -99,41 +99,12 @@ func (s *Service) ReportPreview(projectID string, report PreviewReport) error {
 		return nil
 	}
 	if report.Type == "ready" {
-		if !report.CanvasVisible {
-			return nil
-		}
 		if check.ReadyAt.IsZero() {
 			check.ReadyAt = time.Now()
 			check.BoundToken = report.Token
 		}
-	} else if report.Type == "capture" {
-		if report.Token != check.BoundToken || check.CaptureReceived {
-			return nil
-		}
-		if !validCaptures(report.Captures) {
-			report.Captures = nil
-		}
-		check.Captures = report.Captures
-		check.CaptureReceived = true
-	} else if report.Type == "gameplay" {
-		if report.Token != check.BoundToken || len(check.Scenarios) == 0 || check.GameplayReceived {
-			return nil
-		}
-		if err := validateGameReport(report); err != nil {
-			return err
-		}
-		if !validCaptures(report.Captures) {
-			report.Captures = nil
-		}
-		check.Captures = report.Captures
-		check.CaptureReceived = true
-		check.Observations = report.Observations
-		for _, image := range report.Images {
-			if validPreviewImage(image) {
-				check.Images = append(check.Images, image)
-			}
-		}
-		check.GameplayReceived = true
+	} else if report.Type == "capture" || report.Type == "gameplay" {
+		return nil
 	} else {
 		message := strings.TrimSpace(report.Message)
 		if message == "" {
@@ -144,57 +115,7 @@ func (s *Service) ReportPreview(projectID string, report PreviewReport) error {
 	return nil
 }
 
-// ValidateJob uses the existing sandboxed browser preview as a bounded startup
-// smoke check. File writes still use BuildJob without waiting on a browser.
+// ValidateJob is a legacy build-only compatibility entry.
 func (s *Service) ValidateJob(ctx context.Context, jobID string) BuildResult {
 	return s.ValidateJobScope(ctx, jobID, "startup")
 }
-
-func (s *Service) waitForPreview(ctx context.Context, check *previewCheck, timeout time.Duration) BuildResult {
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-	tick := time.NewTicker(25 * time.Millisecond)
-	defer tick.Stop()
-	for {
-		s.mu.RLock()
-		current := check != nil && s.previewCheck == check
-		var diagnostics []Diagnostic
-		var ready bool
-		if current {
-			diagnostics = append(diagnostics, check.Diagnostics...)
-			// Canvas creation precedes scene setup and common one-second spawn
-			// timers. Observe a short gameplay interval before accepting startup.
-			ready = !check.ReadyAt.IsZero() && time.Since(check.ReadyAt) >= 3*time.Second
-		}
-		s.mu.RUnlock()
-		if !current {
-			return previewUnavailable("Preview build changed during validation; validate the current build again")
-		}
-		if len(diagnostics) > 0 {
-			return BuildResult{RuntimeStatus: "failed", Diagnostics: diagnostics}
-		}
-		if err := ctx.Err(); err != nil {
-			return previewUnavailable(err.Error())
-		}
-		if ready {
-			return BuildResult{OK: true, RuntimeStatus: "passed"}
-		}
-		select {
-		case <-ctx.Done():
-			return previewUnavailable(ctx.Err().Error())
-		case <-timer.C:
-			return previewUnavailable(previewHostAbsentMessage)
-		case <-tick.C:
-		}
-	}
-}
-
-func previewUnavailable(message string) BuildResult {
-	return BuildResult{RuntimeStatus: "unavailable", Diagnostics: []Diagnostic{{Level: "error", Message: message}}}
-}
-
-// previewHostAbsentMessage marks the one unavailable result that means "no
-// visible Studio preview" rather than a broken game. validateForPublication
-// compares it exactly so a runtime error, a changed build or a cancelled job
-// never enters the bounded wait.
-const previewHostAbsentMessage = "Browser startup could not be verified. Keep this project's Game Maker Studio preview open and retry; no revision was published"

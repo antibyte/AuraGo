@@ -85,5 +85,5 @@ or credentials. The Studio preview retains its opaque iframe sandbox.
 
 Production and developer commands are in
 `assets/game-maker-low-poly/README.md`. Acceptance exports/screenshots belong in
-ignored `reports/low-poly/`. The normal agent's startup check remains distinct
-from full gameplay verification; a successful GLB parse is not a visual review.
+ignored `reports/low-poly/`. The agent can inspect the rendered assets through its independent preview browser;
+compiler success does not guarantee visual or gameplay quality.

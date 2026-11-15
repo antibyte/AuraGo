@@ -21,9 +21,6 @@ type nullSceneRunner struct {
 }
 
 func (r nullSceneRunner) RunGameMakerJob(ctx context.Context, run JobRun) error {
-	if run.Stage == "planning" {
-		return r.service.SetPlan(ctx, run.Job.ID, ExampleGamePlan(run.Project))
-	}
 	if run.Stage != "building" {
 		return nil
 	}
@@ -44,9 +41,6 @@ func (r nullSceneRunner) RunGameMakerJob(ctx context.Context, run JobRun) error 
 }
 
 func (r sceneBlockingRunner) RunGameMakerJob(ctx context.Context, run JobRun) error {
-	if run.Stage == "planning" {
-		return r.service.SetPlan(ctx, run.Job.ID, ExampleGamePlan(run.Project))
-	}
 	if run.Stage != "building" {
 		return nil
 	}

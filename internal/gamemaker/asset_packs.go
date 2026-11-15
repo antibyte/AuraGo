@@ -385,7 +385,6 @@ func (s *Service) ImportAssetPack(ctx context.Context, jobID, id string, assetID
 	}
 	s.policyMu.RUnlock()
 	if err == nil {
-		_ = s.BuildJob(ctx, jobID)
 	}
 	return result, err
 }

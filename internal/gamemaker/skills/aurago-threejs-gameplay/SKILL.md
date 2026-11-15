@@ -7,106 +7,21 @@ metadata:
   managed_by: aurago
   source: majidmanzarpour/threejs-game-skills
   commit: 7221c1f4a6d2ae189a4d85d058d24f3228499d46
-allowed-tools: game_maker_project, game_maker_file, game_maker_asset, game_maker_validate
+allowed-tools: game_maker_project, game_maker_file, game_maker_asset, game_maker_preview
 ---
-> General agent use only. Game Maker Studio runs use the `craft.go` guides and its prepared profiles, never this package.
 
-# Three.js Gameplay
+# Optional Three.js and Voxel guidance
 
-Coding tools are already attached: call `game_maker_file` directly with
-`operation: read` (`path`, `start_line`, `end_line`), then `operation: replace`
-(`path`, current `expected_sha256`, unique `old_text`, `new_text`). Use `write`
-with complete `content` for new modules; inspect `written`, `sha256` and
-`build.ok` after edits. `game_maker_project(operation: list_files)` finds unknown
-paths. No tool discovery or activation is needed. Planning permits reads only;
-after acceptance, implement and validate using the supported scope below.
+Use local Three.js modules when appropriate. project reference returns documentation
+for installed helpers. project use_template offers three, fps, exploration,
+transport, flight, space and voxel as optional starting points. Read existing
+authored files before replacing them. No template or gameplay structure is required.
 
-Prefer a guided base (`fps`, `exploration`, `transport`, `flight`, `space`) via
-`set_design`. Edit its short main.ts config and game-specific hooks, retaining
-common.ts model loading, animation and lifecycle. All selected roles are bound.
-The runtime descriptor describes this project's installed helper. With
-`three-2` or newer, use `api.hasLineOfSight([x,y,z],[x,y,z])` for custom visibility rules.
-Default FPS shots and enemy attacks respect visible tree/obstacle/building
-cover; an object may override `blocksShots`. Configure attack range, damage and
-seconds between attacks through `combat:{enemyRange,enemyDamage,enemyCooldown}`.
-Scene-builder damage stays authoritative for scene-driven games. Older helpers
-do not gain these APIs automatically: inspect their source before extending them.
-`three-3` adds the shared Start/pause UI: `objective` appears once before play;
-`hud(api)` contains compact live status only. Keep simulation frozen until Start.
-Use `config.playerUI` to customize movement (`full`, `horizontal`, `none`), primary
-action (`fire`, `interact`, `boost`, or `false`) and optional `instructions`.
-Desktop uses keyboard/mouse without a button row. Touch uses a left stick and
-relevant right actions; FPS drag-look must not fire. Help/restart belong in menus.
-The following engine reference applies when extending that base or using free
-code (`three`). Import the pinned local Three.js runtime; build a playable game.
-For `base:"three"`, omit `settings` in `set_design`: that object configures only
-the five guided bases. A correction with `{"settings":null}` clears incompatible
-draft settings without changing the chosen base or game idea. Put custom runner
-speed, obstacles and progression in features and source or supported helper params.
-Scene-backed `three` is opt-in. An accepted plan with a scene emits the
-canonical `src/scene.json`; `startGame(config)` loads it and the shared loop
-runs the builder alongside `config.action` and `config.step`. A null scene keeps
-the legacy `config.objects` path. Scene mechanics are optional, so `minimal` and
-free-code `three` can be continuous without a forced combat rule or timer. A
-free-code `three` startup pass still leaves gameplay unverified until live
-observations cover it.
+Imported models have exact local paths, scales, forward directions, clips and rig
+metadata. Read describe_asset; independent animated figures need separate skeletons
+and actions. Dispose owned resources, listeners and animation loops when replacing
+a scene. Keep existing Voxel save compatibility when editing a saved world.
 
-Custom hooks use `api.input.isDown("s")` (lowercase KeyboardEvent.key),
-`api.player`, `api.state`, `api.ended`, `api.win()` and `api.lose()`.
-`step(dt, api)` runs only while playing; `action(api)` may return false to replace
-boost/fire. `reset(api)` must clear custom charge, delivery and HUD state.
-Do not read private `__keys`. Guided settings accept `duration: 0` for no countdown.
-Example: `step(dt, api) { if (api.input.isDown("s")) charge = Math.min(100, charge + dt * 25); }`.
-Verify the visible charge with a real key press before claiming the mechanic works.
-
-- Establish renderer, scene, camera, resize handling, lighting, and a bounded
-  animation loop before adding content.
-- Cap the pixel ratio with `renderer.setPixelRatio(Math.min(devicePixelRatio, 2))`
-  and keep the frame loop stable on high-DPI displays.
-- Keep input state separate from movement; multiply motion by a clamped delta.
-- Use simple bounding spheres or boxes for deterministic collision checks.
-- Reuse geometries, materials, vectors, and effect objects. Do not allocate
-  transient Three.js objects inside the frame loop.
-- Pause the loop and timers on `visibilitychange` when the tab is hidden, and
-  dispose geometries and materials when a scene or game is rebuilt.
-- Keep the camera oriented toward the gameplay goal and prevent the player from
-  leaving the readable play space.
-- Use original built-in GLBs through the local `aurago-three-assets-1.js` helper.
-  Image generation still produces textures, backgrounds, decals or UI, not meshes.
-  Describe and selectively import models; never substitute catalog URLs in games.
-- Add HTML UI for instructions and status when it is clearer than 3D text.
-- Preserve `window.__AURAGO_GAME_DIAGNOSTICS__`; report canvas readiness, scene
-  name, frame rate, resource errors, and runtime errors.
-
-Use the shared mandatory planning round with template `three` and perspective
-`3d`, schema_version 3 and units `metres`; preserve working code on edits.
-Model roles use metric `scale` and `collider: catalog|box|sphere|capsule|mesh|none`,
-without sprite display_height or pixel origins. At most 64 concrete model roles.
-Use one game clock for `updateInstance`, independent instances for animated rigs
-and `createInstances` for repeated static props. Release instances, asset handles,
-lights/shadows, controls and the renderer on teardown; abort pending model loads.
-Call `game_maker_validate` scope `full` for guided bases. Required live-input
-checks include movement, primary action, objective progress, assets, end and two
-restarts; FPS also checks aim and reload. Free-code `three` uses scope `startup`
-only and must leave gameplay unverified. Additional requirements need observation. Phaser templates,
-sprite helpers and their 2D gameplay tests do not apply to Three.js. A sprite PNG
-is a texture, not a 3D character model. Optional image review is advisory only.
-
-For presentation, use the local aurago-effects-3d-1.js controller documented in the job context. The five guided bases already update/render/dispose it. Register real ground/roof meshes, send actual hit points and world normals, and use the same camera as the audio listener. Point emitters require an explicit position. Keep HUD in DOM outside the scene renderer. No duplicate animation loop or AudioContext.
-
-## Complete loops and authored stages
-
-New `startGame(config)` accepts `levels:[{id,title,objects,goal,...}, ...]`;
-provide genuinely different object layouts or use distinct scene.json levels.
-Stage entries override the base config. A real win offers Continue; the current
-renderer/resources are released before the next stage starts. R restarts the
-campaign. `worldBounds:{min:[-100,-10,-100],max:[100,40,180]}` configures an authored
-world without scene.json; camera follow remains in the shared loop. Add actual
-routes, landmarks, cover and discoveries, not empty space.
-
-For authored rules, `api.damagePlayer(amount)` changes health/lives, produces
-feedback and checkpoint recovery. `api.setCheckpoint([x,y,z])` sets a safe respawn.
-The scene builder retains its own health/contact rules. `api.event('hit',point)`
-provides feedback only; emit it after a real hit. `api.win()`/`api.lose()` display
-an outcome and restart/next-stage controls. The shared flow supplies basic cues
-without imported packs and uses the existing mixer. Keep pause and dispose owners.
+Own rendering, controls, camera, rules and HTML UI freely. Writes save only; build
+reports compiler/import errors. The independent preview supports real screenshots,
+logs and input without canvas hooks. finish publishes a successfully built snapshot.

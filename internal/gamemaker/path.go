@@ -27,7 +27,7 @@ func safeRelativePath(raw string, allowManaged bool) (string, error) {
 		return "", fmt.Errorf("%w: traversal", ErrInvalidPath)
 	}
 	first := strings.ToLower(strings.Split(clean, "/")[0])
-	if !allowManaged && (first == "vendor" || first == "dist" || strings.HasPrefix(first, ".")) {
+	if !allowManaged && (first == "vendor" || first == "dist" || strings.HasPrefix(first, ".") || strings.Contains(clean, "/.")) {
 		return "", fmt.Errorf("%w: managed path", ErrInvalidPath)
 	}
 	return clean, nil

@@ -152,6 +152,8 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 
 ### UI and product
 
+- Game Maker: prioritize agent assistance and project freedom. Frameworks and visual/runtime checks are optional; only explicit finish plus a successful current build publishes. See `internal/gamemaker/AGENTS.md`.
+
 - Fit existing style: polished/native-feeling UX, clear jargon-free instructions, pending/success/failure/disabled feedback. Review changed flows as a user; add relevant Dashboard features/useful connection-test controls. Use dropdowns for defined choices; show defaults or explain empty selects the documented default. Keep menus usable; modals, never `alert()`; selectable LLMs use the provider system.
 - Distinct themes: `fruity` = Apple-inspired WhiteSur icons/topbar/floating dock/soft chrome; `standard` = Papirus icons/clear taskbar/structured start menu/restrained dark surfaces.
 - Translate changes into all 16 locales (`cs`, `da`, `de`, `el`, `en`, `es`, `fr`, `hi`, `it`, `ja`, `nl`, `no`, `pl`, `pt`, `sv`, `zh`); never fill locales with English. German: `Du`/real umlauts, never `Sie` or `ae`/`ue`/`oe` substitutes.
@@ -236,7 +238,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | File utilities | `internal/fileutil/AGENTS.md` | Shared file replacement/free-space probe. |
 | EasyDrag | `internal/flows/AGENTS.md`, `internal/server/AGENTS.md`, `ui/AGENTS.md`, `ui/js/desktop/apps/AGENTS.md` | Flow authoring, execution, approval/session authority, Desktop UI and Decisions media authorization. |
 | Fritz!Box | `internal/fritzbox/AGENTS.md` | TR-064 integration/Desktop widget. |
-| Game Maker | `internal/gamemaker/AGENTS.md` | Studio/planning/runtime feedback/progression/lifecycle/tool validation/sprite library/exports; owns asset-pack child index. |
+| Game Maker | `internal/gamemaker/AGENTS.md` | Free agent Studio, independent preview feedback, optional frameworks/assets and revision integrity; owns its child index. |
 | Aura Drift | `ui/js/desktop/apps/AGENTS.md`, `ui/AGENTS.md`, `internal/desktop/AGENTS.md`, `assets/aura-drift/AGENTS.md`, `ui/3d/aura-drift/pets/AGENTS.md`, `documentation/aura-drift.md`, `plans/2026-11-06-aura-drift-3d-overhaul.md` | Offline Virtual Desktop racer: three.js 3D view (default, WebGL2 required, Canvas 2D fallback) with Blender models, deterministic 120 Hz bicycle physics, eight spline tracks, seven modes, eight cars, 18 weapons, 16 tricks, own-synthesis Ogg sound pack with live fallbacks, drift-chain style scoring, seeded weather, sixteen locales; verify `TestAuraDrift*`, `TestDesktopAuraDrift*Browser` and the `scripts/test-aura-drift-*.mjs` checks. |
 | HTTP streams | `internal/httpstream/AGENTS.md` | Finite write budgets/HTTP writer compatibility. |
 | Infra | `internal/infra/AGENTS.md` | Homelab atlas/source identity/layout/durable action outcomes. |

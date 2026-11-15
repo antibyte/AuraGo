@@ -58,74 +58,30 @@ func recoveryNudge(t *testing.T, s *agentLoopState) string {
 }
 
 func TestGameMakerAnnouncementNudgeIsStudioSpecific(t *testing.T) {
-	planning, building := gameMakerPhaseToolNames("planning"), gameMakerPhaseToolNames("building")
-	for _, test := range []struct {
-		name    string
-		native  bool
-		allowed []string
-		want    []string
-		absent  []string
-	}{
-		{"text planning", false, planning, []string{
-			"Your last reply contained no Game Maker tool call.", "game_maker_asset, game_maker_file, game_maker_project",
-			"Pass the operation (e.g. set_design, read, replace) in the operation argument of its tool",
-			`{"action":"game_maker_project","operation":"set_design","design":{...}}`,
-			"Planning ends only when a design is accepted",
-		}, []string{"game_maker_validate", "one short sentence", "native"}},
-		{"text building", false, building, []string{
-			"game_maker_asset, game_maker_file, game_maker_project, game_maker_validate",
-			`{"action":"game_maker_file","operation":"read","path":"src/main.ts"}`,
-			"If this phase's work is done, reply with one short sentence; the server then checks the saved files.",
-		}, []string{"Planning ends", "native"}},
-		{"native planning", true, planning, []string{
-			"Your last reply contained no Game Maker tool call.", "game_maker_asset, game_maker_file, game_maker_project",
-			"in the operation argument of its tool; use the native function-calling mechanism.",
-		}, []string{`{"action"`, "raw JSON"}},
-		// The Studio adds code_graph to its scope when project knowledge is enabled.
-		{"text building with code_graph", false, append([]string{"code_graph"}, building...), []string{
-			"code_graph, game_maker_asset, game_maker_file, game_maker_project, game_maker_validate",
-			`{"action":"game_maker_file","operation":"read","path":"src/main.ts"}`,
-			"If this phase's work is done, reply with one short sentence; the server then checks the saved files.",
-		}, []string{"Planning ends", "native"}},
-		{"native planning with code_graph", true, append([]string{"code_graph"}, planning...), []string{
-			"Your last reply contained no Game Maker tool call.", "code_graph, game_maker_asset, game_maker_file, game_maker_project",
-			"in the operation argument of its tool; use the native function-calling mechanism.",
-		}, []string{`{"action"`, "raw JSON"}},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			s := announcementState(t, test.native, test.allowed)
-			s.recentTools = []string{"game_maker_project"}
-			got := recoveryNudge(t, s)
-			if got != formatGameMakerAnnouncementFeedback(test.native, test.allowed) {
-				t.Fatalf("the Studio run did not get the Studio nudge: %q", got)
-			}
-			for _, want := range test.want {
-				if !strings.Contains(got, want) {
-					t.Errorf("nudge lacks %q: %s", want, got)
+	for _, native := range []bool{false, true} {
+		for _, scope := range [][]string{gameMakerPhaseToolNames("building"), append([]string{"code_graph"}, gameMakerPhaseToolNames("building")...)} {
+			got := recoveryNudge(t, announcementState(t, native, scope))
+			for _, required := range append(scope, "operation finish", "does not publish") {
+				if !strings.Contains(got, required) {
+					t.Fatalf("nudge lacks %q: %s", required, got)
 				}
 			}
-			for _, absent := range append(test.absent, "<done/>", "discover_tools", "file_editor", "already ran") {
-				if strings.Contains(got, absent) {
-					t.Errorf("nudge must not contain %q: %s", absent, got)
+			for _, removed := range []string{"set_design", "game_maker_validate", "discover_tools", "<done/>"} {
+				if strings.Contains(got, removed) {
+					t.Fatalf("obsolete nudge: %s", got)
 				}
 			}
-		})
+		}
 	}
 }
 
 // The text-mode example in the nudge must be a call the text parser accepts as
 // written: "action" is the canonical key and top-level fields become arguments.
 func TestGameMakerAnnouncementNudgeExampleParses(t *testing.T) {
-	building := formatGameMakerAnnouncementFeedback(false, gameMakerPhaseToolNames("building"))
-	example := building[strings.Index(building, `{"action"`) : strings.LastIndex(building, "}")+1]
-	if tc := ParseToolCall(example); tc.Action != "game_maker_file" || tc.Operation != "read" || tc.Params["path"] != "src/main.ts" {
-		t.Fatalf("building example is not parsed as a call: %+v", tc)
-	}
-	planning := formatGameMakerAnnouncementFeedback(false, gameMakerPhaseToolNames("planning"))
-	example = strings.Replace(planning[strings.Index(planning, `{"action"`):strings.Index(planning, "}}")+2], "{...}", `{"base":"shooter"}`, 1)
-	tc := ParseToolCall(example)
-	if design, _ := tc.Params["design"].(map[string]interface{}); tc.Action != "game_maker_project" || tc.Operation != "set_design" || design["base"] != "shooter" {
-		t.Fatalf("planning example is not parsed as a call: %+v", tc)
+	text := formatGameMakerAnnouncementFeedback(false, gameMakerPhaseToolNames("building"))
+	example := text[strings.Index(text, `{"action"`) : strings.LastIndex(text, "}")+1]
+	if tc := ParseToolCall(example); tc.Action != "game_maker_file" || tc.Operation != "read" || tc.Params["path"] != "index.html" {
+		t.Fatalf("example is not a call: %+v", tc)
 	}
 }
 
@@ -184,20 +140,16 @@ func TestGameMakerXMLFallbackNoteStaysInsideStudio(t *testing.T) {
 // Through the real loop (no loop-state ctx needed): a text-mode Studio planning run whose model first
 // answers with prose is nudged with the Studio text, then submits its design.
 func TestGameMakerTextOnlyReplyGetsStudioNudgeInTheLoop(t *testing.T) {
-	fixture := loadTextModeReplayFixture(t)
-	glm := fixture.Models[1]
-	prose := "I will look at the planning tools first:\n- get_plan\n- set_design"
-	result := replayGameMakerPlanning(t, glm.Dimension, []string{prose, glm.Replies["set_design"]}, func(run *RunConfig) {
+	result := replayGameMaker(t, "2d", []string{"I will build the game now.", `{"tool":"finish","arguments":{}}`}, func(run *RunConfig) {
 		run.Config.Agent.AnnouncementDetector.Enabled, run.Config.Agent.AnnouncementDetector.MaxRetries = true, 2
 	})
 	requireTextModeWithoutDenial(t, result)
-	want := formatGameMakerAnnouncementFeedback(false, gameMakerPhaseToolNames("planning"))
-	if !strings.Contains(result.shown, want) || strings.Contains(result.shown, "<done/>") || !result.accepted {
-		t.Fatalf("accepted=%v; the model did not see the Studio nudge:\n%s", result.accepted, result.shown)
+	if !strings.Contains(result.shown, "operation finish") || !result.accepted {
+		t.Fatalf("finish=%v; model context: %s", result.accepted, result.shown)
 	}
 }
 
-func TestGameMakerPlanningTextOnlyRecoveryIsBounded(t *testing.T) {
+func TestGameMakerTextOnlyRecoveryIsBounded(t *testing.T) {
 	for _, native := range []bool{false, true} {
 		for _, content := range []string{"Done.<done/>", "Which controls should I use?", strings.Repeat("The game will have platforms and collectibles. ", 10), `<workflow_plan>["game_maker_project"]</workflow_plan>`} {
 			s := announcementState(t, native, gameMakerPhaseToolNames("planning"))
@@ -207,11 +159,11 @@ func TestGameMakerPlanningTextOnlyRecoveryIsBounded(t *testing.T) {
 			for attempt := 0; attempt < 2; attempt++ {
 				_, _, retry, _ := handleAgentLoopRecoveries(s, content, ToolCall{}, parsed, false, emotionBehaviorPolicy{})
 				if retry != (attempt == 0) {
-					t.Fatalf("native=%v attempt=%d retry=%v: planning must allow exactly one text-only correction", native, attempt, retry)
+					t.Fatalf("native=%v attempt=%d retry=%v: run must allow exactly one text-only correction", native, attempt, retry)
 				}
 			}
 			if got := s.req.Messages[len(s.req.Messages)-1].Content; got != formatGameMakerAnnouncementFeedback(native, s.runCfg.AllowedTools) {
-				t.Fatalf("planning correction = %q", got)
+				t.Fatalf("run correction = %q", got)
 			}
 		}
 	}

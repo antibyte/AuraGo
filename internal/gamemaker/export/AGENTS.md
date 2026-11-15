@@ -15,8 +15,8 @@ game lifecycle and the sprite/model library stay in `internal/gamemaker/AGENTS.m
 - Revision listings compare file hashes with each revision's parent, include
   added/changed/deleted project-relative paths in sorted order (at most 40),
   and expose the full changed count plus a truncation flag.
-- Publication holds the source/build locks and rechecks the validation fingerprint
-  over source, assets, runtimes, output and plan before creating a revision.
+- Publication holds the source/build locks and rechecks the build fingerprint
+  over public source, assets, runtimes and output (excluding private conversation state) before creating a revision.
   Generated asset writes share the source lock. Changed or missing fingerprints
   reject publication while preserving the working copy and playable revision.
   A failed revision commit must retain staged blob work for retry or explicit cleanup;
@@ -25,7 +25,10 @@ game lifecycle and the sprite/model library stay in `internal/gamemaker/AGENTS.m
   project directories. On restart, recover only when the project revision and
   expected files establish the outcome; retain ambiguous receipts for review.
   Incomplete temporary receipt writes may be removed without changing projects.
-- ZIP export reads one published revision from the blob store, verifies sizes/hashes and required entry files, and retains that revision's runtime files. Never export mutable workspace edits alongside old compiled output. Finish a temporary archive before committing HTTP download headers; export failures must not become successful partial ZIPs. Include standalone HTTP-server instructions; file:// is not a supported launch path. Check extracted 2D/3D games without the preview boot/driver, including subdirectory hosting, imported assets and audio. `TestNightlyExportBrowser` does that for one unmodified platformer export and one exploration export that uses the guided default catalog models, with no LLM, when `GAMEMAKER_NIGHTLY_BROWSER=1`. The larger `GAMEMAKER_*_BROWSER` suites stay opt-in.
+- The revision and successful job completion share one database transaction.
+  A failed job-completion write rolls back publication. Retained-draft cleanup
+  finishes before releasing the project writer, so it cannot remove a newer job.
+- ZIP export reads one published revision from the blob store, verifies sizes/hashes and index.html/game.json (plus dist/game.js when src/main.ts exists), and retains that revision's runtime files. Never export mutable workspace edits alongside old compiled output. Finish a temporary archive before committing HTTP download headers; export failures must not become successful partial ZIPs. Include standalone HTTP-server instructions; file:// is not a supported launch path. Check extracted 2D/3D games without the preview boot/driver, including subdirectory hosting, imported assets and audio. `TestNightlyExportBrowser` does that for one unmodified platformer export and one exploration export that uses the guided default catalog models, with no LLM, when `GAMEMAKER_NIGHTLY_BROWSER=1`. The larger `GAMEMAKER_*_BROWSER` suites stay opt-in.
 
 ## Work Guidance
 

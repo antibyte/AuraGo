@@ -1,12 +1,9 @@
 package gamemaker
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"reflect"
 	"slices"
 	"strings"
 )
@@ -71,138 +68,6 @@ func ExampleGameDesign(project Project) GameDesign {
 	return d
 }
 
-// Only explicitly supplied top-level fields replace the failed draft. Arrays are
-// replaced whole. Unknown fields/invalid JSON never poison the next correction.
-func (s *Service) expandDesign(ctx context.Context, jobID string, project Project, data []byte) ([]byte, error) {
-	var patch map[string]json.RawMessage
-	if err := json.Unmarshal(data, &patch); err != nil {
-		return nil, fmt.Errorf("design: %w. Use inspect.design_example fields; level objects belong in scene.nodes, and generated platforms use scene_generate after plan acceptance. Free mechanics belong in features and source code", err)
-	}
-	// A restated project dimension is redundant rather than invented content.
-	if raw, ok := patch["dimension"]; ok {
-		var dimension string
-		if json.Unmarshal(raw, &dimension) != nil || dimension != project.Dimension {
-			return nil, fmt.Errorf("design.dimension: dimension is fixed by the project (%s); omit this field", project.Dimension)
-		}
-		delete(patch, "dimension")
-	}
-	// Native providers use a JSON string to avoid unbounded ingredient-map schemas.
-	// Direct JSON objects retain the same strict, shared definition validation.
-	if raw := bytes.TrimSpace(patch["voxel"]); len(raw) > 0 && raw[0] == '"' {
-		var text string
-		if err := json.Unmarshal(raw, &text); err != nil {
-			return nil, fmt.Errorf("design.voxel: %w", err)
-		}
-		patch["voxel"] = json.RawMessage(text)
-	}
-	s.mu.RLock()
-	draft := map[string]json.RawMessage{}
-	for k, v := range s.designDrafts[jobID] {
-		draft[k] = v
-	}
-	s.mu.RUnlock()
-	if err := normalizeDesignMechanics(patch, draft); err != nil {
-		return nil, err
-	}
-	for k, v := range patch {
-		if !bytes.Equal(bytes.TrimSpace(v), []byte("null")) {
-			draft[k] = v
-		}
-	}
-	// The correction for unsupported settings is to omit/null them. Do not
-	// resurrect them from a failed draft when the effective base cannot use them.
-	// Guided bases still retain omitted/null values, including a disabled timer.
-	var base string
-	if json.Unmarshal(draft["base"], &base) == nil && slices.Contains(templateNames(), base) && !guided3D(base) {
-		if raw := patch["settings"]; len(raw) == 0 || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
-			delete(draft, "settings")
-		}
-	}
-	// Repair the deterministic mistakes before strict decoding: plural asset
-	// IDs, duplicate roles, unknown asset metadata and incompatible settings.
-	s.repairDesignDraft(jobID, project, draft)
-	merged, err := json.Marshal(draft)
-	if err != nil {
-		return nil, err
-	}
-	if len(merged) > 24000 {
-		return nil, fmt.Errorf("design exceeds 24000 bytes")
-	}
-	var design GameDesign
-	dec := json.NewDecoder(bytes.NewReader(merged))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&design); err != nil {
-		return nil, fmt.Errorf("design: %w. Use inspect.design_example fields; level objects belong in scene.nodes, and generated platforms use scene_generate after plan acceptance. Free mechanics belong in features and source code", err)
-	}
-	if err := dec.Decode(new(any)); err != io.EOF {
-		return nil, fmt.Errorf("design: submit one object")
-	}
-	s.mu.Lock()
-	if s.designDrafts == nil {
-		s.designDrafts = map[string]map[string]json.RawMessage{}
-	}
-	s.designDrafts[jobID] = draft
-	remaining := s.remainingPlanAttemptsLocked(jobID)
-	s.mu.Unlock()
-	if issues := s.designIssues(project, design); len(issues) > 0 {
-		return nil, &DesignValidationError{Issues: issues, RemainingAttempts: remaining, RetainedBase: design.Base}
-	}
-	plan, err := s.planFromDesign(ctx, jobID, project, design)
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(plan)
-}
-
-// Some models flatten the documented mechanics object. Relocate only its four
-// exact fields; normal plan validation still checks their values and limits.
-func normalizeDesignMechanics(patch, draft map[string]json.RawMessage) error {
-	var mechanics map[string]any
-	changed := false
-	raw := patch["mechanics"]
-	explicit := len(raw) > 0 && !bytes.Equal(bytes.TrimSpace(raw), []byte("null"))
-	if !explicit {
-		raw = draft["mechanics"]
-	}
-	for _, key := range []string{"outcomes", "lives", "blocks", "events"} {
-		value, exists := patch[key]
-		if !exists {
-			continue
-		}
-		delete(patch, key)
-		if bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
-			continue
-		}
-		if mechanics == nil {
-			if len(raw) > 0 {
-				if err := json.Unmarshal(raw, &mechanics); err != nil {
-					return fmt.Errorf("design.mechanics: expected an object containing outcomes, lives, blocks and events: %w", err)
-				}
-			}
-			if mechanics == nil {
-				mechanics = map[string]any{}
-			}
-		}
-		var decoded any
-		if err := json.Unmarshal(value, &decoded); err != nil {
-			return fmt.Errorf("design.mechanics.%s: %w", key, err)
-		}
-		if nested, exists := mechanics[key]; explicit && exists && nested != nil && !reflect.DeepEqual(nested, decoded) {
-			return fmt.Errorf("design.mechanics.%s: conflicts with design.%s; keep one value inside mechanics", key, key)
-		}
-		mechanics[key] = decoded
-		changed = true
-	}
-	if changed {
-		encoded, err := json.Marshal(mechanics)
-		if err != nil {
-			return fmt.Errorf("design.mechanics: %w", err)
-		}
-		patch["mechanics"] = encoded
-	}
-	return nil
-}
-
 func (s *Service) planFromDesign(ctx context.Context, jobID string, project Project, d GameDesign) (GamePlan, error) {
 	p := ExampleGamePlan(project)
 	// New games must not inherit the example's instruction prose. Edits keep the
@@ -237,7 +102,6 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 	// of the shared example's instruction text. Catalog IDs stay optional.
 	if project.CurrentRevision == 0 && len(d.Assets) == 0 && slices.Contains(templateNames(), d.Base) && !is3DTemplate(d.Base) {
 		d.Assets = defaultDesignAssets(d.Base)
-		s.noteDesignWarning(jobID, "design.assets: filled the default procedural roles for base "+d.Base+"; replace any role with exact search_assets IDs when the request needs specific artwork")
 	}
 	seen := map[string]bool{}
 	for _, a := range d.Assets {
@@ -316,7 +180,6 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 		// with one concrete procedural role so its instruction prose cannot
 		// become part of the plan.
 		d.Assets = []DesignAsset{{Role: "player", Fallback: "procedural player capsule"}}
-		s.noteDesignWarning(jobID, "design.assets: filled the default procedural player role for base three")
 	}
 	if len(d.Assets) > 0 {
 		p.Assets = nil

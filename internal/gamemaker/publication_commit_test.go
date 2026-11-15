@@ -14,7 +14,7 @@ func TestPublishCommitFailurePreservesStageAndPublishedProject(t *testing.T) {
 	makeStage := func(id, content string) string {
 		t.Helper()
 		stage := filepath.Join(s.stagingDir, id)
-		if err := os.MkdirAll(stage, 0o750); err != nil {
+		if err := WriteScaffold(stage, project); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.WriteFile(filepath.Join(stage, "marker.txt"), []byte(content), 0o640); err != nil {

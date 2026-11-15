@@ -5,8 +5,8 @@
     // never enter this decorative terminal. The normal status UI stays accessible.
     const phases = new Set(['queued', 'planning', 'building', 'validating', 'polishing', 'cancelling']);
     const tools = {
-        game_maker_project: 'planning', game_maker_file: 'files',
-        game_maker_asset: 'assets', game_maker_validate: 'validating',
+        game_maker_project: 'building', game_maker_file: 'files',
+        game_maker_asset: 'assets', game_maker_preview: 'preview',
         activate_agent_skill: 'skills'
     };
 
@@ -164,15 +164,8 @@
             case 'file_changed': add(t('game_maker.updated') + ' > ' + text(p.path)); break;
             case 'asset_changed': add(t('game_maker.assets') + ' > ' + text(p.path || p.kind)); break;
             case 'skill_activation': add(t('game_maker.skill_loaded')); break;
-            case 'validation_result':
-                for (const kind of ['gameplay', 'rules']) {
-                    const status = p.result?.[kind + '_status'];
-                    if (['passed', 'failed', 'unverified', 'unavailable'].includes(status)) add(t('game_maker.' + kind + '_checks') + ' > ' + t('game_maker.check_' + status));
-                }
-                break;
-            case 'visual_progress':
-                if (['capturing', 'analyzing', 'repairing'].includes(p.status)) add(t('game_maker.visual_' + p.status));
-                break;
+            case 'agent_capture': add(t('game_maker.agent_view')); break;
+            case 'build_started': add(t('game_maker.terminal_building')); break;
             }
         }
 

@@ -95,7 +95,7 @@ func (s *Service) SearchJobFiles(ctx context.Context, jobID, query string) (Proj
 	result := ProjectSearch{Query: query, Files: []SourceSearch{}}
 	remaining := maxSearchMatches
 	for _, file := range files {
-		if file != "game.json" && !strings.HasPrefix(file, "src/") {
+		if strings.HasPrefix(file, "vendor/") || strings.HasPrefix(file, "dist/") || strings.HasPrefix(file, ".") || strings.Contains(file, "/.") {
 			continue
 		}
 		if !slices.Contains([]string{".ts", ".tsx", ".js", ".mjs", ".json", ".css", ".html", ".txt", ".md"}, strings.ToLower(path.Ext(file))) {

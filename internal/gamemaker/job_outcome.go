@@ -174,32 +174,14 @@ func applyJobOutcome(payload map[string]any, job Job) map[string]any {
 	return payload
 }
 
-func (s *Service) finishFailure(job Job, ctx context.Context, failure error, result *BuildResult, repairPasses *int) {
-	if result != nil {
-		job.ChecksPassed, job.ChecksFailed = checkCounts(result.Checks)
-		job.GameplayStatus = strings.TrimSpace(result.GameplayStatus)
-		job.OpenChecks = openChecksFromResult(result)
-	}
-	job.RepairPasses = repairPasses
-	s.terminateJob(job, ctx, failure)
-}
-
-func (s *Service) finishReady(job Job, project Project, revision Revision, result *BuildResult, repairPasses *int) {
+func (s *Service) finishReady(job Job, project Project, revision Revision) {
 	now := time.Now().UTC()
 	job.Status = "ready"
 	job.Phase = "ready"
 	job.ResultRevision = revision.Number
 	job.FinishedAt = &now
 	job.ErrorCode = ""
-	if result != nil {
-		job.ChecksPassed, job.ChecksFailed = checkCounts(result.Checks)
-		job.GameplayStatus = strings.TrimSpace(result.GameplayStatus)
-	}
-	job.RepairPasses = repairPasses
-	s.finishWorkingCopy(job)
 	s.mu.Lock()
-	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='ready',phase='ready',result_revision=?,finished_at=?,error_code='',gameplay_status=?,checks_passed=?,checks_failed=?,repair_passes=?,open_checks='' WHERE id=?`,
-		revision.Number, now, job.GameplayStatus, nullableInt(job.ChecksPassed), nullableInt(job.ChecksFailed), nullableInt(job.RepairPasses), job.ID)
 	s.releaseJobLocked(job.ID)
 	s.mu.Unlock()
 	s.mu.RLock()
@@ -219,36 +201,21 @@ func (s *Service) finishReady(job Job, project Project, revision Revision, resul
 }
 
 func (s *Service) runAdoptJob(ctx context.Context, job Job, project Project, stage string) {
-	if err := s.updateJobPhase(ctx, &job, "planning"); err != nil {
-		s.terminateJob(job, ctx, &JobError{Code: "internal", Err: err})
+	if err := s.updateJobPhase(ctx, &job, "building"); err != nil {
+		s.terminateJob(job, ctx, err)
 		return
 	}
-	accepted, err := s.acceptPublishedPlan(ctx, job.ID)
-	if err != nil {
-		s.terminateJob(job, ctx, &JobError{Code: "planning", Err: err})
-		return
-	}
-	_, _ = s.emit(ctx, project.ID, job.ID, "plan_summary", planSummaryPayload(job, accepted))
-	if err := s.updateJobPhase(ctx, &job, "validating"); err != nil {
-		s.terminateJob(job, ctx, &JobError{Code: "internal", Err: err})
-		return
-	}
-	scope := "full"
-	if project.Dimension == "3d" && !s.sceneBackedCurrent(ctx, job.ID, accepted) {
-		scope = "startup"
-	}
-	result := s.validateForPublication(ctx, job.ID, scope)
-	passes := intPtr(0)
+	result := s.BuildJob(ctx, job.ID)
 	if !result.OK {
-		s.finishFailure(job, ctx, &JobError{Code: validationFailureCode(result), Err: fmt.Errorf("game validation failed: %s", diagnosticsText(result.Diagnostics))}, &result, passes)
+		s.terminateJob(job, ctx, fmt.Errorf("build failed: %s", diagnosticsText(result.Diagnostics)))
 		return
 	}
 	revision, err := s.publishValidated(ctx, stage, project, job, result)
 	if err != nil {
-		s.finishFailure(job, ctx, &JobError{Code: "internal", Err: err}, &result, passes)
+		s.terminateJob(job, ctx, err)
 		return
 	}
-	s.finishReady(job, project, revision, &result, passes)
+	s.finishReady(job, project, revision)
 }
 
 func (s *Service) LatestJob(ctx context.Context, projectID string) (Job, bool, error) {

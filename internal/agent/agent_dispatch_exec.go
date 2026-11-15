@@ -225,7 +225,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 
 	result := func() string {
 		switch tc.Action {
-		case "game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_validate":
+		case "game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_validate", "game_maker_preview":
 			result, _ := dispatchGameMaker(ctx, tc, dc)
 			return result
 		case "cyd_creator_read_project", "cyd_creator_api_reference", "cyd_creator_submit_plan", "cyd_creator_update_layout",

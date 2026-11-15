@@ -41,10 +41,10 @@ func gameMakerPhaseScope(t *testing.T, stage string) (*DispatchContext, []string
 
 func TestScopeRefusalsListWhatTheRunMayCall(t *testing.T) {
 	dc, phase := gameMakerPhaseScope(t, "planning")
-	if slices.Contains(phase, "game_maker_validate") || len(phase) != 3 {
-		t.Fatalf("fixture: planning must offer project, file and asset only: %v", phase)
+	if !slices.Contains(phase, "game_maker_preview") || len(phase) != 4 {
+		t.Fatalf("fixture: planning must offer project, file, asset and preview: %v", phase)
 	}
-	const generic = "Call one of allowed_tools by its exact name; operations such as set_design go in the operation argument."
+	const generic = "Call one of allowed_tools by its exact name; operations such as build go in the operation argument."
 
 	// Both refusal paths answer from the same allow-list with the same fields.
 	policy := checkDispatchActionPolicy(context.Background(), ToolCall{Action: "filesystem"}, dc)
@@ -73,7 +73,7 @@ func TestScopeRefusalsListWhatTheRunMayCall(t *testing.T) {
 }
 
 func TestScopeRefusalHintNamesTheOwnerOfAnOutOfPhaseOperation(t *testing.T) {
-	planning, _ := gameMakerPhaseScope(t, "planning")
+	planning := &DispatchContext{ToolScopeRestricted: true, AllowedTools: normalizedAllowedToolSet([]string{"game_maker_project", "game_maker_file", "game_maker_asset"})}
 	building, _ := gameMakerPhaseScope(t, "building")
 	for _, test := range []struct {
 		name     string
@@ -81,11 +81,11 @@ func TestScopeRefusalHintNamesTheOwnerOfAnOutOfPhaseOperation(t *testing.T) {
 		denied   string
 		wantHint string
 	}{
-		{"validate during planning", planning, "validate", "validate is an operation of game_maker_validate, which is not available in this phase. Call one of allowed_tools by its exact name."},
-		{"owner is in scope", planning, "write", "Call one of allowed_tools by its exact name; operations such as set_design go in the operation argument."},
-		{"owner is in scope when building", building, "validate", "Call one of allowed_tools by its exact name; operations such as set_design go in the operation argument."},
-		{"not a Game Maker run", &DispatchContext{ToolScopeRestricted: true, AllowedTools: normalizedAllowedToolSet([]string{"status"})}, "validate", "Call one of allowed_tools by its exact name; operations go in the operation argument."},
-		{"no tools at all", &DispatchContext{ToolScopeRestricted: true, AllowedTools: normalizedAllowedToolSet([]string{})}, "validate", "No tool is available in this run; answer without a tool call."},
+		{"validate during planning", planning, "logs", "logs is an operation of game_maker_preview, which is not available in this run. Call one of allowed_tools by its exact name."},
+		{"owner is in scope", planning, "write", "Call one of allowed_tools by its exact name; operations such as build go in the operation argument."},
+		{"owner is in scope when building", building, "logs", "Call one of allowed_tools by its exact name; operations such as build go in the operation argument."},
+		{"not a Game Maker run", &DispatchContext{ToolScopeRestricted: true, AllowedTools: normalizedAllowedToolSet([]string{"status"})}, "logs", "Call one of allowed_tools by its exact name; operations go in the operation argument."},
+		{"no tools at all", &DispatchContext{ToolScopeRestricted: true, AllowedTools: normalizedAllowedToolSet([]string{})}, "logs", "No tool is available in this run; answer without a tool call."},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			for path, output := range map[string]string{
@@ -102,9 +102,9 @@ func TestScopeRefusalHintNamesTheOwnerOfAnOutOfPhaseOperation(t *testing.T) {
 	// model learns the owner instead of "all tools are out of scope".
 	dispatchDC := actionSecurityFixture(t, func(context.Context, ToolCall) (string, bool) { return `{"status":"ok"}`, true })
 	dispatchDC.ToolScopeRestricted, dispatchDC.AllowedTools = planning.ToolScopeRestricted, planning.AllowedTools
-	call := ParseToolCall(`{"tool":"validate","arguments":{}}`)
+	call := ParseToolCall(`{"tool":"logs","arguments":{}}`)
 	result := DispatchToolCallResult(gamemaker.WithJobContext(context.Background(), "job-recovery"), &call, dispatchDC, "fixture")
-	if body := decodeScopeRecovery(t, result.Output); body.Code != "tool_scope_denied" || !strings.Contains(body.Hint, "game_maker_validate") {
+	if body := decodeScopeRecovery(t, result.Output); body.Code != "tool_scope_denied" || !strings.Contains(body.Hint, "game_maker_preview") {
 		t.Fatalf("planning validate refusal: %s", result.Output)
 	}
 }

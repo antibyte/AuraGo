@@ -46,32 +46,17 @@ func (s *agentLoopState) announcementFeedback() string {
 	return FormatAnnouncementFeedback(s.useNativeFunctions, s.recentTools)
 }
 
-// formatGameMakerAnnouncementFeedback is the Studio form of
-// FormatAnnouncementFeedback: it names the run's tools and the exact call shape,
-// and says truthfully what a text-only reply does. Planning ends only when a
-// design is accepted; in building and repair the server validates the saved
-// files once the model stops calling tools. The text depends only on the run's
-// tools and mode, so it is stable for a phase.
+// formatGameMakerAnnouncementFeedback keeps recovery inside the bound tool catalog.
 func formatGameMakerAnnouncementFeedback(useNativeFunctions bool, allowedTools []string) string {
 	names, _ := allowedToolList(normalizedAllowedToolSet(allowedTools))
 	if len(names) == 0 {
 		names = slices.Sorted(maps.Keys(gameMakerToolOperations()))
 	}
-	building := slices.Contains(names, "game_maker_validate")
-	feedback := "Your last reply contained no Game Maker tool call. Available tools: " + strings.Join(names, ", ") +
-		". Pass the operation (e.g. set_design, read, replace) in the operation argument of its tool"
-	switch {
-	case useNativeFunctions:
-		feedback += "; use the native function-calling mechanism."
-	case building:
-		feedback += `, as one raw JSON object: {"action":"game_maker_file","operation":"read","path":"src/main.ts"}.`
-	default:
-		feedback += `, as one raw JSON object: {"action":"game_maker_project","operation":"set_design","design":{...}}.`
+	next := `Use a raw JSON object such as {"action":"game_maker_file","operation":"read","path":"index.html"}.`
+	if useNativeFunctions {
+		next = "Use native function calls."
 	}
-	if building {
-		return feedback + " If this phase's work is done, reply with one short sentence; the server then checks the saved files."
-	}
-	return feedback + " Planning ends only when a design is accepted, so submit it with set_design."
+	return next + " Available tools: " + strings.Join(names, ", ") + ". Continue working with those tools, or call game_maker_project with operation finish when the work is complete. A text-only reply does not publish the draft."
 }
 
 // formatIsolatedXMLFallbackFeedback is the note for a run with its own
@@ -91,7 +76,7 @@ func formatIsolatedXMLFallbackFeedback(action string, useNativeFunctions bool) s
 // tool call in a proprietary XML format. The generic note points at
 // discover_tools and file_editor, which a Studio run cannot call.
 func formatGameMakerXMLFallbackFeedback(action string, useNativeFunctions bool) string {
-	next := `a raw JSON object such as {"action":"game_maker_file","operation":"read","path":"src/main.ts"}`
+	next := `a raw JSON object such as {"action":"game_maker_file","operation":"read","path":"index.html"}`
 	if useNativeFunctions {
 		next = "the native function-calling mechanism"
 	}

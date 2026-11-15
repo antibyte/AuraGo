@@ -732,9 +732,7 @@ type GameMakerConfig struct {
 	MaxAssetSizeMB       int    `yaml:"max_asset_size_mb" json:"max_asset_size_mb"`
 	MaxProjectSizeMB     int    `yaml:"max_project_size_mb" json:"max_project_size_mb"`
 	JobTimeoutSeconds    int    `yaml:"job_timeout_seconds" json:"job_timeout_seconds"`
-	// PlanningTemperature and BuildingTemperature pin sampling for the isolated
-	// agent. Nil keeps the documented defaults (0.6 planning, 0.2 code phases);
-	// values are clamped to the agent loop's 0.05–1.5 range.
+	// Legacy persisted settings; the continuous agent uses the normal LLM sampling configuration.
 	PlanningTemperature *float64 `yaml:"planning_temperature" json:"planning_temperature"`
 	BuildingTemperature *float64 `yaml:"building_temperature" json:"building_temperature"`
 }

@@ -10,7 +10,7 @@ import (
 )
 
 // A project-wide search locates the owning file without scanning managed
-// runtimes, compiled output, assets or internal state.
+// runtimes, compiled output or internal state.
 func TestProjectSearchCoversOnlyEditableSources(t *testing.T) {
 	service := newTestService(t)
 	project := createTestProject(t, service, "2d")
@@ -68,7 +68,7 @@ func TestProjectSearchCoversOnlyEditableSources(t *testing.T) {
 	total := 0
 	for _, file := range bounded.Files {
 		total += len(file.Matches)
-		for _, prefix := range []string{"vendor/", "dist/", "assets/", ".aurago/"} {
+		for _, prefix := range []string{"vendor/", "dist/", ".aurago/"} {
 			if strings.HasPrefix(file.Path, prefix) {
 				t.Errorf("search scanned managed path %s", file.Path)
 			}

@@ -111,7 +111,7 @@ func TestFilesystemReceiptPublicationAcceptsRelativeWorkspace(t *testing.T) {
 	t.Cleanup(func() { _ = s.Close() })
 	project := createTestProject(t, s, "2d")
 	stage := filepath.Join(s.stagingDir, "relative-stage")
-	if err := os.MkdirAll(stage, 0o750); err != nil {
+	if err := WriteScaffold(stage, project); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(stage, "marker.txt"), []byte("relative"), 0o640); err != nil {

@@ -78,8 +78,8 @@ const scopeRecoveryMaxTools = 12
 
 // scopeRecoveryFields tells a model refused by a restricted tool scope what the
 // run may call instead: the sorted, bounded allow-list and a one-line hint. A
-// Game Maker operation name whose owning tool is outside the scope (validate
-// while planning) is traced to that owner. Both scope refusals read the run's
+// Game Maker operation name whose owning tool is outside the scope is traced
+// to that owner. Both scope refusals read the run's
 // dc.AllowedTools, the set dispatchToolAllowed decides on. The list is nil
 // without a restricted scope, which leaves the refusal untouched.
 func scopeRecoveryFields(dc *DispatchContext, denied string) ([]string, string) {
@@ -100,9 +100,9 @@ func scopeRecoveryFields(dc *DispatchContext, denied string) ([]string, string) 
 	case storymakerJob:
 		return names, "Call one of allowed_tools by its exact name; operations such as put_scene go in the operation argument."
 	case studio && owner != "" && !dispatchToolAllowed(dc, owner):
-		return names, fmt.Sprintf("%s is an operation of %s, which is not available in this phase. Call one of allowed_tools by its exact name.", echoedToolName(denied), owner)
+		return names, fmt.Sprintf("%s is an operation of %s, which is not available in this run. Call one of allowed_tools by its exact name.", echoedToolName(denied), owner)
 	case studio:
-		return names, "Call one of allowed_tools by its exact name; operations such as set_design go in the operation argument."
+		return names, "Call one of allowed_tools by its exact name; operations such as build go in the operation argument."
 	}
 	return names, "Call one of allowed_tools by its exact name; operations go in the operation argument."
 }

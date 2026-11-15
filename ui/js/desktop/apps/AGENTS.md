@@ -4079,8 +4079,7 @@ buttons and menu popovers remain excluded from those gestures.
 - `game-maker-studio-api.js`, `game-maker-studio-preview.js`,
   `game-maker-studio-modals.js`, and `game-maker-studio.js` implement Game
   Maker Studio: a project library, 2D/3D creation dialog with idea chips,
-  bounded agent progress (job banner with phase, elapsed time, and repair-pass
-  indicator, a phase stepper, and a job feed under the steps outside both panes), result cards for ready/failed jobs,
+  agent progress (activity, elapsed time, usage and a job feed outside both panes), result cards for ready/failed jobs,
   revision history, change requests, and a live game preview in one maximized
   desktop window.
 - `live-speech.js` mounts the shared realtime-speech panel on the desktop in a
@@ -4155,242 +4154,31 @@ registration lives in `internal/desktop/types.go`.
   keep exactly that order, after `core/media-keys-runtime.js` and before
   `core/menus-and-routing.js`, so `renderCalendar` and its helpers stay inside
   the shared Desktop runtime closure without duplication.
-- Game Maker Studio loads in the order `game-maker-studio-api.js`,
-  `game-maker-studio-activity.js` (`window.GameMakerStudioActivity`: per-window
-  background progress terminal),
-  `game-maker-studio-preview.js` (`window.GameMakerStudioPreview`: loading
-  overlay, stale badge, fullscreen, new-tab), `game-maker-studio-modals.js`
-  (`window.GameMakerStudioModals`: shared modal lifecycle, media toggles,
-  skills and revisions; the revisions list shows `changed_paths`, at most 40,
-  and `game_maker.revision_paths_truncated` when `truncated` is set;
-  confirmation stays shell-mediated),
-  `game-maker-studio-assets.js` (`window.GameMakerStudioAssets`: offline pack
-  catalog, selection, sprite/animation previews), then
-  `game-maker-studio.js`.
-- Game Maker Studio lays out by container, not by viewport: `.gm-studio` is the
-  `gm-studio` inline-size container and `.gm-preview-pane` the `gm-preview`
-  container. Every width rule exists as `@container` and as its `@media` twin,
-  because fixtures render panes outside the shell; change both together. Below
-  760px both rules show `[data-gm-steps]` and give `.gm-workspace` one column.
-  The step bar is row 1, `[data-gm-job-feed]` is row 2, and the panes share
-  row 3. A hidden feed uses `display: none`, so its row collapses. On a wide
-  grid the feed spans both columns as a content-sized first row; the panes
-  stay on the flexible second row so the conversation keeps most of the agent pane. `.gm-studio` starts at `data-gm-step="agent"`. That
-  step hides `.gm-preview-pane`; `preview` hides `.gm-agent-pane`. The bar uses
-  `display:none` above 760px, not the `hidden` attribute, and those pane rules
-  stay inside the 760px queries so a wide window keeps both panes. The buttons
-  are `game_maker.step_agent` and `game_maker.step_preview`. `playNow` selects
-  the preview. A phase event that enters `validating` selects it once, as does
-  opening a project whose active job is already validating. A repeated
-  validating event does not return there after the visible bar's
-  `confirmLeaveValidating` confirmation. Below 980px the library is hidden, so
-  the project select and `.gm-narrow-new` in the agent pane head are the only
-  way to switch or create. Keep the library button
-  the first `[data-gm-action="new"]` in document order and update all of them in
-  `applyCapabilities`. Only `.gm-conversation` may stretch in the agent pane;
-  banner and notice come and go. Dialogs size against the Studio window, pin
-  header and footer with offsets of `-var(--gm-modal-pad)`, and `modalError`
-  inserts above the footer. Signal colours use the `--gm-tone-*` variables, never
-  fixed light tints. Failure cards show `game_maker.failure_hint_<cause>` and
-  keep the backend text inside `details`. Use `error_code` from the job when
-  it is present; English substring matching remains only for older jobs that
-  have no code. A plan card (`plan_summary`) and a check-result card render
-  from `latest_job` so a reload does not depend on the SSE backlog. Omit the
-  check line unless both counts are present, and omit repair passes at nil or
-  0. When `usage.calls` is present, success and failure cards add one usage
-  line from that object. Omit it when calls are missing or zero. Tokens and
-  price use the localized unknown phrase when the field is absent. Do not add
-  a second usage stream in the client. Library states use `game_maker.status_<status>`. Verify with
-  `TestGameMakerStudioLayoutBrowser` (`GAMEMAKER_STUDIO_REPORTS` writes
-  screenshots).
-- Model qualification and continuation actions belong to the start and retry
-  dialogs plus the failure card. Both dialogs show the passive
-  `GET /api/game-maker/model-limits` line (`game_maker.model_limits_line`) under
-  the provider/model fields, warn with `game_maker.model_limits_warning` when a
-  known route reports `below_minimum`, and mark the field group with
-  `data-gm-model-state[data-below-minimum]`. The probe is debounced (350 ms),
-  ignores late responses and degrades to "unknown" on failure; only an explicit
-  confirmation sends `allow_small_model: true`, and a server
-  `model_context_too_small` answer replaces the dialog error with
-  `game_maker.small_model_blocked`. When the same response reports `small_model`,
-  both dialogs show `game_maker.compact_mode_title` and
-  `game_maker.compact_mode_body`. That flag is separate from `below_minimum`:
-  a route can be compact while it still clears the 16384 context floor.
-  When `known` is false, both dialogs show `data-gm-compact-opt-in`. A checked
-  box sends `small_model: true`. A hidden or unchecked box does not.
-  The failure card renders translated help for `latest_job.open_checks` (at most
-  six). `required_controls`, `required_stages`, `outcome_goal`, `outcome_lives`
-  and `effect_pickup` use their own strings. An id with the `role_` prefix uses
-  `game_maker.check_help_role`. Any other id uses `game_maker.check_help_generic`.
-  A missing translation falls
-  back to that generic string. `data-gm-apply-check` writes the matching
-  `game_maker.check_prompt_*` into the change field and does not start a job.
-  Expected and observed values stay in the collapsed technical details, off the headline. The model-facing
-  `next_action` stays inside the technical `details` as
-  `data-gm-model-instruction`. The card offers
-  `data-gm-retry-model` (resume with the chosen provider/model, which becomes the
-  project default) and `data-gm-extend-repairs` only for a failed job whose
-  `repair_passes` is above zero and below six, carrying `used + 3` as
-  `max_repair_passes`. Both resume with empty asset arrays. The card says
-  `game_maker.retry_keeps_pending_selection` when `error_code` is `planning` or
-  `planning_protocol`, and `game_maker.retry_keeps_bindings` otherwise. They never reset unrelated fields.
-  A ready non-voxel 3D card with `gameplay_status=unverified` shows
-  `game_maker.gameplay_unverified` before Play now. `data-gm-guided-base` fills
-  `game_maker.guided_base_change` into the change field and does not start a job.
-  Elapsed time reads `started_at` from the job or the active-job capability and
-  falls back to the local clock only when that time is missing.
-  Verify `TestGameMakerFailureCardBrowser`.
-- Game Maker Studio exposes `window.GameMakerStudioApp = { render, dispose,
-  instances }`. Every window owns and closes its EventSource, preview iframe,
-  channel ID, diagnostics, modal handlers, job-elapsed and busy-poll timers,
-  document-level overflow-menu listeners, and `message` listener.
-- Studio email export resolves its toolbar from the current window's container,
-  including queries before the shell markup exists. Verify mounting with the
-  shared email runtime and disabled export for unpublished projects in
-  `TestGameMakerEventsReconnectBrowser`.
-- Voxel is the third creation choice (`dimension: 3d, variant: voxel`), with
-  localized ideas/badges/capabilities. These fields stay immutable after creation.
-  `game-maker-studio-preview.js` forwards only load/save/reset from the exact
-  current frame/channel/project/published revision, using a parent-only grant.
-  Reject oversized/unknown messages; expose conflicts and keep drafts/validation
-  temporary. Flush before restore mutations and before project/frame replacement;
-  failed flushes require explicit discard through the existing shell confirmation.
-  External published revisions must pass that same resolution before replacing a
-  Voxel frame. Restore controls are disabled with the localized read-only reason
-  when `capabilities.allow_edit` is false.
-- Voxel new-window play uses verified `game-maker-player.html` and
-  `game-maker-player.js` with the same bridge and opaque iframe. Keep credentials
-  out of iframe messages, source URLs and exported games. A play-state GET 409
-  marks the revision-bound grant stale; recovery refreshes the trusted host on
-  initial-load races and the explicit Load latest action. Same-revision save CAS
-  conflicts still recover in place through Load latest. Verify
-  `TestGameMakerVoxelBridgeBrowser` alongside the existing Game Maker UI tests.
-- Scene diagnostics use the current preview channel and parent-window binding.
-  The toggle exposes boundaries, colliders, IDs and routes only in Studio; ZIP
-  exports never enable the overlay. Keep rule evidence separate from startup
-  status and display unverified custom gameplay honestly. The shared scene and
-  mechanics helpers use the existing engine loop, pause and disposal owners.
-  Verify with `GAMEMAKER_BUILDER_BROWSER=1` and `TestBuilderBrowser`, including
-  actual inputs, repeated resource counts, exported games and narrow layouts.
-- Each project remembers its last asset selection in this browser
-  (`localStorage` key `aurago.game-maker.asset-selection`, with an in-memory
-  fallback). The selection line also says `game_maker.assets_browser_only`:
-  it applies only in this browser and only to an ordinary change. The next
-  change request sends that selection again until the user
-  clears it. Try again sends empty `asset_pack_ids`, `model_asset_ids` and
-  `asset_selections`, and no presentation, so an accepted binding stays. An
-  empty selection lets the agent choose. Selecting packs never starts a job.
-  A new-game dialog holds the open project's selection until create succeeds
-  or the dialog is cancelled. Opening the asset browser from that dialog
-  stores the draft on the open project when the browser closes. The asset
-  browser still owns its AbortController and animation timer, released on
-  modal replacement/close and disposal. Metadata
-  stays English for agents; controls and pack titles cover all 16 locales.
-  Preview backgrounds are CSS only: PNGs contain genuine alpha, no painted
-  checkerboard.
-- Modular pack previews default to a complete assembly. Parts use metadata
-  coordinates and shared animation time; selecting an individual sprite exits
-  assembly mode. Reuse the window's existing preview timer and cleanup path.
-- Game Maker previews must use `sandbox="allow-scripts allow-pointer-lock"` without
-  `allow-same-origin` (`allowfullscreen` on the iframe is permitted).
-  Preview HTTP responses also send CSP `sandbox allow-scripts allow-pointer-lock` so "open in
-  new tab" cannot become a first-party AuraGo origin.
-  Accept diagnostics only from the instance iframe when `event.source`, the
-  random channel ID, the fixed source marker, and the bounded event type all
-  match. Forward bounded, deduplicated reports through the authenticated
-  `preview-report` API using the parent-held preview token; never grant the
-  iframe API credentials. Reports bind to a specific validation build. Forward
-  at most five sanitized dist/game.js line/column frames; strip other fields,
-  paths and invalid coordinates. The backend owns source mapping. Verify with
-  `TestGameMakerDiagnosticFramesBrowser` and `AURAGO_RUN_BROWSER_SMOKE=1`.
-  Include current-preview errors as untrusted diagnostics in the next change request.
-  Readiness requires the injected boot's `boot: true, visible: true` report;
-  game-authored ready messages alone never qualify browser validation.
-  Full gameplay grants contain bounded scenarios. Send them only to this iframe;
-  forward at most 16 observations and two 700,000-character PNG data URLs through
-  the existing authenticated parent report route. Never accept JavaScript test
-  expressions or an iframe-authored pass verdict. Validation and advisory image
-  results use localized SSE activity; planning/model deltas stay internal until
-  the server publishes a verified revision.
-  `game-maker-studio-preview.js` owns the message bridge and its report limits;
-  the app supplies its instance state and diagnostic callback.
-  Clear the visible diagnostics, error badge, and next-request diagnostics when
-  replacing a preview or opening a project. Late responses from an old preview
-  must not repopulate them; a ready message never clears current-run errors.
-  Stop validation reports when the grant expires or its job reaches a terminal
-  state, including late API failures. Published-game runtime diagnostics remain
-  visible locally.
-- Because the preview sandbox is opaque, game diagnostics must
-  `postMessage(..., "*")` (never `location.origin`, which is the string
-  `"null"`). The parent still validates source/channel/`event.source`.
-  Arm the loading overlay before assigning `iframe.src`, clear it on
-  `ready` or iframe `load`, and rely on the server-injected preview boot
-  script to hide leftover in-game `Loading…` HUD pills for agent-rewritten
-  `index.html` files.
-- Game Maker job progress UX: the job banner, phase stepper, and result
-  cards are driven by the project-scoped SSE stream; `capabilities.active_job`
-  marks the single globally running job (library spinner, disabled change
-  form plus hint in other projects) and is polled only while another project
-  is busy.
-- The preview placeholder's adventure terminal consumes only public phase,
-  allowlisted tool names, file/asset updates and check status events. Never feed
-  it model deltas, reasoning, arguments or diagnostic bodies. Render values as
-  bounded text, deduplicate replay IDs and scope them to the current job/project.
-  Keep the existing icon/copy stationary. Limit pending lines to 32 and DOM rows
-  to 24; suspend typing while hidden, offscreen, inactive or showing a game iframe.
-  Reduced motion reveals complete lines without a blinking cursor. Project
-  changes and disposal clear its timeout and history; disposal also disconnects
-  intersection/resize observers and visibility/media listeners.
-  Verify with `TestGameMakerActivityTerminalBrowser`; optional screenshots use
-  `AURAGO_GAME_TERMINAL_SCREENSHOTS` under ignored `reports/`.
-- Allowlisted `model_progress` statuses show waiting, receiving, retry and code
-  recovery without exposing model text. Consecutive identical statuses produce
-  one terminal/feed line; elapsed time stays live in the terminal prompt. Phase
-  events update the header status badge along with the banner and stepper,
-  including replayed phases. Failed/cancelled runs retain a static
-  terminal transcript with no animation timer. Recreate the activity controller
-  whenever deleting a project replaces the shell, so later jobs target the new
-  preview node. Keep all 16 desktop locales aligned.
-- Render terminal text at 16px (12px on narrow views) in local Press Start 2P with full opacity,
-  warm yellow fill and a narrow dark outline. Do not use gray fill, white outlines, text strokes or scanlines
-  over glyphs; keep the stage-card fade localized so surrounding lines stay legible.
-- EventSource open restores status even without replayed events; stale callbacks
-  cannot affect another project or disposed window. The server ends the persisted
-  backlog with `event: stream_ready` (no id). Until that marker, keep the latest
-  `job_status` or `phase` and any gameplay status, and do not append historical
-  file, asset, diagnostic, validation, preview or revision activity. After the
-  marker, events apply live. A native reconnect keeps its cursor and does not
-  treat new events as backlog. Terminal job status survives reconnects and
-  project refreshes. Cancellation shows its server reason and retry action, with
-  no active phase. Verify with `TestGameMakerEventsReconnectBrowser`.
-- The ready-job line `game_maker.gameplay_unverified` is shown only when
-  `gameplay_status` is `unverified` on a non-voxel 3D project. The same sentence
-  leads the result card, ahead of Play now.
-- A non-empty workspace drift draws a badge on the preview and a hint under
-  the change form. Preview replacement keeps that badge in the shell. The
-  badge action `adopt` confirms, then posts `adopt_workspace: true` with no
-  prompt and no model. Voxel adopt flushes through `preparePreviewReplacement`
-  first and stops when that returns false. The badge and hint stay hidden
-  when the drift payload is not three arrays or the count is zero. The adopt
-  action also stays hidden while a job is active or editing is off. While
-  phase is `validating`, the banner tells the user to keep this project's
-  preview visible. Switching
-  projects or closing the window confirms first; declining leaves the project
-  open. The sources button keeps `data-gm-action="skills"` and the dialog says
-  it does not turn generation on or off.
-- Game Maker retry buttons submit `resume: true`,
-  `validate_restored_draft: true` and an empty `prompt` directly through the
-  existing job-start flow, even after reopening the app. The server stores the
-  continuation sentence; the button label is not a user message. Preserve unsent
-  editor text, lock immediately against duplicate requests, and retain normal
-  permission and global-job gates. Private reasoning stays server-side, outside
-  the progress terminal and chat. Load, rename and request failures stay in the
-  diagnostics and notice; they do not set the job status to failed.
-- Game Maker visible strings use `game_maker.*` plus
-  `desktop.app_game_maker_studio` in all 16 `ui/lang/desktop/*.json` files.
-  Missing skills/revisions modals throw `game_maker.modules_load_failed`.
-  Destructive actions use shell-provided dialogs and never native browser
-  dialogs.
+- Game Maker modules load in their registered API/activity/preview/modals/assets/
+  shell order. Preserve per-window state, disposal, accessible controls and
+  container-responsive Agent/Preview panes.
+- Show the request, current activity, usage, compiler/browser diagnostics, recent
+  agent images and published revision. No check quota, repair count, guided-base
+  nudge, model-size admission dialog or mandatory preview visibility.
+- The interactive iframe remains playable and uses sandbox="allow-scripts
+  allow-pointer-lock", without allow-same-origin. Parent bridges validate the
+  exact iframe, project, channel and narrowly scoped revision grants.
+- Independent server screenshots are labeled Agent view, including build ID.
+  Accept only same-project agent-capture URLs; keep three displayed images.
+  Their lifetime and state are independent of iframe reload/visibility.
+- Browser diagnostics are build-scoped. No gameplay driver or automatic visual
+  review runs in the iframe. Loading settles for arbitrary HTML, without a canvas.
+- Continue/stop/provider/model selection and usage remain. Provider context/output
+  limits are informational; no Game Maker minimum or compact editing mode.
+- Failed/cancelled jobs retain drafts and the last revision. Retry restores the
+  draft; revision restore/adopt/export preserve server integrity and permissions.
+- Keep Voxel parent-only saved-game grants, CAS/version conflicts, flush-before-
+  replacement, new-window player bridge and opaque iframe isolation. Agent-browser
+  saves are temporary and never share published save credentials.
+- Existing asset selections, optional framework catalogs and revision history
+  remain available. Old plan records may be shown as historical data.
+- Visible strings use game_maker.* in all 16 desktop locales. Destructive actions
+  use shell dialogs. Missing modules use game_maker.modules_load_failed.
 - Galaxa modules attach to the shared `window.GalaxaCore` (GC) namespace and
   expose `GC.create<Name>(ctx)` factories that augment a per-instance `ctx`
   created via `Object.create(GC)` in `galaxa-deluxe.js`.

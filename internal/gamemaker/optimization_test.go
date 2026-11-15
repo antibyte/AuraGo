@@ -2,24 +2,22 @@ package gamemaker
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestSourceBatchPreflightSearchAndRuntime(t *testing.T) {
 	s := newTestService(t)
 	project := createTestProject(t, s, "2d")
 	s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
-		if run.Stage == "planning" {
-			return s.SetPlan(ctx, run.Job.ID, ExampleGamePlan(project))
-		}
 		if run.Stage != "building" {
 			return errors.New("unexpected repair")
+		}
+		if err := s.UseTemplate(ctx, run.Job.ID, "minimal"); err != nil {
+			return err
 		}
 		for path, source := range map[string]string{"src/main.ts": "import {value} from './value'; console.log(value);", "src/value.ts": "export const value = 1;"} {
 			if err := s.writeJobFile(ctx, run.Job.ID, path, source); err != nil {
@@ -37,17 +35,9 @@ func TestSourceBatchPreflightSearchAndRuntime(t *testing.T) {
 			t.Error("first file mutated before second precondition")
 		}
 		edits[1].ExpectedSHA256 = sourceHash(b)
-		invalid := "import meta from '../assets/builtin/missing/1/sheet.json'; export const value = meta;"
-		edits[1].NewText = &invalid
-		if _, err := s.ReplaceJobFiles(ctx, run.Job.ID, edits); err == nil {
-			t.Error("invalid asset import accepted")
-		}
-		if got, _ := s.ReadJobFile(ctx, run.Job.ID, "src/main.ts"); got != a {
-			t.Error("failed import preflight mutated source")
-		}
 		edits[1].NewText = &newB
 		written, err := s.ReplaceJobFiles(ctx, run.Job.ID, edits)
-		if err != nil || !written.Written || !written.Build.OK || len(written.Files) != 2 {
+		if err != nil || !written.Written || written.Build.OK || len(written.Files) != 2 {
 			t.Errorf("batch: %+v %v", written, err)
 		}
 		search, err := s.SearchJobFile(ctx, run.Job.ID, "src/main.ts", "console.log")
@@ -57,7 +47,7 @@ func TestSourceBatchPreflightSearchAndRuntime(t *testing.T) {
 		if _, err := s.SearchJobFile(ctx, run.Job.ID, "../escape", "value"); err == nil {
 			t.Error("search escaped job")
 		}
-		if s.RuntimeContext(ctx, run.Job.ID)["version"] != "phaser-2" {
+		if s.FrameworkReference(ctx, run.Job.ID, "phaser")["bundled_helper_version"] != "phaser-2" {
 			t.Error("installed runtime not described")
 		}
 		if err := s.writeJobFile(ctx, run.Job.ID, "src/common.ts", "export const custom = 1;"); err != nil {
@@ -117,115 +107,5 @@ func TestPrivateBuildSourceDiagnostics(t *testing.T) {
 	}
 	if bad := result.sourceMap.diagnostic("x", []RuntimeFrame{{"../../private", 1, 1}}); bad.File != "" {
 		t.Fatal("mapped foreign source")
-	}
-}
-
-func TestValidationReuseRequiresExactCurrentEvidence(t *testing.T) {
-	s := newTestService(t)
-	project := createTestProject(t, s, "2d")
-	s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
-		if run.Stage == "planning" {
-			return s.SetPlan(ctx, run.Job.ID, ExampleGamePlan(project))
-		}
-		stage, _ := s.JobDirectory(run.Job.ID)
-		fingerprint, err := validationFingerprint(stage)
-		if err != nil {
-			return err
-		}
-		check := &previewCheck{ID: "check", JobID: run.Job.ID, ReadyAt: time.Now().Add(-4 * time.Second), BoundToken: "grant", GameplayReceived: true, Scenarios: []GameScenario{{ID: "movement"}}}
-		result := &BuildResult{OK: true, RuntimeStatus: "passed", GameplayStatus: "passed", check: check, fingerprint: fingerprint, validationScope: "full"}
-		encodedScenarios, _ := json.Marshal(check.Scenarios)
-		result.scenarioFingerprint = sourceHash(string(encodedScenarios))
-		s.mu.Lock()
-		s.previewCheck = check
-		s.previewJobs[project.ID] = run.Job.ID
-		s.lastValidation[run.Job.ID] = result
-		s.mu.Unlock()
-		grant, err := s.CreatePreviewGrant(project.ID)
-		if err != nil {
-			return err
-		}
-		s.mu.Lock()
-		check.BoundToken = grant.Token
-		s.mu.Unlock()
-		if _, ok := s.reusableValidation(ctx, run.Job.ID, "full"); !ok {
-			t.Error("unchanged complete result not reused")
-		}
-		for _, path := range []string{"src/main.ts", "vendor/game-flow.js", gamePlanPath} {
-			full := filepath.Join(stage, filepath.FromSlash(path))
-			before, err := os.ReadFile(full)
-			if err != nil {
-				return err
-			}
-			if err := os.WriteFile(full, append(before, []byte("\n ")...), 0600); err != nil {
-				return err
-			}
-			if _, ok := s.reusableValidation(ctx, run.Job.ID, "full"); ok {
-				t.Errorf("reused changed %s", path)
-			}
-			if err := os.WriteFile(full, before, 0600); err != nil {
-				return err
-			}
-		}
-		result.TargetedChecks = true
-		if _, ok := s.reusableValidation(ctx, run.Job.ID, "full"); ok {
-			t.Error("targeted result reused")
-		}
-		result.TargetedChecks = false
-		if _, ok := s.reusableValidation(ctx, run.Job.ID, "startup"); ok {
-			t.Error("different scope reused")
-		}
-		check.Scenarios[0].ID = "changed"
-		if _, ok := s.reusableValidation(ctx, run.Job.ID, "full"); ok {
-			t.Error("changed checks reused")
-		}
-		check.Scenarios[0].ID = "movement"
-		s.mu.Lock()
-		token := s.tokens[grant.Token]
-		token.ExpiresAt = time.Now().Add(-time.Second)
-		s.tokens[grant.Token] = token
-		s.mu.Unlock()
-		if _, ok := s.reusableValidation(ctx, run.Job.ID, "full"); ok {
-			t.Error("expired evidence reused")
-		}
-		return errors.New("verified reuse")
-	}))
-	job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if done := waitJob(t, s, job.ID); done.Error != "verified reuse" {
-		t.Fatal(done.Error)
-	}
-}
-
-func TestDesignReportsIndependentCorrectionsWithinBudget(t *testing.T) {
-	s := newTestService(t)
-	project := createTestProject(t, s, "2d")
-	s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
-		err := s.SetDesignJSON(ctx, run.Job.ID, []byte(`{"base":"minimal","objective":"","features":[],"assets":[{"role":""}],"settings":{"goal":2}}`))
-		var detail *DesignValidationError
-		if !errors.As(err, &detail) || len(detail.Issues) < 4 || detail.RemainingAttempts != 2 {
-			t.Errorf("incomplete corrections: %v", err)
-		}
-		data, _ := json.Marshal(map[string]any{"objective": "Explore", "features": []string{"A peaceful garden"}, "assets": []DesignAsset{{Role: "player", Fallback: "A green circle"}}, "settings": nil})
-		if err := s.SetDesignJSON(ctx, run.Job.ID, data); err != nil {
-			return err
-		}
-		plan, err := s.GetPlan(ctx, run.Job.ID)
-		if err != nil {
-			return err
-		}
-		if plan.Template != "minimal" {
-			t.Error("correction changed retained base")
-		}
-		return errors.New("verified corrections")
-	}))
-	job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if done := waitJob(t, s, job.ID); done.Error != "verified corrections" {
-		t.Fatal(done.Error)
 	}
 }

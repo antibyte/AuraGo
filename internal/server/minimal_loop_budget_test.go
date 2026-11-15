@@ -9,8 +9,6 @@ import (
 	"testing"
 
 	"aurago/internal/budget"
-
-	"github.com/sashabaranov/go-openai"
 )
 
 func TestMinimalLoopBudgetError(t *testing.T) {
@@ -33,9 +31,6 @@ func TestMinimalLoopBudgetError(t *testing.T) {
 		var body map[string]string
 		if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil || w.Code != tc.status || body["error"] != tc.code || body["message"] == "" {
 			t.Fatalf("status=%d body=%s err=%v", w.Code, w.Body.String(), err)
-		}
-		if reason := gameVisualFailureReason(tc.err, openai.FinishReasonStop); reason != tc.code {
-			t.Fatalf("visual reason=%s, want %s", reason, tc.code)
 		}
 	}
 }

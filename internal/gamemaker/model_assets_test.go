@@ -169,28 +169,11 @@ func TestModelSelectionImportPreservationAndExport(t *testing.T) {
 	project := createTestProject(t, s, "3d")
 	ids := []string{"road-sedan", "humans-civilian-a", "architecture-floor"}
 	s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
-		if run.Stage == "visual" {
-			return nil
+		if !slices.Equal(run.ModelAssetIDs, ids) {
+			return fmt.Errorf("preselection lost")
 		}
-		if run.Stage == "planning" {
-			if !slices.Equal(run.ModelAssetIDs, ids) {
-				return fmt.Errorf("preselection lost")
-			}
-			files, err := s.ListJobFiles(ctx, run.Job.ID)
-			if err != nil {
-				return err
-			}
-			for _, f := range files {
-				if strings.Contains(f, ModelPackID) {
-					return fmt.Errorf("models imported before accepted plan")
-				}
-			}
-			p := ExampleGamePlan(run.Project)
-			p.Assets = nil
-			for _, id := range ids {
-				p.Assets = append(p.Assets, PlanAsset{Role: id, PackID: ModelPackID, Version: "1.0.0", AssetID: id, Scale: 1, Collider: "catalog"})
-			}
-			return s.SetPlan(ctx, run.Job.ID, p)
+		if err := s.UseTemplate(ctx, run.Job.ID, "three"); err != nil {
+			return err
 		}
 		pack, err := s.ImportAssetPack(ctx, run.Job.ID, ModelPackID, ids...)
 		if err != nil {
@@ -254,6 +237,10 @@ func TestModelSelectionImportPreservationAndExport(t *testing.T) {
 		inventory, err := s.importedJobPacks(ctx, run.Job.ID)
 		if err != nil || len(inventory) != 1 || len(inventory[0].AssetIDs) != 3 || len(inventory[0].Manifests) != 3 {
 			return fmt.Errorf("import inventory: %d, %v", len(inventory), err)
+		}
+		built := s.FinishJob(ctx, run.Job.ID)
+		if !built.OK {
+			return fmt.Errorf("finish: %v", built.Diagnostics)
 		}
 		return nil
 	}))

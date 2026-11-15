@@ -1,8 +1,9 @@
 # Voxel games in Game Maker Studio
 
-Choose **Voxel** when creating a project. Describe a survival or creative game;
-survival is the default. The agent authors the world, recipes, opponents and rules
-using the installed Three.js 0.186.1 runtime. The mode stays fixed during play.
+Choose **Voxel** to express the project preference. New drafts start as plain HTML;
+the agent can install the optional Voxel template with `use_template` or write a
+custom game. The controls and limits below describe the bundled Three.js Voxel
+template, whose survival mode is the default. Its mode stays fixed during play.
 The existing feature, creation, edit and deletion permissions still apply.
 
 ## Playing
@@ -59,11 +60,10 @@ streaming worlds, fluid simulation or electrical networks.
 
 ## Authoring and agent context
 
-Projects retain `dimension: "3d"` and add immutable `variant: "voxel"`. Older
-projects keep an empty variant. Plan schema 5 adds `voxel`; schemas 1–4 remain
-supported for existing games. Native `set_design` uses `base: "voxel"` plus a
-JSON-encoded `voxel` string. The example returned by `inspect` is the complete
-valid starting definition. Source edits use the same validator.
+The optional `use_template` operation with `template: "voxel"` installs the local
+runtime and starter. `game_maker_project/reference` with `framework: "voxel"`
+returns its API on demand. Publication records the installed template's dimension
+and variant. Old plan schemas remain readable but do not control new jobs.
 
 `src/voxel.json` contains `version`, `mode`, `seed`, `size`, `terrain`, `blocks`,
 `items`, `recipes`, `enemies` and optional `goals`. `src/main.ts` calls
@@ -78,16 +78,11 @@ scene/camera/renderer for decoration. Hooks dispose their own additions when
 reloading or closing. They must not introduce a competing input or animation loop.
 Feedback does not grant resources or satisfy gameplay checks.
 
-Planning, editing and source generation have stable Voxel prompt profiles.
-Build/repair share the four editing tools; planning retains three. The agent
-receives the compact contract and definitions, using existing reads/search/asset
-operations for additional detail. Planning uses the schema 5 Voxel definition
-and built-in gameplay checks, without unrelated scene or target-test examples.
-Explicitly peaceful requests remove enemies while retaining the mining/crafting
-progression unless the request changes it. Chunk arrays and player saves never enter
-prompts. Known helpers require full content comparison before compact references
-are used. Existing model ceilings, repair limits and usage accounting still apply;
-local prefix equality does not establish provider cache savings.
+The same four tools remain available throughout the job. Source writes only save;
+build, preview reload and `finish` compile the current sources without rewriting
+them. No gameplay counters, target scenarios or repair budgets gate publication.
+The agent may use its independent browser for logs, input and screenshots.
+Published saves never enter that temporary browser or model context.
 
 ## Saves and revision compatibility
 
@@ -132,11 +127,7 @@ it is independent from Studio progress. `file://` remains unsupported.
   jumping, block removal and inventory pickup, placement, crafting, enemy-driven
   death/respawn, touch cancellation, focus loss, pause and renderer disposal.
   Export checks include subdirectory hosting and IndexedDB reload.
-- `TestVoxelValidationBrowser` runs the sandbox driver. The server requires actual
-  block, inventory, player or enemy deltas; diagnostic counters alone cannot pass.
-  Existing limits remain 16 observations and 60 seconds per validation.
-- `TestGameMakerVoxel*` in server and UI checks stable profiles, policy, limits,
-  source/channel/revision bindings, transient validation and visible conflicts.
+- `TestGameMakerVoxel*` in server and UI checks policy, source/channel/revision bindings and visible save conflicts.
   UI browser checks require `AURAGO_RUN_BROWSER_SMOKE=1`.
 - Keep existing 2D/3D, provider, budget and security regression checks. Regenerate
   native-tool training artifacts and package/verify matching web resources.

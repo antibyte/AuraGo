@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,79 +18,30 @@ type testRunner struct {
 	block   bool
 }
 
-type repairRunner struct {
-	service  *Service
-	attempts int
-	original string
-}
-
-func (r *repairRunner) RunGameMakerJob(ctx context.Context, run JobRun) error {
-	if run.Stage == "planning" {
-		return r.service.SetPlan(ctx, run.Job.ID, ExampleGamePlan(run.Project))
-	}
-	if run.Stage == "visual" {
-		return nil
-	}
-	r.attempts++
-	if r.original == "" {
-		original, err := r.service.ReadJobFile(ctx, run.Job.ID, "src/main.ts")
-		if err != nil {
-			return err
-		}
-		r.original = original
-	}
-	content := "this is not valid TypeScript <<<"
-	if r.attempts > 1 {
-		content = r.original + "\n// repaired by validation retry\n"
-	}
-	if err := r.service.WriteJobFile(ctx, run.Job.ID, "src/main.ts", content); err != nil {
-		return err
-	}
-	if r.attempts > 1 {
-		r.service.mu.RLock()
-		previewJobID := r.service.previewJobs[run.Project.ID]
-		r.service.mu.RUnlock()
-		if previewJobID != run.Job.ID {
-			return fmt.Errorf("automatic build did not publish staging preview")
-		}
-	}
-	return nil
-}
-
 func (r testRunner) RunGameMakerJob(ctx context.Context, run JobRun) error {
 	if r.block {
 		<-ctx.Done()
 		return ctx.Err()
 	}
-	if run.Stage == "planning" {
-		return r.service.SetPlan(ctx, run.Job.ID, ExampleGamePlan(run.Project))
-	}
-	if run.Stage == "visual" {
-		return nil
-	}
-	if run.Stage == "building" && run.Project.Dimension == "2d" {
-		// Positive service fixtures implement a scoring change. Tests for
-		// no-op agents use planningRunner and retain the untouched template.
-		source, err := r.service.ReadJobFile(ctx, run.Job.ID, "src/main.ts")
-		if err != nil {
-			return err
+	// Existing integration fixtures explicitly exercise the optional runtimes.
+	if run.Job.BaseRevision == 0 && run.Job.ResumeFrom == "" {
+		template := "minimal"
+		if run.Project.Dimension == "3d" {
+			template = "three"
 		}
-		updated := strings.Replace(source, "this.state.score++;", "this.state.score += 10;", 1)
-		if updated != source {
-			stage, err := r.service.JobDirectory(run.Job.ID)
-			if err != nil {
-				return err
-			}
-			// Initialize the fixture without emitting an extra write preview.
-			if err := os.WriteFile(filepath.Join(stage, "src", "main.ts"), []byte(updated), 0o640); err != nil {
-				return err
-			}
+		if run.Project.Variant == "voxel" {
+			template = "voxel"
+		}
+		if err := r.service.UseTemplate(ctx, run.Job.ID, template); err != nil {
+			return err
 		}
 	}
 	if r.mutate != nil {
-		return r.mutate(ctx, run)
+		if err := r.mutate(ctx, run); err != nil {
+			return err
+		}
 	}
-	result := r.service.BuildJob(ctx, run.Job.ID)
+	result := r.service.FinishJob(ctx, run.Job.ID)
 	if !result.OK {
 		return errors.New(diagnosticsText(result.Diagnostics))
 	}
@@ -401,24 +351,6 @@ func TestUpdatePolicyAppliesPermissionChangesWithoutRestart(t *testing.T) {
 	}
 }
 
-func TestValidationRetriesRepairBeforePublishing(t *testing.T) {
-	service := newTestService(t)
-	runner := &repairRunner{service: service}
-	service.SetRunner(runner)
-	project := createTestProject(t, service, "2d")
-	job, err := service.StartJob(context.Background(), project.ID, StartJobRequest{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	finished := waitJob(t, service, job.ID)
-	if finished.Status != "ready" || finished.ResultRevision != 1 {
-		t.Fatalf("repaired job = %+v", finished)
-	}
-	if runner.attempts != 2 {
-		t.Fatalf("runner attempts = %d, want initial build plus one repair", runner.attempts)
-	}
-}
-
 func TestFailedEditKeepsLastPlayableRevisionAndRestoreDeduplicatesBlobs(t *testing.T) {
 	service := newTestService(t)
 	service.SetRunner(testRunner{service: service})
@@ -460,8 +392,8 @@ func TestFailedEditKeepsLastPlayableRevisionAndRestoreDeduplicatesBlobs(t *testi
 	if project.CurrentRevision != 1 {
 		t.Fatalf("current revision after failed build = %d", project.CurrentRevision)
 	}
-	if attempts != 4 {
-		t.Fatalf("agent attempts = %d, want initial attempt plus three repairs", attempts)
+	if attempts != 1 {
+		t.Fatalf("agent attempts = %d, want one continuous run", attempts)
 	}
 
 	restored, err := service.RestoreRevision(context.Background(), project.ID, 1)
@@ -762,72 +694,5 @@ func TestBundledSkillHashDriftSelfHeals(t *testing.T) {
 		if skill.Name == "aurago-game-qa" && skill.Status != "verified" {
 			t.Fatalf("repaired skill status = %q, want verified", skill.Status)
 		}
-	}
-}
-
-func TestBuildDirectoryInjectsDiagnosticInterface(t *testing.T) {
-	ctx := context.Background()
-	dir := t.TempDir()
-	manifest := []byte(`{"name":"test","dimension":"2d","engine":"phaser","engine_version":"4.2.1","entry":"src/main.ts","description":"test"}` + "\n")
-	if err := os.WriteFile(filepath.Join(dir, "game.json"), manifest, 0o640); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "index.html"), []byte(scaffoldHTML("2d", "test")), 0o640); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(filepath.Join(dir, "src"), 0o750); err != nil {
-		t.Fatal(err)
-	}
-	// Minimal agent-written main.ts without the AuraGo diagnostic interface.
-	minimal := `declare const Phaser: any;
-class MainScene extends Phaser.Scene {
-  constructor() { super("main"); }
-  create() { this.add.text(100, 100, "hello"); }
-}
-new Phaser.Game({ type: Phaser.AUTO, parent: "game-root", width: 960, height: 540, scene: MainScene });
-`
-	if err := os.WriteFile(filepath.Join(dir, "src", "main.ts"), []byte(minimal), 0o640); err != nil {
-		t.Fatal(err)
-	}
-
-	result := buildDirectory(ctx, dir, 100, 64*1024*1024)
-	if !result.OK {
-		t.Fatalf("expected build to succeed, got diagnostics: %v", result.Diagnostics)
-	}
-
-	source, err := os.ReadFile(filepath.Join(dir, "src", "main.ts"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(source), "__AURAGO_GAME_DIAGNOSTICS__") {
-		t.Error("buildDirectory did not inject the AuraGo diagnostic prelude")
-	}
-	if !strings.Contains(string(source), "function diagnostic") {
-		t.Error("buildDirectory did not inject the diagnostic helper")
-	}
-	// Opaque sandbox previews must not target location.origin ("null").
-	if strings.Contains(string(source), `postMessage({ source: "aurago-game", type, channel, ...detail }, location.origin)`) {
-		t.Error("diagnostic postMessage must not use location.origin in sandboxed previews")
-	}
-	if !strings.Contains(string(source), `parent.postMessage({ source: "aurago-game", type, channel, ...detail }, "*")`) {
-		t.Error("diagnostic postMessage must target * so the parent studio can receive ready")
-	}
-}
-
-func TestScaffoldPreviewDoesNotShipStickyLoadingHUD(t *testing.T) {
-	html := scaffoldHTML("2d", "Asteroids")
-	if strings.Contains(html, "Loading…") || strings.Contains(html, "Loading...") {
-		t.Fatal("scaffold index.html must not ship a visible Loading HUD label")
-	}
-	if !strings.Contains(html, `<div id="hud" hidden></div>`) {
-		t.Fatal("scaffold HUD must start hidden/empty")
-	}
-	legacy := []byte(`<!doctype html><html><body><div id="hud">Loading…</div></body></html>`)
-	booted := injectPreviewBoot(legacy)
-	if !bytes.Contains(booted, []byte(previewBootMarker)) {
-		t.Fatal("injectPreviewBoot must wrap legacy Loading HUD pages")
-	}
-	if !bytes.Contains(booted, []byte(`isLoadingText`)) {
-		t.Fatal("preview boot must include Loading text detection")
 	}
 }
