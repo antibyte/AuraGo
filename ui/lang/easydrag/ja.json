@@ -439,6 +439,7 @@
   "easydrag.ui.copy": "コピー",
   "easydrag.ui.copy_json": "JSONをコピー",
   "easydrag.ui.copy_json_done": "コピーしました",
+  "easydrag.ui.copy_json_failed": "クリップボードが使えないか拒否されたため、何もコピーされませんでした。テキストを自分で選択してコピーしてください。",
   "easydrag.ui.copy_of": "{name} のコピー",
   "easydrag.ui.cut": "切り取り",
   "easydrag.ui.delete": "削除",

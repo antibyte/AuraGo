@@ -439,6 +439,7 @@
   "easydrag.ui.copy": "Kopier",
   "easydrag.ui.copy_json": "Kopier JSON",
   "easydrag.ui.copy_json_done": "Kopiert",
+  "easydrag.ui.copy_json_failed": "Ingenting ble kopiert, fordi utklippstavlen ikke er tilgjengelig eller avviste det. Marker teksten selv og kopier den.",
   "easydrag.ui.copy_of": "Kopi av {name}",
   "easydrag.ui.cut": "Klipp ut",
   "easydrag.ui.delete": "Slett",

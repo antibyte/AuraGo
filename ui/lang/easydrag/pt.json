@@ -439,6 +439,7 @@
   "easydrag.ui.copy": "Copiar",
   "easydrag.ui.copy_json": "Copiar JSON",
   "easydrag.ui.copy_json_done": "Copiado",
+  "easydrag.ui.copy_json_failed": "Nada foi copiado, porque a área de transferência não está disponível ou recusou. Seleciona o texto tu mesmo e copia-o.",
   "easydrag.ui.copy_of": "Cópia de {name}",
   "easydrag.ui.cut": "Cortar",
   "easydrag.ui.delete": "Excluir",

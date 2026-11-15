@@ -439,6 +439,7 @@
   "easydrag.ui.copy": "Copiar",
   "easydrag.ui.copy_json": "Copiar JSON",
   "easydrag.ui.copy_json_done": "Copiado",
+  "easydrag.ui.copy_json_failed": "No se copió nada porque el portapapeles no está disponible o lo rechazó. Selecciona el texto tú mismo y cópialo.",
   "easydrag.ui.copy_of": "Copia de {name}",
   "easydrag.ui.cut": "Cortar",
   "easydrag.ui.delete": "Eliminar",

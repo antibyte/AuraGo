@@ -439,6 +439,7 @@
   "easydrag.ui.copy": "复制",
   "easydrag.ui.copy_json": "复制 JSON",
   "easydrag.ui.copy_json_done": "已复制",
+  "easydrag.ui.copy_json_failed": "没有复制任何内容，因为剪贴板不可用或拒绝了请求。请自行选中文本并复制。",
   "easydrag.ui.copy_of": "{name} 的副本",
   "easydrag.ui.cut": "剪切",
   "easydrag.ui.delete": "删除",

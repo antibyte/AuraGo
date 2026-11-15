@@ -439,6 +439,7 @@
   "easydrag.ui.copy": "Copia",
   "easydrag.ui.copy_json": "Copia JSON",
   "easydrag.ui.copy_json_done": "Copiato",
+  "easydrag.ui.copy_json_failed": "Non è stato copiato nulla perché gli appunti non sono disponibili o hanno rifiutato. Seleziona il testo da te e copialo.",
   "easydrag.ui.copy_of": "Copia di {name}",
   "easydrag.ui.cut": "Taglia",
   "easydrag.ui.delete": "Elimina",

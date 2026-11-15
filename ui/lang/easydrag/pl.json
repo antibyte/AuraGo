@@ -439,6 +439,7 @@
   "easydrag.ui.copy": "Kopiuj",
   "easydrag.ui.copy_json": "Kopiuj JSON",
   "easydrag.ui.copy_json_done": "Skopiowano",
+  "easydrag.ui.copy_json_failed": "Nic nie zostało skopiowane, bo schowek jest niedostępny albo odmówił. Zaznacz tekst samodzielnie i skopiuj go.",
   "easydrag.ui.copy_of": "{name} (kopia)",
   "easydrag.ui.cut": "Wytnij",
   "easydrag.ui.delete": "Usuń",

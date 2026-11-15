@@ -439,6 +439,7 @@
   "easydrag.ui.copy": "Copier",
   "easydrag.ui.copy_json": "Copier le JSON",
   "easydrag.ui.copy_json_done": "Copié",
+  "easydrag.ui.copy_json_failed": "Rien n’a été copié, car le presse-papiers n’est pas disponible ou l’a refusé. Sélectionne le texte toi-même et copie-le.",
   "easydrag.ui.copy_of": "Copie de {name}",
   "easydrag.ui.cut": "Couper",
   "easydrag.ui.delete": "Supprimer",

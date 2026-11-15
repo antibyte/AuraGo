@@ -439,6 +439,7 @@
   "easydrag.ui.copy": "Kopiëren",
   "easydrag.ui.copy_json": "JSON kopiëren",
   "easydrag.ui.copy_json_done": "Gekopieerd",
+  "easydrag.ui.copy_json_failed": "Er is niets gekopieerd, omdat het klembord niet beschikbaar is of het weigerde. Selecteer de tekst zelf en kopieer hem.",
   "easydrag.ui.copy_of": "Kopie van {name}",
   "easydrag.ui.cut": "Knippen",
   "easydrag.ui.delete": "Verwijderen",

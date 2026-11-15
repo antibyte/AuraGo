@@ -439,6 +439,7 @@
   "easydrag.ui.copy": "Kopiera",
   "easydrag.ui.copy_json": "Kopiera JSON",
   "easydrag.ui.copy_json_done": "Kopierat",
+  "easydrag.ui.copy_json_failed": "Inget kopierades, eftersom urklippet inte är tillgängligt eller avvisade det. Markera texten själv och kopiera den.",
   "easydrag.ui.copy_of": "Kopia av {name}",
   "easydrag.ui.cut": "Klipp ut",
   "easydrag.ui.delete": "Ta bort",

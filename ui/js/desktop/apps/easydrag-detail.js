@@ -773,11 +773,9 @@
                 if (!step) return;
                 const payload = outputSubject === 'params' && step.params != null ? step.params : (step.output || {});
                 const json = JSON.stringify(capped(payload), null, 2);
-                if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-                    navigator.clipboard.writeText(json).catch(() => {});
-                }
-                ED.kit.flash(event.target.closest('[data-ed-copy-json]'), t('easydrag.ui.copy_json_done'));
-                core.say(ed, t('easydrag.ui.copy_json_done'));
+                const copyButton = event.target.closest('[data-ed-copy-json]'); const failed = () => ed.ctx.notify({ title: t('easydrag.ui.copy_json'), message: t('easydrag.ui.copy_json_failed'), type: 'error' });
+                if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') navigator.clipboard.writeText(json).then(() => { ED.kit.flash(copyButton, t('easydrag.ui.copy_json_done')); core.say(ed, t('easydrag.ui.copy_json_done')); }, failed);
+                else failed();
                 return;
             }
             const v = event.target.closest('[data-ed-view]');

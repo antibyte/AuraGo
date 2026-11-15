@@ -1,0 +1,21 @@
+{
+  "easydrag.ui.copy_json_failed": {
+    "cs": "Nic se nezkopírovalo, schránka není k dispozici nebo to nepovolila. Označ text ručně a zkopíruj ho.",
+    "da": "Intet blev kopieret, for udklipsholderen er ikke tilgængelig eller afviste det. Markér teksten selv og kopiér den.",
+    "de": "Es wurde nichts kopiert, weil die Zwischenablage nicht verfügbar ist oder es abgelehnt hat. Markiere den Text selbst und kopiere ihn.",
+    "el": "Δεν αντιγράφηκε τίποτα, επειδή το πρόχειρο δεν είναι διαθέσιμο ή το αρνήθηκε. Επίλεξε το κείμενο μόνος σου και αντίγραψέ το.",
+    "en": "Nothing was copied because the clipboard is not available or refused. Select the text yourself and copy it.",
+    "es": "No se copió nada porque el portapapeles no está disponible o lo rechazó. Selecciona el texto tú mismo y cópialo.",
+    "fr": "Rien n’a été copié, car le presse-papiers n’est pas disponible ou l’a refusé. Sélectionne le texte toi-même et copie-le.",
+    "hi": "कुछ भी कॉपी नहीं हुआ, क्योंकि क्लिपबोर्ड उपलब्ध नहीं है या उसने मना कर दिया। टेक्स्ट खुद चुनकर कॉपी करो।",
+    "it": "Non è stato copiato nulla perché gli appunti non sono disponibili o hanno rifiutato. Seleziona il testo da te e copialo.",
+    "ja": "クリップボードが使えないか拒否されたため、何もコピーされませんでした。テキストを自分で選択してコピーしてください。",
+    "nl": "Er is niets gekopieerd, omdat het klembord niet beschikbaar is of het weigerde. Selecteer de tekst zelf en kopieer hem.",
+    "no": "Ingenting ble kopiert, fordi utklippstavlen ikke er tilgjengelig eller avviste det. Marker teksten selv og kopier den.",
+    "pl": "Nic nie zostało skopiowane, bo schowek jest niedostępny albo odmówił. Zaznacz tekst samodzielnie i skopiuj go.",
+    "pt": "Nada foi copiado, porque a área de transferência não está disponível ou recusou. Seleciona o texto tu mesmo e copia-o.",
+    "sv": "Inget kopierades, eftersom urklippet inte är tillgängligt eller avvisade det. Markera texten själv och kopiera den.",
+    "zh": "没有复制任何内容，因为剪贴板不可用或拒绝了请求。请自行选中文本并复制。",
+    "_after": "easydrag.ui.copy_json_done"
+  }
+}

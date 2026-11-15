@@ -439,6 +439,7 @@
   "easydrag.ui.copy": "Kopieren",
   "easydrag.ui.copy_json": "JSON kopieren",
   "easydrag.ui.copy_json_done": "Kopiert",
+  "easydrag.ui.copy_json_failed": "Es wurde nichts kopiert, weil die Zwischenablage nicht verfügbar ist oder es abgelehnt hat. Markiere den Text selbst und kopiere ihn.",
   "easydrag.ui.copy_of": "Kopie von {name}",
   "easydrag.ui.cut": "Ausschneiden",
   "easydrag.ui.delete": "Löschen",

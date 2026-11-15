@@ -439,6 +439,7 @@
   "easydrag.ui.copy": "Copy",
   "easydrag.ui.copy_json": "Copy JSON",
   "easydrag.ui.copy_json_done": "Copied",
+  "easydrag.ui.copy_json_failed": "Nothing was copied because the clipboard is not available or refused. Select the text yourself and copy it.",
   "easydrag.ui.copy_of": "Copy of {name}",
   "easydrag.ui.cut": "Cut",
   "easydrag.ui.delete": "Delete",

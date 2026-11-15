@@ -111,8 +111,9 @@ export async function run(env) {
             emit(type, data) { if (!this.closed) (this.listeners[type] || []).slice().forEach(fn => fn({ type, data: JSON.stringify(data) })); }
             fail() { if (!this.closed && this.onerror) this.onerror({ type: 'error' }); }
         }
+        const navigator = { platform: 'Linux' };
         const box = vm.createContext({
-            window: win, navigator: { platform: 'Linux' }, crypto: webcrypto, document: dom.document, EventSource, URLSearchParams, URL, AbortController,
+            window: win, navigator, crypto: webcrypto, document: dom.document, EventSource, URLSearchParams, URL, AbortController,
             console: { log() {}, warn() {}, error: (...args) => { logged.push(args.map(String).join(' ')); } },
             localStorage: { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => { store.set(k, String(v)); }, removeItem: k => { store.delete(k); } },
             setTimeout: (fn, ms) => { const id = nextId++; timers.set(id, { fn, ms }); return id; },
@@ -147,7 +148,7 @@ export async function run(env) {
             selection: new Set(), run: null, runView: null, issues: [], lastRunData: null, detail: null, effectsConfirmed: false, bus
         };
         return {
-            ED, ed, model, bus, dom, sources, requests, notes, announced, logged, timers, store, win: box.window, docListeners, windowListeners,
+            ED, ed, model, bus, dom, navigator, sources, requests, notes, announced, logged, timers, store, win: box.window, docListeners, windowListeners,
             canvas: { announce: text => announced.push(text) },
             // timer returns the delay of the one pending timer (all delays when there are more).
             timer() { const list = Array.from(timers.values()).map(x => x.ms); return list.length === 1 ? list[0] : list; },
@@ -451,6 +452,26 @@ export async function run(env) {
         root.querySelector('[data-ed-nav="1"]').focus();
         root.querySelector('[data-ed-nav="1"]').fire('click');
         eq('c1d06 the note of an 80-character label hides when navigation writes a short label', [h.ed.detail.nodeId(), onA, note()], [B, 'cap', 'none']);
+    });
+
+    // W1b review: "Copied" is shown only after the clipboard took the text; without the API or when it refuses, an error says so.
+    await guardAsync('c1d06 review copy JSON says Copied only when something was copied', async () => {
+        const row = async clipboard => {
+            const h = harness(() => { throw apiError('FLOW_NOT_FOUND'); });
+            if (clipboard) h.navigator.clipboard = clipboard;
+            h.ed.run = outputRun({ a: 1 });
+            h.ED.detail.open(h.ed, A);
+            const button = h.ed.root.querySelector('[data-ed-copy-json]');
+            button.fire('click');
+            await settle();
+            return [!!button.edFlash, h.announced.includes('copy_json_done'), h.notes.map(n => [n.message, n.type])];
+        };
+        const written = [];
+        const ok = await row({ writeText: async text => { written.push(text); } });
+        const missing = await row(null);
+        const refused = await row({ writeText: () => Promise.reject(new Error('NotAllowedError')) });
+        eq('c1d06 copy JSON: flash and announcement after the write; an error when the API is missing or the write is refused',
+            [ok, written.length, missing, refused], [[true, true, []], 1, [false, false, [['copy_json_failed', 'error']]], [false, false, [['copy_json_failed', 'error']]]]);
     });
 
     await guardAsync('c1d06 review finish race', async () => {

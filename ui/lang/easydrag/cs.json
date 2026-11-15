@@ -439,6 +439,7 @@
   "easydrag.ui.copy": "Kopírovat",
   "easydrag.ui.copy_json": "Kopírovat JSON",
   "easydrag.ui.copy_json_done": "Zkopírováno",
+  "easydrag.ui.copy_json_failed": "Nic se nezkopírovalo, schránka není k dispozici nebo to nepovolila. Označ text ručně a zkopíruj ho.",
   "easydrag.ui.copy_of": "{name} (kopie)",
   "easydrag.ui.cut": "Vyjmout",
   "easydrag.ui.delete": "Smazat",

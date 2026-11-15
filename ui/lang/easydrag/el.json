@@ -439,6 +439,7 @@
   "easydrag.ui.copy": "Αντιγραφή",
   "easydrag.ui.copy_json": "Αντιγραφή JSON",
   "easydrag.ui.copy_json_done": "Αντιγράφηκε",
+  "easydrag.ui.copy_json_failed": "Δεν αντιγράφηκε τίποτα, επειδή το πρόχειρο δεν είναι διαθέσιμο ή το αρνήθηκε. Επίλεξε το κείμενο μόνος σου και αντίγραψέ το.",
   "easydrag.ui.copy_of": "{name} (αντίγραφο)",
   "easydrag.ui.cut": "Αποκοπή",
   "easydrag.ui.delete": "Διαγραφή",
