@@ -126,7 +126,7 @@
             ed, el, isBlock, canvas, runs, palette, publish, nameInput, renderBanner,
             isDisposed: () => disposed, lastRecord: () => lastRecord
         });
-        const { renderHeader, renderSaveState, renderIssues, renderLastRun, runNowState } = headerView;
+        const { renderHeader, renderSaveState, renderIssues, renderLastRun } = headerView;
 
 
         ed.saver = ED.saver.create({
@@ -425,38 +425,14 @@
             return width > 0 && width <= 560;
         }
 
+        const MORE_MENU = ['flow.run_now', 'flow.versions', 'flow.settings', 'flow.organize', 'flow.describe', 'flow.repair_mission', 'flow.duplicate', 'flow.export',
+            'flow.export_pack', 'flow.export_email', 'flow.mission_control', 'view.liveliness', '-', 'flow.delete'];
+        const BLOCK_MORE_MENU = ['flow.versions', 'flow.open_draft', 'view.liveliness', 'flow.delete'];
+
         function moreMenu(anchor) {
             const r = anchor.getBoundingClientRect();
-            if (isBlock) {
-                ctx.showContextMenu(r.left, r.bottom + 4, [
-                    { icon: 'history', label: t('easydrag.ui.versions_title'), action: () => ED.blocks.versions(ed, app) },
-                    { icon: 'pencil', label: t('easydrag.ui.block_open_draft'), action: () => app.openBlock(ed.flow.id) }, ...(ED.delight ? ED.delight.menuItems(t) : []),
-                    { icon: 'trash', label: t('easydrag.ui.block_delete'), disabled: !!ed.readonly, action: deleteFlow }
-                ]);
-                return;
-            }
-            const run = runNowState();
-            const ro = !!(ed.readonly || ed.runView);
-            const moved = headerNarrow() ? [
-                { icon: 'history', label: t('easydrag.ui.runs_title'), action: () => { runs.toggleDrawer(); renderHeader(); setMenus(); } },
-                { icon: 'flask', label: t('easydrag.ui.test_draft'), disabled: ro || runs.isRunning(), action: test },
-                { separator: true }
-            ] : [];
-            ctx.showContextMenu(r.left, r.bottom + 4, moved.concat([
-                { icon: 'play', label: t('easydrag.ui.run_now'), disabled: run.disabled, disabledHint: run.hint, action: runLiveNow },
-                { icon: 'history', label: t('easydrag.ui.versions_title'), action: () => publish.openVersions() },
-                { icon: 'settings', label: t('easydrag.ui.flow_settings'), action: () => ED.dialogs.flowSettings(ed) },
-                ...(ED.metadata ? [{ icon: 'folder', label: t('easydrag.ui.organize'), disabled: ro, action: () => ED.metadata.organization(Object.assign({}, ed, { readonly: ro, canWrite: () => !disposed && !ed.readonly && !ed.runView }), ed.flow.id) }] : []),
-                { icon: 'sparkles', label: t('easydrag.ui.authoring_title'), disabled: ro || runs.isRunning() || !authoring, action: () => authoring && authoring.open() },
-                ...(ed.publishIncomplete === 'FLOW_MISSION_MISSING' || ed.liveIssues.some(issue => issue.code === 'FLOW_MISSION_MISSING') ? [{ icon: 'link', label: t('easydrag.ui.repair_mission'), disabled: ro, action: repairMission }] : []),
-                { icon: 'copy', label: t('easydrag.ui.home_duplicate'), disabled: !!ed.readonly, action: duplicateFlow },
-                { icon: 'download', label: t('easydrag.ui.home_export'), action: exportFlow },
-                { icon: 'download', label: t('easydrag.ui.pack_export'), disabled: restoring || (!!ed.readonly && ed.saver.isDirty()), action: exportLocalPack },
-                { icon: 'mail', label: t('desktop.email_export'), disabled: !!ed.readonly || !emailBinding, action: () => emailBinding && emailBinding.activate() },
-                { icon: 'list', label: t('easydrag.ui.home_mission_control'), action: () => ctx.openApp && ctx.openApp('mission-control') },
-                ...(ED.delight ? ED.delight.menuItems(t) : []), { separator: true },
-                { icon: 'trash', label: t('easydrag.ui.home_delete'), disabled: !!ed.readonly, action: deleteFlow }
-            ]));
+            const moved = !isBlock && headerNarrow() ? ['view.runs', 'flow.test', '-'] : [];
+            ctx.showContextMenu(r.left, r.bottom + 4, ED.actions.items(isBlock ? BLOCK_MORE_MENU : moved.concat(MORE_MENU), { host: ed }));
         }
 
         async function repairMission() {
@@ -481,83 +457,63 @@
             });
         }
 
-        // ── window menus ────────────────────────────────────────────────────────
+        // ── actions and window menus ────────────────────────────────────────────
 
-        // Menu keys are canonical strings ("Ctrl+S"), as in every desktop app: the desktop draws
-        // them as given and matches Ctrl as Ctrl or ⌘, so core.shortcut's "⌘S" would never match.
-        // The desktop runs a menu item's shortcut before the editor sees the key, past onKeyDown's
-        // guards (dialogs, context menus, detail view, quick-add), and prevents it, so onKeyDown
-        // does not run it a second time. Keys the canvas handles itself (interact, "?") are
-        // therefore a shortcutHint, which the desktop draws but does not dispatch. Ctrl+S,
-        // Ctrl+Enter and Ctrl+K are real shortcuts (Ctrl+K so that the desktop's search does not
-        // take it); they do nothing while a real dialog or a desktop context menu is open (the
-        // shell runs the shortcut before onKeyDown can see that menu). The step inspector is not
-        // a dialog. Edits wait for a real dialog, quick-add, or the restore offer.
+        // The registry (easydrag-actions.js) holds every action's label, shortcut and reasons. The editing and zoom
+        // actions are bound in easydrag-interact.js, the flow and view actions here. The desktop runs a window-menu
+        // item's shortcut before onKeyDown sees the key, past onKeyDown's guards, and prevents it: Ctrl+S, Ctrl+Enter
+        // and Ctrl+K are real menu shortcuts (Ctrl+K so that the desktop's search does not take it) and do nothing
+        // while a dialog, the restore offer or a desktop context menu is open (the shell runs them before onKeyDown
+        // can see that menu: the registry's "free" check reads actionFacts). Edits also wait for quick-add ("quiet").
+        // Every other shortcut is only drawn by the menus and fired by ED.actions.key in onKeyDown. The step
+        // inspector is not a dialog.
         function modalOpen() { return !!el.querySelector('.ed-modal-backdrop:not(.is-closing)'); }
         function contextMenuOpen() { return !!document.querySelector('.vd-context-menu'); }
-        function overlayOpen() { return !!(ed.quickAdd || modalOpen()); }
-        const unlessModal = fn => () => { if (!modalOpen() && !contextMenuOpen()) fn(); };
-        const unlessOverlay = fn => () => { if (!overlayOpen() && !restoring) fn(); };
+        ed.actionFacts = () => ({ restoring, dialog: modalOpen() || contextMenuOpen(), running: runs.isRunning() });
+
+        const bind = (id, impl) => ED.actions.bind(id, impl, ed);
+        const noPalette = () => (ed.runView ? 'easydrag.ui.reason_palette_hidden' : '');
+        bind('flow.home', { run: () => goHome() });
+        bind('flow.save', { run: () => saveNow() });
+        bind('flow.test', { run: () => test(), label: () => (isBlock ? 'easydrag.ui.block_simulate' : '') });
+        bind('flow.stop', { run: () => runs.cancel(), check: () => (ed.run?.durableStatusError || el.querySelector('[data-ed-cmd="cancel"]').getAttribute('aria-busy') === 'true' ? 'easydrag.ui.reason_stop_unavailable' : '') });
+        bind('flow.publish', { run: () => publishNow() });
+        bind('flow.versions', { run: () => (isBlock ? ED.blocks.versions(ed, app) : publish.openVersions()) });
+        bind('flow.export_pack', { run: () => exportLocalPack(), check: () => (ed.readonly && ed.saver.isDirty() ? 'easydrag.ui.reason_export_unsaved' : '') });
+        bind('flow.mission_control', { run: () => ctx.openApp && ctx.openApp('mission-control') });
+        bind('flow.delete', { run: () => deleteFlow(), label: () => (isBlock ? 'easydrag.ui.block_delete' : '') });
+        bind('view.find_step', { run: () => ED.dialogs.findStep(ed, canvas, interact), check: () => (ed.model.doc.nodes.length ? '' : 'easydrag.ui.reason_no_steps') });
+        // Ctrl+K adds a step from one selected step, and searches otherwise (searchPalette).
+        bind('view.search', { run: () => searchPalette(), check: noPalette, label: () => (ed.selection.size === 1 && !ed.quickAdd ? 'easydrag.ui.keys_add' : '') });
+        bind('view.palette', { run: () => togglePalette(), check: noPalette, checked: () => palette.isOpen() });
+        bind('view.shortcuts', { run: () => ED.dialogs.shortcuts(ed) });
+        if (isBlock) bind('flow.open_draft', { run: () => app.openBlock(ed.flow.id) });
+        else {
+            bind('flow.run_now', { run: () => runLiveNow() });
+            bind('flow.active', { run: () => publish.setActive(!ed.flowEnabled) });
+            bind('flow.settings', { run: () => ED.dialogs.flowSettings(ed) });
+            bind('flow.duplicate', { run: () => duplicateFlow() });
+            bind('flow.export', { run: () => exportFlow() });
+            bind('flow.export_email', { run: () => emailBinding.activate(), show: () => !!emailBinding, check: () => (ed.readonly ? 'easydrag.ui.reason_readonly' : '') });
+            bind('flow.repair_mission', { run: () => repairMission(), show: () => ed.publishIncomplete === 'FLOW_MISSION_MISSING' || ed.liveIssues.some(issue => issue.code === 'FLOW_MISSION_MISSING') });
+            bind('view.runs', { run: () => { runs.toggleDrawer(); renderHeader(); setMenus(); }, checked: () => runs.drawerOpen() });
+            if (ED.metadata) bind('flow.organize', { run: () => ED.metadata.organization(Object.assign({}, ed, { readonly: !!(ed.readonly || ed.runView), canWrite: () => !disposed && !ed.readonly && !ed.runView }), ed.flow.id) });
+            if (authoring) bind('flow.describe', { run: () => authoring.open() });
+        }
+
+        // An action that is not bound here (Run now in a block, Extract in a block) is left out of the menus.
+        const FLOW_MENU = ['flow.home', '-', 'flow.save', 'flow.test', 'flow.run_now', 'flow.publish', 'flow.versions', '-', 'flow.settings', 'flow.export', 'flow.export_pack', 'flow.delete'];
+        const EDIT_MENU = ['edit.undo', 'edit.redo', '-', 'edit.cut', 'edit.copy', 'edit.paste', 'edit.duplicate', 'edit.extract', 'edit.delete', '-', 'edit.select_all', 'edit.auto_layout'];
+        const VIEW_MENU = ['view.zoom_in', 'view.zoom_out', 'view.zoom_fit', '-', 'view.find_step', 'view.search', 'view.palette', 'view.runs', '-', 'view.shortcuts'];
 
         function setMenus() {
             if (disposed || typeof ctx.setWindowMenus !== 'function') return;
-            const ro = !!(ed.readonly || ed.runView || restoring);
-            const busy = overlayOpen();
-            const sel = ed.selection.size > 0;
-            const run = runNowState();
-            const menus = [
-                {
-                    id: 'flow', labelKey: 'easydrag.ui.menu_flow', items: [
-                        { id: 'home', labelKey: 'easydrag.ui.back_home', icon: 'list', action: goHome },
-                        { type: 'separator' },
-                        { id: 'save', labelKey: 'easydrag.ui.save_now', icon: 'save', shortcut: 'Ctrl+S', disabled: ro, action: unlessModal(saveNow) },
-                        { id: 'test', labelKey: 'easydrag.ui.test', icon: 'run', shortcut: 'Ctrl+Enter', disabled: ro, action: unlessModal(test) },
-                        { id: 'run', labelKey: 'easydrag.ui.run_now', icon: 'play', disabled: restoring || run.disabled, disabledHint: run.hint, action: unlessModal(runLiveNow) },
-                        { id: 'publish', labelKey: 'easydrag.ui.publish', icon: 'upload', disabled: ro, action: unlessModal(publishNow) },
-                        { id: 'versions', labelKey: 'easydrag.ui.versions_title', icon: 'history', disabled: restoring, action: unlessModal(() => publish.openVersions()) },
-                        { type: 'separator' },
-                        { id: 'settings', labelKey: 'easydrag.ui.flow_settings', icon: 'settings', disabled: restoring, action: unlessModal(() => ED.dialogs.flowSettings(ed)) },
-                        { id: 'export', labelKey: 'easydrag.ui.home_export', icon: 'download', action: exportFlow },
-                        { id: 'export-pack', labelKey: 'easydrag.ui.pack_export', icon: 'download', disabled: restoring || (!!ed.readonly && ed.saver.isDirty()), action: exportLocalPack },
-                        { id: 'delete', labelKey: 'easydrag.ui.home_delete', icon: 'trash', disabled: !!ed.readonly || restoring, action: unlessModal(deleteFlow) }
-                    ]
-                },
-                {
-                    id: 'edit', labelKey: 'easydrag.ui.menu_edit', items: [
-                        { id: 'undo', labelKey: 'easydrag.ui.undo', icon: 'undo', shortcutHint: 'Ctrl+Z', disabled: ro || busy || !ed.model.canUndo(), action: unlessOverlay(() => interact.undo()) },
-                        { id: 'redo', labelKey: 'easydrag.ui.redo', icon: 'redo', shortcutHint: 'Ctrl+Shift+Z', disabled: ro || busy || !ed.model.canRedo(), action: unlessOverlay(() => interact.redo()) },
-                        { type: 'separator' },
-                        { id: 'cut', labelKey: 'easydrag.ui.cut', icon: 'scissors', shortcutHint: 'Ctrl+X', disabled: ro || busy || !sel, action: unlessOverlay(() => { if (interact.copySelection()) interact.removeSelection({ quiet: true }); }) },
-                        { id: 'copy', labelKey: 'easydrag.ui.copy', icon: 'copy', shortcutHint: 'Ctrl+C', disabled: busy || !sel, action: unlessOverlay(() => interact.copySelection()) },
-                        { id: 'paste', labelKey: 'easydrag.ui.paste', icon: 'clipboard', shortcutHint: 'Ctrl+V', disabled: ro || busy, action: unlessOverlay(() => interact.pasteAt(null)) },
-                        { id: 'duplicate', labelKey: 'easydrag.ui.duplicate', icon: 'copy', shortcutHint: 'Ctrl+D', disabled: ro || busy || !sel, action: unlessOverlay(() => interact.duplicateSteps(Array.from(ed.selection))) },
-                        ...(!isBlock && extraction ? [{ id: 'extract-selection', labelKey: 'easydrag.ui.extraction_title', icon: 'grid', disabled: ro || busy || !sel, action: unlessOverlay(() => extraction.open()) }] : []),
-                        { id: 'delete-sel', labelKey: 'easydrag.ui.delete', icon: 'trash', shortcutHint: 'Del', disabled: ro || busy || (!sel && !ed.selectedEdge), action: unlessOverlay(() => interact.removeSelection()) },
-                        { type: 'separator' },
-                        { id: 'select-all', labelKey: 'easydrag.ui.select_all', icon: 'check-square', shortcutHint: 'Ctrl+A', disabled: busy, action: unlessOverlay(() => interact.selectAll()) },
-                        { id: 'auto-layout', labelKey: 'easydrag.ui.auto_layout', icon: 'sparkles', disabled: ro || busy || ed.model.doc.nodes.length < 2, action: unlessOverlay(() => canvas.autoLayout()) }
-                    ]
-                },
-                {
-                    id: 'view', labelKey: 'easydrag.ui.menu_view', items: [
-                        { id: 'zoom-in', labelKey: 'easydrag.ui.zoom_in', icon: 'zoom-in', shortcutHint: '+', action: () => canvas.zoomBy(1.2) },
-                        { id: 'zoom-out', labelKey: 'easydrag.ui.zoom_out', icon: 'zoom-out', shortcutHint: '−', action: () => canvas.zoomBy(1 / 1.2) },
-                        { id: 'zoom-fit', labelKey: 'easydrag.ui.zoom_fit', icon: 'maximize', shortcutHint: 'Shift+1', action: () => canvas.fit({ animate: true }) },
-                        { type: 'separator' },
-                        { id: 'find-step', labelKey: 'easydrag.ui.find_step', icon: 'search', action: unlessModal(() => ED.dialogs.findStep(ed, canvas, interact)) },
-                        { id: 'search', labelKey: 'easydrag.ui.keys_search', icon: 'search', shortcut: 'Ctrl+K', disabled: !!ed.runView, action: unlessModal(searchPalette) },
-                        { id: 'palette', labelKey: 'easydrag.ui.palette_title', icon: 'sidebar', checked: palette.isOpen(), disabled: !!ed.runView, action: () => togglePalette() },
-                        { id: 'runs', labelKey: 'easydrag.ui.runs_title', icon: 'list', checked: runs.drawerOpen(), action: () => { runs.toggleDrawer(); renderHeader(); setMenus(); } },
-                        { type: 'separator' },
-                        { id: 'keys', labelKey: 'easydrag.ui.keys_title', icon: 'help', shortcutHint: '?', action: unlessModal(() => ED.dialogs.shortcuts(ed)) }
-                    ]
-                }
-            ];
-            if (isBlock) menus.forEach(menu => {
-                menu.items = menu.items.filter(item => !['run', 'runs', 'settings', 'export'].includes(item.id));
-                const test = menu.items.find(item => item.id === 'test'); if (test) test.labelKey = 'easydrag.ui.block_simulate';
-            });
-            ctx.setWindowMenus(ed.windowId, menus);
+            const c = { host: ed, keyed: true };
+            ctx.setWindowMenus(ed.windowId, [
+                { id: 'flow', labelKey: 'easydrag.ui.menu_flow', items: ED.actions.items(FLOW_MENU, c) },
+                { id: 'edit', labelKey: 'easydrag.ui.menu_edit', items: ED.actions.items(EDIT_MENU, c) },
+                { id: 'view', labelKey: 'easydrag.ui.menu_view', items: ED.actions.items(VIEW_MENU, c) }
+            ]);
         }
         const setMenusSoon = core.debounce(setMenus, 120);
         // Dialogs, the detail view, quick-add and the run drawer open as children of the editor:

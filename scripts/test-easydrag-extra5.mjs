@@ -99,7 +99,7 @@ export async function run(env) {
         rows.push(['maybe mine', chips(editor), runNow(h, editor), gets(h), editor.el.querySelector('[data-ed-cmd="active"]').getAttribute('aria-checked')]);
         eq('ff2 I1 a pause made elsewhere shows Paused and turns Run now off with its hint; a switch without an id is read again', rows, [
             ['open', ['state_published'], [[false, ''], [false, '']], 0],
-            ['paused here', ['state_published', 'state_inactive'], [[true, 'error_flow_disabled'], [true, 'error_flow_disabled']], 1, 'false'],
+            ['paused here', ['state_published', 'state_inactive'], [[true, 'reason_paused'], [true, 'reason_paused']], 1, 'false'],
             ['other', 1],
             ['maybe mine', ['state_published'], [[false, ''], [false, '']], 2, 'true']
         ]);
@@ -116,7 +116,7 @@ export async function run(env) {
         await settle();
         const posted = s.h.requests.find(r => r.url === '/api/desktop/flows/f1/enabled');
         eq('ff2 switching the flow off here turns Run now off too', [posted && posted.body.enabled, chips(s.editor), runNow(s.h, s.editor), s.h.logged],
-            [false, ['state_published', 'state_inactive'], [[true, 'error_flow_disabled'], [true, 'error_flow_disabled']], []]);
+            [false, ['state_published', 'state_inactive'], [[true, 'reason_paused'], [true, 'reason_paused']], []]);
         s.editor.dispose();
     });
 

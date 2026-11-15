@@ -562,8 +562,8 @@ export async function run(env) {
             [all().filter(i => i.shortcut).map(i => i.id + '=' + i.shortcut), all().filter(i => i.shortcutHint).map(i => i.id + '=' + i.shortcutHint),
                 all().filter(i => i.type !== 'separator' && (i.label || !i.labelKey)).map(i => i.id)],
             [['save=Ctrl+S', 'test=Ctrl+Enter', 'search=Ctrl+K'],
-                ['undo=Ctrl+Z', 'redo=Ctrl+Shift+Z', 'cut=Ctrl+X', 'copy=Ctrl+C', 'paste=Ctrl+V', 'duplicate=Ctrl+D', 'delete-sel=Del', 'select-all=Ctrl+A',
-                    'zoom-in=+', 'zoom-out=−', 'zoom-fit=Shift+1', 'keys=?'],
+                ['undo=Ctrl+Z', 'redo=Ctrl+Shift+Z', 'cut=Ctrl+X', 'copy=Ctrl+C', 'paste=Ctrl+V', 'duplicate=Ctrl+D', 'delete-sel=key_delete', 'select-all=Ctrl+A', 'auto-layout=Alt+Shift+F',
+                    'zoom-in=+', 'zoom-out=−', 'zoom-fit=Shift+1', 'find-step=Ctrl+F', 'keys=?'],
                 []]);
         item('search').action();
         const search = editor.el.querySelector('.ed-palette-search');
@@ -577,7 +577,7 @@ export async function run(env) {
         const nodes = editor.ed.model.doc.nodes.length;
         h.ED.detail.close(editor.ed);
         eq('c1d07 the detail view is not modal: Edit stays available and delete changes the graph',
-            [under, nodes, item('delete-sel').disabled], [[true, [true, false, false, false, false, false, false]], 0, false]);
+            [under, nodes, item('delete-sel').disabled], [[true, [true, false, false, true, false, false, false]], 0, false]);
         eq('c1d07 the menu checks log no errors', h.logged, []);
     });
 

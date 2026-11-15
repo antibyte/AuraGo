@@ -652,7 +652,7 @@ export async function run(env) {
             if (req.method === 'PUT') return { draft_revision: 3, issues: [] };
             return undefined;
         });
-        const editor = openEditor(h, { enabled: false, flow: { live: flowDoc(), live_revision: 2, published_draft_revision: 3 } });
+        const editor = openEditor(h, { enabled: true, flow: { live: flowDoc(), live_revision: 2, published_draft_revision: 3 } });
         await settle();
         editor.el.querySelector('[data-ed-cmd="test"]').fire('click');
         await settle();

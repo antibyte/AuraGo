@@ -8,6 +8,7 @@ import vm from 'node:vm';
 const apps = new URL('../ui/js/desktop/apps/', import.meta.url);
 const KEY = 'aurago.easydrag.liveliness';
 const source = fs.readFileSync(new URL('easydrag-delight.js', apps), 'utf8');
+const actionsSource = fs.readFileSync(new URL('easydrag-actions.js', apps), 'utf8');
 
 // load runs a fresh module in its own page stub. state.reduced and state.animations stand for the system
 // and the desktop setting; change() calls the listeners that the module registered, like the browser.
@@ -25,9 +26,10 @@ function load(start = {}) {
         document: { body }, console, Map, Set,
         localStorage: { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => { store.set(k, String(v)); }, removeItem: k => { store.delete(k); } }
     });
+    vm.runInContext(actionsSource, box, { filename: 'easydrag-actions.js' });
     vm.runInContext(source, box, { filename: 'easydrag-delight.js' });
     const root = { isConnected: true, attrs: {}, getAttribute(name) { return this.attrs[name] ?? null; }, setAttribute(name, value) { this.attrs[name] = value; } };
-    return { delight: box.window.EasyDrag.delight, state, store, root, change: () => listeners.forEach(fn => fn()) };
+    return { delight: box.window.EasyDrag.delight, actions: box.window.EasyDrag.actions, state, store, root, change: () => listeners.forEach(fn => fn()) };
 }
 
 // Nothing asks for calm: normal, and everything may move.
@@ -89,12 +91,13 @@ h.delight.setLevel('normal');
 // The menu entry: one parent item with two choices; the current one carries the check mark.
 h = load({ animations: 'true', stored: 'calm' });
 const words = { 'easydrag.ui.liveliness': 'Lebendigkeit', 'easydrag.ui.liveliness_normal': 'Normal', 'easydrag.ui.liveliness_calm': 'Ruhig' };
-const items = h.delight.menuItems(key => words[key] || key);
+const menuOf = t => h.actions.items(['view.liveliness'], { host: { t } });
+const items = menuOf(key => words[key] || key);
 assert.equal(items.length, 1);
 assert.equal(items[0].label, 'Lebendigkeit');
 assert.deepEqual([...items[0].items.map(item => item.label)], ['Normal', 'Ruhig']);
 assert.deepEqual([...items[0].items.map(item => !!item.shortcutHint)], [false, true], 'the check mark marks the current choice');
 items[0].items[0].action();
 assert.equal(h.store.get(KEY), 'normal');
-assert.equal(h.delight.menuItems(key => key)[0].items[0].shortcutHint.length > 0, true);
+assert.equal(menuOf(key => key)[0].items[0].shortcutHint.length > 0, true);
 console.log('PASS motion gate: three conditions, data-motion binding, menu entry');

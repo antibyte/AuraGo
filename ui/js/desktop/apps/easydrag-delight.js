@@ -76,20 +76,12 @@
         return refresh();
     }
 
-    // menuItems returns the "Lebendigkeit" entry of the editor's more menu: one item with two choices,
-    // and a check mark on the current one.
-    function menuItems(t) {
-        const current = choice();
-        const mark = String.fromCodePoint(0x2713);
-        const pick = value => () => { setLevel(value); };
-        return [{
-            icon: 'sparkles', label: t('easydrag.ui.liveliness'),
-            items: [
-                { id: 'liveliness-normal', icon: 'play', label: t('easydrag.ui.liveliness_normal'), shortcutHint: current === 'normal' ? mark : '', action: pick('normal') },
-                { id: 'liveliness-calm', icon: 'pause', label: t('easydrag.ui.liveliness_calm'), shortcutHint: current === 'calm' ? mark : '', action: pick('calm') }
-            ]
-        }];
+    // The "Lebendigkeit" entry of the editor's more menu is the registry's view.liveliness submenu: two choices with
+    // a check mark on the current one. The choice is per device, so the binding is global (no host).
+    if (ED.actions) {
+        ED.actions.bind('view.liveliness_normal', { run: () => { setLevel('normal'); }, checked: () => choice() === 'normal' });
+        ED.actions.bind('view.liveliness_calm', { run: () => { setLevel('calm'); }, checked: () => choice() === 'calm' });
     }
 
-    ED.delight = { allow, level, choice, setLevel, bind, refresh, menuItems };
+    ED.delight = { allow, level, choice, setLevel, bind, refresh };
 })();

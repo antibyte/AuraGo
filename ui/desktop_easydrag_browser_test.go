@@ -311,9 +311,9 @@ func (s *easyDragSmoke) pausedElsewhere() {
 	runItem := `const ed=edFixture.editor();const item=aurora.state.windowMenus.get(ed.windowId).renderedMenus.find(m=>m.id==='flow').items.find(i=>i.id==='run');`
 	page.MustEval(`()=>{edFixture.flow().enabled=false}`)
 	page.MustEval(broadcast)
-	s.wait(`()=>{` + runItem + `const chips=[...document.querySelectorAll('[data-ed-state] .ed-chip')].map(c=>c.textContent);return ed.flowEnabled===false && chips.includes(ed.t('easydrag.ui.state_inactive')) && document.querySelector('[data-ed-cmd="active"]').getAttribute('aria-checked')==='false' && item.disabled && item.disabledHint===ed.t('easydrag.ui.error_flow_disabled')}`)
+	s.wait(`()=>{` + runItem + `const chips=[...document.querySelectorAll('[data-ed-state] .ed-chip')].map(c=>c.textContent);return ed.flowEnabled===false && chips.includes(ed.t('easydrag.ui.state_inactive')) && document.querySelector('[data-ed-cmd="active"]').getAttribute('aria-checked')==='false' && item.disabled && item.disabledHint===ed.t('easydrag.ui.reason_paused')}`)
 	page.MustElement(`[data-ed-cmd="more"]`).MustClick()
-	s.wait(`()=>{const ed=edFixture.editor();const b=[...document.querySelectorAll('.vd-context-menu .vd-context-item')].find(x=>x.textContent.includes(ed.t('easydrag.ui.run_now')));return !!b && b.disabled && b.title===ed.t('easydrag.ui.error_flow_disabled')}`)
+	s.wait(`()=>{const ed=edFixture.editor();const b=[...document.querySelectorAll('.vd-context-menu .vd-context-item')].find(x=>x.textContent.includes(ed.t('easydrag.ui.run_now')));return !!b && b.disabled && b.title===ed.t('easydrag.ui.reason_paused')}`)
 	s.shot("editor-paused")
 	s.noRawKeys("paused")
 	page.MustEval(`()=>aurora.closeContextMenu()`)
