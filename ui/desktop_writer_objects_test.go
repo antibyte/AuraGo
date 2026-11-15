@@ -83,6 +83,7 @@ func verifyWriterObjects(t *testing.T, page *rod.Page) {
         run({type:'setSelection',range:{anchor:{paragraphId:last,offset:0},head:{paragraphId:last,offset:0}}});
         await wait(400);
         if(editor.snapshot().table||!document.querySelector('[data-right] [data-border="all"]').disabled)throw Error('the edge buttons stay on outside a table');
+        if(!document.querySelector('[data-right] [data-action="imageReplace"]').disabled)throw Error('Replace image is on without a picture');
         // A picture after the table.
         const canvas=document.createElement('canvas');canvas.width=64;canvas.height=48;canvas.getContext('2d').fillRect(0,0,64,48);
         const blob=await new Promise(r=>canvas.toBlob(r,'image/png')),transfer=new DataTransfer();transfer.items.add(new File([blob],'objects.png',{type:'image/png'}));
@@ -100,6 +101,7 @@ func verifyWriterObjects(t *testing.T, page *rod.Page) {
         const image=()=>editor.snapshot().image;
         if(!image())throw Error('a click did not select the picture');
         await wait(300);
+        if(document.querySelector('[data-right] [data-action="imageReplace"]').disabled)throw Error('Replace image is off for a selected picture');
         const w0=image().widthEmu,h0=image().heightEmu;
         if(field('imageWidth').value!==u.show(w0/635)||field('imageHeight').value!==u.show(h0/635))throw Error('the size fields read '+field('imageWidth').value+' x '+field('imageHeight').value);
         if(!field('imageLock').checked)throw Error('the aspect lock starts off');

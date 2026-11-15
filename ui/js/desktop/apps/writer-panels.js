@@ -166,6 +166,7 @@
                     el.title=el.disabled?tr('command_unavailable'):'';
                 }
                 for(const el of root.querySelectorAll('.writer-right [data-border]'))el.disabled=app.readonly || !!app.blocked('setTableBorders') || !snapshot.table;
+                for(const el of root.querySelectorAll('.writer-right [data-action="imageReplace"]'))el.disabled=!app.commands.state('imageReplace').enabled;
             }
             if(right==='format')for(const id of ['pageSetup','paragraphFormat']) {
                 const el=root.querySelector('.writer-right [data-action="'+id+'"]'),state=app.commands.state(id);

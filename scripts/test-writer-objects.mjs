@@ -39,6 +39,9 @@ assert.equal(O.sizeCommand(picture, 'width', NaN, true), null);
 assert.equal(O.sizeCommand({widthEmu: 0, heightEmu: 10}, 'width', 100, true), null, 'no proportions without a size');
 assert.equal(O.fitHeight(1905000, 120, 120), 1905000);
 assert.equal(O.fitHeight(1905000, 200, 100), 952500);
+assert.equal(O.fitHeight(1000000, 200, 100, {left: 25, top: 0, right: 25, bottom: 0}), 1000000, 'the middle half of a 2:1 picture is a square');
+assert.equal(O.fitHeight(1000000, 100, 100, {left: 0, top: 10, right: 0, bottom: 40}), 500000);
+assert.equal(O.fitHeight(1000000, 100, 100, {left: 0, top: 0, right: 0, bottom: 0}), 1000000);
 
 // Crop: percent of the picture; something of it has to stay.
 same(O.crop({left: 10, top: 20, right: 30, bottom: 0}), {command: {type: 'setImageProperties', crop: {left: 10, top: 20, right: 30, bottom: 0}}});

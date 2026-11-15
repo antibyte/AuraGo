@@ -540,6 +540,7 @@
             const encoded=async type=>{
                 const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
                 const paint=canvas.getContext('2d');
+                if(!paint)return null;   // beyond the browser's canvas limits
                 if(type==='image/jpeg'){paint.fillStyle='#fff';paint.fillRect(0,0,width,height);}
                 paint.drawImage(bitmap,0,0);
                 const blob=await new Promise(resolve=>canvas.toBlob(resolve,type,.92));
@@ -555,10 +556,12 @@
                     if(result.ok || result.code!=='invalidArgs')break;
                 }
             } finally {bitmap.close();}
-            if(!result?.ok)throw new Error(result?.reason || tr('command_unavailable'));
-            const now=editor.getSelectedImage();
-            if(now?.widthEmu>0 && width>0 && height>0)run({type:'setImageProperties',heightEmu:window.WriterObjects.fitHeight(now.widthEmu,width,height)});
-            else refresh();
+            // The engine's answer to a file it cannot take is a code, not a sentence.
+            if(!result?.ok)throw new Error(!result || result.code==='invalidArgs'?tr('image_format'):(result.reason || tr('command_unavailable')));
+            // The height belongs to the picture that was replaced, not to one selected meanwhile.
+            const now=!disposed && editor===active?editor.getSelectedImage():null;
+            if(now?.id===selected.id && now.widthEmu>0 && width>0 && height>0)run({type:'setImageProperties',heightEmu:window.WriterObjects.fitHeight(now.widthEmu,width,height,now.crop)});
+            else if(!disposed)refresh();
         }
         let qrOpening=false;
         async function insertQR() {
@@ -636,7 +639,7 @@
                     case 'wordCount':await dialogs.wordCount();break;
                     case 'shortcuts':await dialogs.shortcuts();break;
                     case 'image':find('[data-image]').click();break;
-                    case 'imageReplace':find('[data-image-replace]').click();break;
+                    case 'imageReplace':if(commands.state('imageReplace').enabled)find('[data-image-replace]').click();break;
                     case 'qr':await insertQR();break;
                     // One print frame serves Print and the PDF, so they take turns.
                     case 'print':if(editor && !pdfBusy){pdfBusy=true;try{await panels.print(await editor.save(),lib,documentFonts,basename(path).replace(/\.docx$/i,''));}finally{pdfBusy=false;}}break;

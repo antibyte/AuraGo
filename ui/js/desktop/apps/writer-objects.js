@@ -34,8 +34,12 @@
         return side === 'width' ? {type: 'setImageProperties', widthEmu: size, heightEmu: Math.round(size * image.heightEmu / image.widthEmu)}
             : {type: 'setImageProperties', widthEmu: Math.round(size * image.widthEmu / image.heightEmu), heightEmu: size};
     }
-    // fitHeight is the height a picture of the given pixel size has at a width.
-    const fitHeight = (widthEmu, pixelWidth, pixelHeight) => Math.round(widthEmu * pixelHeight / pixelWidth);
+    // fitHeight is the height a picture of the given pixel size has at a width. A crop (in percent) shows only a
+    // part of the picture, and the frame keeps the proportions of that part.
+    function fitHeight(widthEmu, pixelWidth, pixelHeight, cropped) {
+        const share = (near, far) => Math.max(1, 100 - (Number(near) || 0) - (Number(far) || 0)) / 100;
+        return Math.round(widthEmu * (pixelHeight * share(cropped?.top, cropped?.bottom)) / (pixelWidth * share(cropped?.left, cropped?.right)));
+    }
 
     // crop takes the four sides in percent of the picture. Something of the picture has to stay.
     function crop(values) {
