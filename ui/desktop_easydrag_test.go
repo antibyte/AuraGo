@@ -150,7 +150,7 @@ var easyDragSplitSeams = []struct {
 	has    []string
 	hasNot []string
 }{
-	{"easydrag-header.js", []string{"function renderHeader(", "function renderSaveState(", "function syncSaveChip(", "function renderIssues(", "function renderLastRun(", "function runNowState(", "const SAVE_ICONS", "ED.header = { create };"}, nil},
+	{"easydrag-header.js", []string{"function renderHeader(", "function renderSaveState(", "function syncSaveChip(", "function renderIssues(", "function renderLastRun(", "function paintActions(", "const SAVE_ICONS", "ED.header = { create };"}, nil},
 	{"easydrag-editor.js", []string{"ED.header.create({", "function renderBanner(", "ED.editor = { create };"}, []string{"function renderHeader(", "function renderSaveState(", "function stateOf(", "function runNowState(", "const SAVE_ICONS"}},
 	{"easydrag-home-grid.js", []string{"function visibleFlows(", "function cardName(", "function errorCard(", "function emptyCard(", "function speak(", "function render() {", "ED.homeGrid = { create };"}, nil},
 	{"easydrag-home.js", []string{"ED.homeGrid.create({", "function render() { gridView.render(); }", "function createOff(", "async function runNow(", "function focusLeftFlow(", "ED.home = { create, previewSVG, pauseOps };"}, []string{"function visibleFlows(", "function cardName(", "function errorCard(", "function statusBadge(", "let spoken"}},
