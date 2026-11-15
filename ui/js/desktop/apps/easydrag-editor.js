@@ -469,7 +469,7 @@
         // Every other shortcut is only drawn by the menus and fired by ED.actions.key in onKeyDown. The step
         // inspector is not a dialog.
         function modalOpen() { return !!el.querySelector('.ed-modal-backdrop:not(.is-closing)'); }
-        function contextMenuOpen() { return !!document.querySelector('.vd-context-menu'); }
+        function contextMenuOpen() { return !!document.querySelector('.vd-context-menu:not(.vd-context-menu-closing)'); }
         ed.actionFacts = () => ({ restoring, dialog: modalOpen() || contextMenuOpen(), running: runs.isRunning() });
 
         const bind = (id, impl) => ED.actions.bind(id, impl, ed);

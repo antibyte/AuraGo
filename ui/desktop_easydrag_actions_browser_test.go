@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/go-rod/rod/lib/proto"
 )
 
 // easyDragActionsHelper installs window.__acts: collectors that read every surface an action appears on (the window menus, the
@@ -326,4 +328,47 @@ func TestEasyDragActionsAgreeBrowser(t *testing.T) {
 	}
 	p.MustEval(`()=>aurora.closeContextMenu()`)
 	s.failOnPageErrors("actions agree")
+}
+
+// TestEasyDragActionsMenuClicksBrowser clicks real entries of the "more" menu and of a card menu while the desktop animates:
+// a menu that is closing stays in the DOM with vd-context-menu-closing, and its action must still run.
+func TestEasyDragActionsMenuClicksBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	s := startEasyDragSmokeWith(t, easyDragSmokeOptions{Motion: true})
+	p := s.page
+	// The fixture shell sets windows.animations to false; make the desktop animate so the closing class really appears.
+	feature := &proto.EmulationMediaFeature{Name: "prefers-reduced-motion", Value: "no-preference"}
+	if err := (proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{feature}}).Call(p); err != nil {
+		t.Fatalf("emulate prefers-reduced-motion: %v", err)
+	}
+	p.MustEval(`()=>{document.body.dataset.animations='true';}`)
+
+	s.wait(`()=>document.querySelectorAll('.ed-flow-card').length===1`)
+	p.MustElement(".ed-flow-card h3").MustClick()
+	s.wait(`()=>document.querySelectorAll('.ed-node').length===4 && document.querySelectorAll('.ed-edge').length===3`)
+	s.settle()
+
+	// The "more" menu: Flow settings opens its dialog.
+	p.MustElement(`[data-ed-cmd="more"]`).MustClick()
+	s.wait(`()=>!!document.querySelector('.vd-context-menu [data-context-action$="settings"]')`)
+	p.MustElement(`.vd-context-menu [data-context-action$="settings"]`).MustClick()
+	s.wait(`()=>!!document.querySelector('.ed-modal')`)
+	p.MustEval(`()=>{const m=document.querySelector('.ed-modal-backdrop');m.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true,composed:true}));}`)
+	s.wait(`()=>!document.querySelector('.ed-modal-backdrop')`)
+	s.settle()
+
+	// A card menu: Duplicate on the selected card adds a card, and Undo stays available.
+	p.MustEval(`()=>{const ed=edFixture.editor();const id=ed.model.doc.nodes.find(n=>!ed.model.info(n.type).trigger).id;ed.bus.emit('focus-node',id);}`)
+	s.wait(`()=>document.querySelectorAll('.ed-node.is-selected').length===1`)
+	s.settle()
+	p.MustEval(`()=>{const c=document.querySelector('.ed-node.is-selected');const r=c.getBoundingClientRect();c.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:r.left+20,clientY:r.top+20}));}`)
+	s.wait(`()=>!!document.querySelector('.vd-context-menu [data-context-action$="duplicate"]')`)
+	p.MustElement(`.vd-context-menu [data-context-action$="duplicate"]`).MustClick()
+	s.wait(`()=>document.querySelectorAll('.ed-node').length===5`)
+	s.wait(`()=>!document.querySelector('.vd-context-menu')`)
+	s.settle()
+	if p.MustEval(`()=>document.querySelector('.ed-head [data-ed-history="undo"]').getAttribute('aria-disabled')==='true'`).Bool() {
+		t.Fatal("Undo is unavailable after the card menu's Duplicate")
+	}
+	s.failOnPageErrors("actions menu clicks")
 }
