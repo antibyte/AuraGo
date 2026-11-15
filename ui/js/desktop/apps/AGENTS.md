@@ -6147,7 +6147,9 @@ registration lives in `internal/desktop/types.go`.
   deleting the open project. Both follow `capabilities.allow_delete`; a
   missing grant disables them with `game_maker.delete_notice` (the delete
   grant, never the read-only notice), and a finished deletion reports
-  `game_maker.deleted_notice`. Verify `TestGameMakerLibraryDeleteBrowser`.
+  `game_maker.deleted_notice`. The control keeps the studio button frame but
+  resets its padding, otherwise the generic studio button padding pushes the
+  icon against the border. Verify `TestGameMakerLibraryDeleteBrowser`.
   No child DOX file needed.
 - `pixel*.js`, `pixel-lib-*.js` (incl. `pixel-worker.js`) - Pixel image editor, structure in `## Pixel`:
   shell and core, the DOM-free libraries (filters, generators, cutout, inpaint), the worker, and the feature

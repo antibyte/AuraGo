@@ -313,8 +313,12 @@
 }
 
 /* Every game carries its own delete control: removing a game must not
-   require opening it first. */
-.gm-project-delete {
+   require opening it first. The generic studio button rule adds 13 px of
+   side padding, so this rule has to outrank it - with that padding the
+   content box is narrower than the icon and the icon sits against the
+   border instead of in the middle. The button keeps the studio's own
+   frame and background. */
+.gm-studio .gm-project-delete {
     display: grid;
     place-items: center;
     flex: 0 0 auto;
@@ -322,19 +326,16 @@
     min-height: 30px;
     padding: 0;
     color: var(--gm-muted);
-    border: 1px solid transparent;
-    border-radius: var(--vd-mat-card-radius, 6px);
-    background: transparent;
     cursor: pointer;
 }
 
-.gm-project-delete:hover:not(:disabled) {
+.gm-studio .gm-project-delete:hover:not(:disabled) {
     color: var(--gm-tone-bad);
     border-color: var(--vd-mat-card-border, var(--gm-line));
     background: var(--vd-mat-hover, rgba(139, 124, 246, 0.14));
 }
 
-.gm-project-delete:disabled {
+.gm-studio .gm-project-delete:disabled {
     opacity: 0.4;
     cursor: not-allowed;
 }
