@@ -4,7 +4,7 @@
 
 .vd-workspace {
     position: relative;
-    overflow: hidden;
+    overflow: clip;
     isolation: isolate;
     touch-action: pan-y;
 }

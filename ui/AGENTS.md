@@ -1071,6 +1071,11 @@ New app-scoped prefixes must contain no `ad` substring; verify
   excludes native dialogs from its 920px minimum.
   The touch phone layout keeps its own `--vd-mobile-taskbar-reserve`. Verify
   `TestDesktopMaximizedWindowClearsTaskbarBrowser`.
+- The Desktop body is fixed to the viewport with clipped overflow. Keep the wide
+  workspace clipped too: focusing overflowing descendants must never scroll the
+  document or move the window layer above the workspace and leave a matching gap
+  above the taskbar. App content keeps its own scrollports; narrow layouts retain
+  horizontal workspace scrolling.
 - On viewport resize, recompute maximized window workspace bounds and reachable inline minimums
   without changing stored restore geometry; normal desktop minimums return on a wider workspace.
   Verify `TestDesktopMaximizedWindowFollowsViewportResizeBrowser`.

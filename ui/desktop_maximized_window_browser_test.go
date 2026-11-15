@@ -50,7 +50,7 @@ func TestDesktopMaximizedWindowClearsTaskbarBrowser(t *testing.T) {
 	// measure maximizes a fresh Settings window and reports its bottom edge
 	// against the top of the visible bottom taskbar (Standard) or dock
 	// (Fruity). Wide Fruity layouts move the status bar into the top menubar.
-	const measure = `async([theme,density])=>{
+	const measure = `async([theme,density,focusOverflow])=>{
         [...aurora.state.windows.keys()].forEach(id=>aurora.closeWindow(id));
         aurora.state.bootstrap.settings['appearance.density']=density;
         fixtureTheme(theme);
@@ -58,11 +58,21 @@ func TestDesktopMaximizedWindowClearsTaskbarBrowser(t *testing.T) {
         const item=[...aurora.state.windows.values()].at(-1);
         if(!item.element.classList.contains('maximized'))aurora.toggleMaximizeWindow(item.id);
         await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+        const workspace=document.getElementById('vd-workspace');
+        let overflow;
+        if(focusOverflow){
+            overflow=document.createElement('button');
+            overflow.style.cssText='position:absolute;top:100%;left:0;width:1px;height:20px;opacity:0';
+            workspace.appendChild(overflow);
+            overflow.focus();
+        }
         const bar=[...document.querySelectorAll('.vd-taskbar,.vd-taskbar-apps,.vd-taskbar-system')]
             .map(e=>e.getBoundingClientRect()).filter(r=>r.width>0&&r.height>0&&r.bottom>innerHeight/2);
         const win=item.element.getBoundingClientRect();
-        return {
+        const result={
             winTop:win.top,winBottom:win.bottom,winHeight:win.height,
+            workspaceTop:workspace.getBoundingClientRect().top,workspaceScroll:workspace.scrollTop,
+            rootScroll:document.scrollingElement.scrollTop,bodyScroll:document.body.scrollTop,
             layerTop:document.getElementById('vd-window-layer').getBoundingClientRect().top,
             barTop:Math.min(...bar.map(r=>r.top)),
             viewport:innerHeight,visual:Math.round(visualViewport.height),
@@ -70,6 +80,8 @@ func TestDesktopMaximizedWindowClearsTaskbarBrowser(t *testing.T) {
             forced:item.element.classList.contains('vd-mobile-forced-maximized'),
             height:getComputedStyle(item.element).height
         };
+        if(overflow)overflow.remove();
+        return result;
     }`
 	artifacts := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR")
 	if artifacts != "" {
@@ -78,16 +90,18 @@ func TestDesktopMaximizedWindowClearsTaskbarBrowser(t *testing.T) {
 		}
 	}
 	type geometry struct {
-		WinTop, WinBottom, WinHeight float64
-		LayerTop, BarTop             float64
-		Viewport, Visual             float64
-		Collapsed, Forced            bool
-		Height                       string
+		WinTop, WinBottom, WinHeight  float64
+		LayerTop, BarTop              float64
+		WorkspaceTop, WorkspaceScroll float64
+		RootScroll, BodyScroll        float64
+		Viewport, Visual              float64
+		Collapsed, Forced             bool
+		Height                        string
 	}
-	run := func(theme, density string) geometry {
+	run := func(theme, density string, focusOverflow bool) geometry {
 		t.Helper()
 		var g geometry
-		if err := page.MustEval(measure, []string{theme, density}).Unmarshal(&g); err != nil {
+		if err := page.MustEval(measure, []interface{}{theme, density, focusOverflow}).Unmarshal(&g); err != nil {
 			t.Fatal(err)
 		}
 		return g
@@ -97,7 +111,7 @@ func TestDesktopMaximizedWindowClearsTaskbarBrowser(t *testing.T) {
 		page.MustSetViewport(size[0], size[1], 1, false)
 		for _, theme := range []string{"standard", "fruity-light", "fruity-dark"} {
 			for _, density := range []string{"comfortable", "compact"} {
-				g := run(theme, density)
+				g := run(theme, density, false)
 				label := fmt.Sprintf("%s/%s at %dx%d", theme, density, size[0], size[1])
 				t.Logf("%s: %+v", label, g)
 				if artifacts != "" {
@@ -122,6 +136,23 @@ func TestDesktopMaximizedWindowClearsTaskbarBrowser(t *testing.T) {
 		}
 	}
 
+	// Focusing an overflowing descendant must not scroll the outer desktop:
+	// that shifts every maximized titlebar up and leaves the same gap below.
+	page.MustSetViewport(1920, 1080, 1, false)
+	for _, theme := range []string{"standard", "fruity-light", "fruity-dark"} {
+		g := run(theme, "comfortable", true)
+		t.Logf("%s after focusing desktop overflow: %+v", theme, g)
+		if artifacts != "" {
+			page.MustScreenshot(filepath.Join(artifacts, fmt.Sprintf("maximized-%s-overflow-focus.png", theme)))
+		}
+		if g.RootScroll != 0 || g.BodyScroll != 0 || g.WorkspaceScroll != 0 || g.WinTop != g.WorkspaceTop {
+			t.Errorf("%s: focusing overflow shifted the maximized window from workspace top %.1f to %.1f (root scroll %.1f, body scroll %.1f, workspace scroll %.1f)", theme, g.WorkspaceTop, g.WinTop, g.RootScroll, g.BodyScroll, g.WorkspaceScroll)
+		}
+		if gap := g.BarTop - g.WinBottom; gap < -0.5 || gap > 16 {
+			t.Errorf("%s: focusing overflow leaves %.1fpx between the maximized window and taskbar", theme, gap)
+		}
+	}
+
 	// Phone layout: touch input keeps the forced single-window layout and its
 	// own taskbar reserve below the visual viewport height.
 	page.MustSetViewport(390, 844, 1, true)
@@ -129,7 +160,7 @@ func TestDesktopMaximizedWindowClearsTaskbarBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, theme := range []string{"standard", "fruity-light"} {
-		g := run(theme, "comfortable")
+		g := run(theme, "comfortable", false)
 		t.Logf("%s touch at 390x844: %+v", theme, g)
 		if artifacts != "" {
 			page.MustScreenshot(filepath.Join(artifacts, fmt.Sprintf("maximized-%s-touch-390x844.png", theme)))

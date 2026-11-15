@@ -312,6 +312,9 @@
 
 .desktop-body {
     margin: 0;
+    /* Focus must scroll app content, never the desktop document. */
+    position: fixed;
+    inset: 0;
     min-height: 100vh;
     color: var(--vd-text);
     background:
@@ -320,7 +323,7 @@
         radial-gradient(ellipse at 76% 12%, rgba(255, 128, 102, 0.15) 0%, transparent 40%),
         radial-gradient(ellipse at 50% 50%, rgba(10, 18, 36, 0.4) 0%, transparent 70%),
         linear-gradient(170deg, #0a0e16 0%, #0d1422 55%, #080c13 100%);
-    overflow: hidden;
+    overflow: clip;
     overscroll-behavior: none;
     -webkit-overflow-scrolling: auto;
 }
@@ -2013,13 +2016,13 @@
     .desktop-body[data-shell="dock"] {
         height: var(--vd-visual-height, 100dvh);
         min-height: 0;
-        overflow-y: hidden;
+        overflow: clip;
     }
 
     .desktop-body[data-shell="dock"] .vd-shell {
         height: var(--vd-visual-height, 100dvh);
         min-height: 0;
-        overflow: hidden;
+        overflow: clip;
     }
 
     .desktop-body[data-shell="dock"] .vd-taskbar,
@@ -5185,7 +5188,7 @@
 
 .vd-workspace {
     position: relative;
-    overflow: hidden;
+    overflow: clip;
     isolation: isolate;
     touch-action: pan-y;
 }
