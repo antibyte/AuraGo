@@ -105,7 +105,9 @@
                     return move(finding, nodeId, name, false);
                 }
             });
-            dialog.body.querySelector('[data-ed-credential-name]').value = proposeName(node, finding);
+            const nameField = dialog.body.querySelector('[data-ed-credential-name]');
+            nameField.value = proposeName(node, finding);
+            ED.kit.limit(nameField, { max: 40, counter: false, t });
         }
 
         // removeValue clears the typed value in the client (the warning offers it when moving is not possible).

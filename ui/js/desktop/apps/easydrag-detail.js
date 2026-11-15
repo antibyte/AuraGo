@@ -802,7 +802,7 @@
             event.preventDefault();
             go(delta);
         });
-        bag.listen(labelInput, 'input', () => ed.model.setLabel(node.id, labelInput.value));
+        bag.listen(labelInput, 'input', () => ed.model.setLabel(node.id, labelInput.value)); bag.add(ED.kit.limit(labelInput, { max: 80, counter: false, count: value => Array.from(value).length, t }).detach);
         bag.add(ed.bus.on('model', change => {
             const current = ed.model.node(node.id);
             if (!current) { closeSelf(true); return; }

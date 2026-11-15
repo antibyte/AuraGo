@@ -197,5 +197,60 @@
         }, ms || FLASH_MS);
     }
 
-    ED.kit = { disclosure, disclosureMarkup, attach, isOpen, setOpen, setTitle, setCount, body, callout, chip, toast, toolbar, flash };
+    // limit is the length note of a capped text input (voice guide rule 5): opts {max, counter, count, t, after}.
+    // counter true (long text) shows "count / max" from 90 % of max; counter false (one line) shows
+    // "At most {max} characters." once the input reaches max. count(value) measures the value (default:
+    // value.length; a step label counts code points). t translates. after is the element the note follows
+    // (default: the label around the input, else the input). The note describes the input, so a screen reader
+    // reads the count on focus; a separate polite live region (.ed-sr-only) speaks only when the state changes:
+    // the counter appears, the cap is reached, the text goes over the limit, the note hides. It never speaks on
+    // every keystroke (W1b amendment 23). The note hides again when the text is shorter. Returns {update, detach}.
+    function limit(input, opts) {
+        const o = opts || {};
+        const max = Number(o.max);
+        const measure = typeof o.count === 'function' ? o.count : value => value.length;
+        const say = typeof o.t === 'function' ? o.t : key => key;
+        const note = document.createElement('div');
+        note.className = 'ed-limit';
+        note.id = 'ed-limit-' + (++serial);
+        note.toggleAttribute('hidden', true);
+        const live = document.createElement('span');
+        live.className = 'ed-sr-only';
+        live.setAttribute('aria-live', 'polite');
+        live.setAttribute('data-ed-limit-live', '');
+        const anchor = o.after || (typeof input.closest === 'function' && input.closest('label')) || input;
+        if (anchor.parentNode) anchor.parentNode.insertBefore(note, anchor.nextSibling || null);
+        if (note.parentNode) note.parentNode.insertBefore(live, note.nextSibling || null);
+        const described = input.getAttribute('aria-describedby');
+        input.setAttribute('aria-describedby', described ? described + ' ' + note.id : note.id);
+        let spoken = 'none';
+        function update() {
+            const length = measure(String(input.value == null ? '' : input.value));
+            let kind = '';
+            let message = '';
+            if (o.counter) {
+                if (length * 10 >= max * 9) { kind = 'counter'; message = say('easydrag.ui.limit_counter', { count: ED.format.number(length), max: ED.format.number(max) }); }
+            } else if (length >= max) { kind = 'cap'; message = say('easydrag.ui.limit_reached', { max: ED.format.number(max) }); }
+            if (note.textContent !== message) note.textContent = message;
+            note.toggleAttribute('hidden', !kind);
+            note.classList.toggle('is-over', length > max);
+            note.setAttribute('data-ed-limit', kind || 'none');
+            const state = kind ? kind + (length > max ? '-over' : '') : 'none';
+            if (state !== spoken) { spoken = state; live.textContent = message; }
+        }
+        const events = ['input', 'change', 'blur'];
+        events.forEach(name => input.addEventListener(name, update));
+        update();
+        return {
+            update,
+            detach() {
+                events.forEach(name => input.removeEventListener(name, update));
+                note.remove();
+                live.remove();
+                if (described) input.setAttribute('aria-describedby', described); else input.toggleAttribute('aria-describedby', false);
+            }
+        };
+    }
+
+    ED.kit = { disclosure, disclosureMarkup, attach, isOpen, setOpen, setTitle, setCount, body, callout, chip, toast, toolbar, flash, limit };
 })();

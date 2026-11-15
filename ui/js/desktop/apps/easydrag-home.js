@@ -798,7 +798,7 @@
             cardMenu(flows.find(x => x.id === card.dataset.edFlow), event.clientX, event.clientY);
         });
         const searchUpdate = core.debounce(event => { query = event.target.value; selectedFilter = ''; render(); }, 120);
-        bag.listen(el.querySelector('[data-ed-home-search]'), 'input', event => { clearSelection(); searchUpdate(event); });
+        bag.listen(el.querySelector('[data-ed-home-search]'), 'input', event => { clearSelection(); searchUpdate(event); }); bag.add(ED.kit.limit(el.querySelector('[data-ed-home-search]'), { max: 4000, counter: false, t }).detach);
         bag.add(() => searchUpdate.cancel());
         bag.listen(el.querySelector('[data-ed-library-filter]'), 'change', event => {
             const saved = prefs.filters.find(item => item.id === event.target.value);

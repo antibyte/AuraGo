@@ -3,12 +3,14 @@
     'use strict';
     const ED = window.EasyDrag = window.EasyDrag || {};
     const GOAL_MAX = 4000;
-    let goalCounters = 0;
+
+    // goalLength is the length of a goal the way the server counts it: trimmed, in code points.
+    function goalLength(value) { return Array.from(String(value || '').trim()).length; }
 
     // goalCounter counts the goal the way the server does (flows_ai_proposal.go: trimmed, in
     // code points, at most 4,000) and formats "count / max" in the UI language.
     function goalCounter(value, t, locale) {
-        const count = Array.from(String(value || '').trim()).length;
+        const count = goalLength(value);
         const opts = locale ? { locale } : undefined;
         return { count, over: count > GOAL_MAX, text: t('easydrag.ui.goal_counter', { count: ED.format.number(count, opts), max: ED.format.number(GOAL_MAX, opts) }) };
     }
@@ -45,7 +47,6 @@
             const revision = home ? null : ed.saver ? ed.saver.revision : ed.flow.draft_revision;
             controller = new AbortController();
             const requestController = controller;
-            const counterId = 'ed-goal-counter-' + (++goalCounters);
             // syncGoal is set once the dialog exists; an action re-applies it, because the
             // dialog's setBusy(false) enables every action button again.
             let syncGoal = () => {};
@@ -55,7 +56,7 @@
             const current = () => !disposed && dialog && (home ? home.mayCreate() : !ed.runView && !ed.readonly && ed.model === model && model.version === version && Number(ed.saver ? ed.saver.revision : ed.flow.draft_revision) === Number(revision));
             dialog = core.modal(home ? home.root.closest('.ed-app') || home.root : ed.root, {
                 title: t('easydrag.ui.authoring_title'), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--authoring',
-                body: '<p class="ed-callout">' + esc(t('easydrag.ui.authoring_notice')) + '</p><label class="ed-label">' + esc(t('easydrag.ui.authoring_goal')) + '<textarea class="ed-input" rows="5" aria-describedby="' + counterId + '" data-ed-authoring-goal></textarea></label><p class="ed-goal-counter" id="' + counterId + '" data-ed-goal-counter></p><p class="ed-error" role="alert" hidden></p><section data-ed-authoring-preview hidden></section>',
+                body: '<p class="ed-callout">' + esc(t('easydrag.ui.authoring_notice')) + '</p><label class="ed-label">' + esc(t('easydrag.ui.authoring_goal')) + '<textarea class="ed-input" rows="5" data-ed-authoring-goal></textarea></label><p class="ed-error" role="alert" hidden></p><section data-ed-authoring-preview hidden></section>',
                 actions: [{ id: 'cancel', label: t('easydrag.ui.cancel') }, { id: 'generate', label: t('easydrag.ui.authoring_generate'), primary: true, icon: 'sparkles' }, { id: 'apply', label: t('easydrag.ui.authoring_apply'), primary: true }],
                 onAction: (action, view) => {
                     if (action !== 'cancel') { if (busy) return false; busy = true; }
@@ -98,15 +99,11 @@
             const owned = dialog;
             owned.el.querySelector('[data-ed-action="apply"]').hidden = true;
             const goalInput = owned.body.querySelector('[data-ed-authoring-goal]');
-            const counter = owned.body.querySelector('[data-ed-goal-counter]');
-            const locale = (typeof document !== 'undefined' && document.documentElement && document.documentElement.lang) || undefined;
-            // Above the limit the counter marks a state (warn ink) and Generate is disabled; the
-            // length check in onAction stays as a backstop.
+            // The limit note shows the count from 90 % of the limit and turns to warn ink above it; Generate
+            // is disabled above it too, and the length check in onAction stays as a backstop.
+            ED.kit.limit(goalInput, { max: GOAL_MAX, counter: true, count: goalLength, t });
             syncGoal = () => {
-                const state = goalCounter(goalInput.value, t, locale);
-                counter.textContent = state.text;
-                if (state.over) counter.classList.add('is-over'); else counter.classList.remove('is-over');
-                owned.el.querySelector('[data-ed-action="generate"]').disabled = state.over || busy;
+                owned.el.querySelector('[data-ed-action="generate"]').disabled = goalLength(goalInput.value) > GOAL_MAX || busy;
             };
             syncGoal();
             goalInput.addEventListener('input', () => {

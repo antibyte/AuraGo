@@ -82,7 +82,7 @@
             '<span class="ed-foot-spacer"></span>' +
             '<button type="button" class="ed-foot-item" data-ed-cmd="issues" aria-haspopup="dialog"><span data-ed-issues></span></button>' +
             '</footer></div>');
-        const nameInput = el.querySelector('[data-ed-name]');
+        const nameInput = el.querySelector('[data-ed-name]'); bag.add(ED.kit.limit(nameInput, { max: 120, counter: false, t }).detach);
         const body = el.querySelector('.ed-body');
         const banner = el.querySelector('.ed-runview-banner');
 

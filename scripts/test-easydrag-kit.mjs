@@ -16,7 +16,7 @@ export async function run({ apps, miniDom, eq }) {
         setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
         clearTimeout: id => { if (timers[id - 1]) timers[id - 1].fn = null; }
     });
-    for (const file of ['easydrag-core.js', 'easydrag-kit.js']) vm.runInContext(fs.readFileSync(path.join(apps, file), 'utf8'), box, { filename: file });
+    for (const file of ['easydrag-core.js', 'easydrag-format.js', 'easydrag-kit.js']) vm.runInContext(fs.readFileSync(path.join(apps, file), 'utf8'), box, { filename: file });
     const ED = box.window.EasyDrag;
     ED.status = { disc: (value, size) => '<span class="ed-status-disc" data-status="' + value + '" role="img" aria-label="' + value + '"></span>' };
     const kit = ED.kit;
@@ -104,6 +104,55 @@ export async function run({ apps, miniDom, eq }) {
     eq('kit modal() has a grab bar', !!open(390).el.querySelector('.ed-sheet-grab'), true);
     const noWidth = new dom.El('div', {});
     eq('kit modal() with an unmeasured host stays a dialog', ED.core.modal(noWidth, { title: 'T', body: '' }).el.classList.contains('ed-sheet'), false);
+
+    // limit(): the length note of a capped input (W1b B.7). A counter input shows "count / max" from 90 % and
+    // goes over at max + 1; a one-line input shows the cap message at max; both hide again when shorter.
+    const limitT = (key, vars) => (key === 'easydrag.ui.limit_counter' ? vars.count + ' / ' + vars.max : 'At most ' + vars.max + ' characters.');
+    const typeInto = (input, text) => { input.value = text; input.fire('input'); };
+    const shown = note => note.getAttribute('hidden') === null;
+    {
+        const form = new dom.El('div', {});
+        const area = form.appendChild(new dom.El('textarea', {}));
+        const guard = kit.limit(area, { max: 2000, counter: true, t: limitT });
+        const note = form.children[1];
+        const live = form.children[2];
+        eq('kit limit adds a hidden note that describes the input, and a separate polite live region after it',
+            [form.children.length, note.className, note.getAttribute('aria-live'), shown(note), area.getAttribute('aria-describedby') === note.id && note.id !== '', live.className, live.getAttribute('aria-live'), live.textContent || ''],
+            [3, 'ed-limit', null, false, true, 'ed-sr-only', 'polite', '']);
+        const at = n => { typeInto(area, 'x'.repeat(n)); return [shown(note), note.textContent, note.classList.contains('is-over')]; };
+        eq('kit limit counter: hidden at 50 % and just below 90 %', [at(1000), at(1799)], [[false, '', false], [false, '', false]]);
+        eq('kit limit counter: shown from 90 % in the UI number format', at(1800), [true, '1,800 / 2,000', false]);
+        eq('kit limit counter: the live region speaks when the counter appears, not on each keystroke inside the band',
+            [live.textContent, (at(1850), live.textContent), (at(1999), live.textContent)], ['1,800 / 2,000', '1,800 / 2,000', '1,800 / 2,000']);
+        eq('kit limit counter: still a counter at the limit, over it one character later', [at(2000), at(2001)], [[true, '2,000 / 2,000', false], [true, '2,001 / 2,000', true]]);
+        eq('kit limit counter: the live region speaks again when the text goes over the limit', live.textContent, '2,001 / 2,000');
+        eq('kit limit counter: hidden again when the text is short, and the live region is quiet', [at(1000), live.textContent], [[false, '', false], '']);
+        guard.detach();
+        eq('kit limit detach removes the note and the description', [form.children.length, area.getAttribute('aria-describedby')], [1, null]);
+    }
+    {
+        const form = new dom.El('div', {});
+        const label = form.appendChild(new dom.El('label', {}));
+        const input = label.appendChild(new dom.El('input', { 'aria-describedby': 'help' }));
+        kit.limit(input, { max: 120, counter: false, t: limitT });
+        const note = form.children[1];
+        eq('kit limit puts the note after the label, not inside it, and keeps an existing description',
+            [label.children.length, form.children.length, input.getAttribute('aria-describedby')], [1, 3, 'help ' + note.id]);
+        const at = n => { typeInto(input, 'x'.repeat(n)); return [shown(note), note.textContent]; };
+        eq('kit limit cap message: hidden below the limit, shown at it, hidden again below', [at(0), at(119), at(120), at(125), at(60)],
+            [[false, ''], [false, ''], [true, 'At most 120 characters.'], [true, 'At most 120 characters.'], [false, '']]);
+    }
+    {
+        const form = new dom.El('div', {});
+        const input = form.appendChild(new dom.El('input', {}));
+        kit.limit(input, { max: 80, counter: false, count: value => Array.from(value).length, t: limitT });
+        const note = form.children[1];
+        const smile = String.fromCodePoint(0x1F600);
+        typeInto(input, smile.repeat(79));
+        const below = shown(note);
+        typeInto(input, smile.repeat(80));
+        eq('kit limit counts with the given function: 80 code points are the limit, 79 are not', [below, shown(note), input.value.length], [false, true, 160]);
+    }
 
     // flash(): the text sits on the button for 2 s, then label, title and look come back
     {

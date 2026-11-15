@@ -43,7 +43,7 @@ var easyDragNumberNeutralKeys = []string{
 	"copied", "diff_added", "diff_changed", "diff_removed", "names_more", "output_items", "output_tokens",
 	"preview_list", "preview_object", "preview_text", "publish_blocked", "publish_warnings", "summary_items",
 	"tree_more", "goal_counter", "batch_result_summary", "home_bulk_selected", "extraction_selected",
-	"pack_blocks", "credential_move_text",
+	"pack_blocks", "credential_move_text", "limit_counter",
 }
 
 var (

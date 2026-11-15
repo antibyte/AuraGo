@@ -184,9 +184,8 @@
         const opt = (value, current, label) => '<option value="' + esc(value) + '"' + (value === current ? ' selected' : '') + '>' + esc(label) + '</option>';
         const run = maxRunParts(s.max_run_seconds);
         const runId = 'ed-max-run-' + ed.windowId;
-        const hintId = runId + '-hint';
         const errorId = runId + '-error';
-        const runInput = (name, value, max, unit) => '<label class="ed-input-unit"><input class="ed-input" type="number" min="0" max="' + max + '" step="1" inputmode="numeric" data-ed-set="' + name + '" value="' + esc(value) + '" aria-describedby="' + esc(hintId) + '"' + (ro ? ' disabled' : '') + '><span>' + esc(t(unit)) + '</span></label>';
+        const runInput = (name, value, max, unit) => '<label class="ed-input-unit"><input class="ed-input" type="number" min="0" max="' + max + '" step="1" inputmode="numeric" data-ed-set="' + name + '" value="' + esc(value) + '"' + (ro ? ' disabled' : '') + '><span>' + esc(t(unit)) + '</span></label>';
         const body =
             '<label class="ed-field"><span class="ed-label">' + esc(t('easydrag.ui.flow_name')) + '</span><input class="ed-input" data-ed-set="name" maxlength="120" value="' + esc(doc.name || '') + '"' + (ro ? ' disabled' : '') + '></label>' +
             '<label class="ed-field"><span class="ed-label">' + esc(t('easydrag.ui.flow_description')) + '</span><textarea class="ed-input" data-ed-set="description" rows="3" maxlength="2000"' + (ro ? ' disabled' : '') + '>' + esc(doc.description || '') + '</textarea></label>' +
@@ -195,7 +194,7 @@
             '<span class="ed-help">' + esc(t('easydrag.ui.flow_concurrency_help')) + '</span></label>' +
             '<div class="ed-field" role="group" aria-labelledby="' + esc(runId) + '"><span class="ed-label" id="' + esc(runId) + '">' + esc(t('easydrag.ui.flow_max_run')) + '</span>' +
             '<div class="ed-input-unit ed-input-unit--pair">' + runInput('max_run_minutes', run[0], 1440, 'easydrag.ui.unit_minutes') + runInput('max_run_seconds', run[1], 59, 'easydrag.ui.unit_seconds') + '</div>' +
-            '<p class="ed-hint" id="' + esc(hintId) + '">' + esc(t('easydrag.ui.flow_max_run_hint')) + '</p><p class="ed-error" id="' + esc(errorId) + '" role="alert" data-ed-max-run-error hidden></p></div>' +
+            '<p class="ed-error" id="' + esc(errorId) + '" role="alert" data-ed-max-run-error hidden></p></div>' +
             '<label class="ed-field"><span class="ed-label">' + esc(t('easydrag.ui.flow_notify')) + '</span><select class="ed-input" data-ed-set="notify_on_error"' + (ro ? ' disabled' : '') + '>' +
             ['desktop', 'push', 'telegram', 'whatsapp', 'off'].map(v => opt(v, s.notify_on_error || 'desktop', t('easydrag.ui.notify_' + v))).join('') + '</select></label>';
         const modal = core.modal(ed.root, {
@@ -217,7 +216,7 @@
                         err.hidden = false;
                         fields.forEach(f => {
                             f.setAttribute('aria-invalid', 'true');
-                            f.setAttribute('aria-describedby', hintId + ' ' + errorId);
+                            f.setAttribute('aria-describedby', errorId);
                         });
                         fields[0].focus();
                         return false;
@@ -229,13 +228,14 @@
                 return true;
             }
         });
+        ED.kit.limit(modal.body.querySelector('[data-ed-set="name"]'), { max: 120, counter: false, t }); ED.kit.limit(modal.body.querySelector('[data-ed-set="description"]'), { max: 2000, counter: true, t });
         // Typing in the run time takes a shown error back until the next Apply.
         const runFields = Array.from(modal.body.querySelectorAll('[data-ed-set="max_run_minutes"], [data-ed-set="max_run_seconds"]'));
         runFields.forEach(field => field.addEventListener('input', () => {
             modal.body.querySelector('[data-ed-max-run-error]').hidden = true;
             runFields.forEach(f => {
                 f.removeAttribute('aria-invalid');
-                f.setAttribute('aria-describedby', hintId);
+                f.removeAttribute('aria-describedby');
             });
         }));
         return modal;

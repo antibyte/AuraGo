@@ -293,8 +293,12 @@
 .ed-sr-only { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .ed-muted { color: var(--ed-muted); }
 .ed-hint { margin: 6px 0 0; color: var(--ed-muted); font-size: var(--ed-font-meta); line-height: 1.45; overflow-wrap: anywhere; }
-.ed-goal-counter { margin: 4px 0 0; color: var(--ed-muted); font-size: var(--ed-font-meta); font-variant-numeric: tabular-nums; text-align: end; }
-.ed-goal-counter.is-over { color: var(--ed-warn-ink); font-weight: 600; }
+.ed-limit { margin: 4px 0 0; color: var(--ed-muted); font-size: var(--ed-font-meta); font-variant-numeric: tabular-nums; text-align: end; }
+.ed-limit[data-ed-limit="cap"] { color: var(--ed-warn-ink); text-align: start; }
+.ed-limit.is-over { color: var(--ed-warn-ink); font-weight: 600; }
+/* In the header title and the home search the note sits in the row, after the field: floating below it would cover the toolbar. */
+.ed-title > .ed-limit { flex: none; margin: 0; white-space: nowrap; }
+.ed-search > .ed-limit { flex: none; margin: 0 8px 0 0; white-space: nowrap; }
 .ed-error { margin: 6px 0 0; color: var(--ed-danger-ink); font-size: var(--ed-font-meta); overflow-wrap: anywhere; }
 .ed-link { color: var(--ed-accent-ink); text-decoration: none; font-weight: 600; }
 .ed-link:hover { text-decoration: underline; }
@@ -615,7 +619,7 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
     display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; min-height: 54px; padding: 8px 12px;
     background: var(--ed-bar); box-shadow: var(--ed-bar-edge); border-bottom: 1px solid var(--ed-border); z-index: 3;
 }
-.ed-title { flex: 1 1 12rem; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.ed-title { position: relative; flex: 1 1 12rem; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .ed-title .ed-save, .ed-title .ed-revision, .ed-title .ed-state { min-width: 0; max-width: 100%; white-space: normal; }
 .ed-title-input {
     flex: 1 1 8rem; min-width: 0; max-width: min(420px, 100%); width: auto; padding: 4px 8px; margin-left: -2px;
@@ -1313,6 +1317,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-app .ed-block-library > [data-ed-block-library-more] { margin-top: 16px; }
 .ed-app .ed-block-field { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; padding: 14px 0; border-bottom: 1px solid var(--ed-border); }
 .ed-app .ed-block-field > .ed-icon-btn { justify-self: end; }
+.ed-app .ed-block-field > .ed-limit { grid-column: 1 / -1; }
 .ed-app .ed-block-field input, .ed-app .ed-block-field select, .ed-app .ed-block-call select { min-width: 0; }
 .ed-app .ed-block-values .ed-field-head { flex-wrap: wrap; }
 .ed-app .ed-block-values [data-ed-block-presence] { max-width: 100%; }

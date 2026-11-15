@@ -339,16 +339,15 @@ export async function run(env) {
         d.field('max_run_minutes').value = '1';
         d.field('max_run_minutes').fire('input');
         const cleared = [described(), err.hidden, ['max_run_minutes', 'max_run_seconds'].map(name => d.field(name).getAttribute('aria-invalid'))];
-        const hint = 'ed-max-run-w1-hint';
-        const both = hint + ' ed-max-run-w1-error';
-        eq('a1008 1.4 review: aria-describedby names the error while it shows, and only the hint once typing clears it',
-            [before, shown, cleared, d.h.logged], [[hint, hint], [[both, both], false, 'ed-max-run-w1-error'], [[hint, hint], true, [null, null]], []]);
+        const error = 'ed-max-run-w1-error';
+        eq('a1008 1.4 review: aria-describedby is empty, names the error while it shows, and is empty again once typing clears it',
+            [before, shown, cleared, d.h.logged], [[null, null], [[error, error], false, error], [[null, null], true, [null, null]], []]);
         d.editor.dispose();
     });
 
     await guardAsync('a1008 1.4 the run time strings exist in every locale', async () => {
-        eq('a1008 1.4 seconds unit, range hint and range error in all 16 locales',
-            missingKeys(apps, ['easydrag.ui.unit_seconds', 'easydrag.ui.flow_max_run_hint', 'easydrag.ui.flow_max_run_invalid']), []);
+        eq('a1008 1.4 seconds unit and range error in all 16 locales',
+            missingKeys(apps, ['easydrag.ui.unit_seconds', 'easydrag.ui.flow_max_run_invalid']), []);
     });
 
     // ── 1.5: run updates keep the focus on a card's tools ──

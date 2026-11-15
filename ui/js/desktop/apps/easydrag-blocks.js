@@ -105,6 +105,7 @@
                 catch (err) { if (!closed) { const box = view.body.querySelector('.ed-error'); box.hidden = false; box.textContent = core.errorText(t, err); } return false; }
                 finally { creating = false; if (!closed) paint(); }
             } });
+            ED.kit.limit(dialog.body.querySelector('[data-ed-block-name]'), { max: 120, counter: false, t });
             return dialog;
         }
         bag.listen(el, 'click', event => {

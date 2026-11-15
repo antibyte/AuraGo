@@ -159,7 +159,7 @@
         const { ed } = env, core = ED.core, bag = core.bag(), id = env.node.id;
         let node = env.node, fields = clone(Array.isArray(node.params.fields) ? node.params.fields : []), origins = fields.map(field => field.name), form, closed = false, composing = new Set(), signature = '';
         const output = node.type === 'block.output';
-        const el = core.el('<div class="ed-block-boundary"><p class="ed-hint">' + ed.esc(ed.t('easydrag.ui.block_fields_hint')) + '</p><div data-ed-block-fields></div><button type="button" class="ed-btn" data-ed-block-field-add>' + core.icon('plus') + ed.esc(ed.t('easydrag.ui.fields_add')) + '</button><p class="ed-error" role="alert" hidden></p><div data-ed-block-bindings></div></div>');
+        const el = core.el('<div class="ed-block-boundary"><div data-ed-block-fields></div><button type="button" class="ed-btn" data-ed-block-field-add>' + core.icon('plus') + ed.esc(ed.t('easydrag.ui.fields_add')) + '</button><p class="ed-error" role="alert" hidden></p><div data-ed-block-bindings></div></div>');
         function current() { return !closed && !ed.readonly && !ed.runView && ed.model.node(id) === node; }
         function error(valid) { const box = el.querySelector('.ed-error'); box.hidden = valid; box.textContent = valid ? '' : ed.t('easydrag.ui.block_fields_invalid'); return valid; }
         function commit() {
@@ -187,6 +187,7 @@
             signature = JSON.stringify(fields);
             el.querySelector('[data-ed-block-fields]').innerHTML = fields.map((field, index) => '<div class="ed-block-field" data-ed-block-field="' + index + '"><label class="ed-label">' + ed.esc(ed.t('easydrag.param.field_name')) + '<input class="ed-input" data-ed-block-key="name" maxlength="40" value="' + ed.esc(field.name) + '"' + (ed.readonly ? ' disabled' : '') + '></label><label class="ed-label">' + ed.esc(ed.t('easydrag.param.field_type')) + '<select class="ed-input" data-ed-block-key="type"' + (ed.readonly ? ' disabled' : '') + '>' + Object.keys(ED.blocks.types).map(type => '<option value="' + type + '"' + (field.type === type ? ' selected' : '') + '>' + ed.esc(ed.t('easydrag.ui.type_' + ED.blocks.types[type])) + '</option>').join('') + '</select></label>' + ['required', 'nullable'].map(key => '<label class="ed-check"><input type="checkbox" data-ed-block-key="' + key + '"' + (field[key] ? ' checked' : '') + (ed.readonly ? ' disabled' : '') + '> ' + ed.esc(ed.t('easydrag.ui.block_' + key)) + '</label>').join('') + '<button type="button" class="ed-icon-btn" data-ed-block-field-remove aria-label="' + ed.esc(ed.t('easydrag.ui.delete') + ' · ' + (index + 1)) + '"' + (ed.readonly ? ' disabled' : '') + '>' + core.icon('trash') + '</button></div>').join('');
             el.querySelectorAll('[data-ed-block-key]').forEach(input => { input.edCommit = commit; });
+            el.querySelectorAll('[data-ed-block-key="name"]').forEach(input => ED.kit.limit(input, { max: 40, counter: false, t: ed.t }));
             el.querySelector('[data-ed-block-field-add]').disabled = !!ed.readonly || fields.length >= 64;
             buildBindings();
         }

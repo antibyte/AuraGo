@@ -59,13 +59,13 @@ assert.deepEqual([goal.count, goal.over, goal.text], [2, false, '2 / 4,000']);
         return { value: '', hidden: false, disabled: false, textContent: '', classList: { add() {}, remove() {} },
             addEventListener(type, fn) { listeners[type] = fn; }, fire(type) { if (listeners[type]) listeners[type](); } };
     };
-    const goalEl = fakeEl(), counterEl = fakeEl(), errorEl = fakeEl(), previewEl = fakeEl();
+    const goalEl = fakeEl(), errorEl = fakeEl(), previewEl = fakeEl();
     const buttons = { cancel: fakeEl(), generate: fakeEl(), apply: fakeEl() };
     let view = null, opts = null;
     ED.core = {
         modal(root, o) {
             opts = o;
-            const pick = { '[data-ed-authoring-goal]': goalEl, '[data-ed-goal-counter]': counterEl, '.ed-error': errorEl, '[data-ed-authoring-preview]': previewEl };
+            const pick = { '[data-ed-authoring-goal]': goalEl, '.ed-error': errorEl, '[data-ed-authoring-preview]': previewEl };
             view = { done: new Promise(() => {}), close() {},
                 body: { querySelector: sel => pick[sel] },
                 el: { querySelector: sel => buttons[/data-ed-action="(\w+)"/.exec(sel)[1]] } };
@@ -73,6 +73,7 @@ assert.deepEqual([goal.count, goal.over, goal.text], [2, false, '2 / 4,000']);
         },
         errorText: () => 'error'
     };
+    ED.kit = { limit: () => ({ update() {}, detach() {} }) };
     let calls = 0, release = null;
     const ed = { t: key => key, esc: x => x, readonly: false, runView: false, api: { proposeNew: () => { calls++; return new Promise(resolve => { release = resolve; }); } } };
     const authoring = ED.authoring.create(ed, { mayCreate: () => true, root: { closest: () => null } });
