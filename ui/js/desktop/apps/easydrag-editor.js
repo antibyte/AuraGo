@@ -520,7 +520,7 @@
         // Dialogs, the detail view, quick-add and the run drawer open as children of the editor:
         // the menus follow them (disabled edits, checked drawer).
         if (typeof MutationObserver === 'function') {
-            const overlays = new MutationObserver(() => { setMenusSoon(); headerView.paintActions(); history.sync(true); });
+            const overlays = new MutationObserver(() => { setMenusSoon(); headerView.paintActions(); history.sync(true); interact.paintTools(); });
             overlays.observe(el, { childList: true });
             bag.add(() => overlays.disconnect());
         }

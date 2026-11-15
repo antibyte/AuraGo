@@ -229,6 +229,10 @@ func TestEasyDragActionsAgreeBrowser(t *testing.T) {
 	if !strings.Contains(running.Facts["flow.test"], "Lauf") || !strings.Contains(running.Facts["step.test"], "Lauf") || running.Facts["flow.stop"] != "on" {
 		t.Fatalf("run in progress: Test and Test this step say a run is going and Stop is on, got %v", running.Facts)
 	}
+	// Every card's Test tool says a run is going, not only the selected card's.
+	if bad := p.MustEval(`()=>{const bad=[];document.querySelectorAll('.ed-node').forEach(c=>{const b=c.querySelector('[data-ed-node-tool="test"]');if(b&&(b.getAttribute('aria-disabled')!=='true'||!/Lauf/.test(b.getAttribute('aria-description')||'')))bad.push(c.dataset.nodeId);});return bad.join(',');}`).Str(); bad != "" {
+		t.Fatalf("run in progress: the Test tool of these cards does not say a run is going: %s", bad)
+	}
 	p.MustElement(`[data-ed-cmd="cancel"]`).MustClick()
 	s.wait(`()=>{const stop=document.querySelector('[data-ed-cmd="cancel"]');return !stop || stop.hidden}`)
 	// The run ended: the window menus follow it without a selection change (Test is available again).
@@ -372,6 +376,18 @@ func TestEasyDragActionsMenuClicksBrowser(t *testing.T) {
 	s.settle()
 	if p.MustEval(`()=>document.querySelector('.ed-head [data-ed-history="undo"]').getAttribute('aria-disabled')==='true'`).Bool() {
 		t.Fatal("Undo is unavailable after the card menu's Duplicate")
+	}
+
+	// A step added through quick-add: its tools are painted with the editor free again, not with the facts of the add.
+	p.MustEval(`()=>{window.__before=Array.from(document.querySelectorAll('.ed-node')).map(c=>c.dataset.nodeId);const r=document.querySelector('.ed-canvas').getBoundingClientRect();edFixture.editor().bus.emit('quick-add',{x:r.left+r.width/2,y:r.bottom-120});}`)
+	s.wait(`()=>document.activeElement && document.activeElement.classList.contains('ed-quick-search')`)
+	p.MustElement(".ed-quick-search").MustInput("Telegram")
+	s.wait(`()=>document.querySelectorAll('.ed-quick .ed-palette-item').length===1`)
+	p.Keyboard.MustType(input.Enter)
+	s.wait(`()=>!document.querySelector('.ed-quick') && document.querySelectorAll('.ed-node').length===6`)
+	s.settle()
+	if got := p.MustEval(`()=>{const c=Array.from(document.querySelectorAll('.ed-node')).find(c=>!window.__before.includes(c.dataset.nodeId));const b=c&&c.querySelector('[data-ed-node-tool="duplicate"]');return !b?'no duplicate tool':b.getAttribute('aria-disabled')==='true'?b.getAttribute('aria-description'):'';}`).Str(); got != "" {
+		t.Fatalf("the new card's Duplicate tool is unavailable after quick-add: %q", got)
 	}
 
 	// Ctrl+K under an open EasyDrag dialog does not open the desktop's Spotlight.

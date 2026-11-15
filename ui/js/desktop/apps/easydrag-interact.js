@@ -713,11 +713,14 @@
         bindAction('view.zoom_out', { run: () => canvas.zoomBy(1 / 1.2) });
         bindAction('view.zoom_fit', { run: () => canvas.fit({ animate: true }) });
         bindAction('view.zoom_reset', { run: () => { const s = canvas.size(); canvas.setView(G.zoomAt(ed.view, 1, { x: s.w / 2, y: s.h / 2 }), { animate: true }); } });
-        // A run starting or ending changes which tools may act (Test this step): the selected cards repaint theirs.
-        bag.add(ed.bus.on('run', () => ed.selection.forEach(id => {
-            const card = canvas.nodeEl(id);
-            if (card) card.querySelectorAll('[data-ed-node-tool]').forEach(button => ED.actions.TOOLS.filter(([tool]) => tool === button.dataset.edNodeTool).forEach(([, action]) => ED.actions.paint(button, action, { host: ed, node: id }, { name: true })));
-        })));
+        // A card's tools are painted when its markup is built; a run, a dialog or quick-add changes which may act: every card repaints its own.
+        function paintTools() {
+            ed.model.doc.nodes.forEach(n => {
+                const card = canvas.nodeEl(n.id);
+                if (card) card.querySelectorAll('[data-ed-node-tool]').forEach(button => ED.actions.TOOLS.filter(([tool]) => tool === button.dataset.edNodeTool).forEach(([, action]) => ED.actions.paint(button, action, { host: ed, node: n.id }, { name: true })));
+            });
+        }
+        bag.add(ed.bus.on('run', paintTools));
 
         // An expired fragment goes as soon as an editor opens, not only at the next paste.
         storedFragment();
@@ -738,7 +741,7 @@
         bag.add(() => { if (gesture) gesture.abort(); });
 
         return {
-            select, selectAll, handleKey, handleKeyUp, copySelection, pasteAt, removeSelection, duplicateSteps, undo, redo, edgeNear,
+            select, selectAll, paintTools, handleKey, handleKeyUp, copySelection, pasteAt, removeSelection, duplicateSteps, undo, redo, edgeNear,
             lastPointer: () => lastPointer,
             // abortGesture cancels a pan, drag, connect or box select in progress (a drag moves back).
             abortGesture() { if (gesture) gesture.abort(); },
