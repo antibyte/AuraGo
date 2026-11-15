@@ -3521,8 +3521,8 @@
     const LONG_BUBBLE_DURATION_MS = 8000;
     const MAX_BUBBLE_CHARS = 140;
     const BUBBLE_VIEWPORT_MARGIN = 16;
-    const AMBIENT_MIN_DELAY_MS = 10000;
-    const AMBIENT_MAX_DELAY_MS = 24000;
+    const AMBIENT_MIN_DELAY_MS = 6000;
+    const AMBIENT_MAX_DELAY_MS = 12000;
     const AMBIENT_RETURN_PADDING_MS = 260;
     const AMBIENT_RUN_MIN_DISTANCE = 90;
     const AMBIENT_RUN_MAX_DISTANCE = 180;
@@ -3586,6 +3586,8 @@
     let bubbleTimer = null;
     let pendingBubble = null;
     let loadedPetId = null;
+    let loadedPetLayout = null;
+    let ambientStep = 0;
     let petRuntimeInitialized = false;
     let petCatalogHydration = null;
     let ambientTimer = null;
@@ -3872,7 +3874,7 @@
         dockFloorTarget = target;
         dockFloorObserver = new window.ResizeObserver(() => {
             if (!layer || drag || !petGravity()) return;
-            applyPosition();
+            startGravityFall();
         });
         dockFloorObserver.observe(target);
     }
@@ -3949,9 +3951,13 @@
         }
     }
 
+    function ambientMotionAllowed() {
+        return !document.hidden && !window.matchMedia('(prefers-reduced-motion: reduce)').matches && document.body.dataset.animations !== 'false';
+    }
+
     function scheduleAmbientAnimation() {
         if (!layer || !spriteEl || !petEnabled()) return;
-        if (isModelPet(activePet()) && (document.hidden || window.matchMedia('(prefers-reduced-motion: reduce)').matches || document.body.dataset.animations === 'false')) return;
+        if (!ambientMotionAllowed()) return;
         if (ambientTimer) window.clearTimeout(ambientTimer);
         ambientTimer = window.setTimeout(playAmbientAnimation, randomAmbientDelay());
     }
@@ -3994,6 +4000,11 @@
         const startedAt = Date.now();
         const tick = () => {
             if (!layer) return;
+            if (!ambientMotionAllowed()) {
+                ambientMoveFrame = null;
+                if (typeof done === 'function') done();
+                return;
+            }
             const progress = Math.min(1, (Date.now() - startedAt) / duration);
             const eased = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
             layer.style.left = Math.round(runPlan.startX + runPlan.deltaX * eased) + 'px';
@@ -4015,12 +4026,13 @@
     function playAmbientAnimation() {
         ambientTimer = null;
         if (!layer || !spriteEl || !petEnabled()) return;
+        if (!ambientMotionAllowed()) return;
         if (drag || currentState !== 'idle') {
             scheduleAmbientAnimation();
             return;
         }
         const states = modelPet ? modelAmbientStates : ambientStates;
-        const ambientState = states[Math.floor(Math.random() * states.length)] || 'waving';
+        const ambientState = ambientStep++ % 2 === 0 ? 'running' : states[Math.floor(Math.random() * states.length)] || 'waving';
         if (ambientState === 'running') {
             const runPlan = ambientRunPlan();
             if (!runPlan) {
@@ -4057,6 +4069,8 @@
             loadedPetId = null;
             return;
         }
+        const layoutKey = JSON.stringify([pet.id, pet.subcategory, petScale(), settingValue('pet.position_x'), settingValue('pet.position_y'), petGravity()]);
+        const layoutChanged = !layer || loadedPetLayout !== layoutKey;
         ensureLayer();
         watchDockFloor();
         const url = spritesheetURL(pet);
@@ -4080,6 +4094,13 @@
             spriteEl.removeAttribute('tabindex');
         }
         updateLayerZIndex();
+        if (!layoutChanged) {
+            // Window/bootstrap refreshes must not restart a walk or its countdown.
+            if (!ambientTimer && !ambientReturnTimer && !ambientMoveFrame && currentState === 'idle') scheduleAmbientAnimation();
+            return;
+        }
+        loadedPetLayout = layoutKey;
+        ambientStep = 0;
         clearAmbientTimers();
         clearReactionTimer();
         setSpriteState('idle');
@@ -4546,7 +4567,6 @@
         window.addEventListener('blur', cancelPetDrag);
         const refreshMotion = () => {
             if (document.hidden) cancelPetDrag();
-            if (!isModelPet(activePet())) return;
             const ambientActive = !!ambientReturnTimer || !!ambientMoveFrame;
             clearAmbientTimers();
             if (ambientActive) setSpriteState('idle');

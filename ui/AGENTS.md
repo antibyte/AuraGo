@@ -91,6 +91,12 @@ New app-scoped prefixes must contain no `ad` substring; verify
   A 3D click greets; dragging starts only after pointer movement. Lost capture,
   missing button release, blur and hidden tabs cancel the gesture. Stop drag
   physics before release settling so a late frame cannot restore the hang pose.
+  Ambient actions start after 6–12 idle seconds, with a stroll first and at least
+  every second action. Same-layout Desktop/bootstrap refreshes preserve the
+  countdown, active motion and current position; explicit pet/placement settings
+  still apply. Dock resizing re-seats only the vertical axis. Hidden tabs and
+  reduced/disabled animation stop roaming for sprites and models. Verify
+  `node scripts/test-desktop-pet-motion.mjs` and the native Rexi/Punk checks.
 
 - Synth Studio's optional Strudel workbench uses a locally bundled runtime and
   downloadable source archive under `js/vendor/strudel/`. Its evaluator runs in

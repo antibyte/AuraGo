@@ -192,6 +192,20 @@ try{
     };
     await checkLayering();
     await shot('idle');
+    const roaming = await evaluate(`(async()=>{
+        const layer=document.querySelector('.vd-pet-layer'),start=layer.offsetLeft,random=Math.random;
+        let refreshes=0;Math.random=()=>0;
+        const refresh=setInterval(()=>{PetRuntime.load();refreshes++;},160);
+        try{
+            PetRuntime.setReaction('idle');
+            await until(()=>/^running-/.test(PetRuntime.inspect3D().state)&&Math.abs(layer.offsetLeft-start)>20,'autonomous stroll through desktop refreshes');
+            const before=layer.offsetLeft;
+            await new Promise(r=>setTimeout(r,300));
+            return {refreshes,distance:Math.abs(layer.offsetLeft-start),progress:Math.abs(layer.offsetLeft-before),clip:document.querySelector('canvas').dataset.clip,state:PetRuntime.inspect3D().state};
+        }finally{clearInterval(refresh);Math.random=random;PetRuntime.setReaction('idle');}
+    })()`);
+    assert.ok(roaming.refreshes>10&&roaming.distance>20&&roaming.progress>2,'Desktop refreshes must preserve autonomous walking');
+    assert.match(roaming.state,/^running-/);assert.ok(['walk-female','walk-happy','jog','run-female'].includes(roaming.clip));
     await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:10,y:150});
     await evaluate(`until(()=>PetRuntime.inspect3D().gaze[0]<-.2,'left pointer gaze')`);const left=await evaluate('PetRuntime.inspect3D().gaze[0]');
     await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:1250,y:150});
@@ -295,7 +309,7 @@ try{
     assert.ok(!posters.at(-1).model&&posters.at(-1).image.includes('/files/desktop/Pets/constructor/'));
     assert.deepEqual(errors,[]);
     assert.deepEqual(inputChecks,{clickDoesNotStartDrag:true,captureLoss:true,outsideRelease:true,blur:true,missingRelease:true,loadingHidesSprite:true});
-    console.log(JSON.stringify({passed:true,initial,inputChecks,gazeRange:right-left,checks:['actual skin render','normalized weights','connected anatomical skeleton',humanoid?'30 pinned Mesh2Motion clips':'30 original creature motions','3D and sprite foreground toggles in Standard and Fruity','desktop pet hit testing','pointer gaze without drift','agent reactions','manual gestures','greeting without position jump','pickup and drop','real fall and landing','no landing on grounded refresh or dock width change','speech bubbles','hidden-tab pause and resume','reduced motion','GPU disposal','late-load cancellation','asset failure fallback','context loss fallback']},null,2));
+    console.log(JSON.stringify({passed:true,initial,inputChecks,roaming,gazeRange:right-left,checks:['actual skin render','normalized weights','connected anatomical skeleton',humanoid?'30 pinned Mesh2Motion clips':'30 original creature motions','3D and sprite foreground toggles in Standard and Fruity','desktop pet hit testing','pointer gaze without drift','agent reactions','manual gestures','greeting without position jump','pickup and drop','real fall and landing','no landing on grounded refresh or dock width change','speech bubbles','hidden-tab pause and resume','reduced motion','GPU disposal','late-load cancellation','asset failure fallback','context loss fallback']},null,2));
 }finally{
     socket?.close();
     if(child.exitCode===null){if(process.platform==='win32'){const stop=spawn('taskkill',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});await new Promise(r=>stop.once('exit',r));}else child.kill();}

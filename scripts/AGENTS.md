@@ -53,6 +53,9 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
   Rebuild all eleven active creature packs after their generator changes. The test
   accepts all 27 catalog folders with `--pet=<folder>`; its default
   and the humanoid motion builder's default remain Punk.
+  `node scripts/test-desktop-pet-motion.mjs` checks sprite/model roaming cadence,
+  refresh continuity, explicit settings, motion preferences and teardown with
+  a deterministic clock. The native test also walks through repeated refreshes.
   Hana and Vampir additionally check edge deformation across ninety sampled poses.
   `vampire-pet-motions.mjs` adds the original, hash-bound tentacle layer to the
   vampire's CC0 body clips; its 69-joint model is authored by `vampire_rig.py`.

@@ -209,8 +209,8 @@ func TestDesktopPetRuntimeSchedulesAmbientAnimations(t *testing.T) {
 	} {
 		source := readDesktopAssetText(t, path)
 		for _, marker := range []string{
-			"const AMBIENT_MIN_DELAY_MS = 10000;",
-			"const AMBIENT_MAX_DELAY_MS = 24000;",
+			"const AMBIENT_MIN_DELAY_MS = 6000;",
+			"const AMBIENT_MAX_DELAY_MS = 12000;",
 			"const ambientStates = ['waving', 'jumping', 'running', 'running'];",
 			"let ambientTimer = null;",
 			"let ambientReturnTimer = null;",
