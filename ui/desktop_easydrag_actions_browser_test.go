@@ -231,6 +231,8 @@ func TestEasyDragActionsAgreeBrowser(t *testing.T) {
 	}
 	p.MustElement(`[data-ed-cmd="cancel"]`).MustClick()
 	s.wait(`()=>{const stop=document.querySelector('[data-ed-cmd="cancel"]');return !stop || stop.hidden}`)
+	// The run ended: the window menus follow it without a selection change (Test is available again).
+	s.wait(`()=>window.__acts.menusFresh()`)
 	p.MustEval(`()=>{edFixture.state.delay=140;}`)
 
 	// 4. A past run open: nothing can be changed, and every entry says so.

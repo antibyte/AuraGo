@@ -591,7 +591,7 @@
         bag.add(ed.bus.on('selection', setMenusSoon));
         bag.add(ed.bus.on('palette', () => { renderHeader(); setMenusSoon(); }));
         bag.add(ed.bus.on('issues', renderIssues));
-        bag.add(ed.bus.on('run', () => { renderHeader(); renderLastRun(); }));
+        bag.add(ed.bus.on('run', () => { renderHeader(); renderLastRun(); setMenusSoon(); }));
         bag.add(ed.bus.on('last-run', record => { lastRecord = record; renderLastRun(); }));
         bag.add(ed.bus.on('published', flow => {
             ed.flow = Object.assign(ed.flow, flow);
